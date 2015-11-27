@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2006B025D
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 05:02:16 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so110982345pac.2
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:02:15 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 8si3073559pfj.98.2015.11.27.02.02.15
-        for <linux-mm@kvack.org>;
-        Fri, 27 Nov 2015 02:02:15 -0800 (PST)
-Date: Fri, 27 Nov 2015 10:02:11 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH RFT] arm64: kasan: Make KASAN work with 16K pages + 48
- bit VA
-Message-ID: <20151127100210.GB25781@arm.com>
-References: <1448543686-31869-1-git-send-email-aryabinin@virtuozzo.com>
- <CAKv+Gu_L1shTWp_5KydCW97Z6TbeXEB9gjmb2oUSuCHfC29M9A@mail.gmail.com>
- <5658106C.10207@virtuozzo.com>
- <20151127093529.GX3109@e104818-lin.cambridge.arm.com>
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 101916B0255
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 05:15:01 -0500 (EST)
+Received: by wmec201 with SMTP id c201so52191671wme.1
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:15:00 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id yp10si47274025wjc.138.2015.11.27.02.14.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Nov 2015 02:14:59 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so49579475wmu.0
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:14:59 -0800 (PST)
+Date: Fri, 27 Nov 2015 11:14:56 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
+Message-ID: <20151127101456.GA650@gmail.com>
+References: <20151110170447.GH19187@pd.tnic>
+ <20151111095101.GA22512@pd.tnic>
+ <20151112074854.GA5376@gmail.com>
+ <20151112075758.GA20702@node.shutemov.name>
+ <20151112080059.GA6835@gmail.com>
+ <20151112084616.EABFE19B@black.fi.intel.com>
+ <20151112085418.GA18963@gmail.com>
+ <20151112090018.GA22481@node.shutemov.name>
+ <56547B4F.6030902@oracle.com>
+ <20151124201448.GA8954@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151127093529.GX3109@e104818-lin.cambridge.arm.com>
+In-Reply-To: <20151124201448.GA8954@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, David Keitel <dkeitel@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Borislav Petkov <bp@alien8.de>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, Toshi Kani <toshi.kani@hpe.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Nov 27, 2015 at 09:35:29AM +0000, Catalin Marinas wrote:
-> On Fri, Nov 27, 2015 at 11:12:28AM +0300, Andrey Ryabinin wrote:
-> > On 11/26/2015 07:40 PM, Ard Biesheuvel wrote:
-> > > On 26 November 2015 at 14:14, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> > >> Currently kasan assumes that shadow memory covers one or more entire PGDs.
-> > >> That's not true for 16K pages + 48bit VA space, where PGDIR_SIZE is bigger
-> > >> than the whole shadow memory.
+
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> On Tue, Nov 24, 2015 at 09:59:27AM -0500, Boris Ostrovsky wrote:
+> > On 11/12/2015 04:00 AM, Kirill A. Shutemov wrote:
+> > >On Thu, Nov 12, 2015 at 09:54:18AM +0100, Ingo Molnar wrote:
+> > >>* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 > > >>
-> > >> This patch tries to fix that case.
-> > >> clear_page_tables() is a new replacement of clear_pgs(). Instead of always
-> > >> clearing pgds it clears top level page table entries that entirely belongs
-> > >> to shadow memory.
-> > >> In addition to 'tmp_pg_dir' we now have 'tmp_pud' which is used to store
-> > >> puds that now might be cleared by clear_page_tables.
-> > >>
-> > >> Reported-by: Suzuki K. Poulose <Suzuki.Poulose@arm.com>
-> > >> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> > > 
-> > > I would argue that the Kasan code is complicated enough, and we should
-> > > avoid complicating it even further for a configuration that is highly
-> > > theoretical in nature.
-> > > 
-> > > In a 16k configuration, the 4th level only adds a single bit of VA
-> > > space (which is, as I understand it, exactly the issue you need to
-> > > address here since the top level page table has only 2 entries and
-> > > hence does not divide by 8 cleanly), which means you are better off
-> > > using 3 levels unless you *really* need more than 128 TB of VA space.
-> > > 
-> > > So can't we just live with the limitation, and keep the current code?
+> > >>>diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+> > >>>index c5b7fb2774d0..cc071c6f7d4d 100644
+> > >>>--- a/arch/x86/include/asm/page_types.h
+> > >>>+++ b/arch/x86/include/asm/page_types.h
 > > 
-> > No objections from my side. Let's keep the current code.
+> > 
+> > Kirill, where are we with this patch?
 > 
-> Ard had a good point, so fine by me as well.
+> I haven't seen any actionable objections to the updated patch.
+> Not sure why it's not applied.
 
-Ok, so obvious follow-up question: why do we even support 48-bit + 16k
-pages in the kernel? Either it's useful, and we make things work with it,
-or it's not and we can drop it (or, at least, hide it behind EXPERT like
-we do for 36-bit).
+So I think that happened because you did not change the subject line to a new, 
+fresh one, that indicates it's a patch intended to be applied.
 
-Will
+Patches sent inside existing discussions, under the same subject, tend to be 
+test-only or discussion-only patches, to be submitted for real, in 95% of the 
+cases.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
