@@ -1,81 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B977D6B0038
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 09:11:29 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so116262191pac.3
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 06:11:29 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 85si8604885pfb.19.2015.11.27.06.11.28
-        for <linux-mm@kvack.org>;
-        Fri, 27 Nov 2015 06:11:28 -0800 (PST)
-Date: Fri, 27 Nov 2015 14:11:22 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH RFT] arm64: kasan: Make KASAN work with 16K pages + 48
- bit VA
-Message-ID: <20151127141122.GB25499@e104818-lin.cambridge.arm.com>
-References: <1448543686-31869-1-git-send-email-aryabinin@virtuozzo.com>
- <CAKv+Gu_L1shTWp_5KydCW97Z6TbeXEB9gjmb2oUSuCHfC29M9A@mail.gmail.com>
- <5658106C.10207@virtuozzo.com>
- <20151127093529.GX3109@e104818-lin.cambridge.arm.com>
- <20151127100210.GB25781@arm.com>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B2A6B0038
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 09:40:09 -0500 (EST)
+Received: by wmec201 with SMTP id c201so73150545wme.0
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 06:40:09 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id j84si10936243wma.9.2015.11.27.06.40.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Nov 2015 06:40:08 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so57956156wmu.0
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 06:40:08 -0800 (PST)
+Date: Fri, 27 Nov 2015 16:40:06 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: linux-next: Tree for Nov 27 (mm stuff)
+Message-ID: <20151127144006.GA15674@node.shutemov.name>
+References: <20151127160514.7b2022f2@canb.auug.org.au>
+ <56580097.8050405@infradead.org>
+ <20151127091047.GA585@swordfish>
+ <20151127091739.GB585@swordfish>
+ <20151127101640.GO29014@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151127100210.GB25781@arm.com>
+In-Reply-To: <20151127101640.GO29014@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linus Walleij <linus.walleij@linaro.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Alexey Klimov <klimov.linux@gmail.com>, David Keitel <dkeitel@codeaurora.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-On Fri, Nov 27, 2015 at 10:02:11AM +0000, Will Deacon wrote:
-> On Fri, Nov 27, 2015 at 09:35:29AM +0000, Catalin Marinas wrote:
-> > On Fri, Nov 27, 2015 at 11:12:28AM +0300, Andrey Ryabinin wrote:
-> > > On 11/26/2015 07:40 PM, Ard Biesheuvel wrote:
-> > > > On 26 November 2015 at 14:14, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> > > >> Currently kasan assumes that shadow memory covers one or more entire PGDs.
-> > > >> That's not true for 16K pages + 48bit VA space, where PGDIR_SIZE is bigger
-> > > >> than the whole shadow memory.
-> > > >>
-> > > >> This patch tries to fix that case.
-> > > >> clear_page_tables() is a new replacement of clear_pgs(). Instead of always
-> > > >> clearing pgds it clears top level page table entries that entirely belongs
-> > > >> to shadow memory.
-> > > >> In addition to 'tmp_pg_dir' we now have 'tmp_pud' which is used to store
-> > > >> puds that now might be cleared by clear_page_tables.
-> > > >>
-> > > >> Reported-by: Suzuki K. Poulose <Suzuki.Poulose@arm.com>
-> > > >> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> > > > 
-> > > > I would argue that the Kasan code is complicated enough, and we should
-> > > > avoid complicating it even further for a configuration that is highly
-> > > > theoretical in nature.
-> > > > 
-> > > > In a 16k configuration, the 4th level only adds a single bit of VA
-> > > > space (which is, as I understand it, exactly the issue you need to
-> > > > address here since the top level page table has only 2 entries and
-> > > > hence does not divide by 8 cleanly), which means you are better off
-> > > > using 3 levels unless you *really* need more than 128 TB of VA space.
-> > > > 
-> > > > So can't we just live with the limitation, and keep the current code?
-> > > 
-> > > No objections from my side. Let's keep the current code.
+On Fri, Nov 27, 2015 at 01:16:40PM +0300, Vladimir Davydov wrote:
+> On Fri, Nov 27, 2015 at 06:17:39PM +0900, Sergey Senozhatsky wrote:
+> > Cc Vladimir, Kirill, Andrew
 > > 
-> > Ard had a good point, so fine by me as well.
+> > On (11/27/15 18:10), Sergey Senozhatsky wrote:
+> > > On (11/26/15 23:04), Randy Dunlap wrote:
+> > > > 
+> > > > on i386:
+> > > > 
+> > > > mm/built-in.o: In function `page_referenced_one':
+> > > > rmap.c:(.text+0x362a2): undefined reference to `pmdp_clear_flush_young'
+> > > > mm/built-in.o: In function `page_idle_clear_pte_refs_one':
+> > > > page_idle.c:(.text+0x4b2b8): undefined reference to `pmdp_test_and_clear_young'
+> > > > 
+> > > 
+> > > Hello,
+> > > 
+> > > https://lkml.org/lkml/2015/11/24/160
+> > > 
+> > > corresponding patch mm-add-page_check_address_transhuge-helper-fix.patch added
+> > > to -mm tree.
+> > > 
+> > 
+> > my bad, it's in -next already.
 > 
-> Ok, so obvious follow-up question: why do we even support 48-bit + 16k
-> pages in the kernel? Either it's useful, and we make things work with it,
-> or it's not and we can drop it (or, at least, hide it behind EXPERT like
-> we do for 36-bit).
+> Sigh, this fails for me too :-( Kirill was right that this hack might
+> not always work.
+> 
+> So, we still need to check explicitly if CONFIG_TRANSPARENT_HUGEPAGE is
+> enabled whenever we use page_check_address_transhuge, as Kirill proposed
+> initially. The patch below does the trick. The previous "fix" is still
+> useful though, because it reduces the size of kernels compiled w/o
+> tranparent huge page feature.
+> 
+> Andrew, could you please merge this patch too?
+> 
+> Sorry for all the trouble.
+> 
+> Thanks,
+> Vladimir
+> ---
+> diff --git a/mm/page_idle.c b/mm/page_idle.c
+> index 374931f..aa7ca61 100644
+> --- a/mm/page_idle.c
+> +++ b/mm/page_idle.c
+> @@ -66,7 +66,7 @@ static int page_idle_clear_pte_refs_one(struct page *page,
+>  	if (pte) {
+>  		referenced = ptep_clear_young_notify(vma, addr, pte);
+>  		pte_unmap(pte);
+> -	} else
+> +	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+>  		referenced = pmdp_clear_young_notify(vma, addr, pmd);
 
-One reason is hardware validation (I guess that may be the only reason
-for 16KB in general ;)). For each of the page sizes we support two VA
-ranges: 48-bit (maximum) and a recommended one for the corresponding
-granule. With 16K, the difference is not significant (47 to 48), so we
-could follow Ard's suggestion and make it depend on EXPERT (we already
-do this for 16KB and 36-bit VA).
+I would like to have yet another 'else' with warning just in case, as I
+proposed initially:
+
+https://lkml.kernel.org/g/20151124090930.GB15712@node.shutemov.name
 
 -- 
-Catalin
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
