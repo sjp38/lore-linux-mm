@@ -1,87 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F0616B0038
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 01:01:20 -0500 (EST)
-Received: by ioc74 with SMTP id 74so104020585ioc.2
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 22:01:20 -0800 (PST)
-Received: from mgwkm04.jp.fujitsu.com (mgwkm04.jp.fujitsu.com. [202.219.69.171])
-        by mx.google.com with ESMTPS id y4si8394002igl.99.2015.11.26.22.01.18
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D82FF6B0255
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 01:01:59 -0500 (EST)
+Received: by ioir85 with SMTP id r85so105299399ioi.1
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 22:01:59 -0800 (PST)
+Received: from mgwkm02.jp.fujitsu.com (mgwkm02.jp.fujitsu.com. [202.219.69.169])
+        by mx.google.com with ESMTPS id qh2si8408370igb.104.2015.11.26.22.01.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Nov 2015 22:01:19 -0800 (PST)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 268C4AC0131
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 15:01:15 +0900 (JST)
+        Thu, 26 Nov 2015 22:01:59 -0800 (PST)
+Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id EDE2EAC00C0
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 15:01:52 +0900 (JST)
 From: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Subject: [PATCH v2 0/2] mm: Introduce kernelcore=reliable option
-Date: Sat, 28 Nov 2015 00:03:55 +0900
-Message-Id: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
+Subject: [PATCH v2 1/2] mm: Calculate zone_start_pfn at zone_spanned_pages_in_node()
+Date: Sat, 28 Nov 2015 00:04:47 +0900
+Message-Id: <1448636687-16003-1-git-send-email-izumi.taku@jp.fujitsu.com>
+In-Reply-To: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
+References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, akpm@linux-foundation.org, dave.hansen@intel.com, matt@codeblueprint.co.uk, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-Xeon E7 v3 based systems supports Address Range Mirroring
-and UEFI BIOS complied with UEFI spec 2.5 can notify which
-ranges are reliable (mirrored) via EFI memory map.
-Now Linux kernel utilize its information and allocates
-boot time memory from reliable region.
+Currently each zone's zone_start_pfn is calculated at
+free_area_init_core(). However zone's range is fixed at
+the time when invoking zone_spanned_pages_in_node().
 
-My requirement is:
-  - allocate kernel memory from reliable region
-  - allocate user memory from non-reliable region
+This patch changes each zone->zone_start_pfn is
+calculated at zone_spanned_pages_in_node().
 
-In order to meet my requirement, ZONE_MOVABLE is useful.
-By arranging non-reliable range into ZONE_MOVABLE,
-reliable memory is only used for kernel allocations.
+Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+---
+ mm/page_alloc.c | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
 
-My idea is to extend existing "kernelcore" option and
-introduces kernelcore=reliable option. By specifying
-"reliable" instead of specifying the amount of memory,
-non-reliable region will be arranged into ZONE_MOVABLE.
-
-Earlier discussions are at:
- https://lkml.org/lkml/2015/10/9/24
- https://lkml.org/lkml/2015/10/15/9
-
-For example, suppose 2-nodes system with the following memory
- range:
-  node 0 [mem 0x0000000000001000-0x000000109fffffff]
-  node 1 [mem 0x00000010a0000000-0x000000209fffffff]
-
-and the following ranges are marked as reliable:
-  [0x0000000000000000-0x0000000100000000]
-  [0x0000000100000000-0x0000000180000000]
-  [0x0000000800000000-0x0000000880000000]
-  [0x00000010a0000000-0x0000001120000000]
-  [0x00000017a0000000-0x0000001820000000]
-
-If you specify kernelcore=reliable, ZONE_NORMAL and ZONE_MOVABLE
-are arranged like bellow:
-
- - node 0:
-  ZONE_NORMAL : [0x0000000100000000-0x00000010a0000000]
-  ZONE_MOVABLE: [0x0000000180000000-0x00000010a0000000]
- - node 1:
-  ZONE_NORMAL : [0x00000010a0000000-0x00000020a0000000]
-  ZONE_MOVABLE: [0x0000001120000000-0x00000020a0000000]
-
-In overlapped range, pages to be ZONE_MOVABLE in ZONE_NORMAL
-are treated as absent pages, and vice versa.
-
-v1 -> v2:
- Refine so that the above example case also can be
- handled properly:
-
-
-Taku Izumi (2):
-  mm: Calculate zone_start_pfn at zone_spanned_pages_in_node()
-  mm: Introduce kernelcore=reliable option
-
- Documentation/kernel-parameters.txt |   9 ++-
- mm/page_alloc.c                     | 140 +++++++++++++++++++++++++++++++-----
- 2 files changed, 131 insertions(+), 18 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 17a3c66..acb0b4e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4928,31 +4928,31 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+ 					unsigned long node_start_pfn,
+ 					unsigned long node_end_pfn,
++					unsigned long *zone_start_pfn,
++					unsigned long *zone_end_pfn,
+ 					unsigned long *ignored)
+ {
+-	unsigned long zone_start_pfn, zone_end_pfn;
+-
+ 	/* When hotadd a new node from cpu_up(), the node should be empty */
+ 	if (!node_start_pfn && !node_end_pfn)
+ 		return 0;
+ 
+ 	/* Get the start and end of the zone */
+-	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+-	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
++	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
++	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 				node_start_pfn, node_end_pfn,
+-				&zone_start_pfn, &zone_end_pfn);
++				zone_start_pfn, zone_end_pfn);
+ 
+ 	/* Check that this node has pages within the zone's required range */
+-	if (zone_end_pfn < node_start_pfn || zone_start_pfn > node_end_pfn)
++	if (*zone_end_pfn < node_start_pfn || *zone_start_pfn > node_end_pfn)
+ 		return 0;
+ 
+ 	/* Move the zone boundaries inside the node if necessary */
+-	zone_end_pfn = min(zone_end_pfn, node_end_pfn);
+-	zone_start_pfn = max(zone_start_pfn, node_start_pfn);
++	*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
++	*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
+ 
+ 	/* Return the spanned pages */
+-	return zone_end_pfn - zone_start_pfn;
++	return *zone_end_pfn - *zone_start_pfn;
+ }
+ 
+ /*
+@@ -5017,6 +5017,8 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+ 					unsigned long node_start_pfn,
+ 					unsigned long node_end_pfn,
++					unsigned long *zone_start_pfn,
++					unsigned long *zone_end_pfn,
+ 					unsigned long *zones_size)
+ {
+ 	return zones_size[zone_type];
+@@ -5047,15 +5049,22 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
+ 
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
++		unsigned long zone_start_pfn, zone_end_pfn;
+ 		unsigned long size, real_size;
+ 
+ 		size = zone_spanned_pages_in_node(pgdat->node_id, i,
+ 						  node_start_pfn,
+ 						  node_end_pfn,
++						  &zone_start_pfn,
++						  &zone_end_pfn,
+ 						  zones_size);
+ 		real_size = size - zone_absent_pages_in_node(pgdat->node_id, i,
+ 						  node_start_pfn, node_end_pfn,
+ 						  zholes_size);
++		if (size)
++			zone->zone_start_pfn = zone_start_pfn;
++		else
++			zone->zone_start_pfn = 0;
+ 		zone->spanned_pages = size;
+ 		zone->present_pages = real_size;
+ 
+@@ -5176,7 +5185,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ {
+ 	enum zone_type j;
+ 	int nid = pgdat->node_id;
+-	unsigned long zone_start_pfn = pgdat->node_start_pfn;
+ 	int ret;
+ 
+ 	pgdat_resize_init(pgdat);
+@@ -5192,6 +5200,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, freesize, memmap_pages;
++		unsigned long zone_start_pfn = zone->zone_start_pfn;
+ 
+ 		size = zone->spanned_pages;
+ 		realsize = freesize = zone->present_pages;
+@@ -5260,7 +5269,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		BUG_ON(ret);
+ 		memmap_init(size, nid, j, zone_start_pfn);
+-		zone_start_pfn += size;
+ 	}
+ }
+ 
 -- 
 1.8.3.1
 
