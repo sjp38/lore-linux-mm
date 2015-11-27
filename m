@@ -1,68 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 101916B0255
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 05:15:01 -0500 (EST)
-Received: by wmec201 with SMTP id c201so52191671wme.1
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:15:00 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id yp10si47274025wjc.138.2015.11.27.02.14.59
+Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 80CC76B0255
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 05:16:57 -0500 (EST)
+Received: by lfs39 with SMTP id 39so121448144lfs.3
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:16:56 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id p70si21039524lfd.147.2015.11.27.02.16.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Nov 2015 02:14:59 -0800 (PST)
-Received: by wmuu63 with SMTP id u63so49579475wmu.0
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 02:14:59 -0800 (PST)
-Date: Fri, 27 Nov 2015 11:14:56 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
-Message-ID: <20151127101456.GA650@gmail.com>
-References: <20151110170447.GH19187@pd.tnic>
- <20151111095101.GA22512@pd.tnic>
- <20151112074854.GA5376@gmail.com>
- <20151112075758.GA20702@node.shutemov.name>
- <20151112080059.GA6835@gmail.com>
- <20151112084616.EABFE19B@black.fi.intel.com>
- <20151112085418.GA18963@gmail.com>
- <20151112090018.GA22481@node.shutemov.name>
- <56547B4F.6030902@oracle.com>
- <20151124201448.GA8954@node.shutemov.name>
+        Fri, 27 Nov 2015 02:16:56 -0800 (PST)
+Date: Fri, 27 Nov 2015 13:16:40 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: linux-next: Tree for Nov 27 (mm stuff)
+Message-ID: <20151127101640.GO29014@esperanza>
+References: <20151127160514.7b2022f2@canb.auug.org.au>
+ <56580097.8050405@infradead.org>
+ <20151127091047.GA585@swordfish>
+ <20151127091739.GB585@swordfish>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151124201448.GA8954@node.shutemov.name>
+In-Reply-To: <20151127091739.GB585@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Borislav Petkov <bp@alien8.de>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, Toshi Kani <toshi.kani@hpe.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
-
-> On Tue, Nov 24, 2015 at 09:59:27AM -0500, Boris Ostrovsky wrote:
-> > On 11/12/2015 04:00 AM, Kirill A. Shutemov wrote:
-> > >On Thu, Nov 12, 2015 at 09:54:18AM +0100, Ingo Molnar wrote:
-> > >>* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> > >>
-> > >>>diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-> > >>>index c5b7fb2774d0..cc071c6f7d4d 100644
-> > >>>--- a/arch/x86/include/asm/page_types.h
-> > >>>+++ b/arch/x86/include/asm/page_types.h
-> > 
-> > 
-> > Kirill, where are we with this patch?
+On Fri, Nov 27, 2015 at 06:17:39PM +0900, Sergey Senozhatsky wrote:
+> Cc Vladimir, Kirill, Andrew
 > 
-> I haven't seen any actionable objections to the updated patch.
-> Not sure why it's not applied.
+> On (11/27/15 18:10), Sergey Senozhatsky wrote:
+> > On (11/26/15 23:04), Randy Dunlap wrote:
+> > > 
+> > > on i386:
+> > > 
+> > > mm/built-in.o: In function `page_referenced_one':
+> > > rmap.c:(.text+0x362a2): undefined reference to `pmdp_clear_flush_young'
+> > > mm/built-in.o: In function `page_idle_clear_pte_refs_one':
+> > > page_idle.c:(.text+0x4b2b8): undefined reference to `pmdp_test_and_clear_young'
+> > > 
+> > 
+> > Hello,
+> > 
+> > https://lkml.org/lkml/2015/11/24/160
+> > 
+> > corresponding patch mm-add-page_check_address_transhuge-helper-fix.patch added
+> > to -mm tree.
+> > 
+> 
+> my bad, it's in -next already.
 
-So I think that happened because you did not change the subject line to a new, 
-fresh one, that indicates it's a patch intended to be applied.
+Sigh, this fails for me too :-( Kirill was right that this hack might
+not always work.
 
-Patches sent inside existing discussions, under the same subject, tend to be 
-test-only or discussion-only patches, to be submitted for real, in 95% of the 
-cases.
+So, we still need to check explicitly if CONFIG_TRANSPARENT_HUGEPAGE is
+enabled whenever we use page_check_address_transhuge, as Kirill proposed
+initially. The patch below does the trick. The previous "fix" is still
+useful though, because it reduces the size of kernels compiled w/o
+tranparent huge page feature.
+
+Andrew, could you please merge this patch too?
+
+Sorry for all the trouble.
 
 Thanks,
-
-	Ingo
+Vladimir
+---
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index 374931f..aa7ca61 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -66,7 +66,7 @@ static int page_idle_clear_pte_refs_one(struct page *page,
+ 	if (pte) {
+ 		referenced = ptep_clear_young_notify(vma, addr, pte);
+ 		pte_unmap(pte);
+-	} else
++	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+ 		referenced = pmdp_clear_young_notify(vma, addr, pmd);
+ 
+ 	spin_unlock(ptl);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 6f37126..3286d49 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -931,7 +931,7 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 				referenced++;
+ 		}
+ 		pte_unmap(pte);
+-	} else {
++	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+ 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
+ 			referenced++;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
