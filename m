@@ -1,99 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D3D686B0038
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 11:39:06 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so61573572wmu.0
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 08:39:06 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8DD5C6B0038
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 11:40:44 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so77787986wmv.1
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 08:40:44 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fa15si49331062wjc.132.2015.11.27.08.39.05
+        by mx.google.com with ESMTPS id t7si11513177wmf.42.2015.11.27.08.40.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 27 Nov 2015 08:39:05 -0800 (PST)
-Date: Fri, 27 Nov 2015 16:39:00 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH -v2] mm, oom: introduce oom reaper
-Message-ID: <20151127163900.GY19677@suse.de>
-References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
- <1448640772-30147-1-git-send-email-mhocko@kernel.org>
+        Fri, 27 Nov 2015 08:40:43 -0800 (PST)
+Subject: Re: [PATCH] mm: Allow GFP_IOFS for page_cache_read page cache
+ allocation
+References: <1447251233-14449-1-git-send-email-mhocko@kernel.org>
+ <20151112095301.GA25265@quack.suse.cz> <20151126150820.GI7953@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56588789.1010300@suse.cz>
+Date: Fri, 27 Nov 2015 17:40:41 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1448640772-30147-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20151126150820.GI7953@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Mark Fasheh <mfasheh@suse.com>, ocfs2-devel@oss.oracle.com, ceph-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 27, 2015 at 05:12:52PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> This is based on the idea from Mel Gorman discussed during LSFMM 2015 and
-> independently brought up by Oleg Nesterov.
-> 
-> <SNIP>
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 11/26/2015 04:08 PM, Michal Hocko wrote:
+> On Thu 12-11-15 10:53:01, Jan Kara wrote:
+>> On Wed 11-11-15 15:13:53, mhocko@kernel.org wrote:
+>>>
+>>> Hi,
+>>> this has been posted previously as a part of larger GFP_NOFS related
+>>> patch set (http://lkml.kernel.org/r/1438768284-30927-1-git-send-email-mhocko%40kernel.org)
+>>> but I think it makes sense to discuss it even out of that scope.
+>>>
+>>> I would like to hear FS and other MM people about the proposed interface.
+>>> Using mapping_gfp_mask blindly doesn't sound good to me and vm_fault
+>>> looks like a proper channel to communicate between MM and FS layers.
+>>>
+>>> Comments? Are there any better ideas?
+>>
+>> Makes sense to me and the filesystems I know should be fine with this
+>> (famous last words ;). Feel free to add:
+>>
+>> Acked-by: Jan Kara <jack@suse.com>
+>
+> Thanks a lot! Are there any objections from other fs/mm people?
 
-Other than a few small issues below, I didn't spot anything out of the
-ordinary so
+Please replace "GFP_IOFS" in the subject, as the "flag" has been removed 
+recently. Otherwise
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-
-> +	tlb_gather_mmu(&tlb, mm, 0, -1);
-> +	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-> +		if (is_vm_hugetlb_page(vma))
-> +			continue;
-> +
-> +		/*
-> +		 * Only anonymous pages have a good chance to be dropped
-> +		 * without additional steps which we cannot afford as we
-> +		 * are OOM already.
-> +		 */
-> +		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
-> +			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
-> +					 &details);
-> +	}
-
-Care to add a comment why clean file pages should not be discarded? I'm
-assuming it's because you assume they were discarded already by normal
-reclaim before OOM. There is a slightly possibility they are been kept
-alive because the OOM victim is constantly referencing them so they get
-activated or that there might be additional work to discard buffers but
-I'm not 100% sure that's your logic.
-
-> @@ -421,6 +528,7 @@ void mark_oom_victim(struct task_struct *tsk)
->  	/* OOM killer might race with memcg OOM */
->  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
->  		return;
-> +
->  	/*
->  	 * Make sure that the task is woken up from uninterruptible sleep
->  	 * if it is frozen because OOM killer wouldn't be able to free
-
-Unnecessary whitespace change.
-
-> @@ -607,15 +716,23 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  			continue;
->  		if (same_thread_group(p, victim))
->  			continue;
-> -		if (unlikely(p->flags & PF_KTHREAD))
-> -			continue;
-> -		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +		if (unlikely(p->flags & PF_KTHREAD) ||
-> +		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> +			/*
-> +			 * We cannot usee oom_reaper for the mm shared by this process
-> +			 * because it wouldn't get killed and so the memory might be
-> +			 * still used.
-> +			 */
-> +			can_oom_reap = false;
->  			continue;
-
-s/usee/use/
-
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
