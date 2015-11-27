@@ -1,134 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CDA6B0255
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 03:20:14 -0500 (EST)
-Received: by wmec201 with SMTP id c201so59348175wme.0
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 00:20:13 -0800 (PST)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id hp9si46814051wjb.144.2015.11.27.00.20.13
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 445476B0255
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 03:36:32 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so46395470wmu.0
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 00:36:31 -0800 (PST)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id b127si9051825wmh.67.2015.11.27.00.36.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Nov 2015 00:20:13 -0800 (PST)
-Received: by wmec201 with SMTP id c201so48418419wme.1
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 00:20:12 -0800 (PST)
-Date: Fri, 27 Nov 2015 09:20:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 4.3+: Atheros ethernet fails after resume from s2ram, due to
- order 4 allocation
-Message-ID: <20151127082010.GA2500@dhcp22.suse.cz>
-References: <20151126163413.GA3816@amd>
+        Fri, 27 Nov 2015 00:36:31 -0800 (PST)
+Received: by wmww144 with SMTP id w144so48875309wmw.0
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 00:36:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151126163413.GA3816@amd>
+In-Reply-To: <56561C71.30602@android.com>
+References: <1447888808-31571-1-git-send-email-dcashman@android.com>
+	<1447888808-31571-2-git-send-email-dcashman@android.com>
+	<1447888808-31571-3-git-send-email-dcashman@android.com>
+	<1447888808-31571-4-git-send-email-dcashman@android.com>
+	<20151123150459.GD4236@arm.com>
+	<56536114.1020305@android.com>
+	<20151125120601.GC3109@e104818-lin.cambridge.arm.com>
+	<56561C71.30602@android.com>
+Date: Fri, 27 Nov 2015 11:36:30 +0300
+Message-ID: <CAPAsAGyJr5OD+_4TO9dt2EwOGUGewEy4bAmhFhDbP3RJ+6QxaA@mail.gmail.com>
+Subject: Re: [PATCH v3 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: Daniel Cashman <dcashman@android.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, dcashman@google.com, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, mingo <mingo@kernel.org>, aarcange@redhat.com, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, xypron.glpk@gmx.de, "x86@kernel.org" <x86@kernel.org>, hecmargi@upv.es, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Borislav Petkov <bp@suse.de>, nnk@google.com, dzickus@redhat.com, Kees Cook <keescook@chromium.org>, jpoimboe@redhat.com, Thomas Gleixner <tglx@linutronix.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-arm-kernel@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, salyzyn@android.com, "Eric W. Biederman" <ebiederm@xmission.com>, jeffv@google.com, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu 26-11-15 17:34:13, Pavel Machek wrote:
-> Hi!
-> 
-> ...and dmesg tells us what is going on:
-> 
-> [ 6961.550240] NetworkManager: page allocation failure: order:4,
-> mode:0x2080020
+2015-11-25 23:39 GMT+03:00 Daniel Cashman <dcashman@android.com>:
+> On 11/25/2015 04:06 AM, Catalin Marinas wrote:
+>> On Mon, Nov 23, 2015 at 10:55:16AM -0800, Daniel Cashman wrote:
+>>> On 11/23/2015 07:04 AM, Will Deacon wrote:
+>>>> On Wed, Nov 18, 2015 at 03:20:07PM -0800, Daniel Cashman wrote:
+>>>>> +config ARCH_MMAP_RND_BITS_MAX
+>>>>> +       default 20 if ARM64_64K_PAGES && ARCH_VA_BITS=39
+>>
+>> Where is ARCH_VA_BITS defined? We only have options like
+>> ARM64_VA_BITS_39.
+>>
+>> BTW, we no longer allow the 64K pages and 39-bit VA combination.
+>
+> It is not, and should have been ARM64_VA_BITS.  This stanza was meant to
+> mimic the one for ARM64_VA_BITS.  Thank you for pointing this, and the
+> 39-bit combination out.
+>
+>>>>> +       default 24 if ARCH_VA_BITS=39
+>>>>> +       default 23 if ARM64_64K_PAGES && ARCH_VA_BITS=42
+>>>>> +       default 27 if ARCH_VA_BITS=42
+>>>>> +       default 29 if ARM64_64K_PAGES && ARCH_VA_BITS=48
+>>>>> +       default 33 if ARCH_VA_BITS=48
+>>>>> +       default 15 if ARM64_64K_PAGES
+>>>>> +       default 19
+>>>>> +
+>>>>> +config ARCH_MMAP_RND_COMPAT_BITS_MIN
+>>>>> +       default 7 if ARM64_64K_PAGES
+>>>>> +       default 11
+>>>>
+>>>> FYI: we now support 16k pages too, so this might need updating. It would
+>>>> be much nicer if this was somehow computed rather than have the results
+>>>> all open-coded like this.
+>>>
+>>> Yes, I ideally wanted this to be calculated based on the different page
+>>> options and VA_BITS (which itself has a similar stanza), but I don't
+>>> know how to do that/if it is currently supported in Kconfig. This would
+>>> be even more desirable with the addition of 16K_PAGES, as with this
+>>> setup we have a combinatorial problem.
+>>
+>> For KASan, we ended up calculating KASAN_SHADOW_OFFSET in
+>> arch/arm64/Makefile. What would the formula be for the above
+>> ARCH_MMAP_RND_BITS_MAX?
+>
+> The general formula I used ended up being:
+> _max = floor(log(TASK_SIZE)) - log(PAGE_SIZE) - 3
+>
 
-This is GFP_ATOMIC|___GFP_RECLAIMABLE high order request. So something
-that the caller should tollerate to fail.
+For kasan, we calculate KASAN_SHADOW_OFFSET in Makefile, because we need to use
+that value in Makefiles.
 
-> [ 6961.550249] CPU: 0 PID: 2590 Comm: NetworkManager Tainted: G
-> W       4.3.0+ #124
-> [ 6961.550250] Hardware name: Acer Aspire 5732Z/Aspire 5732Z, BIOS
-> V3.07 02/10/2010
-> [ 6961.550252]  00000000 00000000 f2ad1a04 c42ba5b8 00000000 f2ad1a2c
-> c40d650a c4d3ee1c
-> [ 6961.550260]  f34ef600 00000004 02080020 c4eeef40 00000000 00000010
-> 00000000 f2ad1ac8
-> [ 6961.550266]  c40d8caa 02080020 00000004 00000000 00000070 f34ef200
-> 00000060 00000010
-> [ 6961.550272] Call Trace:
-> ...[ 6961.550299]  [<c4006811>] dma_generic_alloc_coherent+0x71/0x120
-> [ 6961.550301]  [<c40067a0>] ? via_no_dac+0x30/0x30
-> [ 6961.550307]  [<c465b16e>] atl1c_open+0x29e/0x300
-> [ 6961.550313]  [<c48b96f5>] ? call_netdevice_notifiers_info+0x25/0x50
-> [ 6961.550316]  [<c48c081b>] __dev_open+0x7b/0xf0
-> [ 6961.550318]  [<c48c0ac9>] __dev_change_flags+0x89/0x140
-> [ 6961.550320]  [<c48c0ba3>] dev_change_flags+0x23/0x60
-> [ 6961.550325]  [<c48ce416>] do_setlink+0x286/0x7b0
-> [ 6961.550328]  [<c42ded02>] ? nla_parse+0x22/0xd0
-> [ 6961.550330]  [<c48cf906>] rtnl_newlink+0x5d6/0x860
-> [ 6961.550336]  [<c407f8a1>] ? __lock_acquire.isra.24+0x3a1/0xc80
-> [ 6961.550342]  [<c4047ae2>] ? ns_capable+0x22/0x60
-> [ 6961.550345]  [<c48e7c5d>] ? __netlink_ns_capable+0x2d/0x40
-> [ 6961.550351]  [<c49c9c54>] ? xprt_transmit+0x94/0x220
-> [ 6961.550354]  [<c48cd9e6>] rtnetlink_rcv_msg+0x76/0x1f0
-> [ 6961.550356]  [<c48cd970>] ? rtnetlink_rcv+0x30/0x30
-> [ 6961.550359]  [<c48eb35e>] netlink_rcv_skb+0x8e/0xb0
-> ...
-> [ 6961.550412] Mem-Info:
-> [ 6961.550417] active_anon:30319 inactive_anon:25075 isolated_anon:0
->  active_file:327764 inactive_file:152179 isolated_file:16
->   unevictable:0 dirty:6 writeback:0 unstable:0
->    slab_reclaimable:149091 slab_unreclaimable:18973
->     mapped:18100 shmem:4847 pagetables:1538 bounce:0
->      free:57732 free_pcp:10 free_cma:0
-> ...
-> [ 6961.550492] 485897 total pagecache pages
-> [ 6961.550494] 1086 pages in swap cache
-> [ 6961.550496] Swap cache stats: add 16738, delete 15652, find
-> 6708/8500
-> [ 6961.550497] Free swap  = 1656440kB
-> [ 6961.550498] Total swap = 1681428kB
-> [ 6961.550499] 785914 pages RAM
-> [ 6961.550500] 557663 pages HighMem/MovableOnly
-> [ 6961.550501] 12639 pages reserved
-> [ 6961.550506] atl1c 0000:05:00.0: pci_alloc_consistend failed
-> [ 6962.148358] psmouse serio1: synaptics: queried max coordinates: x
-> [..5772], y [..5086]
-> 
-> Order 4 allocation... probably doable during boot, but not really
-> suitable during resume.
-> 
-> I'm not sure how repeatable it is, but it definitely happened more
-> than once.
-> 
->         /*                                                                      
->          * real ring DMA buffer                                                 
->          * each ring/block may need up to 8 bytes for alignment, hence the      
->          * additional bytes tacked onto the end.                                
->          */
->         ring_header->size = size =
->                 sizeof(struct atl1c_tpd_desc) * tpd_ring->count * 2 +
->                 sizeof(struct atl1c_rx_free_desc) * rx_desc_count +
->                 sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
->                 8 * 4;
-> 
->         ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
->                                 &ring_header->dma);
+For ARCH_MMAP_RND_COMPAT_BITS_MIN/MAX I don't see a reason why it has
+to be in Kconfig.
+Can't we just use your formula to #define ARCH_MMAP_RND_COMPAT_BITS_*
+in some arch header?
 
-Why is pci_alloc_consistent doing an unconditional GFP_ATOMIC
-allocation? atl1_setup_ring_resources already does GFP_KERNEL
-allocation in the same function so this should be sleepable
-context. I think we should either add pci_alloc_consistent_gfp if
-there are no explicit reasons to not do so or you can workaround
-that by opencoding it and using dma_alloc_coherent directly with
-GFP_KERNEL|__GFP_REPEAT. This doesn't guarantee a success though
-because this is > PAGE_ALLOC_COSTLY_ORDER but it would increase chances
-considerably. Also a vmalloc fallback can be used then more safely.
-
->         if (unlikely(!ring_header->desc)) {
->                 dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
->                 goto err_nomem;
->         }
-> 
-> (Note the typo in dev_err... at least it is easy to grep).
-> 
-> Ok, so what went on is easy.. any ideas how to fix it?
-
--- 
-Michal Hocko
-SUSE Labs
+> which in the case of arm64 ended up being VA_BITS - PAGE_SHIFT - 3.
+> Aside: following this would actually put COMPAT_BITS_MAX at 17 for 4k
+> pages, rather than 16, but I left it at 16 to mirror what was put in
+> arch/arm/Kconfig.
+>
+>
+> Thank You,
+> Dan
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
