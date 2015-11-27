@@ -1,70 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9C36B0038
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 12:05:25 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so78620845wmv.1
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 09:05:25 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id 14si11688642wmq.78.2015.11.27.09.05.24
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C17226B0038
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2015 16:21:58 -0500 (EST)
+Received: by wmec201 with SMTP id c201so71307458wme.1
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 13:21:58 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id t15si50759700wju.169.2015.11.27.13.21.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Nov 2015 09:05:24 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so78620269wmv.1
-        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 09:05:24 -0800 (PST)
-Date: Fri, 27 Nov 2015 18:05:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Allow GFP_IOFS for page_cache_read page cache
- allocation
-Message-ID: <20151127170522.GL2493@dhcp22.suse.cz>
-References: <1447251233-14449-1-git-send-email-mhocko@kernel.org>
- <20151112095301.GA25265@quack.suse.cz>
- <20151126150820.GI7953@dhcp22.suse.cz>
- <56588789.1010300@suse.cz>
+        Fri, 27 Nov 2015 13:21:57 -0800 (PST)
+Received: by wmec201 with SMTP id c201so71307229wme.1
+        for <linux-mm@kvack.org>; Fri, 27 Nov 2015 13:21:57 -0800 (PST)
+Date: Fri, 27 Nov 2015 21:21:55 +0000
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCH v3 13/13] ARM: add UEFI stub support
+Message-ID: <20151127212155.GC13918@codeblueprint.co.uk>
+References: <1448269593-20758-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1448269593-20758-14-git-send-email-ard.biesheuvel@linaro.org>
+ <20151126104711.GH2765@codeblueprint.co.uk>
+ <CAKv+Gu_RC5qG=BGPSEf=j7AV4SbjXELjBxmcboj1oVs-Dn87qw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56588789.1010300@suse.cz>
+In-Reply-To: <CAKv+Gu_RC5qG=BGPSEf=j7AV4SbjXELjBxmcboj1oVs-Dn87qw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Mark Fasheh <mfasheh@suse.com>, ocfs2-devel@oss.oracle.com, ceph-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Leif Lindholm <leif.lindholm@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>
 
-On Fri 27-11-15 17:40:41, Vlastimil Babka wrote:
-> On 11/26/2015 04:08 PM, Michal Hocko wrote:
-> >On Thu 12-11-15 10:53:01, Jan Kara wrote:
-> >>On Wed 11-11-15 15:13:53, mhocko@kernel.org wrote:
-> >>>
-> >>>Hi,
-> >>>this has been posted previously as a part of larger GFP_NOFS related
-> >>>patch set (http://lkml.kernel.org/r/1438768284-30927-1-git-send-email-mhocko%40kernel.org)
-> >>>but I think it makes sense to discuss it even out of that scope.
-> >>>
-> >>>I would like to hear FS and other MM people about the proposed interface.
-> >>>Using mapping_gfp_mask blindly doesn't sound good to me and vm_fault
-> >>>looks like a proper channel to communicate between MM and FS layers.
-> >>>
-> >>>Comments? Are there any better ideas?
-> >>
-> >>Makes sense to me and the filesystems I know should be fine with this
-> >>(famous last words ;). Feel free to add:
-> >>
-> >>Acked-by: Jan Kara <jack@suse.com>
-> >
-> >Thanks a lot! Are there any objections from other fs/mm people?
+On Fri, 27 Nov, at 10:38:05AM, Ard Biesheuvel wrote:
 > 
-> Please replace "GFP_IOFS" in the subject, as the "flag" has been removed
-> recently. Otherwise
+> Actually, it is the reservation done a bit earlier that could
+> potentially end up at 0x0, and the [compressed] kernel is always at
+> least 32 MB up in memory, so that it can be decompressed as close to
+> the base of DRAM as possible.
+> 
+> As far as I can tell, efi_free() deals correctly with allocations at
+> address 0x0, and that is the only dealing we have with the
+> reservation. So I don't think there is an issue here.
 
-Done.
-mm: Allow GFP_{FS,IO} for page_cache_read page cache allocation
-
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks
-
--- 
-Michal Hocko
-SUSE Labs
+OK, great.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
