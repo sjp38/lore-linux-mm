@@ -1,79 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f52.google.com (mail-lf0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C0A316B0255
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 10:18:50 -0500 (EST)
-Received: by lfaz4 with SMTP id z4so201105168lfa.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:18:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v142si29114193lfd.153.2015.11.30.07.18.49
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B7996B0257
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 10:26:59 -0500 (EST)
+Received: by wmec201 with SMTP id c201so143272436wme.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:26:59 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id d10si29437884wmc.121.2015.11.30.07.26.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 30 Nov 2015 07:18:49 -0800 (PST)
-Subject: Re: mm: BUG in __munlock_pagevec
-References: <565C5C38.3040705@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <565C68D3.7000001@suse.cz>
-Date: Mon, 30 Nov 2015 16:18:43 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Nov 2015 07:26:58 -0800 (PST)
+Date: Mon, 30 Nov 2015 10:26:38 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 12/13] mm: memcontrol: account socket memory in unified
+ hierarchy memory controller
+Message-ID: <20151130152638.GA30243@cmpxchg.org>
+References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
+ <20151124215844.GA1373@cmpxchg.org>
+ <20151130105421.GA24704@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <565C5C38.3040705@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151130105421.GA24704@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 11/30/2015 03:24 PM, Sasha Levin wrote:
-> Hi all,
+On Mon, Nov 30, 2015 at 01:54:21PM +0300, Vladimir Davydov wrote:
+> On Tue, Nov 24, 2015 at 04:58:44PM -0500, Johannes Weiner wrote:
+> ...
+> > @@ -5520,15 +5557,30 @@ void sock_release_memcg(struct sock *sk)
+> >   */
+> >  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+> >  {
+> > -	struct page_counter *counter;
+> > +	gfp_t gfp_mask = GFP_KERNEL;
+> >  
+> > -	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
+> > -				    nr_pages, &counter)) {
+> > -		memcg->tcp_mem.memory_pressure = 0;
+> > -		return true;
+> > +#ifdef CONFIG_MEMCG_KMEM
+> > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
+> > +		struct page_counter *counter;
+> > +
+> > +		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
+> > +					    nr_pages, &counter)) {
+> > +			memcg->tcp_mem.memory_pressure = 0;
+> > +			return true;
+> > +		}
+> > +		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> > +		memcg->tcp_mem.memory_pressure = 1;
+> > +		return false;
+> >  	}
+> > -	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> > -	memcg->tcp_mem.memory_pressure = 1;
+> > +#endif
+> > +	/* Don't block in the packet receive path */
+> > +	if (in_softirq())
+> > +		gfp_mask = GFP_NOWAIT;
+> > +
+> > +	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
+> > +		return true;
+> > +
+> > +	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
 > 
-> I've hit the following while fuzzing with trinity on the latest -next kernel:
+> We won't trigger high reclaim if we get here, because try_charge does
+> not check high threshold if failing or forcing charge. I think this
+> should be fixed regardless of this patch. The fix is attached below.
+
+We kind of assume that max is either set above high, or not at
+all. That means when max is hit the high limit has already failed and
+it's of limited use to schedule background reclaim.
+
+> Also, I don't like calling try_charge twice: the second time will go
+> through all the try_charge steps for nothing. What about checking
+> page_counter value after calling try_charge instead:
 > 
+> 	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
+> 	return page_counter_read(&memcg->memory) <= memcg->memory.limit;
 > 
-> [  850.305385] page:ffffea001a5a0f00 count:0 mapcount:1 mapping:dead000000000400 index:0x1ffffffffff
-> [  850.306773] flags: 0x2fffff80000000()
-> [  850.307175] page dumped because: VM_BUG_ON_PAGE(1 && PageTail(page))
-> [  850.308027] page_owner info is not active (free page?)
-> [  850.308925] ------------[ cut here ]------------
-> [  850.309614] kernel BUG at include/linux/page-flags.h:326!
-> [  850.310333] invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-> [  850.311176] Modules linked in:
-> [  850.311650] CPU: 5 PID: 7051 Comm: trinity-c129 Not tainted 4.4.0-rc2-next-20151127-sasha-00012-gf0498ca-dirty #2661
-> [  850.313115] task: ffff8806eaf08000 ti: ffff8806b1170000 task.ti: ffff8806b1170000
-> [  850.314085] RIP: __munlock_pagevec (include/linux/page-flags.h:326 mm/mlock.c:296)
+> or adding an out parameter to try_charge that would inform us if charge
+> was forced?
 
-That's TestClearPageMlocked(page) which has PF_NO_TAIL.
+That's a complete cold path where we are going to drop the packet in
+all but a few cases. It's not worth the trouble.
 
-The page dump suggests the page was freed between the check triggering,
-and the page being dumped. But being on munlock's pagevec should pin the
-page. So a pin/unpin mismatch somewhere, together with a race?
+> > @@ -5539,10 +5591,32 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+> >   */
+> >  void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+> >  {
+> > -	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> > +#ifdef CONFIG_MEMCG_KMEM
+> > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
+> > +		page_counter_uncharge(&memcg->tcp_mem.memory_allocated,
+> > +				      nr_pages);
+> > +		return;
+> > +	}
+> > +#endif
+> > +	page_counter_uncharge(&memcg->memory, nr_pages);
+> > +	css_put_many(&memcg->css, nr_pages);
+> 
+> cancel_charge(memcg, nr_pages);
 
-Moreover, a PageTail(page) shouldn't even get on the pagevec,
-munlock_vma_pages_range() skips tail pages. So another race that made
-the page a Tail after it was added to pagevec?
+It does the same, but it's a weird name for regular uncharging.
 
-Or maybe __munlock_pagevec_fill() encountered a tail page, and since it
-assumes that it can't happen, there's no check. Maybe a VM_BUG_ON_PAGE()
-there would catch this earlier? Could be related to "thp: allow mlocked
-THP again".
+> From: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Subject: [PATCH] memcg: check high threshold if forcing allocation
+> 
+> try_charge() does not result in checking high threshold if it forces
+> charge. This is incorrect, because we could have failed to reclaim
+> memory due to the current context, so we do need to check high threshold
+> and try to compensate for the excess once we are in the safe context.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 79a29d564bff..e922965b572b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2112,13 +2112,14 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  		page_counter_charge(&memcg->memsw, nr_pages);
+>  	css_get_many(&memcg->css, nr_pages);
+>  
+> -	return 0;
+> +	goto check_high;
+>  
+>  done_restock:
+>  	css_get_many(&memcg->css, batch);
+>  	if (batch > nr_pages)
+>  		refill_stock(memcg, batch - nr_pages);
+>  
+> +check_high:
+>  	/*
+>  	 * If the hierarchy is above the normal consumption range, schedule
+>  	 * reclaim on returning to userland.  We can perform reclaim here
 
-Ah, __munlock_pagevec_fill() does a get_page(), which would increase
-page->count on the compound head, which could also explain the mismatch.
-
-------8<------
-diff --git a/mm/mlock.c b/mm/mlock.c
-index af421d8bd6da..156d2840aa62 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -393,7 +393,9 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
- 		if (!page || page_zone_id(page) != zoneid)
- 			break;
- 
-+		VM_BUG_ON_PAGE(PageTail(page), page);
- 		get_page(page);
-+
- 		/*
- 		 * Increase the address that will be returned *before* the
- 		 * eventual break due to pvec becoming full by adding the page
+One problem is that OOM victims force their charges so they can exit
+quickly. It'd be contradictory to then task them with high reclaim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
