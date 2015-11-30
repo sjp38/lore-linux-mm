@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B82EA6B0262
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:47 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so174826882pad.1
-        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:47 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id sp7si11953842pac.230.2015.11.29.22.39.30
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A9B026B0263
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:49 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so174827751pad.1
+        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:49 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id l63si1850933pfb.126.2015.11.29.22.39.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Sun, 29 Nov 2015 22:39:31 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 11/12] arm64: add pmd_mkclean for THP
-Date: Mon, 30 Nov 2015 15:39:42 +0900
-Message-Id: <1448865583-2446-12-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 09/12] powerpc: add pmd_[dirty|mkclean] for THP
+Date: Mon, 30 Nov 2015 15:39:40 +0900
+Message-Id: <1448865583-2446-10-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448865583-2446-1-git-send-email-minchan@kernel.org>
 References: <1448865583-2446-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -23,25 +23,31 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpa
 MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent overwrite
 of the contents since MADV_FREE syscall is called for THP page.
 
-This patch adds pmd_mkclean for THP page MADV_FREE support.
+This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+support.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/arm64/include/asm/pgtable.h | 1 +
- 1 file changed, 1 insertion(+)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index d2a1879b466b..fab3ddb30df7 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -340,6 +340,7 @@ static inline pgprot_t mk_sect_prot(pgprot_t prot)
- #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 0db2a3f8e554..21d961bbac0e 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -502,9 +502,11 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
+ #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+ #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
+ #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
++#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
  #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
- #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
-+#define pmd_mkclean(pmd)       pte_pmd(pte_mkclean(pmd_pte(pmd)))
+ #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
  #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
++#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
  #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
- #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_TYPE_MASK))
+ #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
+ 
 -- 
 1.9.1
 
