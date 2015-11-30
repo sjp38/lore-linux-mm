@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5416B0259
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:29:25 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so154089176wmv.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:25 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id t15si66227897wju.169.2015.11.30.04.29.23
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 30D4F6B025A
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:29:27 -0500 (EST)
+Received: by wmec201 with SMTP id c201so153051242wme.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:26 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id is6si66236829wjb.238.2015.11.30.04.29.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 04:29:23 -0800 (PST)
-Received: by wmww144 with SMTP id w144so127165226wmw.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:23 -0800 (PST)
+        Mon, 30 Nov 2015 04:29:26 -0800 (PST)
+Received: by wmec201 with SMTP id c201so135834231wme.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:26 -0800 (PST)
 From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH v4 06/13] ARM: add support for generic early_ioremap/early_memremap
-Date: Mon, 30 Nov 2015 13:28:20 +0100
-Message-Id: <1448886507-3216-7-git-send-email-ard.biesheuvel@linaro.org>
+Subject: [PATCH v4 07/13] ARM: split off core mapping logic from create_mapping
+Date: Mon, 30 Nov 2015 13:28:21 +0100
+Message-Id: <1448886507-3216-8-git-send-email-ard.biesheuvel@linaro.org>
 In-Reply-To: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
 References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,170 +22,126 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, linux-efi@vger.kernel.org, leif.lindholm@linaro.org, matt@codeblueprint.co.uk, linux@arm.linux.org.uk
 Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, linux-mm@kvack.org, ryan.harkin@linaro.org, grant.likely@linaro.org, roy.franz@linaro.org, msalter@redhat.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-This enables the generic early_ioremap implementation for ARM.
-
-It uses the fixmap region reserved for kmap. Since early_ioremap
-is only supported before paging_init(), and kmap is only supported
-afterwards, this is guaranteed not to cause any clashes.
+In order to be able to reuse the core mapping logic of create_mapping
+for mapping the UEFI Runtime Services into a private set of page tables,
+split it off from create_mapping() into a separate function
+__create_mapping which we will wire up in a subsequent patch.
 
 Tested-by: Ryan Harkin <ryan.harkin@linaro.org>
 Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
 Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 ---
- arch/arm/Kconfig              |  1 +
- arch/arm/include/asm/Kbuild   |  1 +
- arch/arm/include/asm/fixmap.h | 29 +++++++++++++++++++-
- arch/arm/kernel/setup.c       |  7 +++--
- arch/arm/mm/ioremap.c         |  9 ++++++
- arch/arm/mm/mmu.c             |  2 +-
- 6 files changed, 45 insertions(+), 4 deletions(-)
+ arch/arm/mm/mmu.c | 56 +++++++++++---------
+ 1 file changed, 31 insertions(+), 25 deletions(-)
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 34e1569a11ee..446e49b56e6a 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -20,6 +20,7 @@ config ARM
- 	select GENERIC_ALLOCATOR
- 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
- 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
-+	select GENERIC_EARLY_IOREMAP
- 	select GENERIC_IDLE_POLL_SETUP
- 	select GENERIC_IRQ_PROBE
- 	select GENERIC_IRQ_SHOW
-diff --git a/arch/arm/include/asm/Kbuild b/arch/arm/include/asm/Kbuild
-index bd425302c97a..16da6380eb85 100644
---- a/arch/arm/include/asm/Kbuild
-+++ b/arch/arm/include/asm/Kbuild
-@@ -3,6 +3,7 @@
- generic-y += bitsperlong.h
- generic-y += cputime.h
- generic-y += current.h
-+generic-y += early_ioremap.h
- generic-y += emergency-restart.h
- generic-y += errno.h
- generic-y += exec.h
-diff --git a/arch/arm/include/asm/fixmap.h b/arch/arm/include/asm/fixmap.h
-index 58cfe9f1a687..5c17d2dec777 100644
---- a/arch/arm/include/asm/fixmap.h
-+++ b/arch/arm/include/asm/fixmap.h
-@@ -19,20 +19,47 @@ enum fixed_addresses {
- 	FIX_TEXT_POKE0,
- 	FIX_TEXT_POKE1,
- 
--	__end_of_fixed_addresses
-+	__end_of_fixmap_region,
-+
-+	/*
-+	 * Share the kmap() region with early_ioremap(): this is guaranteed
-+	 * not to clash since early_ioremap() is only available before
-+	 * paging_init(), and kmap() only after.
-+	 */
-+#define NR_FIX_BTMAPS		32
-+#define FIX_BTMAPS_SLOTS	7
-+#define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
-+
-+	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
-+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
-+	__end_of_early_ioremap_region
- };
- 
-+static const enum fixed_addresses __end_of_fixed_addresses =
-+	__end_of_fixmap_region > __end_of_early_ioremap_region ?
-+	__end_of_fixmap_region : __end_of_early_ioremap_region;
-+
- #define FIXMAP_PAGE_COMMON	(L_PTE_YOUNG | L_PTE_PRESENT | L_PTE_XN | L_PTE_DIRTY)
- 
- #define FIXMAP_PAGE_NORMAL	(FIXMAP_PAGE_COMMON | L_PTE_MT_WRITEBACK)
-+#define FIXMAP_PAGE_RO		(FIXMAP_PAGE_NORMAL | L_PTE_RDONLY)
- 
- /* Used by set_fixmap_(io|nocache), both meant for mapping a device */
- #define FIXMAP_PAGE_IO		(FIXMAP_PAGE_COMMON | L_PTE_MT_DEV_SHARED | L_PTE_SHARED)
- #define FIXMAP_PAGE_NOCACHE	FIXMAP_PAGE_IO
- 
-+#define __early_set_fixmap	__set_fixmap
-+
-+#ifdef CONFIG_MMU
-+
- void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
- void __init early_fixmap_init(void);
- 
- #include <asm-generic/fixmap.h>
- 
-+#else
-+
-+static inline void early_fixmap_init(void) { }
-+
-+#endif
- #endif
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index 20edd349d379..5df2bca57c42 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -38,6 +38,7 @@
- #include <asm/cpu.h>
- #include <asm/cputype.h>
- #include <asm/elf.h>
-+#include <asm/early_ioremap.h>
- #include <asm/fixmap.h>
- #include <asm/procinfo.h>
- #include <asm/psci.h>
-@@ -956,8 +957,8 @@ void __init setup_arch(char **cmdline_p)
- 	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
- 	*cmdline_p = cmd_line;
- 
--	if (IS_ENABLED(CONFIG_FIX_EARLYCON_MEM))
--		early_fixmap_init();
-+	early_fixmap_init();
-+	early_ioremap_init();
- 
- 	parse_early_param();
- 
-@@ -968,6 +969,8 @@ void __init setup_arch(char **cmdline_p)
- 	sanity_check_meminfo();
- 	arm_memblock_init(mdesc);
- 
-+	early_ioremap_reset();
-+
- 	paging_init(mdesc);
- 	request_standard_resources(mdesc);
- 
-diff --git a/arch/arm/mm/ioremap.c b/arch/arm/mm/ioremap.c
-index 0c81056c1dd7..66a978d05958 100644
---- a/arch/arm/mm/ioremap.c
-+++ b/arch/arm/mm/ioremap.c
-@@ -30,6 +30,7 @@
- #include <asm/cp15.h>
- #include <asm/cputype.h>
- #include <asm/cacheflush.h>
-+#include <asm/early_ioremap.h>
- #include <asm/mmu_context.h>
- #include <asm/pgalloc.h>
- #include <asm/tlbflush.h>
-@@ -469,3 +470,11 @@ int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
- }
- EXPORT_SYMBOL_GPL(pci_ioremap_io);
- #endif
-+
-+/*
-+ * Must be called after early_fixmap_init
-+ */
-+void __init early_ioremap_init(void)
-+{
-+	early_ioremap_setup();
-+}
 diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index 4867f5daf82c..de19f90221e2 100644
+index de19f90221e2..3100de92148b 100644
 --- a/arch/arm/mm/mmu.c
 +++ b/arch/arm/mm/mmu.c
-@@ -390,7 +390,7 @@ void __init early_fixmap_init(void)
- 	 * The early fixmap range spans multiple pmds, for which
- 	 * we are not prepared:
- 	 */
--	BUILD_BUG_ON((__fix_to_virt(__end_of_permanent_fixed_addresses) >> PMD_SHIFT)
-+	BUILD_BUG_ON((__fix_to_virt(__end_of_early_ioremap_region) >> PMD_SHIFT)
- 		     != FIXADDR_TOP >> PMD_SHIFT);
+@@ -818,7 +818,8 @@ static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
+ }
  
- 	pmd = fixmap_pmd(FIXADDR_TOP);
+ #ifndef CONFIG_ARM_LPAE
+-static void __init create_36bit_mapping(struct map_desc *md,
++static void __init create_36bit_mapping(struct mm_struct *mm,
++					struct map_desc *md,
+ 					const struct mem_type *type)
+ {
+ 	unsigned long addr, length, end;
+@@ -859,7 +860,7 @@ static void __init create_36bit_mapping(struct map_desc *md,
+ 	 */
+ 	phys |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+ 
+-	pgd = pgd_offset_k(addr);
++	pgd = pgd_offset(mm, addr);
+ 	end = addr + length;
+ 	do {
+ 		pud_t *pud = pud_offset(pgd, addr);
+@@ -876,33 +877,13 @@ static void __init create_36bit_mapping(struct map_desc *md,
+ }
+ #endif	/* !CONFIG_ARM_LPAE */
+ 
+-/*
+- * Create the page directory entries and any necessary
+- * page tables for the mapping specified by `md'.  We
+- * are able to cope here with varying sizes and address
+- * offsets, and we take full advantage of sections and
+- * supersections.
+- */
+-static void __init create_mapping(struct map_desc *md)
++static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md)
+ {
+ 	unsigned long addr, length, end;
+ 	phys_addr_t phys;
+ 	const struct mem_type *type;
+ 	pgd_t *pgd;
+ 
+-	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
+-		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
+-			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
+-		return;
+-	}
+-
+-	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
+-	    md->virtual >= PAGE_OFFSET && md->virtual < FIXADDR_START &&
+-	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
+-		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
+-			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
+-	}
+-
+ 	type = &mem_types[md->type];
+ 
+ #ifndef CONFIG_ARM_LPAE
+@@ -910,7 +891,7 @@ static void __init create_mapping(struct map_desc *md)
+ 	 * Catch 36-bit addresses
+ 	 */
+ 	if (md->pfn >= 0x100000) {
+-		create_36bit_mapping(md, type);
++		create_36bit_mapping(mm, md, type);
+ 		return;
+ 	}
+ #endif
+@@ -925,7 +906,7 @@ static void __init create_mapping(struct map_desc *md)
+ 		return;
+ 	}
+ 
+-	pgd = pgd_offset_k(addr);
++	pgd = pgd_offset(mm, addr);
+ 	end = addr + length;
+ 	do {
+ 		unsigned long next = pgd_addr_end(addr, end);
+@@ -938,6 +919,31 @@ static void __init create_mapping(struct map_desc *md)
+ }
+ 
+ /*
++ * Create the page directory entries and any necessary
++ * page tables for the mapping specified by `md'.  We
++ * are able to cope here with varying sizes and address
++ * offsets, and we take full advantage of sections and
++ * supersections.
++ */
++static void __init create_mapping(struct map_desc *md)
++{
++	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
++		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
++			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
++		return;
++	}
++
++	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
++	    md->virtual >= PAGE_OFFSET && md->virtual < FIXADDR_START &&
++	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
++		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
++			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
++	}
++
++	__create_mapping(&init_mm, md);
++}
++
++/*
+  * Create the architecture specific mappings
+  */
+ void __init iotable_init(struct map_desc *io_desc, int nr)
 -- 
 1.9.1
 
