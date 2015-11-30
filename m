@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E5B6B025D
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:41 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so174824138pad.1
-        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:41 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id dh1si540081pad.19.2015.11.29.22.39.29
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5006B025E
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:43 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so174822780pac.3
+        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:43 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id di6si8295004pad.172.2015.11.29.22.39.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Sun, 29 Nov 2015 22:39:30 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 07/12] x86: add pmd_[dirty|mkclean] for THP
-Date: Mon, 30 Nov 2015 15:39:38 +0900
-Message-Id: <1448865583-2446-8-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 08/12] sparc: add pmd_[dirty|mkclean] for THP
+Date: Mon, 30 Nov 2015 15:39:39 +0900
+Message-Id: <1448865583-2446-9-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448865583-2446-1-git-send-email-minchan@kernel.org>
 References: <1448865583-2446-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -29,25 +29,29 @@ support.
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/include/asm/pgtable.h | 5 +++++
- 1 file changed, 5 insertions(+)
+ arch/sparc/include/asm/pgtable_64.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index a8d1aa3a43b0..9ff592003afd 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -269,6 +269,11 @@ static inline pmd_t pmd_mkold(pmd_t pmd)
- 	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index f5bfcd66aeb5..7a38d6a576c5 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -710,6 +710,15 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
+ 	return __pmd(pte_val(pte));
  }
  
 +static inline pmd_t pmd_mkclean(pmd_t pmd)
 +{
-+	return pmd_clear_flags(pmd, _PAGE_DIRTY);
++	pte_t pte = __pte(pmd_val(pmd));
++
++	pte = pte_mkclean(pte);
++
++	return __pmd(pte_val(pte));
 +}
 +
- static inline pmd_t pmd_wrprotect(pmd_t pmd)
+ static inline pmd_t pmd_mkyoung(pmd_t pmd)
  {
- 	return pmd_clear_flags(pmd, _PAGE_RW);
+ 	pte_t pte = __pte(pmd_val(pmd));
 -- 
 1.9.1
 
