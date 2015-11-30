@@ -1,59 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 894F36B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:22:16 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so179242246pac.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:22:16 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id 69si7836783pfa.190.2015.11.30.01.22.14
+Received: from mail-lf0-f48.google.com (mail-lf0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AC126B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 05:54:43 -0500 (EST)
+Received: by lffu14 with SMTP id u14so191514820lff.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 02:54:42 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id c136si28368005lfc.246.2015.11.30.02.54.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 30 Nov 2015 01:22:15 -0800 (PST)
-Date: Mon, 30 Nov 2015 18:22:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 01/12] mm: support madvise(MADV_FREE)
-Message-ID: <20151130092229.GA10745@bbox>
-References: <1448865583-2446-1-git-send-email-minchan@kernel.org>
- <1448865583-2446-2-git-send-email-minchan@kernel.org>
- <565C06C9.7040906@nextfour.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Nov 2015 02:54:39 -0800 (PST)
+Date: Mon, 30 Nov 2015 13:54:21 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 12/13] mm: memcontrol: account socket memory in unified
+ hierarchy memory controller
+Message-ID: <20151130105421.GA24704@esperanza>
+References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
+ <20151124215844.GA1373@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <565C06C9.7040906@nextfour.com>
-Content-Type: text/plain; charset="iso-8859-1"
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20151124215844.GA1373@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Nov 30, 2015 at 10:20:25AM +0200, Mika Penttil=E4 wrote:
-> > +		 * If pmd isn't transhuge but the page is THP and
-> > +		 * is owned by only this process, split it and
-> > +		 * deactivate all pages.
-> > +		 */
-> > +		if (PageTransCompound(page)) {
-> > +			if (page=5Fmapcount(page) !=3D 1)
-> > +				goto out;
-> > +			get=5Fpage(page);
-> > +			if (!trylock=5Fpage(page)) {
-> > +				put=5Fpage(page);
-> > +				goto out;
-> > +			}
-> > +			pte=5Funmap=5Funlock(orig=5Fpte, ptl);
-> > +			if (split=5Fhuge=5Fpage(page)) {
-> > +				unlock=5Fpage(page);
-> > +				put=5Fpage(page);
-> > +				pte=5Foffset=5Fmap=5Flock(mm, pmd, addr, &ptl);
-> > +				goto out;
-> > +			}
-> > +			pte =3D pte=5Foffset=5Fmap=5Flock(mm, pmd, addr, &ptl);
-> > +			pte--;
-> > +			addr -=3D PAGE=5FSIZE;
-> > +			continue;
-> > +		}
->=20
-> looks like this leaks page count if split=5Fhuge=5Fpage() is succesfull
-> (returns zero).
+On Tue, Nov 24, 2015 at 04:58:44PM -0500, Johannes Weiner wrote:
+...
+> @@ -5520,15 +5557,30 @@ void sock_release_memcg(struct sock *sk)
+>   */
+>  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+>  {
+> -	struct page_counter *counter;
+> +	gfp_t gfp_mask = GFP_KERNEL;
+>  
+> -	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
+> -				    nr_pages, &counter)) {
+> -		memcg->tcp_mem.memory_pressure = 0;
+> -		return true;
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
+> +		struct page_counter *counter;
+> +
+> +		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
+> +					    nr_pages, &counter)) {
+> +			memcg->tcp_mem.memory_pressure = 0;
+> +			return true;
+> +		}
+> +		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> +		memcg->tcp_mem.memory_pressure = 1;
+> +		return false;
+>  	}
+> -	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> -	memcg->tcp_mem.memory_pressure = 1;
+> +#endif
+> +	/* Don't block in the packet receive path */
+> +	if (in_softirq())
+> +		gfp_mask = GFP_NOWAIT;
+> +
+> +	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
+> +		return true;
+> +
+> +	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
 
-Even, I missed unlock=5Fpage.
-Thanks for the review!
+We won't trigger high reclaim if we get here, because try_charge does
+not check high threshold if failing or forcing charge. I think this
+should be fixed regardless of this patch. The fix is attached below.
+
+Also, I don't like calling try_charge twice: the second time will go
+through all the try_charge steps for nothing. What about checking
+page_counter value after calling try_charge instead:
+
+	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
+	return page_counter_read(&memcg->memory) <= memcg->memory.limit;
+
+or adding an out parameter to try_charge that would inform us if charge
+was forced?
+
+>  	return false;
+>  }
+>  
+> @@ -5539,10 +5591,32 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+>   */
+>  void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+>  {
+> -	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
+> +		page_counter_uncharge(&memcg->tcp_mem.memory_allocated,
+> +				      nr_pages);
+> +		return;
+> +	}
+> +#endif
+> +	page_counter_uncharge(&memcg->memory, nr_pages);
+> +	css_put_many(&memcg->css, nr_pages);
+
+cancel_charge(memcg, nr_pages);
+
+?
+
+---
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] memcg: check high threshold if forcing allocation
+
+try_charge() does not result in checking high threshold if it forces
+charge. This is incorrect, because we could have failed to reclaim
+memory due to the current context, so we do need to check high threshold
+and try to compensate for the excess once we are in the safe context.
+
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 79a29d564bff..e922965b572b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2112,13 +2112,14 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		page_counter_charge(&memcg->memsw, nr_pages);
+ 	css_get_many(&memcg->css, nr_pages);
+ 
+-	return 0;
++	goto check_high;
+ 
+ done_restock:
+ 	css_get_many(&memcg->css, batch);
+ 	if (batch > nr_pages)
+ 		refill_stock(memcg, batch - nr_pages);
+ 
++check_high:
+ 	/*
+ 	 * If the hierarchy is above the normal consumption range, schedule
+ 	 * reclaim on returning to userland.  We can perform reclaim here
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
