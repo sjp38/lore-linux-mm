@@ -1,167 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f46.google.com (mail-lf0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 62D2D6B0258
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 12:08:49 -0500 (EST)
-Received: by lffu14 with SMTP id u14so206311712lff.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 09:08:48 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id 6si29478687lfi.118.2015.11.30.09.08.47
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id F16496B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 12:58:25 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so191586192pac.2
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 09:58:25 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id v76si5329412pfa.183.2015.11.30.09.58.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 09:08:47 -0800 (PST)
-Date: Mon, 30 Nov 2015 20:08:31 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 12/13] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151130170831.GE24704@esperanza>
-References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
- <20151124215844.GA1373@cmpxchg.org>
- <20151130105421.GA24704@esperanza>
- <20151130152638.GA30243@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151130152638.GA30243@cmpxchg.org>
+        Mon, 30 Nov 2015 09:58:25 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so191665214pac.3
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 09:58:24 -0800 (PST)
+Message-ID: <1448906303.24696.133.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: [PATCH] Improve Atheros ethernet driver not to do order 4
+ GFP_ATOMIC allocation
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Mon, 30 Nov 2015 09:58:23 -0800
+In-Reply-To: <20151128145113.GB4135@amd>
+References: <20151126163413.GA3816@amd>
+	 <20151127082010.GA2500@dhcp22.suse.cz> <20151128145113.GB4135@amd>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, davem@davemloft.net, Andrew Morton <akpm@osdl.org>, kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael
+ J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
 
-On Mon, Nov 30, 2015 at 10:26:38AM -0500, Johannes Weiner wrote:
-> On Mon, Nov 30, 2015 at 01:54:21PM +0300, Vladimir Davydov wrote:
-> > On Tue, Nov 24, 2015 at 04:58:44PM -0500, Johannes Weiner wrote:
-> > ...
-> > > @@ -5520,15 +5557,30 @@ void sock_release_memcg(struct sock *sk)
-> > >   */
-> > >  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> > >  {
-> > > -	struct page_counter *counter;
-> > > +	gfp_t gfp_mask = GFP_KERNEL;
-> > >  
-> > > -	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > > -				    nr_pages, &counter)) {
-> > > -		memcg->tcp_mem.memory_pressure = 0;
-> > > -		return true;
-> > > +#ifdef CONFIG_MEMCG_KMEM
-> > > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-> > > +		struct page_counter *counter;
-> > > +
-> > > +		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > > +					    nr_pages, &counter)) {
-> > > +			memcg->tcp_mem.memory_pressure = 0;
-> > > +			return true;
-> > > +		}
-> > > +		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > > +		memcg->tcp_mem.memory_pressure = 1;
-> > > +		return false;
-> > >  	}
-> > > -	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > > -	memcg->tcp_mem.memory_pressure = 1;
-> > > +#endif
-> > > +	/* Don't block in the packet receive path */
-> > > +	if (in_softirq())
-> > > +		gfp_mask = GFP_NOWAIT;
-> > > +
-> > > +	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
-> > > +		return true;
-> > > +
-> > > +	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
-> > 
-> > We won't trigger high reclaim if we get here, because try_charge does
-> > not check high threshold if failing or forcing charge. I think this
-> > should be fixed regardless of this patch. The fix is attached below.
+On Sat, 2015-11-28 at 15:51 +0100, Pavel Machek wrote:
+> atl1c driver is doing order-4 allocation with GFP_ATOMIC
+> priority. That often breaks  networking after resume. Switch to
+> GFP_KERNEL. Still not ideal, but should be significantly better.
+>     
+> Signed-off-by: Pavel Machek <pavel@ucw.cz>
 > 
-> We kind of assume that max is either set above high, or not at
-> all. That means when max is hit the high limit has already failed and
-> it's of limited use to schedule background reclaim.
-
-Yeah, you're right. No point scheduling the work here - it must be
-already running.
-
-> 
-> > Also, I don't like calling try_charge twice: the second time will go
-> > through all the try_charge steps for nothing. What about checking
-> > page_counter value after calling try_charge instead:
-> > 
-> > 	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
-> > 	return page_counter_read(&memcg->memory) <= memcg->memory.limit;
-> > 
-> > or adding an out parameter to try_charge that would inform us if charge
-> > was forced?
-> 
-> That's a complete cold path where we are going to drop the packet in
-> all but a few cases. It's not worth the trouble.
-
-Right
-
-> 
-> > > @@ -5539,10 +5591,32 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> > >   */
-> > >  void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> > >  {
-> > > -	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > > +#ifdef CONFIG_MEMCG_KMEM
-> > > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-> > > +		page_counter_uncharge(&memcg->tcp_mem.memory_allocated,
-> > > +				      nr_pages);
-> > > +		return;
-> > > +	}
-> > > +#endif
-> > > +	page_counter_uncharge(&memcg->memory, nr_pages);
-> > > +	css_put_many(&memcg->css, nr_pages);
-> > 
-> > cancel_charge(memcg, nr_pages);
-> 
-> It does the same, but it's a weird name for regular uncharging.
-
-Right
-
-> 
-> > From: Vladimir Davydov <vdavydov@virtuozzo.com>
-> > Subject: [PATCH] memcg: check high threshold if forcing allocation
-> > 
-> > try_charge() does not result in checking high threshold if it forces
-> > charge. This is incorrect, because we could have failed to reclaim
-> > memory due to the current context, so we do need to check high threshold
-> > and try to compensate for the excess once we are in the safe context.
-> > 
-> > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 79a29d564bff..e922965b572b 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2112,13 +2112,14 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  		page_counter_charge(&memcg->memsw, nr_pages);
-> >  	css_get_many(&memcg->css, nr_pages);
-> >  
-> > -	return 0;
-> > +	goto check_high;
-> >  
-> >  done_restock:
-> >  	css_get_many(&memcg->css, batch);
-> >  	if (batch > nr_pages)
-> >  		refill_stock(memcg, batch - nr_pages);
-> >  
-> > +check_high:
-> >  	/*
-> >  	 * If the hierarchy is above the normal consumption range, schedule
-> >  	 * reclaim on returning to userland.  We can perform reclaim here
-> 
-> One problem is that OOM victims force their charges so they can exit
-> quickly. It'd be contradictory to then task them with high reclaim.
+> diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> index 2795d6d..afb71e0 100644
+> --- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> +++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> @@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
+>  		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
+>  		8 * 4;
+>  
+> -	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
+> -				&ring_header->dma);
+> +	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
+> +					       &ring_header->dma, GFP_KERNEL);
+>  	if (unlikely(!ring_header->desc)) {
+> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
+> +		dev_err(&pdev->dev, "could not get memmory for DMA buffer\n");
+>  		goto err_nomem;
+>  	}
+>  	memset(ring_header->desc, 0, ring_header->size);
 > 
 
-Yeah, scratch that patch. It isn't necessary anyway, because, as you
-pointed out, we don't really need to schedule high reclaim when we fail
-hard in mem_cgroup_charge_skmem.
+It seems there is a missed opportunity to get rid of the memset() here,
+by adding __GFP_ZERO to the dma_alloc_coherent() GFP_KERNEL mask,
+or simply using dma_zalloc_coherent()
 
-No more questions left,
 
-Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Thanks,
-Vladimir
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
