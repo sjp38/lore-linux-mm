@@ -1,54 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 391736B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:10:20 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so203728251pab.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:10:20 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id yi10si12405976pab.15.2015.11.30.14.10.19
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 009266B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:15:34 -0500 (EST)
+Received: by ykdv3 with SMTP id v3so202221887ykd.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:15:33 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id v63si30126199ywf.128.2015.11.30.14.15.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 14:10:19 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so197800694pac.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:10:19 -0800 (PST)
-Date: Mon, 30 Nov 2015 14:10:16 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v1] mm: hugetlb: call huge_pte_alloc() only if ptep is
- null
-In-Reply-To: <1448524936-10501-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.10.1511301409380.10460@chino.kir.corp.google.com>
-References: <1448524936-10501-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Mon, 30 Nov 2015 14:15:33 -0800 (PST)
+Received: by ykfs79 with SMTP id s79so203804922ykf.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:15:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <562AA15E.3010403@deltatee.com>
+References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
+	<562AA15E.3010403@deltatee.com>
+Date: Mon, 30 Nov 2015 14:15:33 -0800
+Message-ID: <CAPcyv4gQ-8-tL-rhAPzPxKzBLmWKnFcqSFVy4KVOM56_9gn6RA@mail.gmail.com>
+Subject: Re: [PATCH v2 00/20] get_user_pages() for dax mappings
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>
 
-On Thu, 26 Nov 2015, Naoya Horiguchi wrote:
+On Fri, Oct 23, 2015 at 2:06 PM, Logan Gunthorpe <logang@deltatee.com> wrote:
+> Hi Dan,
+>
+> We've tested this patch series (as pulled from your git repo) with our P2P
+> work and everything is working great. The issues we found in v1 have been
+> fixed and we have not found any new ones.
+>
+> Tested-By: Logan Gunthorpe <logang@deltatee.com>
+>
+>
 
-> Currently at the beginning of hugetlb_fault(), we call huge_pte_offset()
-> and check whether the obtained *ptep is a migration/hwpoison entry or not.
-> And if not, then we get to call huge_pte_alloc(). This is racy because the
-> *ptep could turn into migration/hwpoison entry after the huge_pte_offset()
-> check. This race results in BUG_ON in huge_pte_alloc().
-> 
-> We don't have to call huge_pte_alloc() when the huge_pte_offset() returns
-> non-NULL, so let's fix this bug with moving the code into else block.
-> 
-> Note that the *ptep could turn into a migration/hwpoison entry after
-> this block, but that's not a problem because we have another !pte_present
-> check later (we never go into hugetlb_no_page() in that case.)
-> 
-> Fixes: 290408d4a250 ("hugetlb: hugepage migration core")
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: <stable@vger.kernel.org> [2.6.36+]
+Hi Logan,
 
-Acked-by: David Rientjes <rientjes@google.com>
+I appreciate the test report.  I appreciate it so much I wonder if
+you'd be willing to re-test the current state of:
 
-It would be nice to provide a sample of the BUG_ON() output in the commit 
-message, however, so people can quickly find this if greping for what they 
-just saw kill their machine.
+git://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm libnvdimm-pending
+
+...with the revised approach that I'm proposing for-4.5 inclusion.
+
+The main changes are fixes for supporting huge-page mappings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
