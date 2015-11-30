@@ -1,61 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C941E6B0253
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 15:00:32 -0500 (EST)
-Received: by wmec201 with SMTP id c201so173393503wme.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 12:00:32 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id uv3si68900891wjc.161.2015.11.30.12.00.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 12:00:31 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/2] proc: meminfo: estimate available memory more conservatively
-Date: Mon, 30 Nov 2015 15:00:22 -0500
-Message-Id: <1448913622-24198-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1448913622-24198-1-git-send-email-hannes@cmpxchg.org>
-References: <1448913622-24198-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 878426B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:08:20 -0500 (EST)
+Received: by qgec40 with SMTP id c40so128915170qge.2
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 13:08:20 -0800 (PST)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [23.79.238.175])
+        by mx.google.com with ESMTP id l76si46929211qgd.86.2015.11.30.13.08.19
+        for <linux-mm@kvack.org>;
+        Mon, 30 Nov 2015 13:08:19 -0800 (PST)
+Subject: Re: [PATCH 09/13] mm: memcontrol: generalize the socket accounting
+ jump label
+References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
+ <1448401925-22501-10-git-send-email-hannes@cmpxchg.org>
+From: Jason Baron <jbaron@akamai.com>
+Message-ID: <565CBAC2.3080804@akamai.com>
+Date: Mon, 30 Nov 2015 16:08:18 -0500
+MIME-Version: 1.0
+In-Reply-To: <1448401925-22501-10-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, "peterz@infradead.org" <peterz@infradead.org>
 
-The MemAvailable item in /proc/meminfo is to give users a hint of how
-much memory is allocatable without causing swapping, so it excludes
-the zones' low watermarks as unavailable to userspace.
+Hi,
 
-However, for a userspace allocation, kswapd will actually reclaim
-until the free pages hit a combination of the high watermark and the
-page allocator's lowmem protection that keeps a certain amount of DMA
-and DMA32 memory from userspace as well.
+On 11/24/2015 04:52 PM, Johannes Weiner wrote:
+> The unified hierarchy memory controller is going to use this jump
+> label as well to control the networking callbacks. Move it to the
+> memory controller code and give it a more generic name.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> ---
+>  include/linux/memcontrol.h | 4 ++++
+>  include/net/sock.h         | 7 -------
+>  mm/memcontrol.c            | 3 +++
+>  net/core/sock.c            | 5 -----
+>  net/ipv4/tcp_memcontrol.c  | 4 ++--
+>  5 files changed, 9 insertions(+), 14 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index d99fefe..dad56ef 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -681,6 +681,8 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
+>  
+>  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+>  struct sock;
+> +extern struct static_key memcg_sockets_enabled_key;
+> +#define mem_cgroup_sockets_enabled static_key_false(&memcg_sockets_enabled_key)
 
-Subtract the full amount we know to be unavailable to userspace from
-the number of free pages when calculating MemAvailable.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- fs/proc/meminfo.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+We're trying to move to the updated API, so this should be:
+static_branch_unlikely(&memcg_sockets_enabled_key)
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 9155a5a..df4661a 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -57,11 +57,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	/*
- 	 * Estimate the amount of memory available for userspace allocations,
- 	 * without causing swapping.
--	 *
--	 * Free memory cannot be taken below the low watermark, before the
--	 * system starts swapping.
- 	 */
--	available = i.freeram - wmark_low;
-+	available = i.freeram - totalreserve_pages;
- 
- 	/*
- 	 * Not all the page cache can be freed, otherwise the system will
--- 
-2.6.2
+see: include/linux/jump_label.h for details.
+
+
+>  void sock_update_memcg(struct sock *sk);
+>  void sock_release_memcg(struct sock *sk);
+>  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
+> @@ -689,6 +691,8 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+>  {
+>  	return memcg->tcp_mem.memory_pressure;
+>  }
+> +#else
+> +#define mem_cgroup_sockets_enabled 0
+>  #endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> diff --git a/include/net/sock.h b/include/net/sock.h
+> index 1a94b85..fcc9442 100644
+> --- a/include/net/sock.h
+> +++ b/include/net/sock.h
+> @@ -1065,13 +1065,6 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
+>  #define sk_refcnt_debug_release(sk) do { } while (0)
+>  #endif /* SOCK_REFCNT_DEBUG */
+>  
+> -#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_NET)
+> -extern struct static_key memcg_socket_limit_enabled;
+> -#define mem_cgroup_sockets_enabled static_key_false(&memcg_socket_limit_enabled)
+> -#else
+> -#define mem_cgroup_sockets_enabled 0
+> -#endif
+> -
+>  static inline bool sk_stream_memory_free(const struct sock *sk)
+>  {
+>  	if (sk->sk_wmem_queued >= sk->sk_sndbuf)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 68d67fc..0602bee 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -291,6 +291,9 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+>  /* Writing them here to avoid exposing memcg's inner layout */
+>  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+>  
+> +struct static_key memcg_sockets_enabled_key;
+
+
+And this would be:
+
+static DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);
+
+
+>  void sock_update_memcg(struct sock *sk)
+>  {
+>  	struct mem_cgroup *memcg;
+> diff --git a/net/core/sock.c b/net/core/sock.c
+> index 6486b0d..c5435b5 100644
+> --- a/net/core/sock.c
+> +++ b/net/core/sock.c
+> @@ -201,11 +201,6 @@ EXPORT_SYMBOL(sk_net_capable);
+>  static struct lock_class_key af_family_keys[AF_MAX];
+>  static struct lock_class_key af_family_slock_keys[AF_MAX];
+>  
+> -#if defined(CONFIG_MEMCG_KMEM)
+> -struct static_key memcg_socket_limit_enabled;
+> -EXPORT_SYMBOL(memcg_socket_limit_enabled);
+> -#endif
+> -
+>  /*
+>   * Make lock validator output more readable. (we pre-construct these
+>   * strings build-time, so that runtime initialization of socket
+> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+> index e507825..9a22e2d 100644
+> --- a/net/ipv4/tcp_memcontrol.c
+> +++ b/net/ipv4/tcp_memcontrol.c
+> @@ -34,7 +34,7 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
+>  		return;
+>  
+>  	if (memcg->tcp_mem.active)
+> -		static_key_slow_dec(&memcg_socket_limit_enabled);
+> +		static_key_slow_dec(&memcg_sockets_enabled_key);
+>  
+
+static_branch_dec(&memcg_sockets_enabled_key);
+
+}
+>  
+>  static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
+> @@ -65,7 +65,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
+>  		 * because when this value change, the code to process it is not
+>  		 * patched in yet.
+>  		 */
+> -		static_key_slow_inc(&memcg_socket_limit_enabled);
+> +		static_key_slow_inc(&memcg_sockets_enabled_key);
+>  		memcg->tcp_mem.active = true;
+>  	}
+>  
+> 
+
+static_branch_inc(&memcg_sockets_enabled_key);
+
+Thanks,
+
+-Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
