@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2EA6B0258
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:29:22 -0500 (EST)
-Received: by wmec201 with SMTP id c201so153047865wme.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:21 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id n123si28454966wmg.124.2015.11.30.04.29.20
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5416B0259
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:29:25 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so154089176wmv.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:25 -0800 (PST)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id t15si66227897wju.169.2015.11.30.04.29.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 04:29:21 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so154086306wmv.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:20 -0800 (PST)
+        Mon, 30 Nov 2015 04:29:23 -0800 (PST)
+Received: by wmww144 with SMTP id w144so127165226wmw.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:23 -0800 (PST)
 From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH v4 05/13] arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
-Date: Mon, 30 Nov 2015 13:28:19 +0100
-Message-Id: <1448886507-3216-6-git-send-email-ard.biesheuvel@linaro.org>
+Subject: [PATCH v4 06/13] ARM: add support for generic early_ioremap/early_memremap
+Date: Mon, 30 Nov 2015 13:28:20 +0100
+Message-Id: <1448886507-3216-7-git-send-email-ard.biesheuvel@linaro.org>
 In-Reply-To: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
 References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,236 +22,170 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, linux-efi@vger.kernel.org, leif.lindholm@linaro.org, matt@codeblueprint.co.uk, linux@arm.linux.org.uk
 Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, linux-mm@kvack.org, ryan.harkin@linaro.org, grant.likely@linaro.org, roy.franz@linaro.org, msalter@redhat.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-This refactors the EFI init and runtime code that will be shared
-between arm64 and ARM so that it can be built for both archs.
+This enables the generic early_ioremap implementation for ARM.
 
+It uses the fixmap region reserved for kmap. Since early_ioremap
+is only supported before paging_init(), and kmap is only supported
+afterwards, this is guaranteed not to cause any clashes.
+
+Tested-by: Ryan Harkin <ryan.harkin@linaro.org>
 Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
 Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 ---
- arch/arm64/include/asm/efi.h       |  9 ++++
- arch/arm64/kernel/efi.c            | 23 ++++++++++
- drivers/firmware/efi/arm-init.c    |  7 +--
- drivers/firmware/efi/arm-runtime.c | 48 +++++++-------------
- drivers/firmware/efi/efi.c         |  2 +
- 5 files changed, 54 insertions(+), 35 deletions(-)
+ arch/arm/Kconfig              |  1 +
+ arch/arm/include/asm/Kbuild   |  1 +
+ arch/arm/include/asm/fixmap.h | 29 +++++++++++++++++++-
+ arch/arm/kernel/setup.c       |  7 +++--
+ arch/arm/mm/ioremap.c         |  9 ++++++
+ arch/arm/mm/mmu.c             |  2 +-
+ 6 files changed, 45 insertions(+), 4 deletions(-)
 
-diff --git a/arch/arm64/include/asm/efi.h b/arch/arm64/include/asm/efi.h
-index ef572206f1c3..8e88a696c9cb 100644
---- a/arch/arm64/include/asm/efi.h
-+++ b/arch/arm64/include/asm/efi.h
-@@ -2,7 +2,9 @@
- #define _ASM_EFI_H
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 34e1569a11ee..446e49b56e6a 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -20,6 +20,7 @@ config ARM
+ 	select GENERIC_ALLOCATOR
+ 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
+ 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
++	select GENERIC_EARLY_IOREMAP
+ 	select GENERIC_IDLE_POLL_SETUP
+ 	select GENERIC_IRQ_PROBE
+ 	select GENERIC_IRQ_SHOW
+diff --git a/arch/arm/include/asm/Kbuild b/arch/arm/include/asm/Kbuild
+index bd425302c97a..16da6380eb85 100644
+--- a/arch/arm/include/asm/Kbuild
++++ b/arch/arm/include/asm/Kbuild
+@@ -3,6 +3,7 @@
+ generic-y += bitsperlong.h
+ generic-y += cputime.h
+ generic-y += current.h
++generic-y += early_ioremap.h
+ generic-y += emergency-restart.h
+ generic-y += errno.h
+ generic-y += exec.h
+diff --git a/arch/arm/include/asm/fixmap.h b/arch/arm/include/asm/fixmap.h
+index 58cfe9f1a687..5c17d2dec777 100644
+--- a/arch/arm/include/asm/fixmap.h
++++ b/arch/arm/include/asm/fixmap.h
+@@ -19,20 +19,47 @@ enum fixed_addresses {
+ 	FIX_TEXT_POKE0,
+ 	FIX_TEXT_POKE1,
  
- #include <asm/io.h>
-+#include <asm/mmu_context.h>
- #include <asm/neon.h>
-+#include <asm/tlbflush.h>
- 
- #ifdef CONFIG_EFI
- extern void efi_init(void);
-@@ -10,6 +12,8 @@ extern void efi_init(void);
- #define efi_init()
- #endif
- 
-+int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
-+
- #define efi_call_virt(f, ...)						\
- ({									\
- 	efi_##f##_t *__f;						\
-@@ -63,6 +67,11 @@ extern void efi_init(void);
-  *   Services are enabled and the EFI_RUNTIME_SERVICES bit set.
-  */
- 
-+static inline void efi_set_pgd(struct mm_struct *mm)
-+{
-+	switch_mm(NULL, mm, NULL);
-+}
-+
- void efi_virtmap_load(void);
- void efi_virtmap_unload(void);
- 
-diff --git a/arch/arm64/kernel/efi.c b/arch/arm64/kernel/efi.c
-index bd3b2f5adf0c..b6abc852f2a1 100644
---- a/arch/arm64/kernel/efi.c
-+++ b/arch/arm64/kernel/efi.c
-@@ -17,6 +17,29 @@
- 
- #include <asm/efi.h>
- 
-+int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
-+{
-+	pteval_t prot_val;
+-	__end_of_fixed_addresses
++	__end_of_fixmap_region,
 +
 +	/*
-+	 * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
-+	 * executable, everything else can be mapped with the XN bits
-+	 * set.
++	 * Share the kmap() region with early_ioremap(): this is guaranteed
++	 * not to clash since early_ioremap() is only available before
++	 * paging_init(), and kmap() only after.
 +	 */
-+	if ((md->attribute & EFI_MEMORY_WB) == 0)
-+		prot_val = PROT_DEVICE_nGnRE;
-+	else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
-+		 !PAGE_ALIGNED(md->phys_addr))
-+		prot_val = pgprot_val(PAGE_KERNEL_EXEC);
-+	else
-+		prot_val = pgprot_val(PAGE_KERNEL);
++#define NR_FIX_BTMAPS		32
++#define FIX_BTMAPS_SLOTS	7
++#define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
 +
-+	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
-+			   md->num_pages << EFI_PAGE_SHIFT,
-+			   __pgprot(prot_val | PTE_NG));
-+	return 0;
-+}
++	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
++	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
++	__end_of_early_ioremap_region
+ };
+ 
++static const enum fixed_addresses __end_of_fixed_addresses =
++	__end_of_fixmap_region > __end_of_early_ioremap_region ?
++	__end_of_fixmap_region : __end_of_early_ioremap_region;
 +
- static int __init arm64_dmi_init(void)
- {
- 	/*
-diff --git a/drivers/firmware/efi/arm-init.c b/drivers/firmware/efi/arm-init.c
-index ffdd76a51929..9e15d571b53c 100644
---- a/drivers/firmware/efi/arm-init.c
-+++ b/drivers/firmware/efi/arm-init.c
-@@ -57,7 +57,7 @@ static int __init uefi_init(void)
- {
- 	efi_char16_t *c16;
- 	void *config_tables;
--	u64 table_size;
-+	size_t table_size;
- 	char vendor[100] = "unknown";
- 	int i, retval;
+ #define FIXMAP_PAGE_COMMON	(L_PTE_YOUNG | L_PTE_PRESENT | L_PTE_XN | L_PTE_DIRTY)
  
-@@ -69,7 +69,8 @@ static int __init uefi_init(void)
- 	}
+ #define FIXMAP_PAGE_NORMAL	(FIXMAP_PAGE_COMMON | L_PTE_MT_WRITEBACK)
++#define FIXMAP_PAGE_RO		(FIXMAP_PAGE_NORMAL | L_PTE_RDONLY)
  
- 	set_bit(EFI_BOOT, &efi.flags);
--	set_bit(EFI_64BIT, &efi.flags);
-+	if (IS_ENABLED(CONFIG_64BIT))
-+		set_bit(EFI_64BIT, &efi.flags);
+ /* Used by set_fixmap_(io|nocache), both meant for mapping a device */
+ #define FIXMAP_PAGE_IO		(FIXMAP_PAGE_COMMON | L_PTE_MT_DEV_SHARED | L_PTE_SHARED)
+ #define FIXMAP_PAGE_NOCACHE	FIXMAP_PAGE_IO
  
- 	/*
- 	 * Verify the EFI Table
-@@ -107,7 +108,7 @@ static int __init uefi_init(void)
- 		goto out;
- 	}
- 	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
--					 sizeof(efi_config_table_64_t), NULL);
-+					 sizeof(efi_config_table_t), NULL);
++#define __early_set_fixmap	__set_fixmap
++
++#ifdef CONFIG_MMU
++
+ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
+ void __init early_fixmap_init(void);
  
- 	early_memunmap(config_tables, table_size);
- out:
-diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
-index 974743e13a4d..6ae21e41a429 100644
---- a/drivers/firmware/efi/arm-runtime.c
-+++ b/drivers/firmware/efi/arm-runtime.c
-@@ -12,6 +12,7 @@
-  */
+ #include <asm-generic/fixmap.h>
  
- #include <linux/efi.h>
-+#include <linux/io.h>
- #include <linux/memblock.h>
- #include <linux/mm_types.h>
- #include <linux/preempt.h>
-@@ -23,18 +24,14 @@
++#else
++
++static inline void early_fixmap_init(void) { }
++
++#endif
+ #endif
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index 20edd349d379..5df2bca57c42 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -38,6 +38,7 @@
+ #include <asm/cpu.h>
+ #include <asm/cputype.h>
+ #include <asm/elf.h>
++#include <asm/early_ioremap.h>
+ #include <asm/fixmap.h>
+ #include <asm/procinfo.h>
+ #include <asm/psci.h>
+@@ -956,8 +957,8 @@ void __init setup_arch(char **cmdline_p)
+ 	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
+ 	*cmdline_p = cmd_line;
  
+-	if (IS_ENABLED(CONFIG_FIX_EARLYCON_MEM))
+-		early_fixmap_init();
++	early_fixmap_init();
++	early_ioremap_init();
+ 
+ 	parse_early_param();
+ 
+@@ -968,6 +969,8 @@ void __init setup_arch(char **cmdline_p)
+ 	sanity_check_meminfo();
+ 	arm_memblock_init(mdesc);
+ 
++	early_ioremap_reset();
++
+ 	paging_init(mdesc);
+ 	request_standard_resources(mdesc);
+ 
+diff --git a/arch/arm/mm/ioremap.c b/arch/arm/mm/ioremap.c
+index 0c81056c1dd7..66a978d05958 100644
+--- a/arch/arm/mm/ioremap.c
++++ b/arch/arm/mm/ioremap.c
+@@ -30,6 +30,7 @@
+ #include <asm/cp15.h>
+ #include <asm/cputype.h>
  #include <asm/cacheflush.h>
- #include <asm/efi.h>
--#include <asm/tlbflush.h>
--#include <asm/mmu_context.h>
- #include <asm/mmu.h>
-+#include <asm/pgalloc.h>
- #include <asm/pgtable.h>
- 
--static pgd_t efi_pgd[PTRS_PER_PGD] __page_aligned_bss;
--
- extern u64 efi_system_table;
- 
- static struct mm_struct efi_mm = {
- 	.mm_rb			= RB_ROOT,
--	.pgd			= efi_pgd,
- 	.mm_users		= ATOMIC_INIT(2),
- 	.mm_count		= ATOMIC_INIT(1),
- 	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
-@@ -46,35 +43,27 @@ static bool __init efi_virtmap_init(void)
- {
- 	efi_memory_desc_t *md;
- 
-+	efi_mm.pgd = pgd_alloc(&efi_mm);
- 	init_new_context(NULL, &efi_mm);
- 
- 	for_each_efi_memory_desc(&memmap, md) {
--		pgprot_t prot;
-+		phys_addr_t phys = md->phys_addr;
-+		int ret;
- 
- 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
- 			continue;
- 		if (md->virt_addr == 0)
- 			return false;
- 
--		pr_info("  EFI remap 0x%016llx => %p\n",
--			md->phys_addr, (void *)md->virt_addr);
--
--		/*
--		 * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
--		 * executable, everything else can be mapped with the XN bits
--		 * set.
--		 */
--		if ((md->attribute & EFI_MEMORY_WB) == 0)
--			prot = __pgprot(PROT_DEVICE_nGnRE);
--		else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
--			 !PAGE_ALIGNED(md->phys_addr))
--			prot = PAGE_KERNEL_EXEC;
--		else
--			prot = PAGE_KERNEL;
--
--		create_pgd_mapping(&efi_mm, md->phys_addr, md->virt_addr,
--				   md->num_pages << EFI_PAGE_SHIFT,
--				   __pgprot(pgprot_val(prot) | PTE_NG));
-+		ret = efi_create_mapping(&efi_mm, md);
-+		if  (!ret) {
-+			pr_info("  EFI remap %pa => %p\n",
-+				&phys, (void *)(unsigned long)md->virt_addr);
-+		} else {
-+			pr_warn("  EFI remap %pa: failed to create mapping (%d)\n",
-+				&phys, ret);
-+			return false;
-+		}
- 	}
- 	return true;
++#include <asm/early_ioremap.h>
+ #include <asm/mmu_context.h>
+ #include <asm/pgalloc.h>
+ #include <asm/tlbflush.h>
+@@ -469,3 +470,11 @@ int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
  }
-@@ -84,7 +73,7 @@ static bool __init efi_virtmap_init(void)
-  * non-early mapping of the UEFI system table and virtual mappings for all
-  * EFI_MEMORY_RUNTIME regions.
-  */
--static int __init arm64_enable_runtime_services(void)
-+static int __init arm_enable_runtime_services(void)
- {
- 	u64 mapsize;
- 
-@@ -131,12 +120,7 @@ static int __init arm64_enable_runtime_services(void)
- 
- 	return 0;
- }
--early_initcall(arm64_enable_runtime_services);
--
--static void efi_set_pgd(struct mm_struct *mm)
--{
--	switch_mm(NULL, mm, NULL);
--}
-+early_initcall(arm_enable_runtime_services);
- 
- void efi_virtmap_load(void)
- {
-diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
-index 027ca212179f..cffa89b3317b 100644
---- a/drivers/firmware/efi/efi.c
-+++ b/drivers/firmware/efi/efi.c
-@@ -25,6 +25,8 @@
- #include <linux/io.h>
- #include <linux/platform_device.h>
- 
-+#include <asm/efi.h>
+ EXPORT_SYMBOL_GPL(pci_ioremap_io);
+ #endif
 +
- struct efi __read_mostly efi = {
- 	.mps			= EFI_INVALID_TABLE_ADDR,
- 	.acpi			= EFI_INVALID_TABLE_ADDR,
++/*
++ * Must be called after early_fixmap_init
++ */
++void __init early_ioremap_init(void)
++{
++	early_ioremap_setup();
++}
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 4867f5daf82c..de19f90221e2 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -390,7 +390,7 @@ void __init early_fixmap_init(void)
+ 	 * The early fixmap range spans multiple pmds, for which
+ 	 * we are not prepared:
+ 	 */
+-	BUILD_BUG_ON((__fix_to_virt(__end_of_permanent_fixed_addresses) >> PMD_SHIFT)
++	BUILD_BUG_ON((__fix_to_virt(__end_of_early_ioremap_region) >> PMD_SHIFT)
+ 		     != FIXADDR_TOP >> PMD_SHIFT);
+ 
+ 	pmd = fixmap_pmd(FIXADDR_TOP);
 -- 
 1.9.1
 
