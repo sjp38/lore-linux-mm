@@ -1,163 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 878426B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:08:20 -0500 (EST)
-Received: by qgec40 with SMTP id c40so128915170qge.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 13:08:20 -0800 (PST)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [23.79.238.175])
-        by mx.google.com with ESMTP id l76si46929211qgd.86.2015.11.30.13.08.19
-        for <linux-mm@kvack.org>;
-        Mon, 30 Nov 2015 13:08:19 -0800 (PST)
-Subject: Re: [PATCH 09/13] mm: memcontrol: generalize the socket accounting
- jump label
-References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
- <1448401925-22501-10-git-send-email-hannes@cmpxchg.org>
-From: Jason Baron <jbaron@akamai.com>
-Message-ID: <565CBAC2.3080804@akamai.com>
-Date: Mon, 30 Nov 2015 16:08:18 -0500
-MIME-Version: 1.0
-In-Reply-To: <1448401925-22501-10-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7249D6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:44:14 -0500 (EST)
+Received: by igcmv3 with SMTP id mv3so80399129igc.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 13:44:14 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w33si1024421ioi.162.2015.11.30.13.44.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Nov 2015 13:44:13 -0800 (PST)
+From: Andreas Gruenbacher <agruenba@redhat.com>
+Subject: [PATCH 06/10] tmpfs: Use xattr handler infrastructure
+Date: Mon, 30 Nov 2015 22:43:39 +0100
+Message-Id: <1448919823-27103-7-git-send-email-agruenba@redhat.com>
+In-Reply-To: <1448919823-27103-1-git-send-email-agruenba@redhat.com>
+References: <1448919823-27103-1-git-send-email-agruenba@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, "peterz@infradead.org" <peterz@infradead.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Cc: Andreas Gruenbacher <agruenba@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-Hi,
+Use the VFS xattr handler infrastructure and get rid of similar code in
+the filesystem.  For implementing shmem_xattr_handler_set, we need a
+version of simple_xattr_set which removes the attribute when value is
+NULL.  Use this to implement kernfs_iop_removexattr as well.
 
-On 11/24/2015 04:52 PM, Johannes Weiner wrote:
-> The unified hierarchy memory controller is going to use this jump
-> label as well to control the networking callbacks. Move it to the
-> memory controller code and give it a more generic name.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> ---
->  include/linux/memcontrol.h | 4 ++++
->  include/net/sock.h         | 7 -------
->  mm/memcontrol.c            | 3 +++
->  net/core/sock.c            | 5 -----
->  net/ipv4/tcp_memcontrol.c  | 4 ++--
->  5 files changed, 9 insertions(+), 14 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index d99fefe..dad56ef 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -681,6 +681,8 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
->  
->  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
->  struct sock;
-> +extern struct static_key memcg_sockets_enabled_key;
-> +#define mem_cgroup_sockets_enabled static_key_false(&memcg_sockets_enabled_key)
+Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+---
+ fs/kernfs/inode.c     |   2 +-
+ fs/xattr.c            |  48 ++++++------------
+ include/linux/xattr.h |   4 +-
+ mm/shmem.c            | 131 ++++++++++++++++----------------------------------
+ 4 files changed, 60 insertions(+), 125 deletions(-)
 
-
-We're trying to move to the updated API, so this should be:
-static_branch_unlikely(&memcg_sockets_enabled_key)
-
-see: include/linux/jump_label.h for details.
-
-
->  void sock_update_memcg(struct sock *sk);
->  void sock_release_memcg(struct sock *sk);
->  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
-> @@ -689,6 +691,8 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
->  {
->  	return memcg->tcp_mem.memory_pressure;
->  }
-> +#else
-> +#define mem_cgroup_sockets_enabled 0
->  #endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
->  
->  #ifdef CONFIG_MEMCG_KMEM
-> diff --git a/include/net/sock.h b/include/net/sock.h
-> index 1a94b85..fcc9442 100644
-> --- a/include/net/sock.h
-> +++ b/include/net/sock.h
-> @@ -1065,13 +1065,6 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
->  #define sk_refcnt_debug_release(sk) do { } while (0)
->  #endif /* SOCK_REFCNT_DEBUG */
->  
-> -#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_NET)
-> -extern struct static_key memcg_socket_limit_enabled;
-> -#define mem_cgroup_sockets_enabled static_key_false(&memcg_socket_limit_enabled)
-> -#else
-> -#define mem_cgroup_sockets_enabled 0
-> -#endif
-> -
->  static inline bool sk_stream_memory_free(const struct sock *sk)
->  {
->  	if (sk->sk_wmem_queued >= sk->sk_sndbuf)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 68d67fc..0602bee 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -291,6 +291,9 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
->  /* Writing them here to avoid exposing memcg's inner layout */
->  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
->  
-> +struct static_key memcg_sockets_enabled_key;
-
-
-And this would be:
-
-static DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);
-
-
->  void sock_update_memcg(struct sock *sk)
->  {
->  	struct mem_cgroup *memcg;
-> diff --git a/net/core/sock.c b/net/core/sock.c
-> index 6486b0d..c5435b5 100644
-> --- a/net/core/sock.c
-> +++ b/net/core/sock.c
-> @@ -201,11 +201,6 @@ EXPORT_SYMBOL(sk_net_capable);
->  static struct lock_class_key af_family_keys[AF_MAX];
->  static struct lock_class_key af_family_slock_keys[AF_MAX];
->  
-> -#if defined(CONFIG_MEMCG_KMEM)
-> -struct static_key memcg_socket_limit_enabled;
-> -EXPORT_SYMBOL(memcg_socket_limit_enabled);
-> -#endif
-> -
->  /*
->   * Make lock validator output more readable. (we pre-construct these
->   * strings build-time, so that runtime initialization of socket
-> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-> index e507825..9a22e2d 100644
-> --- a/net/ipv4/tcp_memcontrol.c
-> +++ b/net/ipv4/tcp_memcontrol.c
-> @@ -34,7 +34,7 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
->  		return;
->  
->  	if (memcg->tcp_mem.active)
-> -		static_key_slow_dec(&memcg_socket_limit_enabled);
-> +		static_key_slow_dec(&memcg_sockets_enabled_key);
->  
-
-static_branch_dec(&memcg_sockets_enabled_key);
-
-}
->  
->  static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
-> @@ -65,7 +65,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
->  		 * because when this value change, the code to process it is not
->  		 * patched in yet.
->  		 */
-> -		static_key_slow_inc(&memcg_socket_limit_enabled);
-> +		static_key_slow_inc(&memcg_sockets_enabled_key);
->  		memcg->tcp_mem.active = true;
->  	}
->  
-> 
-
-static_branch_inc(&memcg_sockets_enabled_key);
-
-Thanks,
-
--Jason
+diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
+index 756dd56..f97e1f7 100644
+--- a/fs/kernfs/inode.c
++++ b/fs/kernfs/inode.c
+@@ -205,7 +205,7 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name)
+ 	if (!attrs)
+ 		return -ENOMEM;
+ 
+-	return simple_xattr_remove(&attrs->xattrs, name);
++	return simple_xattr_set(&attrs->xattrs, name, NULL, 0, XATTR_REPLACE);
+ }
+ 
+ ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
+diff --git a/fs/xattr.c b/fs/xattr.c
+index aaea9e4..1a1ddd7 100644
+--- a/fs/xattr.c
++++ b/fs/xattr.c
+@@ -851,8 +851,22 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
+ 	return ret;
+ }
+ 
+-static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+-			      const void *value, size_t size, int flags)
++/**
++ * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
++ * @xattrs: target simple_xattr list
++ * @name: name of the extended attribute
++ * @value: value of the xattr. If %NULL, will remove the attribute.
++ * @size: size of the new xattr
++ * @flags: %XATTR_{CREATE|REPLACE}
++ *
++ * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
++ * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
++ * otherwise, fails with -ENODATA.
++ *
++ * Returns 0 on success, -errno on failure.
++ */
++int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
++		     const void *value, size_t size, int flags)
+ {
+ 	struct simple_xattr *xattr;
+ 	struct simple_xattr *new_xattr = NULL;
+@@ -902,36 +916,6 @@ out:
+ 
+ }
+ 
+-/**
+- * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
+- * @xattrs: target simple_xattr list
+- * @name: name of the new extended attribute
+- * @value: value of the new xattr. If %NULL, will remove the attribute
+- * @size: size of the new xattr
+- * @flags: %XATTR_{CREATE|REPLACE}
+- *
+- * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
+- * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
+- * otherwise, fails with -ENODATA.
+- *
+- * Returns 0 on success, -errno on failure.
+- */
+-int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+-		     const void *value, size_t size, int flags)
+-{
+-	if (size == 0)
+-		value = ""; /* empty EA, do not remove */
+-	return __simple_xattr_set(xattrs, name, value, size, flags);
+-}
+-
+-/*
+- * xattr REMOVE operation for in-memory/pseudo filesystems
+- */
+-int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name)
+-{
+-	return __simple_xattr_set(xattrs, name, NULL, 0, XATTR_REPLACE);
+-}
+-
+ static bool xattr_is_trusted(const char *name)
+ {
+ 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
+diff --git a/include/linux/xattr.h b/include/linux/xattr.h
+index 3099e16..46826c7 100644
+--- a/include/linux/xattr.h
++++ b/include/linux/xattr.h
+@@ -99,9 +99,7 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
+ 		     void *buffer, size_t size);
+ int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+ 		     const void *value, size_t size, int flags);
+-int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name);
+-ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
+-			  size_t size);
++ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer, size_t size);
+ void simple_xattr_list_add(struct simple_xattrs *xattrs,
+ 			   struct simple_xattr *new_xattr);
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 9187eee..fdfe6c8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2561,94 +2561,47 @@ static int shmem_initxattrs(struct inode *inode,
+ 	return 0;
+ }
+ 
+-static const struct xattr_handler *shmem_xattr_handlers[] = {
+-#ifdef CONFIG_TMPFS_POSIX_ACL
+-	&posix_acl_access_xattr_handler,
+-	&posix_acl_default_xattr_handler,
+-#endif
+-	NULL
+-};
+-
+-static int shmem_xattr_validate(const char *name)
+-{
+-	struct { const char *prefix; size_t len; } arr[] = {
+-		{ XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN },
+-		{ XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN }
+-	};
+-	int i;
+-
+-	for (i = 0; i < ARRAY_SIZE(arr); i++) {
+-		size_t preflen = arr[i].len;
+-		if (strncmp(name, arr[i].prefix, preflen) == 0) {
+-			if (!name[preflen])
+-				return -EINVAL;
+-			return 0;
+-		}
+-	}
+-	return -EOPNOTSUPP;
+-}
+-
+-static ssize_t shmem_getxattr(struct dentry *dentry, const char *name,
+-			      void *buffer, size_t size)
++static int shmem_xattr_handler_get(const struct xattr_handler *handler,
++				   struct dentry *dentry, const char *name,
++				   void *buffer, size_t size)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+-	int err;
+-
+-	/*
+-	 * If this is a request for a synthetic attribute in the system.*
+-	 * namespace use the generic infrastructure to resolve a handler
+-	 * for it via sb->s_xattr.
+-	 */
+-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+-		return generic_getxattr(dentry, name, buffer, size);
+-
+-	err = shmem_xattr_validate(name);
+-	if (err)
+-		return err;
+ 
++	name = xattr_full_name(handler, name);
+ 	return simple_xattr_get(&info->xattrs, name, buffer, size);
+ }
+ 
+-static int shmem_setxattr(struct dentry *dentry, const char *name,
+-			  const void *value, size_t size, int flags)
++static int shmem_xattr_handler_set(const struct xattr_handler *handler,
++				   struct dentry *dentry, const char *name,
++				   const void *value, size_t size, int flags)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+-	int err;
+-
+-	/*
+-	 * If this is a request for a synthetic attribute in the system.*
+-	 * namespace use the generic infrastructure to resolve a handler
+-	 * for it via sb->s_xattr.
+-	 */
+-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+-		return generic_setxattr(dentry, name, value, size, flags);
+-
+-	err = shmem_xattr_validate(name);
+-	if (err)
+-		return err;
+ 
++	name = xattr_full_name(handler, name);
+ 	return simple_xattr_set(&info->xattrs, name, value, size, flags);
+ }
+ 
+-static int shmem_removexattr(struct dentry *dentry, const char *name)
+-{
+-	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+-	int err;
+-
+-	/*
+-	 * If this is a request for a synthetic attribute in the system.*
+-	 * namespace use the generic infrastructure to resolve a handler
+-	 * for it via sb->s_xattr.
+-	 */
+-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+-		return generic_removexattr(dentry, name);
++static const struct xattr_handler shmem_security_xattr_handler = {
++	.prefix = XATTR_SECURITY_PREFIX,
++	.get = shmem_xattr_handler_get,
++	.set = shmem_xattr_handler_set,
++};
+ 
+-	err = shmem_xattr_validate(name);
+-	if (err)
+-		return err;
++static const struct xattr_handler shmem_trusted_xattr_handler = {
++	.prefix = XATTR_TRUSTED_PREFIX,
++	.get = shmem_xattr_handler_get,
++	.set = shmem_xattr_handler_set,
++};
+ 
+-	return simple_xattr_remove(&info->xattrs, name);
+-}
++static const struct xattr_handler *shmem_xattr_handlers[] = {
++#ifdef CONFIG_TMPFS_POSIX_ACL
++	&posix_acl_access_xattr_handler,
++	&posix_acl_default_xattr_handler,
++#endif
++	&shmem_security_xattr_handler,
++	&shmem_trusted_xattr_handler,
++	NULL
++};
+ 
+ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
+ {
+@@ -2661,10 +2614,10 @@ static const struct inode_operations shmem_short_symlink_operations = {
+ 	.readlink	= generic_readlink,
+ 	.follow_link	= simple_follow_link,
+ #ifdef CONFIG_TMPFS_XATTR
+-	.setxattr	= shmem_setxattr,
+-	.getxattr	= shmem_getxattr,
++	.setxattr	= generic_setxattr,
++	.getxattr	= generic_getxattr,
+ 	.listxattr	= shmem_listxattr,
+-	.removexattr	= shmem_removexattr,
++	.removexattr	= generic_removexattr,
+ #endif
+ };
+ 
+@@ -2673,10 +2626,10 @@ static const struct inode_operations shmem_symlink_inode_operations = {
+ 	.follow_link	= shmem_follow_link,
+ 	.put_link	= shmem_put_link,
+ #ifdef CONFIG_TMPFS_XATTR
+-	.setxattr	= shmem_setxattr,
+-	.getxattr	= shmem_getxattr,
++	.setxattr	= generic_setxattr,
++	.getxattr	= generic_getxattr,
+ 	.listxattr	= shmem_listxattr,
+-	.removexattr	= shmem_removexattr,
++	.removexattr	= generic_removexattr,
+ #endif
+ };
+ 
+@@ -3148,10 +3101,10 @@ static const struct inode_operations shmem_inode_operations = {
+ 	.getattr	= shmem_getattr,
+ 	.setattr	= shmem_setattr,
+ #ifdef CONFIG_TMPFS_XATTR
+-	.setxattr	= shmem_setxattr,
+-	.getxattr	= shmem_getxattr,
++	.setxattr	= generic_setxattr,
++	.getxattr	= generic_getxattr,
+ 	.listxattr	= shmem_listxattr,
+-	.removexattr	= shmem_removexattr,
++	.removexattr	= generic_removexattr,
+ 	.set_acl	= simple_set_acl,
+ #endif
+ };
+@@ -3170,10 +3123,10 @@ static const struct inode_operations shmem_dir_inode_operations = {
+ 	.tmpfile	= shmem_tmpfile,
+ #endif
+ #ifdef CONFIG_TMPFS_XATTR
+-	.setxattr	= shmem_setxattr,
+-	.getxattr	= shmem_getxattr,
++	.setxattr	= generic_setxattr,
++	.getxattr	= generic_getxattr,
+ 	.listxattr	= shmem_listxattr,
+-	.removexattr	= shmem_removexattr,
++	.removexattr	= generic_removexattr,
+ #endif
+ #ifdef CONFIG_TMPFS_POSIX_ACL
+ 	.setattr	= shmem_setattr,
+@@ -3183,10 +3136,10 @@ static const struct inode_operations shmem_dir_inode_operations = {
+ 
+ static const struct inode_operations shmem_special_inode_operations = {
+ #ifdef CONFIG_TMPFS_XATTR
+-	.setxattr	= shmem_setxattr,
+-	.getxattr	= shmem_getxattr,
++	.setxattr	= generic_setxattr,
++	.getxattr	= generic_getxattr,
+ 	.listxattr	= shmem_listxattr,
+-	.removexattr	= shmem_removexattr,
++	.removexattr	= generic_removexattr,
+ #endif
+ #ifdef CONFIG_TMPFS_POSIX_ACL
+ 	.setattr	= shmem_setattr,
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
