@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 009266B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:15:34 -0500 (EST)
-Received: by ykdv3 with SMTP id v3so202221887ykd.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:15:33 -0800 (PST)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id v63si30126199ywf.128.2015.11.30.14.15.33
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E4E6B0253
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:17:05 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so203895317pab.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:17:05 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id t13si12239989pas.21.2015.11.30.14.17.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 14:15:33 -0800 (PST)
-Received: by ykfs79 with SMTP id s79so203804922ykf.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:15:33 -0800 (PST)
+        Mon, 30 Nov 2015 14:17:04 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so203894987pab.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:17:04 -0800 (PST)
+Date: Mon, 30 Nov 2015 14:17:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm, oom: Give __GFP_NOFAIL allocations access to
+ memory reserves
+In-Reply-To: <20151126093427.GA7953@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1511301415010.10460@chino.kir.corp.google.com>
+References: <1448448054-804-1-git-send-email-mhocko@kernel.org> <1448448054-804-2-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1511250248540.32374@chino.kir.corp.google.com> <20151125111801.GD27283@dhcp22.suse.cz> <alpine.DEB.2.10.1511251254260.24689@chino.kir.corp.google.com>
+ <20151126093427.GA7953@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <562AA15E.3010403@deltatee.com>
-References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
-	<562AA15E.3010403@deltatee.com>
-Date: Mon, 30 Nov 2015 14:15:33 -0800
-Message-ID: <CAPcyv4gQ-8-tL-rhAPzPxKzBLmWKnFcqSFVy4KVOM56_9gn6RA@mail.gmail.com>
-Subject: Re: [PATCH v2 00/20] get_user_pages() for dax mappings
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Logan Gunthorpe <logang@deltatee.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 23, 2015 at 2:06 PM, Logan Gunthorpe <logang@deltatee.com> wrote:
-> Hi Dan,
->
-> We've tested this patch series (as pulled from your git repo) with our P2P
-> work and everything is working great. The issues we found in v1 have been
-> fixed and we have not found any new ones.
->
-> Tested-By: Logan Gunthorpe <logang@deltatee.com>
->
->
+On Thu, 26 Nov 2015, Michal Hocko wrote:
 
-Hi Logan,
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 8034909faad2..94b04c1e894a 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -2766,8 +2766,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+> > >  			goto out;
+> > >  	}
+> > >  	/* Exhausted what can be done so it's blamo time */
+> > > -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> > > +	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> > >  		*did_some_progress = 1;
+> > > +
+> > > +		if (gfp_mask & __GFP_NOFAIL)
+> > > +			page = get_page_from_freelist(gfp_mask, order,
+> > > +					ALLOC_NO_WATERMARKS, ac);
+> > > +	}
+> > >  out:
+> > >  	mutex_unlock(&oom_lock);
+> > >  	return page;
+> > 
+> > Well, sure, that's one way to do it, but for cpuset users, wouldn't this 
+> > lead to a depletion of the first system zone since you've dropped 
+> > ALLOC_CPUSET and are doing ALLOC_NO_WATERMARKS in the same call?  
+> 
+> Are you suggesting to do?
+> 		if (gfp_mask & __GFP_NOFAIL) {
+> 			page = get_page_from_freelist(gfp_mask, order,
+> 					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> 			/*
+> 			 * fallback to ignore cpuset if our nodes are
+> 			 * depleted
+> 			 */
+> 			if (!page)
+> 				get_page_from_freelist(gfp_mask, order,
+> 					ALLOC_NO_WATERMARKS, ac);
+> 		}
+> 
+> I am not really sure this worth complication.
 
-I appreciate the test report.  I appreciate it so much I wonder if
-you'd be willing to re-test the current state of:
-
-git://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm libnvdimm-pending
-
-...with the revised approach that I'm proposing for-4.5 inclusion.
-
-The main changes are fixes for supporting huge-page mappings.
+I'm objecting to the ability of a process that is doing a __GFP_NOFAIL 
+allocation, which has been disallowed access from allocating on certain 
+mems through cpusets, to cause an oom condition on those disallowed nodes, 
+yes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
