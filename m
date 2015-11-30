@@ -1,116 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6576B0258
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:35 -0500 (EST)
-Received: by ioir85 with SMTP id r85so163478891ioi.1
-        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:35 -0800 (PST)
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E2246B0259
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 01:39:37 -0500 (EST)
+Received: by igcph11 with SMTP id ph11so58011942igc.1
+        for <linux-mm@kvack.org>; Sun, 29 Nov 2015 22:39:37 -0800 (PST)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id i5si4064108igv.17.2015.11.29.22.39.29
+        by mx.google.com with ESMTPS id vt2si92469igb.70.2015.11.29.22.39.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 29 Nov 2015 22:39:29 -0800 (PST)
+        Sun, 29 Nov 2015 22:39:30 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 00/12] MADV_FREE support
-Date: Mon, 30 Nov 2015 15:39:31 +0900
-Message-Id: <1448865583-2446-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 04/12] mm: free swp_entry in madvise_free
+Date: Mon, 30 Nov 2015 15:39:35 +0900
+Message-Id: <1448865583-2446-5-git-send-email-minchan@kernel.org>
+In-Reply-To: <1448865583-2446-1-git-send-email-minchan@kernel.org>
+References: <1448865583-2446-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
 
-In v4, Andrew wanted to settle in old basic MADV_FREE and introduces
-new stuffs(ie, lazyfree LRU, swapless support and lazyfreeness) later
-so this version doesn't include them.
+When I test below piece of code with 12 processes(ie, 512M * 12 = 6G
+consume) on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat
+slower (ie, 2x times) than madvise_dontneed.
 
-I have been tested it on mmotm-2015-11-25-17-08 with additional
-patch[1] from Kirill to prevent BUG_ON which he didn't send to
-linux-mm yet as formal patch. With it, I couldn't find any
-problem so far.
+loop = 5;
+mmap(512M);
+while (loop--) {
+        memset(512M);
+        madvise(MADV_FREE or MADV_DONTNEED);
+}
 
-Note that this version is based on THP refcount redesign so
-I needed some modification on MADV_FREE because split_huge_pmd
-doesn't split a THP page any more and pmd_trans_huge(pmd) is not
-enough to guarantee the page is not THP page.
-As well, for MAVD_FREE lazy-split, THP split should respect
-pmd's dirtiness rather than marking ptes of all subpages dirty
-unconditionally. Please, review last patch in this patchset.
+The reason is lots of swapin.
 
-	mm: don't split THP page when syscall is called
+1) dontneed: 1,612 swapin
+2) madvfree: 879,585 swapin
 
-[1] https://lkml.org/lkml/2015/11/17/134
+If we find hinted pages were already swapped out when syscall is called,
+it's pointless to keep the swapped-out pages in pte.
+Instead, let's free the cold page because swapin is more expensive
+than (alloc page + zeroing).
 
-git: git://git.kernel.org/pub/scm/linux/kernel/git/minchan/linux.git
-branch: mm/madv_free-v4.4-rc2-mmotm-2015-11-25-17-08-v5r2
+With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
 
-In this stage, I don't think we need to write man page.
-It could be done after solid policy and implementation.
+1) dontneed: 6.10user 233.50system 0:50.44elapsed
+2) madvfree: 6.03user 401.17system 1:30.67elapsed
+2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
 
- * Change from v4
-   * drop lazyfree LRU
-   * drop swapless support
-   * drop lazyfreeness
-   * rebase on recent mmotom with THP refcount redesign
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/madvise.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
- * Change from v3
-   * some bug fix
-   * code refactoring
-   * lazyfree reclaim logic change
-   * reordering patch
-
- * Change from v2
-   * vm_lazyfreeness tuning knob
-   * add new LRU list - Johannes, Shaohua
-   * support swapless - Johannes
-
- * Change from v1
-   * Don't do unnecessary TLB flush - Shaohua
-   * Added Acked-by - Hugh, Michal
-   * Merge deactivate_page and deactivate_file_page
-   * Add pmd_dirty/pmd_mkclean patches for several arches
-   * Add lazy THP split patch
-   * Drop zhangyanfei@cn.fujitsu.com - Delivery Failure
-
-Chen Gang (1):
-  arch: uapi: asm: mman.h: Let MADV_FREE have same value for all
-    architectures
-
-Minchan Kim (11):
-  mm: support madvise(MADV_FREE)
-  mm: define MADV_FREE for some arches
-  mm: free swp_entry in madvise_free
-  mm: move lazily freed pages to inactive list
-  mm: mark stable page dirty in KSM
-  x86: add pmd_[dirty|mkclean] for THP
-  sparc: add pmd_[dirty|mkclean] for THP
-  powerpc: add pmd_[dirty|mkclean] for THP
-  arm: add pmd_mkclean for THP
-  arm64: add pmd_mkclean for THP
-  mm: don't split THP page when syscall is called
-
- arch/alpha/include/uapi/asm/mman.h       |   2 +
- arch/arm/include/asm/pgtable-3level.h    |   1 +
- arch/arm64/include/asm/pgtable.h         |   1 +
- arch/mips/include/uapi/asm/mman.h        |   2 +
- arch/parisc/include/uapi/asm/mman.h      |   2 +
- arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
- arch/sparc/include/asm/pgtable_64.h      |   9 ++
- arch/x86/include/asm/pgtable.h           |   5 +
- arch/xtensa/include/uapi/asm/mman.h      |   2 +
- include/linux/huge_mm.h                  |   3 +
- include/linux/rmap.h                     |   1 +
- include/linux/swap.h                     |   1 +
- include/linux/vm_event_item.h            |   1 +
- include/uapi/asm-generic/mman-common.h   |   1 +
- mm/huge_memory.c                         |  87 +++++++++++++-
- mm/ksm.c                                 |   6 +
- mm/madvise.c                             | 199 +++++++++++++++++++++++++++++++
- mm/rmap.c                                |   8 ++
- mm/swap.c                                |  44 +++++++
- mm/swap_state.c                          |   5 +-
- mm/vmscan.c                              |  10 +-
- mm/vmstat.c                              |   1 +
- 22 files changed, 383 insertions(+), 10 deletions(-)
-
+diff --git a/mm/madvise.c b/mm/madvise.c
+index e2fe2e26f449..8de3d9a636c9 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -270,6 +270,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *orig_pte, *pte, ptent;
+ 	struct page *page;
++	int nr_swap = 0;
+ 
+ 	split_huge_pmd(vma, pmd, addr);
+ 	if (pmd_trans_unstable(pmd))
+@@ -280,8 +281,24 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
+ 
+-		if (!pte_present(ptent))
++		if (pte_none(ptent))
+ 			continue;
++		/*
++		 * If the pte has swp_entry, just clear page table to
++		 * prevent swap-in which is more expensive rather than
++		 * (page allocation + zeroing).
++		 */
++		if (!pte_present(ptent)) {
++			swp_entry_t entry;
++
++			entry = pte_to_swp_entry(ptent);
++			if (non_swap_entry(entry))
++				continue;
++			nr_swap--;
++			free_swap_and_cache(entry);
++			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
++			continue;
++		}
+ 
+ 		page = vm_normal_page(vma, addr, ptent);
+ 		if (!page)
+@@ -353,6 +370,12 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 		}
+ 	}
+ out:
++	if (nr_swap) {
++		if (current->mm == mm)
++			sync_mm_rss(mm);
++
++		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
++	}
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(orig_pte, ptl);
+ 	cond_resched();
 -- 
 1.9.1
 
