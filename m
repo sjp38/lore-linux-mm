@@ -1,92 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 715216B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 06:36:46 -0500 (EST)
-Received: by lfdl133 with SMTP id l133so191680039lfd.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 03:36:45 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id r193si28508171lfe.1.2015.11.30.03.36.44
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 999856B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 07:29:11 -0500 (EST)
+Received: by wmec201 with SMTP id c201so135825262wme.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:11 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id m139si28476087wma.54.2015.11.30.04.29.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 03:36:44 -0800 (PST)
-Date: Mon, 30 Nov 2015 14:36:28 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 13/13] mm: memcontrol: hook up vmpressure to socket
- pressure
-Message-ID: <20151130113628.GB24704@esperanza>
-References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
- <20151124215940.GB1373@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151124215940.GB1373@cmpxchg.org>
+        Mon, 30 Nov 2015 04:29:09 -0800 (PST)
+Received: by wmww144 with SMTP id w144so135363580wmw.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 04:29:09 -0800 (PST)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH v4 00/13] UEFI boot and runtime services support for 32-bit ARM
+Date: Mon, 30 Nov 2015 13:28:14 +0100
+Message-Id: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, linux-efi@vger.kernel.org, leif.lindholm@linaro.org, matt@codeblueprint.co.uk, linux@arm.linux.org.uk
+Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, linux-mm@kvack.org, ryan.harkin@linaro.org, grant.likely@linaro.org, roy.franz@linaro.org, msalter@redhat.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On Tue, Nov 24, 2015 at 04:59:40PM -0500, Johannes Weiner wrote:
-...
-> @@ -2396,6 +2396,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  		memcg = mem_cgroup_iter(root, NULL, &reclaim);
->  		do {
->  			unsigned long lru_pages;
-> +			unsigned long reclaimed;
->  			unsigned long scanned;
->  			struct lruvec *lruvec;
->  			int swappiness;
-> @@ -2408,6 +2409,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  
->  			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
->  			swappiness = mem_cgroup_swappiness(memcg);
-> +			reclaimed = sc->nr_reclaimed;
->  			scanned = sc->nr_scanned;
->  
->  			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
-> @@ -2418,6 +2420,11 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  					    memcg, sc->nr_scanned - scanned,
->  					    lru_pages);
->  
-> +			/* Record the group's reclaim efficiency */
-> +			vmpressure(sc->gfp_mask, memcg, false,
-> +				   sc->nr_scanned - scanned,
-> +				   sc->nr_reclaimed - reclaimed);
-> +
+This series adds support for booting the 32-bit ARM kernel directly from
+UEFI firmware using a builtin UEFI stub. It mostly reuses refactored arm64
+code, and the differences (primarily the PE/COFF header and entry point and
+the efi_create_mapping() implementation) are split out into arm64 and ARM
+versions.
 
-Suppose we have the following cgroup configuration.
+Since I did not receive any further comments in reply to v3 from the people who
+commented on v2, I think this series in now in sufficient shape to be pulled.
+Note that patch #1 touches mm/memblock.c and include/linux/memblock.h, for which
+get_maintainer.pl does not provide a maintainer, so it has been cc'ed to various
+past editors of those files, and to the linux-mm mailing list.
 
-A __ B
-  \_ C
+Since the series affects both arm64 and ARM, it is up to the maintainers to let
+me know how and when they wish to proceed with this. My suggestion would be to
+send out pull request for patches #1 - #5 to the arm64 maintainer, and for the
+whole series to the ARM maintainer. This should keep any conflicts on either
+side confined to the respective maintainer tree, rather then propagating all the
+way to -next.
 
-A is empty (which is natural for the unified hierarchy AFAIU). B has
-some workload running in it, and C generates socket pressure. Due to the
-socket pressure coming from C we start reclaim in A, which results in
-thrashing of B, but we might not put sockets under pressure in A or C,
-because vmpressure does not account pages scanned/reclaimed in B when
-generating a vmpressure event for A or C. This might result in
-aggressive reclaim and thrashing in B w/o generating a signal for C to
-stop growing socket buffers.
+For the result of regression testing against these patches, please refer to the
+following links for build and boot reports (respectively) generated by
+kernelci.org (thanks guys). 
 
-Do you think such a situation is possible? If so, would it make sense to
-switch to post-order walk in shrink_zone and pass sub-tree
-scanned/reclaimed stats to vmpressure for each scanned memcg?
+http://kernelci.org/build/ardb/kernel/v4.4-rc3-13-g9e4dc4695ba0/
+http://kernelci.org/boot/all/job/ardb/kernel/v4.4-rc3-13-g9e4dc4695ba0/
 
-Thanks,
-Vladimir
+Note that the above is regression testing only, as kernelci does not yet support
+booting 32-bit ARM targets in EFI mode. This functionality has been verified
+independently (on actual hardware) by Ryan Harkin <ryan.harkin@linaro.org>, who
+has kindly given his Tested-by for the ARM patches in this series (#6 - #13)
 
->  			/*
->  			 * Direct reclaim and kswapd have to scan all memory
->  			 * cgroups to fulfill the overall scan target for the
-> @@ -2449,7 +2456,8 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  			reclaim_state->reclaimed_slab = 0;
->  		}
->  
-> -		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
-> +		/* Record the subtree's reclaim efficiency */
-> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
->  			   sc->nr_scanned - nr_scanned,
->  			   sc->nr_reclaimed - nr_reclaimed);
->  
+Please find instructions for duplicating the EFI boot testing using QEMU at the
+end of this email.
+
+Changes since v3:
+- rebased onto v4.4-rc3
+- minor change in #13: use 'dram_base + MAX_UNCOMP_KERNEL_SIZE' as preferred
+  base for the allocation that holds the relocated compressed kernel image
+  (the former value of 0x0 is usually not covered by DRAM, resulting in the
+  value above to be used anyway)
+- added Reviewed-by from Matt Fleming
+- added Tested-by from Ryan Harkin (#6 - #13)
+
+Changes since v2:
+- Some issues pointed out by Russell and Matt that were not introduced by this
+  series but merely became apparent due to the code movement in patch #4 have
+  been addressed in a separate 2-piece series I sent out this morning. This v3
+  is rebased on top of those patches.
+- Added a patch (#9) that adds support for creating non-global mappings. This
+  addresses a concern raised by Russell in response to v2 where the use of
+  global mappings combined with a flawed context switch and TBL flush sequence
+  could result in memory corruption.
+- Rebased onto v4.4-rc2
+
+Changes since v1:
+- The primary difference between this version and the first one is that all
+  prerequisites have either been merged, dropped for now (early FDT handling)
+  or folded into this series (MEMBLOCK_NOMAP). IOW, this series can be applied
+  on top of v4.4-rc1 directly.
+- Dropped handling of UEFI permission bits. The reason is that the UEFIv2.5
+  approach (EFI_PROPERTIES_TABLE) is flawed, and will be replaced by something
+  better in the next version of the spec.
+
+Patch #1 adds support for the MEMBLOCK_NOMAP attribute to the generic memblock
+code. Its purpose is to annotate memory regions as normal memory even if they
+are removed from the kernel direct mapping.
+
+Patch #2 implements MEMBLOCK_NOMAP support for arm64
+
+Patch #3 updates the EFI init code to remove UEFI reserved regions and regions
+used by runtime services from the kernel direct mapping
+
+Patch #4 splits off most of arch/arm64/kernel/efi.c into arch agnostic files
+arm-init.c and arm-runtime.c under drivers/firmware/efi.
+
+Patch #5 refactors the code split off in patch #1 to isolate the arm64 specific
+pieces, and change a couple of arm64-isms that ARM handles slightly differently.
+
+Patch #6 enables the generic early_ioremap and early_memremap implementations
+for ARM. It reuses the kmap fixmap region, which is not used that early anyway.
+
+Patch #7 splits off the core functionality of create_mapping() into a new
+function __create_mapping() that we can reuse for mapping UEFI runtime regions.
+
+Patch #8 factors out the early_alloc() routine so we can invoke __create_mapping
+using another (late) allocator.
+
+Patch #9 adds support to __create_mapping() for creating non-global translation
+table entries. (new in v3)
+
+Patch #10 implements create_mapping_late() that uses a late allocator.
+
+Patch #11 implements MEMBLOCK_NOMAP support for ARM
+
+Patch #12 implements the UEFI support in the kernel proper to probe the UEFI
+memory map and map the runtime services.
+
+Patch #13 ties together all of the above, by implementing the UEFI stub, and
+introducing the Kconfig symbols that allow all of this to be built.
+
+
+Ard Biesheuvel (12):
+  mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
+  arm64: only consider memblocks with NOMAP cleared for linear mapping
+  arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
+  arm64/efi: split off EFI init and runtime code for reuse by 32-bit ARM
+  arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
+  ARM: add support for generic early_ioremap/early_memremap
+  ARM: split off core mapping logic from create_mapping
+  ARM: factor out allocation routine from __create_mapping()
+  ARM: add support for non-global kernel mappings
+  ARM: implement create_mapping_late() for EFI use
+  ARM: only consider memblocks with NOMAP cleared for linear mapping
+  ARM: wire up UEFI init and runtime support
+
+Roy Franz (1):
+  ARM: add UEFI stub support
+
+ arch/arm/Kconfig                          |  20 ++
+ arch/arm/boot/compressed/Makefile         |   4 +-
+ arch/arm/boot/compressed/efi-header.S     | 130 ++++++++
+ arch/arm/boot/compressed/head.S           |  54 +++-
+ arch/arm/boot/compressed/vmlinux.lds.S    |   7 +
+ arch/arm/include/asm/Kbuild               |   1 +
+ arch/arm/include/asm/efi.h                |  83 +++++
+ arch/arm/include/asm/fixmap.h             |  29 +-
+ arch/arm/include/asm/mach/map.h           |   2 +
+ arch/arm/include/asm/mmu_context.h        |   2 +-
+ arch/arm/kernel/Makefile                  |   1 +
+ arch/arm/kernel/efi.c                     |  38 +++
+ arch/arm/kernel/setup.c                   |  10 +-
+ arch/arm/mm/init.c                        |   5 +-
+ arch/arm/mm/ioremap.c                     |   9 +
+ arch/arm/mm/mmu.c                         | 128 +++++---
+ arch/arm64/include/asm/efi.h              |   9 +
+ arch/arm64/kernel/efi.c                   | 334 +-------------------
+ arch/arm64/mm/init.c                      |   2 +-
+ arch/arm64/mm/mmu.c                       |   2 +
+ drivers/firmware/efi/Makefile             |   4 +
+ drivers/firmware/efi/arm-init.c           | 209 ++++++++++++
+ drivers/firmware/efi/arm-runtime.c        | 135 ++++++++
+ drivers/firmware/efi/efi.c                |   2 +
+ drivers/firmware/efi/libstub/Makefile     |   9 +
+ drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
+ drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++
+ include/linux/memblock.h                  |   8 +
+ mm/memblock.c                             |  28 ++
+ 29 files changed, 986 insertions(+), 368 deletions(-)
+ create mode 100644 arch/arm/boot/compressed/efi-header.S
+ create mode 100644 arch/arm/include/asm/efi.h
+ create mode 100644 arch/arm/kernel/efi.c
+ create mode 100644 drivers/firmware/efi/arm-init.c
+ create mode 100644 drivers/firmware/efi/arm-runtime.c
+ create mode 100644 drivers/firmware/efi/libstub/arm32-stub.c
+
+
+Testing instructions
+====================
+
+1. Download a prebuilt firmware binary:
+http://snapshots.linaro.org/components/kernel/leg-virt-tianocore-edk2-upstream/latest/QEMU-ARM/RELEASE_GCC49/QEMU_EFI.img.gz
+
+2. Unzip it
+gunzip QEMU_EFI.img.gz
+
+3. Download a prebuilt kernel binary (non-LPAE or LPAE, respectively):
+http://storage.kernelci.org/ardb/v4.4-rc3-13-g9e4dc4695ba0/arm-multi_v7_defconfig+CONFIG_EFI=y/zImage
+http://storage.kernelci.org/ardb/v4.4-rc3-13-g9e4dc4695ba0/arm-multi_v7_defconfig+CONFIG_EFI=y+CONFIG_ARM_LPAE=y/zImage
+
+4. Run it
+qemu-system-arm -M virt -m 512 -nographic \
+	-bios QEMU_EFI.img -kernel zImage \
+	-append 'earlycon efi=debug console=ttyAMA0'
+
+(Ctrl-A Ctrl-X to quit)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
