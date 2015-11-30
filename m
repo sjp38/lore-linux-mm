@@ -1,100 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BE6E6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 09:25:02 -0500 (EST)
-Received: by obdgf3 with SMTP id gf3so129165905obd.3
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 06:25:02 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id y199si33822127oia.146.2015.11.30.06.25.01
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BD276B0255
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 09:37:40 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so192340184pab.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 06:37:40 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id f7si10157574pat.97.2015.11.30.06.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 06:25:01 -0800 (PST)
+        Mon, 30 Nov 2015 06:37:39 -0800 (PST)
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: mm: BUG in __munlock_pagevec
-Message-ID: <565C5C38.3040705@oracle.com>
-Date: Mon, 30 Nov 2015 09:24:56 -0500
+Subject: mm: kernel BUG at mm/huge_memory.c:3272!
+Message-ID: <565C5F2D.5060003@oracle.com>
+Date: Mon, 30 Nov 2015 09:37:33 -0500
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi all,
+Hi Kirill,
 
 I've hit the following while fuzzing with trinity on the latest -next kernel:
 
-
-[  850.305385] page:ffffea001a5a0f00 count:0 mapcount:1 mapping:dead000000000400 index:0x1ffffffffff
-[  850.306773] flags: 0x2fffff80000000()
-[  850.307175] page dumped because: VM_BUG_ON_PAGE(1 && PageTail(page))
-[  850.308027] page_owner info is not active (free page?)
-[  850.308925] ------------[ cut here ]------------
-[  850.309614] kernel BUG at include/linux/page-flags.h:326!
-[  850.310333] invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-[  850.311176] Modules linked in:
-[  850.311650] CPU: 5 PID: 7051 Comm: trinity-c129 Not tainted 4.4.0-rc2-next-20151127-sasha-00012-gf0498ca-dirty #2661
-[  850.313115] task: ffff8806eaf08000 ti: ffff8806b1170000 task.ti: ffff8806b1170000
-[  850.314085] RIP: __munlock_pagevec (include/linux/page-flags.h:326 mm/mlock.c:296)
-[  850.315341] RSP: 0018:ffff8806b11778d0  EFLAGS: 00010046
-[  850.316086] RAX: ffff8806eaf08000 RBX: ffff8806b1177b58 RCX: 0000000000000000
-[  850.316938] RDX: 0000000000000000 RSI: 0000000000000046 RDI: ffffed00d622eef6
-[  850.317777] RBP: ffff8806b1177a20 R08: fffffbfff439eaf3 R09: ffffffffa1cf5798
-[  850.318453] R10: ffff8806f2aef9c0 R11: 1ffffffff439eaed R12: ffffea001a5a0f00
-[  850.319131] R13: dffffc0000000000 R14: ffffea001a5a0f20 R15: ffff8806b11779f8
-[  850.319807] FS:  0000000000000000(0000) GS:ffff8806fd340000(0000) knlGS:0000000000000000
-[  850.320595] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  850.321155] CR2: 00000000006e0000 CR3: 00000006e2fd2000 CR4: 00000000000406e0
-[  850.321839] Stack:
-[  850.322045]  1ffff100d622ef23 ffff88082ffd8000 ffff8806b1177b48 0000000300000000
-[  850.322811]  0000000000000003 ffff88082ffd6000 ffff8806b1177938 ffff8806b1177b58
-[  850.323570]  ffffea001aadf700 0000000041b58ab3 ffffffff9e8778fa ffffffff93597a40
-[  850.324396] Call Trace:
-[  850.330731] munlock_vma_pages_range (mm/mlock.c:485)
-[  850.335325] exit_mmap (mm/mmap.c:2844)
-[  850.338123] mmput (include/linux/compiler.h:218 kernel/fork.c:750 kernel/fork.c:717)
-[  850.338591] do_exit (./arch/x86/include/asm/bitops.h:311 include/linux/thread_info.h:92 kernel/exit.c:438 kernel/exit.c:735)
-[  850.341432] do_group_exit (kernel/exit.c:862)
-[  850.341950] SyS_exit_group (kernel/exit.c:889)
-[  850.342582] entry_SYSCALL_64_fastpath (arch/x86/entry/entry_64.S:188)
-[ 850.343177] Code: 34 07 00 48 8b 85 f0 fe ff ff 49 8b 54 24 20 48 89 c3 83 e2 01 74 50 e8 ea 38 07 00 48 c7 c6 20 a3 4e 9c 4c 89 e7 e8 9b 6b fe ff <0f> 0b e8 d4 38 07 00 48 8b 85 d0 fe ff ff 48 8b 9d c0 fe ff ff
+[  321.348184] page:ffffea0011a20080 count:1 mapcount:1 mapping:ffff8802d745f601 index:0x1802
+[  321.350607] flags: 0x320035c00040078(uptodate|dirty|lru|active|swapbacked)
+[  321.453706] page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
+[  321.455353] page->mem_cgroup:ffff880286620000
+[  321.456482] ------------[ cut here ]------------
+[  321.457158] kernel BUG at mm/huge_memory.c:3272!
+[  321.457811] invalid opcode: 0000 [#1] PREEMPT SMP KASAN
+[  321.458598] Modules linked in:
+[  321.459057] CPU: 18 PID: 24106 Comm: trinity-c129 Not tainted 4.4.0-rc2-next-20151127-sasha-00012-gf0498ca-dirty #2661
+[  321.460516] task: ffff880042fd2000 ti: ffff8800428c0000 task.ti: ffff8800428c0000
+[  321.461732] RIP: split_huge_page_to_list (mm/huge_memory.c:3272 (discriminator 1))
+[  321.464004] RSP: 0000:ffff8800428c71d0  EFLAGS: 00010246
+[  321.464733] RAX: ffff880042fd2000 RBX: ffffea0011a20080 RCX: 0000000000000000
+[  321.465735] RDX: 0000000000000000 RSI: 0000000000000246 RDI: ffffed0008518e1f
+[  321.466719] RBP: ffff8800428c72b0 R08: fffffbfff4f9eaf1 R09: ffffffffa7cf578f
+[  321.467704] R10: ffffed0105fe6293 R11: 1ffffffff4f9eaed R12: ffffea0011a20060
+[  321.468702] R13: ffffea0011a200a0 R14: ffffea0011a20080 R15: ffff8800428c7300
+[  321.469718] FS:  00007f9d611bb700(0000) GS:ffff880686800000(0000) knlGS:0000000000000000
+[  321.470807] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  321.471608] CR2: 0000000001b54fe8 CR3: 0000000042869000 CR4: 00000000000006a0
+[  321.472633] DR0: 00007f9d5cb76000 DR1: 0000000000000000 DR2: 0000000000000000
+[  321.473612] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[  321.474619] Stack:
+[  321.474935]  ffff8800428c7300 ffff8800428c72b0 ffffffff9950f2c8 dffffc0000000000
+[  321.476071]  0000000041b58ab3 ffffffffa4871335 ffffffff9950f0c0 dffffc0000000000
+[  321.477184]  ffffea0011a20000 0000000000000000 0000000000000000 0000000000000001
+[  321.478297] Call Trace:
+[  321.481234] deferred_split_scan (mm/huge_memory.c:3392)
+[  321.484688] shrink_slab (mm/vmscan.c:354 mm/vmscan.c:446)
+[  321.488008] shrink_zone (mm/vmscan.c:2449)
+[  321.493105] do_try_to_free_pages (mm/vmscan.c:2600 mm/vmscan.c:2650)
+[  321.496657] try_to_free_pages (mm/vmscan.c:2858)
+[  321.498346] __alloc_pages_nodemask (mm/page_alloc.c:2878 mm/page_alloc.c:2896 mm/page_alloc.c:3149 mm/page_alloc.c:3260)
+[  321.508819] alloc_pages_vma (mm/mempolicy.c:2042)
+[  321.509629] wp_page_copy.isra.41 (mm/memory.c:2064)
+[  321.512347] do_wp_page (mm/memory.c:2339)
+[  321.518569] handle_mm_fault (mm/memory.c:3302 mm/memory.c:3396 mm/memory.c:3425)
+[  321.527500] __do_page_fault (arch/x86/mm/fault.c:1239)
+[  321.528411] do_page_fault (arch/x86/mm/fault.c:1301 include/linux/context_tracking_state.h:30 include/linux/context_tracking.h:50 arch/x86/mm/fault.c:1302)
+[  321.530053] do_async_page_fault (./arch/x86/include/asm/traps.h:82 arch/x86/kernel/kvm.c:264)
+[  321.532125] async_page_fault (arch/x86/entry/entry_64.S:989)
+[ 321.533057] Code: ea 03 80 3c 02 00 74 08 48 89 df e8 58 4d fe ff 48 8b 03 a8 01 75 16 e8 7c 51 fe ff 48 c7 c6 80 3c 4f a2 4c 89 f7 e8 2d 84 f5 ff <0f> 0b e8 66 51 fe ff 48 8b 55 c8 48 b8 00 00 00 00 00 fc ff df
 All code
 ========
-   0:   34 07                   xor    $0x7,%al
-   2:   00 48 8b                add    %cl,-0x75(%rax)
-   5:   85 f0                   test   %esi,%eax
-   7:   fe                      (bad)
-   8:   ff                      (bad)
-   9:   ff 49 8b                decl   -0x75(%rcx)
-   c:   54                      push   %rsp
-   d:   24 20                   and    $0x20,%al
-   f:   48 89 c3                mov    %rax,%rbx
-  12:   83 e2 01                and    $0x1,%edx
-  15:   74 50                   je     0x67
-  17:   e8 ea 38 07 00          callq  0x73906
-  1c:   48 c7 c6 20 a3 4e 9c    mov    $0xffffffff9c4ea320,%rsi
-  23:   4c 89 e7                mov    %r12,%rdi
-  26:   e8 9b 6b fe ff          callq  0xfffffffffffe6bc6
-  2b:*  0f 0b                   ud2             <-- trapping instruction
-  2d:   e8 d4 38 07 00          callq  0x73906
-  32:   48 8b 85 d0 fe ff ff    mov    -0x130(%rbp),%rax
-  39:   48 8b 9d c0 fe ff ff    mov    -0x140(%rbp),%rbx
+   0:   ea                      (bad)
+   1:   03 80 3c 02 00 74       add    0x7400023c(%rax),%eax
+   7:   08 48 89                or     %cl,-0x77(%rax)
+   a:   df e8                   fucomip %st(0),%st
+   c:   58                      pop    %rax
+   d:   4d fe                   rex.WRB (bad)
+   f:   ff 48 8b                decl   -0x75(%rax)
+  12:   03 a8 01 75 16 e8       add    -0x17e98aff(%rax),%ebp
+  18:   7c 51                   jl     0x6b
+  1a:   fe                      (bad)
+  1b:   ff 48 c7                decl   -0x39(%rax)
+  1e:   c6 80 3c 4f a2 4c 89    movb   $0x89,0x4ca24f3c(%rax)
+  25:   f7 e8                   imul   %eax
+  27:   2d 84 f5 ff 0f          sub    $0xffff584,%eax
+  2c:   0b e8                   or     %eax,%ebp
+  2e:   66 51                   push   %cx
+  30:   fe                      (bad)
+  31:   ff 48 8b                decl   -0x75(%rax)
+  34:   55                      push   %rbp
+  35:*  c8 48 b8 00             enterq $0xb848,$0x0             <-- trapping instruction
+  39:   00 00                   add    %al,(%rax)
+  3b:   00 00                   add    %al,(%rax)
+  3d:   fc                      cld
+  3e:   ff df                   lcallq *<internal disassembler error>
         ...
 
 Code starting with the faulting instruction
 ===========================================
    0:   0f 0b                   ud2
-   2:   e8 d4 38 07 00          callq  0x738db
-   7:   48 8b 85 d0 fe ff ff    mov    -0x130(%rbp),%rax
-   e:   48 8b 9d c0 fe ff ff    mov    -0x140(%rbp),%rbx
+   2:   e8 66 51 fe ff          callq  0xfffffffffffe516d
+   7:   48 8b 55 c8             mov    -0x38(%rbp),%rdx
+   b:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
+  12:   fc ff df
         ...
-[  850.345913] RIP __munlock_pagevec (include/linux/page-flags.h:326 mm/mlock.c:296)
-[  850.346536]  RSP <ffff8806b11778d0>
-
-
-Thanks,
-Sasha
+[  321.537072] RIP split_huge_page_to_list (mm/huge_memory.c:3272 (discriminator 1))
+[  321.537942]  RSP <ffff8800428c71d0>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
