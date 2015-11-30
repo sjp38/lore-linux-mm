@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E7146B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 13:29:44 -0500 (EST)
-Received: by wmec201 with SMTP id c201so169759314wme.0
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 10:29:43 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v191si30525360wmd.52.2015.11.30.10.29.42
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C731A6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 14:12:30 -0500 (EST)
+Received: by ykfs79 with SMTP id s79so197501741ykf.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 11:12:30 -0800 (PST)
+Received: from mail-yk0-x229.google.com (mail-yk0-x229.google.com. [2607:f8b0:4002:c07::229])
+        by mx.google.com with ESMTPS id s64si8457683ywf.164.2015.11.30.11.12.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 10:29:42 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH] MAINTAINERS: make Vladimir co-maintainer of the memory controller
-Date: Mon, 30 Nov 2015 13:29:30 -0500
-Message-Id: <1448908170-2990-1-git-send-email-hannes@cmpxchg.org>
+        Mon, 30 Nov 2015 11:12:30 -0800 (PST)
+Received: by ykdv3 with SMTP id v3so195927605ykd.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 11:12:30 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151130050833.18366.21963.stgit@dwillia2-desk3.jf.intel.com>
+References: <20151130050833.18366.21963.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 30 Nov 2015 11:12:29 -0800
+Message-ID: <CAPcyv4jKxV-Uq2+AbwVyvTyb8SNeHaVXTf5A_YYDiptNkPnfFQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/5] get_user_pages() for dax mappings
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Linux MM <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@sr71.net>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
 
-Vladimir architected and authored much of the current state of the
-memcg's slab memory accounting and tracking. Make sure he gets CC'd
-on bug reports ;-)
+On Sun, Nov 29, 2015 at 9:08 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> The full set in context with other changes is available here:
+>
+>   git://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm libnvdimm-pending
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- MAINTAINERS | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/MAINTAINERS b/MAINTAINERS
-index ea17512..f97f17f 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -2973,6 +2973,7 @@ F:	kernel/cpuset.c
- CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
- M:	Johannes Weiner <hannes@cmpxchg.org>
- M:	Michal Hocko <mhocko@kernel.org>
-+M:	Vladimir Davydov <vdavydov@virtuozzo.com>
- L:	cgroups@vger.kernel.org
- L:	linux-mm@kvack.org
- S:	Maintained
--- 
-2.6.2
+Note, I refreshed the branch to fix a randconfig compile error
+reported by the kbuild robot, but no other substantive changes
+relative to the posted patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
