@@ -1,137 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EA7E26B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:56:46 -0500 (EST)
-Received: by igvg19 with SMTP id g19so106547325igv.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:56:46 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0239.hostedemail.com. [216.40.44.239])
-        by mx.google.com with ESMTPS id j10si729130igt.56.2015.12.01.15.56.46
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id AF04D6B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:59:29 -0500 (EST)
+Received: by wmww144 with SMTP id w144so35244040wmw.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:59:29 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id aw7si402333wjc.90.2015.12.01.15.59.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 15:56:46 -0800 (PST)
-Date: Tue, 1 Dec 2015 18:56:43 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/7] trace/events: Add gup trace events
-Message-ID: <20151201185643.2ef6cd14@gandalf.local.home>
-In-Reply-To: <1449011177-30686-2-git-send-email-yang.shi@linaro.org>
-References: <1449011177-30686-1-git-send-email-yang.shi@linaro.org>
-	<1449011177-30686-2-git-send-email-yang.shi@linaro.org>
-MIME-Version: 1.0
+        Tue, 01 Dec 2015 15:59:28 -0800 (PST)
+Date: Tue, 1 Dec 2015 15:59:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] mm: add a new vector based madvise syscall
+Message-Id: <20151201155926.6291e5e541c49d453079849b@linux-foundation.org>
+In-Reply-To: <c25b90749f9212359a085125f6403f4c148dfde0.1447098139.git.shli@fb.com>
+References: <c25b90749f9212359a085125f6403f4c148dfde0.1447098139.git.shli@fb.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, je@fb.com, Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>
 
-On Tue,  1 Dec 2015 15:06:11 -0800
-Yang Shi <yang.shi@linaro.org> wrote:
+On Mon, 9 Nov 2015 11:44:54 -0800 Shaohua Li <shli@fb.com> wrote:
 
-> page-faults events record the invoke to handle_mm_fault, but the invoke
-> may come from do_page_fault or gup. In some use cases, the finer event count
-> mey be needed, so add trace events support for:
+> In jemalloc, a free(3) doesn't immediately free the memory to OS even
+> the memory is page aligned/size, and hope the memory can be reused soon.
+> Later the virtual address becomes fragmented, and more and more free
+> memory are aggregated. If the free memory size is large, jemalloc uses
+> madvise(DONT_NEED) to actually free the memory back to OS.
 > 
-> __get_user_pages
-> __get_user_pages_fast
-> fixup_user_fault
+> The madvise has significantly overhead paritcularly because of TLB
+> flush. jemalloc does madvise for several virtual address space ranges
+> one time. Instead of calling madvise for each of the ranges, we
+> introduce a new syscall to purge memory for several ranges one time. In
+> this way, we can merge several TLB flush for the ranges to one big TLB
+> flush. This also reduce mmap_sem locking and kernel/userspace switching.
 > 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> ---
->  include/trace/events/gup.h | 77 ++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 77 insertions(+)
->  create mode 100644 include/trace/events/gup.h
+> I'm running a simple memory allocation benchmark. 32 threads do random
+> malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
+> attached.
+> Without patch:
+> real    0m18.923s
+> user    1m11.819s
+> sys     7m44.626s
+> each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
+> is hotest functions. mmap_sem read locking (because of page fault) is
+> also heavy.
 > 
-> diff --git a/include/trace/events/gup.h b/include/trace/events/gup.h
-> new file mode 100644
-> index 0000000..37d18f9
-> --- /dev/null
-> +++ b/include/trace/events/gup.h
-> @@ -0,0 +1,77 @@
-> +#undef TRACE_SYSTEM
-> +#define TRACE_SYSTEM gup
-> +
-> +#if !defined(_TRACE_GUP_H) || defined(TRACE_HEADER_MULTI_READ)
-> +#define _TRACE_GUP_H
-> +
-> +#include <linux/types.h>
-> +#include <linux/tracepoint.h>
-> +
-> +TRACE_EVENT(gup_fixup_user_fault,
-> +
-> +	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
-> +			unsigned long address, unsigned int fault_flags),
-> +
-> +	TP_ARGS(tsk, mm, address, fault_flags),
-> +
-> +	TP_STRUCT__entry(
-> +		__array(	char,	comm,	TASK_COMM_LEN	)
+> with patch:
+> real    0m15.026s
+> user    0m48.548s
+> sys     6m41.153s
+> each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
+> all. mmap_sem read locking (still because of page fault) becomes the
+> sole hot spot.
+> 
+> Another test malloc a bunch of memory in 48 threads, then all threads
+> free the memory. I measure the time of the memory free.
+> Without patch: 34.332s
+> With patch:    17.429s
+> 
+> Current implementation only supports MADV_DONTNEED. Should be trival to
+> support MADV_FREE if necessary later.
 
-Why save the comm? The tracing infrastructure should keep track of that.
+I'd like to see a full description of the proposed userspace interface:
+arguments, data structures, return values, etc.  A propotype manpage,
+basically.
 
-> +		__field(	unsigned long,	address		)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-> +		__entry->address	= address;
-> +	),
-> +
-> +	TP_printk("comm=%s address=%lx", __entry->comm, __entry->address)
-> +);
-> +
-> +TRACE_EVENT(gup_get_user_pages,
-> +
-> +	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
-> +			unsigned long start, unsigned long nr_pages,
-> +			unsigned int gup_flags, struct page **pages,
-> +			struct vm_area_struct **vmas, int *nonblocking),
-> +
-> +	TP_ARGS(tsk, mm, start, nr_pages, gup_flags, pages, vmas, nonblocking),
+I'd also like to see an analysis of which other userspace allocators
+will benefit from this.  glibc? tcmalloc?
 
-Why so many arguments? Most are not used.
+>
+> ...
+>
+> +/*
+> + * The vector madvise(). Like madvise except running for a vector of virtual
+> + * address ranges
+> + */
+> +SYSCALL_DEFINE3(madvisev, const struct iovec __user *, uvector,
+> +	unsigned long, nr_segs, int, behavior)
+> +{
+> +	struct iovec iovstack[UIO_FASTIOV];
+> +	struct iovec *iov = NULL;
+> +	unsigned long start, end = 0;
+> +	int unmapped_error = 0;
+> +	size_t len;
+> +	struct mmu_gather tlb;
+> +	int error;
+> +	int i;
+> +
+> +	if (behavior != MADV_DONTNEED)
+> +		return -EINVAL;
+> +
+> +	error = rw_copy_check_uvector(CHECK_IOVEC_ONLY, uvector, nr_segs,
+> +			UIO_FASTIOV, iovstack, &iov);
+> +	if (error <= 0)
+> +		goto out;
+> +	/* Make sure address in ascend order */
+> +	sort(iov, nr_segs, sizeof(struct iovec), iov_cmp_func, NULL);
 
--- Steve
+Do we really need to sort the addresses?  That's something which can be
+done in userspace and we can easily add a check-for-sortedness to the
+below loop.
 
-> +
-> +	TP_STRUCT__entry(
-> +		__array(	char,	comm,	TASK_COMM_LEN	)
-> +		__field(	unsigned long,	start		)
-> +		__field(	unsigned long,	nr_pages	)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-> +		__entry->start		= start;
-> +		__entry->nr_pages	= nr_pages;
-> +	),
-> +
-> +	TP_printk("comm=%s start=%lx nr_pages=%lu", __entry->comm, __entry->start, __entry->nr_pages)
-> +);
-> +
-> +TRACE_EVENT(gup_get_user_pages_fast,
-> +
-> +	TP_PROTO(unsigned long start, int nr_pages, int write,
-> +			struct page **pages),
-> +
-> +	TP_ARGS(start, nr_pages, write, pages),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(	unsigned long,	start		)
-> +		__field(	unsigned long,	nr_pages	)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->start  	= start;
-> +		__entry->nr_pages	= nr_pages;
-> +	),
-> +
-> +	TP_printk("start=%lx nr_pages=%lu",  __entry->start, __entry->nr_pages)
-> +);
-> +
-> +#endif /* _TRACE_GUP_H */
-> +
-> +/* This part must be outside protection */
-> +#include <trace/define_trace.h>
+It depends on whether userspace can easily generate a sorted array.  If
+basically all userspace will always need to run sort() then it doesn't
+matter much whether it's done in the kernel or in userspace.  But if
+*some* userspace can naturally generate its array in sorted form then
+neither userspace nor the kernel needs to run sort() and we should take
+this out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
