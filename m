@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8988D6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 20:10:08 -0500 (EST)
-Received: by ioir85 with SMTP id r85so193920504ioi.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:10:08 -0800 (PST)
-Received: from mail-io0-x229.google.com (mail-io0-x229.google.com. [2607:f8b0:4001:c06::229])
-        by mx.google.com with ESMTPS id h91si3493669ioi.167.2015.11.30.17.10.08
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 819FD6B0254
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 20:18:55 -0500 (EST)
+Received: by oies6 with SMTP id s6so108329847oie.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:18:55 -0800 (PST)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0076.outbound.protection.outlook.com. [207.46.100.76])
+        by mx.google.com with ESMTPS id v78si35979339oif.55.2015.11.30.17.18.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 17:10:08 -0800 (PST)
-Received: by ioc74 with SMTP id 74so192640422ioc.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:10:08 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 30 Nov 2015 17:18:55 -0800 (PST)
+Subject: Re: [PATCH] Fix a bdi reregistration race, v2
+References: <564F9AFF.3050605@sandisk.com>
+ <20151124231331.GA25591@infradead.org> <5654F169.6070000@sandisk.com>
+ <20151125084744.GA16429@infradead.org> <5655CCC0.9010107@sandisk.com>
+ <yq1610jf0jk.fsf@sermon.lab.mkp.net>
+From: Bart Van Assche <bart.vanassche@sandisk.com>
+Message-ID: <565CF57A.4090507@sandisk.com>
+Date: Mon, 30 Nov 2015 17:18:50 -0800
 MIME-Version: 1.0
-In-Reply-To: <565CECF1.6090101@redhat.com>
-References: <1447892054-8095-1-git-send-email-labbott@fedoraproject.org>
-	<CAGXu5j+y1m9oONvCQg=MgrkwAgUV5OChoAY=q6vvyGNExY1Zjg@mail.gmail.com>
-	<CAGXu5j+P2Y_dSJo=tK7hBNX_7hOiG23rA7nXcQ99csNA0_CSvA@mail.gmail.com>
-	<565CECF1.6090101@redhat.com>
-Date: Mon, 30 Nov 2015 17:10:07 -0800
-Message-ID: <CAGXu5jK-b_x5e5Qfm_A8i-k3QpjYXv=nQCXeFQknLt=x=+Mn+Q@mail.gmail.com>
-Subject: Re: [PATCHv2] arm: Update all mm structures with section adjustments
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <yq1610jf0jk.fsf@sermon.lab.mkp.net>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Laura Abbott <labbott@fedoraproject.org>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: "Martin K. Petersen" <martin.petersen@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, James Bottomley <jbottomley@parallels.com>, Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, Aaro Koskinen <aaro.koskinen@iki.fi>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Nov 30, 2015 at 4:42 PM, Laura Abbott <labbott@redhat.com> wrote:
-> On 11/30/2015 03:40 PM, Kees Cook wrote:
->>
->> On Thu, Nov 19, 2015 at 11:10 AM, Kees Cook <keescook@chromium.org> wrote:
->>>
->>> On Wed, Nov 18, 2015 at 4:14 PM, Laura Abbott <labbott@fedoraproject.org>
->>> wrote:
->>>>
->>>> Currently, when updating section permissions to mark areas RO
->>>> or NX, the only mm updated is current->mm. This is working off
->>>> the assumption that there are no additional mm structures at
->>>> the time. This may not always hold true. (Example: calling
->>>> modprobe early will trigger a fork/exec). Ensure all mm structres
->>>> get updated with the new section information.
->>>>
->>>> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
->>>
->>>
->>> This looks right to me. :)
->>>
->>> Reviewed-by: Kees Cook <keescook@chromium.org>
->>>
->>> Russell, does this work for you?
->>
->>
->> Did this end up in the patch tracker? (I just sent a patch that'll
->> collide with this... I'm happy to do the fix up.)
->>
+On 11/30/2015 04:57 PM, Martin K. Petersen wrote:
+>>>>>> "Bart" == Bart Van Assche <bart.vanassche@sandisk.com> writes:
 >
-> I put this in the patch tracker this morning.
-
-Ah-ha, great! I will rebase my change on to it and send a v2
-(potentially with additional changes).
-
--Kees
-
+> Bart> This race is hard to trigger. I can trigger it by repeatedly
+> Bart> removing and re-adding SRP SCSI devices. Enabling debug options
+> Bart> like SLUB debugging and kmemleak helps. I think that is because
+> Bart> these debug options slow down the SCSI device removal code and
+> Bart> thereby increase the chance that this race is triggered.
 >
->>
->> -Kees
->>
+> Any updates on this? Your updated patch has no reviews.
 >
-> Thanks,
-> Laura
+> Should I just revert the original patch for 4.4?
 
+Hello Martin,
 
+Since the original patch caused a regression, please proceed with 
+reverting the original patch.
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Regarding this patch: is there anyone on the CC-list of this e-mail who 
+can review it ?
+
+Thanks,
+
+Bart.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
