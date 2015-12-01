@@ -1,56 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BBF96B0253
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 12:19:06 -0500 (EST)
-Received: by igcto18 with SMTP id to18so11614705igc.0
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 09:19:06 -0800 (PST)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id p15si14362246igx.102.2015.12.01.09.19.05
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 247E96B0253
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 13:19:36 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so13058847pab.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 10:19:35 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id q62si12815114pfq.5.2015.12.01.10.19.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 09:19:05 -0800 (PST)
-Received: by igvg19 with SMTP id g19so99088273igv.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 09:19:05 -0800 (PST)
+        Tue, 01 Dec 2015 10:19:35 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so13058423pab.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 10:19:35 -0800 (PST)
+Subject: Re: [PATCH v4 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
+References: <1448578785-17656-1-git-send-email-dcashman@android.com>
+ <1448578785-17656-2-git-send-email-dcashman@android.com>
+ <1448578785-17656-3-git-send-email-dcashman@android.com>
+ <1448578785-17656-4-git-send-email-dcashman@android.com>
+ <1448578785-17656-5-git-send-email-dcashman@android.com>
+ <CAGXu5j+Wj_=27gsYStV5OuwNSznux7MtDcMuYe5wM2ORrna_TQ@mail.gmail.com>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <565DE4B4.5050305@android.com>
+Date: Tue, 1 Dec 2015 10:19:32 -0800
 MIME-Version: 1.0
-In-Reply-To: <20151201171322.GD4341@pd.tnic>
-References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
-	<1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
-	<20151201135000.GB4341@pd.tnic>
-	<CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
-	<20151201171322.GD4341@pd.tnic>
-Date: Tue, 1 Dec 2015 09:19:05 -0800
-Message-ID: <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
-Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAGXu5j+Wj_=27gsYStV5OuwNSznux7MtDcMuYe5wM2ORrna_TQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
-On Tue, Dec 1, 2015 at 9:13 AM, Borislav Petkov <bp@alien8.de> wrote:
->
-> Oh sure, I didn't mean you. I was simply questioning that whole
-> identify-resource-by-its-name approach. And that came with:
->
-> 67cf13ceed89 ("x86: optimize resource lookups for ioremap")
->
-> I just think it is silly and that we should be identifying resource
-> things in a more robust way.
+On 11/30/2015 04:03 PM, Kees Cook wrote:
+> On Thu, Nov 26, 2015 at 2:59 PM, Daniel Cashman <dcashman@android.com> wrote:
+>> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+>> index 844b06d..647fecf 100644
+>> --- a/arch/x86/mm/mmap.c
+>> +++ b/arch/x86/mm/mmap.c
+>> @@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
+>>  {
+>>         unsigned long rnd;
+>>
+>> -       /*
+>> -        *  8 bits of randomness in 32bit mmaps, 20 address space bits
+>> -        * 28 bits of randomness in 64bit mmaps, 40 address space bits
+>> -        */
+>>         if (mmap_is_ia32())
+>> -               rnd = (unsigned long)get_random_int() % (1<<8);
+>> +#ifdef CONFIG_COMPAT
+>> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+>> +#else
+>> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+>> +#endif
+>>         else
+>> -               rnd = (unsigned long)get_random_int() % (1<<28);
+>> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+>>
+>>         return rnd << PAGE_SHIFT;
+>>  }
+>> --
+>> 2.6.0.rc2.230.g3dd15c0
+>>
+> 
+> Can you rework this logic to look more like the arm64 one? I think
+> it's more readable as:
+> 
+> #ifdef CONFIG_COMPAT
+>     if (mmap_is_ia32())
+>             rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+>     else
+> #endif
+>             rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+> 
+> -Kees
+> 
 
-I could easily imagine just adding a IORESOURCE_RAM flag (or SYSMEM or
-whatever). That sounds sane. I agree that comparing the string is
-ugly.
+There is a subtle difference between the two that requires this
+difference. the x86 code was written to be used by both 32-bit and
+64-bit kernels, whereas the arm64 code runs only for 64-bit.  The
+assumption I've made with arm64 is that TIF_32BIT should never be set if
+CONFIG_COMPAT is not set, but with x86 we could encounter a 32-bit
+application without CONFIG_COMPAT, in which case it should use the
+default mmap_rnd_bits, not compat, since there is no compat.
 
-> Btw, the ->name thing in struct resource has been there since a *long*
-> time
-
-It's pretty much always been there.  It is indeed meant for things
-like /proc/iomem etc, and as a debug aid when printing conflicts,
-yadda yadda. Just showing the numbers is usually useless for figuring
-out exactly *what* something conflicts with.
-
-               Linus
+-Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
