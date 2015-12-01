@@ -1,46 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3B56B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 19:58:23 -0500 (EST)
-Received: by obbbj7 with SMTP id bj7so142475402obb.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:58:22 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id w144si18811410oie.42.2015.11.30.16.58.22
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6476B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 20:00:36 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so86402492igb.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:00:36 -0800 (PST)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id j15si3310378iod.139.2015.11.30.17.00.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 16:58:22 -0800 (PST)
-Subject: Re: [PATCH] Fix a bdi reregistration race, v2
-From: "Martin K. Petersen" <martin.petersen@oracle.com>
-References: <564F9AFF.3050605@sandisk.com>
-	<20151124231331.GA25591@infradead.org> <5654F169.6070000@sandisk.com>
-	<20151125084744.GA16429@infradead.org> <5655CCC0.9010107@sandisk.com>
-Date: Mon, 30 Nov 2015 19:57:35 -0500
-In-Reply-To: <5655CCC0.9010107@sandisk.com> (Bart Van Assche's message of
-	"Wed, 25 Nov 2015 06:59:12 -0800")
-Message-ID: <yq1610jf0jk.fsf@sermon.lab.mkp.net>
+        Mon, 30 Nov 2015 17:00:35 -0800 (PST)
+Received: by igcmv3 with SMTP id mv3so83435439igc.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 17:00:35 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20151130161811.592c205d8dc7b00f44066a37@linux-foundation.org>
+References: <1448578785-17656-1-git-send-email-dcashman@android.com>
+	<1448578785-17656-2-git-send-email-dcashman@android.com>
+	<20151130155412.b1a087f4f6f4d4180ab4472d@linux-foundation.org>
+	<20151130160118.e43a2e53a59e347a95a94d5c@linux-foundation.org>
+	<CAGXu5jK7UzjBxXKQajxhLv-uLk_xQXR_FHOsmW6RLJNeK_-dZg@mail.gmail.com>
+	<20151130161811.592c205d8dc7b00f44066a37@linux-foundation.org>
+Date: Mon, 30 Nov 2015 17:00:35 -0800
+Message-ID: <CAGXu5jKYmvBgAurJUKFEbAC5rufm7_Q6xiiKf+pQOk+QiT5isg@mail.gmail.com>
+Subject: Re: [PATCH v4 1/4] mm: mmap: Add new /proc tunable for mmap_base ASLR.
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bart.vanassche@sandisk.com>
-Cc: Christoph Hellwig <hch@infradead.org>, James Bottomley <jbottomley@parallels.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, Aaro Koskinen <aaro.koskinen@iki.fi>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Cashman <dcashman@android.com>, LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
->>>>> "Bart" == Bart Van Assche <bart.vanassche@sandisk.com> writes:
+On Mon, Nov 30, 2015 at 4:18 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Mon, 30 Nov 2015 16:04:36 -0800 Kees Cook <keescook@chromium.org> wrote:
+>
+>> >> > +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+>> >> > +   {
+>> >> > +           .procname       = "mmap_rnd_bits",
+>> >> > +           .data           = &mmap_rnd_bits,
+>> >> > +           .maxlen         = sizeof(mmap_rnd_bits),
+>> >> > +           .mode           = 0600,
+>> >> > +           .proc_handler   = proc_dointvec_minmax,
+>> >> > +           .extra1         = (void *) &mmap_rnd_bits_min,
+>> >> > +           .extra2         = (void *) &mmap_rnd_bits_max,
+>> >>
+>> >> hm, why the typecasts?  They're unneeded and are omitted everywhere(?)
+>> >> else in kernel/sysctl.c.
+>> >
+>> > Oh.  Casting away constness.
+>> >
+>> > What's the thinking here?  They can change at any time so they aren't
+>> > const so we shouldn't declare them to be const?
+>>
+>> The _min and _max values shouldn't be changing: they're decided based
+>> on the various CONFIG options that calculate the valid min/maxes. Only
+>> mmap_rnd_bits itself should be changing.
+>
+> hmpf.
+>
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: include/linux/sysctl.h: make ctl_table.extra1/2 const
+>
+> Nothing should be altering these values.  Declare the pointed-to values to
+> be const so we can actually use const values.
+>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Daniel Cashman <dcashman@android.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  include/linux/sysctl.h |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff -puN include/linux/sysctl.h~a include/linux/sysctl.h
+> --- a/include/linux/sysctl.h~a
+> +++ a/include/linux/sysctl.h
+> @@ -111,8 +111,8 @@ struct ctl_table
+>         struct ctl_table *child;        /* Deprecated */
+>         proc_handler *proc_handler;     /* Callback for text formatting */
+>         struct ctl_table_poll *poll;
+> -       void *extra1;
+> -       void *extra2;
+> +       const void *extra1;
+> +       const void *extra2;
+>  };
+>
+>  struct ctl_node {
+> diff -puN kernel/sysctl.c~a kernel/sysctl.c
+> _
+>
 
-Bart,
+If allyesconfig builds with this, I'm all for it. :)
 
-Bart> This race is hard to trigger. I can trigger it by repeatedly
-Bart> removing and re-adding SRP SCSI devices. Enabling debug options
-Bart> like SLUB debugging and kmemleak helps. I think that is because
-Bart> these debug options slow down the SCSI device removal code and
-Bart> thereby increase the chance that this race is triggered.
-
-Any updates on this? Your updated patch has no reviews.
-
-Should I just revert the original patch for 4.4?
+-Kees
 
 -- 
-Martin K. Petersen	Oracle Linux Engineering
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
