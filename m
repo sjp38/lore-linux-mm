@@ -1,66 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9136B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 19:01:25 -0500 (EST)
-Received: by wmec201 with SMTP id c201so161305643wme.1
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:01:24 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id pk5si70254234wjb.102.2015.11.30.16.01.20
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1986B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 19:03:20 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so85538157igb.1
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:03:20 -0800 (PST)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id 10si8512132igy.27.2015.11.30.16.03.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 16:01:24 -0800 (PST)
-Date: Mon, 30 Nov 2015 16:01:18 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 1/4] mm: mmap: Add new /proc tunable for mmap_base
- ASLR.
-Message-Id: <20151130160118.e43a2e53a59e347a95a94d5c@linux-foundation.org>
-In-Reply-To: <20151130155412.b1a087f4f6f4d4180ab4472d@linux-foundation.org>
+        Mon, 30 Nov 2015 16:03:19 -0800 (PST)
+Received: by igcmv3 with SMTP id mv3so82632208igc.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:03:19 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1448578785-17656-5-git-send-email-dcashman@android.com>
 References: <1448578785-17656-1-git-send-email-dcashman@android.com>
 	<1448578785-17656-2-git-send-email-dcashman@android.com>
-	<20151130155412.b1a087f4f6f4d4180ab4472d@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	<1448578785-17656-3-git-send-email-dcashman@android.com>
+	<1448578785-17656-4-git-send-email-dcashman@android.com>
+	<1448578785-17656-5-git-send-email-dcashman@android.com>
+Date: Mon, 30 Nov 2015 16:03:19 -0800
+Message-ID: <CAGXu5j+Wj_=27gsYStV5OuwNSznux7MtDcMuYe5wM2ORrna_TQ@mail.gmail.com>
+Subject: Re: [PATCH v4 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
+To: Daniel Cashman <dcashman@android.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
-On Mon, 30 Nov 2015 15:54:12 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, Nov 26, 2015 at 2:59 PM, Daniel Cashman <dcashman@android.com> wrote:
+> x86: arch_mmap_rnd() uses hard-coded values, 8 for 32-bit and 28 for
+> 64-bit, to generate the random offset for the mmap base address.
+> This value represents a compromise between increased ASLR
+> effectiveness and avoiding address-space fragmentation. Replace it
+> with a Kconfig option, which is sensibly bounded, so that platform
+> developers may choose where to place this compromise. Keep default
+> values as new minimums.
+>
+> Signed-off-by: Daniel Cashman <dcashman@android.com>
+> ---
+>  arch/x86/Kconfig   | 16 ++++++++++++++++
+>  arch/x86/mm/mmap.c | 12 ++++++------
+>  2 files changed, 22 insertions(+), 6 deletions(-)
+>
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index db3622f..12768c4 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -82,6 +82,8 @@ config X86
+>         select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
+>         select HAVE_ARCH_KGDB
+>         select HAVE_ARCH_KMEMCHECK
+> +       select HAVE_ARCH_MMAP_RND_BITS
+> +       select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+>         select HAVE_ARCH_SECCOMP_FILTER
+>         select HAVE_ARCH_SOFT_DIRTY             if X86_64
+>         select HAVE_ARCH_TRACEHOOK
+> @@ -183,6 +185,20 @@ config HAVE_LATENCYTOP_SUPPORT
+>  config MMU
+>         def_bool y
+>
+> +config ARCH_MMAP_RND_BITS_MIN
+> +       default 28 if 64BIT
+> +       default 8
+> +
+> +config ARCH_MMAP_RND_BITS_MAX
+> +       default 32 if 64BIT
+> +       default 16
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS_MIN
+> +       default 8
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS_MAX
+> +       default 16
+> +
+>  config SBUS
+>         bool
+>
+> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+> index 844b06d..647fecf 100644
+> --- a/arch/x86/mm/mmap.c
+> +++ b/arch/x86/mm/mmap.c
+> @@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
+>  {
+>         unsigned long rnd;
+>
+> -       /*
+> -        *  8 bits of randomness in 32bit mmaps, 20 address space bits
+> -        * 28 bits of randomness in 64bit mmaps, 40 address space bits
+> -        */
+>         if (mmap_is_ia32())
+> -               rnd = (unsigned long)get_random_int() % (1<<8);
+> +#ifdef CONFIG_COMPAT
+> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+> +#else
+> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+> +#endif
+>         else
+> -               rnd = (unsigned long)get_random_int() % (1<<28);
+> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+>
+>         return rnd << PAGE_SHIFT;
+>  }
+> --
+> 2.6.0.rc2.230.g3dd15c0
+>
 
-> On Thu, 26 Nov 2015 14:59:42 -0800 Daniel Cashman <dcashman@android.com> wrote:
-> 
-> > ASLR  only uses as few as 8 bits to generate the random offset for the
-> > mmap base address on 32 bit architectures. This value was chosen to
-> > prevent a poorly chosen value from dividing the address space in such
-> > a way as to prevent large allocations. This may not be an issue on all
-> > platforms. Allow the specification of a minimum number of bits so that
-> > platforms desiring greater ASLR protection may determine where to place
-> > the trade-off.
-> > 
-> > --- a/kernel/sysctl.c
-> > +++ b/kernel/sysctl.c
-> > @@ -1568,6 +1568,28 @@ static struct ctl_table vm_table[] = {
-> >  		.mode		= 0644,
-> >  		.proc_handler	= proc_doulongvec_minmax,
-> >  	},
-> > +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
-> > +	{
-> > +		.procname	= "mmap_rnd_bits",
-> > +		.data		= &mmap_rnd_bits,
-> > +		.maxlen		= sizeof(mmap_rnd_bits),
-> > +		.mode		= 0600,
-> > +		.proc_handler	= proc_dointvec_minmax,
-> > +		.extra1		= (void *) &mmap_rnd_bits_min,
-> > +		.extra2		= (void *) &mmap_rnd_bits_max,
-> 
-> hm, why the typecasts?  They're unneeded and are omitted everywhere(?)
-> else in kernel/sysctl.c.
-> 
+Can you rework this logic to look more like the arm64 one? I think
+it's more readable as:
 
-Oh.  Casting away constness.
+#ifdef CONFIG_COMPAT
+    if (mmap_is_ia32())
+            rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+    else
+#endif
+            rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
 
-What's the thinking here?  They can change at any time so they aren't
-const so we shouldn't declare them to be const?
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
