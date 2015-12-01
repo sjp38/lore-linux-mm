@@ -1,59 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B9A986B0038
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 19:42:29 -0500 (EST)
-Received: by qkao63 with SMTP id o63so66379889qka.2
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:42:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s79si47751722qgs.31.2015.11.30.16.42.28
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6596B0038
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2015 19:48:05 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so207796032pab.0
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:48:04 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id sk6si13551529pab.138.2015.11.30.16.48.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Nov 2015 16:42:29 -0800 (PST)
-Subject: Re: [PATCHv2] arm: Update all mm structures with section adjustments
-References: <1447892054-8095-1-git-send-email-labbott@fedoraproject.org>
- <CAGXu5j+y1m9oONvCQg=MgrkwAgUV5OChoAY=q6vvyGNExY1Zjg@mail.gmail.com>
- <CAGXu5j+P2Y_dSJo=tK7hBNX_7hOiG23rA7nXcQ99csNA0_CSvA@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <565CECF1.6090101@redhat.com>
-Date: Mon, 30 Nov 2015 16:42:25 -0800
+        Mon, 30 Nov 2015 16:48:04 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so201759263pac.2
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2015 16:48:04 -0800 (PST)
+Subject: Re: [PATCH v4 1/4] mm: mmap: Add new /proc tunable for mmap_base
+ ASLR.
+References: <1448578785-17656-1-git-send-email-dcashman@android.com>
+ <1448578785-17656-2-git-send-email-dcashman@android.com>
+ <20151130155412.b1a087f4f6f4d4180ab4472d@linux-foundation.org>
+ <20151130160118.e43a2e53a59e347a95a94d5c@linux-foundation.org>
+ <CAGXu5jK7UzjBxXKQajxhLv-uLk_xQXR_FHOsmW6RLJNeK_-dZg@mail.gmail.com>
+ <20151130161811.592c205d8dc7b00f44066a37@linux-foundation.org>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <565CEE3D.4070008@android.com>
+Date: Mon, 30 Nov 2015 16:47:57 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+P2Y_dSJo=tK7hBNX_7hOiG23rA7nXcQ99csNA0_CSvA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20151130161811.592c205d8dc7b00f44066a37@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@fedoraproject.org>
-Cc: Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
-On 11/30/2015 03:40 PM, Kees Cook wrote:
-> On Thu, Nov 19, 2015 at 11:10 AM, Kees Cook <keescook@chromium.org> wrote:
->> On Wed, Nov 18, 2015 at 4:14 PM, Laura Abbott <labbott@fedoraproject.org> wrote:
->>> Currently, when updating section permissions to mark areas RO
->>> or NX, the only mm updated is current->mm. This is working off
->>> the assumption that there are no additional mm structures at
->>> the time. This may not always hold true. (Example: calling
->>> modprobe early will trigger a fork/exec). Ensure all mm structres
->>> get updated with the new section information.
+On 11/30/15 4:18 PM, Andrew Morton wrote:
+> On Mon, 30 Nov 2015 16:04:36 -0800 Kees Cook <keescook@chromium.org> wrote:
+> 
+>>>>> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+>>>>> +   {
+>>>>> +           .procname       = "mmap_rnd_bits",
+>>>>> +           .data           = &mmap_rnd_bits,
+>>>>> +           .maxlen         = sizeof(mmap_rnd_bits),
+>>>>> +           .mode           = 0600,
+>>>>> +           .proc_handler   = proc_dointvec_minmax,
+>>>>> +           .extra1         = (void *) &mmap_rnd_bits_min,
+>>>>> +           .extra2         = (void *) &mmap_rnd_bits_max,
+>>>>
+>>>> hm, why the typecasts?  They're unneeded and are omitted everywhere(?)
+>>>> else in kernel/sysctl.c.
 >>>
->>> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
+>>> Oh.  Casting away constness.
+>>>
+>>> What's the thinking here?  They can change at any time so they aren't
+>>> const so we shouldn't declare them to be const?
 >>
->> This looks right to me. :)
->>
->> Reviewed-by: Kees Cook <keescook@chromium.org>
->>
->> Russell, does this work for you?
->
-> Did this end up in the patch tracker? (I just sent a patch that'll
-> collide with this... I'm happy to do the fix up.)
->
+>> The _min and _max values shouldn't be changing: they're decided based
+>> on the various CONFIG options that calculate the valid min/maxes. Only
+>> mmap_rnd_bits itself should be changing.
+> 
+> hmpf.
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: include/linux/sysctl.h: make ctl_table.extra1/2 const
+> 
+> Nothing should be altering these values.  Declare the pointed-to values to
+> be const so we can actually use const values.
+> 
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Daniel Cashman <dcashman@android.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  include/linux/sysctl.h |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff -puN include/linux/sysctl.h~a include/linux/sysctl.h
+> --- a/include/linux/sysctl.h~a
+> +++ a/include/linux/sysctl.h
+> @@ -111,8 +111,8 @@ struct ctl_table
+>  	struct ctl_table *child;	/* Deprecated */
+>  	proc_handler *proc_handler;	/* Callback for text formatting */
+>  	struct ctl_table_poll *poll;
+> -	void *extra1;
+> -	void *extra2;
+> +	const void *extra1;
+> +	const void *extra2;
+>  };
+>  
+>  struct ctl_node {
+> diff -puN kernel/sysctl.c~a kernel/sysctl.c
+> _
 
-I put this in the patch tracker this morning.
-  
-> -Kees
->
+This looks good to me, thanks!  I hadn't gone through all of the uses of
+extra1 and extra2, nor did I think the change herein was conceptually a
+part of mine, so I casted-away in order to indicate intent, while
+leaving the change here as a possibility if ctl_table could be altered
+for all use-cases.
 
-Thanks,
-Laura
+Thank You,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
