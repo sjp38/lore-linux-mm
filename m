@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B1B166B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:41:29 -0500 (EST)
-Received: by igcph11 with SMTP id ph11so99174111igc.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:41:29 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id t12si1155678igd.27.2015.12.01.15.41.28
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C0DC46B0253
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:41:38 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so20292101pac.2
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:41:38 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id b65si282255pfj.253.2015.12.01.15.41.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 01 Dec 2015 15:41:29 -0800 (PST)
-Date: Wed, 2 Dec 2015 08:41:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:3272!
-Message-ID: <20151201234148.GA20632@bbox>
-References: <565C5F2D.5060003@oracle.com>
- <20151201212636.GA137439@black.fi.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Dec 2015 15:41:38 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so20328926pad.1
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:41:38 -0800 (PST)
+Date: Tue, 1 Dec 2015 15:41:36 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] bugfix oom kill init lead panic
+In-Reply-To: <1448880869-20506-1-git-send-email-chenjie6@huawei.com>
+Message-ID: <alpine.DEB.2.10.1512011540550.23632@chino.kir.corp.google.com>
+References: <1448880869-20506-1-git-send-email-chenjie6@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20151201212636.GA137439@black.fi.intel.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: chenjie6@huawei.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David.Woodhouse@intel.com, zhihui.gao@huawei.com, lizefan@huawei.com, akpm@linux-foundation.org, stable@vger.kernel.org
 
-On Tue, Dec 01, 2015 at 11:26:36PM +0200, Kirill A. Shutemov wrote:
-> On Mon, Nov 30, 2015 at 09:37:33AM -0500, Sasha Levin wrote:
-> > Hi Kirill,
-> > 
-> > I've hit the following while fuzzing with trinity on the latest -next kernel:
-> > 
-> > [  321.348184] page:ffffea0011a20080 count:1 mapcount:1 mapping:ffff8802d745f601 index:0x1802
-> > [  321.350607] flags: 0x320035c00040078(uptodate|dirty|lru|active|swapbacked)
-> > [  321.453706] page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
-> > [  321.455353] page->mem_cgroup:ffff880286620000
-> 
-> I think this should help:
-> 
-> From aadc911f047b094c68b350550556dafabf05af13 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Fri, 20 Nov 2015 12:20:00 +0200
-> Subject: [PATCH] thp: fix split_huge_page vs. deferred_split_scan race
-> 
-> Minchan[1] and Sasha[2] had reported crash in split_huge_page_to_list()
-> called from deferred_split_scan() due VM_BUG_ON_PAGE(!PageLocked(page)).
-> 
-> This can happen because race between deferred_split_scan() and
-> split_huge_page(). The result of the race is that the page can be split
-> under deferred_split_scan().
-> 
-> The patch prevents this by taking split_queue_lock in
-> split_huge_page_to_list() when we check if the page can be split.
-> If the page is suitable for splitting, we remove page from splitting
-> queue under the same lock, before splitting starts.
-> 
-> [1] http://lkml.kernel.org/g/20151117073539.GB32578@bbox
-> [2] http://lkml.kernel.org/g/565C5F2D.5060003@oracle.com
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Minchan Kim <minchan@kernel.org>
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+On Mon, 30 Nov 2015, chenjie6@huawei.com wrote:
 
-With this, I cannot reprocude the error.
+> From: chenjie <chenjie6@huawei.com>
+> 
+> when oom happened we can see:
+> Out of memory: Kill process 9134 (init) score 3 or sacrifice child                  
+> Killed process 9134 (init) total-vm:1868kB, anon-rss:84kB, file-rss:572kB
+> Kill process 1 (init) sharing same memory
+> ...
+> Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000009
+> 
+> That's because:
+> 	the busybox init will vfork a process,oom_kill_process found
+> the init not the children,their mm is the same when vfork.
+> 
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Chen Jie <chenjie6@huawei.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
