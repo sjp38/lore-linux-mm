@@ -1,128 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA056B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:07:45 -0500 (EST)
-Received: by igl9 with SMTP id 9so98945854igl.0
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:07:45 -0800 (PST)
-Received: from www9186uo.sakura.ne.jp (153.121.56.200.v6.sakura.ne.jp. [2001:e42:102:1109:153:121:56:200])
-        by mx.google.com with ESMTP id b19si16535433igr.100.2015.12.01.15.07.44
-        for <linux-mm@kvack.org>;
-        Tue, 01 Dec 2015 15:07:44 -0800 (PST)
-Date: Wed, 2 Dec 2015 08:07:42 +0900
-From: Naoya Horiguchi <nao.horiguchi@gmail.com>
-Subject: [PATCH v2] mm: fix warning in comparing enumerator
-Message-ID: <20151201230742.GA13514@www9186uo.sakura.ne.jp>
-References: <1448959032-754-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.10.1512011425230.19510@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1512011425230.19510@chino.kir.corp.google.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E38176B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:26:00 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so20539910pab.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:26:00 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id d10si185283pap.237.2015.12.01.15.26.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Dec 2015 15:26:00 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so19928796pac.2
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:26:00 -0800 (PST)
+From: Yang Shi <yang.shi@linaro.org>
+Subject: [RFC] Add gup trace points support
+Date: Tue,  1 Dec 2015 15:06:10 -0800
+Message-Id: <1449011177-30686-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-On Tue, Dec 01, 2015 at 02:25:50PM -0800, David Rientjes wrote:
-> On Tue, 1 Dec 2015, Naoya Horiguchi wrote:
-> 
-> > I saw the following warning when building mmotm-2015-11-25-17-08.
-> > 
-> > mm/page_alloc.c:4185:16: warning: comparison between 'enum zone_type' and 'enum <anonymous>' [-Wenum-compare]
-> >   for (i = 0; i < MAX_ZONELISTS; i++) {
-> >                 ^
-> > 
-> > enum zone_type is named like ZONE_* which is different from ZONELIST_*, so
-> > we are somehow doing incorrect comparison. Just fixes it.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  mm/page_alloc.c |    3 +--
-> >  1 files changed, 1 insertions(+), 2 deletions(-)
-> > 
-> > diff --git mmotm-2015-11-25-17-08/mm/page_alloc.c mmotm-2015-11-25-17-08_patched/mm/page_alloc.c
-> > index e267faa..b801e6f 100644
-> > --- mmotm-2015-11-25-17-08/mm/page_alloc.c
-> > +++ mmotm-2015-11-25-17-08_patched/mm/page_alloc.c
-> > @@ -4174,8 +4174,7 @@ static void set_zonelist_order(void)
-> >  
-> >  static void build_zonelists(pg_data_t *pgdat)
-> >  {
-> > -	int j, node, load;
-> > -	enum zone_type i;
-> > +	int i, j, node, load;
-> >  	nodemask_t used_mask;
-> >  	int local_node, prev_node;
-> >  	struct zonelist *zonelist;
-> 
-> Obviously correct, but I would have thought we could just remove 'j' and 
-> used 'i' as our iterator through the entire function.
 
-You're right, thank you.
+Some background about why I think this might be useful.
 
-Here is v2.
+When I was profiling some hugetlb related program, I got page-faults event
+doubled when hugetlb is enabled. When I looked into the code, I found page-faults
+come from two places, do_page_fault and gup. So, I tried to figure out which
+play a role (or both) in my use case. But I can't find existing finer tracing
+event for sub page-faults in current mainline kernel.
 
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2] mm: fix warning in comparing enumerator
+So, I added the gup trace points support to have finer tracing events for
+page-faults. The below events are added:
 
-I saw the following warning when building mmotm-2015-11-25-17-08.
+__get_user_pages
+__get_user_pages_fast
+fixup_user_fault
 
-mm/page_alloc.c:4185:16: warning: comparison between 'enum zone_type' and 'enum <anonymous>' [-Wenum-compare]
-  for (i = 0; i < MAX_ZONELISTS; i++) {
-                ^
+Both __get_user_pages and fixup_user_fault call handle_mm_fault.
 
-enum zone_type is named like ZONE_* which is different from ZONELIST_*, so
-we are somehow doing incorrect comparison. Just fixes it.
+Just added trace points to raw version __get_user_pages since all variants
+will call it finally to do real work.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
-v1 -> v2:
-- remove 'j'
----
- mm/page_alloc.c | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+Although __get_user_pages_fast doesn't call handle_mm_fault, it might be useful
+to have it to distinguish between slow and fast version.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e267faad4649..54fcd0a60d5e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4174,8 +4174,7 @@ static void set_zonelist_order(void)
- 
- static void build_zonelists(pg_data_t *pgdat)
- {
--	int j, node, load;
--	enum zone_type i;
-+	int i, node, load;
- 	nodemask_t used_mask;
- 	int local_node, prev_node;
- 	struct zonelist *zonelist;
-@@ -4195,7 +4194,7 @@ static void build_zonelists(pg_data_t *pgdat)
- 	nodes_clear(used_mask);
- 
- 	memset(node_order, 0, sizeof(node_order));
--	j = 0;
-+	i = 0;
- 
- 	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
- 		/*
-@@ -4212,12 +4211,12 @@ static void build_zonelists(pg_data_t *pgdat)
- 		if (order == ZONELIST_ORDER_NODE)
- 			build_zonelists_in_node_order(pgdat, node);
- 		else
--			node_order[j++] = node;	/* remember order */
-+			node_order[i++] = node;	/* remember order */
- 	}
- 
- 	if (order == ZONELIST_ORDER_ZONE) {
- 		/* calculate node order -- i.e., DMA last! */
--		build_zonelists_in_zone_order(pgdat, j);
-+		build_zonelists_in_zone_order(pgdat, i);
- 	}
- 
- 	build_thisnode_zonelists(pgdat);
--- 
-2.4.3
+
+Yang Shi (7):
+      trace/events: Add gup trace events
+      mm/gup: add gup trace points
+      x86: mm/gup: add gup trace points
+      mips: mm/gup: add gup trace points
+      s390: mm/gup: add gup trace points
+      sh: mm/gup: add gup trace points
+      sparc64: mm/gup: add gup trace points
+
+ arch/mips/mm/gup.c         |  7 +++++++
+ arch/s390/mm/gup.c         |  7 +++++++
+ arch/sh/mm/gup.c           |  8 ++++++++
+ arch/sparc/mm/gup.c        |  8 ++++++++
+ arch/x86/mm/gup.c          |  7 +++++++
+ include/trace/events/gup.h | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/gup.c                   |  8 ++++++++
+ 7 files changed, 122 insertions(+)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
