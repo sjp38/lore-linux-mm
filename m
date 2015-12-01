@@ -1,88 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 247E96B0253
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 13:19:36 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so13058847pab.0
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 10:19:35 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id q62si12815114pfq.5.2015.12.01.10.19.35
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF5C6B0253
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 13:52:51 -0500 (EST)
+Received: by igl9 with SMTP id 9so94340770igl.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 10:52:51 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z9si14915984igl.52.2015.12.01.10.52.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 10:19:35 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so13058423pab.0
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 10:19:35 -0800 (PST)
-Subject: Re: [PATCH v4 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
-References: <1448578785-17656-1-git-send-email-dcashman@android.com>
- <1448578785-17656-2-git-send-email-dcashman@android.com>
- <1448578785-17656-3-git-send-email-dcashman@android.com>
- <1448578785-17656-4-git-send-email-dcashman@android.com>
- <1448578785-17656-5-git-send-email-dcashman@android.com>
- <CAGXu5j+Wj_=27gsYStV5OuwNSznux7MtDcMuYe5wM2ORrna_TQ@mail.gmail.com>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <565DE4B4.5050305@android.com>
-Date: Tue, 1 Dec 2015 10:19:32 -0800
+        Tue, 01 Dec 2015 10:52:51 -0800 (PST)
+Subject: Re: memory leak in alloc_huge_page
+References: <CACT4Y+amx86fBiqoCpFzTa=nOGayDjLb5CENEskrKeRTy6NSQw@mail.gmail.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <565DEC6C.4030809@oracle.com>
+Date: Tue, 1 Dec 2015 10:52:28 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+Wj_=27gsYStV5OuwNSznux7MtDcMuYe5wM2ORrna_TQ@mail.gmail.com>
+In-Reply-To: <CACT4Y+amx86fBiqoCpFzTa=nOGayDjLb5CENEskrKeRTy6NSQw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
+To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>
+Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>
 
-On 11/30/2015 04:03 PM, Kees Cook wrote:
-> On Thu, Nov 26, 2015 at 2:59 PM, Daniel Cashman <dcashman@android.com> wrote:
->> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
->> index 844b06d..647fecf 100644
->> --- a/arch/x86/mm/mmap.c
->> +++ b/arch/x86/mm/mmap.c
->> @@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
->>  {
->>         unsigned long rnd;
->>
->> -       /*
->> -        *  8 bits of randomness in 32bit mmaps, 20 address space bits
->> -        * 28 bits of randomness in 64bit mmaps, 40 address space bits
->> -        */
->>         if (mmap_is_ia32())
->> -               rnd = (unsigned long)get_random_int() % (1<<8);
->> +#ifdef CONFIG_COMPAT
->> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
->> +#else
->> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
->> +#endif
->>         else
->> -               rnd = (unsigned long)get_random_int() % (1<<28);
->> +               rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
->>
->>         return rnd << PAGE_SHIFT;
->>  }
->> --
->> 2.6.0.rc2.230.g3dd15c0
->>
+On 12/01/2015 06:04 AM, Dmitry Vyukov wrote:
+> Hello,
 > 
-> Can you rework this logic to look more like the arm64 one? I think
-> it's more readable as:
+> The following program leaks memory:
 > 
-> #ifdef CONFIG_COMPAT
->     if (mmap_is_ia32())
->             rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
->     else
-> #endif
->             rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+> // autogenerated by syzkaller (http://github.com/google/syzkaller)
+> #include <syscall.h>
+> #include <string.h>
+> #include <stdint.h>
 > 
-> -Kees
+> #define SYS_mlock2 325
+> 
+> int main()
+> {
+>         syscall(SYS_mmap, 0x20000000ul, 0x1000ul, 0x3ul, 0x45031ul,
+> 0xfffffffffffffffful, 0x0ul);
+>         syscall(SYS_mlock2, 0x20000000ul, 0x1000ul, 0x1ul, 0, 0, 0);
+>         return 0;
+> }
+> 
+> unreferenced object 0xffff88002eaafd88 (size 32):
+>   comm "a.out", pid 5063, jiffies 4295774645 (age 15.810s)
+>   hex dump (first 32 bytes):
+>     28 e9 4e 63 00 88 ff ff 28 e9 4e 63 00 88 ff ff  (.Nc....(.Nc....
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<     inline     >] kmalloc include/linux/slab.h:458
+>     [<ffffffff815efa64>] region_chg+0x2d4/0x6b0 mm/hugetlb.c:398
+>     [<ffffffff815f0c63>] __vma_reservation_common+0x2c3/0x390 mm/hugetlb.c:1791
+>     [<     inline     >] vma_needs_reservation mm/hugetlb.c:1813
+>     [<ffffffff815f658e>] alloc_huge_page+0x19e/0xc70 mm/hugetlb.c:1845
+>     [<     inline     >] hugetlb_no_page mm/hugetlb.c:3543
+>     [<ffffffff815fc561>] hugetlb_fault+0x7a1/0x1250 mm/hugetlb.c:3717
+>     [<ffffffff815fd349>] follow_hugetlb_page+0x339/0xc70 mm/hugetlb.c:3880
+>     [<ffffffff815a2bb2>] __get_user_pages+0x542/0xf30 mm/gup.c:497
+>     [<ffffffff815a400e>] populate_vma_page_range+0xde/0x110 mm/gup.c:919
+>     [<ffffffff815a4207>] __mm_populate+0x1c7/0x310 mm/gup.c:969
+>     [<ffffffff815b74f1>] do_mlock+0x291/0x360 mm/mlock.c:637
+>     [<     inline     >] SYSC_mlock2 mm/mlock.c:658
+>     [<ffffffff815b7a4b>] SyS_mlock2+0x4b/0x70 mm/mlock.c:648
+> 
+> If this program run in a loop number of objects in kmalloc-32 slab
+> indeed grows infinitely.
+> 
+> On commit 31ade3b83e1821da5fbb2f11b5b3d4ab2ec39db8 (Nov 29).
+> 
+> There seems to be another leak if nrg is not NULL on this path, but
+> it's not what happens in my case since the WARNING does not fire.
+> Still something to fix:
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 827bb02..e97a31b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -372,8 +372,10 @@ retry_locked:
+>                 spin_unlock(&resv->lock);
+> 
+>                 trg = kmalloc(sizeof(*trg), GFP_KERNEL);
+> -               if (!trg)
+> +               if (!trg) {
+> +                       WARN_ON(nrg != NULL);
+>                         return -ENOMEM;
+> +               }
+> 
+>                 spin_lock(&resv->lock);
+>                 list_add(&trg->link, &resv->region_cache);
+> 
 > 
 
-There is a subtle difference between the two that requires this
-difference. the x86 code was written to be used by both 32-bit and
-64-bit kernels, whereas the arm64 code runs only for 64-bit.  The
-assumption I've made with arm64 is that TIF_32BIT should never be set if
-CONFIG_COMPAT is not set, but with x86 we could encounter a 32-bit
-application without CONFIG_COMPAT, in which case it should use the
-default mmap_rnd_bits, not compat, since there is no compat.
+Thanks Dmitry,
 
--Dan
+If nrg is not NULL, then it was added to the resv map and 'should' be
+free'ed when the map is free'ed.  This is not optimal, but I do not
+think it would lead to a leak.  I'll take a close look at this code
+with an emphasis on the leak you discovered.
+
+-- 
+Mike Kravetz
+
+> Thanks
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
