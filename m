@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 636506B0256
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 15:12:09 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so15411326pad.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 12:12:09 -0800 (PST)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id l65si11909720pfi.193.2015.12.01.12.12.08
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7C66B0257
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 15:12:11 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so15293514pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 12:12:11 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id fu6si18606230pac.175.2015.12.01.12.12.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 12:12:08 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so15292367pac.3
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 12:12:08 -0800 (PST)
+        Tue, 01 Dec 2015 12:12:10 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so15293243pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 12:12:10 -0800 (PST)
 From: Daniel Cashman <dcashman@android.com>
-Subject: [PATCH v5 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
-Date: Tue,  1 Dec 2015 12:10:57 -0800
-Message-Id: <1449000658-11475-4-git-send-email-dcashman@android.com>
-In-Reply-To: <1449000658-11475-3-git-send-email-dcashman@android.com>
+Subject: [PATCH v5 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
+Date: Tue,  1 Dec 2015 12:10:58 -0800
+Message-Id: <1449000658-11475-5-git-send-email-dcashman@android.com>
+In-Reply-To: <1449000658-11475-4-git-send-email-dcashman@android.com>
 References: <1449000658-11475-1-git-send-email-dcashman@android.com>
  <1449000658-11475-2-git-send-email-dcashman@android.com>
  <1449000658-11475-3-git-send-email-dcashman@android.com>
+ <1449000658-11475-4-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -26,87 +27,79 @@ Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mi
 
 From: dcashman <dcashman@google.com>
 
-arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
-random offset for the mmap base address.  This value represents a
-compromise between increased ASLR effectiveness and avoiding
-address-space fragmentation. Replace it with a Kconfig option, which
-is sensibly bounded, so that platform developers may choose where to
-place this compromise. Keep default values as new minimums.
+x86: arch_mmap_rnd() uses hard-coded values, 8 for 32-bit and 28 for
+64-bit, to generate the random offset for the mmap base address.
+This value represents a compromise between increased ASLR
+effectiveness and avoiding address-space fragmentation. Replace it
+with a Kconfig option, which is sensibly bounded, so that platform
+developers may choose where to place this compromise. Keep default
+values as new minimums.
 
 Signed-off-by: Daniel Cashman <dcashman@android.com>
 ---
- arch/arm64/Kconfig   | 31 +++++++++++++++++++++++++++++++
- arch/arm64/mm/mmap.c |  8 ++++++--
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ arch/x86/Kconfig   | 16 ++++++++++++++++
+ arch/x86/mm/mmap.c | 12 ++++++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 871f217..fb57649 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -51,6 +51,8 @@ config ARM64
- 	select HAVE_ARCH_JUMP_LABEL
- 	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index db3622f..bdc67d2 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -82,6 +82,8 @@ config X86
+ 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
  	select HAVE_ARCH_KGDB
-+	select HAVE_ARCH_MMAP_RND_BITS if MMU
-+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
+ 	select HAVE_ARCH_KMEMCHECK
++	select HAVE_ARCH_MMAP_RND_BITS		if MMU
++	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
  	select HAVE_ARCH_SECCOMP_FILTER
+ 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
  	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_BPF_JIT
-@@ -104,6 +106,35 @@ config ARCH_PHYS_ADDR_T_64BIT
+@@ -183,6 +185,20 @@ config HAVE_LATENCYTOP_SUPPORT
  config MMU
  	def_bool y
  
 +config ARCH_MMAP_RND_BITS_MIN
-+       default 15 if ARM64_64K_PAGES
-+       default 17 if ARM64_16K_PAGES
-+       default 19
++       default 28 if 64BIT
++       default 8
 +
 +config ARCH_MMAP_RND_BITS_MAX
-+       default 19 if ARM64_VA_BITS=36
-+       default 20 if ARM64_64K_PAGES && ARM64_VA_BITS=39
-+       default 22 if ARM64_16K_PAGES && ARM64_VA_BITS=39
-+       default 24 if ARM64_VA_BITS=39
-+       default 23 if ARM64_64K_PAGES && ARM64_VA_BITS=42
-+       default 25 if ARM64_16K_PAGES && ARM64_VA_BITS=42
-+       default 27 if ARM64_VA_BITS=42
-+       default 30 if ARM64_VA_BITS=47
-+       default 29 if ARM64_64K_PAGES && ARM64_VA_BITS=48
-+       default 31 if ARM64_16K_PAGES && ARM64_VA_BITS=48
-+       default 33 if ARM64_VA_BITS=48
-+       default 15 if ARM64_64K_PAGES
-+       default 17 if ARM64_16K_PAGES
-+       default 19
++	default 32 if 64BIT
++	default 16
 +
 +config ARCH_MMAP_RND_COMPAT_BITS_MIN
-+       default 7 if ARM64_64K_PAGES
-+       default 9 if ARM64_16K_PAGES
-+       default 11
++	default 8
 +
 +config ARCH_MMAP_RND_COMPAT_BITS_MAX
-+       default 16
++	default 16
 +
- config NO_IOPORT_MAP
- 	def_bool y if !PCI
+ config SBUS
+ 	bool
  
-diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
-index ed17747..af461b9 100644
---- a/arch/arm64/mm/mmap.c
-+++ b/arch/arm64/mm/mmap.c
-@@ -51,8 +51,12 @@ unsigned long arch_mmap_rnd(void)
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 844b06d..647fecf 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
  {
  	unsigned long rnd;
  
--	rnd = (unsigned long)get_random_int() & STACK_RND_MASK;
--
-+ifdef CONFIG_COMPAT
-+	if (test_thread_flag(TIF_32BIT))
+-	/*
+-	 *  8 bits of randomness in 32bit mmaps, 20 address space bits
+-	 * 28 bits of randomness in 64bit mmaps, 40 address space bits
+-	 */
+ 	if (mmap_is_ia32())
+-		rnd = (unsigned long)get_random_int() % (1<<8);
++#ifdef CONFIG_COMPAT
 +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
-+	else
-+#endif
++#else
 +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
++#endif
+ 	else
+-		rnd = (unsigned long)get_random_int() % (1<<28);
++		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+ 
  	return rnd << PAGE_SHIFT;
  }
- 
 -- 
 2.6.0.rc2.230.g3dd15c0
 
