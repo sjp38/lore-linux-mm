@@ -1,174 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 119476B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 08:04:10 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so205570877wmv.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 05:04:09 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id pc1si73556148wjb.243.2015.12.01.05.04.08
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BBE06B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 08:07:41 -0500 (EST)
+Received: by wmec201 with SMTP id c201so204380556wme.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 05:07:41 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id y127si35761919wmy.71.2015.12.01.05.07.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 05:04:08 -0800 (PST)
-Date: Tue, 1 Dec 2015 14:04:04 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [BISECTED] rcu_sched self-detected stall since 3.17
-Message-ID: <20151201130404.GL3816@twins.programming.kicks-ass.net>
-References: <564F3DCA.1080907@arm.com>
+        Tue, 01 Dec 2015 05:07:40 -0800 (PST)
+Received: by wmww144 with SMTP id w144so12467831wmw.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 05:07:40 -0800 (PST)
+Date: Tue, 1 Dec 2015 14:07:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH -v2] mm, oom: introduce oom reaper
+Message-ID: <20151201130738.GE4567@dhcp22.suse.cz>
+References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
+ <1448640772-30147-1-git-send-email-mhocko@kernel.org>
+ <20151127163900.GY19677@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <564F3DCA.1080907@arm.com>
+In-Reply-To: <20151127163900.GY19677@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>
-Cc: linux-kernel@vger.kernel.org, neilb@suse.de, oleg@redhat.com, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Sorry for the delay and thanks for the reminder!
-
-On Fri, Nov 20, 2015 at 03:35:38PM +0000, Vladimir Murzin wrote:
-> commit 743162013d40ca612b4cb53d3a200dff2d9ab26e
-> Author: NeilBrown <neilb@suse.de>
-> Date:   Mon Jul 7 15:16:04 2014 +1000
+On Fri 27-11-15 16:39:00, Mel Gorman wrote:
+> On Fri, Nov 27, 2015 at 05:12:52PM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > This is based on the idea from Mel Gorman discussed during LSFMM 2015 and
+> > independently brought up by Oleg Nesterov.
+> > 
+> > <SNIP>
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
->     sched: Remove proliferation of wait_on_bit() action functions
+> Other than a few small issues below, I didn't spot anything out of the
+> ordinary so
 > 
-> The only change I noticed is from (mm/filemap.c)
+> Acked-by: Mel Gorman <mgorman@suse.de>
+
+Thanks!
+
 > 
-> 	io_schedule();
-> 	fatal_signal_pending(current)
+> > +	tlb_gather_mmu(&tlb, mm, 0, -1);
+> > +	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> > +		if (is_vm_hugetlb_page(vma))
+> > +			continue;
+> > +
+> > +		/*
+> > +		 * Only anonymous pages have a good chance to be dropped
+> > +		 * without additional steps which we cannot afford as we
+> > +		 * are OOM already.
+> > +		 */
+> > +		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+> > +			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+> > +					 &details);
+> > +	}
 > 
-> to (kernel/sched/wait.c)
+> Care to add a comment why clean file pages should not be discarded? I'm
+> assuming it's because you assume they were discarded already by normal
+> reclaim before OOM.
+
+Yes that is exactly my thinking. We are OOM so all the reclaim attempts
+have failed already. Clean page cache is highly improbable and we do not
+want to waste cycles without a good reason. Even though oom_reaper thread
+doesn't care so much about few cycles it still has mm ref count elevated
+so it might block a real exit_mmap.
+
+I will add a comment:
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 3efd1efc8cd1..ece3eda4ee99 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -454,6 +454,11 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
+ 		 * Only anonymous pages have a good chance to be dropped
+ 		 * without additional steps which we cannot afford as we
+ 		 * are OOM already.
++		 *
++		 * We do not even care about fs backed pages because all
++		 * which are reclaimable have already been reclaimed and
++		 * we do not want to block exit_mmap by keeping mm ref
++		 * count elevated without a good reason.
+ 		 */
+ 		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+ 			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+
+> There is a slightly possibility they are been kept
+> alive because the OOM victim is constantly referencing them so they get
+> activated or that there might be additional work to discard buffers but
+> I'm not 100% sure that's your logic.
 > 
-> 	signal_pending_state(current->state, current)
-> 	io_schedule();
+> > @@ -421,6 +528,7 @@ void mark_oom_victim(struct task_struct *tsk)
+> >  	/* OOM killer might race with memcg OOM */
+> >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+> >  		return;
+> > +
+> >  	/*
+> >  	 * Make sure that the task is woken up from uninterruptible sleep
+> >  	 * if it is frozen because OOM killer wouldn't be able to free
 > 
-> and if I apply following diff I don't see stalls anymore.
+> Unnecessary whitespace change.
+
+removed
+
 > 
-> diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-> index a104879..2d68cdb 100644
-> --- a/kernel/sched/wait.c
-> +++ b/kernel/sched/wait.c
-> @@ -514,9 +514,10 @@ EXPORT_SYMBOL(bit_wait);
+> > @@ -607,15 +716,23 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+> >  			continue;
+> >  		if (same_thread_group(p, victim))
+> >  			continue;
+> > -		if (unlikely(p->flags & PF_KTHREAD))
+> > -			continue;
+> > -		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> > +		if (unlikely(p->flags & PF_KTHREAD) ||
+> > +		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> > +			/*
+> > +			 * We cannot usee oom_reaper for the mm shared by this process
+> > +			 * because it wouldn't get killed and so the memory might be
+> > +			 * still used.
+> > +			 */
+> > +			can_oom_reap = false;
+> >  			continue;
 > 
->  __sched int bit_wait_io(void *word)
->  {
-> +       io_schedule();
-> +
->         if (signal_pending_state(current->state, current))
->                 return 1;
-> -       io_schedule();
->         return 0;
->  }
->  EXPORT_SYMBOL(bit_wait_io);
-> 
-> Any ideas why it might happen and why diff above helps?
+> s/usee/use/
 
-Yes, the code as presented is simply wrong. And in fact most of the code
-it replaced was of the right form (with a few exceptions which would
-indeed have been subject to the same problem you've observed.
+Fixed
 
-Note how the late:
-
-  - cifs_sb_tcon_pending_wait
-  - fscache_wait_bit_interruptible
-  - sleep_on_page_killable
-  - wait_inquiry
-  - key_wait_bit_intr
-
-All check the signal state _after_ calling schedule().
-
-As opposed to:
-
-  - gfs2_journalid_wait
-
-which follows the broken pattern.
-
-Further notice that most expect a return of -EINTR, which also seems
-correct given that this is a signal, those that do not return -EINTR
-only check for a !0 return value so would work equally well with -EINTR.
-
-The reason this is broken is that schedule() will no-op when there is a
-pending signal, while raising a signal will also issue a wakeup.
-
-Thus the right thing to do is check for the signal state after, that way
-you handle both cases:
-
- - calling schedule() with a signal pending
- - receiving a signal while sleeping
-
-As such, I would propose the below patch. Oleg, do you concur?
-
----
-Subject: sched,wait: Fix signal handling in bit wait helpers
-
-Vladimir reported getting RCU stall warnings and bisected it back to
-commit 743162013d40. That commit inadvertently reversed the calls to
-schedule() and signal_pending(), thereby not handling the case where the
-signal receives while we sleep.
-
-Fixes: 743162013d40 ("sched: Remove proliferation of wait_on_bit() action functions")
-Fixes: cbbce8220949 ("SCHED: add some "wait..on_bit...timeout()" interfaces.")
-Reported-by: Vladimir Murzin <vladimir.murzin@arm.com>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- kernel/sched/wait.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
-
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 052e02672d12..f10bd873e684 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -583,18 +583,18 @@ EXPORT_SYMBOL(wake_up_atomic_t);
- 
- __sched int bit_wait(struct wait_bit_key *word)
- {
--	if (signal_pending_state(current->state, current))
--		return 1;
- 	schedule();
-+	if (signal_pending(current))
-+		return -EINTR;
- 	return 0;
- }
- EXPORT_SYMBOL(bit_wait);
- 
- __sched int bit_wait_io(struct wait_bit_key *word)
- {
--	if (signal_pending_state(current->state, current))
--		return 1;
- 	io_schedule();
-+	if (signal_pending(current))
-+		return -EINTR;
- 	return 0;
- }
- EXPORT_SYMBOL(bit_wait_io);
-@@ -602,11 +602,11 @@ EXPORT_SYMBOL(bit_wait_io);
- __sched int bit_wait_timeout(struct wait_bit_key *word)
- {
- 	unsigned long now = READ_ONCE(jiffies);
--	if (signal_pending_state(current->state, current))
--		return 1;
- 	if (time_after_eq(now, word->timeout))
- 		return -EAGAIN;
- 	schedule_timeout(word->timeout - now);
-+	if (signal_pending(current))
-+		return -EINTR;
- 	return 0;
- }
- EXPORT_SYMBOL_GPL(bit_wait_timeout);
-@@ -614,11 +614,11 @@ EXPORT_SYMBOL_GPL(bit_wait_timeout);
- __sched int bit_wait_io_timeout(struct wait_bit_key *word)
- {
- 	unsigned long now = READ_ONCE(jiffies);
--	if (signal_pending_state(current->state, current))
--		return 1;
- 	if (time_after_eq(now, word->timeout))
- 		return -EAGAIN;
- 	io_schedule_timeout(word->timeout - now);
-+	if (signal_pending(current))
-+		return -EINTR;
- 	return 0;
- }
- EXPORT_SYMBOL_GPL(bit_wait_io_timeout);
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
