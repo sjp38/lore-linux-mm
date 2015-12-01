@@ -1,102 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 37B3F6B0253
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 11:27:21 -0500 (EST)
-Received: by wmww144 with SMTP id w144so180302710wmw.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 08:27:20 -0800 (PST)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id n16si74650588wjw.236.2015.12.01.08.27.19
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 722E76B0253
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 11:54:24 -0500 (EST)
+Received: by ykfs79 with SMTP id s79so14451098ykf.1
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 08:54:24 -0800 (PST)
+Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
+        by mx.google.com with ESMTPS id o85si32423448ywd.263.2015.12.01.08.54.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 08:27:19 -0800 (PST)
-Received: by wmec201 with SMTP id c201so21341825wme.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 08:27:19 -0800 (PST)
-Date: Tue, 1 Dec 2015 17:27:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] tree wide: get rid of __GFP_REPEAT for order-0
- allocations part I
-Message-ID: <20151201162718.GA4662@dhcp22.suse.cz>
-References: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
- <1446740160-29094-2-git-send-email-mhocko@kernel.org>
- <5641185F.9020104@suse.cz>
- <20151110125101.GA8440@dhcp22.suse.cz>
- <564C8801.2090202@suse.cz>
- <20151127093807.GD2493@dhcp22.suse.cz>
- <565C8129.80302@suse.cz>
+        Tue, 01 Dec 2015 08:54:23 -0800 (PST)
+Received: by ykdv3 with SMTP id v3so14356331ykd.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 08:54:23 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <565C8129.80302@suse.cz>
+In-Reply-To: <20151201135000.GB4341@pd.tnic>
+References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
+	<1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
+	<20151201135000.GB4341@pd.tnic>
+Date: Tue, 1 Dec 2015 08:54:23 -0800
+Message-ID: <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
+Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon 30-11-15 18:02:33, Vlastimil Babka wrote:
-[...]
-> I think we should consider all the related flags together before starting
-> renaming them. So IIUC the current state is:
-> 
-> ~__GFP_DIRECT_RECLAIM - no reclaim/compaction, fails regardless of order;
-> good for allocations that prefer their fallback to the latency of
-> reclaim/compaction
-> 
-> __GFP_NORETRY - only one reclaim and two compaction attempts, then fails
-> regardless of order; some tradeoff between allocation latency and fallback?
+On Tue, Dec 1, 2015 at 5:50 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Tue, Nov 24, 2015 at 03:33:36PM -0700, Toshi Kani wrote:
+>> region_intersects() checks if a specified region partially overlaps
+>> or fully eclipses a resource identified by @name.  It currently sets
+>> resource flags statically, which prevents the caller from specifying
+>> a non-RAM region, such as persistent memory.  Add @flags so that
+>> any region can be specified to the function.
+>>
+>> A helper function, region_intersects_ram(), is added so that the
+>> callers that check a RAM region do not have to specify its iomem
+>> resource name and flags.  This interface is exported for modules,
+>> such as the EINJ driver.
+>>
+>> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+>> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Vishal Verma <vishal.l.verma@intel.com>
+>> ---
+>>  include/linux/mm.h |    4 +++-
+>>  kernel/memremap.c  |    5 ++---
+>>  kernel/resource.c  |   23 ++++++++++++++++-------
+>>  3 files changed, 21 insertions(+), 11 deletions(-)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 00bad77..c776af3 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -362,7 +362,9 @@ enum {
+>>       REGION_MIXED,
+>>  };
+>>
+>> -int region_intersects(resource_size_t offset, size_t size, const char *type);
+>> +int region_intersects(resource_size_t offset, size_t size, const char *type,
+>> +                     unsigned long flags);
+>> +int region_intersects_ram(resource_size_t offset, size_t size);
+>>
+>>  /* Support for virtually mapped pages */
+>>  struct page *vmalloc_to_page(const void *addr);
+>> diff --git a/kernel/memremap.c b/kernel/memremap.c
+>> index 7658d32..98f52f1 100644
+>> --- a/kernel/memremap.c
+>> +++ b/kernel/memremap.c
+>> @@ -57,7 +57,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
+>>   */
+>>  void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+>>  {
+>> -     int is_ram = region_intersects(offset, size, "System RAM");
+>
+> Ok, question: why do those resource things types gets identified with
+> a string?! We have here "System RAM" and next patch adds "Persistent
+> Memory".
+>
+> And "persistent memory" or "System RaM" won't work and this is just
+> silly.
+>
+> Couldn't struct resource have gained some typedef flags instead which we
+> can much easily test? Using the strings looks really yucky.
+>
 
-Also doesn't invoke OOM killer.
+At least in the case of region_intersects() I was just following
+existing strcmp() convention from walk_system_ram_range.
 
-> __GFP_REPEAT - for costly orders, tries harder to reclaim before oom,
-> otherwise no difference - doesn't fail for non-costly orders, although
-> comment says it could.
-> 
-> __GFP_NOFAIL - cannot fail
-> 
-> So the issue I see with simply renaming __GFP_REPEAT to __GFP_BEST_AFFORD
-> and making it possible to fail for low orders, is that it will conflate the
-> new failure possibility with the existing "try harder to reclaim before
-> oom". As I mentioned before, "trying harder" could be also extended to mean
-> something for compaction, but that would further muddle the meaning of the
-> flag. Maybe the cleanest solution would be to have separate flags for
-> "possible to fail" (let's say __GFP_MAYFAIL for now) and "try harder" (e.g.
-> __GFP_TRY_HARDER)? And introduce two new higher-level "flags" of a GFP_*
-> kind, that callers would use instead of GFP_KERNEL, where one would mean
-> GFP_KERNEL|__GFP_MAYFAIL and the other
-> GFP_KERNEL|__GFP_TRY_HARDER|__GFP_MAYFAIL.
-
-I will think about that but this sounds quite confusing to me. All the
-allocations on behalf of a user process are MAYFAIL basically (e.g. the
-oom victim failure case) unless they are explicitly __GFP_NOFAIL. It
-also sounds that ~__GFP_NOFAIL should imply MAYFAIL automatically.
-__GFP_BEST_EFFORT on the other hand clearly states that the allocator
-should try its best but it can fail. The way how it achieves that is
-an implementation detail and users do not have to care. In your above
-hierarchy of QoS we have:
-- no reclaim ~__GFP_DIRECT_RECLAIM - optimistic allocation with a
-  fallback (e.g. smaller allocation request)
-- no destructive reclaim __GFP_NORETRY - allocation with a more
-  expensive fallback (e.g. vmalloc)
-- all reclaim types but only fail if there is no good hope for success
-  __GFP_BEST_EFFORT (fail rather than invoke the OOM killer second time)
-  user allocations
-- no failure allowed __GFP_NOFAIL - failure mode is not acceptable
-
-we can keep the current implicit "low order imply __GFP_NOFAIL" behavior
-of the GFP_KERNEL and still offer users to use __GFP_BEST_EFFORT as a
-way to override it.
-
-> The second thing to consider, is __GFP_NORETRY useful? The latency savings
-> are quite vague. Maybe we could just remove this flag to make space for
-> __GFP_MAYFAIL?
-
-There are users who would like to see some reclaim but rather fail then
-see the OOM killer. I assume there are also users who can handle the
-failure but the OOM killer is not a big deal for them. I think that
-GFP_USER is an example of the later.
-
--- 
-Michal Hocko
-SUSE Labs
+We could define 'const char *system_ram = "System RAM"' somewhere and
+then do pointer comparisons to cut down on the thrash of adding new
+flags to 'struct resource'?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
