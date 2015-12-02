@@ -1,96 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6806B0256
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 10:13:44 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so44689959pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:13:44 -0800 (PST)
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3047A6B0257
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 10:13:45 -0500 (EST)
+Received: by obbnk6 with SMTP id nk6so34712490obb.2
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:13:45 -0800 (PST)
 Received: from m50-134.163.com (m50-134.163.com. [123.125.50.134])
-        by mx.google.com with ESMTP id h8si5186784pat.239.2015.12.02.07.13.42
+        by mx.google.com with ESMTP id l194si3678509oib.83.2015.12.02.07.13.43
         for <linux-mm@kvack.org>;
-        Wed, 02 Dec 2015 07:13:43 -0800 (PST)
+        Wed, 02 Dec 2015 07:13:44 -0800 (PST)
 From: Geliang Tang <geliangtang@163.com>
-Subject: [PATCH 1/2] mm/page_alloc.c: use list_{first,last}_entry instead of list_entry
-Date: Wed,  2 Dec 2015 23:12:40 +0800
-Message-Id: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
+Subject: [PATCH 2/2] mm/page_alloc.c: use list_for_each_entry in mark_free_pages()
+Date: Wed,  2 Dec 2015 23:12:41 +0800
+Message-Id: <7009a8fa2dba33da9bcfe60db4741139c07c8074.1449068845.git.geliangtang@163.com>
+In-Reply-To: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
+References: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
+In-Reply-To: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
+References: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Alexander Duyck <alexander.h.duyck@redhat.com>
 Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-To make the intention clearer, use list_{first,last}_entry instead
-of list_entry.
+Use list_for_each_entry instead of list_for_each + list_entry to
+simplify the code.
 
 Signed-off-by: Geliang Tang <geliangtang@163.com>
 ---
- mm/page_alloc.c | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ mm/page_alloc.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d6d7c97..0d38185 100644
+index 0d38185..1c1ad58 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -830,7 +830,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		do {
- 			int mt;	/* migratetype of the to-be-freed page */
+@@ -2027,7 +2027,7 @@ void mark_free_pages(struct zone *zone)
+ 	unsigned long pfn, max_zone_pfn;
+ 	unsigned long flags;
+ 	unsigned int order, t;
+-	struct list_head *curr;
++	struct page *page;
  
--			page = list_entry(list->prev, struct page, lru);
-+			page = list_last_entry(list, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
- 
-@@ -1457,11 +1457,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 	/* Find a page of the appropriate size in the preferred list */
- 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
- 		area = &(zone->free_area[current_order]);
--		if (list_empty(&area->free_list[migratetype]))
--			continue;
+ 	if (zone_is_empty(zone))
+ 		return;
+@@ -2037,17 +2037,17 @@ void mark_free_pages(struct zone *zone)
+ 	max_zone_pfn = zone_end_pfn(zone);
+ 	for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+ 		if (pfn_valid(pfn)) {
+-			struct page *page = pfn_to_page(pfn);
 -
--		page = list_entry(area->free_list[migratetype].next,
-+		page = list_first_entry_or_null(&area->free_list[migratetype],
- 							struct page, lru);
-+		if (!page)
-+			continue;
- 		list_del(&page->lru);
- 		rmv_page_order(page);
- 		area->nr_free--;
-@@ -1740,12 +1739,12 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
- 		for (order = 0; order < MAX_ORDER; order++) {
- 			struct free_area *area = &(zone->free_area[order]);
- 
--			if (list_empty(&area->free_list[MIGRATE_HIGHATOMIC]))
-+			page = list_first_entry_or_null(
-+					&area->free_list[MIGRATE_HIGHATOMIC],
-+					struct page, lru);
-+			if (!page)
- 				continue;
- 
--			page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
--						struct page, lru);
--
- 			/*
- 			 * It should never happen but changes to locking could
- 			 * inadvertently allow a per-cpu drain to add pages
-@@ -1793,7 +1792,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 		if (fallback_mt == -1)
- 			continue;
- 
--		page = list_entry(area->free_list[fallback_mt].next,
-+		page = list_first_entry(&area->free_list[fallback_mt],
- 						struct page, lru);
- 		if (can_steal)
- 			steal_suitable_fallback(zone, page, start_migratetype);
-@@ -2252,9 +2251,9 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
++			page = pfn_to_page(pfn);
+ 			if (!swsusp_page_is_forbidden(page))
+ 				swsusp_unset_page_free(page);
  		}
  
- 		if (cold)
--			page = list_entry(list->prev, struct page, lru);
-+			page = list_last_entry(list, struct page, lru);
- 		else
--			page = list_entry(list->next, struct page, lru);
-+			page = list_first_entry(list, struct page, lru);
+ 	for_each_migratetype_order(order, t) {
+-		list_for_each(curr, &zone->free_area[order].free_list[t]) {
++		list_for_each_entry(page,
++				&zone->free_area[order].free_list[t], lru) {
+ 			unsigned long i;
  
- 		list_del(&page->lru);
- 		pcp->count--;
+-			pfn = page_to_pfn(list_entry(curr, struct page, lru));
++			pfn = page_to_pfn(page);
+ 			for (i = 0; i < (1UL << order); i++)
+ 				swsusp_set_page_free(pfn_to_page(pfn + i));
+ 		}
 -- 
 2.5.0
 
