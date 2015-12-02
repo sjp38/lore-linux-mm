@@ -1,116 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id AF04D6B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 18:59:29 -0500 (EST)
-Received: by wmww144 with SMTP id w144so35244040wmw.0
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 15:59:29 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id aw7si402333wjc.90.2015.12.01.15.59.28
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 30A836B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 19:02:57 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so20725936pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:02:56 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id r20si459259pfa.51.2015.12.01.16.02.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 15:59:28 -0800 (PST)
-Date: Tue, 1 Dec 2015 15:59:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2] mm: add a new vector based madvise syscall
-Message-Id: <20151201155926.6291e5e541c49d453079849b@linux-foundation.org>
-In-Reply-To: <c25b90749f9212359a085125f6403f4c148dfde0.1447098139.git.shli@fb.com>
-References: <c25b90749f9212359a085125f6403f4c148dfde0.1447098139.git.shli@fb.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 01 Dec 2015 16:02:56 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so21443953pab.0
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:02:56 -0800 (PST)
+Date: Tue, 1 Dec 2015 16:02:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
+In-Reply-To: <20151201154353.87e2200b5cd1a99289ce6653@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1512011602170.15908@chino.kir.corp.google.com>
+References: <1445634150-27992-1-git-send-email-arozansk@redhat.com> <20151201154353.87e2200b5cd1a99289ce6653@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, je@fb.com, Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Aristeu Rozanski <arozansk@redhat.com>, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, 9 Nov 2015 11:44:54 -0800 Shaohua Li <shli@fb.com> wrote:
+On Tue, 1 Dec 2015, Andrew Morton wrote:
 
-> In jemalloc, a free(3) doesn't immediately free the memory to OS even
-> the memory is page aligned/size, and hope the memory can be reused soon.
-> Later the virtual address becomes fragmented, and more and more free
-> memory are aggregated. If the free memory size is large, jemalloc uses
-> madvise(DONT_NEED) to actually free the memory back to OS.
+> > --- a/include/linux/oom.h
+> > +++ b/include/linux/oom.h
+> > @@ -115,6 +115,7 @@ static inline bool task_will_free_mem(struct task_struct *task)
+> >  
+> >  /* sysctls */
+> >  extern int sysctl_oom_dump_tasks;
+> > +extern int sysctl_oom_dump_stack;
+> >  extern int sysctl_oom_kill_allocating_task;
+> >  extern int sysctl_panic_on_oom;
+> >  #endif /* _INCLUDE_LINUX_OOM_H */
+> > diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> > index e69201d..c812523 100644
+> > --- a/kernel/sysctl.c
+> > +++ b/kernel/sysctl.c
+> > @@ -1176,6 +1176,13 @@ static struct ctl_table vm_table[] = {
+> >  		.proc_handler	= proc_dointvec,
+> >  	},
+> >  	{
+> > +		.procname	= "oom_dump_stack",
+> > +		.data		= &sysctl_oom_dump_stack,
+> > +		.maxlen		= sizeof(sysctl_oom_dump_stack),
+> > +		.mode		= 0644,
+> > +		.proc_handler	= proc_dointvec,
+> > +	},
+> > +	{
+> >  		.procname	= "overcommit_ratio",
+> >  		.data		= &sysctl_overcommit_ratio,
+> >  		.maxlen		= sizeof(sysctl_overcommit_ratio),
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 1ecc0bc..bdbf83b 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -42,6 +42,7 @@
+> >  int sysctl_panic_on_oom;
+> >  int sysctl_oom_kill_allocating_task;
+> >  int sysctl_oom_dump_tasks = 1;
+> > +int sysctl_oom_dump_stack = 1;
+> >  
+> >  DEFINE_MUTEX(oom_lock);
+> >  
+> > @@ -384,7 +385,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p,
+> >  		current->signal->oom_score_adj);
+> >  	cpuset_print_task_mems_allowed(current);
+> >  	task_unlock(current);
+> > -	dump_stack();
+> > +	if (sysctl_oom_dump_stack)
+> > +		dump_stack();
+> >  	if (memcg)
+> >  		mem_cgroup_print_oom_info(memcg, p);
+> >  	else
 > 
-> The madvise has significantly overhead paritcularly because of TLB
-> flush. jemalloc does madvise for several virtual address space ranges
-> one time. Instead of calling madvise for each of the ranges, we
-> introduce a new syscall to purge memory for several ranges one time. In
-> this way, we can merge several TLB flush for the ranges to one big TLB
-> flush. This also reduce mmap_sem locking and kernel/userspace switching.
+> The patch seems reasonable to me, but it's missing the required update
+> to Documentation/sysctl/vm.txt.
 > 
-> I'm running a simple memory allocation benchmark. 32 threads do random
-> malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
-> attached.
-> Without patch:
-> real    0m18.923s
-> user    1m11.819s
-> sys     7m44.626s
-> each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
-> is hotest functions. mmap_sem read locking (because of page fault) is
-> also heavy.
-> 
-> with patch:
-> real    0m15.026s
-> user    0m48.548s
-> sys     6m41.153s
-> each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
-> all. mmap_sem read locking (still because of page fault) becomes the
-> sole hot spot.
-> 
-> Another test malloc a bunch of memory in 48 threads, then all threads
-> free the memory. I measure the time of the memory free.
-> Without patch: 34.332s
-> With patch:    17.429s
-> 
-> Current implementation only supports MADV_DONTNEED. Should be trival to
-> support MADV_FREE if necessary later.
 
-I'd like to see a full description of the proposed userspace interface:
-arguments, data structures, return values, etc.  A propotype manpage,
-basically.
-
-I'd also like to see an analysis of which other userspace allocators
-will benefit from this.  glibc? tcmalloc?
-
->
-> ...
->
-> +/*
-> + * The vector madvise(). Like madvise except running for a vector of virtual
-> + * address ranges
-> + */
-> +SYSCALL_DEFINE3(madvisev, const struct iovec __user *, uvector,
-> +	unsigned long, nr_segs, int, behavior)
-> +{
-> +	struct iovec iovstack[UIO_FASTIOV];
-> +	struct iovec *iov = NULL;
-> +	unsigned long start, end = 0;
-> +	int unmapped_error = 0;
-> +	size_t len;
-> +	struct mmu_gather tlb;
-> +	int error;
-> +	int i;
-> +
-> +	if (behavior != MADV_DONTNEED)
-> +		return -EINVAL;
-> +
-> +	error = rw_copy_check_uvector(CHECK_IOVEC_ONLY, uvector, nr_segs,
-> +			UIO_FASTIOV, iovstack, &iov);
-> +	if (error <= 0)
-> +		goto out;
-> +	/* Make sure address in ascend order */
-> +	sort(iov, nr_segs, sizeof(struct iovec), iov_cmp_func, NULL);
-
-Do we really need to sort the addresses?  That's something which can be
-done in userspace and we can easily add a check-for-sortedness to the
-below loop.
-
-It depends on whether userspace can easily generate a sorted array.  If
-basically all userspace will always need to run sort() then it doesn't
-matter much whether it's done in the kernel or in userspace.  But if
-*some* userspace can naturally generate its array in sorted form then
-neither userspace nor the kernel needs to run sort() and we should take
-this out.
+Not sure why we'd want yet-another-sysctl for something that can trivially 
+filtered from the log, but owell.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
