@@ -1,58 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C3D086B0253
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 05:17:18 -0500 (EST)
-Received: by wmww144 with SMTP id w144so50020370wmw.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:17:18 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id rx8si3300685wjb.204.2015.12.02.02.17.17
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BBC76B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 05:35:52 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so247959285wmv.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:35:51 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id o8si3379500wjy.224.2015.12.02.02.35.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 02 Dec 2015 02:17:17 -0800 (PST)
-Date: Wed, 2 Dec 2015 11:17:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: fix kerneldoc on mem_cgroup_replace_page
-Message-ID: <20151202101714.GD25284@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
- <alpine.LSU.2.11.1510182152560.2481@eggly.anvils>
- <alpine.LSU.2.11.1512020130410.32078@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Dec 2015 02:35:51 -0800 (PST)
+Received: by wmec201 with SMTP id c201so246332402wme.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:35:51 -0800 (PST)
+Date: Wed, 2 Dec 2015 11:35:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom kill init lead panic
+Message-ID: <20151202103549.GB25290@dhcp22.suse.cz>
+References: <1449037856-23990-1-git-send-email-chenjie6@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1512020130410.32078@eggly.anvils>
+In-Reply-To: <1449037856-23990-1-git-send-email-chenjie6@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
+To: chenjie6@huawei.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David.Woodhouse@intel.com, zhihui.gao@huawei.com, lizefan@huawei.com, akpm@linux-foundation.org, stable@vger.kernel.org
 
-On Wed 02-12-15 01:33:03, Hugh Dickins wrote:
-> Whoops, I missed removing the kerneldoc comment of the lrucare arg
-> removed from mem_cgroup_replace_page; but it's a good comment, keep it.
+On Wed 02-12-15 14:30:56, chenjie6@huawei.com wrote:
+> From: chenjie <chenjie6@huawei.com>
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> when oom happened we can see:
+> Out of memory: Kill process 9134 (init) score 3 or sacrifice child
+> Killed process 9134 (init) total-vm:1868kB, anon-rss:84kB, file-rss:572kB
+> Kill process 1 (init) sharing same memory
+> ...
+> Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000009
+> 
+> That's because:
+>         the busybox init will vfork a process,oom_kill_process found
+> the init not the children,their mm is the same when vfork.
+
+It is quite unlikely that killing the task would help to free much
+memory so if this is really the only oom victim it is to be expected to
+panic sooner or later but this is in line with oom_unkillable_task()
+so it makes sense.
+ 
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Chen Jie <chenjie6@huawei.com>
 
 Acked-by: Michal Hocko <mhocko@suse.com>
 
+> 
 > ---
+>  mm/oom_kill.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
->  mm/memcontrol.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index d13a339..a0ddebd 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -608,6 +608,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+>  			continue;
+>  		if (unlikely(p->flags & PF_KTHREAD))
+>  			continue;
+> +		if (!is_global_init(p))
+> +			continue;
+>  		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+>  			continue;
+>  
+> -- 
+> 1.8.0
 > 
-> --- 4.4-rc3/mm/memcontrol.c	2015-11-15 21:06:56.505752425 -0800
-> +++ linux/mm/memcontrol.c	2015-11-30 17:40:42.510193391 -0800
-> @@ -5511,11 +5511,11 @@ void mem_cgroup_uncharge_list(struct lis
->   * mem_cgroup_replace_page - migrate a charge to another page
->   * @oldpage: currently charged page
->   * @newpage: page to transfer the charge to
-> - * @lrucare: either or both pages might be on the LRU already
->   *
->   * Migrate the charge from @oldpage to @newpage.
->   *
->   * Both pages must be locked, @newpage->mapping must be set up.
-> + * Either or both pages might be on the LRU already.
->   */
->  void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
->  {
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
