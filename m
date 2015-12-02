@@ -1,216 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7386B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 15:34:52 -0500 (EST)
-Received: by wmww144 with SMTP id w144so231154338wmw.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 12:34:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w10si45572721wma.83.2015.12.02.12.34.50
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D837C6B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 15:42:05 -0500 (EST)
+Received: by oiww189 with SMTP id w189so33060914oiw.3
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 12:42:05 -0800 (PST)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id v6si4768444oei.98.2015.12.02.12.42.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 02 Dec 2015 12:34:50 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
-References: <20151125143010.GI27283@dhcp22.suse.cz>
- <1448899821-9671-1-git-send-email-vbabka@suse.cz>
- <87io4hi06n.fsf@rasmusvillemoes.dk>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <565F55E6.6080201@suse.cz>
-Date: Wed, 2 Dec 2015 21:34:46 +0100
-MIME-Version: 1.0
-In-Reply-To: <87io4hi06n.fsf@rasmusvillemoes.dk>
-Content-Type: text/plain; charset=iso-8859-2
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Dec 2015 12:42:05 -0800 (PST)
+Message-ID: <1449092226.31589.50.camel@hpe.com>
+Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Wed, 02 Dec 2015 14:37:06 -0700
+In-Reply-To: <CAPcyv4hvX_s3xN9UZ69v7npOhWVFehfGDPZG1MsDmKWBk4Gq1A@mail.gmail.com>
+References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+	 <CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
+	 <1449022764.31589.24.camel@hpe.com>
+	 <CAPcyv4hzjMkwx3AA+f5Y9zfp-egjO-b5+_EU7cGO5BGMQaiN_g@mail.gmail.com>
+	 <1449078237.31589.30.camel@hpe.com>
+	 <CAPcyv4ikJ73nzQTCOfnBRThkv=rZGPM76S7=6O3LSB4kQBeEpw@mail.gmail.com>
+	 <CAPcyv4j1vA6eAtjsE=kGKeF1EqWWfR+NC7nUcRpfH_8MRqpM8Q@mail.gmail.com>
+	 <1449084362.31589.37.camel@hpe.com>
+	 <CAPcyv4jt7JmWCgcsd=p32M322sCyaar4Pj-k+F446XGZvzrO8A@mail.gmail.com>
+	 <1449086521.31589.39.camel@hpe.com> <1449087125.31589.45.camel@hpe.com>
+	 <CAPcyv4hvX_s3xN9UZ69v7npOhWVFehfGDPZG1MsDmKWBk4Gq1A@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 12/02/2015 12:01 PM, Rasmus Villemoes wrote:
-> On Mon, Nov 30 2015, Vlastimil Babka <vbabka@suse.cz> wrote:
+On Wed, 2015-12-02 at 11:57 -0800, Dan Williams wrote:
+> On Wed, Dec 2, 2015 at 12:12 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> > On Wed, 2015-12-02 at 13:02 -0700, Toshi Kani wrote:
+> > > On Wed, 2015-12-02 at 11:00 -0800, Dan Williams wrote:
+> > > > On Wed, Dec 2, 2015 at 11:26 AM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> > > > > On Wed, 2015-12-02 at 10:06 -0800, Dan Williams wrote:
+> > > > > > On Wed, Dec 2, 2015 at 9:01 AM, Dan Williams <
+> > > > > > dan.j.williams@intel.com>
+> > > > > > wrote:
+> > > > > > > On Wed, Dec 2, 2015 at 9:43 AM, Toshi Kani <toshi.kani@hpe.com>
+> > > > > > > wrote:
+> > > > > > > > Oh, I see.  I will setup the memmap array and run the tests
+> > > > > > > > again.
+> > > > > > > > 
+> > > > > > > > But, why does the PMD mapping depend on the memmap array?  We 
+> > > > > > > > have observed major performance improvement with PMD.  This 
+> > > > > > > > feature should always be enabled with DAX regardless of the 
+> > > > > > > > option to allocate the memmap array.
+> > > > > > > > 
+> > > > > > > 
+> > > > > > > Several factors drove this decision, I'm open to considering
+> > > > > > > alternatives but here's the reasoning:
+> > > > > > > 
+> > > > > > > 1/ DAX pmd mappings caused crashes in the get_user_pages path 
+> > > > > > > leading to commit e82c9ed41e8 "dax: disable pmd mappings".  The 
+> > > > > > > reason pte mappings don't crash and instead trigger -EFAULT is due 
+> > > > > > > to the _PAGE_SPECIAL pte bit.
+> > > > > > > 
+> > > > > > > 2/ To enable get_user_pages for DAX, in both the page and huge
+> > > > > > > -page case, we need a new pte bit _PAGE_DEVMAP.
+> > > > > > > 
+> > > > > > > 3/ Given the pte bits are hard to come I'm assuming we won't get 
+> > > > > > > two, i.e. both _PAGE_DEVMAP and a new _PAGE_SPECIAL for pmds. 
+> > > > > > >  Even if we could get a _PAGE_SPECIAL for pmds I'm not in favor of 
+> > > > > > > pursuing it.
+> > > > > > 
+> > > > > > Actually, Dave says they aren't that hard to come by for pmds, so we
+> > > > > > could go add _PMD_SPECIAL if we really wanted to support the limited
+> > > > > > page-less DAX-pmd case.
+> > > > > > 
+> > > > > > But I'm still of the opinion that we run away from the page-less 
+> > > > > > case until it can be made a full class citizen with O_DIRECT for pfn
+> > > > > > support.
+> > > > > 
+> > > > > I may be missing something, but per vm_normal_page(), I think
+> > > > > _PAGE_SPECIAL can be substituted by the following check when we do not
+> > > > > have the memmap.
+> > > > > 
+> > > > >         if ((vma->vm_flags & VM_PFNMAP) ||
+> > > > >             ((vma->vm_flags & VM_MIXEDMAP) && (!pfn_valid(pfn)))) {
+> > > > > 
+> > > > > This is what I did in this patch for follow_trans_huge_pmd(), although 
+> > > > > I missed the pfn_valid() check.
+> > > > 
+> > > > That works for __get_user_pages but not __get_user_pages_fast where we
+> > > > don't have access to the vma.
+> > > 
+> > > __get_user_page_fast already refers current->mm, so we should be able to 
+> > > get the vma, and pass it down to gup_pud_range().
+> > 
+> > Alternatively, we can obtain the vma from current->mm in gup_huge_pmd() when 
+> > the !pfn_valid() condition is met, so that we do not add the code to the 
+> > main path of __get_user_pages_fast.
 > 
-> I'd prefer to have the formatting code in vsprintf.c, so that we'd avoid
-> having to call vsnprintf recursively (and repeatedly - not that this is
-> going to be used in hot paths, but if the box is going down it might be
-> nice to get the debug info out a few thousand cycles earlier). That'll
-> also make it easier to avoid the bugs below.
+> The whole point of __get_user_page_fast() is to avoid the overhead of
+> taking the mm semaphore to access the vma.  _PAGE_SPECIAL simply tells
+> __get_user_pages_fast that it needs to fallback to the
+> __get_user_pages slow path.
 
-OK, I'll try.
+I see.  Then, I think gup_huge_pmd() can simply return 0 when !pfn_valid(),
+instead of VM_BUG_ON.
 
->> diff --git a/Documentation/printk-formats.txt b/Documentation/printk-formats.txt
->> index b784c270105f..4b5156e74b09 100644
->> --- a/Documentation/printk-formats.txt
->> +++ b/Documentation/printk-formats.txt
->> @@ -292,6 +292,20 @@ Raw pointer value SHOULD be printed with %p. The kernel supports
->>  
->>  	Passed by reference.
->>  
->> +Flags bitfields such as page flags, gfp_flags:
->> +
->> +	%pgp	0x1fffff8000086c(referenced|uptodate|lru|active|private)
->> +	%pgg	0x24202c4(GFP_USER|GFP_DMA32|GFP_NOWARN)
->> +	%pgv	0x875(read|exec|mayread|maywrite|mayexec|denywrite)
->> +
-> 
-> I think it would be better (and more flexible) if %pg* only stood for
-> printing the | chain of strings. Let people pass the flags twice if they
-> also want the numeric value; then they're also able to choose 0-padding
-> and whatnot, can use other kinds of parentheses, etc., etc. So
-> 
->   pr_emerg("flags: 0x%08lu [%pgp]\n", printflags, &printflags)
-
-I had it initially like this, but then thought it was somewhat repetitive and
-all current users did use the same format. But I agree it's more generic to do
-it as you say so I'll change it.
-
->> @@ -1361,6 +1362,29 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
->>  	}
->>  }
->>  
->> +static noinline_for_stack
->> +char *flags_string(char *buf, char *end, void *flags_ptr,
->> +			struct printf_spec spec, const char *fmt)
->> +{
->> +	unsigned long flags;
->> +	gfp_t gfp_flags;
->> +
->> +	switch (fmt[1]) {
->> +	case 'p':
->> +		flags = *(unsigned long *)flags_ptr;
->> +		return format_page_flags(flags, buf, end);
->> +	case 'v':
->> +		flags = *(unsigned long *)flags_ptr;
->> +		return format_vma_flags(flags, buf, end);
->> +	case 'g':
->> +		gfp_flags = *(gfp_t *)flags_ptr;
->> +		return format_gfp_flags(gfp_flags, buf, end);
->> +	default:
->> +		WARN_ONCE(1, "Unsupported flags modifier: %c\n", fmt[1]);
->> +		return 0;
->> +	}
->> +}
->> +
-> 
-> That return 0 aka return NULL will lead to an oops when the next thing
-> is printed. Did you mean 'return buf;'? 
-
-Uh, right.
-
->>  
->> -static void dump_flag_names(unsigned long flags,
->> -			const struct trace_print_flags *names, int count)
->> +static char *format_flag_names(unsigned long flags, unsigned long mask_out,
->> +		const struct trace_print_flags *names, int count,
->> +		char *buf, char *end)
->>  {
->>  	const char *delim = "";
->>  	unsigned long mask;
->>  	int i;
->>  
->> -	pr_cont("(");
->> +	buf += snprintf(buf, end - buf, "%#lx(", flags);
-> 
-> Sorry, you can't do it like this. The buf you've been passed from inside
-> vsnprintf may be beyond end
-
-Ah, didn't realize that :/
-
-> , so end-buf is a negative number which will
-> (get converted to a huge positive size_t and) trigger a WARN_ONCE and
-> get you a return value of 0.
-> 
-> 
->> +	flags &= ~mask_out;
->>  
->>  	for (i = 0; i < count && flags; i++) {
->> +		if (buf >= end)
->> +			break;
-> 
-> Even if you fix the above, this is also wrong. We have to return the
-> length of the string that would be generated if there was room enough,
-> so we cannot make an early return like this. As I said above, the
-> easiest way to do that is to do it inside vsprintf.c, where we have
-> e.g. string() available. So I'd do something like
-> 
-> 
-> char *format_flags(char *buf, char *end, unsigned long flags,
->                    const struct trace_print_flags *names)
-> {
->   unsigned long mask;
->   const struct printf_spec strspec = {/* appropriate defaults*/}
->   const struct printf_spec numspec = {/* appropriate defaults*/}
-> 
->   for ( ; flags && names->mask; names++) {
->     mask = names->mask;
->     if ((flags & mask) != mask)
->       continue;
->     flags &= ~mask;
->     buf = string(buf, end, names->name, strspec);
->     if (flags) {
->       if (buf < end)
->         *buf = '|';
->       buf++;
->     }
->   }
->   if (flags)
->     buf = number(buf, end, flags, numspec);
->   return buf;
-> }
-
-Thanks a lot for your review and suggestions!
-
-> [where I've assumed that the trace_print_flags array is terminated with
-> an entry with 0 mask. Passing its length is also possible, but maybe a
-> little awkward if the arrays are defined in mm/ and contents depend on
-> .config.] 
-
-> Then flags_string() would call this directly with an appropriate array
-> for names, and we avoid the individual tiny helper
-> functions. flags_string() can still do the mask_out thing for page
-> flags, especially when/if the numeric and string representations are not
-> done at the same time.
-> 
-> Rasmus
-
-Zero-terminated array is a good idea to get rid of the ARRAY_SIZE with helpers
-needing to live in the same .c file etc.
-
-But if I were to keep the array definitions in mm/debug.c with declarations
-(which don't know the size yet) in e.g. <linux/mmdebug.h> (which lib/vsnprintf.c
-would include so that format_flags() can reference them, is there a more elegant
-way than the one below?
-
---- a/include/linux/mmdebug.h
-+++ b/include/linux/mmdebug.h
-@@ -7,6 +7,9 @@
- struct page;
- struct vm_area_struct;
- struct mm_struct;
-+struct trace_print_flags; // can't include trace_events.h here
-+
-+extern const struct trace_print_flags *pageflag_names;
-
- extern void dump_page(struct page *page, const char *reason);
- extern void dump_page_badflags(struct page *page, const char *reason,
-diff --git a/mm/debug.c b/mm/debug.c
-index a092111920e7..1cbc60544b87 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -23,7 +23,7 @@ char *migrate_reason_names[MR_TYPES] = {
- 	"cma",
- };
-
--static const struct trace_print_flags pageflag_names[] = {
-+const struct trace_print_flags __pageflag_names[] = {
- 	{1UL << PG_locked,		"locked"	},
- 	{1UL << PG_error,		"error"		},
- 	{1UL << PG_referenced,		"referenced"	},
-@@ -59,6 +59,8 @@ static const struct trace_print_flags pageflag_names[] = {
- #endif
- };
-
-+const struct trace_print_flags *pageflag_names = &__pageflag_names[0];
-
-
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
