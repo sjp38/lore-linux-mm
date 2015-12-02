@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 20DD36B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 02:07:37 -0500 (EST)
-Received: by ioir85 with SMTP id r85so36397559ioi.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 23:07:37 -0800 (PST)
-Received: from out4133-98.mail.aliyun.com (out4133-98.mail.aliyun.com. [42.120.133.98])
-        by mx.google.com with ESMTP id p19si3521459igs.98.2015.12.01.23.07.35
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 598936B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 02:09:28 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so31924093pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 23:09:28 -0800 (PST)
+Received: from out4133-18.mail.aliyun.com (out4133-18.mail.aliyun.com. [42.120.133.18])
+        by mx.google.com with ESMTP id 81si2772534pfr.79.2015.12.01.23.09.26
         for <linux-mm@kvack.org>;
-        Tue, 01 Dec 2015 23:07:36 -0800 (PST)
+        Tue, 01 Dec 2015 23:09:27 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1448974607-10208-1-git-send-email-mhocko@kernel.org> <1448974607-10208-4-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1448974607-10208-4-git-send-email-mhocko@kernel.org>
-Subject: Re: [RFC 3/3] mm: use watermak checks for __GFP_REPEAT high order allocations
-Date: Wed, 02 Dec 2015 15:07:26 +0800
-Message-ID: <04a801d12cd0$1a601820$4f204860$@alibaba-inc.com>
+References: <1448974607-10208-1-git-send-email-mhocko@kernel.org> <1448974607-10208-3-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1448974607-10208-3-git-send-email-mhocko@kernel.org>
+Subject: Re: [RFC 2/3] mm: throttle on IO only when there are too many dirty and writeback pages
+Date: Wed, 02 Dec 2015 15:09:18 +0800
+Message-ID: <04a901d12cd0$5d287fd0$17797f70$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="US-ASCII"
@@ -27,78 +27,135 @@ Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linu
 
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> __alloc_pages_slowpath retries costly allocations until at least
-> order worth of pages were reclaimed or the watermark check for at least
-> one zone would succeed after all reclaiming all pages if the reclaim
-> hasn't made any progress.
+> wait_iff_congested has been used to throttle allocator before it retried
+> another round of direct reclaim to allow the writeback to make some
+> progress and prevent reclaim from looping over dirty/writeback pages
+> without making any progress. We used to do congestion_wait before
+> 0e093d99763e ("writeback: do not sleep on the congestion queue if
+> there are no congested BDIs or if significant congestion is not being
+> encountered in the current zone") but that led to undesirable stalls
+> and sleeping for the full timeout even when the BDI wasn't congested.
+> Hence wait_iff_congested was used instead. But it seems that even
+> wait_iff_congested doesn't work as expected. We might have a small file
+> LRU list with all pages dirty/writeback and yet the bdi is not congested
+> so this is just a cond_resched in the end and can end up triggering pre
+> mature OOM.
 > 
-> The first condition was added by a41f24ea9fd6 ("page allocator: smarter
-> retry of costly-order allocations) and it assumed that lumpy reclaim
-> could have created a page of the sufficient order. Lumpy reclaim,
-> has been removed quite some time ago so the assumption doesn't hold
-> anymore. It would be more appropriate to check the compaction progress
-> instead but this patch simply removes the check and relies solely
-> on the watermark check.
+> This patch replaces the unconditional wait_iff_congested by
+> congestion_wait which is executed only if we _know_ that the last round
+> of direct reclaim didn't make any progress and dirty+writeback pages are
+> more than a half of the reclaimable pages on the zone which might be
+> usable for our target allocation. This shouldn't reintroduce stalls
+> fixed by 0e093d99763e because congestion_wait is called only when we
+> are getting hopeless when sleeping is a better choice than OOM with many
+> pages under IO.
 > 
-> To prevent from too many retries the stall_backoff is not reseted after
-> a reclaim which made progress because we cannot assume it helped high
-> order situation.
+> We have to preserve logic introduced by "mm, vmstat: allow WQ concurrency
+> to discover memory reclaim doesn't make any progress" into the
+> __alloc_pages_slowpath now that wait_iff_congested is not used anymore.
+> As the only remaining user of wait_iff_congested is shrink_inactive_list
+> we can remove the WQ specific short sleep from wait_iff_congested
+> because the sleep is needed to be done only once in the allocation retry
+> cycle.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  mm/page_alloc.c | 20 ++++++++------------
->  1 file changed, 8 insertions(+), 12 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 168a675e9116..45de14cd62f4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2998,7 +2998,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
->  	struct page *page = NULL;
->  	int alloc_flags;
-> -	unsigned long pages_reclaimed = 0;
->  	unsigned long did_some_progress;
->  	enum migrate_mode migration_mode = MIGRATE_ASYNC;
->  	bool deferred_compaction = false;
-> @@ -3167,24 +3166,21 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> 
->  	/*
->  	 * Do not retry high order allocations unless they are __GFP_REPEAT
-> -	 * and even then do not retry endlessly unless explicitly told so
-> +	 * unless explicitly told so.
-
-s/unless/or/
 
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
->  	 */
-> -	pages_reclaimed += did_some_progress;
-> -	if (order > PAGE_ALLOC_COSTLY_ORDER) {
-> -		if (!(gfp_mask & __GFP_NOFAIL) &&
-> -		   (!(gfp_mask & __GFP_REPEAT) || pages_reclaimed >= (1<<order)))
-> -			goto noretry;
-> -
-> -		if (did_some_progress)
-> -			goto retry;
-> -	}
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER &&
-> +			!(gfp_mask & (__GFP_REPEAT|__GFP_NOFAIL)))
-> +		goto noretry;
+>  mm/backing-dev.c | 19 +++----------------
+>  mm/page_alloc.c  | 33 ++++++++++++++++++++++++++++++---
+>  2 files changed, 33 insertions(+), 19 deletions(-)
 > 
->  	/*
->  	 * Be optimistic and consider all pages on reclaimable LRUs as usable
->  	 * but make sure we converge to OOM if we cannot make any progress after
->  	 * multiple consecutive failed attempts.
-> +	 * Costly __GFP_REPEAT allocations might have made a progress but this
-> +	 * doesn't mean their order will become available due to high fragmentation
-> +	 * so do not reset the backoff for them
->  	 */
-> -	if (did_some_progress)
-> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
->  		stall_backoff = 0;
->  	else
->  		stall_backoff = min(stall_backoff+1, MAX_STALL_BACKOFF);
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 7340353f8aea..d2473ce9cc57 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -957,9 +957,8 @@ EXPORT_SYMBOL(congestion_wait);
+>   * jiffies for either a BDI to exit congestion of the given @sync queue
+>   * or a write to complete.
+>   *
+> - * In the absence of zone congestion, a short sleep or a cond_resched is
+> - * performed to yield the processor and to allow other subsystems to make
+> - * a forward progress.
+> + * In the absence of zone congestion, cond_resched() is called to yield
+> + * the processor if necessary but otherwise does not sleep.
+>   *
+>   * The return value is 0 if the sleep is for the full timeout. Otherwise,
+>   * it is the number of jiffies that were still remaining when the function
+> @@ -980,19 +979,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
+>  	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
+>  	    !test_bit(ZONE_CONGESTED, &zone->flags)) {
+> 
+> -		/*
+> -		 * Memory allocation/reclaim might be called from a WQ
+> -		 * context and the current implementation of the WQ
+> -		 * concurrency control doesn't recognize that a particular
+> -		 * WQ is congested if the worker thread is looping without
+> -		 * ever sleeping. Therefore we have to do a short sleep
+> -		 * here rather than calling cond_resched().
+> -		 */
+> -		if (current->flags & PF_WQ_WORKER)
+> -			schedule_timeout(1);
+> -		else
+> -			cond_resched();
+> -
+> +		cond_resched();
+>  		/* In case we scheduled, work out time remaining */
+>  		ret = timeout - (jiffies - start);
+>  		if (ret < 0)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index af221067de6a..168a675e9116 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3198,8 +3198,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
+>  		unsigned long free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
+>  		unsigned long target;
+> +		unsigned long reclaimable;
+> 
+> -		target = zone_reclaimable_pages(zone);
+> +		reclaimable = target = zone_reclaimable_pages(zone);
+>  		target -= DIV_ROUND_UP(stall_backoff * target, MAX_STALL_BACKOFF);
+>  		target += free;
+> 
+> @@ -3208,8 +3209,34 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		 */
+>  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
+>  				ac->high_zoneidx, alloc_flags, target)) {
+> -			/* Wait for some write requests to complete then retry */
+> -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
+> +			unsigned long writeback = zone_page_state_snapshot(zone, NR_WRITEBACK),
+> +				      dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
+> +
+> +			/*
+> +			 * If we didn't make any progress and have a lot of
+> +			 * dirty + writeback pages then we should wait for
+> +			 * an IO to complete to slow down the reclaim and
+> +			 * prevent from pre mature OOM
+> +			 */
+> +			if (!did_some_progress && 2*(writeback + dirty) > reclaimable) {
+> +				congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +				goto retry;
+> +			}
+> +
+> +			/*
+> +			 * Memory allocation/reclaim might be called from a WQ
+> +			 * context and the current implementation of the WQ
+> +			 * concurrency control doesn't recognize that
+> +			 * a particular WQ is congested if the worker thread is
+> +			 * looping without ever sleeping. Therefore we have to
+> +			 * do a short sleep here rather than calling
+> +			 * cond_resched().
+> +			 */
+> +			if (current->flags & PF_WQ_WORKER)
+> +				schedule_timeout(1);
+> +			else
+> +				cond_resched();
+> +
+>  			goto retry;
+>  		}
+>  	}
 > --
 > 2.6.2
 
