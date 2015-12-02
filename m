@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 598936B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 02:09:28 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so31924093pac.3
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 23:09:28 -0800 (PST)
-Received: from out4133-18.mail.aliyun.com (out4133-18.mail.aliyun.com. [42.120.133.18])
-        by mx.google.com with ESMTP id 81si2772534pfr.79.2015.12.01.23.09.26
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 731E06B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 02:12:38 -0500 (EST)
+Received: by iofh3 with SMTP id h3so36534956iof.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 23:12:38 -0800 (PST)
+Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-249.mail.alibaba.com. [205.204.113.249])
+        by mx.google.com with ESMTP id hh18si1669539igb.45.2015.12.01.23.12.36
         for <linux-mm@kvack.org>;
-        Tue, 01 Dec 2015 23:09:27 -0800 (PST)
+        Tue, 01 Dec 2015 23:12:37 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1448974607-10208-1-git-send-email-mhocko@kernel.org> <1448974607-10208-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1448974607-10208-3-git-send-email-mhocko@kernel.org>
-Subject: Re: [RFC 2/3] mm: throttle on IO only when there are too many dirty and writeback pages
-Date: Wed, 02 Dec 2015 15:09:18 +0800
-Message-ID: <04a901d12cd0$5d287fd0$17797f70$@alibaba-inc.com>
+References: <1449024761-11280-1-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1449024761-11280-1-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH] mm/hugetlb resv map memory leak for placeholder entries
+Date: Wed, 02 Dec 2015 15:12:20 +0800
+Message-ID: <04ad01d12cd0$c9bfe070$5d3fa150$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="US-ASCII"
@@ -22,142 +22,93 @@ Content-Transfer-Encoding: 7bit
 Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Michal Hocko' <mhocko@suse.com>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Dmitry Vyukov' <dvyukov@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'David Rientjes' <rientjes@google.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Hugh Dickins' <hughd@google.com>, 'Greg Thelen' <gthelen@google.com>
+Cc: 'Kostya Serebryany' <kcc@google.com>, 'Alexander Potapenko' <glider@google.com>, 'Sasha Levin' <sasha.levin@oracle.com>, 'Eric Dumazet' <edumazet@google.com>, 'syzkaller' <syzkaller@googlegroups.com>, "'stable@vger.kernel.org[4.3]'"@kvack.org
 
-> From: Michal Hocko <mhocko@suse.com>
 > 
-> wait_iff_congested has been used to throttle allocator before it retried
-> another round of direct reclaim to allow the writeback to make some
-> progress and prevent reclaim from looping over dirty/writeback pages
-> without making any progress. We used to do congestion_wait before
-> 0e093d99763e ("writeback: do not sleep on the congestion queue if
-> there are no congested BDIs or if significant congestion is not being
-> encountered in the current zone") but that led to undesirable stalls
-> and sleeping for the full timeout even when the BDI wasn't congested.
-> Hence wait_iff_congested was used instead. But it seems that even
-> wait_iff_congested doesn't work as expected. We might have a small file
-> LRU list with all pages dirty/writeback and yet the bdi is not congested
-> so this is just a cond_resched in the end and can end up triggering pre
-> mature OOM.
+> Dmitry Vyukov reported the following memory leak
 > 
-> This patch replaces the unconditional wait_iff_congested by
-> congestion_wait which is executed only if we _know_ that the last round
-> of direct reclaim didn't make any progress and dirty+writeback pages are
-> more than a half of the reclaimable pages on the zone which might be
-> usable for our target allocation. This shouldn't reintroduce stalls
-> fixed by 0e093d99763e because congestion_wait is called only when we
-> are getting hopeless when sleeping is a better choice than OOM with many
-> pages under IO.
+> unreferenced object 0xffff88002eaafd88 (size 32):
+>   comm "a.out", pid 5063, jiffies 4295774645 (age 15.810s)
+>   hex dump (first 32 bytes):
+>     28 e9 4e 63 00 88 ff ff 28 e9 4e 63 00 88 ff ff  (.Nc....(.Nc....
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<     inline     >] kmalloc include/linux/slab.h:458
+>     [<ffffffff815efa64>] region_chg+0x2d4/0x6b0 mm/hugetlb.c:398
+>     [<ffffffff815f0c63>] __vma_reservation_common+0x2c3/0x390 mm/hugetlb.c:1791
+>     [<     inline     >] vma_needs_reservation mm/hugetlb.c:1813
+>     [<ffffffff815f658e>] alloc_huge_page+0x19e/0xc70 mm/hugetlb.c:1845
+>     [<     inline     >] hugetlb_no_page mm/hugetlb.c:3543
+>     [<ffffffff815fc561>] hugetlb_fault+0x7a1/0x1250 mm/hugetlb.c:3717
+>     [<ffffffff815fd349>] follow_hugetlb_page+0x339/0xc70 mm/hugetlb.c:3880
+>     [<ffffffff815a2bb2>] __get_user_pages+0x542/0xf30 mm/gup.c:497
+>     [<ffffffff815a400e>] populate_vma_page_range+0xde/0x110 mm/gup.c:919
+>     [<ffffffff815a4207>] __mm_populate+0x1c7/0x310 mm/gup.c:969
+>     [<ffffffff815b74f1>] do_mlock+0x291/0x360 mm/mlock.c:637
+>     [<     inline     >] SYSC_mlock2 mm/mlock.c:658
+>     [<ffffffff815b7a4b>] SyS_mlock2+0x4b/0x70 mm/mlock.c:648
 > 
-> We have to preserve logic introduced by "mm, vmstat: allow WQ concurrency
-> to discover memory reclaim doesn't make any progress" into the
-> __alloc_pages_slowpath now that wait_iff_congested is not used anymore.
-> As the only remaining user of wait_iff_congested is shrink_inactive_list
-> we can remove the WQ specific short sleep from wait_iff_congested
-> because the sleep is needed to be done only once in the allocation retry
-> cycle.
+> Dmitry identified a potential memory leak in the routine region_chg,
+> where a region descriptor is not free'ed on an error path.
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> However, the root cause for the above memory leak resides in region_del.
+> In this specific case, a "placeholder" entry is created in region_chg.  The
+> associated page allocation fails, and the placeholder entry is left in the
+> reserve map.  This is "by design" as the entry should be deleted when the
+> map is released.  The bug is in the region_del routine which is used to
+> delete entries within a specific range (and when the map is released).
+> region_del did not handle the case where a placeholder entry exactly matched
+> the start of the range range to be deleted.  In this case, the entry would
+> not be deleted and leaked.  The fix is to take these special placeholder
+> entries into account in region_del.
+> 
+> The region_chg error path leak is also fixed.
+> 
+> Fixes: feba16e25a57 ("add region_del() to delete a specific range of entries")
+> Cc: stable@vger.kernel.org [4.3]
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
 > ---
 
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
->  mm/backing-dev.c | 19 +++----------------
->  mm/page_alloc.c  | 33 ++++++++++++++++++++++++++++++---
->  2 files changed, 33 insertions(+), 19 deletions(-)
+>  mm/hugetlb.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 7340353f8aea..d2473ce9cc57 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -957,9 +957,8 @@ EXPORT_SYMBOL(congestion_wait);
->   * jiffies for either a BDI to exit congestion of the given @sync queue
->   * or a write to complete.
->   *
-> - * In the absence of zone congestion, a short sleep or a cond_resched is
-> - * performed to yield the processor and to allow other subsystems to make
-> - * a forward progress.
-> + * In the absence of zone congestion, cond_resched() is called to yield
-> + * the processor if necessary but otherwise does not sleep.
->   *
->   * The return value is 0 if the sleep is for the full timeout. Otherwise,
->   * it is the number of jiffies that were still remaining when the function
-> @@ -980,19 +979,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
->  	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
->  	    !test_bit(ZONE_CONGESTED, &zone->flags)) {
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 1101ccd94..ba07014 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -372,8 +372,10 @@ retry_locked:
+>  		spin_unlock(&resv->lock);
 > 
-> -		/*
-> -		 * Memory allocation/reclaim might be called from a WQ
-> -		 * context and the current implementation of the WQ
-> -		 * concurrency control doesn't recognize that a particular
-> -		 * WQ is congested if the worker thread is looping without
-> -		 * ever sleeping. Therefore we have to do a short sleep
-> -		 * here rather than calling cond_resched().
-> -		 */
-> -		if (current->flags & PF_WQ_WORKER)
-> -			schedule_timeout(1);
-> -		else
-> -			cond_resched();
-> -
-> +		cond_resched();
->  		/* In case we scheduled, work out time remaining */
->  		ret = timeout - (jiffies - start);
->  		if (ret < 0)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index af221067de6a..168a675e9116 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3198,8 +3198,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
->  		unsigned long free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
->  		unsigned long target;
-> +		unsigned long reclaimable;
+>  		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
+> -		if (!trg)
+> +		if (!trg) {
+> +			kfree(nrg);
+>  			return -ENOMEM;
+> +		}
 > 
-> -		target = zone_reclaimable_pages(zone);
-> +		reclaimable = target = zone_reclaimable_pages(zone);
->  		target -= DIV_ROUND_UP(stall_backoff * target, MAX_STALL_BACKOFF);
->  		target += free;
-> 
-> @@ -3208,8 +3209,34 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		 */
->  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
->  				ac->high_zoneidx, alloc_flags, target)) {
-> -			/* Wait for some write requests to complete then retry */
-> -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
-> +			unsigned long writeback = zone_page_state_snapshot(zone, NR_WRITEBACK),
-> +				      dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
-> +
-> +			/*
-> +			 * If we didn't make any progress and have a lot of
-> +			 * dirty + writeback pages then we should wait for
-> +			 * an IO to complete to slow down the reclaim and
-> +			 * prevent from pre mature OOM
-> +			 */
-> +			if (!did_some_progress && 2*(writeback + dirty) > reclaimable) {
-> +				congestion_wait(BLK_RW_ASYNC, HZ/10);
-> +				goto retry;
-> +			}
-> +
-> +			/*
-> +			 * Memory allocation/reclaim might be called from a WQ
-> +			 * context and the current implementation of the WQ
-> +			 * concurrency control doesn't recognize that
-> +			 * a particular WQ is congested if the worker thread is
-> +			 * looping without ever sleeping. Therefore we have to
-> +			 * do a short sleep here rather than calling
-> +			 * cond_resched().
-> +			 */
-> +			if (current->flags & PF_WQ_WORKER)
-> +				schedule_timeout(1);
-> +			else
-> +				cond_resched();
-> +
->  			goto retry;
->  		}
->  	}
+>  		spin_lock(&resv->lock);
+>  		list_add(&trg->link, &resv->region_cache);
+> @@ -483,7 +485,13 @@ static long region_del(struct resv_map *resv, long f, long t)
+>  retry:
+>  	spin_lock(&resv->lock);
+>  	list_for_each_entry_safe(rg, trg, head, link) {
+> -		if (rg->to <= f)
+> +		/*
+> +		 * file_region ranges are normally of the form [from, to).
+> +		 * However, there may be a "placeholder" entry in the map
+> +		 * which is of the form (from, to) with from == to.  Check
+> +		 * for placeholder entries as well.
+> +		 */
+> +		if (rg->to <= f && rg->to != rg->from)
+>  			continue;
+>  		if (rg->from >= t)
+>  			break;
 > --
-> 2.6.2
+> 2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
