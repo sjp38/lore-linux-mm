@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A99426B0253
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 18:13:22 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so53657339pac.2
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:22 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id 83si7599117pfl.23.2015.12.02.15.13.21
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0380C6B0255
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 18:13:25 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so55174633pab.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:24 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id cy6si7500401pad.242.2015.12.02.15.13.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 15:13:21 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so55173665pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:21 -0800 (PST)
+        Wed, 02 Dec 2015 15:13:22 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so55173941pab.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:22 -0800 (PST)
 From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH V2 1/7] trace/events: Add gup trace events
-Date: Wed,  2 Dec 2015 14:53:27 -0800
-Message-Id: <1449096813-22436-2-git-send-email-yang.shi@linaro.org>
+Subject: [PATCH V2 2/7] mm/gup: add gup trace points
+Date: Wed,  2 Dec 2015 14:53:28 -0800
+Message-Id: <1449096813-22436-3-git-send-email-yang.shi@linaro.org>
 In-Reply-To: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>
 References: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,97 +22,54 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-page-faults events record the invoke to handle_mm_fault, but the invoke
-may come from do_page_fault or gup. In some use cases, the finer event count
-mey be needed, so add trace events support for:
-
-__get_user_pages
-__get_user_pages_fast
-fixup_user_fault
+For slow version, just add trace point for raw __get_user_pages since all
+slow variants call it to do the real work finally.
 
 Signed-off-by: Yang Shi <yang.shi@linaro.org>
 ---
- include/trace/events/gup.h | 71 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
- create mode 100644 include/trace/events/gup.h
+ mm/gup.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/include/trace/events/gup.h b/include/trace/events/gup.h
-new file mode 100644
-index 0000000..03a4674
---- /dev/null
-+++ b/include/trace/events/gup.h
-@@ -0,0 +1,71 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM gup
+diff --git a/mm/gup.c b/mm/gup.c
+index deafa2c..10245a4 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -13,6 +13,9 @@
+ #include <linux/rwsem.h>
+ #include <linux/hugetlb.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/gup.h>
 +
-+#if !defined(_TRACE_GUP_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_GUP_H
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+ 
+@@ -462,6 +465,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (!nr_pages)
+ 		return 0;
+ 
++	trace_gup_get_user_pages(tsk, mm, start, nr_pages);
 +
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
+ 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
+ 
+ 	/*
+@@ -599,6 +604,7 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (!(vm_flags & vma->vm_flags))
+ 		return -EFAULT;
+ 
++	trace_gup_fixup_user_fault(tsk, mm, address, fault_flags);
+ 	ret = handle_mm_fault(mm, vma, address, fault_flags);
+ 	if (ret & VM_FAULT_ERROR) {
+ 		if (ret & VM_FAULT_OOM)
+@@ -1340,6 +1346,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 					start, len)))
+ 		return 0;
+ 
++	trace_gup_get_user_pages_fast(start, nr_pages, write, pages);
 +
-+TRACE_EVENT(gup_fixup_user_fault,
-+
-+	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
-+			unsigned long address, unsigned int fault_flags),
-+
-+	TP_ARGS(tsk, mm, address, fault_flags),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	address		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->address	= address;
-+	),
-+
-+	TP_printk("address=%lx",  __entry->address)
-+);
-+
-+TRACE_EVENT(gup_get_user_pages,
-+
-+	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
-+			unsigned long start, unsigned long nr_pages),
-+
-+	TP_ARGS(tsk, mm, start, nr_pages),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	start		)
-+		__field(	unsigned long,	nr_pages	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->start		= start;
-+		__entry->nr_pages	= nr_pages;
-+	),
-+
-+	TP_printk("start=%lx nr_pages=%lu", __entry->start, __entry->nr_pages)
-+);
-+
-+TRACE_EVENT(gup_get_user_pages_fast,
-+
-+	TP_PROTO(unsigned long start, int nr_pages, int write,
-+			struct page **pages),
-+
-+	TP_ARGS(start, nr_pages, write, pages),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	start		)
-+		__field(	unsigned long,	nr_pages	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->start  	= start;
-+		__entry->nr_pages	= nr_pages;
-+	),
-+
-+	TP_printk("start=%lx nr_pages=%lu",  __entry->start, __entry->nr_pages)
-+);
-+
-+#endif /* _TRACE_GUP_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
+ 	/*
+ 	 * Disable interrupts.  We use the nested form as we can already have
+ 	 * interrupts disabled by get_futex_key.
 -- 
 2.0.2
 
