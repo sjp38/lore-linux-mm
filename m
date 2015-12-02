@@ -1,123 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A44816B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 19:39:27 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so21743096pad.1
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:39:27 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id q23si574312pfi.247.2015.12.01.16.39.26
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A51D76B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 19:54:34 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so22006654pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:54:34 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id s131si739784pfs.12.2015.12.01.16.54.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 16:39:26 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so21626005pac.3
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:39:26 -0800 (PST)
-Message-ID: <565E3DBC.9070204@linaro.org>
-Date: Tue, 01 Dec 2015 16:39:24 -0800
-From: "Shi, Yang" <yang.shi@linaro.org>
+        Tue, 01 Dec 2015 16:54:33 -0800 (PST)
+Subject: Re: memory leak in alloc_huge_page
+References: <CACT4Y+amx86fBiqoCpFzTa=nOGayDjLb5CENEskrKeRTy6NSQw@mail.gmail.com>
+ <565DEC6C.4030809@oracle.com>
+ <CACT4Y+Zsw23LiBhakWUFfO88OuuHsV588g3T9UPfMKxRBLojGQ@mail.gmail.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <565E413D.8050608@oracle.com>
+Date: Tue, 1 Dec 2015 16:54:21 -0800
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] trace/events: Add gup trace events
-References: <1449011177-30686-1-git-send-email-yang.shi@linaro.org>	<1449011177-30686-2-git-send-email-yang.shi@linaro.org>	<20151201185643.2ef6cd14@gandalf.local.home>	<565E3650.4050209@linaro.org> <20151201191826.771bce5d@gandalf.local.home>
-In-Reply-To: <20151201191826.771bce5d@gandalf.local.home>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <CACT4Y+Zsw23LiBhakWUFfO88OuuHsV588g3T9UPfMKxRBLojGQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>
 
-On 12/1/2015 4:18 PM, Steven Rostedt wrote:
-> On Tue, 01 Dec 2015 16:07:44 -0800
-> "Shi, Yang" <yang.shi@linaro.org> wrote:
->
->> On 12/1/2015 3:56 PM, Steven Rostedt wrote:
->>> On Tue,  1 Dec 2015 15:06:11 -0800
->>> Yang Shi <yang.shi@linaro.org> wrote:
->>>
->>>> page-faults events record the invoke to handle_mm_fault, but the invoke
->>>> may come from do_page_fault or gup. In some use cases, the finer event count
->>>> mey be needed, so add trace events support for:
->>>>
->>>> __get_user_pages
->>>> __get_user_pages_fast
->>>> fixup_user_fault
->>>>
->>>> Signed-off-by: Yang Shi <yang.shi@linaro.org>
->>>> ---
->>>>    include/trace/events/gup.h | 77 ++++++++++++++++++++++++++++++++++++++++++++++
->>>>    1 file changed, 77 insertions(+)
->>>>    create mode 100644 include/trace/events/gup.h
->>>>
->>>> diff --git a/include/trace/events/gup.h b/include/trace/events/gup.h
->>>> new file mode 100644
->>>> index 0000000..37d18f9
->>>> --- /dev/null
->>>> +++ b/include/trace/events/gup.h
->>>> @@ -0,0 +1,77 @@
->>>> +#undef TRACE_SYSTEM
->>>> +#define TRACE_SYSTEM gup
->>>> +
->>>> +#if !defined(_TRACE_GUP_H) || defined(TRACE_HEADER_MULTI_READ)
->>>> +#define _TRACE_GUP_H
->>>> +
->>>> +#include <linux/types.h>
->>>> +#include <linux/tracepoint.h>
->>>> +
->>>> +TRACE_EVENT(gup_fixup_user_fault,
->>>> +
->>>> +	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
->>>> +			unsigned long address, unsigned int fault_flags),
->>>> +
->>>> +	TP_ARGS(tsk, mm, address, fault_flags),
->>>> +
->>>> +	TP_STRUCT__entry(
->>>> +		__array(	char,	comm,	TASK_COMM_LEN	)
->>>
->>> Why save the comm? The tracing infrastructure should keep track of that.
+On 12/01/2015 11:45 AM, Dmitry Vyukov wrote:
+> On Tue, Dec 1, 2015 at 7:52 PM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>> On 12/01/2015 06:04 AM, Dmitry Vyukov wrote:
+
+>>> There seems to be another leak if nrg is not NULL on this path, but
+>>> it's not what happens in my case since the WARNING does not fire.
 >>
->> The code is referred to kmem.h which has comm copied. If it is
->> unnecessary, it definitely could be removed.
->
-> Sometimes comm isn't that reliable. But really, the only tracepoint
-> that should record it is sched_switch, and sched_wakeup. With those
-> two, the rest of the trace points should be fine.
->
->>
->>>
->>>> +		__field(	unsigned long,	address		)
->>>> +	),
->>>> +
->>>> +	TP_fast_assign(
->>>> +		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
->>>> +		__entry->address	= address;
->>>> +	),
->>>> +
->>>> +	TP_printk("comm=%s address=%lx", __entry->comm, __entry->address)
->>>> +);
->>>> +
->>>> +TRACE_EVENT(gup_get_user_pages,
->>>> +
->>>> +	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
->>>> +			unsigned long start, unsigned long nr_pages,
->>>> +			unsigned int gup_flags, struct page **pages,
->>>> +			struct vm_area_struct **vmas, int *nonblocking),
->>>> +
->>>> +	TP_ARGS(tsk, mm, start, nr_pages, gup_flags, pages, vmas, nonblocking),
->>>
->>> Why so many arguments? Most are not used.
->>
->> My understanding to TP_ARGS may be not right. Doesn't it require all the
->> args defined by the function? If not, it could definitely be shrunk.
->> Just need keep the args used by TP_printk?
->
-> It only needs what is used by TP_fast_assign().
+>> If nrg is not NULL, then it was added to the resv map and 'should' be
+>> free'ed when the map is free'ed.  This is not optimal, but I do not
+>> think it would lead to a leak.  I'll take a close look at this code
+>> with an emphasis on the leak you discovered.
+> 
+> 
+> Hi Mike,
+> 
+> Note that it's not just a leak report, it is an actual leak. You
+> should be able to reproduce it.
+> 
 
-Thanks, will fix them in V2.
+OK, finally found the bug which is in region_del().  It does not correctly
+handle a "placeholder" region descriptor that is left after an aborted
+operation when the start of the region to be deleted is for the same page.
 
-Yang
+I will have a patch shortly, after some testing.
 
->
-> -- Steve
->
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
