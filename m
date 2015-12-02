@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 923886B0255
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 10:09:01 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so218858193wmu.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:09:01 -0800 (PST)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id t206si43609704wmt.109.2015.12.02.07.09.00
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 401D06B0255
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 10:13:22 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so219043155wmu.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:13:21 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id l11si4845108wjw.184.2015.12.02.07.13.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 07:09:00 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 3038C1C1B29
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 15:09:00 +0000 (GMT)
-Date: Wed, 2 Dec 2015 15:08:58 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm: page_alloc: Remove unnecessary parameter from __rmqueue
-Message-ID: <20151202150858.GD2015@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+        Wed, 02 Dec 2015 07:13:20 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so219042378wmu.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:13:20 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH v2] mm, oom: Give __GFP_NOFAIL allocations access to memory reserves
+Date: Wed,  2 Dec 2015 16:13:10 +0100
+Message-Id: <1449069190-7325-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1448448054-804-2-git-send-email-mhocko@kernel.org>
+References: <1448448054-804-2-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Commit 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for high-order
-atomic allocations on demand") added an unnecessary and unused parameter
-to __rmqueue. It was a parameter that was used in an earlier version of
-the patch and then left behind. This patch cleans it up.
+From: Michal Hocko <mhocko@suse.com>
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+__GFP_NOFAIL is a big hammer used to ensure that the allocation
+request can never fail. This is a strong requirement and as such
+it also deserves a special treatment when the system is OOM. The
+primary problem here is that the allocation request might have
+come with some locks held and the oom victim might be blocked
+on the same locks. This is basically an OOM deadlock situation.
+
+This patch tries to reduce the risk of such a deadlocks by giving
+__GFP_NOFAIL allocations a special treatment and let them dive into
+memory reserves after oom killer invocation. This should help them
+to make a progress and release resources they are holding. The OOM
+victim should compensate for the reserves consumption.
+
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/page_alloc.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 17a3c66639a9..3f9918616777 100644
+index 8034909faad2..367523b2948b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1788,7 +1788,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-  * Call me with the zone->lock already held.
-  */
- static struct page *__rmqueue(struct zone *zone, unsigned int order,
--				int migratetype, gfp_t gfp_flags)
-+				int migratetype)
- {
- 	struct page *page;
- 
-@@ -1818,7 +1818,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 
- 	spin_lock(&zone->lock);
- 	for (i = 0; i < count; ++i) {
--		struct page *page = __rmqueue(zone, order, migratetype, 0);
-+		struct page *page = __rmqueue(zone, order, migratetype);
- 		if (unlikely(page == NULL))
- 			break;
- 
-@@ -2241,7 +2241,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 				trace_mm_page_alloc_zone_locked(page, order, migratetype);
- 		}
- 		if (!page)
--			page = __rmqueue(zone, order, migratetype, gfp_flags);
-+			page = __rmqueue(zone, order, migratetype);
- 		spin_unlock(&zone->lock);
- 		if (!page)
- 			goto failed;
+@@ -2766,8 +2766,21 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 			goto out;
+ 	}
+ 	/* Exhausted what can be done so it's blamo time */
+-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
++	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+ 		*did_some_progress = 1;
++
++		if (gfp_mask & __GFP_NOFAIL) {
++			page = get_page_from_freelist(gfp_mask, order,
++					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
++			/*
++			 * fallback to ignore cpuset restriction if our nodes
++			 * are depleted
++			 */
++			if (!page)
++				page = get_page_from_freelist(gfp_mask, order,
++					ALLOC_NO_WATERMARKS, ac);
++		}
++	}
+ out:
+ 	mutex_unlock(&oom_lock);
+ 	return page;
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
