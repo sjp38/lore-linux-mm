@@ -1,72 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AC1196B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 05:16:46 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so208105402wmu.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:16:46 -0800 (PST)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id bn7si3298746wjc.186.2015.12.02.02.16.45
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C3D086B0253
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 05:17:18 -0500 (EST)
+Received: by wmww144 with SMTP id w144so50020370wmw.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:17:18 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rx8si3300685wjb.204.2015.12.02.02.17.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 02:16:45 -0800 (PST)
-Received: by wmww144 with SMTP id w144so208137749wmw.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 02:16:45 -0800 (PST)
-Date: Wed, 2 Dec 2015 11:16:43 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: memcg uncharge page counter mismatch
-Message-ID: <20151202101643.GC25284@dhcp22.suse.cz>
-References: <20151201133455.GB27574@bbox>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 02 Dec 2015 02:17:17 -0800 (PST)
+Date: Wed, 2 Dec 2015 11:17:14 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fix kerneldoc on mem_cgroup_replace_page
+Message-ID: <20151202101714.GD25284@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182152560.2481@eggly.anvils>
+ <alpine.LSU.2.11.1512020130410.32078@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151201133455.GB27574@bbox>
+In-Reply-To: <alpine.LSU.2.11.1512020130410.32078@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On Tue 01-12-15 22:34:55, Minchan Kim wrote:
-> With new test on mmotm-2015-11-25-17-08, I saw below WARNING message
-> several times. I couldn't see it with reverting new THP refcount
-> redesign.
-
-Just a wild guess. What prevents migration/compaction from calling
-split_huge_page on thp zero page? There is VM_BUG_ON but it is not clear
-whether you run with CONFIG_DEBUG_VM enabled.
-
-Also, how big is the underflow?
-
-> I will try to make reproducer when I have a time but not sure.
-> Before that, I hope someone catches it up.
+On Wed 02-12-15 01:33:03, Hugh Dickins wrote:
+> Whoops, I missed removing the kerneldoc comment of the lrucare arg
+> removed from mem_cgroup_replace_page; but it's a good comment, keep it.
 > 
-> ------------[ cut here ]------------
-> WARNING: CPU: 0 PID: 1340 at mm/page_counter.c:26 page_counter_cancel+0x34/0x40()
-> Modules linked in:
-> CPU: 0 PID: 1340 Comm: madvise_test Not tainted 4.4.0-rc2-mm1-kirill+ #12
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->  ffffffff81782eeb ffff880072b97be8 ffffffff8126f476 0000000000000000
->  ffff880072b97c20 ffffffff8103e476 ffff88006b35d0b0 00000000000001fe
->  0000000000000000 00000000000001fe ffff88006b35d000 ffff880072b97c30
-> Call Trace:
->  [<ffffffff8126f476>] dump_stack+0x44/0x5e
->  [<ffffffff8103e476>] warn_slowpath_common+0x86/0xc0
->  [<ffffffff8103e56a>] warn_slowpath_null+0x1a/0x20
->  [<ffffffff8114c754>] page_counter_cancel+0x34/0x40
->  [<ffffffff8114c852>] page_counter_uncharge+0x22/0x30
->  [<ffffffff8114fe17>] uncharge_batch+0x47/0x140
->  [<ffffffff81150033>] uncharge_list+0x123/0x190
->  [<ffffffff8115222b>] mem_cgroup_uncharge_list+0x1b/0x20
->  [<ffffffff810fe9bb>] release_pages+0xdb/0x350
->  [<ffffffff8113044d>] free_pages_and_swap_cache+0x9d/0x120
->  [<ffffffff8111a546>] tlb_flush_mmu_free+0x36/0x60
->  [<ffffffff8111b63c>] tlb_finish_mmu+0x1c/0x50
->  [<ffffffff81125f38>] exit_mmap+0xd8/0x130
->  [<ffffffff8103bd56>] mmput+0x56/0xe0
->  [<ffffffff8103ff4d>] do_exit+0x1fd/0xaa0
->  [<ffffffff8104086f>] do_group_exit+0x3f/0xb0
->  [<ffffffff810408f4>] SyS_exit_group+0x14/0x20
->  [<ffffffff8142b617>] entry_SYSCALL_64_fastpath+0x12/0x6a
-> ---[ end trace 7864cf719fb83e12 ]---
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+> 
+>  mm/memcontrol.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- 4.4-rc3/mm/memcontrol.c	2015-11-15 21:06:56.505752425 -0800
+> +++ linux/mm/memcontrol.c	2015-11-30 17:40:42.510193391 -0800
+> @@ -5511,11 +5511,11 @@ void mem_cgroup_uncharge_list(struct lis
+>   * mem_cgroup_replace_page - migrate a charge to another page
+>   * @oldpage: currently charged page
+>   * @newpage: page to transfer the charge to
+> - * @lrucare: either or both pages might be on the LRU already
+>   *
+>   * Migrate the charge from @oldpage to @newpage.
+>   *
+>   * Both pages must be locked, @newpage->mapping must be set up.
+> + * Either or both pages might be on the LRU already.
+>   */
+>  void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
+>  {
 
 -- 
 Michal Hocko
