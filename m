@@ -1,161 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B12E6B0253
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 08:45:11 -0500 (EST)
-Received: by qgea14 with SMTP id a14so32586080qge.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 05:45:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e8si689598qgf.2.2015.12.02.05.45.10
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 22BC06B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 08:52:28 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so255898988wmv.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 05:52:27 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id t1si5276818wmd.24.2015.12.02.05.52.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 05:45:10 -0800 (PST)
-From: Andreas Gruenbacher <agruenba@redhat.com>
-Subject: [PATCH v2 07/11] tmpfs: listxattr should include POSIX ACL xattrs
-Date: Wed,  2 Dec 2015 14:44:39 +0100
-Message-Id: <1449063883-22097-8-git-send-email-agruenba@redhat.com>
-In-Reply-To: <1449063883-22097-1-git-send-email-agruenba@redhat.com>
-References: <1449063883-22097-1-git-send-email-agruenba@redhat.com>
+        Wed, 02 Dec 2015 05:52:26 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so255897957wmv.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 05:52:26 -0800 (PST)
+Date: Wed, 2 Dec 2015 14:52:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] vmscan: do not throttle kthreads due to too_many_isolated
+Message-ID: <20151202135224.GF25284@dhcp22.suse.cz>
+References: <1448465801-3280-1-git-send-email-vdavydov@virtuozzo.com>
+ <5655D789.80201@suse.cz>
+ <20151125162756.GJ29014@esperanza>
+ <20151126081624.GK29014@esperanza>
+ <20151127125005.GH2493@dhcp22.suse.cz>
+ <20151127134003.GR29014@esperanza>
+ <20151127150133.GI2493@dhcp22.suse.cz>
+ <20151201112544.GB11488@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151201112544.GB11488@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
-Cc: Andreas Gruenbacher <agruenba@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When a file on tmpfs has an ACL or a Default ACL, listxattr should include the
-corresponding xattr name.
+On Tue 01-12-15 14:25:45, Vladimir Davydov wrote:
+> On Fri, Nov 27, 2015 at 04:01:33PM +0100, Michal Hocko wrote:
+> > On Fri 27-11-15 16:40:03, Vladimir Davydov wrote:
+[...]
+> > > The problem is not about our driver, in fact. I'm pretty sure one can
+> > > hit it when using memcg along with loop or dm-crypt for instance.
+> > 
+> > I am not familiar much with neither but from a quick look the loop
+> > driver doesn't use mempools tool, it simply relays the data to the
+> > underlaying file and relies on the underlying fs to write all the pages
+> > and only prevents from the recursion by clearing GFP_FS and GFP_IO. Then
+> > I am not really sure how can we guarantee a forward progress. The
+> > GFP_NOFS allocation might loop inside the allocator endlessly and so
+> > the writeback wouldn't make any progress. This doesn't seem to be only
+> > memcg specific. The global case would just replace the deadlock by a
+> > livelock. I certainly must be missing something here.
+> 
+> Yeah, I think you're right. If the loop kthread gets stuck in the
+> reclaimer, it might occur that other processes will isolate, reclaim and
+> then dirty reclaimed pages, preventing the kthread from running and
+> cleaning memory, so that we might end up with all memory being under
+> writeback and no reclaimable memory left for kthread to run and clean
+> it. Due to dirty limit, this is unlikely to happen though, but I'm not
+> sure.
+> 
+> OTOH, with legacy memcg, there is no dirty limit and we can isolate a
+> lot of pages (SWAP_CLUSTER_MAX = 512 now) per process and wait on page
+> writeback to complete before releasing them, which sounds bad. And we
+> can't just remove this wait_on_page_writeback from shrink_page_list,
+> otherwise OOM might be triggered prematurely. May be, we should putback
+> rotated pages and release all reclaimed pages before initiating wait?
 
-Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
-Reviewed-by: James Morris <james.l.morris@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
----
- fs/kernfs/inode.c     |  2 +-
- fs/xattr.c            | 53 +++++++++++++++++++++++++++++++++++----------------
- include/linux/xattr.h |  3 ++-
- mm/shmem.c            |  2 +-
- 4 files changed, 41 insertions(+), 19 deletions(-)
+So you want to write for the page while it is on the LRU? I think it
+would be better to simply not throttle the loopback kthread endlessly in
+the first place.
 
-diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
-index f97e1f7..16405ae 100644
---- a/fs/kernfs/inode.c
-+++ b/fs/kernfs/inode.c
-@@ -230,7 +230,7 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
- 	if (!attrs)
- 		return -ENOMEM;
- 
--	return simple_xattr_list(&attrs->xattrs, buf, size);
-+	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
- }
- 
- static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
-diff --git a/fs/xattr.c b/fs/xattr.c
-index 4ef8b37..c3af6c9 100644
---- a/fs/xattr.c
-+++ b/fs/xattr.c
-@@ -921,38 +921,59 @@ static bool xattr_is_trusted(const char *name)
- 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
- }
- 
-+static int xattr_list_one(char **buffer, ssize_t *remaining_size,
-+			  const char *name)
-+{
-+	size_t len = strlen(name) + 1;
-+	if (*buffer) {
-+		if (*remaining_size < len)
-+			return -ERANGE;
-+		memcpy(*buffer, name, len);
-+		*buffer += len;
-+	}
-+	*remaining_size -= len;
-+	return 0;
-+}
-+
- /*
-  * xattr LIST operation for in-memory/pseudo filesystems
-  */
--ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
--			  size_t size)
-+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
-+			  char *buffer, size_t size)
- {
- 	bool trusted = capable(CAP_SYS_ADMIN);
- 	struct simple_xattr *xattr;
--	size_t used = 0;
-+	ssize_t remaining_size = size;
-+	int err;
-+
-+#ifdef CONFIG_FS_POSIX_ACL
-+	if (inode->i_acl) {
-+		err = xattr_list_one(&buffer, &remaining_size,
-+				     XATTR_NAME_POSIX_ACL_ACCESS);
-+		if (err)
-+			return err;
-+	}
-+	if (inode->i_default_acl) {
-+		err = xattr_list_one(&buffer, &remaining_size,
-+				     XATTR_NAME_POSIX_ACL_DEFAULT);
-+		if (err)
-+			return err;
-+	}
-+#endif
- 
- 	spin_lock(&xattrs->lock);
- 	list_for_each_entry(xattr, &xattrs->head, list) {
--		size_t len;
--
- 		/* skip "trusted." attributes for unprivileged callers */
- 		if (!trusted && xattr_is_trusted(xattr->name))
- 			continue;
- 
--		len = strlen(xattr->name) + 1;
--		used += len;
--		if (buffer) {
--			if (size < used) {
--				used = -ERANGE;
--				break;
--			}
--			memcpy(buffer, xattr->name, len);
--			buffer += len;
--		}
-+		err = xattr_list_one(&buffer, &remaining_size, xattr->name);
-+		if (err)
-+			return err;
- 	}
- 	spin_unlock(&xattrs->lock);
- 
--	return used;
-+	return size - remaining_size;
- }
- 
- /*
-diff --git a/include/linux/xattr.h b/include/linux/xattr.h
-index 704c016..c549feb 100644
---- a/include/linux/xattr.h
-+++ b/include/linux/xattr.h
-@@ -104,7 +104,8 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
- 		     void *buffer, size_t size);
- int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
- 		     const void *value, size_t size, int flags);
--ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer, size_t size);
-+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
-+			  size_t size);
- void simple_xattr_list_add(struct simple_xattrs *xattrs,
- 			   struct simple_xattr *new_xattr);
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index fdfe6c8..297390f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2606,7 +2606,7 @@ static const struct xattr_handler *shmem_xattr_handlers[] = {
- static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
- {
- 	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
--	return simple_xattr_list(&info->xattrs, buffer, size);
-+	return simple_xattr_list(d_inode(dentry), &info->xattrs, buffer, size);
- }
- #endif /* CONFIG_TMPFS_XATTR */
- 
+I was tempted to add an exception and do not wait for writeback on
+loopback (and alike) devices but this is a dirty hack and I think it
+is reasonable to rely on the global case to work properly and guarantee
+a forward progress. And this seems broken currently:
+
+FS1 (marks page Writeback) -> request -> BLK -> LOOP -> vfs_iter_write -> FS2
+
+So the writeback bit will be set until vfs_iter_write finishes and that
+doesn't require data to be written down to the FS2 backing store AFAICS.
+But what happens if vfs_iter_write gets throttled on the dirty limit
+or FS2 performs a GFP_NOFS allocation? We will get stuck there for ever
+without any progress. If loopback FS load is dominant then we are
+screwed. So I think the global case needs a fix. If it works properly
+our waiting in the memcg reclaim will be finite as well.
+
+On the other hand if all the reclaimable memory is marked as writeback
+or dirty then we should trigger OOM killer sooner or later so I am not
+so sure this is such a big deal. I have to play with this though.
+
+Anyway I guess we at least want to wait for the writebit killable. I
+will cook up a patch.
 -- 
-2.5.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
