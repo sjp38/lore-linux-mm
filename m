@@ -1,209 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 30AA26B0253
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 09:53:57 -0500 (EST)
-Received: by ioir85 with SMTP id r85so47787406ioi.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 06:53:56 -0800 (PST)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id c81si6098723iod.99.2015.12.02.06.53.56
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0811A6B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 10:07:34 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so259444437wmv.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:07:33 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id 190si5694711wmb.18.2015.12.02.07.07.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 06:53:56 -0800 (PST)
-Received: by igcmv3 with SMTP id mv3so119139729igc.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 06:53:55 -0800 (PST)
+        Wed, 02 Dec 2015 07:07:32 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so218797213wmu.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 07:07:32 -0800 (PST)
+Date: Wed, 2 Dec 2015 16:07:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, oom: Give __GFP_NOFAIL allocations access to
+ memory reserves
+Message-ID: <20151202150730.GH25284@dhcp22.suse.cz>
+References: <1448448054-804-1-git-send-email-mhocko@kernel.org>
+ <1448448054-804-2-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1511250248540.32374@chino.kir.corp.google.com>
+ <20151125111801.GD27283@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1511251254260.24689@chino.kir.corp.google.com>
+ <20151126093427.GA7953@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1511301415010.10460@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
-References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
-Date: Wed, 2 Dec 2015 15:53:55 +0100
-Message-ID: <CAKv+Gu9ErkfruAGww_OYFn4L7Wjuc3dXg_YL5kzCnbxeFN393g@mail.gmail.com>
-Subject: Re: [PATCH v4 00/13] UEFI boot and runtime services support for
- 32-bit ARM
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1511301415010.10460@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Leif Lindholm <leif.lindholm@linaro.org>, Matt Fleming <matt@codeblueprint.co.uk>, Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 30 November 2015 at 13:28, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-> This series adds support for booting the 32-bit ARM kernel directly from
-> UEFI firmware using a builtin UEFI stub. It mostly reuses refactored arm64
-> code, and the differences (primarily the PE/COFF header and entry point and
-> the efi_create_mapping() implementation) are split out into arm64 and ARM
-> versions.
->
-> Since I did not receive any further comments in reply to v3 from the people who
-> commented on v2, I think this series in now in sufficient shape to be pulled.
-> Note that patch #1 touches mm/memblock.c and include/linux/memblock.h, for which
-> get_maintainer.pl does not provide a maintainer, so it has been cc'ed to various
-> past editors of those files, and to the linux-mm mailing list.
->
-> Since the series affects both arm64 and ARM, it is up to the maintainers to let
-> me know how and when they wish to proceed with this. My suggestion would be to
-> send out pull request for patches #1 - #5 to the arm64 maintainer, and for the
-> whole series to the ARM maintainer. This should keep any conflicts on either
-> side confined to the respective maintainer tree, rather then propagating all the
-> way to -next.
->
-> For the result of regression testing against these patches, please refer to the
-> following links for build and boot reports (respectively) generated by
-> kernelci.org (thanks guys).
->
-> http://kernelci.org/build/ardb/kernel/v4.4-rc3-13-g9e4dc4695ba0/
-> http://kernelci.org/boot/all/job/ardb/kernel/v4.4-rc3-13-g9e4dc4695ba0/
->
-> Note that the above is regression testing only, as kernelci does not yet support
-> booting 32-bit ARM targets in EFI mode. This functionality has been verified
-> independently (on actual hardware) by Ryan Harkin <ryan.harkin@linaro.org>, who
-> has kindly given his Tested-by for the ARM patches in this series (#6 - #13)
->
-> Please find instructions for duplicating the EFI boot testing using QEMU at the
-> end of this email.
->
-> Changes since v3:
-> - rebased onto v4.4-rc3
-> - minor change in #13: use 'dram_base + MAX_UNCOMP_KERNEL_SIZE' as preferred
->   base for the allocation that holds the relocated compressed kernel image
->   (the former value of 0x0 is usually not covered by DRAM, resulting in the
->   value above to be used anyway)
-> - added Reviewed-by from Matt Fleming
-> - added Tested-by from Ryan Harkin (#6 - #13)
->
-> Changes since v2:
-> - Some issues pointed out by Russell and Matt that were not introduced by this
->   series but merely became apparent due to the code movement in patch #4 have
->   been addressed in a separate 2-piece series I sent out this morning. This v3
->   is rebased on top of those patches.
-> - Added a patch (#9) that adds support for creating non-global mappings. This
->   addresses a concern raised by Russell in response to v2 where the use of
->   global mappings combined with a flawed context switch and TBL flush sequence
->   could result in memory corruption.
-> - Rebased onto v4.4-rc2
->
-> Changes since v1:
-> - The primary difference between this version and the first one is that all
->   prerequisites have either been merged, dropped for now (early FDT handling)
->   or folded into this series (MEMBLOCK_NOMAP). IOW, this series can be applied
->   on top of v4.4-rc1 directly.
-> - Dropped handling of UEFI permission bits. The reason is that the UEFIv2.5
->   approach (EFI_PROPERTIES_TABLE) is flawed, and will be replaced by something
->   better in the next version of the spec.
->
-> Patch #1 adds support for the MEMBLOCK_NOMAP attribute to the generic memblock
-> code. Its purpose is to annotate memory regions as normal memory even if they
-> are removed from the kernel direct mapping.
->
-> Patch #2 implements MEMBLOCK_NOMAP support for arm64
->
-> Patch #3 updates the EFI init code to remove UEFI reserved regions and regions
-> used by runtime services from the kernel direct mapping
->
-> Patch #4 splits off most of arch/arm64/kernel/efi.c into arch agnostic files
-> arm-init.c and arm-runtime.c under drivers/firmware/efi.
->
-> Patch #5 refactors the code split off in patch #1 to isolate the arm64 specific
-> pieces, and change a couple of arm64-isms that ARM handles slightly differently.
->
-> Patch #6 enables the generic early_ioremap and early_memremap implementations
-> for ARM. It reuses the kmap fixmap region, which is not used that early anyway.
->
-> Patch #7 splits off the core functionality of create_mapping() into a new
-> function __create_mapping() that we can reuse for mapping UEFI runtime regions.
->
-> Patch #8 factors out the early_alloc() routine so we can invoke __create_mapping
-> using another (late) allocator.
->
-> Patch #9 adds support to __create_mapping() for creating non-global translation
-> table entries. (new in v3)
->
-> Patch #10 implements create_mapping_late() that uses a late allocator.
->
-> Patch #11 implements MEMBLOCK_NOMAP support for ARM
->
-> Patch #12 implements the UEFI support in the kernel proper to probe the UEFI
-> memory map and map the runtime services.
->
-> Patch #13 ties together all of the above, by implementing the UEFI stub, and
-> introducing the Kconfig symbols that allow all of this to be built.
->
->
-> Ard Biesheuvel (12):
->   mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
->   arm64: only consider memblocks with NOMAP cleared for linear mapping
->   arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
->   arm64/efi: split off EFI init and runtime code for reuse by 32-bit ARM
->   arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
->   ARM: add support for generic early_ioremap/early_memremap
->   ARM: split off core mapping logic from create_mapping
->   ARM: factor out allocation routine from __create_mapping()
->   ARM: add support for non-global kernel mappings
->   ARM: implement create_mapping_late() for EFI use
->   ARM: only consider memblocks with NOMAP cleared for linear mapping
->   ARM: wire up UEFI init and runtime support
->
-> Roy Franz (1):
->   ARM: add UEFI stub support
->
->  arch/arm/Kconfig                          |  20 ++
->  arch/arm/boot/compressed/Makefile         |   4 +-
->  arch/arm/boot/compressed/efi-header.S     | 130 ++++++++
->  arch/arm/boot/compressed/head.S           |  54 +++-
->  arch/arm/boot/compressed/vmlinux.lds.S    |   7 +
->  arch/arm/include/asm/Kbuild               |   1 +
->  arch/arm/include/asm/efi.h                |  83 +++++
->  arch/arm/include/asm/fixmap.h             |  29 +-
->  arch/arm/include/asm/mach/map.h           |   2 +
->  arch/arm/include/asm/mmu_context.h        |   2 +-
->  arch/arm/kernel/Makefile                  |   1 +
->  arch/arm/kernel/efi.c                     |  38 +++
->  arch/arm/kernel/setup.c                   |  10 +-
->  arch/arm/mm/init.c                        |   5 +-
->  arch/arm/mm/ioremap.c                     |   9 +
->  arch/arm/mm/mmu.c                         | 128 +++++---
->  arch/arm64/include/asm/efi.h              |   9 +
->  arch/arm64/kernel/efi.c                   | 334 +-------------------
->  arch/arm64/mm/init.c                      |   2 +-
->  arch/arm64/mm/mmu.c                       |   2 +
->  drivers/firmware/efi/Makefile             |   4 +
->  drivers/firmware/efi/arm-init.c           | 209 ++++++++++++
->  drivers/firmware/efi/arm-runtime.c        | 135 ++++++++
->  drivers/firmware/efi/efi.c                |   2 +
->  drivers/firmware/efi/libstub/Makefile     |   9 +
->  drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
->  drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++
->  include/linux/memblock.h                  |   8 +
->  mm/memblock.c                             |  28 ++
->  29 files changed, 986 insertions(+), 368 deletions(-)
->  create mode 100644 arch/arm/boot/compressed/efi-header.S
->  create mode 100644 arch/arm/include/asm/efi.h
->  create mode 100644 arch/arm/kernel/efi.c
->  create mode 100644 drivers/firmware/efi/arm-init.c
->  create mode 100644 drivers/firmware/efi/arm-runtime.c
->  create mode 100644 drivers/firmware/efi/libstub/arm32-stub.c
->
->
-> Testing instructions
-> ====================
->
-> 1. Download a prebuilt firmware binary:
-> http://snapshots.linaro.org/components/kernel/leg-virt-tianocore-edk2-upstream/latest/QEMU-ARM/RELEASE_GCC49/QEMU_EFI.img.gz
->
-> 2. Unzip it
-> gunzip QEMU_EFI.img.gz
->
-> 3. Download a prebuilt kernel binary (non-LPAE or LPAE, respectively):
-> http://storage.kernelci.org/ardb/v4.4-rc3-13-g9e4dc4695ba0/arm-multi_v7_defconfig+CONFIG_EFI=y/zImage
-> http://storage.kernelci.org/ardb/v4.4-rc3-13-g9e4dc4695ba0/arm-multi_v7_defconfig+CONFIG_EFI=y+CONFIG_ARM_LPAE=y/zImage
->
-> 4. Run it
-> qemu-system-arm -M virt -m 512 -nographic \
->         -bios QEMU_EFI.img -kernel zImage \
->         -append 'earlycon efi=debug console=ttyAMA0'
->
-> (Ctrl-A Ctrl-X to quit)
+On Mon 30-11-15 14:17:03, David Rientjes wrote:
+> On Thu, 26 Nov 2015, Michal Hocko wrote:
+> 
+> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > index 8034909faad2..94b04c1e894a 100644
+> > > > --- a/mm/page_alloc.c
+> > > > +++ b/mm/page_alloc.c
+> > > > @@ -2766,8 +2766,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+> > > >  			goto out;
+> > > >  	}
+> > > >  	/* Exhausted what can be done so it's blamo time */
+> > > > -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> > > > +	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> > > >  		*did_some_progress = 1;
+> > > > +
+> > > > +		if (gfp_mask & __GFP_NOFAIL)
+> > > > +			page = get_page_from_freelist(gfp_mask, order,
+> > > > +					ALLOC_NO_WATERMARKS, ac);
+> > > > +	}
+> > > >  out:
+> > > >  	mutex_unlock(&oom_lock);
+> > > >  	return page;
+> > > 
+> > > Well, sure, that's one way to do it, but for cpuset users, wouldn't this 
+> > > lead to a depletion of the first system zone since you've dropped 
+> > > ALLOC_CPUSET and are doing ALLOC_NO_WATERMARKS in the same call?  
+> > 
+> > Are you suggesting to do?
+> > 		if (gfp_mask & __GFP_NOFAIL) {
+> > 			page = get_page_from_freelist(gfp_mask, order,
+> > 					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> > 			/*
+> > 			 * fallback to ignore cpuset if our nodes are
+> > 			 * depleted
+> > 			 */
+> > 			if (!page)
+> > 				get_page_from_freelist(gfp_mask, order,
+> > 					ALLOC_NO_WATERMARKS, ac);
+> > 		}
+> > 
+> > I am not really sure this worth complication.
+> 
+> I'm objecting to the ability of a process that is doing a __GFP_NOFAIL 
+> allocation, which has been disallowed access from allocating on certain 
+> mems through cpusets, to cause an oom condition on those disallowed nodes, 
+> yes.
 
-Please note that combining -bios and -kernel as I do above requires
-QEMU v2.3 or later.
+That ability will be there even with the fallback mechanism. My primary
+objections was that the fallback is unnecessarily complex without any
+evidence that such a situation would happen in the real life often
+enought to bother about it. __GFP_NOFAIL allocations are and should be
+rare and any runaway triggerable from the userspace is a kernel bug.
+
+Anyway, as you seem to feel really strongly about this I will post v2
+with the above fallback. This is a superslow path anyway...
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
