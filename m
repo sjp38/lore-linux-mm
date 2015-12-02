@@ -1,117 +1,266 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
-Date: Tue, 1 Dec 2015 18:13:22 +0100
-Message-ID: <20151201171322.GD4341@pd.tnic>
-References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
- <1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
- <20151201135000.GB4341@pd.tnic>
- <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
+Date: Wed, 2 Dec 2015 12:27:25 -0800
+Message-ID: <20151202202725.GA794@www.outflux.net>
+Reply-To: kernel-hardening@lists.openwall.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-acpi-owner@vger.kernel.org>
+Content-Type: text/plain; charset=us-ascii
+Return-path: <kernel-hardening-return-2042-glkh-kernel-hardening=m.gmane.org@lists.openwall.com>
+List-Post: <mailto:kernel-hardening@lists.openwall.com>
+List-Help: <mailto:kernel-hardening-help@lists.openwall.com>
+List-Unsubscribe: <mailto:kernel-hardening-unsubscribe@lists.openwall.com>
+List-Subscribe: <mailto:kernel-hardening-subscribe@lists.openwall.com>
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
-Sender: linux-acpi-owner@vger.kernel.org
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Laura Abbott <labbott@fedoraproject.org>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Arnd Bergmann <arnd@arndb.de>, kernel-hardening@lists.openwall.com
 List-Id: linux-mm.kvack.org
 
-On Tue, Dec 01, 2015 at 08:54:23AM -0800, Dan Williams wrote:
-> On Tue, Dec 1, 2015 at 5:50 AM, Borislav Petkov <bp@alien8.de> wrote:
-> > On Tue, Nov 24, 2015 at 03:33:36PM -0700, Toshi Kani wrote:
-> >> region_intersects() checks if a specified region partially overlaps
-> >> or fully eclipses a resource identified by @name.  It currently sets
-> >> resource flags statically, which prevents the caller from specifying
-> >> a non-RAM region, such as persistent memory.  Add @flags so that
-> >> any region can be specified to the function.
-> >>
-> >> A helper function, region_intersects_ram(), is added so that the
-> >> callers that check a RAM region do not have to specify its iomem
-> >> resource name and flags.  This interface is exported for modules,
-> >> such as the EINJ driver.
-> >>
-> >> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> >> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> Cc: Vishal Verma <vishal.l.verma@intel.com>
-> >> ---
-> >>  include/linux/mm.h |    4 +++-
-> >>  kernel/memremap.c  |    5 ++---
-> >>  kernel/resource.c  |   23 ++++++++++++++++-------
-> >>  3 files changed, 21 insertions(+), 11 deletions(-)
-> >>
-> >> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> >> index 00bad77..c776af3 100644
-> >> --- a/include/linux/mm.h
-> >> +++ b/include/linux/mm.h
-> >> @@ -362,7 +362,9 @@ enum {
-> >>       REGION_MIXED,
-> >>  };
-> >>
-> >> -int region_intersects(resource_size_t offset, size_t size, const char *type);
-> >> +int region_intersects(resource_size_t offset, size_t size, const char *type,
-> >> +                     unsigned long flags);
-> >> +int region_intersects_ram(resource_size_t offset, size_t size);
-> >>
-> >>  /* Support for virtually mapped pages */
-> >>  struct page *vmalloc_to_page(const void *addr);
-> >> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> >> index 7658d32..98f52f1 100644
-> >> --- a/kernel/memremap.c
-> >> +++ b/kernel/memremap.c
-> >> @@ -57,7 +57,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
-> >>   */
-> >>  void *memremap(resource_size_t offset, size_t size, unsigned long flags)
-> >>  {
-> >> -     int is_ram = region_intersects(offset, size, "System RAM");
-> >
-> > Ok, question: why do those resource things types gets identified with
-> > a string?! We have here "System RAM" and next patch adds "Persistent
-> > Memory".
-> >
-> > And "persistent memory" or "System RaM" won't work and this is just
-> > silly.
-> >
-> > Couldn't struct resource have gained some typedef flags instead which we
-> > can much easily test? Using the strings looks really yucky.
-> >
-> 
-> At least in the case of region_intersects() I was just following
-> existing strcmp() convention from walk_system_ram_range.
+The use of CONFIG_DEBUG_RODATA is generally seen as an essential part of
+kernel self-protection:
+http://www.openwall.com/lists/kernel-hardening/2015/11/30/13
+Additionally, its name has grown to mean things beyond just rodata. To
+get ARM closer to this, we ought to rearrange the names of the configs
+that control how the kernel protects its memory. What was called
+CONFIG_ARM_KERNMEM_PERMS is really doing the work that other architectures
+call CONFIG_DEBUG_RODATA.
 
-Oh sure, I didn't mean you. I was simply questioning that whole
-identify-resource-by-its-name approach. And that came with:
+This redefines CONFIG_DEBUG_RODATA to actually do the bulk of the
+ROing (and NXing). In the place of the old CONFIG_DEBUG_RODATA, use
+CONFIG_DEBUG_ALIGN_RODATA, since that's what the option does: adds
+section alignment for making rodata explicitly NX, as arm does not split
+the page tables like arm64 does without _ALIGN_RODATA.
 
-67cf13ceed89 ("x86: optimize resource lookups for ioremap")
+Also adds human readable names to the sections so I could more easily
+debug my typos, and makes CONFIG_DEBUG_RODATA default "y" for CPU_V7.
 
-I just think it is silly and that we should be identifying resource
-things in a more robust way.
+Results in /sys/kernel/debug/kernel_page_tables for each config state:
 
-Btw, the ->name thing in struct resource has been there since a *long*
-time, added by:
+ # CONFIG_DEBUG_RODATA is not set
+ # CONFIG_DEBUG_ALIGN_RODATA is not set
 
-commit 40f6b7cc623f95d2a08b9adae7a6793055af4768
-Author: linus1 <torvalds@linuxfoundation.org>
-Date:   Wed Jun 30 11:00:00 1999 -0600
+---[ Kernel Mapping ]---
+0x80000000-0x80900000           9M     RW x  SHD
+0x80900000-0xa0000000         503M     RW NX SHD
 
-    Import 2.3.11pre1
+ CONFIG_DEBUG_RODATA=y
+ CONFIG_DEBUG_ALIGN_RODATA=y
 
-I'm not sure what it was used for, perhaps for human-readable output in
-/proc/iomem.
+---[ Kernel Mapping ]---
+0x80000000-0x80100000           1M     RW NX SHD
+0x80100000-0x80700000           6M     ro x  SHD
+0x80700000-0x80a00000           3M     ro NX SHD
+0x80a00000-0xa0000000         502M     RW NX SHD
 
-Let me CC Linus, he would know, most likely. akpm is already on CC.
+ CONFIG_DEBUG_RODATA=y
+ # CONFIG_DEBUG_ALIGN_RODATA is not set
 
-> We could define 'const char *system_ram = "System RAM"' somewhere and
-> then do pointer comparisons to cut down on the thrash of adding new
-> flags to 'struct resource'?
+---[ Kernel Mapping ]---
+0x80000000-0x80100000           1M     RW NX SHD
+0x80100000-0x80a00000           9M     ro x  SHD
+0x80a00000-0xa0000000         502M     RW NX SHD
 
-See above. I think flags or type_flags or so should be cleaner/better...
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+Depends on 8464/1 "Update all mm structures with section adjustments"
+---
+ arch/arm/kernel/vmlinux.lds.S | 10 +++++-----
+ arch/arm/mm/Kconfig           | 34 ++++++++++++++++++----------------
+ arch/arm/mm/init.c            | 19 ++++++++++---------
+ 3 files changed, 33 insertions(+), 30 deletions(-)
 
-I could be missing some aspect though, according to which, the name is
-the proper way to ident those but I can't think of one...
+diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S
+index 8b60fde5ce48..a6e395c53a48 100644
+--- a/arch/arm/kernel/vmlinux.lds.S
++++ b/arch/arm/kernel/vmlinux.lds.S
+@@ -8,7 +8,7 @@
+ #include <asm/thread_info.h>
+ #include <asm/memory.h>
+ #include <asm/page.h>
+-#ifdef CONFIG_ARM_KERNMEM_PERMS
++#ifdef CONFIG_DEBUG_RODATA
+ #include <asm/pgtable.h>
+ #endif
+ 
+@@ -94,7 +94,7 @@ SECTIONS
+ 		HEAD_TEXT
+ 	}
+ 
+-#ifdef CONFIG_ARM_KERNMEM_PERMS
++#ifdef CONFIG_DEBUG_RODATA
+ 	. = ALIGN(1<<SECTION_SHIFT);
+ #endif
+ 
+@@ -117,7 +117,7 @@ SECTIONS
+ 			ARM_CPU_KEEP(PROC_INFO)
+ 	}
+ 
+-#ifdef CONFIG_DEBUG_RODATA
++#ifdef CONFIG_DEBUG_ALIGN_RODATA
+ 	. = ALIGN(1<<SECTION_SHIFT);
+ #endif
+ 	RO_DATA(PAGE_SIZE)
+@@ -153,7 +153,7 @@ SECTIONS
+ 	_etext = .;			/* End of text and rodata section */
+ 
+ #ifndef CONFIG_XIP_KERNEL
+-# ifdef CONFIG_ARM_KERNMEM_PERMS
++# ifdef CONFIG_DEBUG_RODATA
+ 	. = ALIGN(1<<SECTION_SHIFT);
+ # else
+ 	. = ALIGN(PAGE_SIZE);
+@@ -231,7 +231,7 @@ SECTIONS
+ 	__data_loc = ALIGN(4);		/* location in binary */
+ 	. = PAGE_OFFSET + TEXT_OFFSET;
+ #else
+-#ifdef CONFIG_ARM_KERNMEM_PERMS
++#ifdef CONFIG_DEBUG_RODATA
+ 	. = ALIGN(1<<SECTION_SHIFT);
+ #else
+ 	. = ALIGN(THREAD_SIZE);
+diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
+index 41218867a9a6..68331f91c90f 100644
+--- a/arch/arm/mm/Kconfig
++++ b/arch/arm/mm/Kconfig
+@@ -1039,24 +1039,26 @@ config ARCH_SUPPORTS_BIG_ENDIAN
+ 	  This option specifies the architecture can support big endian
+ 	  operation.
+ 
+-config ARM_KERNMEM_PERMS
+-	bool "Restrict kernel memory permissions"
++config DEBUG_RODATA
++	bool "Make kernel text and rodata read-only"
+ 	depends on MMU
++	default y if CPU_V7
+ 	help
+-	  If this is set, kernel memory other than kernel text (and rodata)
+-	  will be made non-executable. The tradeoff is that each region is
+-	  padded to section-size (1MiB) boundaries (because their permissions
+-	  are different and splitting the 1M pages into 4K ones causes TLB
+-	  performance problems), wasting memory.
++	  If this is set, kernel text and rodata memory will be made
++	  read-only, and non-text kernel memory will be made non-executable.
++	  The tradeoff is that each region is padded to section-size (1MiB)
++	  boundaries (because their permissions are different and splitting
++	  the 1M pages into 4K ones causes TLB performance problems), which
++	  can waste memory.
+ 
+-config DEBUG_RODATA
+-	bool "Make kernel text and rodata read-only"
+-	depends on ARM_KERNMEM_PERMS
++config DEBUG_ALIGN_RODATA
++	bool "Make rodata strictly non-executable"
++	depends on DEBUG_RODATA
+ 	default y
+ 	help
+-	  If this is set, kernel text and rodata will be made read-only. This
+-	  is to help catch accidental or malicious attempts to change the
+-	  kernel's executable code. Additionally splits rodata from kernel
+-	  text so it can be made explicitly non-executable. This creates
+-	  another section-size padded region, so it can waste more memory
+-	  space while gaining the read-only protections.
++	  If this is set, rodata will be made explicitly non-executable. This
++	  provides protection on the rare chance that attackers might find and
++	  use ROP gadgets that exist in the rodata section. This adds an
++	  additional section-aligned split of rodata from kernel text so it
++	  can be made explicitly non-executable. This padding may waste memory
++	  space to gain the additional protection.
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 7f8cd1b3557f..321d3683dc7c 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -569,8 +569,9 @@ void __init mem_init(void)
+ 	}
+ }
+ 
+-#ifdef CONFIG_ARM_KERNMEM_PERMS
++#ifdef CONFIG_DEBUG_RODATA
+ struct section_perm {
++	const char *name;
+ 	unsigned long start;
+ 	unsigned long end;
+ 	pmdval_t mask;
+@@ -581,6 +582,7 @@ struct section_perm {
+ static struct section_perm nx_perms[] = {
+ 	/* Make pages tables, etc before _stext RW (set NX). */
+ 	{
++		.name	= "pre-text NX",
+ 		.start	= PAGE_OFFSET,
+ 		.end	= (unsigned long)_stext,
+ 		.mask	= ~PMD_SECT_XN,
+@@ -588,14 +590,16 @@ static struct section_perm nx_perms[] = {
+ 	},
+ 	/* Make init RW (set NX). */
+ 	{
++		.name	= "init NX",
+ 		.start	= (unsigned long)__init_begin,
+ 		.end	= (unsigned long)_sdata,
+ 		.mask	= ~PMD_SECT_XN,
+ 		.prot	= PMD_SECT_XN,
+ 	},
+-#ifdef CONFIG_DEBUG_RODATA
++#ifdef CONFIG_DEBUG_ALIGN_RODATA
+ 	/* Make rodata NX (set RO in ro_perms below). */
+ 	{
++		.name	= "rodata NX",
+ 		.start  = (unsigned long)__start_rodata,
+ 		.end    = (unsigned long)__init_begin,
+ 		.mask   = ~PMD_SECT_XN,
+@@ -604,10 +608,10 @@ static struct section_perm nx_perms[] = {
+ #endif
+ };
+ 
+-#ifdef CONFIG_DEBUG_RODATA
+ static struct section_perm ro_perms[] = {
+ 	/* Make kernel code and rodata RX (set RO). */
+ 	{
++		.name	= "text/rodata RO",
+ 		.start  = (unsigned long)_stext,
+ 		.end    = (unsigned long)__init_begin,
+ #ifdef CONFIG_ARM_LPAE
+@@ -620,7 +624,6 @@ static struct section_perm ro_perms[] = {
+ #endif
+ 	},
+ };
+-#endif
+ 
+ /*
+  * Updates section permissions only for the current mm (sections are
+@@ -667,8 +670,8 @@ void set_section_perms(struct section_perm *perms, int n, bool set,
+ 	for (i = 0; i < n; i++) {
+ 		if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||
+ 		    !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {
+-			pr_err("BUG: section %lx-%lx not aligned to %lx\n",
+-				perms[i].start, perms[i].end,
++			pr_err("BUG: %s section %lx-%lx not aligned to %lx\n",
++				perms[i].name, perms[i].start, perms[i].end,
+ 				SECTION_SIZE);
+ 			continue;
+ 		}
+@@ -709,7 +712,6 @@ void fix_kernmem_perms(void)
+ 	stop_machine(__fix_kernmem_perms, NULL, NULL);
+ }
+ 
+-#ifdef CONFIG_DEBUG_RODATA
+ int __mark_rodata_ro(void *unused)
+ {
+ 	update_sections_early(ro_perms, ARRAY_SIZE(ro_perms));
+@@ -732,11 +734,10 @@ void set_kernel_text_ro(void)
+ 	set_section_perms(ro_perms, ARRAY_SIZE(ro_perms), true,
+ 				current->active_mm);
+ }
+-#endif /* CONFIG_DEBUG_RODATA */
+ 
+ #else
+ static inline void fix_kernmem_perms(void) { }
+-#endif /* CONFIG_ARM_KERNMEM_PERMS */
++#endif /* CONFIG_DEBUG_RODATA */
+ 
+ void free_tcmmem(void)
+ {
+-- 
+1.9.1
+
 
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Kees Cook
+Chrome OS & Brillo Security
