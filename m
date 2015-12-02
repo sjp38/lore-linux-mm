@@ -1,57 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A51D76B0038
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 19:54:34 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so22006654pac.3
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 16:54:34 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s131si739784pfs.12.2015.12.01.16.54.33
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E5A86B0038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2015 20:24:23 -0500 (EST)
+Received: by obcse5 with SMTP id se5so17160594obc.3
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2015 17:24:23 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id c9si458834oej.85.2015.12.01.17.24.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Dec 2015 16:54:33 -0800 (PST)
-Subject: Re: memory leak in alloc_huge_page
-References: <CACT4Y+amx86fBiqoCpFzTa=nOGayDjLb5CENEskrKeRTy6NSQw@mail.gmail.com>
- <565DEC6C.4030809@oracle.com>
- <CACT4Y+Zsw23LiBhakWUFfO88OuuHsV588g3T9UPfMKxRBLojGQ@mail.gmail.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <565E413D.8050608@oracle.com>
-Date: Tue, 1 Dec 2015 16:54:21 -0800
-MIME-Version: 1.0
-In-Reply-To: <CACT4Y+Zsw23LiBhakWUFfO88OuuHsV588g3T9UPfMKxRBLojGQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+        Tue, 01 Dec 2015 17:24:22 -0800 (PST)
+Message-ID: <1449022764.31589.24.camel@hpe.com>
+Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Tue, 01 Dec 2015 19:19:24 -0700
+In-Reply-To: <CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
+References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+	 <CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 12/01/2015 11:45 AM, Dmitry Vyukov wrote:
-> On Tue, Dec 1, 2015 at 7:52 PM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
->> On 12/01/2015 06:04 AM, Dmitry Vyukov wrote:
-
->>> There seems to be another leak if nrg is not NULL on this path, but
->>> it's not what happens in my case since the WARNING does not fire.
->>
->> If nrg is not NULL, then it was added to the resv map and 'should' be
->> free'ed when the map is free'ed.  This is not optimal, but I do not
->> think it would lead to a leak.  I'll take a close look at this code
->> with an emphasis on the leak you discovered.
+On Mon, 2015-11-30 at 14:08 -0800, Dan Williams wrote:
+> On Mon, Nov 23, 2015 at 12:04 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> > The following oops was observed when mmap() with MAP_POPULATE
+> > pre-faulted pmd mappings of a DAX file.  follow_trans_huge_pmd()
+> > expects that a target address has a struct page.
+> > 
+> >   BUG: unable to handle kernel paging request at ffffea0012220000
+> >   follow_trans_huge_pmd+0xba/0x390
+> >   follow_page_mask+0x33d/0x420
+> >   __get_user_pages+0xdc/0x800
+> >   populate_vma_page_range+0xb5/0xe0
+> >   __mm_populate+0xc5/0x150
+> >   vm_mmap_pgoff+0xd5/0xe0
+> >   SyS_mmap_pgoff+0x1c1/0x290
+> >   SyS_mmap+0x1b/0x30
+> > 
+> > Fix it by making the PMD pre-fault handling consistent with PTE.
+> > After pre-faulted in faultin_page(), follow_page_mask() calls
+> > follow_trans_huge_pmd(), which is changed to call follow_pfn_pmd()
+> > for VM_PFNMAP or VM_MIXEDMAP.  follow_pfn_pmd() handles FOLL_TOUCH
+> > and returns with -EEXIST.
+> > 
+> > Reported-by: Mauricio Porto <mauricio.porto@hpe.com>
+> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Matthew Wilcox <willy@linux.intel.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > ---
 > 
+> Hey Toshi,
 > 
-> Hi Mike,
+> I ended up fixing this differently with follow_pmd_devmap() introduced
+> in this series:
 > 
-> Note that it's not just a leak report, it is an actual leak. You
-> should be able to reproduce it.
+> https://lists.01.org/pipermail/linux-nvdimm/2015-November/003033.html
 > 
+> Does the latest libnvdimm-pending branch [1] pass your test case?
 
-OK, finally found the bug which is in region_del().  It does not correctly
-handle a "placeholder" region descriptor that is left after an aborted
-operation when the start of the region to be deleted is for the same page.
+Hi Dan,
 
-I will have a patch shortly, after some testing.
+I ran several test cases, and they all hit the case "pfn not in memmap" in
+__dax_pmd_fault() during mmap(MAP_POPULATE).  Looking at the dax.pfn, PFN_DEV is
+set but PFN_MAP is not.  I have not looked into why, but I thought I let you
+know first.  I've also seen the test thread got hung up at the end sometime.  
 
--- 
-Mike Kravetz
+I also noticed that reason is not set in the case below.
+
+                if (length < PMD_SIZE
+                                || (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)) {
+                        dax_unmap_atomic(bdev, &dax);
+                          goto fallback;
+                }
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
