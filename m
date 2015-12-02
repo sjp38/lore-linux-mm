@@ -1,110 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6E26B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 15:14:20 -0500 (EST)
-Received: by ykdv3 with SMTP id v3so60726142ykd.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 12:14:20 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n65si2970667ywf.26.2015.12.02.12.14.19
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C7386B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 15:34:52 -0500 (EST)
+Received: by wmww144 with SMTP id w144so231154338wmw.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 12:34:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w10si45572721wma.83.2015.12.02.12.34.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 12:14:19 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH V2] mm/hugetlb resv map memory leak for placeholder entries
-Date: Wed,  2 Dec 2015 12:13:58 -0800
-Message-Id: <1449087238-12754-1-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 02 Dec 2015 12:34:50 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+References: <20151125143010.GI27283@dhcp22.suse.cz>
+ <1448899821-9671-1-git-send-email-vbabka@suse.cz>
+ <87io4hi06n.fsf@rasmusvillemoes.dk>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <565F55E6.6080201@suse.cz>
+Date: Wed, 2 Dec 2015 21:34:46 +0100
+MIME-Version: 1.0
+In-Reply-To: <87io4hi06n.fsf@rasmusvillemoes.dk>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>
-Cc: Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>, syzkaller <syzkaller@googlegroups.com>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org, "[4.3]"@kvack.org
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-Dmitry Vyukov reported the following memory leak
+On 12/02/2015 12:01 PM, Rasmus Villemoes wrote:
+> On Mon, Nov 30 2015, Vlastimil Babka <vbabka@suse.cz> wrote:
+> 
+> I'd prefer to have the formatting code in vsprintf.c, so that we'd avoid
+> having to call vsnprintf recursively (and repeatedly - not that this is
+> going to be used in hot paths, but if the box is going down it might be
+> nice to get the debug info out a few thousand cycles earlier). That'll
+> also make it easier to avoid the bugs below.
 
-unreferenced object 0xffff88002eaafd88 (size 32):
-  comm "a.out", pid 5063, jiffies 4295774645 (age 15.810s)
-  hex dump (first 32 bytes):
-    28 e9 4e 63 00 88 ff ff 28 e9 4e 63 00 88 ff ff  (.Nc....(.Nc....
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<     inline     >] kmalloc include/linux/slab.h:458
-    [<ffffffff815efa64>] region_chg+0x2d4/0x6b0 mm/hugetlb.c:398
-    [<ffffffff815f0c63>] __vma_reservation_common+0x2c3/0x390 mm/hugetlb.c:1791
-    [<     inline     >] vma_needs_reservation mm/hugetlb.c:1813
-    [<ffffffff815f658e>] alloc_huge_page+0x19e/0xc70 mm/hugetlb.c:1845
-    [<     inline     >] hugetlb_no_page mm/hugetlb.c:3543
-    [<ffffffff815fc561>] hugetlb_fault+0x7a1/0x1250 mm/hugetlb.c:3717
-    [<ffffffff815fd349>] follow_hugetlb_page+0x339/0xc70 mm/hugetlb.c:3880
-    [<ffffffff815a2bb2>] __get_user_pages+0x542/0xf30 mm/gup.c:497
-    [<ffffffff815a400e>] populate_vma_page_range+0xde/0x110 mm/gup.c:919
-    [<ffffffff815a4207>] __mm_populate+0x1c7/0x310 mm/gup.c:969
-    [<ffffffff815b74f1>] do_mlock+0x291/0x360 mm/mlock.c:637
-    [<     inline     >] SYSC_mlock2 mm/mlock.c:658
-    [<ffffffff815b7a4b>] SyS_mlock2+0x4b/0x70 mm/mlock.c:648
+OK, I'll try.
 
-Dmitry identified a potential memory leak in the routine region_chg,
-where a region descriptor is not free'ed on an error path.
+>> diff --git a/Documentation/printk-formats.txt b/Documentation/printk-formats.txt
+>> index b784c270105f..4b5156e74b09 100644
+>> --- a/Documentation/printk-formats.txt
+>> +++ b/Documentation/printk-formats.txt
+>> @@ -292,6 +292,20 @@ Raw pointer value SHOULD be printed with %p. The kernel supports
+>>  
+>>  	Passed by reference.
+>>  
+>> +Flags bitfields such as page flags, gfp_flags:
+>> +
+>> +	%pgp	0x1fffff8000086c(referenced|uptodate|lru|active|private)
+>> +	%pgg	0x24202c4(GFP_USER|GFP_DMA32|GFP_NOWARN)
+>> +	%pgv	0x875(read|exec|mayread|maywrite|mayexec|denywrite)
+>> +
+> 
+> I think it would be better (and more flexible) if %pg* only stood for
+> printing the | chain of strings. Let people pass the flags twice if they
+> also want the numeric value; then they're also able to choose 0-padding
+> and whatnot, can use other kinds of parentheses, etc., etc. So
+> 
+>   pr_emerg("flags: 0x%08lu [%pgp]\n", printflags, &printflags)
 
-However, the root cause for the above memory leak resides in region_del.
-In this specific case, a "placeholder" entry is created in region_chg.  The
-associated page allocation fails, and the placeholder entry is left in the
-reserve map.  This is "by design" as the entry should be deleted when the
-map is released.  The bug is in the region_del routine which is used to
-delete entries within a specific range (and when the map is released).
-region_del did not handle the case where a placeholder entry exactly matched
-the start of the range range to be deleted.  In this case, the entry would
-not be deleted and leaked.  The fix is to take these special placeholder
-entries into account in region_del.
+I had it initially like this, but then thought it was somewhat repetitive and
+all current users did use the same format. But I agree it's more generic to do
+it as you say so I'll change it.
 
-The region_chg error path leak is also fixed.
+>> @@ -1361,6 +1362,29 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
+>>  	}
+>>  }
+>>  
+>> +static noinline_for_stack
+>> +char *flags_string(char *buf, char *end, void *flags_ptr,
+>> +			struct printf_spec spec, const char *fmt)
+>> +{
+>> +	unsigned long flags;
+>> +	gfp_t gfp_flags;
+>> +
+>> +	switch (fmt[1]) {
+>> +	case 'p':
+>> +		flags = *(unsigned long *)flags_ptr;
+>> +		return format_page_flags(flags, buf, end);
+>> +	case 'v':
+>> +		flags = *(unsigned long *)flags_ptr;
+>> +		return format_vma_flags(flags, buf, end);
+>> +	case 'g':
+>> +		gfp_flags = *(gfp_t *)flags_ptr;
+>> +		return format_gfp_flags(gfp_flags, buf, end);
+>> +	default:
+>> +		WARN_ONCE(1, "Unsupported flags modifier: %c\n", fmt[1]);
+>> +		return 0;
+>> +	}
+>> +}
+>> +
+> 
+> That return 0 aka return NULL will lead to an oops when the next thing
+> is printed. Did you mean 'return buf;'? 
 
-V2: The original version of the patch did not correctly handle placeholder
-    entries before the range to be deleted.  The new check is more specific
-    and only matches placeholders at the start of range.
+Uh, right.
 
-Fixes: feba16e25a57 ("add region_del() to delete a specific range of entries")
-Cc: stable@vger.kernel.org [4.3]
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
----
- mm/hugetlb.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+>>  
+>> -static void dump_flag_names(unsigned long flags,
+>> -			const struct trace_print_flags *names, int count)
+>> +static char *format_flag_names(unsigned long flags, unsigned long mask_out,
+>> +		const struct trace_print_flags *names, int count,
+>> +		char *buf, char *end)
+>>  {
+>>  	const char *delim = "";
+>>  	unsigned long mask;
+>>  	int i;
+>>  
+>> -	pr_cont("(");
+>> +	buf += snprintf(buf, end - buf, "%#lx(", flags);
+> 
+> Sorry, you can't do it like this. The buf you've been passed from inside
+> vsnprintf may be beyond end
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1101ccd94..c895ab9 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -372,8 +372,10 @@ retry_locked:
- 		spin_unlock(&resv->lock);
- 
- 		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
--		if (!trg)
-+		if (!trg) {
-+			kfree(nrg);
- 			return -ENOMEM;
-+		}
- 
- 		spin_lock(&resv->lock);
- 		list_add(&trg->link, &resv->region_cache);
-@@ -483,8 +485,16 @@ static long region_del(struct resv_map *resv, long f, long t)
- retry:
- 	spin_lock(&resv->lock);
- 	list_for_each_entry_safe(rg, trg, head, link) {
--		if (rg->to <= f)
-+		/*
-+		 * Skip regions before the range to be deleted.  file_region
-+		 * ranges are normally of the form [from, to).  However, there
-+		 * may be a "placeholder" entry in the map which is of the form
-+		 * (from, to) with from == to.  Check for placeholder entries
-+		 * at the beginning of the range to be deleted.
-+		 */
-+		if (rg->to <= f && (rg->to != rg->from || rg->to != f))
- 			continue;
+Ah, didn't realize that :/
+
+> , so end-buf is a negative number which will
+> (get converted to a huge positive size_t and) trigger a WARN_ONCE and
+> get you a return value of 0.
+> 
+> 
+>> +	flags &= ~mask_out;
+>>  
+>>  	for (i = 0; i < count && flags; i++) {
+>> +		if (buf >= end)
+>> +			break;
+> 
+> Even if you fix the above, this is also wrong. We have to return the
+> length of the string that would be generated if there was room enough,
+> so we cannot make an early return like this. As I said above, the
+> easiest way to do that is to do it inside vsprintf.c, where we have
+> e.g. string() available. So I'd do something like
+> 
+> 
+> char *format_flags(char *buf, char *end, unsigned long flags,
+>                    const struct trace_print_flags *names)
+> {
+>   unsigned long mask;
+>   const struct printf_spec strspec = {/* appropriate defaults*/}
+>   const struct printf_spec numspec = {/* appropriate defaults*/}
+> 
+>   for ( ; flags && names->mask; names++) {
+>     mask = names->mask;
+>     if ((flags & mask) != mask)
+>       continue;
+>     flags &= ~mask;
+>     buf = string(buf, end, names->name, strspec);
+>     if (flags) {
+>       if (buf < end)
+>         *buf = '|';
+>       buf++;
+>     }
+>   }
+>   if (flags)
+>     buf = number(buf, end, flags, numspec);
+>   return buf;
+> }
+
+Thanks a lot for your review and suggestions!
+
+> [where I've assumed that the trace_print_flags array is terminated with
+> an entry with 0 mask. Passing its length is also possible, but maybe a
+> little awkward if the arrays are defined in mm/ and contents depend on
+> .config.] 
+
+> Then flags_string() would call this directly with an appropriate array
+> for names, and we avoid the individual tiny helper
+> functions. flags_string() can still do the mask_out thing for page
+> flags, especially when/if the numeric and string representations are not
+> done at the same time.
+> 
+> Rasmus
+
+Zero-terminated array is a good idea to get rid of the ARRAY_SIZE with helpers
+needing to live in the same .c file etc.
+
+But if I were to keep the array definitions in mm/debug.c with declarations
+(which don't know the size yet) in e.g. <linux/mmdebug.h> (which lib/vsnprintf.c
+would include so that format_flags() can reference them, is there a more elegant
+way than the one below?
+
+--- a/include/linux/mmdebug.h
++++ b/include/linux/mmdebug.h
+@@ -7,6 +7,9 @@
+ struct page;
+ struct vm_area_struct;
+ struct mm_struct;
++struct trace_print_flags; // can't include trace_events.h here
 +
- 		if (rg->from >= t)
- 			break;
- 
--- 
-2.4.3
++extern const struct trace_print_flags *pageflag_names;
+
+ extern void dump_page(struct page *page, const char *reason);
+ extern void dump_page_badflags(struct page *page, const char *reason,
+diff --git a/mm/debug.c b/mm/debug.c
+index a092111920e7..1cbc60544b87 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -23,7 +23,7 @@ char *migrate_reason_names[MR_TYPES] = {
+ 	"cma",
+ };
+
+-static const struct trace_print_flags pageflag_names[] = {
++const struct trace_print_flags __pageflag_names[] = {
+ 	{1UL << PG_locked,		"locked"	},
+ 	{1UL << PG_error,		"error"		},
+ 	{1UL << PG_referenced,		"referenced"	},
+@@ -59,6 +59,8 @@ static const struct trace_print_flags pageflag_names[] = {
+ #endif
+ };
+
++const struct trace_print_flags *pageflag_names = &__pageflag_names[0];
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
