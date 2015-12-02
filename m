@@ -1,83 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B376B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 17:25:06 -0500 (EST)
-Received: by wmec201 with SMTP id c201so603713wme.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 14:25:06 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q20si45924wjw.68.2015.12.02.14.25.05
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 002116B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 17:43:41 -0500 (EST)
+Received: by oixx65 with SMTP id x65so35463604oix.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 14:43:41 -0800 (PST)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id zf5si5091988obb.63.2015.12.02.14.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 14:25:05 -0800 (PST)
-Date: Wed, 2 Dec 2015 14:25:03 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg, vmscan: Do not wait for writeback if killed
-Message-Id: <20151202142503.0921c0d6e06394ff7dff85fa@linux-foundation.org>
-In-Reply-To: <1449066378-4764-1-git-send-email-mhocko@kernel.org>
-References: <1449066378-4764-1-git-send-email-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 02 Dec 2015 14:43:41 -0800 (PST)
+Received: by oies6 with SMTP id s6so35875379oie.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 14:43:41 -0800 (PST)
+MIME-Version: 1.0
+References: <20151127082010.GA2500@dhcp22.suse.cz> <20151128145113.GB4135@amd>
+ <20151130132129.GB21950@dhcp22.suse.cz> <20151201.153517.224543138214404348.davem@davemloft.net>
+In-Reply-To: <20151201.153517.224543138214404348.davem@davemloft.net>
+From: Chris Snook <chris.snook@gmail.com>
+Date: Wed, 02 Dec 2015 22:43:31 +0000
+Message-ID: <CAMXMK6u1vQ772SGv-J3cKvOmS6QRAjjQLYiSiWO2+T=HRTiK1A@mail.gmail.com>
+Subject: Re: [PATCH] Improve Atheros ethernet driver not to do order 4
+ GFP_ATOMIC allocation
+Content-Type: multipart/alternative; boundary=001a1141b7e08020590525f20178
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: David Miller <davem@davemloft.net>, mhocko@kernel.org
+Cc: pavel@ucw.cz, akpm@osdl.org, linux-kernel@vger.kernel.org, jcliburn@gmail.com, netdev@vger.kernel.org, rjw@rjwysocki.net, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
 
-On Wed,  2 Dec 2015 15:26:18 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+--001a1141b7e08020590525f20178
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Legacy memcg reclaim waits for pages under writeback to prevent from a
-> premature oom killer invocation because there was no memcg dirty limit
-> throttling implemented back then.
-> 
-> This heuristic might complicate situation when the writeback cannot make
-> forward progress because of the global OOM situation. E.g. filesystem
-> backed by the loop device relies on the underlying filesystem hosting
-> the image to make forward progress which cannot be guaranteed and so
-> we might end up triggering OOM killer to resolve the situation. If the
-> oom victim happens to be the task stuck in wait_on_page_writeback in the
-> memcg reclaim then we are basically deadlocked.
-> 
-> Introduce wait_on_page_writeback_killable and use it in this path to
-> prevent from the issue. shrink_page_list will back off if the wait
-> was interrupted.
-> 
-> ...
+On Tue, Dec 1, 2015 at 12:35 PM David Miller <davem@davemloft.net> wrote:
+
+> From: Michal Hocko <mhocko@kernel.org>
+> Date: Mon, 30 Nov 2015 14:21:29 +0100
 >
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1021,10 +1021,19 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  
->  			/* Case 3 above */
->  			} else {
-> +				int ret;
-> +
->  				unlock_page(page);
-> -				wait_on_page_writeback(page);
-> +				ret = wait_on_page_writeback_killable(page);
->  				/* then go back and try same page again */
->  				list_add_tail(&page->lru, page_list);
-> +
-> +				/*
-> +				 * We've got killed while waiting here so
-> +				 * expedite our way out from the reclaim
-> +				 */
-> +				if (ret)
-> +					break;
->  				continue;
->  			}
->  		}
+> > On Sat 28-11-15 15:51:13, Pavel Machek wrote:
+> >>
+> >> atl1c driver is doing order-4 allocation with GFP_ATOMIC
+> >> priority. That often breaks  networking after resume. Switch to
+> >> GFP_KERNEL. Still not ideal, but should be significantly better.
+> >
+> > It is not clear why GFP_KERNEL can replace GFP_ATOMIC safely neither
+> > from the changelog nor from the patch context.
+>
+> Earlier in the function we do a GFP_KERNEL kmalloc so:
+>
+> =C2=AF\_(=E3=83=84)_/=C2=AF
+>
+> It should be fine.
+>
 
-This function is 350 lines long and it takes a bit of effort to work
-out what that `break' is breaking from and where it goes next.  I think
-you want a "goto keep_killed" here for consistency and sanity.
+AFAICT, the people who benefit from GFP_ATOMIC are the people running all
+their storage over NFS/iSCSI who are suspending their machines while
+they're so busy they don't have any clean order 4 pagecache to drop, and
+want the machine to panic rather than hang. The people who benefit from
+GFP_KERNEL are the people who use their laptop for a while, put it to
+sleep, and then wake it up again. I think the latter is the use case we
+should be optimizing for.
 
-Also, there's high risk here of a pending signal causing the code to
-fall into some busy loop where it repeatedly tries to do something but
-then bales out without doing it.  It's unobvious how this change avoids
-such things.  (Maybe it *does* avoid such things, but it should be
-obvious!).
+-- Chris
+
+--001a1141b7e08020590525f20178
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_quote"><div dir=3D"ltr">On Tue, Dec 1,=
+ 2015 at 12:35 PM David Miller &lt;<a href=3D"mailto:davem@davemloft.net">d=
+avem@davemloft.net</a>&gt; wrote:<br></div><blockquote class=3D"gmail_quote=
+" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">F=
+rom: Michal Hocko &lt;<a href=3D"mailto:mhocko@kernel.org" target=3D"_blank=
+">mhocko@kernel.org</a>&gt;<br>
+Date: Mon, 30 Nov 2015 14:21:29 +0100<br>
+<br>
+&gt; On Sat 28-11-15 15:51:13, Pavel Machek wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; atl1c driver is doing order-4 allocation with GFP_ATOMIC<br>
+&gt;&gt; priority. That often breaks=C2=A0 networking after resume. Switch =
+to<br>
+&gt;&gt; GFP_KERNEL. Still not ideal, but should be significantly better.<b=
+r>
+&gt;<br>
+&gt; It is not clear why GFP_KERNEL can replace GFP_ATOMIC safely neither<b=
+r>
+&gt; from the changelog nor from the patch context.<br>
+<br>
+Earlier in the function we do a GFP_KERNEL kmalloc so:<br>
+<br>
+=C2=AF\_(=E3=83=84)_/=C2=AF<br>
+<br>
+It should be fine.<br></blockquote><div><br></div><div>AFAICT, the people w=
+ho benefit from GFP_ATOMIC are the people running all their storage over NF=
+S/iSCSI who are suspending their machines while they&#39;re so busy they do=
+n&#39;t have any clean order 4 pagecache to drop, and want the machine to p=
+anic rather than hang. The people who benefit from GFP_KERNEL are the peopl=
+e who use their laptop for a while, put it to sleep, and then wake it up ag=
+ain. I think the latter is the use case we should be optimizing for.<br><br=
+></div><div>-- Chris<br></div></div></div>
+
+--001a1141b7e08020590525f20178--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
