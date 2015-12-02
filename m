@@ -1,77 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 94E946B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 18:13:21 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so55173452pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:21 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id l63si7574865pfb.126.2015.12.02.15.13.20
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A99426B0253
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 18:13:22 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so53657339pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:22 -0800 (PST)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id 83si7599117pfl.23.2015.12.02.15.13.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 15:13:20 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so55173220pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:20 -0800 (PST)
+        Wed, 02 Dec 2015 15:13:21 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so55173665pab.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:13:21 -0800 (PST)
 From: Yang Shi <yang.shi@linaro.org>
-Subject: [RFC V2] Add gup trace points support
-Date: Wed,  2 Dec 2015 14:53:26 -0800
-Message-Id: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>
+Subject: [PATCH V2 1/7] trace/events: Add gup trace events
+Date: Wed,  2 Dec 2015 14:53:27 -0800
+Message-Id: <1449096813-22436-2-git-send-email-yang.shi@linaro.org>
+In-Reply-To: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>
+References: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-
-Changelog V1 --> V2:
-Adopted commetns from Steven
-* remove all reference to tsk->comm since it is unnecessary for non-sched
-  trace points
-* reduce arguments for __get_user_pages trace point and update mm/gup.c
-  accordingly
-* Added Ralf's acked-by for patch 4/7.
-
-There is not content change for the trace points in arch specific mm/gup.c.
-
-
-Some background about why I think this might be useful.
-
-When I was profiling some hugetlb related program, I got page-faults event
-doubled when hugetlb is enabled. When I looked into the code, I found page-faults
-come from two places, do_page_fault and gup. So, I tried to figure out which
-play a role (or both) in my use case. But I can't find existing finer tracing
-event for sub page-faults in current mainline kernel.
-
-So, I added the gup trace points support to have finer tracing events for
-page-faults. The below events are added:
+page-faults events record the invoke to handle_mm_fault, but the invoke
+may come from do_page_fault or gup. In some use cases, the finer event count
+mey be needed, so add trace events support for:
 
 __get_user_pages
 __get_user_pages_fast
 fixup_user_fault
 
-Both __get_user_pages and fixup_user_fault call handle_mm_fault.
+Signed-off-by: Yang Shi <yang.shi@linaro.org>
+---
+ include/trace/events/gup.h | 71 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)
+ create mode 100644 include/trace/events/gup.h
 
-Just added trace points to raw version __get_user_pages since all variants
-will call it finally to do real work.
-
-Although __get_user_pages_fast doesn't call handle_mm_fault, it might be useful
-to have it to distinguish between slow and fast version.
-
-Yang Shi (7):
-      trace/events: Add gup trace events
-      mm/gup: add gup trace points
-      x86: mm/gup: add gup trace points
-      mips: mm/gup: add gup trace points
-      s390: mm/gup: add gup trace points
-      sh: mm/gup: add gup trace points
-      sparc64: mm/gup: add gup trace points
-
- arch/mips/mm/gup.c         |  7 +++++++
- arch/s390/mm/gup.c         |  7 +++++++
- arch/sh/mm/gup.c           |  8 ++++++++
- arch/sparc/mm/gup.c        |  8 ++++++++
- arch/x86/mm/gup.c          |  7 +++++++
- include/trace/events/gup.h | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/gup.c                   |  8 ++++++++
- 7 files changed, 116 insertions(+)
+diff --git a/include/trace/events/gup.h b/include/trace/events/gup.h
+new file mode 100644
+index 0000000..03a4674
+--- /dev/null
++++ b/include/trace/events/gup.h
+@@ -0,0 +1,71 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM gup
++
++#if !defined(_TRACE_GUP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_GUP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++
++TRACE_EVENT(gup_fixup_user_fault,
++
++	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long address, unsigned int fault_flags),
++
++	TP_ARGS(tsk, mm, address, fault_flags),
++
++	TP_STRUCT__entry(
++		__field(	unsigned long,	address		)
++	),
++
++	TP_fast_assign(
++		__entry->address	= address;
++	),
++
++	TP_printk("address=%lx",  __entry->address)
++);
++
++TRACE_EVENT(gup_get_user_pages,
++
++	TP_PROTO(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long start, unsigned long nr_pages),
++
++	TP_ARGS(tsk, mm, start, nr_pages),
++
++	TP_STRUCT__entry(
++		__field(	unsigned long,	start		)
++		__field(	unsigned long,	nr_pages	)
++	),
++
++	TP_fast_assign(
++		__entry->start		= start;
++		__entry->nr_pages	= nr_pages;
++	),
++
++	TP_printk("start=%lx nr_pages=%lu", __entry->start, __entry->nr_pages)
++);
++
++TRACE_EVENT(gup_get_user_pages_fast,
++
++	TP_PROTO(unsigned long start, int nr_pages, int write,
++			struct page **pages),
++
++	TP_ARGS(start, nr_pages, write, pages),
++
++	TP_STRUCT__entry(
++		__field(	unsigned long,	start		)
++		__field(	unsigned long,	nr_pages	)
++	),
++
++	TP_fast_assign(
++		__entry->start  	= start;
++		__entry->nr_pages	= nr_pages;
++	),
++
++	TP_printk("start=%lx nr_pages=%lu",  __entry->start, __entry->nr_pages)
++);
++
++#endif /* _TRACE_GUP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+-- 
+2.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
