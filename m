@@ -1,104 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 002116B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 17:43:41 -0500 (EST)
-Received: by oixx65 with SMTP id x65so35463604oix.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 14:43:41 -0800 (PST)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id zf5si5091988obb.63.2015.12.02.14.43.41
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE5D6B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 18:10:32 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so2384946pfd.3
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:10:31 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id n18si7567839pfb.35.2015.12.02.15.10.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 14:43:41 -0800 (PST)
-Received: by oies6 with SMTP id s6so35875379oie.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 14:43:41 -0800 (PST)
+        Wed, 02 Dec 2015 15:10:31 -0800 (PST)
+Received: by pfdd184 with SMTP id d184so2384877pfd.3
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 15:10:31 -0800 (PST)
+Date: Wed, 2 Dec 2015 15:10:28 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, oom: avoid attempting to kill init sharing same memory
+Message-ID: <alpine.DEB.2.10.1512021509460.14638@chino.kir.corp.google.com>
 MIME-Version: 1.0
-References: <20151127082010.GA2500@dhcp22.suse.cz> <20151128145113.GB4135@amd>
- <20151130132129.GB21950@dhcp22.suse.cz> <20151201.153517.224543138214404348.davem@davemloft.net>
-In-Reply-To: <20151201.153517.224543138214404348.davem@davemloft.net>
-From: Chris Snook <chris.snook@gmail.com>
-Date: Wed, 02 Dec 2015 22:43:31 +0000
-Message-ID: <CAMXMK6u1vQ772SGv-J3cKvOmS6QRAjjQLYiSiWO2+T=HRTiK1A@mail.gmail.com>
-Subject: Re: [PATCH] Improve Atheros ethernet driver not to do order 4
- GFP_ATOMIC allocation
-Content-Type: multipart/alternative; boundary=001a1141b7e08020590525f20178
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, mhocko@kernel.org
-Cc: pavel@ucw.cz, akpm@osdl.org, linux-kernel@vger.kernel.org, jcliburn@gmail.com, netdev@vger.kernel.org, rjw@rjwysocki.net, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: Andrew Morton <akpm@linux-foundation.org>, chenjie6@huawei.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David.Woodhouse@intel.com, zhihui.gao@huawei.com, lizefan@huawei.com, Michal Hocko <mhocko@suse.com>
 
---001a1141b7e08020590525f20178
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+From: Chen Jie <chenjie6@huawei.com>
 
-On Tue, Dec 1, 2015 at 12:35 PM David Miller <davem@davemloft.net> wrote:
+It's possible that an oom killed victim shares an ->mm with the init
+process and thus oom_kill_process() would end up trying to kill init as
+well.
 
-> From: Michal Hocko <mhocko@kernel.org>
-> Date: Mon, 30 Nov 2015 14:21:29 +0100
->
-> > On Sat 28-11-15 15:51:13, Pavel Machek wrote:
-> >>
-> >> atl1c driver is doing order-4 allocation with GFP_ATOMIC
-> >> priority. That often breaks  networking after resume. Switch to
-> >> GFP_KERNEL. Still not ideal, but should be significantly better.
-> >
-> > It is not clear why GFP_KERNEL can replace GFP_ATOMIC safely neither
-> > from the changelog nor from the patch context.
->
-> Earlier in the function we do a GFP_KERNEL kmalloc so:
->
-> =C2=AF\_(=E3=83=84)_/=C2=AF
->
-> It should be fine.
->
+This has been shown in practice:
 
-AFAICT, the people who benefit from GFP_ATOMIC are the people running all
-their storage over NFS/iSCSI who are suspending their machines while
-they're so busy they don't have any clean order 4 pagecache to drop, and
-want the machine to panic rather than hang. The people who benefit from
-GFP_KERNEL are the people who use their laptop for a while, put it to
-sleep, and then wake it up again. I think the latter is the use case we
-should be optimizing for.
+	Out of memory: Kill process 9134 (init) score 3 or sacrifice child
+	Killed process 9134 (init) total-vm:1868kB, anon-rss:84kB, file-rss:572kB
+	Kill process 1 (init) sharing same memory
+	...
+	Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000009
 
--- Chris
+And this will result in a kernel panic.
 
---001a1141b7e08020590525f20178
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+If a process is forked by init and selected for oom kill while still
+sharing init_mm, then it's likely this system is in a recoverable state.
+However, it's better not to try to kill init and allow the machine to
+panic due to unkillable processes.
 
-<div dir=3D"ltr"><div class=3D"gmail_quote"><div dir=3D"ltr">On Tue, Dec 1,=
- 2015 at 12:35 PM David Miller &lt;<a href=3D"mailto:davem@davemloft.net">d=
-avem@davemloft.net</a>&gt; wrote:<br></div><blockquote class=3D"gmail_quote=
-" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">F=
-rom: Michal Hocko &lt;<a href=3D"mailto:mhocko@kernel.org" target=3D"_blank=
-">mhocko@kernel.org</a>&gt;<br>
-Date: Mon, 30 Nov 2015 14:21:29 +0100<br>
-<br>
-&gt; On Sat 28-11-15 15:51:13, Pavel Machek wrote:<br>
-&gt;&gt;<br>
-&gt;&gt; atl1c driver is doing order-4 allocation with GFP_ATOMIC<br>
-&gt;&gt; priority. That often breaks=C2=A0 networking after resume. Switch =
-to<br>
-&gt;&gt; GFP_KERNEL. Still not ideal, but should be significantly better.<b=
-r>
-&gt;<br>
-&gt; It is not clear why GFP_KERNEL can replace GFP_ATOMIC safely neither<b=
-r>
-&gt; from the changelog nor from the patch context.<br>
-<br>
-Earlier in the function we do a GFP_KERNEL kmalloc so:<br>
-<br>
-=C2=AF\_(=E3=83=84)_/=C2=AF<br>
-<br>
-It should be fine.<br></blockquote><div><br></div><div>AFAICT, the people w=
-ho benefit from GFP_ATOMIC are the people running all their storage over NF=
-S/iSCSI who are suspending their machines while they&#39;re so busy they do=
-n&#39;t have any clean order 4 pagecache to drop, and want the machine to p=
-anic rather than hang. The people who benefit from GFP_KERNEL are the peopl=
-e who use their laptop for a while, put it to sleep, and then wake it up ag=
-ain. I think the latter is the use case we should be optimizing for.<br><br=
-></div><div>-- Chris<br></div></div></div>
+[rientjes@google.com: rewrote changelog]
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Chen Jie <chenjie6@huawei.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ I removed stable from this patch since the alternative would most likely
+ be to panic the system for no killable processes anyway.  There's a very
+ small likelihood this patch would allow for a recoverable system.
 
---001a1141b7e08020590525f20178--
+ mm/oom_kill.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -608,6 +608,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			continue;
+ 		if (unlikely(p->flags & PF_KTHREAD))
+ 			continue;
++		if (!is_global_init(p))
++			continue;
+ 		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
