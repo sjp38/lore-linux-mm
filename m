@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3826B0255
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 23:11:50 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so59516759pad.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:11:50 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id g73si9139519pfd.168.2015.12.02.20.11.49
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 740B46B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 23:13:18 -0500 (EST)
+Received: by igcph11 with SMTP id ph11so3324285igc.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:13:18 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id cj4si10351360igb.40.2015.12.02.20.13.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 20:11:49 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so59516607pad.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:11:49 -0800 (PST)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH] mm/compaction: restore COMPACT_CLUSTER_MAX to 32
-Date: Thu,  3 Dec 2015 13:11:40 +0900
-Message-Id: <1449115900-20112-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 02 Dec 2015 20:13:17 -0800 (PST)
+Date: Thu, 3 Dec 2015 13:14:11 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm/vmstat: retrieve more accurate vmstat value
+Message-ID: <20151203041410.GA1495@js1304-P5Q-DELUXE>
+References: <1448346123-2699-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.20.1511240934130.20512@east.gentwo.org>
+ <20151125025735.GC9563@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.20.1511251002380.31590@east.gentwo.org>
+ <20151126015252.GA13138@js1304-P5Q-DELUXE>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151126015252.GA13138@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Until now, COMPACT_CLUSTER_MAX is defined as SWAP_CLUSTER_MAX.
-Commit ("mm: increase SWAP_CLUSTER_MAX to batch TLB flushes")
-changes SWAP_CLUSTER_MAX from 32 to 256 to improve tlb flush performance
-so COMPACT_CLUSTER_MAX is also changed to 256. But, it has
-no justification on compaction-side and I think that loss is more than
-benefit.
+On Thu, Nov 26, 2015 at 10:52:52AM +0900, Joonsoo Kim wrote:
+> On Wed, Nov 25, 2015 at 10:04:44AM -0600, Christoph Lameter wrote:
+> > > Although vmstat values aren't designed for accuracy, these are already
+> > > used by some sensitive places so it is better to be more accurate.
+> > 
+> > The design is to sacrifice accuracy and the time the updates occur for
+> > performance reasons. This is not the purpose the counters were designed
+> > for. If you put these demands on the vmstat then you will get complex
+> > convoluted code and compromise performance.
+> 
+> I understand design decision, but, it is better to get value as much
+> as accurate if there is no performance problem. My patch would not
+> cause much performance degradation because it is just adding one
+> this_cpu_read().
+> 
+> Consider about following example. Current implementation returns
+> interesting output if someone do following things.
+> 
+> v1 = zone_page_state(XXX);
+> mod_zone_page_state(XXX, 1);
+> v2 = zone_page_state(XXX);
+> 
+> v2 would be same with v1 in most of cases even if we already update
+> it.
+> 
+> This situation could occurs in page allocation path and others. If
+> some task try to allocate many pages, then watermark check returns
+> same values until updating vmstat even if some freepage are allocated.
+> There are some adjustments for this imprecision but why not do it become
+> accurate? I think that this change is reasonable trade-off.
+> 
+Christoph, any comment?
 
-One example is that migration scanner would isolates and migrates
-too many pages unnecessarily with 256 COMPACT_CLUSTER_MAX. It may be
-enough to migrate 4 pages in order to make order-2 page, but, now,
-compaction will migrate 256 pages.
-
-To reduce this unneeded overhead, this patch restores
-COMPACT_CLUSTER_MAX to 32.
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- include/linux/swap.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d08feef..31eb343 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -155,7 +155,7 @@ enum {
- };
- 
- #define SWAP_CLUSTER_MAX 256UL
--#define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
-+#define COMPACT_CLUSTER_MAX 32UL
- 
- /*
-  * Ratio between zone->managed_pages and the "gap" that above the per-zone
--- 
-1.9.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
