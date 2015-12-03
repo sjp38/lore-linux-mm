@@ -1,71 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BDCCA6B0255
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 12:32:53 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so11601276pfn.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 09:32:53 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id ny6si13102421pab.215.2015.12.03.09.32.52
-        for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 09:32:53 -0800 (PST)
-Date: Thu, 03 Dec 2015 12:32:49 -0500 (EST)
-Message-Id: <20151203.123249.2158644928982094593.davem@davemloft.net>
-Subject: Re: [PATCH net] atl1c: Improve driver not to do order 4 GFP_ATOMIC
- allocation
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1449163048.25029.2.camel@edumazet-glaptop2.roam.corp.google.com>
-References: <20151128145113.GB4135@amd>
-	<20151203155905.GA31974@amd>
-	<1449163048.25029.2.camel@edumazet-glaptop2.roam.corp.google.com>
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C39E6B0253
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 12:59:20 -0500 (EST)
+Received: by oixx65 with SMTP id x65so54361267oix.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 09:59:20 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id q8si8900687obe.17.2015.12.03.09.59.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Dec 2015 09:59:19 -0800 (PST)
+Message-ID: <1449168859.9855.54.camel@hpe.com>
+Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Thu, 03 Dec 2015 11:54:19 -0700
+In-Reply-To: <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
+References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
+	 <1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
+	 <20151201135000.GB4341@pd.tnic>
+	 <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
+	 <20151201171322.GD4341@pd.tnic>
+	 <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: eric.dumazet@gmail.com
-Cc: pavel@ucw.cz, mhocko@kernel.org, akpm@osdl.org, linux-kernel@vger.kernel.org, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, rjw@rjwysocki.net, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 03 Dec 2015 09:17:28 -0800
-
-> On Thu, 2015-12-03 at 16:59 +0100, Pavel Machek wrote:
->> atl1c driver is doing order-4 allocation with GFP_ATOMIC
->> priority. That often breaks  networking after resume. Switch to
->> GFP_KERNEL. Still not ideal, but should be significantly better.
->> 
->> atl1c_setup_ring_resources() is called from .open() function, and
->> already uses GFP_KERNEL, so this change is safe.
->>     
->> Signed-off-by: Pavel Machek <pavel@ucw.cz>
->> 
->> diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
->> index 2795d6d..afb71e0 100644
->> --- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
->> +++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
->> @@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
->>  		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
->>  		8 * 4;
->>  
->> -	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
->> -				&ring_header->dma);
->> +	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
->> +					       &ring_header->dma, GFP_KERNEL);
->>  	if (unlikely(!ring_header->desc)) {
->> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
->> +		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
->>  		goto err_nomem;
->>  	}
->>  	memset(ring_header->desc, 0, ring_header->size);
->> 
->> 
+On Tue, 2015-12-01 at 09:19 -0800, Linus Torvalds wrote:
+> On Tue, Dec 1, 2015 at 9:13 AM, Borislav Petkov <bp@alien8.de> wrote:
+> > 
+> > Oh sure, I didn't mean you. I was simply questioning that whole
+> > identify-resource-by-its-name approach. And that came with:
+> > 
+> > 67cf13ceed89 ("x86: optimize resource lookups for ioremap")
+> > 
+> > I just think it is silly and that we should be identifying resource
+> > things in a more robust way.
 > 
-> So this memset() will really require a different patch to get removed ?
+> I could easily imagine just adding a IORESOURCE_RAM flag (or SYSMEM or
+> whatever). That sounds sane. I agree that comparing the string is
+> ugly.
 > 
-> Sigh, not sure why I review patches.
+> > Btw, the ->name thing in struct resource has been there since a *long*
+> > time
+> 
+> It's pretty much always been there.  It is indeed meant for things
+> like /proc/iomem etc, and as a debug aid when printing conflicts,
+> yadda yadda. Just showing the numbers is usually useless for figuring
+> out exactly *what* something conflicts with.
 
-Agreed, please use dma_zalloc_coherent() and kill that memset().
+I agree that regular memory should have its own type, which separates
+itself from MMIO.  By looking at how IORESOURCE types are used, this change
+has the following challenges, and I am sure I missed some more.
 
-Thanks.
+1. Large number of IORESOURCE_MEM usage
+Adding a new type for regular memory will require inspecting the codes
+using IORESOURCE_MEM currently, and modify them to use the new type if
+their target ranges are regular memory.  There are many references to this
+type across multiple architectures and drivers, which make this inspection
+and testing challenging.
+
+http://lxr.free-electrons.com/ident?i=IORESOURCE_MEM
+
+2. Lack of free flags bit in resource
+The flags bits are defined in include/linux/ioport.h.  The flags are
+defined as unsigned long, which is 32-bit in 32-bit config.  The most of
+the bits have been assigned already.  Bus-specific bits for IORESOURCE_MEM
+have been assigned mostly as well (line 82).
+
+3. Interaction with pnp subsystem
+The same IORESOURCE types and bus-specific flags are used by the pnp
+subsystem.  pnp_mem objects represent IORESOURCE_MEM type listed by
+pnp_dev.  Adding a new IORESOURCE type likely requires adding a new object
+type and its interfaces to pnp.
+
+4. I/O resource names represent allocation types
+While IORESOURCE types represent hardware types and capabilities, the
+string names represent resource allocation types and usages.  For instance,
+regular memory is allocated for the OS as "System RAM", kdump as "Crash
+kernel", FW as "ACPI Tables", and so on.  Hence, a new type representing
+"System RAM" needs to be usage based, which is different from the current
+IORESOURCE types.
+
+I think this work will require a separate patch series at least.  For this
+patch series, supporting error injections to NVDIMM, I propose that we make
+the change suggested by Dan:
+
+"We could define 'const char *system_ram = "System RAM"' somewhere andthen
+do pointer comparisons to cut down on the thrash of adding newflags to
+'struct resource'?"
+
+Let me know if you have any suggestions/concerns. 
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
