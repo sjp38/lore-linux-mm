@@ -1,101 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C39E6B0253
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 12:59:20 -0500 (EST)
-Received: by oixx65 with SMTP id x65so54361267oix.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 09:59:20 -0800 (PST)
-Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
-        by mx.google.com with ESMTPS id q8si8900687obe.17.2015.12.03.09.59.19
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5736B0253
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 13:19:12 -0500 (EST)
+Received: by ioc74 with SMTP id 74so89923833ioc.2
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 10:19:12 -0800 (PST)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id vs1si123175igb.22.2015.12.03.10.19.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 09:59:19 -0800 (PST)
-Message-ID: <1449168859.9855.54.camel@hpe.com>
-Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Thu, 03 Dec 2015 11:54:19 -0700
-In-Reply-To: <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
-References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
-	 <1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
-	 <20151201135000.GB4341@pd.tnic>
-	 <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
-	 <20151201171322.GD4341@pd.tnic>
-	 <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 03 Dec 2015 10:19:12 -0800 (PST)
+Received: by igl9 with SMTP id 9so16758493igl.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 10:19:12 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
+References: <20151203000342.GA30015@www.outflux.net>
+	<20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
+Date: Thu, 3 Dec 2015 10:19:11 -0800
+Message-ID: <CAGXu5jJ+r6rUK=GbZDNOLLduF4wbJUrC7ytBZ6bSA+1cZF+5Ow@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2015-12-01 at 09:19 -0800, Linus Torvalds wrote:
-> On Tue, Dec 1, 2015 at 9:13 AM, Borislav Petkov <bp@alien8.de> wrote:
-> > 
-> > Oh sure, I didn't mean you. I was simply questioning that whole
-> > identify-resource-by-its-name approach. And that came with:
-> > 
-> > 67cf13ceed89 ("x86: optimize resource lookups for ioremap")
-> > 
-> > I just think it is silly and that we should be identifying resource
-> > things in a more robust way.
-> 
-> I could easily imagine just adding a IORESOURCE_RAM flag (or SYSMEM or
-> whatever). That sounds sane. I agree that comparing the string is
-> ugly.
-> 
-> > Btw, the ->name thing in struct resource has been there since a *long*
-> > time
-> 
-> It's pretty much always been there.  It is indeed meant for things
-> like /proc/iomem etc, and as a debug aid when printing conflicts,
-> yadda yadda. Just showing the numbers is usually useless for figuring
-> out exactly *what* something conflicts with.
+On Wed, Dec 2, 2015 at 4:18 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 2 Dec 2015 16:03:42 -0800 Kees Cook <keescook@chromium.org> wrote:
+>
+>> Normally, when a user can modify a file that has setuid or setgid bits,
+>> those bits are cleared when they are not the file owner or a member
+>> of the group. This is enforced when using write and truncate but not
+>> when writing to a shared mmap on the file. This could allow the file
+>> writer to gain privileges by changing a binary without losing the
+>> setuid/setgid/caps bits.
+>>
+>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>> during the page fault (due to mmap_sem being held during the fault).
+>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+>>
+>> ...
+>>
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -1340,6 +1340,17 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>>                       if (locks_verify_locked(file))
+>>                               return -EAGAIN;
+>>
+>> +                     /*
+>> +                      * If we must remove privs, we do it here since
+>> +                      * doing it during page COW is expensive and
+>> +                      * cannot hold inode->i_mutex.
+>> +                      */
+>> +                     if (prot & PROT_WRITE && !IS_NOSEC(inode)) {
+>> +                             mutex_lock(&inode->i_mutex);
+>> +                             file_remove_privs(file);
+>> +                             mutex_unlock(&inode->i_mutex);
+>> +                     }
+>> +
+>
+> Still ignoring the file_remove_privs() return value.  If this is
+> deliberate then a description of the reasons should be included?
 
-I agree that regular memory should have its own type, which separates
-itself from MMIO.  By looking at how IORESOURCE types are used, this change
-has the following challenges, and I am sure I missed some more.
+Actually, there is a bigger problem:
+https://lists.01.org/pipermail/lkp/2015-December/003185.html
 
-1. Large number of IORESOURCE_MEM usage
-Adding a new type for regular memory will require inspecting the codes
-using IORESOURCE_MEM currently, and modify them to use the new type if
-their target ranges are regular memory.  There are many references to this
-type across multiple architectures and drivers, which make this inspection
-and testing challenging.
+[   37.741286] trinity-c0/742 is trying to acquire lock:
+[   37.741982]  (&sb->s_type->i_mutex_key#8){+.+.+.}, at: [<811c3b34>]
+do_mmap+0x544/0x670
+[   37.752562]
+[   37.752562] but task is already holding lock:
+[   37.753442]  (&mm->mmap_sem){++++++}, at: [<811c3d70>]
+SyS_remap_file_pages+0xe0/0x350
 
-http://lxr.free-electrons.com/ident?i=IORESOURCE_MEM
+Jan, any thoughts on avoiding this?
 
-2. Lack of free flags bit in resource
-The flags bits are defined in include/linux/ioport.h.  The flags are
-defined as unsigned long, which is 32-bit in 32-bit config.  The most of
-the bits have been assigned already.  Bus-specific bits for IORESOURCE_MEM
-have been assigned mostly as well (line 82).
+-Kees
 
-3. Interaction with pnp subsystem
-The same IORESOURCE types and bus-specific flags are used by the pnp
-subsystem.  pnp_mem objects represent IORESOURCE_MEM type listed by
-pnp_dev.  Adding a new IORESOURCE type likely requires adding a new object
-type and its interfaces to pnp.
-
-4. I/O resource names represent allocation types
-While IORESOURCE types represent hardware types and capabilities, the
-string names represent resource allocation types and usages.  For instance,
-regular memory is allocated for the OS as "System RAM", kdump as "Crash
-kernel", FW as "ACPI Tables", and so on.  Hence, a new type representing
-"System RAM" needs to be usage based, which is different from the current
-IORESOURCE types.
-
-I think this work will require a separate patch series at least.  For this
-patch series, supporting error injections to NVDIMM, I propose that we make
-the change suggested by Dan:
-
-"We could define 'const char *system_ram = "System RAM"' somewhere andthen
-do pointer comparisons to cut down on the thrash of adding newflags to
-'struct resource'?"
-
-Let me know if you have any suggestions/concerns. 
-
-Thanks,
--Toshi
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
