@@ -1,51 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B499D6B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 19:01:20 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so54508999pad.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:01:20 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id f22si7822190pfd.61.2015.12.02.16.01.20
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EA85B6B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 19:05:11 -0500 (EST)
+Received: by qkfo3 with SMTP id o3so23710443qkf.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:05:11 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x202si4371980qka.101.2015.12.02.16.05.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 16:01:20 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so54508759pad.1
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:01:19 -0800 (PST)
-Date: Wed, 2 Dec 2015 16:01:18 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm, oom: Give __GFP_NOFAIL allocations access to
- memory reserves
-In-Reply-To: <1449069190-7325-1-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1512021601040.22865@chino.kir.corp.google.com>
-References: <1448448054-804-2-git-send-email-mhocko@kernel.org> <1449069190-7325-1-git-send-email-mhocko@kernel.org>
+        Wed, 02 Dec 2015 16:05:11 -0800 (PST)
+Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
+References: <20151202202725.GA794@www.outflux.net>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <565F8732.5050402@redhat.com>
+Date: Wed, 2 Dec 2015 16:05:06 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20151202202725.GA794@www.outflux.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Laura Abbott <labbott@fedoraproject.org>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Arnd Bergmann <arnd@arndb.de>, kernel-hardening@lists.openwall.com
 
-On Wed, 2 Dec 2015, Michal Hocko wrote:
+On 12/02/2015 12:27 PM, Kees Cook wrote:
+> The use of CONFIG_DEBUG_RODATA is generally seen as an essential part of
+> kernel self-protection:
+> http://www.openwall.com/lists/kernel-hardening/2015/11/30/13
+> Additionally, its name has grown to mean things beyond just rodata. To
+> get ARM closer to this, we ought to rearrange the names of the configs
+> that control how the kernel protects its memory. What was called
+> CONFIG_ARM_KERNMEM_PERMS is really doing the work that other architectures
+> call CONFIG_DEBUG_RODATA.
+>
+> This redefines CONFIG_DEBUG_RODATA to actually do the bulk of the
+> ROing (and NXing). In the place of the old CONFIG_DEBUG_RODATA, use
+> CONFIG_DEBUG_ALIGN_RODATA, since that's what the option does: adds
+> section alignment for making rodata explicitly NX, as arm does not split
+> the page tables like arm64 does without _ALIGN_RODATA.
+>
+> Also adds human readable names to the sections so I could more easily
+> debug my typos, and makes CONFIG_DEBUG_RODATA default "y" for CPU_V7.
+>
+> Results in /sys/kernel/debug/kernel_page_tables for each config state:
+>
+>   # CONFIG_DEBUG_RODATA is not set
+>   # CONFIG_DEBUG_ALIGN_RODATA is not set
+>
+> ---[ Kernel Mapping ]---
+> 0x80000000-0x80900000           9M     RW x  SHD
+> 0x80900000-0xa0000000         503M     RW NX SHD
+>
+>   CONFIG_DEBUG_RODATA=y
+>   CONFIG_DEBUG_ALIGN_RODATA=y
+>
+> ---[ Kernel Mapping ]---
+> 0x80000000-0x80100000           1M     RW NX SHD
+> 0x80100000-0x80700000           6M     ro x  SHD
+> 0x80700000-0x80a00000           3M     ro NX SHD
+> 0x80a00000-0xa0000000         502M     RW NX SHD
+>
+>   CONFIG_DEBUG_RODATA=y
+>   # CONFIG_DEBUG_ALIGN_RODATA is not set
+>
+> ---[ Kernel Mapping ]---
+> 0x80000000-0x80100000           1M     RW NX SHD
+> 0x80100000-0x80a00000           9M     ro x  SHD
+> 0x80a00000-0xa0000000         502M     RW NX SHD
+>
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ---
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> __GFP_NOFAIL is a big hammer used to ensure that the allocation
-> request can never fail. This is a strong requirement and as such
-> it also deserves a special treatment when the system is OOM. The
-> primary problem here is that the allocation request might have
-> come with some locks held and the oom victim might be blocked
-> on the same locks. This is basically an OOM deadlock situation.
-> 
-> This patch tries to reduce the risk of such a deadlocks by giving
-> __GFP_NOFAIL allocations a special treatment and let them dive into
-> memory reserves after oom killer invocation. This should help them
-> to make a progress and release resources they are holding. The OOM
-> victim should compensate for the reserves consumption.
-> 
-> Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
+Reviewed-by: Laura Abbott <labbott@fedoraproject.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
