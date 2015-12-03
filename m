@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 34ED46B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 06:28:03 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so22267485wmv.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 03:28:02 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id hh4si10714515wjc.172.2015.12.03.03.28.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 03:28:02 -0800 (PST)
-Received: by wmec201 with SMTP id c201so17844577wme.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 03:28:01 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E794C6B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 06:35:12 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so69860566pab.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 03:35:12 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id a73si11633986pfj.40.2015.12.03.03.35.10
+        for <linux-mm@kvack.org>;
+        Thu, 03 Dec 2015 03:35:10 -0800 (PST)
+Date: Thu, 3 Dec 2015 19:35:08 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [RFC 0/3] reduce latency of direct async compaction
+Message-ID: <20151203113508.GA23780@aaronlu.sh.intel.com>
+References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
+ <20151203092525.GA20945@aaronlu.sh.intel.com>
+ <56600DAA.4050208@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
-References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
- <1448886507-3216-2-git-send-email-ard.biesheuvel@linaro.org> <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Date: Thu, 3 Dec 2015 17:27:42 +0600
-Message-ID: <CANCZXo7rdYooBq3NV5xo8u+EpbbPjGDq3oTv=Yy0U9SDAReB9g@mail.gmail.com>
-Subject: Re: [PATCH v4 01/13] mm/memblock: add MEMBLOCK_NOMAP attribute to
- memblock memory table
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56600DAA.4050208@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Leif Lindholm <leif.lindholm@linaro.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-Hello Ard,
+On Thu, Dec 03, 2015 at 10:38:50AM +0100, Vlastimil Babka wrote:
+> On 12/03/2015 10:25 AM, Aaron Lu wrote:
+> > On Thu, Dec 03, 2015 at 09:10:44AM +0100, Vlastimil Babka wrote:
+> >> Aaron, could you try this on your testcase?
+> > 
+> > The test result is placed at:
+> > https://drive.google.com/file/d/0B49uX3igf4K4enBkdVFScXhFM0U
+> > 
+> > For some reason, the patches made the performace worse. The base tree is
+> > today's Linus git 25364a9e54fb8296837061bf684b76d20eec01fb, and its
+> > performace is about 1000MB/s. After applying this patch series, the
+> > performace drops to 720MB/s.
+> > 
+> > Please let me know if you need more information, thanks.
+> 
+> Hm, compaction stats are at 0. The code in the patches isn't even running.
+> Can you provide the same data also for the base tree?
 
-On Thu, Dec 3, 2015 at 4:55 PM, Ard Biesheuvel
-<ard.biesheuvel@linaro.org> wrote:
-> On 30 November 2015 at 13:28, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
->> This introduces the MEMBLOCK_NOMAP attribute and the required plumbing
->> to make it usable as an indicator that some parts of normal memory
->> should not be covered by the kernel direct mapping. It is up to the
->> arch to actually honor the attribute when laying out this mapping,
->> but the memblock code itself is modified to disregard these regions
->> for allocations and other general use.
->>....
-> May I kindly ask team-mm/Andrew/Alexander to chime in here, and
-> indicate whether you are ok with this patch going in for 4.5? If so,
-> could you please provide your ack so the patch can be kept together
-> with the rest of the series, which depends on it?
->
-> I should note that this change should not affect any memblock users
-> that never set the MEMBLOCK_NOMAP flag, but please, if you see any
-> issues beyond 'this may conflict with other stuff we have queued for
-> 4.5', please do let me know.
+My bad, I uploaded the wrong data :-/
+I uploaded again:
+https://drive.google.com/file/d/0B49uX3igf4K4UFI4TEQ3THYta0E
 
-Just tested the kernel with this patch with qemu and real hardware and it
-works, nothing does not brake for me.
+And I just run the base tree with trace-cmd and found that its
+performace drops significantly(from 1000MB/s to 6xxMB/s), is it that
+trace-cmd will impact performace a lot? Any suggestions on how to run
+the test regarding trace-cmd? i.e. should I aways run usemem under
+trace-cmd or only when necessary?
+
+Thanks,
+Aaron
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
