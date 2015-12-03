@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 196706B0259
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:14:01 -0500 (EST)
-Received: by wmec201 with SMTP id c201so34702405wme.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:14:00 -0800 (PST)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id o67si3754907wmb.70.2015.12.03.08.13.59
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B9E6B025B
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:27:21 -0500 (EST)
+Received: by wmww144 with SMTP id w144so28393298wmw.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:27:21 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id x11si6061043wju.95.2015.12.03.08.27.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 08:14:00 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so34963653wmv.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:13:59 -0800 (PST)
-Date: Thu, 3 Dec 2015 17:13:58 +0100
+        Thu, 03 Dec 2015 08:27:20 -0800 (PST)
+Received: by wmww144 with SMTP id w144so28392724wmw.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:27:20 -0800 (PST)
+Date: Thu, 3 Dec 2015 17:27:18 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH net] atl1c: Improve driver not to do order 4 GFP_ATOMIC
- allocation
-Message-ID: <20151203161357.GJ9264@dhcp22.suse.cz>
-References: <20151126163413.GA3816@amd>
- <20151127082010.GA2500@dhcp22.suse.cz>
- <20151128145113.GB4135@amd>
- <20151203155905.GA31974@amd>
+Subject: Re: [PATCH] mm/memcontrol.c: use list_{first,next}_entry
+Message-ID: <20151203162718.GK9264@dhcp22.suse.cz>
+References: <9e62e3006561653fcbf0c49cf0b9c2b653a8ed0e.1449152124.git.geliangtang@163.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151203155905.GA31974@amd>
+In-Reply-To: <9e62e3006561653fcbf0c49cf0b9c2b653a8ed0e.1449152124.git.geliangtang@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: davem@davemloft.net, Andrew Morton <akpm@osdl.org>, kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: Geliang Tang <geliangtang@163.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 03-12-15 16:59:05, Pavel Machek wrote:
+On Thu 03-12-15 22:16:55, Geliang Tang wrote:
+> To make the intention clearer, use list_{first,next}_entry instead
+> of list_entry.
+
+Does this really help readability? This function simply uncharges the
+given list of pages. Why cannot we simply use list_for_each_entry
+instead...
+
+> Signed-off-by: Geliang Tang <geliangtang@163.com>
+> ---
+>  mm/memcontrol.c | 9 +++------
+>  1 file changed, 3 insertions(+), 6 deletions(-)
 > 
-> atl1c driver is doing order-4 allocation with GFP_ATOMIC
-> priority. That often breaks  networking after resume. Switch to
-> GFP_KERNEL. Still not ideal, but should be significantly better.
-> 
-> atl1c_setup_ring_resources() is called from .open() function, and
-> already uses GFP_KERNEL, so this change is safe.
-
-Thanks for updating the changelog
-
-> Signed-off-by: Pavel Machek <pavel@ucw.cz>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> 
-> diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> index 2795d6d..afb71e0 100644
-> --- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> +++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> @@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
->  		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
->  		8 * 4;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 79a29d5..a6301ea 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5395,16 +5395,12 @@ static void uncharge_list(struct list_head *page_list)
+>  	unsigned long nr_file = 0;
+>  	unsigned long nr_huge = 0;
+>  	unsigned long pgpgout = 0;
+> -	struct list_head *next;
+>  	struct page *page;
 >  
-> -	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
-> -				&ring_header->dma);
-> +	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
-> +					       &ring_header->dma, GFP_KERNEL);
->  	if (unlikely(!ring_header->desc)) {
-> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
-> +		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
->  		goto err_nomem;
->  	}
->  	memset(ring_header->desc, 0, ring_header->size);
-> 
-> 
+> -	next = page_list->next;
+> +	page = list_first_entry(page_list, struct page, lru);
+>  	do {
+>  		unsigned int nr_pages = 1;
+>  
+> -		page = list_entry(next, struct page, lru);
+> -		next = page->lru.next;
+> -
+>  		VM_BUG_ON_PAGE(PageLRU(page), page);
+>  		VM_BUG_ON_PAGE(page_count(page), page);
+>  
+> @@ -5440,7 +5436,8 @@ static void uncharge_list(struct list_head *page_list)
+>  		page->mem_cgroup = NULL;
+>  
+>  		pgpgout++;
+> -	} while (next != page_list);
+> +	} while (!list_is_last(&page->lru, page_list) &&
+> +		 (page = list_next_entry(page, lru)));
+>  
+>  	if (memcg)
+>  		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
 > -- 
-> (english) http://www.livejournal.com/~pavelmachek
-> (cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+> 2.5.0
+> 
 
 -- 
 Michal Hocko
