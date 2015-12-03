@@ -1,80 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 521C76B0253
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 17:10:13 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so75562072pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 14:10:13 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id u84si14461713pfi.160.2015.12.03.14.10.12
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 99B396B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 18:43:47 -0500 (EST)
+Received: by ykdv3 with SMTP id v3so105696746ykd.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 15:43:47 -0800 (PST)
+Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
+        by mx.google.com with ESMTPS id x132si6262076ywb.275.2015.12.03.15.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 14:10:12 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so77848396pab.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 14:10:12 -0800 (PST)
-Message-ID: <5660BDC2.5060400@linaro.org>
-Date: Thu, 03 Dec 2015 14:10:10 -0800
-From: "Shi, Yang" <yang.shi@linaro.org>
+        Thu, 03 Dec 2015 15:43:46 -0800 (PST)
+Received: by ykdv3 with SMTP id v3so105696470ykd.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 15:43:46 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 2/7] mm/gup: add gup trace points
-References: <1449096813-22436-1-git-send-email-yang.shi@linaro.org>	<1449096813-22436-3-git-send-email-yang.shi@linaro.org>	<565F8092.7000001@intel.com>	<20151202231348.7058d6e2@grimm.local.home>	<56608BA2.2050300@linaro.org> <20151203140614.75f49aad@gandalf.local.home>
-In-Reply-To: <20151203140614.75f49aad@gandalf.local.home>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1449093339.9855.1.camel@hpe.com>
+References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+	<CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
+	<1449022764.31589.24.camel@hpe.com>
+	<CAPcyv4hzjMkwx3AA+f5Y9zfp-egjO-b5+_EU7cGO5BGMQaiN_g@mail.gmail.com>
+	<1449078237.31589.30.camel@hpe.com>
+	<CAPcyv4ikJ73nzQTCOfnBRThkv=rZGPM76S7=6O3LSB4kQBeEpw@mail.gmail.com>
+	<CAPcyv4j1vA6eAtjsE=kGKeF1EqWWfR+NC7nUcRpfH_8MRqpM8Q@mail.gmail.com>
+	<1449084362.31589.37.camel@hpe.com>
+	<CAPcyv4jt7JmWCgcsd=p32M322sCyaar4Pj-k+F446XGZvzrO8A@mail.gmail.com>
+	<1449086521.31589.39.camel@hpe.com>
+	<1449087125.31589.45.camel@hpe.com>
+	<CAPcyv4hvX_s3xN9UZ69v7npOhWVFehfGDPZG1MsDmKWBk4Gq1A@mail.gmail.com>
+	<1449092226.31589.50.camel@hpe.com>
+	<CAPcyv4jtVkptiFhiFP=2KXvDXs=Tw17pF=249sLj2fw-0vgsEg@mail.gmail.com>
+	<1449093339.9855.1.camel@hpe.com>
+Date: Thu, 3 Dec 2015 15:43:46 -0800
+Message-ID: <CAPcyv4jkGU4FdDKpdsHxgQiHBT+9WdcX1Lp_hTNNWBMZhtXoag@mail.gmail.com>
+Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 12/3/2015 11:06 AM, Steven Rostedt wrote:
-> On Thu, 03 Dec 2015 10:36:18 -0800
-> "Shi, Yang" <yang.shi@linaro.org> wrote:
->
->>> called directly that calls these functions internally and the tracepoint
->>> can trap the return value.
+On Wed, Dec 2, 2015 at 1:55 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> On Wed, 2015-12-02 at 12:54 -0800, Dan Williams wrote:
+>> On Wed, Dec 2, 2015 at 1:37 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+>> > On Wed, 2015-12-02 at 11:57 -0800, Dan Williams wrote:
+>> [..]
+>> > > The whole point of __get_user_page_fast() is to avoid the overhead of
+>> > > taking the mm semaphore to access the vma.  _PAGE_SPECIAL simply tells
+>> > > __get_user_pages_fast that it needs to fallback to the
+>> > > __get_user_pages slow path.
+>> >
+>> > I see.  Then, I think gup_huge_pmd() can simply return 0 when !pfn_valid(),
+>> > instead of VM_BUG_ON.
 >>
->> This will incur more changes in other subsystems (futex, kvm, etc), I'm
->> not sure if it is worth making such changes to get return value.
+>> Is pfn_valid() a reliable check?  It seems to be based on a max_pfn
+>> per node... what happens when pmem is located below that point.  I
+>> haven't been able to convince myself that we won't get false
+>> positives, but maybe I'm missing something.
 >
-> No, it wouldn't require any changes outside of this.
->
-> -long __get_user_pages(..)
-> +static long __get_user_pages_internal(..)
-> {
->    [..]
-> }
-> +
-> +long __get_user_pages(..)
-> +{
-> +	long ret;
-> +	ret = __get_user_pages_internal(..);
-> +	trace_get_user_pages(.., ret)
-> +}
+> I believe we use the version of pfn_valid() in linux/mmzone.h.
 
-Thanks for this. I just checked the fast version, it looks it just has 
-single return path, so this should be just needed by slow version.
-
->
->>
->>> I can probably make function_graph tracer give return values, although
->>> it will give a return value for void functions as well. And it may give
->>> long long returns for int returns that may have bogus data in the
->>> higher bits.
->>
->> If the return value requirement is not limited to gup, the approach
->> sounds more reasonable.
->>
->
-> Others have asked about it. Maybe I should do it.
-
-If you are going to add return value in common trace code, I won't do 
-the gup specific one in V3.
-
-Thanks,
-Yang
-
->
-> -- Steve
->
+Talking this over with Dave we came to the conclusion that it would be
+safer to be explicit about the pmd not being mapped.  He points out
+that unless a platform can guarantee that persistent memory is always
+section aligned we might get false positive pfn_valid() indications.
+Given the get_user_pages_fast() path is arch specific we can simply
+have an arch specific pmd bit and not worry about generically enabling
+a "pmd special" bit for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
