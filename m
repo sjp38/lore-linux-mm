@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 100A86B0255
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:07:10 -0500 (EST)
-Received: by igcto18 with SMTP id to18so15255769igc.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:07:09 -0800 (PST)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id b70si5831483iod.170.2015.12.03.08.07.09
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 38C186B0257
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:12:41 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so71366976pac.2
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:12:41 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id d1si12781228pas.96.2015.12.03.08.12.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 08:07:09 -0800 (PST)
-Received: by igcmv3 with SMTP id mv3so16115451igc.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:07:09 -0800 (PST)
+        Thu, 03 Dec 2015 08:12:40 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so73336228pab.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:12:40 -0800 (PST)
+Subject: Re: [PATCH v5 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+References: <1449000658-11475-1-git-send-email-dcashman@android.com>
+ <1449000658-11475-2-git-send-email-dcashman@android.com>
+ <1449000658-11475-3-git-send-email-dcashman@android.com>
+ <1449000658-11475-4-git-send-email-dcashman@android.com>
+ <20151203121712.GE11337@arm.com>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <566069F0.3060409@android.com>
+Date: Thu, 3 Dec 2015 08:12:32 -0800
 MIME-Version: 1.0
-In-Reply-To: <20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
-References: <20151203000342.GA30015@www.outflux.net>
-	<20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
-Date: Thu, 3 Dec 2015 08:07:08 -0800
-Message-ID: <CAGXu5jJCzjiFJG+q76GeYnb5vz3nxZ8EFUAGm=GPOfYmT=OqUA@mail.gmail.com>
-Subject: Re: [PATCH v2] fs: clear file privilege bits when mmap writing
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20151203121712.GE11337@arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de
 
-On Wed, Dec 2, 2015 at 4:18 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 2 Dec 2015 16:03:42 -0800 Kees Cook <keescook@chromium.org> wrote:
->
->> Normally, when a user can modify a file that has setuid or setgid bits,
->> those bits are cleared when they are not the file owner or a member
->> of the group. This is enforced when using write and truncate but not
->> when writing to a shared mmap on the file. This could allow the file
->> writer to gain privileges by changing a binary without losing the
->> setuid/setgid/caps bits.
->>
->> Changing the bits requires holding inode->i_mutex, so it cannot be done
->> during the page fault (due to mmap_sem being held during the fault).
->> Instead, clear the bits if PROT_WRITE is being used at mmap time.
->>
->> ...
->>
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -1340,6 +1340,17 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
->>                       if (locks_verify_locked(file))
->>                               return -EAGAIN;
->>
->> +                     /*
->> +                      * If we must remove privs, we do it here since
->> +                      * doing it during page COW is expensive and
->> +                      * cannot hold inode->i_mutex.
->> +                      */
->> +                     if (prot & PROT_WRITE && !IS_NOSEC(inode)) {
->> +                             mutex_lock(&inode->i_mutex);
->> +                             file_remove_privs(file);
->> +                             mutex_unlock(&inode->i_mutex);
->> +                     }
->> +
->
-> Still ignoring the file_remove_privs() return value.  If this is
-> deliberate then a description of the reasons should be included?
+On 12/3/15 4:17 AM, Will Deacon wrote:
+>> +	select HAVE_ARCH_MMAP_RND_BITS if MMU
+>> +	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
+> 
+> You can drop the 'if MMU' bits, since we don't support !MMU on arm64.
 
-Argh, yes, sorry. I will send a v3.
+Ok, will do. I was a little uneasy leaving it implicit, but even if
+something w/out MMU on arm64 shows up, it'll easily be corrected.
 
--Kees
+>> +config ARCH_MMAP_RND_BITS_MIN
+>> +       default 15 if ARM64_64K_PAGES
+>> +       default 17 if ARM64_16K_PAGES
+>> +       default 19
+> 
+> Is this correct? We currently have a mask of 0x3ffff, so that's 18 bits.
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Off-by-one errors provide a good example of why hardening features are
+useful? =/ Will change.
+
+>> +config ARCH_MMAP_RND_BITS_MAX
+>> +       default 19 if ARM64_VA_BITS=36
+>> +       default 20 if ARM64_64K_PAGES && ARM64_VA_BITS=39
+>> +       default 22 if ARM64_16K_PAGES && ARM64_VA_BITS=39
+>> +       default 24 if ARM64_VA_BITS=39
+>> +       default 23 if ARM64_64K_PAGES && ARM64_VA_BITS=42
+>> +       default 25 if ARM64_16K_PAGES && ARM64_VA_BITS=42
+>> +       default 27 if ARM64_VA_BITS=42
+>> +       default 30 if ARM64_VA_BITS=47
+>> +       default 29 if ARM64_64K_PAGES && ARM64_VA_BITS=48
+>> +       default 31 if ARM64_16K_PAGES && ARM64_VA_BITS=48
+>> +       default 33 if ARM64_VA_BITS=48
+>> +       default 15 if ARM64_64K_PAGES
+>> +       default 17 if ARM64_16K_PAGES
+>> +       default 19
+> 
+> Could you add a comment above this with the formula
+> (VA_BITS - PAGE_SHIFT - 3), please, so that we can update this easily in
+> the future if we need to?
+> 
+Yes, seems reasonable.  Time will tell if this remains true for all
+architectures, or even here, but it would be good to document it where
+someone considering a change could easily find it.
+
+Thank You,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
