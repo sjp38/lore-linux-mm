@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA736B0256
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 10:59:27 -0500 (EST)
-Received: by wmww144 with SMTP id w144so27200756wmw.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:59:27 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id pu5si12114983wjc.50.2015.12.03.07.59.26
-        for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 07:59:26 -0800 (PST)
-Date: Thu, 3 Dec 2015 16:59:24 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH] Improve Atheros ethernet driver not to do order 4
- GFP_ATOMIC allocation
-Message-ID: <20151203155923.GA31751@amd>
-References: <20151127082010.GA2500@dhcp22.suse.cz>
- <20151128145113.GB4135@amd>
- <1448906303.24696.133.camel@edumazet-glaptop2.roam.corp.google.com>
- <20151201.153628.148150792813486828.davem@davemloft.net>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 100A86B0255
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:07:10 -0500 (EST)
+Received: by igcto18 with SMTP id to18so15255769igc.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:07:09 -0800 (PST)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id b70si5831483iod.170.2015.12.03.08.07.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Dec 2015 08:07:09 -0800 (PST)
+Received: by igcmv3 with SMTP id mv3so16115451igc.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:07:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151201.153628.148150792813486828.davem@davemloft.net>
+In-Reply-To: <20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
+References: <20151203000342.GA30015@www.outflux.net>
+	<20151202161851.95d8fe811705c038e3fe2d33@linux-foundation.org>
+Date: Thu, 3 Dec 2015 08:07:08 -0800
+Message-ID: <CAGXu5jJCzjiFJG+q76GeYnb5vz3nxZ8EFUAGm=GPOfYmT=OqUA@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: eric.dumazet@gmail.com, mhocko@kernel.org, akpm@osdl.org, linux-kernel@vger.kernel.org, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, rjw@rjwysocki.net, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 2015-12-01 15:36:28, David Miller wrote:
-> From: Eric Dumazet <eric.dumazet@gmail.com>
-> Date: Mon, 30 Nov 2015 09:58:23 -0800
-> 
-> > On Sat, 2015-11-28 at 15:51 +0100, Pavel Machek wrote:
-> >> atl1c driver is doing order-4 allocation with GFP_ATOMIC
-> >> priority. That often breaks  networking after resume. Switch to
-> >> GFP_KERNEL. Still not ideal, but should be significantly better.
-> >>     
-> >> Signed-off-by: Pavel Machek <pavel@ucw.cz>
-> >> 
-> >> diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> >> index 2795d6d..afb71e0 100644
-> >> --- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> >> +++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
-> >> @@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
-> >>  		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
-> >>  		8 * 4;
-> >>  
-> >> -	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
-> >> -				&ring_header->dma);
-> >> +	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
-> >> +					       &ring_header->dma, GFP_KERNEL);
-> >>  	if (unlikely(!ring_header->desc)) {
-> >> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
-> >> +		dev_err(&pdev->dev, "could not get memmory for DMA buffer\n");
-> >>  		goto err_nomem;
-> >>  	}
-> >>  	memset(ring_header->desc, 0, ring_header->size);
-> >> 
-> > 
-> > It seems there is a missed opportunity to get rid of the memset() here,
-> > by adding __GFP_ZERO to the dma_alloc_coherent() GFP_KERNEL mask,
-> > or simply using dma_zalloc_coherent()
-> 
-> Also, the Subject line needs to be adjusted.  The proper format for
-> the Subject line is:
-> 
-> 	[PATCH $TREE] $subsystem: $description.
-> 
-> Where "$TREE" is either 'net' or 'net-next', $subsystem is the lowercase
-> name of the driver (here 'atl1c') and then a colon, and then a space, and
-> then the single-line description.
+On Wed, Dec 2, 2015 at 4:18 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 2 Dec 2015 16:03:42 -0800 Kees Cook <keescook@chromium.org> wrote:
+>
+>> Normally, when a user can modify a file that has setuid or setgid bits,
+>> those bits are cleared when they are not the file owner or a member
+>> of the group. This is enforced when using write and truncate but not
+>> when writing to a shared mmap on the file. This could allow the file
+>> writer to gain privileges by changing a binary without losing the
+>> setuid/setgid/caps bits.
+>>
+>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>> during the page fault (due to mmap_sem being held during the fault).
+>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+>>
+>> ...
+>>
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -1340,6 +1340,17 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>>                       if (locks_verify_locked(file))
+>>                               return -EAGAIN;
+>>
+>> +                     /*
+>> +                      * If we must remove privs, we do it here since
+>> +                      * doing it during page COW is expensive and
+>> +                      * cannot hold inode->i_mutex.
+>> +                      */
+>> +                     if (prot & PROT_WRITE && !IS_NOSEC(inode)) {
+>> +                             mutex_lock(&inode->i_mutex);
+>> +                             file_remove_privs(file);
+>> +                             mutex_unlock(&inode->i_mutex);
+>> +                     }
+>> +
+>
+> Still ignoring the file_remove_privs() return value.  If this is
+> deliberate then a description of the reasons should be included?
 
-Done, thanks.
-									Pavel
+Argh, yes, sorry. I will send a v3.
+
+-Kees
+
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
