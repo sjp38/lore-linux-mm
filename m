@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A586B0255
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:46:12 -0500 (EST)
-Received: by wmww144 with SMTP id w144so30240913wmw.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:46:12 -0800 (PST)
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
-        by mx.google.com with ESMTPS id j62si13160408wmd.65.2015.12.03.08.46.11
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAC56B0253
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 12:17:30 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so74192098pab.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 09:17:30 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id uw2si13013585pac.223.2015.12.03.09.17.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 08:46:11 -0800 (PST)
-Received: by wmec201 with SMTP id c201so36216640wme.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:46:11 -0800 (PST)
-Date: Thu, 3 Dec 2015 17:46:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] proc: meminfo: estimate available memory more
- conservatively
-Message-ID: <20151203164609.GC9271@dhcp22.suse.cz>
-References: <1448913622-24198-1-git-send-email-hannes@cmpxchg.org>
- <1448913622-24198-2-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1448913622-24198-2-git-send-email-hannes@cmpxchg.org>
+        Thu, 03 Dec 2015 09:17:29 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so71995168pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 09:17:29 -0800 (PST)
+Message-ID: <1449163048.25029.2.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: [PATCH net] atl1c: Improve driver not to do order 4 GFP_ATOMIC
+ allocation
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 03 Dec 2015 09:17:28 -0800
+In-Reply-To: <20151203155905.GA31974@amd>
+References: <20151126163413.GA3816@amd>
+	 <20151127082010.GA2500@dhcp22.suse.cz> <20151128145113.GB4135@amd>
+	 <20151203155905.GA31974@amd>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, davem@davemloft.net, Andrew Morton <akpm@osdl.org>, kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael
+ J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
 
-On Mon 30-11-15 15:00:22, Johannes Weiner wrote:
-> The MemAvailable item in /proc/meminfo is to give users a hint of how
-> much memory is allocatable without causing swapping, so it excludes
-> the zones' low watermarks as unavailable to userspace.
+On Thu, 2015-12-03 at 16:59 +0100, Pavel Machek wrote:
+> atl1c driver is doing order-4 allocation with GFP_ATOMIC
+> priority. That often breaks  networking after resume. Switch to
+> GFP_KERNEL. Still not ideal, but should be significantly better.
 > 
-> However, for a userspace allocation, kswapd will actually reclaim
-> until the free pages hit a combination of the high watermark and the
-> page allocator's lowmem protection that keeps a certain amount of DMA
-> and DMA32 memory from userspace as well.
+> atl1c_setup_ring_resources() is called from .open() function, and
+> already uses GFP_KERNEL, so this change is safe.
+>     
+> Signed-off-by: Pavel Machek <pavel@ucw.cz>
 > 
-> Subtract the full amount we know to be unavailable to userspace from
-> the number of free pages when calculating MemAvailable.
-
-I am not sure this will make a big or even noticeable difference in the
-real life but it makes sense.
-
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  fs/proc/meminfo.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
-> 
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> index 9155a5a..df4661a 100644
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -57,11 +57,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	/*
->  	 * Estimate the amount of memory available for userspace allocations,
->  	 * without causing swapping.
-> -	 *
-> -	 * Free memory cannot be taken below the low watermark, before the
-> -	 * system starts swapping.
->  	 */
-> -	available = i.freeram - wmark_low;
-> +	available = i.freeram - totalreserve_pages;
+> diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> index 2795d6d..afb71e0 100644
+> --- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> +++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+> @@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
+>  		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
+>  		8 * 4;
 >  
->  	/*
->  	 * Not all the page cache can be freed, otherwise the system will
-> -- 
-> 2.6.2
+> -	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
+> -				&ring_header->dma);
+> +	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
+> +					       &ring_header->dma, GFP_KERNEL);
+>  	if (unlikely(!ring_header->desc)) {
+> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
+> +		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
+>  		goto err_nomem;
+>  	}
+>  	memset(ring_header->desc, 0, ring_header->size);
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+So this memset() will really require a different patch to get removed ?
+
+Sigh, not sure why I review patches.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
