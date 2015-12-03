@@ -1,81 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 123AA6B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 08:43:34 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so21662904wmu.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 05:43:33 -0800 (PST)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id q78si12183246wmg.72.2015.12.03.05.43.32
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3094E6B0253
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 08:46:15 -0500 (EST)
+Received: by wmec201 with SMTP id c201so22809648wme.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 05:46:14 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k206si9264043wmf.116.2015.12.03.05.46.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 05:43:33 -0800 (PST)
-Received: by wmuu63 with SMTP id u63so21662280wmu.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 05:43:32 -0800 (PST)
-Date: Thu, 3 Dec 2015 14:43:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: memcg uncharge page counter mismatch
-Message-ID: <20151203134326.GG9264@dhcp22.suse.cz>
-References: <20151201133455.GB27574@bbox>
- <20151202101643.GC25284@dhcp22.suse.cz>
- <20151203013404.GA30779@bbox>
- <20151203021006.GA31041@bbox>
- <20151203085451.GC9264@dhcp22.suse.cz>
- <20151203125950.GA1428@bbox>
- <20151203133719.GF9264@dhcp22.suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 03 Dec 2015 05:46:14 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+References: <20151125143010.GI27283@dhcp22.suse.cz>
+ <1448899821-9671-1-git-send-email-vbabka@suse.cz>
+ <87io4hi06n.fsf@rasmusvillemoes.dk> <565F55E6.6080201@suse.cz>
+ <87mvtrpv1o.fsf@rasmusvillemoes.dk>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <566047A2.2050701@suse.cz>
+Date: Thu, 3 Dec 2015 14:46:10 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151203133719.GF9264@dhcp22.suse.cz>
+In-Reply-To: <87mvtrpv1o.fsf@rasmusvillemoes.dk>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Thu 03-12-15 14:37:19, Michal Hocko wrote:
-> On Thu 03-12-15 21:59:50, Minchan Kim wrote:
-> > On Thu, Dec 03, 2015 at 09:54:52AM +0100, Michal Hocko wrote:
-> > > On Thu 03-12-15 11:10:06, Minchan Kim wrote:
-> > > > On Thu, Dec 03, 2015 at 10:34:04AM +0900, Minchan Kim wrote:
-> > > > > On Wed, Dec 02, 2015 at 11:16:43AM +0100, Michal Hocko wrote:
-> [...]
-> > > > > > Also, how big is the underflow?
-> > > [...]
-> > > > > nr_pages 293 new -324
-> > > > > nr_pages 16 new -340
-> > > > > nr_pages 342 new -91
-> > > > > nr_pages 246 new -337
-> > > > > nr_pages 15 new -352
-> > > > > nr_pages 15 new -367
-> > > 
-> > > They are quite large but that is not that surprising if we consider that
-> > > we are batching many uncharges at once.
-> > >  
-> > > > My guess is that it's related to new feature of Kirill's THP 'PageDoubleMap'
-> > > > so a THP page could be mapped a pte but !pmd_trans_huge(*pmd) so memcg
-> > > > precharge in move_charge should handle it?
-> > > 
-> > > I am not familiar with the current state of THP after the rework
-> > > unfortunately. So if I got you right then you are saying that
-> > > pmd_trans_huge_lock fails to notice a THP so we will not charge it as
-> > > THP and only charge one head page and then the tear down path will
-> > > correctly recognize it as a THP and uncharge the full size, right?
-> > 
-> > Exactly.
+On 12/03/2015 01:37 PM, Rasmus Villemoes wrote:
+> On Wed, Dec 02 2015, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> --- a/include/linux/mmdebug.h
+>> +++ b/include/linux/mmdebug.h
+>> @@ -7,6 +7,9 @@
+>>  struct page;
+>>  struct vm_area_struct;
+>>  struct mm_struct;
+>> +struct trace_print_flags; // can't include trace_events.h here
+>> +
+>> +extern const struct trace_print_flags *pageflag_names;
+>>
+>>  extern void dump_page(struct page *page, const char *reason);
+>>  extern void dump_page_badflags(struct page *page, const char *reason,
+>> diff --git a/mm/debug.c b/mm/debug.c
+>> index a092111920e7..1cbc60544b87 100644
+>> --- a/mm/debug.c
+>> +++ b/mm/debug.c
+>> @@ -23,7 +23,7 @@ char *migrate_reason_names[MR_TYPES] = {
+>>  	"cma",
+>>  };
+>>
+>> -static const struct trace_print_flags pageflag_names[] = {
+>> +const struct trace_print_flags __pageflag_names[] = {
+>>  	{1UL << PG_locked,		"locked"	},
+>>  	{1UL << PG_error,		"error"		},
+>>  	{1UL << PG_referenced,		"referenced"	},
+>> @@ -59,6 +59,8 @@ static const struct trace_print_flags pageflag_names[] = {
+>>  #endif
+>>  };
+>>
+>> +const struct trace_print_flags *pageflag_names = &__pageflag_names[0];
 > 
-> Hmm, but are pages represented by those ptes on the LRU list?
-> __split_huge_pmd_locked doesn't seem to do any lru care. If they are not
-> on any LRU then mem_cgroup_move_charge_pte_range should ignore such a pte
-> and the THP (which the pte is part of) should stay in the original
-> memcg.
+> Ugh. I think it would be better if either the definition of struct
+> trace_print_flags is moved somewhere where everybody can see it or to
+> make our own identical type definition. For now I'd go with the latter,
+> also since this doesn't really have anything to do with the tracing
+> subsystem. Then just declare the array in the header
+> 
+> extern const struct print_flags pageflag_names[];
 
-Ohh, PageLRU is
-PAGEFLAG(LRU, lru, PF_HEAD)
+Ugh so yesterday I copy/pasted the definition and still got an error, which I
+probably didn't read closely enough. I assumed that if it needs the full
+definition of "struct trace_print_flags" here to know the size, it would also
+need to know the lenght of the array as well.
 
-So we are checking the head and it is on LRU. Now I can see how this
-might happen. Let me think about a fix...
--- 
-Michal Hocko
-SUSE Labs
+But now it works. Well, copy/pasting the definition fails as long as both
+headers are included and it's redefining the struct (even though it's the same
+thing). But looks like I can move it from trace_events.h to tracepoint.h and it
+won't blow off (knock knock).
+
+I suck at C.
+
+> (If you do the extra indirection thing, __pageflag_names could still be
+> static, and it would be best to declare the pointer itself const as
+> well, but I'd rather we don't go that way.)
+> 
+> Rasmus
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
