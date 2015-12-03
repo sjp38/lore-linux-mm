@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CDF66B0253
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 23:10:56 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so59515815pac.2
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:10:55 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id 1si9189216pfc.3.2015.12.02.20.10.55
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E3826B0255
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 23:11:50 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so59516759pad.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:11:50 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id g73si9139519pfd.168.2015.12.02.20.11.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 20:10:55 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so61181276pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:10:55 -0800 (PST)
+        Wed, 02 Dec 2015 20:11:49 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so59516607pad.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 20:11:49 -0800 (PST)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH v3] mm/compaction: __compact_pgdat() code cleanuup
-Date: Thu,  3 Dec 2015 13:10:45 +0900
-Message-Id: <1449115845-19409-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH] mm/compaction: restore COMPACT_CLUSTER_MAX to 32
+Date: Thu,  3 Dec 2015 13:11:40 +0900
+Message-Id: <1449115900-20112-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patch uses is_via_compact_memory() to distinguish compaction
-from sysfs or sysctl. And, this patch also reduces indentation
-on compaction_defer_reset() by filtering these cases first
-before checking watermark.
+Until now, COMPACT_CLUSTER_MAX is defined as SWAP_CLUSTER_MAX.
+Commit ("mm: increase SWAP_CLUSTER_MAX to batch TLB flushes")
+changes SWAP_CLUSTER_MAX from 32 to 256 to improve tlb flush performance
+so COMPACT_CLUSTER_MAX is also changed to 256. But, it has
+no justification on compaction-side and I think that loss is more than
+benefit.
 
-There is no functional change.
+One example is that migration scanner would isolates and migrates
+too many pages unnecessarily with 256 COMPACT_CLUSTER_MAX. It may be
+enough to migrate 4 pages in order to make order-2 page, but, now,
+compaction will migrate 256 pages.
 
-Acked-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Acked-by: David Rientjes <rientjes@google.com>
+To reduce this unneeded overhead, this patch restores
+COMPACT_CLUSTER_MAX to 32.
+
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/compaction.c | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ include/linux/swap.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index de3e1e7..01b1e5e 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1658,14 +1658,15 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 				!compaction_deferred(zone, cc->order))
- 			compact_zone(zone, cc);
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d08feef..31eb343 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -155,7 +155,7 @@ enum {
+ };
  
--		if (cc->order > 0) {
--			if (zone_watermark_ok(zone, cc->order,
--						low_wmark_pages(zone), 0, 0))
--				compaction_defer_reset(zone, cc->order, false);
--		}
--
- 		VM_BUG_ON(!list_empty(&cc->freepages));
- 		VM_BUG_ON(!list_empty(&cc->migratepages));
-+
-+		if (is_via_compact_memory(cc->order))
-+			continue;
-+
-+		if (zone_watermark_ok(zone, cc->order,
-+				low_wmark_pages(zone), 0, 0))
-+			compaction_defer_reset(zone, cc->order, false);
- 	}
- }
+ #define SWAP_CLUSTER_MAX 256UL
+-#define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
++#define COMPACT_CLUSTER_MAX 32UL
  
+ /*
+  * Ratio between zone->managed_pages and the "gap" that above the per-zone
 -- 
 1.9.1
 
