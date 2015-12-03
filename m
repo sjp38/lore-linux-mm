@@ -1,71 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CAFC26B0253
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 10:47:32 -0500 (EST)
-Received: by wmww144 with SMTP id w144so27765932wmw.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:47:32 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id m10si50906615wmg.110.2015.12.03.07.47.31
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3988A6B0253
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 10:56:36 -0500 (EST)
+Received: by qgea14 with SMTP id a14so63632184qge.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:56:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r190si9101136qhb.108.2015.12.03.07.56.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 07:47:31 -0800 (PST)
-Received: by wmww144 with SMTP id w144so27765083wmw.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:47:31 -0800 (PST)
-Date: Thu, 3 Dec 2015 16:47:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: memcg uncharge page counter mismatch
-Message-ID: <20151203154729.GI9264@dhcp22.suse.cz>
-References: <20151201133455.GB27574@bbox>
- <20151202101643.GC25284@dhcp22.suse.cz>
- <20151203013404.GA30779@bbox>
- <20151203021006.GA31041@bbox>
- <20151203085451.GC9264@dhcp22.suse.cz>
- <20151203125950.GA1428@bbox>
- <20151203133719.GF9264@dhcp22.suse.cz>
- <20151203134326.GG9264@dhcp22.suse.cz>
- <20151203145850.GH9264@dhcp22.suse.cz>
+        Thu, 03 Dec 2015 07:56:35 -0800 (PST)
+Subject: [RFC PATCH 0/2] slab: implement bulking for SLAB allocator
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Thu, 03 Dec 2015 16:56:32 +0100
+Message-ID: <20151203155600.3589.86568.stgit@firesoul>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151203145850.GH9264@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu 03-12-15 15:58:50, Michal Hocko wrote:
-[....]
-> Warning, this looks ugly as hell.
+This patchset implements bulking for the SLAB allocator.  I split the
+implementation into two patches, the alloc and free "side" for easier
+review.
 
-I was thinking about it some more and it seems that we should rather not
-bother with partial thp at all and keep it in the original memcg
-instead. It is way much less code and I do not think this will be too
-disruptive. Somebody should be holding the thp head, right?
+(Based on Linus tree at v4.4-rc3-24-g25364a9e54fb)
 
-Minchan, does this fix the issue you are seeing.
+
+Normal SLAB fastpath 95 cycles(tsc) 23.852 ns, when compiled without
+debugging options enabled.
+
+Benchmarked[1] obj size 256 bytes on CPU i7-4790K @ 4.00GHz:
+
+  1 - 115 cycles(tsc) 28.812 ns - 42 cycles(tsc) 10.715 ns - improved 63.5%
+  2 - 103 cycles(tsc) 25.956 ns - 27 cycles(tsc)  6.985 ns - improved 73.8%
+  3 - 101 cycles(tsc) 25.336 ns - 22 cycles(tsc)  5.733 ns - improved 78.2%
+  4 - 100 cycles(tsc) 25.147 ns - 21 cycles(tsc)  5.319 ns - improved 79.0%
+  8 -  98 cycles(tsc) 24.616 ns - 18 cycles(tsc)  4.620 ns - improved 81.6%
+ 16 -  97 cycles(tsc) 24.408 ns - 17 cycles(tsc)  4.344 ns - improved 82.5%
+ 30 -  98 cycles(tsc) 24.641 ns - 16 cycles(tsc)  4.202 ns - improved 83.7%
+ 32 -  98 cycles(tsc) 24.607 ns - 16 cycles(tsc)  4.199 ns - improved 83.7%
+ 34 -  98 cycles(tsc) 24.605 ns - 18 cycles(tsc)  4.579 ns - improved 81.6%
+ 48 -  97 cycles(tsc) 24.463 ns - 17 cycles(tsc)  4.405 ns - improved 82.5%
+ 64 -  97 cycles(tsc) 24.370 ns - 17 cycles(tsc)  4.384 ns - improved 82.5%
+128 -  99 cycles(tsc) 24.763 ns - 19 cycles(tsc)  4.755 ns - improved 80.8%
+158 -  98 cycles(tsc) 24.708 ns - 18 cycles(tsc)  4.723 ns - improved 81.6%
+250 - 101 cycles(tsc) 25.342 ns - 20 cycles(tsc)  5.035 ns - improved 80.2%
+
+[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test01.c
+
 ---
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 79a29d564bff..143c933f0b81 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4895,6 +4895,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
- 		case MC_TARGET_PAGE:
- 			page = target.page;
-+			/*
-+			 * We can have a part of the split pmd here. Moving it
-+			 * can be done but it would be too convoluted so simply
-+			 * ignore such a partial THP and keep it in original
-+			 * memcg. There should be somebody mapping the head.
-+			 */
-+			if (PageCompound(page))
-+				goto put;
- 			if (isolate_lru_page(page))
- 				goto put;
- 			if (!mem_cgroup_move_account(page, false,
--- 
-Michal Hocko
-SUSE Labs
+
+Jesper Dangaard Brouer (2):
+      slab: implement bulk alloc in SLAB allocator
+      slab: implement bulk free in SLAB allocator
+
+
+ mm/slab.c |   85 +++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 77 insertions(+), 8 deletions(-)
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
