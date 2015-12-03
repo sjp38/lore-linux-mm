@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3094E6B0253
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 08:46:15 -0500 (EST)
-Received: by wmec201 with SMTP id c201so22809648wme.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 05:46:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k206si9264043wmf.116.2015.12.03.05.46.14
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 03 Dec 2015 05:46:14 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
-References: <20151125143010.GI27283@dhcp22.suse.cz>
- <1448899821-9671-1-git-send-email-vbabka@suse.cz>
- <87io4hi06n.fsf@rasmusvillemoes.dk> <565F55E6.6080201@suse.cz>
- <87mvtrpv1o.fsf@rasmusvillemoes.dk>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <566047A2.2050701@suse.cz>
-Date: Thu, 3 Dec 2015 14:46:10 +0100
-MIME-Version: 1.0
-In-Reply-To: <87mvtrpv1o.fsf@rasmusvillemoes.dk>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 793F76B0257
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 09:08:43 -0500 (EST)
+Received: by oixx65 with SMTP id x65so49068448oix.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 06:08:43 -0800 (PST)
+Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
+        by mx.google.com with ESMTP id s74si7859484oie.136.2015.12.03.06.08.25
+        for <linux-mm@kvack.org>;
+        Thu, 03 Dec 2015 06:08:42 -0800 (PST)
+From: Geliang Tang <geliangtang@163.com>
+Subject: [PATCH v2] mm/slab.c: use list_{empty_careful,last_entry} in drain_freelist
+Date: Thu,  3 Dec 2015 22:07:46 +0800
+Message-Id: <3ea815dc52bf1a2bb5e324d7398315597900be84.1449151365.git.geliangtang@163.com>
+In-Reply-To: <alpine.DEB.2.20.1512021005120.28955@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/03/2015 01:37 PM, Rasmus Villemoes wrote:
-> On Wed, Dec 02 2015, Vlastimil Babka <vbabka@suse.cz> wrote:
->> --- a/include/linux/mmdebug.h
->> +++ b/include/linux/mmdebug.h
->> @@ -7,6 +7,9 @@
->>  struct page;
->>  struct vm_area_struct;
->>  struct mm_struct;
->> +struct trace_print_flags; // can't include trace_events.h here
->> +
->> +extern const struct trace_print_flags *pageflag_names;
->>
->>  extern void dump_page(struct page *page, const char *reason);
->>  extern void dump_page_badflags(struct page *page, const char *reason,
->> diff --git a/mm/debug.c b/mm/debug.c
->> index a092111920e7..1cbc60544b87 100644
->> --- a/mm/debug.c
->> +++ b/mm/debug.c
->> @@ -23,7 +23,7 @@ char *migrate_reason_names[MR_TYPES] = {
->>  	"cma",
->>  };
->>
->> -static const struct trace_print_flags pageflag_names[] = {
->> +const struct trace_print_flags __pageflag_names[] = {
->>  	{1UL << PG_locked,		"locked"	},
->>  	{1UL << PG_error,		"error"		},
->>  	{1UL << PG_referenced,		"referenced"	},
->> @@ -59,6 +59,8 @@ static const struct trace_print_flags pageflag_names[] = {
->>  #endif
->>  };
->>
->> +const struct trace_print_flags *pageflag_names = &__pageflag_names[0];
-> 
-> Ugh. I think it would be better if either the definition of struct
-> trace_print_flags is moved somewhere where everybody can see it or to
-> make our own identical type definition. For now I'd go with the latter,
-> also since this doesn't really have anything to do with the tracing
-> subsystem. Then just declare the array in the header
-> 
-> extern const struct print_flags pageflag_names[];
+To make the intention clearer, use list_empty_careful and list_last_entry
+in drain_freelist().
 
-Ugh so yesterday I copy/pasted the definition and still got an error, which I
-probably didn't read closely enough. I assumed that if it needs the full
-definition of "struct trace_print_flags" here to know the size, it would also
-need to know the lenght of the array as well.
+Signed-off-by: Geliang Tang <geliangtang@163.com>
+---
+ mm/slab.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-But now it works. Well, copy/pasting the definition fails as long as both
-headers are included and it's redefining the struct (even though it's the same
-thing). But looks like I can move it from trace_events.h to tracepoint.h and it
-won't blow off (knock knock).
+diff --git a/mm/slab.c b/mm/slab.c
+index 5d5aa3b..925921e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2362,7 +2362,6 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
+ static int drain_freelist(struct kmem_cache *cache,
+ 			struct kmem_cache_node *n, int tofree)
+ {
+-	struct list_head *p;
+ 	int nr_freed;
+ 	struct page *page;
+ 
+@@ -2370,13 +2369,12 @@ static int drain_freelist(struct kmem_cache *cache,
+ 	while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
+ 
+ 		spin_lock_irq(&n->list_lock);
+-		p = n->slabs_free.prev;
+-		if (p == &n->slabs_free) {
++		if (list_empty_careful(&n->slabs_free)) {
+ 			spin_unlock_irq(&n->list_lock);
+ 			goto out;
+ 		}
+ 
+-		page = list_entry(p, struct page, lru);
++		page = list_last_entry(&n->slabs_free, struct page, lru);
+ #if DEBUG
+ 		BUG_ON(page->active);
+ #endif
+-- 
+2.5.0
 
-I suck at C.
-
-> (If you do the extra indirection thing, __pageflag_names could still be
-> static, and it would be best to declare the pointer itself const as
-> well, but I'd rather we don't go that way.)
-> 
-> Rasmus
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
