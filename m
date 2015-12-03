@@ -1,79 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id F37DE6B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 03:19:53 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so64588833pad.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:19:53 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out21.biz.mail.alibaba.com. [205.204.114.132])
-        by mx.google.com with ESMTP id z12si10561837pfi.102.2015.12.03.00.19.51
-        for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 00:19:53 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [patch] mm, oom: avoid attempting to kill init sharing same memory
-Date: Thu, 03 Dec 2015 16:19:34 +0800
-Message-ID: <05dd01d12da3$5888bb10$099a3130$@alibaba-inc.com>
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BAC566B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 03:54:54 -0500 (EST)
+Received: by wmww144 with SMTP id w144so11564185wmw.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:54:54 -0800 (PST)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id l70si1918531wmb.75.2015.12.03.00.54.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Dec 2015 00:54:53 -0800 (PST)
+Received: by wmec201 with SMTP id c201so12448206wme.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:54:53 -0800 (PST)
+Date: Thu, 3 Dec 2015 09:54:52 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: memcg uncharge page counter mismatch
+Message-ID: <20151203085451.GC9264@dhcp22.suse.cz>
+References: <20151201133455.GB27574@bbox>
+ <20151202101643.GC25284@dhcp22.suse.cz>
+ <20151203013404.GA30779@bbox>
+ <20151203021006.GA31041@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151203021006.GA31041@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, chenjie6@huawei.com, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David.Woodhouse@intel.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> 
-> From: Chen Jie <chenjie6@huawei.com>
-> 
-> It's possible that an oom killed victim shares an ->mm with the init
-> process and thus oom_kill_process() would end up trying to kill init as
-> well.
-> 
-> This has been shown in practice:
-> 
-> 	Out of memory: Kill process 9134 (init) score 3 or sacrifice child
-> 	Killed process 9134 (init) total-vm:1868kB, anon-rss:84kB, file-rss:572kB
-> 	Kill process 1 (init) sharing same memory
-> 	...
-> 	Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000009
-> 
-> And this will result in a kernel panic.
-> 
-> If a process is forked by init and selected for oom kill while still
-> sharing init_mm, then it's likely this system is in a recoverable state.
-> However, it's better not to try to kill init and allow the machine to
-> panic due to unkillable processes.
-> 
-> [rientjes@google.com: rewrote changelog]
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Chen Jie <chenjie6@huawei.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
+On Thu 03-12-15 11:10:06, Minchan Kim wrote:
+> On Thu, Dec 03, 2015 at 10:34:04AM +0900, Minchan Kim wrote:
+> > On Wed, Dec 02, 2015 at 11:16:43AM +0100, Michal Hocko wrote:
+> > > On Tue 01-12-15 22:34:55, Minchan Kim wrote:
+> > > > With new test on mmotm-2015-11-25-17-08, I saw below WARNING message
+> > > > several times. I couldn't see it with reverting new THP refcount
+> > > > redesign.
+> > > 
+> > > Just a wild guess. What prevents migration/compaction from calling
+> > > split_huge_page on thp zero page? There is VM_BUG_ON but it is not clear
+> > 
+> > I guess migration should work with LRU pages now but zero page couldn't
+> > stay there.
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Ahh, you are right. I have missed PageLRU check in isolate_migratepages_block
+pfn walker.
 
->  I removed stable from this patch since the alternative would most likely
->  be to panic the system for no killable processes anyway.  There's a very
->  small likelihood this patch would allow for a recoverable system.
-> 
->  mm/oom_kill.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -608,6 +608,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  			continue;
->  		if (unlikely(p->flags & PF_KTHREAD))
->  			continue;
-> +		if (!is_global_init(p))
-> +			continue;
->  		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
->  			continue;
-> 
-> --
+> > > whether you run with CONFIG_DEBUG_VM enabled.
+> > 
+> > I enabled VM_DEBUG_VM.
+> > 
+> > > 
+> > > Also, how big is the underflow?
+[...]
+> > nr_pages 293 new -324
+> > nr_pages 16 new -340
+> > nr_pages 342 new -91
+> > nr_pages 246 new -337
+> > nr_pages 15 new -352
+> > nr_pages 15 new -367
 
+They are quite large but that is not that surprising if we consider that
+we are batching many uncharges at once.
+ 
+> My guess is that it's related to new feature of Kirill's THP 'PageDoubleMap'
+> so a THP page could be mapped a pte but !pmd_trans_huge(*pmd) so memcg
+> precharge in move_charge should handle it?
+
+I am not familiar with the current state of THP after the rework
+unfortunately. So if I got you right then you are saying that
+pmd_trans_huge_lock fails to notice a THP so we will not charge it as
+THP and only charge one head page and then the tear down path will
+correctly recognize it as a THP and uncharge the full size, right?
+
+I have to admit I have no idea how PageDoubleMap works and how can
+pmd_trans_huge fail.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
