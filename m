@@ -1,78 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B9E6B025B
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:27:21 -0500 (EST)
-Received: by wmww144 with SMTP id w144so28393298wmw.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:27:21 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id x11si6061043wju.95.2015.12.03.08.27.20
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A65676B025B
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 11:39:37 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so28946489wmu.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:39:37 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id c15si12245373wjx.246.2015.12.03.08.39.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 08:27:20 -0800 (PST)
-Received: by wmww144 with SMTP id w144so28392724wmw.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:27:20 -0800 (PST)
-Date: Thu, 3 Dec 2015 17:27:18 +0100
+        Thu, 03 Dec 2015 08:39:36 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so28945811wmu.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 08:39:36 -0800 (PST)
+Date: Thu, 3 Dec 2015 17:39:35 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memcontrol.c: use list_{first,next}_entry
-Message-ID: <20151203162718.GK9264@dhcp22.suse.cz>
-References: <9e62e3006561653fcbf0c49cf0b9c2b653a8ed0e.1449152124.git.geliangtang@163.com>
+Subject: Re: [PATCH 1/2] mm: page_alloc: generalize the dirty balance reserve
+Message-ID: <20151203163935.GB9271@dhcp22.suse.cz>
+References: <1448913622-24198-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9e62e3006561653fcbf0c49cf0b9c2b653a8ed0e.1449152124.git.geliangtang@163.com>
+In-Reply-To: <1448913622-24198-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@163.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 03-12-15 22:16:55, Geliang Tang wrote:
-> To make the intention clearer, use list_{first,next}_entry instead
-> of list_entry.
+On Mon 30-11-15 15:00:21, Johannes Weiner wrote:
+> The dirty balance reserve that dirty throttling has to consider is
+> merely memory not available to userspace allocations. There is nothing
+> writeback-specific about it. Generalize the name so that it's reusable
+> outside of that context.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Does this really help readability? This function simply uncharges the
-given list of pages. Why cannot we simply use list_for_each_entry
-instead...
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> Signed-off-by: Geliang Tang <geliangtang@163.com>
 > ---
->  mm/memcontrol.c | 9 +++------
->  1 file changed, 3 insertions(+), 6 deletions(-)
+>  include/linux/mmzone.h |  6 +++---
+>  include/linux/swap.h   |  1 -
+>  mm/page-writeback.c    | 14 ++++++++++++--
+>  mm/page_alloc.c        | 21 +++------------------
+>  4 files changed, 18 insertions(+), 24 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 79a29d5..a6301ea 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5395,16 +5395,12 @@ static void uncharge_list(struct list_head *page_list)
->  	unsigned long nr_file = 0;
->  	unsigned long nr_huge = 0;
->  	unsigned long pgpgout = 0;
-> -	struct list_head *next;
->  	struct page *page;
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index e23a9e7..9134ae3 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -361,10 +361,10 @@ struct zone {
+>  	struct per_cpu_pageset __percpu *pageset;
 >  
-> -	next = page_list->next;
-> +	page = list_first_entry(page_list, struct page, lru);
->  	do {
->  		unsigned int nr_pages = 1;
+>  	/*
+> -	 * This is a per-zone reserve of pages that should not be
+> -	 * considered dirtyable memory.
+> +	 * This is a per-zone reserve of pages that are not available
+> +	 * to userspace allocations.
+>  	 */
+> -	unsigned long		dirty_balance_reserve;
+> +	unsigned long		totalreserve_pages;
 >  
-> -		page = list_entry(next, struct page, lru);
-> -		next = page->lru.next;
-> -
->  		VM_BUG_ON_PAGE(PageLRU(page), page);
->  		VM_BUG_ON_PAGE(page_count(page), page);
+>  #ifndef CONFIG_SPARSEMEM
+>  	/*
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 7ba7dcc..066bd21 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -287,7 +287,6 @@ static inline void workingset_node_shadows_dec(struct radix_tree_node *node)
+>  /* linux/mm/page_alloc.c */
+>  extern unsigned long totalram_pages;
+>  extern unsigned long totalreserve_pages;
+> -extern unsigned long dirty_balance_reserve;
+>  extern unsigned long nr_free_buffer_pages(void);
+>  extern unsigned long nr_free_pagecache_pages(void);
 >  
-> @@ -5440,7 +5436,8 @@ static void uncharge_list(struct list_head *page_list)
->  		page->mem_cgroup = NULL;
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 2c90357..8e5f2fd 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -278,7 +278,12 @@ static unsigned long zone_dirtyable_memory(struct zone *zone)
+>  	unsigned long nr_pages;
 >  
->  		pgpgout++;
-> -	} while (next != page_list);
-> +	} while (!list_is_last(&page->lru, page_list) &&
-> +		 (page = list_next_entry(page, lru)));
+>  	nr_pages = zone_page_state(zone, NR_FREE_PAGES);
+> -	nr_pages -= min(nr_pages, zone->dirty_balance_reserve);
+> +	/*
+> +	 * Pages reserved for the kernel should not be considered
+> +	 * dirtyable, to prevent a situation where reclaim has to
+> +	 * clean pages in order to balance the zones.
+> +	 */
+> +	nr_pages -= min(nr_pages, zone->totalreserve_pages);
 >  
->  	if (memcg)
->  		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+>  	nr_pages += zone_page_state(zone, NR_INACTIVE_FILE);
+>  	nr_pages += zone_page_state(zone, NR_ACTIVE_FILE);
+> @@ -332,7 +337,12 @@ static unsigned long global_dirtyable_memory(void)
+>  	unsigned long x;
+>  
+>  	x = global_page_state(NR_FREE_PAGES);
+> -	x -= min(x, dirty_balance_reserve);
+> +	/*
+> +	 * Pages reserved for the kernel should not be considered
+> +	 * dirtyable, to prevent a situation where reclaim has to
+> +	 * clean pages in order to balance the zones.
+> +	 */
+> +	x -= min(x, totalreserve_pages);
+>  
+>  	x += global_page_state(NR_INACTIVE_FILE);
+>  	x += global_page_state(NR_ACTIVE_FILE);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 17a3c66..e786d7e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -114,13 +114,6 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
+>  unsigned long totalram_pages __read_mostly;
+>  unsigned long totalreserve_pages __read_mostly;
+>  unsigned long totalcma_pages __read_mostly;
+> -/*
+> - * When calculating the number of globally allowed dirty pages, there
+> - * is a certain number of per-zone reserves that should not be
+> - * considered dirtyable memory.  This is the sum of those reserves
+> - * over all existing zones that contribute dirtyable memory.
+> - */
+> -unsigned long dirty_balance_reserve __read_mostly;
+>  
+>  int percpu_pagelist_fraction;
+>  gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+> @@ -5955,20 +5948,12 @@ static void calculate_totalreserve_pages(void)
+>  
+>  			if (max > zone->managed_pages)
+>  				max = zone->managed_pages;
+> +
+> +			zone->totalreserve_pages = max;
+> +
+>  			reserve_pages += max;
+> -			/*
+> -			 * Lowmem reserves are not available to
+> -			 * GFP_HIGHUSER page cache allocations and
+> -			 * kswapd tries to balance zones to their high
+> -			 * watermark.  As a result, neither should be
+> -			 * regarded as dirtyable memory, to prevent a
+> -			 * situation where reclaim has to clean pages
+> -			 * in order to balance the zones.
+> -			 */
+> -			zone->dirty_balance_reserve = max;
+>  		}
+>  	}
+> -	dirty_balance_reserve = reserve_pages;
+>  	totalreserve_pages = reserve_pages;
+>  }
+>  
 > -- 
-> 2.5.0
+> 2.6.2
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
