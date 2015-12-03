@@ -1,96 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C4F16B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 07:17:16 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so68556691pad.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 04:17:16 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d28si11792942pfj.87.2015.12.03.04.17.15
-        for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 04:17:15 -0800 (PST)
-Date: Thu, 3 Dec 2015 12:17:12 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v5 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
-Message-ID: <20151203121712.GE11337@arm.com>
-References: <1449000658-11475-1-git-send-email-dcashman@android.com>
- <1449000658-11475-2-git-send-email-dcashman@android.com>
- <1449000658-11475-3-git-send-email-dcashman@android.com>
- <1449000658-11475-4-git-send-email-dcashman@android.com>
+Received: from mail-lf0-f47.google.com (mail-lf0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 58C626B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 07:37:43 -0500 (EST)
+Received: by lfdl133 with SMTP id l133so88943856lfd.2
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 04:37:42 -0800 (PST)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id h7si5410979lbd.91.2015.12.03.04.37.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Dec 2015 04:37:41 -0800 (PST)
+Received: by lbbkw15 with SMTP id kw15so722301lbb.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 04:37:41 -0800 (PST)
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+References: <20151125143010.GI27283@dhcp22.suse.cz>
+	<1448899821-9671-1-git-send-email-vbabka@suse.cz>
+	<87io4hi06n.fsf@rasmusvillemoes.dk> <565F55E6.6080201@suse.cz>
+Date: Thu, 03 Dec 2015 13:37:39 +0100
+In-Reply-To: <565F55E6.6080201@suse.cz> (Vlastimil Babka's message of "Wed, 2
+	Dec 2015 21:34:46 +0100")
+Message-ID: <87mvtrpv1o.fsf@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1449000658-11475-4-git-send-email-dcashman@android.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-Hi Daniel,
+On Wed, Dec 02 2015, Vlastimil Babka <vbabka@suse.cz> wrote:
 
-On Tue, Dec 01, 2015 at 12:10:57PM -0800, Daniel Cashman wrote:
-> From: dcashman <dcashman@google.com>
-> 
-> arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
-> random offset for the mmap base address.  This value represents a
-> compromise between increased ASLR effectiveness and avoiding
-> address-space fragmentation. Replace it with a Kconfig option, which
-> is sensibly bounded, so that platform developers may choose where to
-> place this compromise. Keep default values as new minimums.
-> 
-> Signed-off-by: Daniel Cashman <dcashman@android.com>
-> ---
->  arch/arm64/Kconfig   | 31 +++++++++++++++++++++++++++++++
->  arch/arm64/mm/mmap.c |  8 ++++++--
->  2 files changed, 37 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 871f217..fb57649 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -51,6 +51,8 @@ config ARM64
->  	select HAVE_ARCH_JUMP_LABEL
->  	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
->  	select HAVE_ARCH_KGDB
-> +	select HAVE_ARCH_MMAP_RND_BITS if MMU
-> +	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
+>> [where I've assumed that the trace_print_flags array is terminated with
+>> an entry with 0 mask. Passing its length is also possible, but maybe a
+>> little awkward if the arrays are defined in mm/ and contents depend on
+>> .config.] 
+...
+>
+>> Rasmus
+>
+> Zero-terminated array is a good idea to get rid of the ARRAY_SIZE with helpers
+> needing to live in the same .c file etc.
+>
+> But if I were to keep the array definitions in mm/debug.c with declarations
+> (which don't know the size yet) in e.g. <linux/mmdebug.h> (which lib/vsnprintf.c
+> would include so that format_flags() can reference them, is there a more elegant
+> way than the one below?
+>
+> --- a/include/linux/mmdebug.h
+> +++ b/include/linux/mmdebug.h
+> @@ -7,6 +7,9 @@
+>  struct page;
+>  struct vm_area_struct;
+>  struct mm_struct;
+> +struct trace_print_flags; // can't include trace_events.h here
+> +
+> +extern const struct trace_print_flags *pageflag_names;
+>
+>  extern void dump_page(struct page *page, const char *reason);
+>  extern void dump_page_badflags(struct page *page, const char *reason,
+> diff --git a/mm/debug.c b/mm/debug.c
+> index a092111920e7..1cbc60544b87 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -23,7 +23,7 @@ char *migrate_reason_names[MR_TYPES] = {
+>  	"cma",
+>  };
+>
+> -static const struct trace_print_flags pageflag_names[] = {
+> +const struct trace_print_flags __pageflag_names[] = {
+>  	{1UL << PG_locked,		"locked"	},
+>  	{1UL << PG_error,		"error"		},
+>  	{1UL << PG_referenced,		"referenced"	},
+> @@ -59,6 +59,8 @@ static const struct trace_print_flags pageflag_names[] = {
+>  #endif
+>  };
+>
+> +const struct trace_print_flags *pageflag_names = &__pageflag_names[0];
 
-You can drop the 'if MMU' bits, since we don't support !MMU on arm64.
+Ugh. I think it would be better if either the definition of struct
+trace_print_flags is moved somewhere where everybody can see it or to
+make our own identical type definition. For now I'd go with the latter,
+also since this doesn't really have anything to do with the tracing
+subsystem. Then just declare the array in the header
 
->  	select HAVE_ARCH_SECCOMP_FILTER
->  	select HAVE_ARCH_TRACEHOOK
->  	select HAVE_BPF_JIT
-> @@ -104,6 +106,35 @@ config ARCH_PHYS_ADDR_T_64BIT
->  config MMU
->  	def_bool y
->  
-> +config ARCH_MMAP_RND_BITS_MIN
-> +       default 15 if ARM64_64K_PAGES
-> +       default 17 if ARM64_16K_PAGES
-> +       default 19
+extern const struct print_flags pageflag_names[];
 
-Is this correct? We currently have a mask of 0x3ffff, so that's 18 bits.
+(If you do the extra indirection thing, __pageflag_names could still be
+static, and it would be best to declare the pointer itself const as
+well, but I'd rather we don't go that way.)
 
-> +config ARCH_MMAP_RND_BITS_MAX
-> +       default 19 if ARM64_VA_BITS=36
-> +       default 20 if ARM64_64K_PAGES && ARM64_VA_BITS=39
-> +       default 22 if ARM64_16K_PAGES && ARM64_VA_BITS=39
-> +       default 24 if ARM64_VA_BITS=39
-> +       default 23 if ARM64_64K_PAGES && ARM64_VA_BITS=42
-> +       default 25 if ARM64_16K_PAGES && ARM64_VA_BITS=42
-> +       default 27 if ARM64_VA_BITS=42
-> +       default 30 if ARM64_VA_BITS=47
-> +       default 29 if ARM64_64K_PAGES && ARM64_VA_BITS=48
-> +       default 31 if ARM64_16K_PAGES && ARM64_VA_BITS=48
-> +       default 33 if ARM64_VA_BITS=48
-> +       default 15 if ARM64_64K_PAGES
-> +       default 17 if ARM64_16K_PAGES
-> +       default 19
-
-Could you add a comment above this with the formula
-(VA_BITS - PAGE_SHIFT - 3), please, so that we can update this easily in
-the future if we need to?
-
-Will
+Rasmus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
