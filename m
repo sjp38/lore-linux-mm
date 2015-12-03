@@ -1,74 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ABE16B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 19:11:40 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so2717535pfn.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:11:39 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id 21si7825015pfq.214.2015.12.02.16.11.39
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1906B0253
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 19:12:00 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so54564702pac.3
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:12:00 -0800 (PST)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id he9si7866004pac.102.2015.12.02.16.11.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 16:11:39 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so56283502pab.0
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:11:39 -0800 (PST)
-Message-ID: <565F88B9.10306@linaro.org>
-Date: Wed, 02 Dec 2015 16:11:37 -0800
-From: "Shi, Yang" <yang.shi@linaro.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH V2 2/7] mm/gup: add gup trace points
-References: <1449096813-22436-1-git-send-email-yang.shi@linaro.org> <1449096813-22436-3-git-send-email-yang.shi@linaro.org> <565F8092.7000001@intel.com>
-In-Reply-To: <565F8092.7000001@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 02 Dec 2015 16:11:59 -0800 (PST)
+Received: by pfu207 with SMTP id 207so2716865pfu.2
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 16:11:59 -0800 (PST)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+From: yalin wang <yalin.wang2010@gmail.com>
+In-Reply-To: <565F5CD9.9080301@suse.cz>
+Date: Wed, 2 Dec 2015 16:11:58 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com>
+References: <20151125143010.GI27283@dhcp22.suse.cz> <1448899821-9671-1-git-send-email-vbabka@suse.cz> <4EAD2C33-D0E4-4DEB-92E5-9C0457E8635C@gmail.com> <565F5CD9.9080301@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-On 12/2/2015 3:36 PM, Dave Hansen wrote:
-> On 12/02/2015 02:53 PM, Yang Shi wrote:
->> diff --git a/mm/gup.c b/mm/gup.c
->> index deafa2c..10245a4 100644
->> --- a/mm/gup.c
->> +++ b/mm/gup.c
->> @@ -13,6 +13,9 @@
->>   #include <linux/rwsem.h>
->>   #include <linux/hugetlb.h>
->>
->> +#define CREATE_TRACE_POINTS
->> +#include <trace/events/gup.h>
->> +
->>   #include <asm/pgtable.h>
->>   #include <asm/tlbflush.h>
->
-> This needs to be _the_ last thing that gets #included.  Otherwise, you
-> risk colliding with any other trace header that gets implicitly included
-> below.
 
-Thanks for the suggestion, will move it to the last.
+> On Dec 2, 2015, at 13:04, Vlastimil Babka <vbabka@suse.cz> wrote:
+>=20
+> On 12/02/2015 06:40 PM, yalin wang wrote:
+>=20
+> (please trim your reply next time, no need to quote whole patch here)
+>=20
+>> i am thinking why not make %pg* to be more generic ?
+>> not restricted to only GFP / vma flags / page flags .
+>> so could we change format like this ?
+>> define a flag spec struct to include flag and trace_print_flags and =
+some other option :
+>> typedef struct {=20
+>> unsigned long flag;
+>> structtrace_print_flags *flags;
+>> unsigned long option; } flag_sec;
+>> flag_sec my_flag;
+>> in printk we only pass like this :
+>> printk(=E2=80=9C%pg\n=E2=80=9D, &my_flag) ;
+>> then it can print any flags defined by user .
+>> more useful for other drivers to use .
+>=20
+> I don't know, it sounds quite complicated given that we had no flags =
+printing
+> for years and now there's just three kinds of them. The extra struct =
+flag_sec is
+> IMHO nuissance. No other printk format needs such thing AFAIK? For =
+example, if I
+> were to print page flags from several places, each would have to =
+define the
+> struct flag_sec instance, or some header would have to provide it?
+this can be avoided by provide a macro in header file .
+we can add a new struct to declare trace_print_flags :
+for example:
+#define DECLARE_FLAG_PRINTK_FMT(name, flags_array)   flag_spec name =3D =
+{ .flags =3D flags_array};
+#define FLAG_PRINTK_FMT(name, flag) ({  name.flag =3D flag;  &name})
 
->
->> @@ -1340,6 +1346,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->>   					start, len)))
->>   		return 0;
->>
->> +	trace_gup_get_user_pages_fast(start, nr_pages, write, pages);
->> +
->>   	/*
->>   	 * Disable interrupts.  We use the nested form as we can already have
->>   	 * interrupts disabled by get_futex_key.
->
-> It would be _really_ nice to be able to see return values from the
-> various gup calls as well.  Is that feasible?
+in source code :
+DECLARE_FLAG_PRINTK_FMT(my_flag, vmaflags_names);
+printk(=E2=80=9C%pg\n=E2=80=9D, FLAG_PRINTK_FMT(my_flag, vma->flag));
 
-I think it should be feasible. kmem_cache_alloc trace event could show 
-return value. I'm supposed gup trace events should be able to do the 
-same thing.
+i am not if DECLARE_FLAG_PRINTK_FMT and FLAG_PRINTK_FMT macro=20
+can be defined into one macro ?
+maybe need some trick here .
 
-Regards,
-Yang
+is it possible ?
 
->
+
+Thanks
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
