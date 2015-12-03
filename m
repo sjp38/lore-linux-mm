@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0B76B0038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 20:23:16 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so55995467pac.3
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 17:23:16 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id 5si8212035pfo.235.2015.12.02.17.23.16
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 818236B0038
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2015 20:24:47 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so56209028pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 17:24:47 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id o82si8254767pfa.139.2015.12.02.17.24.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Dec 2015 17:23:16 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so55995240pac.3
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 17:23:16 -0800 (PST)
-Date: Wed, 2 Dec 2015 17:23:13 -0800 (PST)
+        Wed, 02 Dec 2015 17:24:46 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so56191208pad.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 17:24:46 -0800 (PST)
+Date: Wed, 2 Dec 2015 17:24:45 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm/page_alloc.c: use list_{first,last}_entry instead
- of list_entry
-In-Reply-To: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
-Message-ID: <alpine.DEB.2.10.1512021723020.17205@chino.kir.corp.google.com>
-References: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com>
+Subject: Re: [PATCH 2/2] mm/page_alloc.c: use list_for_each_entry in
+ mark_free_pages()
+In-Reply-To: <7009a8fa2dba33da9bcfe60db4741139c07c8074.1449068845.git.geliangtang@163.com>
+Message-ID: <alpine.DEB.2.10.1512021724330.17205@chino.kir.corp.google.com>
+References: <db1a792ecffc24a080e130725a82f190804fdf78.1449068845.git.geliangtang@163.com> <7009a8fa2dba33da9bcfe60db4741139c07c8074.1449068845.git.geliangtang@163.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,8 +27,8 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
 
 On Wed, 2 Dec 2015, Geliang Tang wrote:
 
-> To make the intention clearer, use list_{first,last}_entry instead
-> of list_entry.
+> Use list_for_each_entry instead of list_for_each + list_entry to
+> simplify the code.
 > 
 > Signed-off-by: Geliang Tang <geliangtang@163.com>
 
