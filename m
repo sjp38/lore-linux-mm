@@ -1,121 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 71AAA6B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 02:00:28 -0500 (EST)
-Received: by pfu207 with SMTP id 207so5440113pfu.2
-        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 23:00:28 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id q62si10121424pfq.5.2015.12.02.23.00.26
-        for <linux-mm@kvack.org>;
-        Wed, 02 Dec 2015 23:00:27 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1449087238-12754-1-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1449087238-12754-1-git-send-email-mike.kravetz@oracle.com>
-Subject: Re: [PATCH V2] mm/hugetlb resv map memory leak for placeholder entries
-Date: Thu, 03 Dec 2015 15:00:01 +0800
-Message-ID: <05cd01d12d98$3bbcc180$b3364480$@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB566B0255
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 02:11:35 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so63235147pad.1
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 23:11:35 -0800 (PST)
+Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
+        by mx.google.com with ESMTPS id r73si10146767pfa.169.2015.12.02.23.11.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Dec 2015 23:11:35 -0800 (PST)
+Received: by pfnn128 with SMTP id n128so5525272pfn.0
+        for <linux-mm@kvack.org>; Wed, 02 Dec 2015 23:11:35 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH v3 0/7] mm/compaction: redesign compaction: part1
+Date: Thu,  3 Dec 2015 16:11:14 +0900
+Message-Id: <1449126681-19647-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Dmitry Vyukov' <dvyukov@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'David Rientjes' <rientjes@google.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Hugh Dickins' <hughd@google.com>, 'Greg Thelen' <gthelen@google.com>
-Cc: 'Kostya Serebryany' <kcc@google.com>, 'Alexander Potapenko' <glider@google.com>, 'Sasha Levin' <sasha.levin@oracle.com>, 'Eric Dumazet' <edumazet@google.com>, 'syzkaller' <syzkaller@googlegroups.com>, "'stable@vger.kernel.org[4.3]'"@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> 
-> Dmitry Vyukov reported the following memory leak
-> 
-> unreferenced object 0xffff88002eaafd88 (size 32):
->   comm "a.out", pid 5063, jiffies 4295774645 (age 15.810s)
->   hex dump (first 32 bytes):
->     28 e9 4e 63 00 88 ff ff 28 e9 4e 63 00 88 ff ff  (.Nc....(.Nc....
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<     inline     >] kmalloc include/linux/slab.h:458
->     [<ffffffff815efa64>] region_chg+0x2d4/0x6b0 mm/hugetlb.c:398
->     [<ffffffff815f0c63>] __vma_reservation_common+0x2c3/0x390 mm/hugetlb.c:1791
->     [<     inline     >] vma_needs_reservation mm/hugetlb.c:1813
->     [<ffffffff815f658e>] alloc_huge_page+0x19e/0xc70 mm/hugetlb.c:1845
->     [<     inline     >] hugetlb_no_page mm/hugetlb.c:3543
->     [<ffffffff815fc561>] hugetlb_fault+0x7a1/0x1250 mm/hugetlb.c:3717
->     [<ffffffff815fd349>] follow_hugetlb_page+0x339/0xc70 mm/hugetlb.c:3880
->     [<ffffffff815a2bb2>] __get_user_pages+0x542/0xf30 mm/gup.c:497
->     [<ffffffff815a400e>] populate_vma_page_range+0xde/0x110 mm/gup.c:919
->     [<ffffffff815a4207>] __mm_populate+0x1c7/0x310 mm/gup.c:969
->     [<ffffffff815b74f1>] do_mlock+0x291/0x360 mm/mlock.c:637
->     [<     inline     >] SYSC_mlock2 mm/mlock.c:658
->     [<ffffffff815b7a4b>] SyS_mlock2+0x4b/0x70 mm/mlock.c:648
-> 
-> Dmitry identified a potential memory leak in the routine region_chg,
-> where a region descriptor is not free'ed on an error path.
-> 
-> However, the root cause for the above memory leak resides in region_del.
-> In this specific case, a "placeholder" entry is created in region_chg.  The
-> associated page allocation fails, and the placeholder entry is left in the
-> reserve map.  This is "by design" as the entry should be deleted when the
-> map is released.  The bug is in the region_del routine which is used to
-> delete entries within a specific range (and when the map is released).
-> region_del did not handle the case where a placeholder entry exactly matched
-> the start of the range range to be deleted.  In this case, the entry would
-> not be deleted and leaked.  The fix is to take these special placeholder
-> entries into account in region_del.
-> 
-> The region_chg error path leak is also fixed.
-> 
-> V2: The original version of the patch did not correctly handle placeholder
->     entries before the range to be deleted.  The new check is more specific
->     and only matches placeholders at the start of range.
-> 
-> Fixes: feba16e25a57 ("add region_del() to delete a specific range of entries")
-> Cc: stable@vger.kernel.org [4.3]
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> ---
+Major changes from v2:
+o Split patchset into two parts, one is for replacing compaction
+deferring with compaction limit and the other is for changing
+scanner activity
+o Add some fixes and cleanup for current defer logic
+o Fix opposite direction problem in "skip useless pfn when..." patch
+o Reuse current defer logic for compaction limit
+o Provide proper argument when calling __reset_isolation_suitable()
+o Prevent async compaction while compaction limit is activated
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Previous cover-letter isn't appropriate for this part1 patchset so
+I just append link about it.
 
->  mm/hugetlb.c | 14 ++++++++++++--
->  1 file changed, 12 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 1101ccd94..c895ab9 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -372,8 +372,10 @@ retry_locked:
->  		spin_unlock(&resv->lock);
-> 
->  		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
-> -		if (!trg)
-> +		if (!trg) {
-> +			kfree(nrg);
->  			return -ENOMEM;
-> +		}
-> 
->  		spin_lock(&resv->lock);
->  		list_add(&trg->link, &resv->region_cache);
-> @@ -483,8 +485,16 @@ static long region_del(struct resv_map *resv, long f, long t)
->  retry:
->  	spin_lock(&resv->lock);
->  	list_for_each_entry_safe(rg, trg, head, link) {
-> -		if (rg->to <= f)
-> +		/*
-> +		 * Skip regions before the range to be deleted.  file_region
-> +		 * ranges are normally of the form [from, to).  However, there
-> +		 * may be a "placeholder" entry in the map which is of the form
-> +		 * (from, to) with from == to.  Check for placeholder entries
-> +		 * at the beginning of the range to be deleted.
-> +		 */
-> +		if (rg->to <= f && (rg->to != rg->from || rg->to != f))
->  			continue;
-> +
->  		if (rg->from >= t)
->  			break;
-> 
-> --
-> 2.4.3
+https://lkml.org/lkml/2015/8/23/182
+
+New description:
+Compaction deferring effectively reduces compaction overhead if
+compaction success isn't expected. But, it is implemented that
+skipping a number of compaction requests until compaction is re-enabled.
+Due to this implementation, unfortunate compaction requestor will get
+whole compaction overhead unlike others have zero overhead. And, after
+deferring start to work, even if compaction success possibility is
+restored, we should skip to compaction in some number of times.
+
+This patch try to solve above problem by using compaction limit.
+Instead of imposing compaction overhead to one unfortunate requestor,
+compaction limit distributes overhead to all compaction requestors.
+All requestors have a chance to migrate some amount of pages and
+after limit is exhausted compaction will be stopped. This will fairly
+distributes overhead to all compaction requestors. And, because we don't
+defer compaction request, someone will succeed to compact as soon as
+possible if compaction success possiblility is restored.
+
+I tested this patch on my compaction benchmark and found that high-order
+allocation latency is evenly distributed and there is no latency spike
+in the situation where compaction success isn't possible.
+
+Following is the result of each high-order allocation latency (ns).
+Base vs Limit
+
+9807 failure 825        9807 failure 10839
+9808 failure 820        9808 failure 9762
+9809 failure 827        9809 failure 8585
+9810 failure 3751       9810 failure 14052
+9811 failure 881        9811 failure 10781
+9812 failure 827        9812 failure 9906
+9813 failure 2447430    9813 failure 8925
+9814 failure 8632       9814 failure 9185
+9815 failure 1172       9815 failure 9076
+9816 failure 1045       9816 failure 10860
+9817 failure 1044       9817 failure 10571
+9818 failure 1043       9818 failure 8789
+9819 failure 979        9819 failure 9086
+9820 failure 4338       9820 failure 43681
+9821 failure 1001       9821 failure 9361
+9822 failure 875        9822 failure 15175
+9823 failure 822        9823 failure 9394
+9824 failure 827        9824 failure 334341
+9825 failure 829        9825 failure 15404
+9826 failure 823        9826 failure 10419
+9827 failure 824        9827 failure 11375
+9828 failure 827        9828 failure 9416
+9829 failure 822        9829 failure 9303
+9830 failure 3646       9830 failure 18514
+9831 failure 869        9831 failure 11064
+9832 failure 820        9832 failure 9626
+9833 failure 832        9833 failure 8794
+9834 failure 820        9834 failure 10576
+9835 failure 2450955    9835 failure 12260
+9836 failure 9428       9836 failure 9049
+9837 failure 1067       9837 failure 10346
+9838 failure 968        9838 failure 8793
+9839 failure 984        9839 failure 8932
+9840 failure 4262       9840 failure 18436
+9841 failure 964        9841 failure 11429
+9842 failure 937        9842 failure 9433
+9843 failure 828        9843 failure 8838
+9844 failure 827        9844 failure 8948
+9845 failure 822        9845 failure 13017
+9846 failure 827        9846 failure 10795
+
+As you can see, Base has a latency spike periodically, but,
+in Limit, latency is distributed evenly.
+
+This patchset is based on linux-next-20151106 +
+"restore COMPACT_CLUSTER_MAX to 32" + "__compact_pgdat() code cleanuup"
+which are sent by me today.
+
+Thanks.
+
+Joonsoo Kim (7):
+  mm/compaction: skip useless pfn when updating cached pfn
+  mm/compaction: remove unused defer_compaction() in compaction.h
+  mm/compaction: initialize compact_order_failed to MAX_ORDER
+  mm/compaction: update defer counter when allocation is expected to
+    succeed
+  mm/compaction: respect compaction order when updating defer counter
+  mm/compaction: introduce migration scan limit
+  mm/compaction: replace compaction deferring with compaction limit
+
+ include/linux/compaction.h        |   3 -
+ include/linux/mmzone.h            |   6 +-
+ include/trace/events/compaction.h |   7 +-
+ mm/compaction.c                   | 188 ++++++++++++++++++++++++--------------
+ mm/internal.h                     |   1 +
+ mm/page_alloc.c                   |   4 +-
+ 6 files changed, 125 insertions(+), 84 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
