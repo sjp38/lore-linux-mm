@@ -1,104 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f42.google.com (mail-lf0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 323F96B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 03:03:15 -0500 (EST)
-Received: by lffu14 with SMTP id u14so81812062lff.1
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:03:14 -0800 (PST)
-Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
-        by mx.google.com with ESMTPS id vo10si4800268lbb.137.2015.12.03.00.03.13
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 36FD26B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 03:11:04 -0500 (EST)
+Received: by wmww144 with SMTP id w144so10188895wmw.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:11:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k18si9807449wjw.112.2015.12.03.00.11.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 00:03:13 -0800 (PST)
-Received: by lfdl133 with SMTP id l133so81364827lfd.2
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 00:03:13 -0800 (PST)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
-References: <20151125143010.GI27283@dhcp22.suse.cz>
-	<1448899821-9671-1-git-send-email-vbabka@suse.cz>
-	<4EAD2C33-D0E4-4DEB-92E5-9C0457E8635C@gmail.com>
-	<565F5CD9.9080301@suse.cz>
-	<1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com>
-Date: Thu, 03 Dec 2015 09:03:09 +0100
-In-Reply-To: <1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com> (yalin wang's
-	message of "Wed, 2 Dec 2015 16:11:58 -0800")
-Message-ID: <87a8psq7r6.fsf@rasmusvillemoes.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 03 Dec 2015 00:11:02 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC 2/3] mm, compaction: make async direct compaction skip blocks where isolation fails
+Date: Thu,  3 Dec 2015 09:10:46 +0100
+Message-Id: <1449130247-8040-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
+References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: linux-mm@kvack.org, Aaron Lu <aaron.lu@intel.com>
+Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Dec 03 2015, yalin wang <yalin.wang2010@gmail.com> wrote:
+The goal of direct compaction is to quickly make a high-order page available.
+Within an aligned block of pages of desired order, a single allocated page that
+cannot be isolated for migration means that the block cannot fulfill the
+allocation request. Therefore we can reduce the latency by skipping such blocks
+immediately on isolation failures.  For async compaction, this also means a
+higher chance of succeeding until it becomes contended.
 
->> On Dec 2, 2015, at 13:04, Vlastimil Babka <vbabka@suse.cz> wrote:
->>=20
->> On 12/02/2015 06:40 PM, yalin wang wrote:
->>=20
->> (please trim your reply next time, no need to quote whole patch here)
->>=20
->>> i am thinking why not make %pg* to be more generic ?
->>> not restricted to only GFP / vma flags / page flags .
->>> so could we change format like this ?
->>> define a flag spec struct to include flag and trace_print_flags and som=
-e other option :
->>> typedef struct {=20
->>> unsigned long flag;
->>> structtrace_print_flags *flags;
->>> unsigned long option; } flag_sec;
->>> flag_sec my_flag;
->>> in printk we only pass like this :
->>> printk(=E2=80=9C%pg\n=E2=80=9D, &my_flag) ;
->>> then it can print any flags defined by user .
->>> more useful for other drivers to use .
->>=20
->> I don't know, it sounds quite complicated
+We however shouldn't completely sacrifice the second objective of compaction,
+which is to reduce overal long-term memory fragmentation. As a compromise,
+perform the eager skipping only in direct async compaction, while sync
+compaction remains thorough.
 
-Agreed, I think this would be premature generalization. There's also
-some value in having the individual %pgX specifiers, as that allows
-individual tweaks such as the mask_out for page flags.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/compaction.c | 55 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ mm/internal.h   |  1 +
+ 2 files changed, 49 insertions(+), 7 deletions(-)
 
- given that we had no flags printing
->> for years and now there's just three kinds of them. The extra struct fla=
-g_sec is
->> IMHO nuissance. No other printk format needs such thing AFAIK? For examp=
-le, if I
->> were to print page flags from several places, each would have to define =
-the
->> struct flag_sec instance, or some header would have to provide it?
-> this can be avoided by provide a macro in header file .
-> we can add a new struct to declare trace_print_flags :
-> for example:
-> #define DECLARE_FLAG_PRINTK_FMT(name, flags_array)   flag_spec name =3D {=
- .flags =3D flags_array};
-> #define FLAG_PRINTK_FMT(name, flag) ({  name.flag =3D flag;  &name})
->
-> in source code :
-> DECLARE_FLAG_PRINTK_FMT(my_flag, vmaflags_names);
-> printk(=E2=80=9C%pg\n=E2=80=9D, FLAG_PRINTK_FMT(my_flag, vma->flag));
->
-
-Compared to printk("%pgv\n", &vma->flag), I know which I'd prefer to read.
-
-> i am not if DECLARE_FLAG_PRINTK_FMT and FLAG_PRINTK_FMT macro=20
-> can be defined into one macro ?
-> maybe need some trick here .
->
-> is it possible ?
-
-Technically, I think the answer is yes, at least in C99 (and I suppose
-gcc would accept it in gnu89 mode as well).
-
-printk("%pg\n", &(struct flag_printer){.flags =3D my_flags, .names =3D vmaf=
-lags_names});
-
-Not tested, and I still don't think it would be particularly readable
-even when macroized
-
-printk("%pg\n", PRINTF_VMAFLAGS(my_flags));
-
-Rasmus
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9c14d10ad3e5..f94518b5b1c9 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -672,6 +672,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 	bool locked = false;
+ 	struct page *page = NULL, *valid_page = NULL;
+ 	unsigned long start_pfn = low_pfn;
++	bool skip_on_failure = false;
++	unsigned long next_skip_pfn = 0;
+ 
+ 	/*
+ 	 * Ensure that there are not too many pages isolated from the LRU
+@@ -692,10 +694,24 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 	if (compact_should_abort(cc))
+ 		return 0;
+ 
++	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC))
++		skip_on_failure = true;
++
+ 	/* Time to isolate some pages for migration */
+ 	for (; low_pfn < end_pfn; low_pfn++) {
+ 		bool is_lru;
+ 
++		if (skip_on_failure && low_pfn >= next_skip_pfn) {
++			if (nr_isolated)
++				break;
++			/*
++			 * low_pfn might have been incremented by arbitrary
++			 * number due to skipping a compound or a high-order
++			 * buddy page in the previous iteration
++			 */
++			next_skip_pfn = ALIGN(low_pfn + 1, (1UL << cc->order));
++		}
++
+ 		/*
+ 		 * Periodically drop the lock (if held) regardless of its
+ 		 * contention, to give chance to IRQs. Abort async compaction
+@@ -707,7 +723,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			break;
+ 
+ 		if (!pfn_valid_within(low_pfn))
+-			continue;
++			goto isolate_fail;
+ 		nr_scanned++;
+ 
+ 		page = pfn_to_page(low_pfn);
+@@ -762,11 +778,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			if (likely(comp_order < MAX_ORDER))
+ 				low_pfn += (1UL << comp_order) - 1;
+ 
+-			continue;
++			goto isolate_fail;
+ 		}
+ 
+ 		if (!is_lru)
+-			continue;
++			goto isolate_fail;
+ 
+ 		/*
+ 		 * Migration will fail if an anonymous page is pinned in memory,
+@@ -775,7 +791,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 */
+ 		if (!page_mapping(page) &&
+ 		    page_count(page) > page_mapcount(page))
+-			continue;
++			goto isolate_fail;
+ 
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+@@ -786,7 +802,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 			/* Recheck PageLRU and PageCompound under lock */
+ 			if (!PageLRU(page))
+-				continue;
++				goto isolate_fail;
+ 
+ 			/*
+ 			 * Page become compound since the non-locked check,
+@@ -795,7 +811,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			 */
+ 			if (unlikely(PageCompound(page))) {
+ 				low_pfn += (1UL << compound_order(page)) - 1;
+-				continue;
++				goto isolate_fail;
+ 			}
+ 		}
+ 
+@@ -803,7 +819,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* Try isolate the page */
+ 		if (__isolate_lru_page(page, isolate_mode) != 0)
+-			continue;
++			goto isolate_fail;
+ 
+ 		VM_BUG_ON_PAGE(PageCompound(page), page);
+ 
+@@ -829,6 +845,30 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			++low_pfn;
+ 			break;
+ 		}
++
++		continue;
++isolate_fail:
++		if (!skip_on_failure)
++			continue;
++
++		if (nr_isolated) {
++			if (locked) {
++				spin_unlock_irqrestore(&zone->lru_lock,	flags);
++				locked = false;
++			}
++			putback_movable_pages(migratelist);
++			nr_isolated = 0;
++			cc->last_migrated_pfn = 0;
++		}
++
++		if (low_pfn < next_skip_pfn) {
++			low_pfn = next_skip_pfn - 1;
++			/*
++			 * The check near the loop beginning would have updated
++			 * next_skip_pfn too, but this is a bit simpler.
++			 */
++			next_skip_pfn += 1UL << cc->order;
++		}
+ 	}
+ 
+ 	/*
+@@ -1495,6 +1535,7 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
+ 		.mode = mode,
+ 		.alloc_flags = alloc_flags,
+ 		.classzone_idx = classzone_idx,
++		.direct_compaction = true,
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
+diff --git a/mm/internal.h b/mm/internal.h
+index 38e24b89e4c4..079ba14afe55 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -205,6 +205,7 @@ struct compact_control {
+ 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
+ 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
++	bool direct_compaction;		/* Low latency over thoroughness */
+ 	int order;			/* order a direct compactor needs */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	const int alloc_flags;		/* alloc flags of a direct compactor */
+-- 
+2.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
