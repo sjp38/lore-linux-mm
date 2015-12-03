@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C5E46B0256
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 10:57:44 -0500 (EST)
-Received: by qkda6 with SMTP id a6so31636999qkd.3
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:57:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g205si1556667qkb.9.2015.12.03.07.57.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 07:57:43 -0800 (PST)
-Subject: [RFC PATCH 2/2] slab: implement bulk free in SLAB allocator
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Thu, 03 Dec 2015 16:57:41 +0100
-Message-ID: <20151203155736.3589.67424.stgit@firesoul>
-In-Reply-To: <20151203155600.3589.86568.stgit@firesoul>
-References: <20151203155600.3589.86568.stgit@firesoul>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id DEB036B0255
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 10:59:09 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so27222898wmu.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 07:59:09 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id ek8si12088184wjd.115.2015.12.03.07.59.08
+        for <linux-mm@kvack.org>;
+        Thu, 03 Dec 2015 07:59:08 -0800 (PST)
+Date: Thu, 3 Dec 2015 16:59:05 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: [PATCH net] atl1c: Improve driver not to do order 4 GFP_ATOMIC
+ allocation
+Message-ID: <20151203155905.GA31974@amd>
+References: <20151126163413.GA3816@amd>
+ <20151127082010.GA2500@dhcp22.suse.cz>
+ <20151128145113.GB4135@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151128145113.GB4135@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>, davem@davemloft.net, Andrew Morton <akpm@osdl.org>
+Cc: kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
 
-(will add more desc after RFC)
 
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
----
- mm/slab.c |   31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+atl1c driver is doing order-4 allocation with GFP_ATOMIC
+priority. That often breaks  networking after resume. Switch to
+GFP_KERNEL. Still not ideal, but should be significantly better.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 3354489547ec..b676ac1dad34 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3413,12 +3413,6 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
- }
- EXPORT_SYMBOL(kmem_cache_alloc);
+atl1c_setup_ring_resources() is called from .open() function, and
+already uses GFP_KERNEL, so this change is safe.
+    
+Signed-off-by: Pavel Machek <pavel@ucw.cz>
+
+diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+index 2795d6d..afb71e0 100644
+--- a/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
++++ b/drivers/net/ethernet/atheros/atl1c/atl1c_main.c
+@@ -1016,10 +1016,10 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
+ 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
+ 		8 * 4;
  
--void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
--{
--	__kmem_cache_free_bulk(s, size, p);
--}
--EXPORT_SYMBOL(kmem_cache_free_bulk);
--
- int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 			  void **p)
- {
-@@ -3619,6 +3613,31 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
-+void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
-+{
-+	struct kmem_cache *s;
-+	size_t i;
-+
-+	local_irq_disable();
-+	for (i = 0; i < size; i++) {
-+		void *objp = p[i];
-+
-+		s = cache_from_obj(orig_s, objp);
-+
-+		debug_check_no_locks_freed(objp, s->object_size);
-+		if (!(s->flags & SLAB_DEBUG_OBJECTS))
-+			debug_check_no_obj_freed(objp, s->object_size);
-+
-+		__cache_free(s, objp, _RET_IP_);
-+	}
-+	local_irq_enable();
-+
-+	// FIXME: tracing
-+	// trace_kmem_cache_free(_RET_IP_, objp);
-+}
-+EXPORT_SYMBOL(kmem_cache_free_bulk);
-+
-+
- /**
-  * kfree - free previously allocated memory
-  * @objp: pointer returned by kmalloc.
+-	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
+-				&ring_header->dma);
++	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
++					       &ring_header->dma, GFP_KERNEL);
+ 	if (unlikely(!ring_header->desc)) {
+-		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
++		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
+ 		goto err_nomem;
+ 	}
+ 	memset(ring_header->desc, 0, ring_header->size);
+
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
