@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE916B0255
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:33 -0500 (EST)
-Received: by pfu207 with SMTP id 207so17244689pfu.2
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:33 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ry10si15466263pac.49.2015.12.03.17.14.28
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3232A6B0256
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:35 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so550717pac.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:35 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 187si15438244pfa.195.2015.12.03.17.14.29
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:14:28 -0800 (PST)
-Subject: [PATCH 02/34] x86, fpu: add placeholder for Processor Trace XSAVE state
+        Thu, 03 Dec 2015 17:14:29 -0800 (PST)
+Subject: [PATCH 03/34] x86, pkeys: Add Kconfig option
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:14:28 -0800
+Date: Thu, 03 Dec 2015 17:14:29 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011428.B65C1D48@viggo.jf.intel.com>
+Message-Id: <20151204011429.239073E3@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,88 +22,43 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-x86 Maintainers,
+I don't have a strong opinion on whether we need a Kconfig prompt
+or not.  Protection Keys has relatively little code associated
+with it, and it is not a heavyweight feature to keep enabled.
+However, I can imagine that folks would still appreciate being
+able to disable it.
 
-I submitted this independently, but it must be applied before adding
-subsequent patches.  Please drop this if it has already been applied.
+Note that, with disabled-features.h, the checks in the code
+for protection keys are always the same:
 
----
+	cpu_has(c, X86_FEATURE_PKU)
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+With the config option disabled, this essentially turns into an
+#ifdef.
 
-There is an XSAVE state component for Intel Processor Trace.  But,
-we do not use it and do not expect to ever use it.
-
-We add a placeholder in the code for it so it is not a mystery and
-also so we do not need an explicit enum initialization for Protection
-Keys in a moment.
-
-Why will we never use it?  According to Andi Kleen:
-
-	The XSAVE support assumes that there is a single buffer
-	for each thread. But perf generally doesn't work this
-	way, it usually has only a single perf event per CPU per
-	user, and when tracing multiple threads on that CPU it
-	inherits perf event buffers between different threads. So
-	XSAVE per thread cannot handle this inheritance case
-	directly.
-
-	Using multiple XSAVE areas (another one per perf event)
-	would defeat some of the state caching that the CPUs do.
+We will hide the prompt for now.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/fpu/types.h |    1 +
- b/arch/x86/kernel/fpu/xstate.c     |   10 ++++++++--
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ b/arch/x86/Kconfig |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff -puN arch/x86/include/asm/fpu/types.h~pt-xstate-bit arch/x86/include/asm/fpu/types.h
---- a/arch/x86/include/asm/fpu/types.h~pt-xstate-bit	2015-12-03 16:21:19.003370936 -0800
-+++ b/arch/x86/include/asm/fpu/types.h	2015-12-03 16:21:19.008371163 -0800
-@@ -108,6 +108,7 @@ enum xfeature {
- 	XFEATURE_OPMASK,
- 	XFEATURE_ZMM_Hi256,
- 	XFEATURE_Hi16_ZMM,
-+	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
+diff -puN arch/x86/Kconfig~pkeys-01-kconfig arch/x86/Kconfig
+--- a/arch/x86/Kconfig~pkeys-01-kconfig	2015-12-03 16:21:19.440390755 -0800
++++ b/arch/x86/Kconfig	2015-12-03 16:21:19.444390937 -0800
+@@ -1680,6 +1680,10 @@ config X86_INTEL_MPX
  
- 	XFEATURE_MAX,
- };
-diff -puN arch/x86/kernel/fpu/xstate.c~pt-xstate-bit arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pt-xstate-bit	2015-12-03 16:21:19.004370981 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:19.008371163 -0800
-@@ -13,6 +13,11 @@
+ 	  If unsure, say N.
  
- #include <asm/tlbflush.h>
- 
-+/*
-+ * Although we spell it out in here, the Processor Trace
-+ * xfeature is completely unused.  We use other mechanisms
-+ * to save/restore PT state in Linux.
-+ */
- static const char *xfeature_names[] =
- {
- 	"x87 floating point registers"	,
-@@ -23,7 +28,7 @@ static const char *xfeature_names[] =
- 	"AVX-512 opmask"		,
- 	"AVX-512 Hi256"			,
- 	"AVX-512 ZMM_Hi256"		,
--	"unknown xstate feature"	,
-+	"Processor Trace (unused)"	,
- };
- 
- /*
-@@ -469,7 +474,8 @@ static void check_xstate_against_struct(
- 	 * numbers.
- 	 */
- 	if ((nr < XFEATURE_YMM) ||
--	    (nr >= XFEATURE_MAX)) {
-+	    (nr >= XFEATURE_MAX) ||
-+	    (nr == XFEATURE_PT_UNIMPLEMENTED_SO_FAR)) {
- 		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
- 		XSTATE_WARN_ON(1);
- 	}
++config X86_INTEL_MEMORY_PROTECTION_KEYS
++	def_bool y
++	depends on CPU_SUP_INTEL && X86_64
++
+ config EFI
+ 	bool "EFI runtime service support"
+ 	depends on ACPI
 _
 
 --
