@@ -1,72 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DE1FC6B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 18:19:17 -0500 (EST)
-Received: by wmww144 with SMTP id w144so80059263wmw.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 15:19:17 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bv6si21604572wjc.97.2015.12.04.15.19.16
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7496B0038
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 18:31:54 -0500 (EST)
+Received: by ioir85 with SMTP id r85so132198018ioi.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 15:31:54 -0800 (PST)
+Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
+        by mx.google.com with ESMTPS id i4si8845150iga.75.2015.12.04.15.31.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Dec 2015 15:19:16 -0800 (PST)
-Date: Fri, 4 Dec 2015 15:19:13 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 4174/4356] kernel/built-in.o:undefined
- reference to `mmap_rnd_bits'
-Message-Id: <20151204151913.166e5cb795359ff1a53d26ac@linux-foundation.org>
-In-Reply-To: <20151204151424.e73641da44c61f20f10d93e9@linux-foundation.org>
-References: <201512050045.l2G9WhTi%fengguang.wu@intel.com>
-	<20151204151424.e73641da44c61f20f10d93e9@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 04 Dec 2015 15:31:54 -0800 (PST)
+Received: by ioir85 with SMTP id r85so132197874ioi.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 15:31:54 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
+References: <20151204011424.8A36E365@viggo.jf.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 4 Dec 2015 15:31:34 -0800
+Message-ID: <CALCETrXwVb99hAvqR2o54aPwtpr8oubROtiRt45SiYRfUTAxCw@mail.gmail.com>
+Subject: Re: [PATCH 00/34] x86: Memory Protection Keys (v5)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Daniel Cashman <dcashman@google.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Fri, 4 Dec 2015 15:14:24 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, Dec 3, 2015 at 5:14 PM, Dave Hansen <dave@sr71.net> wrote:
+> Memory Protection Keys for User pages is a CPU feature which will
+> first appear on Skylake Servers, but will also be supported on
+> future non-server parts.  It provides a mechanism for enforcing
+> page-based protections, but without requiring modification of the
+> page tables when an application changes protection domains.  See
+> the Documentation/ patch for more details.
 
-> There's also the matter of CONFIG_MMU=n.
+What, if anything, happened to the signal handling parts?
 
-ah, Arnd already fixed this one.  I guess I'll retain the patches
-for now.
+Also, do you have a git tree for this somewhere?  I can't actually
+enable it (my laptop, while very shiny, is not a Skylake server), but
+I can poke around a bit.
 
-
-
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: ARM: avoid ARCH_MMAP_RND_BITS for NOMMU
-
-ARM kernels with MMU disabled fail to build because of CONFIG_ARCH_MMAP_RND_BITS:
-
-kernel/built-in.o:(.data+0x754): undefined reference to `mmap_rnd_bits'
-kernel/built-in.o:(.data+0x76c): undefined reference to `mmap_rnd_bits_min'
-kernel/built-in.o:(.data+0x770): undefined reference to `mmap_rnd_bits_max'
-
-This changes the newly added line to only select this allow for
-MMU-enabled kernels.
-
-Fixes: 14570b3fd31a ("arm: mm: support ARCH_MMAP_RND_BITS")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Cc: Daniel Cashman <dcashman@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- arch/arm/Kconfig |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN arch/arm/Kconfig~arm-mm-support-arch_mmap_rnd_bits-fix arch/arm/Kconfig
---- a/arch/arm/Kconfig~arm-mm-support-arch_mmap_rnd_bits-fix
-+++ a/arch/arm/Kconfig
-@@ -35,7 +35,7 @@ config ARM
- 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
- 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32
- 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32
--	select HAVE_ARCH_MMAP_RND_BITS
-+	select HAVE_ARCH_MMAP_RND_BITS if MMU
- 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_BPF_JIT
-_
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
