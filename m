@@ -1,253 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AB1482F71
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:39 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so78054544pac.2
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 01B2E82F7A
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:40 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so80185162pab.0
         for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:15:39 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id we6si15424118pab.216.2015.12.03.17.15.38
+        by mx.google.com with ESMTP id we6si15424118pab.216.2015.12.03.17.15.39
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:15:38 -0800 (PST)
-Subject: [PATCH 32/34] x86, pkeys: add pkey set/get syscalls
+        Thu, 03 Dec 2015 17:15:39 -0800 (PST)
+Subject: [PATCH 33/34] x86, pkeys: actually enable Memory Protection Keys in CPU
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:15:08 -0800
+Date: Thu, 03 Dec 2015 17:15:10 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011508.0275A2E4@viggo.jf.intel.com>
+Message-Id: <20151204011510.A6F4F15F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This establishes two more system calls for protection key management:
+This sets the bit in 'cr4' to actually enable the protection
+keys feature.  We also include a boot-time disable for the
+feature "nopku".
 
-	unsigned long pkey_get(int pkey);
-	int pkey_set(int pkey, unsigned long access_rights);
+Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE cpuid
+bit to appear set.  At this point in boot, identify_cpu()
+has already run the actual CPUID instructions and populated
+the "cpu features" structures.  We need to go back and
+re-run identify_cpu() to make sure it gets updated values.
 
-The return value from pkey_get() and the 'access_rights' passed
-to pkey_set() are the same format: a bitmask containing
-PKEY_DENY_WRITE and/or PKEY_DENY_ACCESS, or nothing set at all.
+We *could* simply re-populate the 11th word of the cpuid
+data, but this is probably quick enough.
 
-These replace userspace's direct use of rdpkru/wrpkru.
-
-With current hardware, the kernel can not enforce that it has
-control over a given key.  But, this at least allows the kernel
-to indicate to userspace that userspace does not control a given
-protection key.
-
-The kernel does _not_ enforce that this interface must be used for
-changes to PKRU, even for keys it has not "allocated".
+Also note that with the cpu_has() check and X86_FEATURE_PKU
+present in disabled-features.h, we do not need an #ifdef
+for setup_pku().
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-api@vger.kernel.org
 ---
 
- b/arch/x86/entry/syscalls/syscall_32.tbl |    2 +
- b/arch/x86/entry/syscalls/syscall_64.tbl |    2 +
- b/arch/x86/include/asm/mmu_context.h     |    2 +
- b/arch/x86/include/asm/pkeys.h           |    2 -
- b/arch/x86/kernel/fpu/xstate.c           |   55 +++++++++++++++++++++++++++++--
- b/include/linux/pkeys.h                  |    8 ++++
- b/mm/mprotect.c                          |   34 +++++++++++++++++++
- 7 files changed, 102 insertions(+), 3 deletions(-)
+ b/Documentation/kernel-parameters.txt |    3 ++
+ b/arch/x86/kernel/cpu/common.c        |   41 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)
 
-diff -puN arch/x86/entry/syscalls/syscall_32.tbl~pkey-syscalls-set-get arch/x86/entry/syscalls/syscall_32.tbl
---- a/arch/x86/entry/syscalls/syscall_32.tbl~pkey-syscalls-set-get	2015-12-03 16:21:33.139012003 -0800
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl	2015-12-03 16:21:33.151012548 -0800
-@@ -386,3 +386,5 @@
- 377	i386	pkey_mprotect		sys_pkey_mprotect
- 378	i386	pkey_alloc		sys_pkey_alloc
- 379	i386	pkey_free		sys_pkey_free
-+380	i386	pkey_get		sys_pkey_get
-+381	i386	pkey_set		sys_pkey_set
-diff -puN arch/x86/entry/syscalls/syscall_64.tbl~pkey-syscalls-set-get arch/x86/entry/syscalls/syscall_64.tbl
---- a/arch/x86/entry/syscalls/syscall_64.tbl~pkey-syscalls-set-get	2015-12-03 16:21:33.141012094 -0800
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl	2015-12-03 16:21:33.152012593 -0800
-@@ -335,6 +335,8 @@
- 326	common	pkey_mprotect		sys_pkey_mprotect
- 327	common	pkey_alloc		sys_pkey_alloc
- 328	common	pkey_free		sys_pkey_free
-+329	common	pkey_get		sys_pkey_get
-+330	common	pkey_set		sys_pkey_set
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff -puN arch/x86/include/asm/mmu_context.h~pkey-syscalls-set-get arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~pkey-syscalls-set-get	2015-12-03 16:21:33.142012139 -0800
-+++ b/arch/x86/include/asm/mmu_context.h	2015-12-03 16:21:33.152012593 -0800
-@@ -340,5 +340,7 @@ static inline bool arch_pte_access_permi
- 
- extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 		unsigned long init_val);
-+extern unsigned long arch_get_user_pkey_access(struct task_struct *tsk,
-+		int pkey);
- 
- #endif /* _ASM_X86_MMU_CONTEXT_H */
-diff -puN arch/x86/include/asm/pkeys.h~pkey-syscalls-set-get arch/x86/include/asm/pkeys.h
---- a/arch/x86/include/asm/pkeys.h~pkey-syscalls-set-get	2015-12-03 16:21:33.144012230 -0800
-+++ b/arch/x86/include/asm/pkeys.h	2015-12-03 16:21:33.152012593 -0800
-@@ -16,7 +16,7 @@
- } while (0)
- 
- static inline
--bool mm_pkey_is_allocated(struct mm_struct *mm, unsigned long pkey)
-+bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- {
- 	if (!arch_validate_pkey(pkey))
- 		return true;
-diff -puN arch/x86/kernel/fpu/xstate.c~pkey-syscalls-set-get arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkey-syscalls-set-get	2015-12-03 16:21:33.145012275 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:33.153012638 -0800
-@@ -687,7 +687,7 @@ void fpu__resume_cpu(void)
-  *
-  * Note: does not work for compacted buffers.
-  */
--void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
-+static void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
- {
- 	int feature_nr = fls64(xstate_feature_mask) - 1;
- 
-@@ -862,6 +862,7 @@ out:
- 
- #define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
- #define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
-+#define PKRU_INIT_STATE	0
+diff -puN arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch arch/x86/kernel/cpu/common.c
+--- a/arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch	2015-12-03 16:21:33.708037809 -0800
++++ b/arch/x86/kernel/cpu/common.c	2015-12-03 16:21:33.714038081 -0800
+@@ -289,6 +289,46 @@ static __always_inline void setup_smap(s
+ }
  
  /*
-  * This will go out and modify the XSAVE buffer so that PKRU is
-@@ -880,6 +881,9 @@ int arch_set_user_pkey_access(struct tas
- 	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
- 	u32 new_pkru_bits = 0;
- 
-+	/* Only support manipulating current task for now */
-+	if (tsk != current)
-+		return -EINVAL;
- 	if (!arch_validate_pkey(pkey))
- 		return -EINVAL;
- 	/*
-@@ -907,7 +911,7 @@ int arch_set_user_pkey_access(struct tas
- 	 * state.
- 	 */
- 	if (!old_pkru_state)
--		new_pkru_state.pkru = 0;
-+		new_pkru_state.pkru = PKRU_INIT_STATE;
- 	else
- 		new_pkru_state.pkru = old_pkru_state->pkru;
- 
-@@ -932,4 +936,51 @@ int arch_set_user_pkey_access(struct tas
- 
- 	return 0;
- }
++ * Protection Keys are not available in 32-bit mode.
++ */
++static bool pku_disabled = false;
++static __always_inline void setup_pku(struct cpuinfo_x86 *c)
++{
++	if (!cpu_has(c, X86_FEATURE_PKU))
++		return;
++	if (pku_disabled)
++		return;
++
++	cr4_set_bits(X86_CR4_PKE);
++	/*
++	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
++	 * cpuid bit to be set.  We need to ensure that we
++	 * update that bit in this CPU's "cpu_info".
++	 */
++	get_cpu_cap(c);
++}
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++static __init int setup_disable_pku(char *arg)
++{
++	/*
++	 * Do not clear the X86_FEATURE_PKU bit.  All of the
++	 * runtime checks are against OSPKE so clearing the
++	 * bit does nothing.
++	 *
++	 * This way, we will see "pku" in cpuinfo, but not
++	 * "ospke", which is exactly what we want.  It shows
++	 * that the CPU has PKU, but the OS has not enabled it.
++	 * This happens to be exactly how a system would look
++	 * if we disabled the config option.
++	 */
++	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
++	pku_disabled = true;
++	return 1;
++}
++__setup("nopku", setup_disable_pku);
++#endif /* CONFIG_X86_64 */
 +
 +/*
-+ * Figures out what the rights are currently for 'pkey'.
-+ * Converts from PKRU's format to the user-visible PKEY_DISABLE_*
-+ * format.
-+ */
-+unsigned long arch_get_user_pkey_access(struct task_struct *tsk, int pkey)
-+{
-+	struct fpu *fpu = &current->thread.fpu;
-+	u32 pkru_reg;
-+	int ret = 0;
-+
-+	/* Only support manipulating current task for now */
-+	if (tsk != current)
-+		return -1;
-+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-+		return -1;
-+	/*
-+	 * The contents of PKRU itself are invalid.  Consult the
-+	 * task's XSAVE buffer for PKRU contents.  This is much
-+	 * more expensive than reading PKRU directly, but should
-+	 * be rare or impossible with eagerfpu mode.
-+	 */
-+	if (!fpu->fpregs_active) {
-+		struct xregs_state *xsave = &fpu->state.xsave;
-+		struct pkru_state *pkru_state =
-+			get_xsave_addr(xsave, XFEATURE_MASK_PKRU);
-+		/*
-+		 * PKRU is in its init state and not present in
-+		 * the buffer in a saved form.
-+		 */
-+		if (!pkru_state)
-+			return PKRU_INIT_STATE;
-+
-+		return pkru_state->pkru;
-+	}
-+	/*
-+	 * Consult the user register directly.
-+	 */
-+	pkru_reg = read_pkru();
-+	if (!__pkru_allows_read(pkru_reg, pkey))
-+		ret |= PKEY_DISABLE_ACCESS;
-+	if (!__pkru_allows_write(pkru_reg, pkey))
-+		ret |= PKEY_DISABLE_WRITE;
-+
-+	return ret;
-+}
- #endif /* CONFIG_ARCH_HAS_PKEYS */
-diff -puN include/linux/pkeys.h~pkey-syscalls-set-get include/linux/pkeys.h
---- a/include/linux/pkeys.h~pkey-syscalls-set-get	2015-12-03 16:21:33.147012366 -0800
-+++ b/include/linux/pkeys.h	2015-12-03 16:21:33.153012638 -0800
-@@ -43,6 +43,14 @@ static inline int mm_pkey_free(struct mm
- static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 			unsigned long init_val)
- {
-+	return -EINVAL;
-+}
-+
-+static inline
-+unsigned long arch_get_user_pkey_access(struct task_struct *tsk, int pkey)
-+{
-+	if (pkey)
-+		return -1;
- 	return 0;
- }
+  * Some CPU features depend on higher CPUID levels, which may not always
+  * be available due to CPUID level capping or broken virtualization
+  * software.  Add those features to this table to auto-disable them.
+@@ -948,6 +988,7 @@ static void identify_cpu(struct cpuinfo_
+ 	init_hypervisor(c);
+ 	x86_init_rdrand(c);
+ 	x86_init_cache_qos(c);
++	setup_pku(c);
  
-diff -puN mm/mprotect.c~pkey-syscalls-set-get mm/mprotect.c
---- a/mm/mprotect.c~pkey-syscalls-set-get	2015-12-03 16:21:33.148012412 -0800
-+++ b/mm/mprotect.c	2015-12-03 16:21:33.154012684 -0800
-@@ -531,3 +531,37 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
- 	 */
- 	return ret;
- }
+ 	/*
+ 	 * Clear/Set all flags overriden by options, need do it
+diff -puN Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch Documentation/kernel-parameters.txt
+--- a/Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch	2015-12-03 16:21:33.710037900 -0800
++++ b/Documentation/kernel-parameters.txt	2015-12-03 16:21:33.715038127 -0800
+@@ -958,6 +958,9 @@ bytes respectively. Such letter suffixes
+ 			See Documentation/x86/intel_mpx.txt for more
+ 			information about the feature.
+ 
++	nopku		[X86] Disable Memory Protection Keys CPU feature found
++			in some Intel CPUs.
 +
-+SYSCALL_DEFINE1(pkey_get, int, pkey)
-+{
-+	unsigned long ret = 0;
-+
-+	down_write(&current->mm->mmap_sem);
-+	if (!mm_pkey_is_allocated(current->mm, pkey))
-+		ret = -EBADF;
-+	up_write(&current->mm->mmap_sem);
-+
-+	if (ret)
-+		return ret;
-+
-+	ret = arch_get_user_pkey_access(current, pkey);
-+
-+	return ret;
-+}
-+
-+SYSCALL_DEFINE2(pkey_set, int, pkey, unsigned long, access_rights)
-+{
-+	unsigned long ret = 0;
-+
-+	down_write(&current->mm->mmap_sem);
-+	if (!mm_pkey_is_allocated(current->mm, pkey))
-+		ret = -EBADF;
-+	up_write(&current->mm->mmap_sem);
-+
-+	if (ret)
-+		return ret;
-+
-+	ret = arch_set_user_pkey_access(current, pkey, access_rights);
-+
-+	return ret;
-+}
+ 	eagerfpu=	[X86]
+ 			on	enable eager fpu restore
+ 			off	disable eager fpu restore
 _
 
 --
