@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B2E82F7A
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:40 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so80185162pab.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:15:39 -0800 (PST)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 26CB26B0255
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:42 -0500 (EST)
+Received: by pfbg73 with SMTP id g73so17650137pfb.1
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:15:41 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
         by mx.google.com with ESMTP id we6si15424118pab.216.2015.12.03.17.15.39
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:15:39 -0800 (PST)
-Subject: [PATCH 33/34] x86, pkeys: actually enable Memory Protection Keys in CPU
+        Thu, 03 Dec 2015 17:15:40 -0800 (PST)
+Subject: [PATCH 34/34] x86, pkeys: Documentation
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:15:10 -0800
+Date: Thu, 03 Dec 2015 17:15:11 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011510.A6F4F15F@viggo.jf.intel.com>
+Message-Id: <20151204011511.5D72478D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,101 +22,70 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This sets the bit in 'cr4' to actually enable the protection
-keys feature.  We also include a boot-time disable for the
-feature "nopku".
-
-Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE cpuid
-bit to appear set.  At this point in boot, identify_cpu()
-has already run the actual CPUID instructions and populated
-the "cpu features" structures.  We need to go back and
-re-run identify_cpu() to make sure it gets updated values.
-
-We *could* simply re-populate the 11th word of the cpuid
-data, but this is probably quick enough.
-
-Also note that with the cpu_has() check and X86_FEATURE_PKU
-present in disabled-features.h, we do not need an #ifdef
-for setup_pku().
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/Documentation/kernel-parameters.txt |    3 ++
- b/arch/x86/kernel/cpu/common.c        |   41 ++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ b/Documentation/x86/protection-keys.txt |   53 ++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)
 
-diff -puN arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch arch/x86/kernel/cpu/common.c
---- a/arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch	2015-12-03 16:21:33.708037809 -0800
-+++ b/arch/x86/kernel/cpu/common.c	2015-12-03 16:21:33.714038081 -0800
-@@ -289,6 +289,46 @@ static __always_inline void setup_smap(s
- }
- 
- /*
-+ * Protection Keys are not available in 32-bit mode.
-+ */
-+static bool pku_disabled = false;
-+static __always_inline void setup_pku(struct cpuinfo_x86 *c)
-+{
-+	if (!cpu_has(c, X86_FEATURE_PKU))
-+		return;
-+	if (pku_disabled)
-+		return;
+diff -puN /dev/null Documentation/x86/protection-keys.txt
+--- /dev/null	2015-07-13 14:24:11.435656502 -0700
++++ b/Documentation/x86/protection-keys.txt	2015-12-03 16:22:15.486932540 -0800
+@@ -0,0 +1,53 @@
++Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
++which will be found on future Intel CPUs.
 +
-+	cr4_set_bits(X86_CR4_PKE);
-+	/*
-+	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
-+	 * cpuid bit to be set.  We need to ensure that we
-+	 * update that bit in this CPU's "cpu_info".
-+	 */
-+	get_cpu_cap(c);
-+}
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+static __init int setup_disable_pku(char *arg)
-+{
-+	/*
-+	 * Do not clear the X86_FEATURE_PKU bit.  All of the
-+	 * runtime checks are against OSPKE so clearing the
-+	 * bit does nothing.
-+	 *
-+	 * This way, we will see "pku" in cpuinfo, but not
-+	 * "ospke", which is exactly what we want.  It shows
-+	 * that the CPU has PKU, but the OS has not enabled it.
-+	 * This happens to be exactly how a system would look
-+	 * if we disabled the config option.
-+	 */
-+	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
-+	pku_disabled = true;
-+	return 1;
-+}
-+__setup("nopku", setup_disable_pku);
-+#endif /* CONFIG_X86_64 */
++Memory Protection Keys provides a mechanism for enforcing page-based
++protections, but without requiring modification of the page tables
++when an application changes protection domains.  It works by
++dedicating 4 previously ignored bits in each page table entry to a
++"protection key", giving 16 possible keys.
 +
-+/*
-  * Some CPU features depend on higher CPUID levels, which may not always
-  * be available due to CPUID level capping or broken virtualization
-  * software.  Add those features to this table to auto-disable them.
-@@ -948,6 +988,7 @@ static void identify_cpu(struct cpuinfo_
- 	init_hypervisor(c);
- 	x86_init_rdrand(c);
- 	x86_init_cache_qos(c);
-+	setup_pku(c);
- 
- 	/*
- 	 * Clear/Set all flags overriden by options, need do it
-diff -puN Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch Documentation/kernel-parameters.txt
---- a/Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch	2015-12-03 16:21:33.710037900 -0800
-+++ b/Documentation/kernel-parameters.txt	2015-12-03 16:21:33.715038127 -0800
-@@ -958,6 +958,9 @@ bytes respectively. Such letter suffixes
- 			See Documentation/x86/intel_mpx.txt for more
- 			information about the feature.
- 
-+	nopku		[X86] Disable Memory Protection Keys CPU feature found
-+			in some Intel CPUs.
++There is also a new user-accessible register (PKRU) with two separate
++bits (Access Disable and Write Disable) for each key.  Being a CPU
++register, PKRU is inherently thread-local, potentially giving each
++thread a different set of protections from every other thread.
 +
- 	eagerfpu=	[X86]
- 			on	enable eager fpu restore
- 			off	disable eager fpu restore
++There are two new instructions (RDPKRU/WRPKRU) for reading and writing
++to the new register.  The feature is only available in 64-bit mode,
++even though there is theoretically space in the PAE PTEs.  These
++permissions are enforced on data access only and have no effect on
++instruction fetches.
++
++The kernel attempts to make protection keys consistent with the
++behavior of a plain mprotect().  For instance if you do this:
++
++	mprotect(ptr, size, PROT_NONE);
++	something(ptr);
++
++you can expect the same effects with protection keys when doing this:
++
++	sys_pkey_alloc(no_flag, PKEY_DISABLE_WRITE | PKEY_DISABLE_READ);
++	sys_mprotect_pkey(ptr, size, PROT_READ|PROT_WRITE);
++	something(ptr);
++
++That should be true whether something() is a direct access to 'ptr'
++like:
++
++	*ptr = foo;
++
++or when the kernel does the access on the application's behalf like
++with a read():
++
++	read(fd, ptr, 1);
++
++The kernel will send a SIGSEGV in both cases, but si_code will be set
++to SEGV_PKERR when violating protection keys versus SEGV_ACCERR when
++the plain mprotect() permissions are violated.
++
++=========================== Config Option ===========================
++
++This config option adds approximately 1.5kb of text. and 50 bytes of
++data to the executable.  A workload which does large O_DIRECT reads
++of holes in XFS files was run to exercise get_user_pages_fast().  No
++performance delta was observed with the config option
++enabled or disabled.
 _
 
 --
