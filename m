@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 495806B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 10:17:07 -0500 (EST)
-Received: by wmww144 with SMTP id w144so65911249wmw.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 07:17:06 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C26B6B0259
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 10:17:08 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so79142030wmv.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 07:17:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z8si6366808wmg.102.2015.12.04.07.17.05
+        by mx.google.com with ESMTPS id bt17si7664467wjb.137.2015.12.04.07.17.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 04 Dec 2015 07:17:05 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/3] mm, debug: move bad flags printing to bad_page()
-Date: Fri,  4 Dec 2015 16:16:35 +0100
-Message-Id: <1449242195-16374-3-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 2/3] mm, page_owner: provide symbolic page flags and gfp_flags
+Date: Fri,  4 Dec 2015 16:16:34 +0100
+Message-Id: <1449242195-16374-2-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1449242195-16374-1-git-send-email-vbabka@suse.cz>
 References: <87io4hi06n.fsf@rasmusvillemoes.dk>
  <1449242195-16374-1-git-send-email-vbabka@suse.cz>
@@ -21,17 +21,28 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-Since bad_page() is the only user of the badflags parameter of
-dump_page_badflags(), we can move the code to bad_page() and simplify a bit.
+With the new format strings for flags, we can now provide symbolic page and gfp
+flags in the /sys/kernel/debug/page_owner file. This replaces the positional
+printing of page flags as single letters, which might have looked nicer, but
+was limited to a subset of flags, and required the user to remember the
+letters.
 
-The dump_page_badflags() function is renamed to __dump_page() and can still be
-called separately from dump_page() for temporary debug prints where page_owner
-info is not desired.
+Example of the adjusted format:
 
-The only user-visible change is that page->mem_cgroup is printed before the bad
-flags.
+Page allocated via order 0, mask 0x24213ca(GFP_HIGHUSER_MOVABLE|GFP_COLD|GFP_NOWARN|GFP_NORETRY)
+PFN 674308 type Movable Block 1317 type Movable Flags 0x1fffff80010068(uptodate|lru|active|mappedtodisk)
+ [<ffffffff81164e9a>] __alloc_pages_nodemask+0x15a/0xa30
+ [<ffffffff811ab938>] alloc_pages_current+0x88/0x120
+ [<ffffffff8115bc46>] __page_cache_alloc+0xe6/0x120
+ [<ffffffff81168b9b>] __do_page_cache_readahead+0xdb/0x200
+ [<ffffffff81168df5>] ondemand_readahead+0x135/0x260
+ [<ffffffff81168f8c>] page_cache_async_readahead+0x6c/0x70
+ [<ffffffff8115d5f8>] generic_file_read_iter+0x378/0x590
+ [<ffffffff811d12a7>] __vfs_read+0xa7/0xd0
+Page has been migrated, last migrate reason: compaction
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>
@@ -39,95 +50,51 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/mmdebug.h |  3 +--
- mm/debug.c              | 14 +++-----------
- mm/page_alloc.c         | 10 +++++++---
- 3 files changed, 11 insertions(+), 16 deletions(-)
+ mm/page_owner.c | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-index 2c8286cf162e..9b0dc2161f7a 100644
---- a/include/linux/mmdebug.h
-+++ b/include/linux/mmdebug.h
-@@ -14,8 +14,7 @@ extern const struct trace_print_flags vmaflag_names[];
- extern const struct trace_print_flags gfpflag_names[];
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 313251f36d86..011377548b4f 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -135,8 +135,9 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		return -ENOMEM;
  
- extern void dump_page(struct page *page, const char *reason);
--extern void dump_page_badflags(struct page *page, const char *reason,
--			       unsigned long badflags);
-+extern void __dump_page(struct page *page, const char *reason);
- void dump_vma(const struct vm_area_struct *vma);
- void dump_mm(const struct mm_struct *mm);
+ 	ret = snprintf(kbuf, count,
+-			"Page allocated via order %u, mask 0x%x\n",
+-			page_ext->order, page_ext->gfp_mask);
++			"Page allocated via order %u, mask %#x(%pgg)\n",
++			page_ext->order, page_ext->gfp_mask,
++			&page_ext->gfp_mask);
  
-diff --git a/mm/debug.c b/mm/debug.c
-index c42bb4c13c2d..d36aa66e9779 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -109,25 +109,17 @@ const struct trace_print_flags gfpflag_names[] = {
- 	{0, NULL},
- };
+ 	if (ret >= count)
+ 		goto err;
+@@ -145,23 +146,12 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 	pageblock_mt = get_pfnblock_migratetype(page, pfn);
+ 	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
+ 	ret += snprintf(kbuf + ret, count - ret,
+-			"PFN %lu type %s Block %lu type %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
++			"PFN %lu type %s Block %lu type %s Flags %#lx(%pgp)\n",
+ 			pfn,
+ 			migratetype_names[page_mt],
+ 			pfn >> pageblock_order,
+ 			migratetype_names[pageblock_mt],
+-			PageLocked(page)	? "K" : " ",
+-			PageError(page)		? "E" : " ",
+-			PageReferenced(page)	? "R" : " ",
+-			PageUptodate(page)	? "U" : " ",
+-			PageDirty(page)		? "D" : " ",
+-			PageLRU(page)		? "L" : " ",
+-			PageActive(page)	? "A" : " ",
+-			PageSlab(page)		? "S" : " ",
+-			PageWriteback(page)	? "W" : " ",
+-			PageCompound(page)	? "C" : " ",
+-			PageSwapCache(page)	? "B" : " ",
+-			PageMappedToDisk(page)	? "M" : " ");
++			page->flags, &page->flags);
  
--void dump_page_badflags(struct page *page, const char *reason,
--		unsigned long badflags)
-+void __dump_page(struct page *page, const char *reason)
- {
--	unsigned long printflags = page->flags;
--
- 	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
- 		  page, atomic_read(&page->_count), page_mapcount(page),
- 		  page->mapping, page->index);
- 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
- 
--	pr_emerg("flags: %#lx(%pgp)\n", printflags, &printflags);
-+	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
- 
- 	if (reason)
- 		pr_alert("page dumped because: %s\n", reason);
--	if (page->flags & badflags) {
--		printflags = page->flags & badflags;
--		pr_alert("bad because of flags: %#lx(%pgp)\n", printflags,
--								&printflags);
--	}
- #ifdef CONFIG_MEMCG
- 	if (page->mem_cgroup)
- 		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
-@@ -136,7 +128,7 @@ void dump_page_badflags(struct page *page, const char *reason,
- 
- void dump_page(struct page *page, const char *reason)
- {
--	dump_page_badflags(page, reason, 0);
-+	__dump_page(page, reason);
- 	dump_page_owner(page);
- }
- EXPORT_SYMBOL(dump_page);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bd94c7465dea..2388496a7c6c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -435,7 +435,7 @@ static void bad_page(struct page *page, const char *reason,
- 			goto out;
- 		}
- 		if (nr_unshown) {
--			printk(KERN_ALERT
-+			pr_alert(
- 			      "BUG: Bad page state: %lu messages suppressed\n",
- 				nr_unshown);
- 			nr_unshown = 0;
-@@ -445,9 +445,13 @@ static void bad_page(struct page *page, const char *reason,
- 	if (nr_shown++ == 0)
- 		resume = jiffies + 60 * HZ;
- 
--	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
-+	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
- 		current->comm, page_to_pfn(page));
--	dump_page_badflags(page, reason, bad_flags);
-+	__dump_page(page, reason);
-+	bad_flags &= page->flags;
-+	if (bad_flags)
-+		pr_alert("bad because of flags: %#lx(%pgp)\n",
-+						bad_flags, &bad_flags);
- 	dump_page_owner(page);
- 
- 	print_modules();
+ 	if (ret >= count)
+ 		goto err;
 -- 
 2.6.3
 
