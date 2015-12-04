@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E9E6B0258
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:39 -0500 (EST)
-Received: by pfu207 with SMTP id 207so17245976pfu.2
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:39 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 187si15438678pfa.195.2015.12.03.17.14.32
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E17D6B0259
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:41 -0500 (EST)
+Received: by pfu207 with SMTP id 207so17246408pfu.2
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:41 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id v14si15461881pfi.156.2015.12.03.17.14.33
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:14:32 -0800 (PST)
-Subject: [PATCH 05/34] x86, pkeys: define new CR4 bit
+        Thu, 03 Dec 2015 17:14:34 -0800 (PST)
+Subject: [PATCH 06/34] x86, pkeys: add PKRU xsave fields and data structure(s)
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:14:32 -0800
+Date: Thu, 03 Dec 2015 17:14:33 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011432.06D9EA27@viggo.jf.intel.com>
+Message-Id: <20151204011433.0BB662DD@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,28 +22,117 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-There is a new bit in CR4 for enabling protection keys.  We
-will actually enable it later in the series.
+The protection keys register (PKRU) is saved and restored using
+xsave.  Define the data structure that we will use to access it
+inside the xsave buffer.
+
+Note that we also have to widen the printk of the xsave feature
+masks since this is feature 0x200 and we only did two characters
+before.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/uapi/asm/processor-flags.h |    2 ++
- 1 file changed, 2 insertions(+)
+ b/arch/x86/include/asm/fpu/types.h  |   11 +++++++++++
+ b/arch/x86/include/asm/fpu/xstate.h |    4 +++-
+ b/arch/x86/kernel/fpu/xstate.c      |    7 ++++++-
+ 3 files changed, 20 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/include/uapi/asm/processor-flags.h~pkeys-02-cr4 arch/x86/include/uapi/asm/processor-flags.h
---- a/arch/x86/include/uapi/asm/processor-flags.h~pkeys-02-cr4	2015-12-03 16:21:20.345431800 -0800
-+++ b/arch/x86/include/uapi/asm/processor-flags.h	2015-12-03 16:21:20.348431936 -0800
-@@ -118,6 +118,8 @@
- #define X86_CR4_SMEP		_BITUL(X86_CR4_SMEP_BIT)
- #define X86_CR4_SMAP_BIT	21 /* enable SMAP support */
- #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
-+#define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
-+#define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
+diff -puN arch/x86/include/asm/fpu/types.h~pkeys-03-xsave arch/x86/include/asm/fpu/types.h
+--- a/arch/x86/include/asm/fpu/types.h~pkeys-03-xsave	2015-12-03 16:21:20.747450032 -0800
++++ b/arch/x86/include/asm/fpu/types.h	2015-12-03 16:21:20.753450304 -0800
+@@ -109,6 +109,7 @@ enum xfeature {
+ 	XFEATURE_ZMM_Hi256,
+ 	XFEATURE_Hi16_ZMM,
+ 	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
++	XFEATURE_PKRU,
+ 
+ 	XFEATURE_MAX,
+ };
+@@ -121,6 +122,7 @@ enum xfeature {
+ #define XFEATURE_MASK_OPMASK		(1 << XFEATURE_OPMASK)
+ #define XFEATURE_MASK_ZMM_Hi256		(1 << XFEATURE_ZMM_Hi256)
+ #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
++#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+ 
+ #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
+ #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
+@@ -213,6 +215,15 @@ struct avx_512_hi16_state {
+ 	struct reg_512_bit		hi16_zmm[16];
+ } __packed;
+ 
++/*
++ * State component 9: 32-bit PKRU register.  The state is
++ * 8 bytes long but only 4 bytes is used currently.
++ */
++struct pkru_state {
++	u32				pkru;
++	u32				pad;
++} __packed;
++
+ struct xstate_header {
+ 	u64				xfeatures;
+ 	u64				xcomp_bv;
+diff -puN arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave arch/x86/include/asm/fpu/xstate.h
+--- a/arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave	2015-12-03 16:21:20.748450077 -0800
++++ b/arch/x86/include/asm/fpu/xstate.h	2015-12-03 16:21:20.754450349 -0800
+@@ -27,7 +27,9 @@
+ 				 XFEATURE_MASK_Hi16_ZMM)
+ 
+ /* Supported features which require eager state saving */
+-#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)
++#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | \
++				 XFEATURE_MASK_BNDCSR | \
++				 XFEATURE_MASK_PKRU)
+ 
+ /* All currently supported features */
+ #define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
+diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave arch/x86/kernel/fpu/xstate.c
+--- a/arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave	2015-12-03 16:21:20.750450168 -0800
++++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:20.754450349 -0800
+@@ -29,6 +29,8 @@ static const char *xfeature_names[] =
+ 	"AVX-512 Hi256"			,
+ 	"AVX-512 ZMM_Hi256"		,
+ 	"Processor Trace (unused)"	,
++	"Protection Keys User registers",
++	"unknown xstate feature"	,
+ };
  
  /*
-  * x86-64 Task Priority Register, CR8
+@@ -57,6 +59,7 @@ void fpu__xstate_clear_all_cpu_caps(void
+ 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
+ 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
+ 	setup_clear_cpu_cap(X86_FEATURE_MPX);
++	setup_clear_cpu_cap(X86_FEATURE_PKU);
+ }
+ 
+ /*
+@@ -235,7 +238,7 @@ static void __init print_xstate_feature(
+ 	const char *feature_name;
+ 
+ 	if (cpu_has_xfeatures(xstate_mask, &feature_name))
+-		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
++		pr_info("x86/fpu: Supporting XSAVE feature 0x%03Lx: '%s'\n", xstate_mask, feature_name);
+ }
+ 
+ /*
+@@ -251,6 +254,7 @@ static void __init print_xstate_features
+ 	print_xstate_feature(XFEATURE_MASK_OPMASK);
+ 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
+ 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
++	print_xstate_feature(XFEATURE_MASK_PKRU);
+ }
+ 
+ /*
+@@ -467,6 +471,7 @@ static void check_xstate_against_struct(
+ 	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
+ 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
+ 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
++	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
+ 
+ 	/*
+ 	 * Make *SURE* to add any feature numbers in below if
 _
 
 --
