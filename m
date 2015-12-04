@@ -1,263 +1,458 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD3B82F71
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:28 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so17234448pfn.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:15:28 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 411F382F71
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:15:31 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so77847071pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:15:31 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         by mx.google.com with ESMTP id yf4si15473816pab.34.2015.12.03.17.15.26
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:15:26 -0800 (PST)
-Subject: [PATCH 30/34] x86, fpu: allow setting of XSAVE state
+        Thu, 03 Dec 2015 17:15:27 -0800 (PST)
+Subject: [PATCH 31/34] x86, pkeys: allocation/free syscalls
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:15:06 -0800
+Date: Thu, 03 Dec 2015 17:15:07 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011506.7A3C77FA@viggo.jf.intel.com>
+Message-Id: <20151204011507.65449583@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-We want to modify the Protection Key rights inside the kernel, so
-we need to change PKRU's contents.  But, if we do a plain
-'wrpkru', when we return to userspace we might do an XRSTOR and
-wipe out the kernel's 'wrpkru'.  So, we need to go after PKRU in
-the xsave buffer.
+This patch adds two new system calls:
 
-We do this by:
-1. Ensuring that we have the XSAVE registers (fpregs) in the
-   kernel FPU buffer (fpstate)
-2. Looking up the location of a given state in the buffer
-3. Filling in the stat
-4. Ensuring that the hardware knows that state is present there
-   (basically that the 'init optimization' is not in place).
-5. Copying the newly-modified state back to the registers if
-   necessary.
+	int pkey_alloc(unsigned long flags, unsigned long init_access_rights)
+	int pkey_free(int pkey);
+
+These establish which protection keys are valid for use by
+userspace.  A key which was not obtained by pkey_alloc() may not
+be passed to pkey_mprotect().
+
+In addition, the 'init_access_rights' argument to pkey_alloc() specifies
+the rights that will be established for the returned pkey.  For instance
+
+	pkey = pkey_alloc(flags, PKEY_DENY_WRITE);
+
+will return with the bits set in PKRU such that writing to 'pkey' is
+already denied.  This keeps userspace from needing to have knowledge
+about manipulating PKRU.  It is still free to do so if it wishes, but
+it is no longer required.
+
+The kernel does _not_ enforce that this interface must be used for
+changes to PKRU, even for keys it does not control.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-api@vger.kernel.org
 ---
 
- b/arch/x86/include/asm/fpu/internal.h |    2 
- b/arch/x86/kernel/fpu/core.c          |   63 +++++++++++++++++++++
- b/arch/x86/kernel/fpu/xstate.c        |  100 +++++++++++++++++++++++++++++++++-
- 3 files changed, 163 insertions(+), 2 deletions(-)
+ b/arch/x86/entry/syscalls/syscall_32.tbl |    2 
+ b/arch/x86/entry/syscalls/syscall_64.tbl |    2 
+ b/arch/x86/include/asm/mmu.h             |    7 ++
+ b/arch/x86/include/asm/mmu_context.h     |    8 +++
+ b/arch/x86/include/asm/pgtable.h         |    5 +-
+ b/arch/x86/include/asm/pkeys.h           |   55 ++++++++++++++++++++++
+ b/arch/x86/kernel/fpu/xstate.c           |   75 +++++++++++++++++++++++++++++++
+ b/include/linux/pkeys.h                  |   23 +++++++++
+ b/include/uapi/asm-generic/mman-common.h |    5 ++
+ b/mm/mprotect.c                          |   59 +++++++++++++++++++++++-
+ 10 files changed, 238 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/include/asm/fpu/internal.h~pkey-xsave-set arch/x86/include/asm/fpu/internal.h
---- a/arch/x86/include/asm/fpu/internal.h~pkey-xsave-set	2015-12-03 16:21:32.016961117 -0800
-+++ b/arch/x86/include/asm/fpu/internal.h	2015-12-03 16:21:32.022961389 -0800
-@@ -24,6 +24,8 @@
- extern void fpu__activate_curr(struct fpu *fpu);
- extern void fpu__activate_fpstate_read(struct fpu *fpu);
- extern void fpu__activate_fpstate_write(struct fpu *fpu);
-+extern void fpu__current_fpstate_write_begin(void);
-+extern void fpu__current_fpstate_write_end(void);
- extern void fpu__save(struct fpu *fpu);
- extern void fpu__restore(struct fpu *fpu);
- extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
-diff -puN arch/x86/kernel/fpu/core.c~pkey-xsave-set arch/x86/kernel/fpu/core.c
---- a/arch/x86/kernel/fpu/core.c~pkey-xsave-set	2015-12-03 16:21:32.017961162 -0800
-+++ b/arch/x86/kernel/fpu/core.c	2015-12-03 16:21:32.023961434 -0800
-@@ -352,6 +352,69 @@ void fpu__activate_fpstate_write(struct
- }
+diff -puN arch/x86/entry/syscalls/syscall_32.tbl~pkey-allocation-syscalls arch/x86/entry/syscalls/syscall_32.tbl
+--- a/arch/x86/entry/syscalls/syscall_32.tbl~pkey-allocation-syscalls	2015-12-03 16:21:32.484982342 -0800
++++ b/arch/x86/entry/syscalls/syscall_32.tbl	2015-12-03 16:21:32.502983159 -0800
+@@ -384,3 +384,5 @@
+ 375	i386	membarrier		sys_membarrier
+ 376	i386	mlock2			sys_mlock2
+ 377	i386	pkey_mprotect		sys_pkey_mprotect
++378	i386	pkey_alloc		sys_pkey_alloc
++379	i386	pkey_free		sys_pkey_free
+diff -puN arch/x86/entry/syscalls/syscall_64.tbl~pkey-allocation-syscalls arch/x86/entry/syscalls/syscall_64.tbl
+--- a/arch/x86/entry/syscalls/syscall_64.tbl~pkey-allocation-syscalls	2015-12-03 16:21:32.485982388 -0800
++++ b/arch/x86/entry/syscalls/syscall_64.tbl	2015-12-03 16:21:32.502983159 -0800
+@@ -333,6 +333,8 @@
+ 324	common	membarrier		sys_membarrier
+ 325	common	mlock2			sys_mlock2
+ 326	common	pkey_mprotect		sys_pkey_mprotect
++327	common	pkey_alloc		sys_pkey_alloc
++328	common	pkey_free		sys_pkey_free
  
- /*
-+ * This function must be called before we write the current
-+ * task's fpstate.
-+ *
-+ * This call gets the current FPU register state and moves
-+ * it in to the 'fpstate'.  Preemption is disabled so that
-+ * no writes to the 'fpstate' can occur from context
-+ * swiches.
-+ *
-+ * Must be followed by a fpu__current_fpstate_write_end().
-+ */
-+void fpu__current_fpstate_write_begin(void)
-+{
-+	struct fpu *fpu = &current->thread.fpu;
-+
-+	/*
-+	 * Ensure that the context-switching code does not write
-+	 * over the fpstate while we are doing our update.
-+	 */
-+	preempt_disable();
-+
-+	/*
-+	 * Move the fpregs in to the fpu's 'fpstate'.
-+	 */
-+	fpu__activate_fpstate_read(fpu);
-+
-+	/*
-+	 * The caller is about to write to 'fpu'.  Ensure that no
-+	 * CPU thinks that its fpregs match the fpstate.  This
-+	 * ensures we will not be lazy and skip a XRSTOR in the
-+	 * future.
-+	 */
-+	fpu->last_cpu = -1;
-+}
-+
-+/*
-+ * This function must be paired with fpu__current_fpstate_write_begin()
-+ *
-+ * This will ensure that the modified fpstate gets placed back in
-+ * the fpregs if necessary.
-+ *
-+ * Note: This function may be called whether or not an _actual_
-+ * write to the fpstate occurred.
-+ */
-+void fpu__current_fpstate_write_end(void)
-+{
-+	struct fpu *fpu = &current->thread.fpu;
-+
-+	/*
-+	 * 'fpu' now has an updated copy of the state, but the
-+	 * registers may still be out of date.  Update them with
-+	 * an XRSTOR if they are active.
-+	 */
-+	if (fpregs_active())
-+		copy_kernel_to_fpregs(&fpu->state);
-+
-+	/*
-+	 * Our update is done and the fpregs/fpstate are in sync
-+	 * if necessary.  Context switches can happen again.
-+	 */
-+	preempt_enable();
-+}
-+
-+/*
-  * 'fpu__restore()' is called to copy FPU registers from
-  * the FPU fpstate to the live hw registers and to activate
-  * access to the hardware registers, so that FPU instructions
-diff -puN arch/x86/kernel/fpu/xstate.c~pkey-xsave-set arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkey-xsave-set	2015-12-03 16:21:32.019961253 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:32.023961434 -0800
-@@ -679,6 +679,19 @@ void fpu__resume_cpu(void)
- }
- 
- /*
-+ * Given an xstate feature mask, calculate where in the xsave
-+ * buffer the state is.  Callers should ensure that the buffer
-+ * is valid.
-+ *
-+ * Note: does not work for compacted buffers.
-+ */
-+void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
-+{
-+	int feature_nr = fls64(xstate_feature_mask) - 1;
-+
-+	return (void *)xsave + xstate_comp_offsets[feature_nr];
-+}
-+/*
-  * Given the xsave area and a state inside, this function returns the
-  * address of the state.
-  *
-@@ -698,7 +711,6 @@ void fpu__resume_cpu(void)
-  */
- void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff -puN arch/x86/include/asm/mmu_context.h~pkey-allocation-syscalls arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkey-allocation-syscalls	2015-12-03 16:21:32.487982478 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2015-12-03 16:21:32.503983204 -0800
+@@ -108,7 +108,12 @@ static inline void enter_lazy_tlb(struct
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
  {
--	int feature_nr = fls64(xstate_feature) - 1;
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++	/* pkey 0 is the default and always allocated */
++	mm->context.pkey_allocation_map = 0x1;
++#endif
+ 	init_new_context_ldt(tsk, mm);
++
+ 	return 0;
+ }
+ static inline void destroy_context(struct mm_struct *mm)
+@@ -333,4 +338,7 @@ static inline bool arch_pte_access_permi
+ 	return __pkru_allows_pkey(pte_flags_pkey(pte_flags(pte)), write);
+ }
+ 
++extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val);
++
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
+diff -puN arch/x86/include/asm/mmu.h~pkey-allocation-syscalls arch/x86/include/asm/mmu.h
+--- a/arch/x86/include/asm/mmu.h~pkey-allocation-syscalls	2015-12-03 16:21:32.489982569 -0800
++++ b/arch/x86/include/asm/mmu.h	2015-12-03 16:21:32.503983204 -0800
+@@ -22,6 +22,13 @@ typedef struct {
+ 	void __user *vdso;
+ 
+ 	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++	/*
++	 * One bit per protection key says whether userspace can
++	 * use it or not.  protected by mmap_sem.
++	 */
++	u16 pkey_allocation_map;
++#endif
+ } mm_context_t;
+ 
+ #ifdef CONFIG_SMP
+diff -puN arch/x86/include/asm/pgtable.h~pkey-allocation-syscalls arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h~pkey-allocation-syscalls	2015-12-03 16:21:32.490982614 -0800
++++ b/arch/x86/include/asm/pgtable.h	2015-12-03 16:21:32.503983204 -0800
+@@ -912,16 +912,17 @@ static inline pte_t pte_swp_clear_soft_d
+ 
+ #define PKRU_AD_BIT 0x1
+ #define PKRU_WD_BIT 0x2
++#define PKRU_BITS_PER_PKEY 2
+ 
+ static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
+ {
+-	int pkru_pkey_bits = pkey * 2;
++	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+ 	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
+ }
+ 
+ static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
+ {
+-	int pkru_pkey_bits = pkey * 2;
++	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
  	/*
- 	 * Do we even *have* xsave state?
- 	 */
-@@ -727,7 +739,7 @@ void *get_xsave_addr(struct xregs_state
- 	if (!(xsave->header.xfeatures & xstate_feature))
- 		return NULL;
+ 	 * Access-disable disables writes too so we need to check
+ 	 * both bits here.
+diff -puN arch/x86/include/asm/pkeys.h~pkey-allocation-syscalls arch/x86/include/asm/pkeys.h
+--- a/arch/x86/include/asm/pkeys.h~pkey-allocation-syscalls	2015-12-03 16:21:32.492982705 -0800
++++ b/arch/x86/include/asm/pkeys.h	2015-12-03 16:21:32.504983249 -0800
+@@ -7,6 +7,61 @@
  
--	return (void *)xsave + xstate_comp_offsets[feature_nr];
-+	return __raw_xsave_addr(xsave, xstate_feature);
- }
- EXPORT_SYMBOL_GPL(get_xsave_addr);
+ #define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | VM_PKEY_BIT3)
  
-@@ -762,3 +774,87 @@ const void *get_xsave_field_ptr(int xsav
- 
- 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
- }
++#define mm_pkey_allocation_map(mm)	(mm->context.pkey_allocation_map)
++#define mm_set_pkey_allocated(mm, pkey) do {		\
++	mm_pkey_allocation_map(mm) |= (1 << pkey);	\
++} while (0)
++#define mm_set_pkey_free(mm, pkey) do {			\
++	mm_pkey_allocation_map(mm) &= ~(1 << pkey);	\
++} while (0)
 +
-+
-+/*
-+ * Set xfeatures (aka XSTATE_BV) bit for a feature that we want
-+ * to take out of its "init state".  This will ensure that an
-+ * XRSTOR actually restores the state.
-+ */
-+static void fpu__xfeature_set_non_init(struct xregs_state *xsave,
-+		int xstate_feature_mask)
++static inline
++bool mm_pkey_is_allocated(struct mm_struct *mm, unsigned long pkey)
 +{
-+	xsave->header.xfeatures |= xstate_feature_mask;
++	if (!arch_validate_pkey(pkey))
++		return true;
++
++	return mm_pkey_allocation_map(mm) & (1 << pkey);
 +}
 +
-+/*
-+ * This function is safe to call whether the FPU is in use or not.
-+ *
-+ * Note that this only works on the current task.
-+ *
-+ * Inputs:
-+ *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
-+ *	XFEATURE_MASK_SSE, etc...)
-+ *	@xsave_state_ptr: a pointer to a copy of the state that you would
-+ *	like written in to the current task's FPU xsave state.  This pointer
-+ *	must not be located in the current tasks's xsave area.
-+ * Output:
-+ *	address of the state in the xsave area or NULL if the state
-+ *	is not present or is in its 'init state'.
-+ */
-+static void fpu__xfeature_set_state(int xstate_feature_mask,
-+		void *xstate_feature_src, size_t len)
++static inline
++int mm_pkey_alloc(struct mm_struct *mm)
 +{
-+	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
-+	struct fpu *fpu = &current->thread.fpu;
-+	void *dst;
-+
-+	if (!boot_cpu_has(X86_FEATURE_XSAVE)) {
-+		WARN_ONCE(1, "%s() attempted with no xsave support", __func__);
-+		return;
-+	}
++	int all_pkeys_mask = ((1 << arch_max_pkey()) - 1);
++	int ret;
 +
 +	/*
-+	 * Tell the FPU code that we need the FPU state to be in
-+	 * 'fpu' (not in the registers), and that we need it to
-+	 * be stable while we write to it.
++	 * Are we out of pkeys?  We must handle this specially
++	 * because ffz() behavior is undefined if there are no
++	 * zeros.
 +	 */
-+	fpu__current_fpstate_write_begin();
++	if (mm_pkey_allocation_map(mm) == all_pkeys_mask)
++		return -1;
 +
++	ret = ffz(mm_pkey_allocation_map(mm));
++
++	mm_set_pkey_allocated(mm, ret);
++
++	return ret;
++}
++
++static inline
++int mm_pkey_free(struct mm_struct *mm, int pkey)
++{
 +	/*
-+	 * This method *WILL* *NOT* work for compact-format
-+	 * buffers.  If the 'xstate_feature_mask' is unset in
-+	 * xcomp_bv then we may need to move other feature state
-+	 * "up" in the buffer.
++	 * pkey 0 is special, always allocated and can never
++	 * be freed.
 +	 */
-+	if (xsave->header.xcomp_bv & xstate_feature_mask) {
-+		WARN_ON_ONCE(1);
-+		goto out;
-+	}
++	if (!pkey || !arch_validate_pkey(pkey))
++		return -EINVAL;
++	if (!mm_pkey_is_allocated(mm, pkey))
++		return -EINVAL;
 +
-+	/* find the location in the xsave buffer of the desired state */
-+	dst = __raw_xsave_addr(&fpu->state.xsave, xstate_feature_mask);
-+
-+	/*
-+	 * Make sure that the pointer being passed in did not
-+	 * come from the xsave buffer itself.
-+	 */
-+	WARN_ONCE(xstate_feature_src == dst, "set from xsave buffer itself");
-+
-+	/* put the caller-provided data in the location */
-+	memcpy(dst, xstate_feature_src, len);
-+
-+	/*
-+	 * Mark the xfeature so that the CPU knows there is state
-+	 * in the buffer now.
-+	 */
-+	fpu__xfeature_set_non_init(xsave, xstate_feature_mask);
-+out:
-+	/*
-+	 * We are done writing to the 'fpu'.  Reenable preeption
-+	 * and (possibly) move the fpstate back in to the fpregs.
-+	 */
-+	fpu__current_fpstate_write_end();
++	mm_set_pkey_free(mm, pkey);
 +
 +	return 0;
++}
++
+ #endif /*_ASM_X86_PKEYS_H */
+ 
+ 
+diff -puN arch/x86/kernel/fpu/xstate.c~pkey-allocation-syscalls arch/x86/kernel/fpu/xstate.c
+--- a/arch/x86/kernel/fpu/xstate.c~pkey-allocation-syscalls	2015-12-03 16:21:32.494982796 -0800
++++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:32.504983249 -0800
+@@ -5,6 +5,8 @@
+  */
+ #include <linux/compat.h>
+ #include <linux/cpu.h>
++#include <linux/mman.h>
++#include <linux/pkeys.h>
+ 
+ #include <asm/fpu/api.h>
+ #include <asm/fpu/internal.h>
+@@ -775,6 +777,7 @@ const void *get_xsave_field_ptr(int xsav
+ 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
+ }
+ 
++#ifdef CONFIG_ARCH_HAS_PKEYS
+ 
+ /*
+  * Set xfeatures (aka XSTATE_BV) bit for a feature that we want
+@@ -855,6 +858,78 @@ out:
+ 	 * and (possibly) move the fpstate back in to the fpregs.
+ 	 */
+ 	fpu__current_fpstate_write_end();
++}
++
++#define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
++#define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
++
++/*
++ * This will go out and modify the XSAVE buffer so that PKRU is
++ * set to a particular state for access to 'pkey'.
++ *
++ * PKRU state does affect kernel access to user memory.  We do
++ * not modfiy PKRU *itself* here, only the XSAVE state that will
++ * be restored in to PKRU when we return back to userspace.
++ */
++int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val)
++{
++	struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
++	struct pkru_state *old_pkru_state;
++	struct pkru_state new_pkru_state;
++	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
++	u32 new_pkru_bits = 0;
++
++	if (!arch_validate_pkey(pkey))
++		return -EINVAL;
++	/*
++	 * This check implies XSAVE support.  OSPKE only gets
++	 * set if we enable XSAVE and we enable PKU in XCR0.
++	 */
++	if (!boot_cpu_has(X86_FEATURE_OSPKE))
++		return -EINVAL;
++
++	/* Set the bits we need in PKRU  */
++	if (init_val & PKEY_DISABLE_ACCESS)
++		new_pkru_bits |= PKRU_AD_BIT;
++	if (init_val & PKEY_DISABLE_WRITE)
++		new_pkru_bits |= PKRU_WD_BIT;
++
++	/* Shift the bits in to the correct place in PKRU for pkey. */
++	new_pkru_bits <<= pkey_shift;
++
++	/* Locate old copy of the state in the xsave buffer */
++	old_pkru_state = get_xsave_addr(xsave, XFEATURE_MASK_PKRU);
++
++	/*
++	 * When state is not in the buffer, it is in the init
++	 * state, set it manually.  Otherwise, copy out the old
++	 * state.
++	 */
++	if (!old_pkru_state)
++		new_pkru_state.pkru = 0;
++	else
++		new_pkru_state.pkru = old_pkru_state->pkru;
++
++	/* mask off any old bits in place */
++	new_pkru_state.pkru &= ~((PKRU_AD_BIT|PKRU_WD_BIT) << pkey_shift);
++	/* Set the newly-requested bits */
++	new_pkru_state.pkru |= new_pkru_bits;
++
++	/*
++	 * We could theoretically live without zeroing pkru.pad.
++	 * The current XSAVE feature state definition says that
++	 * only bytes 0->3 are used.  But we do not want to
++	 * chance leaking kernel stack out to userspace in case a
++	 * memcpy() of the whole xsave buffer was done.
++	 *
++	 * They're in the same cacheline anyway.
++	 */
++	new_pkru_state.pad = 0;
++
++	fpu__xfeature_set_state(XFEATURE_MASK_PKRU, &new_pkru_state,
++			sizeof(new_pkru_state));
+ 
+ 	return 0;
+ }
++#endif /* CONFIG_ARCH_HAS_PKEYS */
+diff -puN include/linux/pkeys.h~pkey-allocation-syscalls include/linux/pkeys.h
+--- a/include/linux/pkeys.h~pkey-allocation-syscalls	2015-12-03 16:21:32.495982841 -0800
++++ b/include/linux/pkeys.h	2015-12-03 16:21:32.504983249 -0800
+@@ -23,6 +23,29 @@ static inline int vma_pkey(struct vm_are
+ {
+ 	return 0;
+ }
++
++static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
++{
++	return (pkey == 0);
++}
++
++static inline int mm_pkey_alloc(struct mm_struct *mm)
++{
++	return -1;
++}
++
++static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
++{
++	WARN_ONCE(1, "free of protection key when disabled");
++	return -EINVAL;
++}
++
++static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++			unsigned long init_val)
++{
++	return 0;
++}
++
+ #endif /* ! CONFIG_ARCH_HAS_PKEYS */
+ 
+ #endif /* _LINUX_PKEYS_H */
+diff -puN include/uapi/asm-generic/mman-common.h~pkey-allocation-syscalls include/uapi/asm-generic/mman-common.h
+--- a/include/uapi/asm-generic/mman-common.h~pkey-allocation-syscalls	2015-12-03 16:21:32.497982932 -0800
++++ b/include/uapi/asm-generic/mman-common.h	2015-12-03 16:21:32.505983295 -0800
+@@ -71,4 +71,9 @@
+ #define MAP_HUGE_SHIFT	26
+ #define MAP_HUGE_MASK	0x3f
+ 
++#define PKEY_DISABLE_ACCESS	0x1
++#define PKEY_DISABLE_WRITE	0x2
++#define PKEY_ACCESS_MASK	(PKEY_DISABLE_ACCESS |\
++				 PKEY_DISABLE_WRITE)
++
+ #endif /* __ASM_GENERIC_MMAN_COMMON_H */
+diff -puN mm/mprotect.c~pkey-allocation-syscalls mm/mprotect.c
+--- a/mm/mprotect.c~pkey-allocation-syscalls	2015-12-03 16:21:32.498982977 -0800
++++ b/mm/mprotect.c	2015-12-03 16:21:32.505983295 -0800
+@@ -23,11 +23,13 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/migrate.h>
+ #include <linux/perf_event.h>
++#include <linux/pkeys.h>
+ #include <linux/ksm.h>
+ #include <linux/pkeys.h>
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+ #include <asm/cacheflush.h>
++#include <asm/mmu_context.h>
+ #include <asm/tlbflush.h>
+ 
+ #include "internal.h"
+@@ -355,6 +357,8 @@ static int do_mprotect_pkey(unsigned lon
+ 	struct vm_area_struct *vma, *prev;
+ 	int error = -EINVAL;
+ 	const int grows = prot & (PROT_GROWSDOWN|PROT_GROWSUP);
++	int plain_mprotect = (pkey == -1);
++
+ 	prot &= ~(PROT_GROWSDOWN|PROT_GROWSUP);
+ 	if (grows == (PROT_GROWSDOWN|PROT_GROWSUP)) /* can't be both */
+ 		return -EINVAL;
+@@ -379,6 +383,14 @@ static int do_mprotect_pkey(unsigned lon
+ 
+ 	down_write(&current->mm->mmap_sem);
+ 
++	/*
++	 * If userspace did not allocate the pkey, do not let
++	 * them use it here.
++	 */
++	error = -EINVAL;
++	if (!plain_mprotect && !mm_pkey_is_allocated(current->mm, pkey))
++		goto out;
++
+ 	vma = find_vma(current->mm, start);
+ 	error = -ENOMEM;
+ 	if (!vma)
+@@ -420,7 +432,7 @@ static int do_mprotect_pkey(unsigned lon
+ 		 * If this is a vanilla, non-pkey mprotect, inherit the
+ 		 * pkey from the VMA we are working on.
+ 		 */
+-		if (pkey == -1)
++		if (plain_mprotect)
+ 			newflags = calc_vm_prot_bits(prot, vma_pkey(vma));
+ 		else
+ 			newflags = calc_vm_prot_bits(prot, pkey);
+@@ -474,3 +486,48 @@ SYSCALL_DEFINE4(pkey_mprotect, unsigned
+ 
+ 	return do_mprotect_pkey(start, len, prot, pkey);
+ }
++
++SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
++{
++	int pkey;
++	int ret;
++
++	/* No flags supported yet. */
++	if (flags)
++		return -EINVAL;
++	/* check for unsupported init values */
++	if (init_val & ~PKEY_ACCESS_MASK)
++		return -EINVAL;
++
++	down_write(&current->mm->mmap_sem);
++	pkey = mm_pkey_alloc(current->mm);
++
++	ret = -ENOSPC;
++	if (pkey == -1)
++		goto out;
++
++	ret = arch_set_user_pkey_access(current, pkey, init_val);
++	if (ret) {
++		mm_pkey_free(current->mm, pkey);
++		goto out;
++	}
++	ret = pkey;
++out:
++	up_write(&current->mm->mmap_sem);
++	return ret;
++}
++
++SYSCALL_DEFINE1(pkey_free, int, pkey)
++{
++	int ret;
++
++	down_write(&current->mm->mmap_sem);
++	ret = mm_pkey_free(current->mm, pkey);
++	up_write(&current->mm->mmap_sem);
++
++	/*
++	 * We could provie warnings or errors if any VMA still
++	 * has the pkey set here.
++	 */
++	return ret;
 +}
 _
 
