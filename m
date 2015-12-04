@@ -1,148 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 899AF6B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 07:38:36 -0500 (EST)
-Received: by wmww144 with SMTP id w144so60238833wmw.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 04:38:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v65si5516875wmg.77.2015.12.04.04.38.35
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5886B0258
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 08:35:49 -0500 (EST)
+Received: by pfbg73 with SMTP id g73so27131319pfb.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 05:35:49 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id t6si19491311pfa.123.2015.12.04.05.35.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 04 Dec 2015 04:38:35 -0800 (PST)
-Subject: Re: [RFC 0/3] reduce latency of direct async compaction
-References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
- <20151204062552.GA2243@aaronlu.sh.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56618949.10208@suse.cz>
-Date: Fri, 4 Dec 2015 13:38:33 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Dec 2015 05:35:48 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so87360148pac.2
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 05:35:48 -0800 (PST)
+Date: Fri, 4 Dec 2015 22:35:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: memcg uncharge page counter mismatch
+Message-ID: <20151204133537.GA11951@blaptop>
+References: <20151203085451.GC9264@dhcp22.suse.cz>
+ <20151203125950.GA1428@bbox>
+ <20151203133719.GF9264@dhcp22.suse.cz>
+ <20151203134326.GG9264@dhcp22.suse.cz>
+ <20151203145850.GH9264@dhcp22.suse.cz>
+ <20151203154729.GI9264@dhcp22.suse.cz>
+ <20151204053515.GA5174@blaptop>
+ <20151204085226.GB10021@dhcp22.suse.cz>
+ <20151204091634.GB5174@blaptop>
+ <20151204095815.GC10021@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20151204062552.GA2243@aaronlu.sh.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151204095815.GC10021@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/04/2015 07:25 AM, Aaron Lu wrote:
-> On Thu, Dec 03, 2015 at 09:10:44AM +0100, Vlastimil Babka wrote:
->> Aaron, could you try this on your testcase?
->
-> One time result isn't stable enough, so I did 9 runs for each commit,
-> here is the result:
->
-> base: 25364a9e54fb8296837061bf684b76d20eec01fb
-> head: 7433b1009ff5a02e1e9f3444802daba2cf385d27
-> (head =  base + this_patch_serie)
->
-> The always-always case(transparent_hugepage set to always and defrag set
-> to always):
->
-> Result for base:
-> $ cat {0..8}/swap
-> cmdline: /lkp/aaron/src/bin/usemem 100000622592
-> 100000622592 transferred in 103 seconds, throughput: 925 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99999559680
-> 99999559680 transferred in 92 seconds, throughput: 1036 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99996171264
-> 99996171264 transferred in 92 seconds, throughput: 1036 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100005663744
-> 100005663744 transferred in 150 seconds, throughput: 635 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100002966528
-> 100002966528 transferred in 87 seconds, throughput: 1096 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99995784192
-> 99995784192 transferred in 131 seconds, throughput: 727 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100003731456
-> 100003731456 transferred in 97 seconds, throughput: 983 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100006440960
-> 100006440960 transferred in 109 seconds, throughput: 874 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99998813184
-> 99998813184 transferred in 122 seconds, throughput: 781 MB/s
-> Max: 1096 MB/s
-> Min: 635 MB/s
-> Avg: 899 MB/s
->
-> Result for head:
-> $ cat {0..8}/swap
-> cmdline: /lkp/aaron/src/bin/usemem 100003163136
-> 100003163136 transferred in 105 seconds, throughput: 908 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99998524416
-> 99998524416 transferred in 78 seconds, throughput: 1222 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99993646080
-> 99993646080 transferred in 108 seconds, throughput: 882 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99998936064
-> 99998936064 transferred in 114 seconds, throughput: 836 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100002204672
-> 100002204672 transferred in 73 seconds, throughput: 1306 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99998140416
-> 99998140416 transferred in 146 seconds, throughput: 653 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100002941952
-> 100002941952 transferred in 78 seconds, throughput: 1222 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99996917760
-> 99996917760 transferred in 109 seconds, throughput: 874 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100001405952
-> 100001405952 transferred in 96 seconds, throughput: 993 MB/s
-> Max: 1306 MB/s
-> Min: 653 MB/s
-> Avg: 988 MB/s
+On Fri, Dec 04, 2015 at 10:58:15AM +0100, Michal Hocko wrote:
+> On Fri 04-12-15 18:16:34, Minchan Kim wrote:
+> > On Fri, Dec 04, 2015 at 09:52:27AM +0100, Michal Hocko wrote:
+> > > On Fri 04-12-15 14:35:15, Minchan Kim wrote:
+> > > > On Thu, Dec 03, 2015 at 04:47:29PM +0100, Michal Hocko wrote:
+> > > > > On Thu 03-12-15 15:58:50, Michal Hocko wrote:
+> > > > > [....]
+> > > > > > Warning, this looks ugly as hell.
+> > > > > 
+> > > > > I was thinking about it some more and it seems that we should rather not
+> > > > > bother with partial thp at all and keep it in the original memcg
+> > > > > instead. It is way much less code and I do not think this will be too
+> > > > > disruptive. Somebody should be holding the thp head, right?
+> > > > > 
+> > > > > Minchan, does this fix the issue you are seeing.
+> > > > 
+> > > > This patch solves the issue but not sure it's right approach.
+> > > > I think it could make regression that in old, we could charge
+> > > > a THP page but we can't now.
+> > > 
+> > > The page would still get charged when allocated. It just wouldn't get
+> > > moved when mapped only partially. IIUC there will be still somebody
+> > > mapping the THP head via pmd, right? That process will move the page to
+> > 
+> > If I read code correctly, No. The split_huge_pmd splits just pmd,
+> > not page itself. IOW, it could be possible !pmd_trans_huge(pmd) &&
+> > PageTransHuge although there is only process owns the page.
+> 
+> I am not sure I follow you. I thought there would still be other pmd
+> which will hold the THP. Why should we keep the page as huge when all
+> processes which map it have already split it up?
 
-Ok that looks better than the first results :) The series either helped, 
-or it's just noise. But hopefully not worse.
+I didn't follow Kirill's work but just read part of code to implement
+MADV_FREE so I just guess.
+(high-order-alloc-and-compaction/split/collapse) are costly operations
+so new work tried to avoid split page as far as possible.
+For example, if it works with splitting pmd, not THP page,
+it doesn't split the THP page where in mprotect path.
+Even, it could do delay split-page via deferred _split_huge_page
+even if THP page is freed.
 
-> Result for v4.3 as a reference:
-> $ cat {0..8}/swap
-> cmdline: /lkp/aaron/src/bin/usemem 100002459648
-> 100002459648 transferred in 96 seconds, throughput: 993 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99997375488
-> 99997375488 transferred in 96 seconds, throughput: 993 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99999028224
-> 99999028224 transferred in 107 seconds, throughput: 891 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100000137216
-> 100000137216 transferred in 91 seconds, throughput: 1047 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100003835904
-> 100003835904 transferred in 80 seconds, throughput: 1192 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100000143360
-> 100000143360 transferred in 96 seconds, throughput: 993 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100020593664
-> 100020593664 transferred in 101 seconds, throughput: 944 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100005805056
-> 100005805056 transferred in 87 seconds, throughput: 1096 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100008360960
-> 100008360960 transferred in 74 seconds, throughput: 1288 MB/s
-> Max: 1288 MB/s
-> Min: 891 MB/s
-> Avg: 1048 MB/s
+> 
+> On the other hand it is true that the last process which maps the whole
+> thp might have exited and leave others to map it partially.
+>  
+> > > the new memcg when moved. Or is it possible that we will end up only
+> > > with pte mapped THP from all processes? Kirill?
+> > 
+> > I'm not Kirill but I think it's possible.
+> > If so, a thing we can use is page_mapcount(page) == 1. With that,
+> > it could gaurantee only a process owns the page so charge 512 instead of 1?
+> 
+> Alright the exclusive holder should indeed move it. I will think how to
+> simplify the previous patch (has it helped in your testing btw.?).
 
-Hard to say if there's actual regression from 4.3 to 4.4, it's too 
-noisy. More iterations could help, but then the eventual bisection would 
-need them too.
+At least, your patch doesn't make the WARNING but I didn't check
+the accouting was right.
 
-> The always-never case:
->
-> Result for head:
-> $ cat {0..8}/swap
-> cmdline: /lkp/aaron/src/bin/usemem 100003940352
-> 100003940352 transferred in 71 seconds, throughput: 1343 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100007411712
-> 100007411712 transferred in 62 seconds, throughput: 1538 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100001875968
-> 100001875968 transferred in 64 seconds, throughput: 1490 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100003912704
-> 100003912704 transferred in 62 seconds, throughput: 1538 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100002238464
-> 100002238464 transferred in 66 seconds, throughput: 1444 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100003670016
-> 100003670016 transferred in 65 seconds, throughput: 1467 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 99998364672
-> 99998364672 transferred in 68 seconds, throughput: 1402 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100005417984
-> 100005417984 transferred in 70 seconds, throughput: 1362 MB/s
-> cmdline: /lkp/aaron/src/bin/usemem 100005304320
-> 100005304320 transferred in 64 seconds, throughput: 1490 MB/s
-> Max: 1538 MB/s
-> Min: 1343 MB/s
-> Avg: 1452 MB/s
->
+Thanks.
+
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
