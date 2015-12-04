@@ -1,87 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5616B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 12:10:07 -0500 (EST)
-Received: by ioc74 with SMTP id 74so122244750ioc.2
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 09:10:07 -0800 (PST)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id m8si7218283igx.42.2015.12.04.09.10.06
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id CAE366B025A
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 12:15:05 -0500 (EST)
+Received: by wmww144 with SMTP id w144so73404335wmw.0
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 09:15:05 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s3si7059481wmb.30.2015.12.04.09.15.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Dec 2015 09:10:06 -0800 (PST)
-Date: Fri, 4 Dec 2015 11:10:05 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 1/2] slab: implement bulk alloc in SLAB allocator
-In-Reply-To: <20151203155637.3589.62609.stgit@firesoul>
-Message-ID: <alpine.DEB.2.20.1512041106410.21819@east.gentwo.org>
-References: <20151203155600.3589.86568.stgit@firesoul> <20151203155637.3589.62609.stgit@firesoul>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 04 Dec 2015 09:15:04 -0800 (PST)
+Subject: Re: [PATCH v3 5/7] mm/compaction: respect compaction order when
+ updating defer counter
+References: <1449126681-19647-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1449126681-19647-6-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5661CA16.9010304@suse.cz>
+Date: Fri, 4 Dec 2015 18:15:02 +0100
+MIME-Version: 1.0
+In-Reply-To: <1449126681-19647-6-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, 3 Dec 2015, Jesper Dangaard Brouer wrote:
+On 12/03/2015 08:11 AM, Joonsoo Kim wrote:
+> It doesn't make sense that we reset defer counter
+> in compaction_defer_reset() when compaction request under the order of
+> compact_order_failed succeed. Fix it.
 
-> +	size_t i;
-> +
-> +	flags &= gfp_allowed_mask;
-> +	lockdep_trace_alloc(flags);
-> +
-> +	if (slab_should_failslab(s, flags))
-> +		return 0;
+Right.
 
-Ok here is an overlap with slub;'s pre_alloc_hook() and that stuff is
-really not allocator specific. Could make it generic and move the hook
-calls into slab_common.c/slab.h? That also gives you the opportunity to
-get the array option in there.
+> And, it does make sense that giving enough chance for updated failed
+> order compaction before deferring. Change it.
 
-> +	s = memcg_kmem_get_cache(s, flags);
-> +
-> +	cache_alloc_debugcheck_before(s, flags);
-> +
-> +	local_irq_disable();
-> +	for (i = 0; i < size; i++) {
-> +		void *objp = __do_cache_alloc(s, flags);
-> +
-> +		// this call could be done outside IRQ disabled section
-> +		objp = cache_alloc_debugcheck_after(s, flags, objp, _RET_IP_);
-> +
-> +		if (unlikely(!objp))
-> +			goto error;
-> +
-> +		prefetchw(objp);
+Sorry, can't understand the meaning here. From the code it seems that 
+you want to reset defer_shift to 0 instead of increasing it, when the 
+current order is lower than the failed one? That makes sense, yeah.
+How about this?
 
-Is the prefetch really useful here? Only if these objects are immediately
-used I would think.
+"On the other hand, when deferring compaction for an order lower than 
+the current compact_order_failed, we can assume the lower order will 
+recover more quickly, so we should reset the progress made previously on 
+compact_defer_shift with the higher order."
 
-> +		p[i] = objp;
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>   mm/compaction.c | 19 +++++++++++--------
+>   1 file changed, 11 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 67b8d90..1a75a6e 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -126,11 +126,14 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+>    */
+>   static void defer_compaction(struct zone *zone, int order)
+>   {
+> -	zone->compact_considered = 0;
+> -	zone->compact_defer_shift++;
+> -
+> -	if (order < zone->compact_order_failed)
+> +	if (order < zone->compact_order_failed) {
+> +		zone->compact_considered = 0;
+> +		zone->compact_defer_shift = 0;
+>   		zone->compact_order_failed = order;
+> +	} else {
+> +		zone->compact_considered = 0;
+> +		zone->compact_defer_shift++;
 > +	}
-> +	local_irq_enable();
-> +
-> +	/* Kmemleak and kmemcheck outside IRQ disabled section */
-> +	for (i = 0; i < size; i++) {
-> +		void *x = p[i];
-> +
-> +		kmemleak_alloc_recursive(x, s->object_size, 1, s->flags, flags);
-> +		kmemcheck_slab_alloc(s, flags, x, s->object_size);
+>
+>   	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
+>   		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
+> @@ -161,11 +164,11 @@ bool compaction_deferred(struct zone *zone, int order)
+>   /* Update defer tracking counters after successful compaction of given order */
+>   static void compaction_defer_reset(struct zone *zone, int order)
+>   {
+> -	zone->compact_considered = 0;
+> -	zone->compact_defer_shift = 0;
+> -
+> -	if (order >= zone->compact_order_failed)
+> +	if (order >= zone->compact_order_failed) {
+> +		zone->compact_considered = 0;
+> +		zone->compact_defer_shift = 0;
+>   		zone->compact_order_failed = order + 1;
 > +	}
-> +
-> +	/* Clear memory outside IRQ disabled section */
-> +	if (unlikely(flags & __GFP_ZERO))
-> +		for (i = 0; i < size; i++)
-> +			memset(p[i], 0, s->object_size);
-
-Maybe make this one loop instead of two?
-
-
-> +// FIXME: Trace call missing... should we create a bulk variant?
-> +/*  Like:
-> +	trace_kmem_cache_alloc(_RET_IP_, ret, s->object_size, s->size, flags);
-> +*/
-
-That trace call could be created when you do the genericization of the
-hooks() which also involve debugging stuff.
+>
+>   	trace_mm_compaction_defer_reset(zone, order);
+>   }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
