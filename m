@@ -1,146 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 953DD6B025B
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 10:59:10 -0500 (EST)
-Received: by wmec201 with SMTP id c201so70899450wme.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 07:59:10 -0800 (PST)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id up7si19358527wjc.121.2015.12.04.07.59.09
-        for <linux-mm@kvack.org>;
-        Fri, 04 Dec 2015 07:59:09 -0800 (PST)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH v2 2/2] drm/i915: Disable shrinker for non-swapped backed objects
-Date: Fri,  4 Dec 2015 15:58:54 +0000
-Message-Id: <1449244734-25733-2-git-send-email-chris@chris-wilson.co.uk>
-In-Reply-To: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
-References: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 282E96B025A
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 11:00:50 -0500 (EST)
+Received: by oba1 with SMTP id 1so33705208oba.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 08:00:49 -0800 (PST)
+Received: from g2t2355.austin.hp.com (g2t2355.austin.hp.com. [15.217.128.54])
+        by mx.google.com with ESMTPS id p132si3906034oig.114.2015.12.04.08.00.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Dec 2015 08:00:49 -0800 (PST)
+Message-ID: <1449248149.9855.85.camel@hpe.com>
+Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Fri, 04 Dec 2015 09:55:49 -0700
+In-Reply-To: <CAPcyv4jkGU4FdDKpdsHxgQiHBT+9WdcX1Lp_hTNNWBMZhtXoag@mail.gmail.com>
+References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+	 <CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
+	 <1449022764.31589.24.camel@hpe.com>
+	 <CAPcyv4hzjMkwx3AA+f5Y9zfp-egjO-b5+_EU7cGO5BGMQaiN_g@mail.gmail.com>
+	 <1449078237.31589.30.camel@hpe.com>
+	 <CAPcyv4ikJ73nzQTCOfnBRThkv=rZGPM76S7=6O3LSB4kQBeEpw@mail.gmail.com>
+	 <CAPcyv4j1vA6eAtjsE=kGKeF1EqWWfR+NC7nUcRpfH_8MRqpM8Q@mail.gmail.com>
+	 <1449084362.31589.37.camel@hpe.com>
+	 <CAPcyv4jt7JmWCgcsd=p32M322sCyaar4Pj-k+F446XGZvzrO8A@mail.gmail.com>
+	 <1449086521.31589.39.camel@hpe.com> <1449087125.31589.45.camel@hpe.com>
+	 <CAPcyv4hvX_s3xN9UZ69v7npOhWVFehfGDPZG1MsDmKWBk4Gq1A@mail.gmail.com>
+	 <1449092226.31589.50.camel@hpe.com>
+	 <CAPcyv4jtVkptiFhiFP=2KXvDXs=Tw17pF=249sLj2fw-0vgsEg@mail.gmail.com>
+	 <1449093339.9855.1.camel@hpe.com>
+	 <CAPcyv4jkGU4FdDKpdsHxgQiHBT+9WdcX1Lp_hTNNWBMZhtXoag@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, sourab.gupta@intel.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-If the system has no available swap pages, we cannot make forward
-progress in the shrinker by releasing active pages, only by releasing
-purgeable pages which are immediately reaped. Take total_swap_pages into
-account when counting up available objects to be shrunk and subsequently
-shrinking them. By doing so, we avoid unbinding objects that cannot be
-shrunk and so wasting CPU cycles flushing those objects from the GPU to
-the system and then immediately back again (as they will more than
-likely be reused shortly after).
+On Thu, 2015-12-03 at 15:43 -0800, Dan Williams wrote:
+> On Wed, Dec 2, 2015 at 1:55 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> > On Wed, 2015-12-02 at 12:54 -0800, Dan Williams wrote:
+> > > On Wed, Dec 2, 2015 at 1:37 PM, Toshi Kani <toshi.kani@hpe.com>
+> > > wrote:
+> > > > On Wed, 2015-12-02 at 11:57 -0800, Dan Williams wrote:
+> > > [..]
+> > > > > The whole point of __get_user_page_fast() is to avoid the 
+> > > > > overhead of taking the mm semaphore to access the vma. 
+> > > > >  _PAGE_SPECIAL simply tells
+> > > > > __get_user_pages_fast that it needs to fallback to the
+> > > > > __get_user_pages slow path.
+> > > > 
+> > > > I see.  Then, I think gup_huge_pmd() can simply return 0 when 
+> > > > !pfn_valid(), instead of VM_BUG_ON.
+> > > 
+> > > Is pfn_valid() a reliable check?  It seems to be based on a max_pfn
+> > > per node... what happens when pmem is located below that point.  I
+> > > haven't been able to convince myself that we won't get false
+> > > positives, but maybe I'm missing something.
+> > 
+> > I believe we use the version of pfn_valid() in linux/mmzone.h.
+> 
+> Talking this over with Dave we came to the conclusion that it would be
+> safer to be explicit about the pmd not being mapped.  He points out
+> that unless a platform can guarantee that persistent memory is always
+> section aligned we might get false positive pfn_valid() indications.
+> Given the get_user_pages_fast() path is arch specific we can simply
+> have an arch specific pmd bit and not worry about generically enabling
+> a "pmd special" bit for now.
 
-Based on a patch by Akash Goel.
-
-v2: frontswap registers extra swap pages available for the system, so it
-is already include in the count of available swap pages.
-
-v3: Use get_nr_swap_pages() to query the currently available amount of
-swap space. This should also stop us from shrinking the GPU buffers if
-we ever run out of swap space. Though at that point, we would expect the
-oom-notifier to be running and failing miserably...
-
-Reported-by: Akash Goel <akash.goel@intel.com>
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: linux-mm@kvack.org
-Cc: Akash Goel <akash.goel@intel.com>
-Cc: sourab.gupta@intel.com
----
- drivers/gpu/drm/i915/i915_gem_shrinker.c | 60 +++++++++++++++++++++++---------
- 1 file changed, 44 insertions(+), 16 deletions(-)
-
-diff --git a/drivers/gpu/drm/i915/i915_gem_shrinker.c b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-index f7df54a8ee2b..16da9c1422cc 100644
---- a/drivers/gpu/drm/i915/i915_gem_shrinker.c
-+++ b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-@@ -47,6 +47,46 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
- #endif
- }
- 
-+static int num_vma_bound(struct drm_i915_gem_object *obj)
-+{
-+	struct i915_vma *vma;
-+	int count = 0;
-+
-+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-+		if (drm_mm_node_allocated(&vma->node))
-+			count++;
-+		if (vma->pin_count)
-+			count++;
-+	}
-+
-+	return count;
-+}
-+
-+static bool swap_available(void)
-+{
-+	return get_nr_swap_pages() > 0;
-+}
-+
-+static bool can_release_pages(struct drm_i915_gem_object *obj)
-+{
-+	/* Only report true if by unbinding the object and putting its pages
-+	 * we can actually make forward progress towards freeing physical
-+	 * pages.
-+	 *
-+	 * If the pages are pinned for any other reason than being bound
-+	 * to the GPU, simply unbinding from the GPU is not going to succeed
-+	 * in releasing our pin count on the pages themselves.
-+	 */
-+	if (obj->pages_pin_count != num_vma_bound(obj))
-+		return false;
-+
-+	/* We can only return physical pages to the system if we can either
-+	 * discard the contents (because the user has marked them as being
-+	 * purgeable) or if we can move their contents out to swap.
-+	 */
-+	return swap_available() || obj->madv == I915_MADV_DONTNEED;
-+}
-+
- /**
-  * i915_gem_shrink - Shrink buffer object caches
-  * @dev_priv: i915 device
-@@ -129,6 +169,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
- 			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
- 				continue;
- 
-+			if (!can_release_pages(obj))
-+				continue;
-+
- 			drm_gem_object_reference(&obj->base);
- 
- 			/* For the unbound phase, this should be a no-op! */
-@@ -188,21 +231,6 @@ static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
- 	return true;
- }
- 
--static int num_vma_bound(struct drm_i915_gem_object *obj)
--{
--	struct i915_vma *vma;
--	int count = 0;
--
--	list_for_each_entry(vma, &obj->vma_list, vma_link) {
--		if (drm_mm_node_allocated(&vma->node))
--			count++;
--		if (vma->pin_count)
--			count++;
--	}
--
--	return count;
--}
--
- static unsigned long
- i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
- {
-@@ -222,7 +250,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
- 			count += obj->base.size >> PAGE_SHIFT;
- 
- 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
--		if (!obj->active && obj->pages_pin_count == num_vma_bound(obj))
-+		if (!obj->active && can_release_pages(obj))
- 			count += obj->base.size >> PAGE_SHIFT;
- 	}
- 
--- 
-2.6.2
+Sounds good to me.  Thanks!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
