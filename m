@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 451B16B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 17:01:29 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so15431225pac.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 14:01:29 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id kg9si89216pab.53.2015.12.04.14.01.28
-        for <linux-mm@kvack.org>;
-        Fri, 04 Dec 2015 14:01:28 -0800 (PST)
-Date: Fri, 04 Dec 2015 17:01:25 -0500 (EST)
-Message-Id: <20151204.170125.1062807391042745453.davem@davemloft.net>
-Subject: Re: [PATCH net] atl1c: Improve driver not to do order 4 GFP_ATOMIC
- allocation
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151204213027.GA6397@amd>
-References: <20151204081127.GA29367@amd>
-	<20151204.112140.1465149588813636971.davem@davemloft.net>
-	<20151204213027.GA6397@amd>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 46F256B0258
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 18:14:28 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so80032376wmu.0
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 15:14:27 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ch4si21584107wjb.109.2015.12.04.15.14.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Dec 2015 15:14:26 -0800 (PST)
+Date: Fri, 4 Dec 2015 15:14:24 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [linux-next:master 4174/4356] kernel/built-in.o:undefined
+ reference to `mmap_rnd_bits'
+Message-Id: <20151204151424.e73641da44c61f20f10d93e9@linux-foundation.org>
+In-Reply-To: <201512050045.l2G9WhTi%fengguang.wu@intel.com>
+References: <201512050045.l2G9WhTi%fengguang.wu@intel.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pavel@ucw.cz
-Cc: eric.dumazet@gmail.com, mhocko@kernel.org, akpm@osdl.org, linux-kernel@vger.kernel.org, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, rjw@rjwysocki.net, linux-mm@kvack.org, nic-devel@qualcomm.com, ronangeles@gmail.com, ebiederm@xmission.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Daniel Cashman <dcashman@google.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-From: Pavel Machek <pavel@ucw.cz>
-Date: Fri, 4 Dec 2015 22:30:27 +0100
+On Sat, 5 Dec 2015 00:18:47 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-> On Fri 2015-12-04 11:21:40, David Miller wrote:
->> From: Pavel Machek <pavel@ucw.cz>
->> Date: Fri, 4 Dec 2015 09:11:27 +0100
->> 
->> >> >>  	if (unlikely(!ring_header->desc)) {
->> >> >> -		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
->> >> >> +		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
->> >> >>  		goto err_nomem;
->> >> >>  	}
->> >> >>  	memset(ring_header->desc, 0, ring_header->size);
->> >> >> 
->> >> >> 
->> >> > 
->> >> > So this memset() will really require a different patch to get removed ?
->> >> > 
->> >> > Sigh, not sure why I review patches.
->> >> 
->> >> Agreed, please use dma_zalloc_coherent() and kill that memset().
->> > 
->> > Ok, updated. I'll also add cc: stable, because it makes notebooks with
->> > affected chipset unusable.
->> 
->> Networking patches do not use CC: stable, instead you simply ask me
->> to queue it up and then I batch submit networking fixes to -stable
->> periodically myself.
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   dcccebc04ddba852aad354270986d508e8f011c0
+> commit: a8f025e63718534d6a9224a0b069b772ef21cb5d [4174/4356] arm: mm: support ARCH_MMAP_RND_BITS
+> config: arm-vf610m4_defconfig (attached as .config)
+> reproduce:
+>         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout a8f025e63718534d6a9224a0b069b772ef21cb5d
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=arm 
 > 
-> Ok, can you take the patch and ignore the Cc, or should I do one more
-> iteration?
+> All errors (new ones prefixed by >>):
+> 
+> >> kernel/built-in.o:(.data+0x754): undefined reference to `mmap_rnd_bits'
+> >> kernel/built-in.o:(.data+0x76c): undefined reference to `mmap_rnd_bits_min'
+> >> kernel/built-in.o:(.data+0x770): undefined reference to `mmap_rnd_bits_max'
 
-I took care of it.
+OK, the patches are pretty broken when HAVE_ARCH_MMAP_RND_BITS=n.  I
+guess a pile of new ifdefs need adding for this case.
+
+There's also the matter of CONFIG_MMU=n.  mm/mmap.o doesn't get
+included in the build in this case, so that will also break things.  I
+suggest that can be fixed by making HAVE_ARCH_MMAP_RND_BITS and
+HAVE_ARCH_MMAP_RND_COMPAT_BITS depend on MMU.  That should fix things
+up when combined with the new ifdef-sprinkling.
+
+This stuff is going to break quite a lot of test builds so I think I'll
+consolidate the patches then drop 'em for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
