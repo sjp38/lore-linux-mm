@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 99B396B0038
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 18:43:47 -0500 (EST)
-Received: by ykdv3 with SMTP id v3so105696746ykd.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 15:43:47 -0800 (PST)
-Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
-        by mx.google.com with ESMTPS id x132si6262076ywb.275.2015.12.03.15.43.46
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5906B0038
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:04:34 -0500 (EST)
+Received: by pfu207 with SMTP id 207so17112747pfu.2
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:04:34 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id 130si15428294pfb.52.2015.12.03.17.04.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Dec 2015 15:43:46 -0800 (PST)
-Received: by ykdv3 with SMTP id v3so105696470ykd.0
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 15:43:46 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1449093339.9855.1.camel@hpe.com>
-References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
-	<CAPcyv4gY2SZZwiv9DtjRk4js3gS=vf4YLJvmsMJ196aps4ZHcQ@mail.gmail.com>
-	<1449022764.31589.24.camel@hpe.com>
-	<CAPcyv4hzjMkwx3AA+f5Y9zfp-egjO-b5+_EU7cGO5BGMQaiN_g@mail.gmail.com>
-	<1449078237.31589.30.camel@hpe.com>
-	<CAPcyv4ikJ73nzQTCOfnBRThkv=rZGPM76S7=6O3LSB4kQBeEpw@mail.gmail.com>
-	<CAPcyv4j1vA6eAtjsE=kGKeF1EqWWfR+NC7nUcRpfH_8MRqpM8Q@mail.gmail.com>
-	<1449084362.31589.37.camel@hpe.com>
-	<CAPcyv4jt7JmWCgcsd=p32M322sCyaar4Pj-k+F446XGZvzrO8A@mail.gmail.com>
-	<1449086521.31589.39.camel@hpe.com>
-	<1449087125.31589.45.camel@hpe.com>
-	<CAPcyv4hvX_s3xN9UZ69v7npOhWVFehfGDPZG1MsDmKWBk4Gq1A@mail.gmail.com>
-	<1449092226.31589.50.camel@hpe.com>
-	<CAPcyv4jtVkptiFhiFP=2KXvDXs=Tw17pF=249sLj2fw-0vgsEg@mail.gmail.com>
-	<1449093339.9855.1.camel@hpe.com>
-Date: Thu, 3 Dec 2015 15:43:46 -0800
-Message-ID: <CAPcyv4jkGU4FdDKpdsHxgQiHBT+9WdcX1Lp_hTNNWBMZhtXoag@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 03 Dec 2015 17:04:33 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so80034458pab.0
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:04:33 -0800 (PST)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+From: yalin wang <yalin.wang2010@gmail.com>
+In-Reply-To: <89A4C9BC-47F6-4768-8AA8-C1C4EFEFC52D@gmail.com>
+Date: Thu, 3 Dec 2015 17:04:30 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <CC1524EC-86F8-4450-A4EE-80D8D0E2EC08@gmail.com>
+References: <20151125143010.GI27283@dhcp22.suse.cz> <1448899821-9671-1-git-send-email-vbabka@suse.cz> <4EAD2C33-D0E4-4DEB-92E5-9C0457E8635C@gmail.com> <565F5CD9.9080301@suse.cz> <1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com> <87a8psq7r6.fsf@rasmusvillemoes.dk> <89A4C9BC-47F6-4768-8AA8-C1C4EFEFC52D@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Dec 2, 2015 at 1:55 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> On Wed, 2015-12-02 at 12:54 -0800, Dan Williams wrote:
->> On Wed, Dec 2, 2015 at 1:37 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
->> > On Wed, 2015-12-02 at 11:57 -0800, Dan Williams wrote:
->> [..]
->> > > The whole point of __get_user_page_fast() is to avoid the overhead of
->> > > taking the mm semaphore to access the vma.  _PAGE_SPECIAL simply tells
->> > > __get_user_pages_fast that it needs to fallback to the
->> > > __get_user_pages slow path.
->> >
->> > I see.  Then, I think gup_huge_pmd() can simply return 0 when !pfn_valid(),
->> > instead of VM_BUG_ON.
->>
->> Is pfn_valid() a reliable check?  It seems to be based on a max_pfn
->> per node... what happens when pmem is located below that point.  I
->> haven't been able to convince myself that we won't get false
->> positives, but maybe I'm missing something.
->
-> I believe we use the version of pfn_valid() in linux/mmzone.h.
 
-Talking this over with Dave we came to the conclusion that it would be
-safer to be explicit about the pmd not being mapped.  He points out
-that unless a platform can guarantee that persistent memory is always
-section aligned we might get false positive pfn_valid() indications.
-Given the get_user_pages_fast() path is arch specific we can simply
-have an arch specific pmd bit and not worry about generically enabling
-a "pmd special" bit for now.
+>> Technically, I think the answer is yes, at least in C99 (and I =
+suppose
+>> gcc would accept it in gnu89 mode as well).
+>>=20
+>> printk("%pg\n", &(struct flag_printer){.flags =3D my_flags, .names =3D =
+vmaflags_names});
+>>=20
+>> Not tested, and I still don't think it would be particularly readable
+>> even when macroized
+>>=20
+>> printk("%pg\n", PRINTF_VMAFLAGS(my_flags));
+> i test on gcc 4.9.3, it can work for this method,
+> so the final solution like this:
+> printk.h:
+> struct flag_fmt_spec {
+> 	unsigned long flag;
+> 	struct trace_print_flags *flags;
+> 	int array_size;
+> 	char delimiter; }
+>=20
+> #define FLAG_FORMAT(flag, flag_array, delimiter) (&(struct =
+flag_ft_spec){ .flag =3D flag, .flags =3D flag_array, .array_size =3D =
+ARRAY_SIZE(flag_array), .delimiter =3D delimiter})
+> #define VMA_FLAG_FORMAT(flag)  FLAG_FORMAT(flag, vmaflags_names, =
+=E2=80=98|=E2=80=99)
+a little change:
+	#define VMA_FLAG_FORMAT(vma)  FLAG_FORMAT(vma->vm_flags, =
+vmaflags_names, =E2=80=98|=E2=80=99)
+
+
+> source code:
+> printk("%pg\n", VMA_FLAG_FORMAT(my_flags));=20
+a little change:
+	printk("%pg\n", VMA_FLAG_FORMAT(vma));=20
+
+>=20
+> that=E2=80=99s all, see cpumask_pr_args(masks) macro,
+> it also use macro and  %*pb  to print cpu mask .
+> i think this method is not very complex to use .
+>=20
+> search source code ,
+> there is lots of printk to print flag into hex number :
+> $ grep -n  -r 'printk.*flag.*%x=E2=80=99  .
+> it will be great if this flag string print is generic.
+>=20
+> Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
