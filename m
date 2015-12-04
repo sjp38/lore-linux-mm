@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E17D6B0259
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:41 -0500 (EST)
-Received: by pfu207 with SMTP id 207so17246408pfu.2
-        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:41 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id v14si15461881pfi.156.2015.12.03.17.14.33
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 544196B025A
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2015 20:14:43 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so17256306pfd.3
+        for <linux-mm@kvack.org>; Thu, 03 Dec 2015 17:14:43 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id b1si15412861pat.193.2015.12.03.17.14.35
         for <linux-mm@kvack.org>;
-        Thu, 03 Dec 2015 17:14:34 -0800 (PST)
-Subject: [PATCH 06/34] x86, pkeys: add PKRU xsave fields and data structure(s)
+        Thu, 03 Dec 2015 17:14:35 -0800 (PST)
+Subject: [PATCH 07/34] x86, pkeys: PTE bits for storing protection key
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 03 Dec 2015 17:14:33 -0800
+Date: Thu, 03 Dec 2015 17:14:34 -0800
 References: <20151204011424.8A36E365@viggo.jf.intel.com>
 In-Reply-To: <20151204011424.8A36E365@viggo.jf.intel.com>
-Message-Id: <20151204011433.0BB662DD@viggo.jf.intel.com>
+Message-Id: <20151204011434.CB5FDF0F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,117 +22,58 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The protection keys register (PKRU) is saved and restored using
-xsave.  Define the data structure that we will use to access it
-inside the xsave buffer.
+Previous documentation has referred to these 4 bits as "ignored".
+That means that software could have made use of them.  But, as
+far as I know, the kernel never used them.
 
-Note that we also have to widen the printk of the xsave feature
-masks since this is feature 0x200 and we only did two characters
-before.
+They are still ignored when protection keys is not enabled, so
+they could theoretically still get used for software purposes.
+
+We also implement "empty" versions so that code that references
+to them can be optimized away by the compiler when the config
+option is not enabled.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/fpu/types.h  |   11 +++++++++++
- b/arch/x86/include/asm/fpu/xstate.h |    4 +++-
- b/arch/x86/kernel/fpu/xstate.c      |    7 ++++++-
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ b/arch/x86/include/asm/pgtable_types.h |   17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff -puN arch/x86/include/asm/fpu/types.h~pkeys-03-xsave arch/x86/include/asm/fpu/types.h
---- a/arch/x86/include/asm/fpu/types.h~pkeys-03-xsave	2015-12-03 16:21:20.747450032 -0800
-+++ b/arch/x86/include/asm/fpu/types.h	2015-12-03 16:21:20.753450304 -0800
-@@ -109,6 +109,7 @@ enum xfeature {
- 	XFEATURE_ZMM_Hi256,
- 	XFEATURE_Hi16_ZMM,
- 	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
-+	XFEATURE_PKRU,
+diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits	2015-12-03 16:21:21.207470895 -0800
++++ b/arch/x86/include/asm/pgtable_types.h	2015-12-03 16:21:21.211471076 -0800
+@@ -25,7 +25,11 @@
+ #define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
+ #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
+-#define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
++#define _PAGE_BIT_PKEY_BIT0	59       /* Protection Keys, bit 1/4 */
++#define _PAGE_BIT_PKEY_BIT1	60       /* Protection Keys, bit 2/4 */
++#define _PAGE_BIT_PKEY_BIT2	61       /* Protection Keys, bit 3/4 */
++#define _PAGE_BIT_PKEY_BIT3	62       /* Protection Keys, bit 4/4 */
++#define _PAGE_BIT_NX		63       /* No execute: only valid after cpuid check */
  
- 	XFEATURE_MAX,
- };
-@@ -121,6 +122,7 @@ enum xfeature {
- #define XFEATURE_MASK_OPMASK		(1 << XFEATURE_OPMASK)
- #define XFEATURE_MASK_ZMM_Hi256		(1 << XFEATURE_ZMM_Hi256)
- #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
-+#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+ /* - if the user mapped it with PROT_NONE; pte_present gives true */
+@@ -47,6 +51,17 @@
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
+ #define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT0)
++#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT1)
++#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT2)
++#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT3)
++#else
++#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 0))
++#endif
+ #define __HAVE_ARCH_PTE_SPECIAL
  
- #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
- #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
-@@ -213,6 +215,15 @@ struct avx_512_hi16_state {
- 	struct reg_512_bit		hi16_zmm[16];
- } __packed;
- 
-+/*
-+ * State component 9: 32-bit PKRU register.  The state is
-+ * 8 bytes long but only 4 bytes is used currently.
-+ */
-+struct pkru_state {
-+	u32				pkru;
-+	u32				pad;
-+} __packed;
-+
- struct xstate_header {
- 	u64				xfeatures;
- 	u64				xcomp_bv;
-diff -puN arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave arch/x86/include/asm/fpu/xstate.h
---- a/arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave	2015-12-03 16:21:20.748450077 -0800
-+++ b/arch/x86/include/asm/fpu/xstate.h	2015-12-03 16:21:20.754450349 -0800
-@@ -27,7 +27,9 @@
- 				 XFEATURE_MASK_Hi16_ZMM)
- 
- /* Supported features which require eager state saving */
--#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)
-+#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | \
-+				 XFEATURE_MASK_BNDCSR | \
-+				 XFEATURE_MASK_PKRU)
- 
- /* All currently supported features */
- #define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
-diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave	2015-12-03 16:21:20.750450168 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2015-12-03 16:21:20.754450349 -0800
-@@ -29,6 +29,8 @@ static const char *xfeature_names[] =
- 	"AVX-512 Hi256"			,
- 	"AVX-512 ZMM_Hi256"		,
- 	"Processor Trace (unused)"	,
-+	"Protection Keys User registers",
-+	"unknown xstate feature"	,
- };
- 
- /*
-@@ -57,6 +59,7 @@ void fpu__xstate_clear_all_cpu_caps(void
- 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
- 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
- 	setup_clear_cpu_cap(X86_FEATURE_MPX);
-+	setup_clear_cpu_cap(X86_FEATURE_PKU);
- }
- 
- /*
-@@ -235,7 +238,7 @@ static void __init print_xstate_feature(
- 	const char *feature_name;
- 
- 	if (cpu_has_xfeatures(xstate_mask, &feature_name))
--		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
-+		pr_info("x86/fpu: Supporting XSAVE feature 0x%03Lx: '%s'\n", xstate_mask, feature_name);
- }
- 
- /*
-@@ -251,6 +254,7 @@ static void __init print_xstate_features
- 	print_xstate_feature(XFEATURE_MASK_OPMASK);
- 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
- 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
-+	print_xstate_feature(XFEATURE_MASK_PKRU);
- }
- 
- /*
-@@ -467,6 +471,7 @@ static void check_xstate_against_struct(
- 	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
-+	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
- 
- 	/*
- 	 * Make *SURE* to add any feature numbers in below if
+ #ifdef CONFIG_KMEMCHECK
 _
 
 --
