@@ -1,69 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 90C826B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 08:43:21 -0500 (EST)
-Received: by pfu207 with SMTP id 207so26587947pfu.2
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 05:43:21 -0800 (PST)
-Received: from m50-132.163.com (m50-132.163.com. [123.125.50.132])
-        by mx.google.com with ESMTP id w16si19526953pfa.221.2015.12.04.05.43.19
-        for <linux-mm@kvack.org>;
-        Fri, 04 Dec 2015 05:43:20 -0800 (PST)
-Date: Fri, 4 Dec 2015 21:43:02 +0800
-From: Geliang Tang <geliangtang@163.com>
-Subject: Re: [PATCH v2] mm/slab.c: use list_{empty_careful,last_entry} in
- drain_freelist
-Message-ID: <20151204134302.GA6388@bogon>
-References: <3ea815dc52bf1a2bb5e324d7398315597900be84.1449151365.git.geliangtang@163.com>
- <alpine.DEB.2.20.1512030850390.7483@east.gentwo.org>
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 929966B0258
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 09:15:50 -0500 (EST)
+Received: by wmec201 with SMTP id c201so66908728wme.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 06:15:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rz9si18824466wjb.38.2015.12.04.06.15.47
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 04 Dec 2015 06:15:48 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
+References: <20151125143010.GI27283@dhcp22.suse.cz>
+ <1448899821-9671-1-git-send-email-vbabka@suse.cz>
+ <4EAD2C33-D0E4-4DEB-92E5-9C0457E8635C@gmail.com> <565F5CD9.9080301@suse.cz>
+ <1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com>
+ <87a8psq7r6.fsf@rasmusvillemoes.dk>
+ <89A4C9BC-47F6-4768-8AA8-C1C4EFEFC52D@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5661A011.2010400@suse.cz>
+Date: Fri, 4 Dec 2015 15:15:45 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1512030850390.7483@east.gentwo.org>
+In-Reply-To: <89A4C9BC-47F6-4768-8AA8-C1C4EFEFC52D@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geliang Tang <geliangtang@163.com>
+To: yalin wang <yalin.wang2010@gmail.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Thu, Dec 03, 2015 at 08:53:21AM -0600, Christoph Lameter wrote:
-> On Thu, 3 Dec 2015, Geliang Tang wrote:
-> 
-> >  	while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
-> >
-> >  		spin_lock_irq(&n->list_lock);
-> > -		p = n->slabs_free.prev;
-> > -		if (p == &n->slabs_free) {
-> > +		if (list_empty_careful(&n->slabs_free)) {
-> 
-> We have taken the lock. Why do we need to be "careful"? list_empty()
-> shoudl work right?
+On 12/03/2015 07:38 PM, yalin wang wrote:
+> thata??s all, see cpumask_pr_args(masks) macro,
+> it also use macro and  %*pb  to print cpu mask .
+> i think this method is not very complex to use .
 
-Yes. list_empty() is OK.
+Well, one also has to write the appropriate translation tables.
 
-> 
-> >  			spin_unlock_irq(&n->list_lock);
-> >  			goto out;
-> >  		}
-> >
-> > -		page = list_entry(p, struct page, lru);
-> > +		page = list_last_entry(&n->slabs_free, struct page, lru);
-> 
-> last???
+> search source code ,
+> there is lots of printk to print flag into hex number :
+> $ grep -n  -r 'printk.*flag.*%xa??  .
+> it will be great if this flag string print is generic.
 
-The original code delete the page from the tail of slabs_free list.
+I think it can always be done later, this is an internal API. For now we 
+just have 3 quite generic flags, so let's not over-engineer things right 
+now.
 
-> 
-> Would the the other new function that returns NULL on the empty list or
-> the pointer not be useful here too and save some code?
-
-Sorry, I don't really understand what do you mean. Can you please specify
-it a little bit?
-
-Thanks.
-
-- Geliang
-
-> 
-> This patch seems to make it difficult to understand the code.
+> Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
