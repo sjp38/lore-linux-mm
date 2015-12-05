@@ -1,237 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 718816B0258
-	for <linux-mm@kvack.org>; Sat,  5 Dec 2015 01:50:57 -0500 (EST)
-Received: by wmww144 with SMTP id w144so90553939wmw.0
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 22:50:56 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id kz1si52946wjc.212.2015.12.04.22.50.55
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 41CC46B0258
+	for <linux-mm@kvack.org>; Sat,  5 Dec 2015 02:26:29 -0500 (EST)
+Received: by lbblt2 with SMTP id lt2so32345526lbb.3
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 23:26:28 -0800 (PST)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com. [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id h185si10488476lfe.134.2015.12.04.23.26.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Dec 2015 22:50:55 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so102661704wmv.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 22:50:55 -0800 (PST)
-Message-ID: <5662894B.7090903@gmail.com>
-Date: Sat, 05 Dec 2015 07:50:51 +0100
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 26/34] mm: implement new mprotect_key() system call
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011500.69487A6C@viggo.jf.intel.com>
-In-Reply-To: <20151204011500.69487A6C@viggo.jf.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Fri, 04 Dec 2015 23:26:27 -0800 (PST)
+Received: by lbbed20 with SMTP id ed20so17737049lbb.2
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 23:26:27 -0800 (PST)
+From: Alexander Kuleshov <kuleshovmail@gmail.com>
+Subject: [PATCH] mm/memblock: use memblock_insert_region() for the empty array
+Date: Sat,  5 Dec 2015 13:23:40 +0600
+Message-Id: <1449300220-30108-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: mtk.manpages@gmail.com, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Wei Yang <weiyang@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Kuleshov <kuleshovmail@gmail.com>
 
-Dave,
+We have the special case for an empty array in the memblock_add_range()
+function. In the same time we have almost the same functional in the
+memblock_insert_region() function. Let's use the memblock_insert_region()
+instead of direct initialization.
 
-On 12/04/2015 02:15 AM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> mprotect_key() is just like mprotect, except it also takes a
-> protection key as an argument.  On systems that do not support
-> protection keys, it still works, but requires that key=0.
-> Otherwise it does exactly what mprotect does.
+Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+---
+ mm/memblock.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-Is there a man page for this API?
+diff --git a/mm/memblock.c b/mm/memblock.c
+index d300f13..e8a897d 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -496,12 +496,16 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 	struct memblock_region *rgn = &type->regions[idx];
 
-Thanks,
+ 	BUG_ON(type->cnt >= type->max);
+-	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
++	/* special case for empty array */
++	if (idx)
++	{
++		memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
++		type->cnt++;
++	}
+ 	rgn->base = base;
+ 	rgn->size = size;
+ 	rgn->flags = flags;
+ 	memblock_set_region_node(rgn, nid);
+-	type->cnt++;
+ 	type->total_size += size;
+ }
 
-Michael
-
-
-> I expect it to get used like this, if you want to guarantee that
-> any mapping you create can *never* be accessed without the right
-> protection keys set up.
-> 
-> 	pkey_deny_access(11); // random pkey
-> 	int real_prot = PROT_READ|PROT_WRITE;
-> 	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-> 	ret = mprotect_key(ptr, PAGE_SIZE, real_prot, 11);
-> 
-> This way, there is *no* window where the mapping is accessible
-> since it was always either PROT_NONE or had a protection key set.
-> 
-> We settled on 'unsigned long' for the type of the key here.  We
-> only need 4 bits on x86 today, but I figured that other
-> architectures might need some more space.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: linux-api@vger.kernel.org
-> ---
-> 
->  b/arch/x86/include/asm/mmu_context.h |   10 +++++++--
->  b/include/linux/pkeys.h              |    7 +++++-
->  b/mm/Kconfig                         |    7 ++++++
->  b/mm/mprotect.c                      |   36 +++++++++++++++++++++++++++++------
->  4 files changed, 51 insertions(+), 9 deletions(-)
-> 
-> diff -puN arch/x86/include/asm/mmu_context.h~pkeys-85-mprotect_pkey arch/x86/include/asm/mmu_context.h
-> --- a/arch/x86/include/asm/mmu_context.h~pkeys-85-mprotect_pkey	2015-12-03 16:21:30.181877894 -0800
-> +++ b/arch/x86/include/asm/mmu_context.h	2015-12-03 16:21:30.190878302 -0800
-> @@ -4,6 +4,7 @@
->  #include <asm/desc.h>
->  #include <linux/atomic.h>
->  #include <linux/mm_types.h>
-> +#include <linux/pkeys.h>
->  
->  #include <trace/events/tlb.h>
->  
-> @@ -243,10 +244,14 @@ static inline void arch_unmap(struct mm_
->  		mpx_notify_unmap(mm, vma, start, end);
->  }
->  
-> +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-> +/*
-> + * If the config option is off, we get the generic version from
-> + * include/linux/pkeys.h.
-> + */
->  static inline int vma_pkey(struct vm_area_struct *vma)
->  {
->  	u16 pkey = 0;
-> -#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
->  	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
->  				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
->  	/*
-> @@ -259,9 +264,10 @@ static inline int vma_pkey(struct vm_are
->  	 */
->  	pkey = (vma->vm_flags >> vm_pkey_shift) &
->  	       (vma_pkey_mask >> vm_pkey_shift);
-> -#endif
-> +
->  	return pkey;
->  }
-> +#endif
->  
->  static inline bool __pkru_allows_pkey(u16 pkey, bool write)
->  {
-> diff -puN include/linux/pkeys.h~pkeys-85-mprotect_pkey include/linux/pkeys.h
-> --- a/include/linux/pkeys.h~pkeys-85-mprotect_pkey	2015-12-03 16:21:30.183877985 -0800
-> +++ b/include/linux/pkeys.h	2015-12-03 16:21:30.190878302 -0800
-> @@ -2,10 +2,10 @@
->  #define _LINUX_PKEYS_H
->  
->  #include <linux/mm_types.h>
-> -#include <asm/mmu_context.h>
->  
->  #ifdef CONFIG_ARCH_HAS_PKEYS
->  #include <asm/pkeys.h>
-> +#include <asm/mmu_context.h>
->  #else /* ! CONFIG_ARCH_HAS_PKEYS */
->  
->  /*
-> @@ -17,6 +17,11 @@ static inline bool arch_validate_pkey(in
->  {
->  	return true;
->  }
-> +
-> +static inline int vma_pkey(struct vm_area_struct *vma)
-> +{
-> +	return 0;
-> +}
->  #endif /* ! CONFIG_ARCH_HAS_PKEYS */
->  
->  #endif /* _LINUX_PKEYS_H */
-> diff -puN mm/Kconfig~pkeys-85-mprotect_pkey mm/Kconfig
-> --- a/mm/Kconfig~pkeys-85-mprotect_pkey	2015-12-03 16:21:30.185878075 -0800
-> +++ b/mm/Kconfig	2015-12-03 16:21:30.190878302 -0800
-> @@ -673,3 +673,10 @@ config ARCH_USES_HIGH_VMA_FLAGS
->  	bool
->  config ARCH_HAS_PKEYS
->  	bool
-> +
-> +config NR_PROTECTION_KEYS
-> +	int
-> +	# Everything supports a _single_ key, so allow folks to
-> +	# at least call APIs that take keys, but require that the
-> +	# key be 0.
-> +	default 1
-> diff -puN mm/mprotect.c~pkeys-85-mprotect_pkey mm/mprotect.c
-> --- a/mm/mprotect.c~pkeys-85-mprotect_pkey	2015-12-03 16:21:30.186878121 -0800
-> +++ b/mm/mprotect.c	2015-12-03 16:21:30.191878347 -0800
-> @@ -24,6 +24,7 @@
->  #include <linux/migrate.h>
->  #include <linux/perf_event.h>
->  #include <linux/ksm.h>
-> +#include <linux/pkeys.h>
->  #include <asm/uaccess.h>
->  #include <asm/pgtable.h>
->  #include <asm/cacheflush.h>
-> @@ -344,10 +345,13 @@ fail:
->  	return error;
->  }
->  
-> -SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
-> -		unsigned long, prot)
-> +/*
-> + * pkey=-1 when doing a legacy mprotect()
-> + */
-> +static int do_mprotect_pkey(unsigned long start, size_t len,
-> +		unsigned long prot, int pkey)
->  {
-> -	unsigned long vm_flags, nstart, end, tmp, reqprot;
-> +	unsigned long nstart, end, tmp, reqprot;
->  	struct vm_area_struct *vma, *prev;
->  	int error = -EINVAL;
->  	const int grows = prot & (PROT_GROWSDOWN|PROT_GROWSUP);
-> @@ -373,8 +377,6 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
->  	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
->  		prot |= PROT_EXEC;
->  
-> -	vm_flags = calc_vm_prot_bits(prot, 0);
-> -
->  	down_write(&current->mm->mmap_sem);
->  
->  	vma = find_vma(current->mm, start);
-> @@ -407,7 +409,14 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
->  
->  		/* Here we know that vma->vm_start <= nstart < vma->vm_end. */
->  
-> -		newflags = vm_flags;
-> +		/*
-> +		 * If this is a vanilla, non-pkey mprotect, inherit the
-> +		 * pkey from the VMA we are working on.
-> +		 */
-> +		if (pkey == -1)
-> +			newflags = calc_vm_prot_bits(prot, vma_pkey(vma));
-> +		else
-> +			newflags = calc_vm_prot_bits(prot, pkey);
->  		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
->  
->  		/* newflags >> 4 shift VM_MAY% in place of VM_% */
-> @@ -443,3 +452,18 @@ out:
->  	up_write(&current->mm->mmap_sem);
->  	return error;
->  }
-> +
-> +SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
-> +		unsigned long, prot)
-> +{
-> +	return do_mprotect_pkey(start, len, prot, -1);
-> +}
-> +
-> +SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
-> +		unsigned long, prot, int, pkey)
-> +{
-> +	if (!arch_validate_pkey(pkey))
-> +		return -EINVAL;
-> +
-> +	return do_mprotect_pkey(start, len, prot, pkey);
-> +}
-> _
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
-
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+@@ -536,11 +540,7 @@ int __init_memblock memblock_add_range(struct memblock_type *type,
+ 	/* special case for empty array */
+ 	if (type->regions[0].size == 0) {
+ 		WARN_ON(type->cnt != 1 || type->total_size);
+-		type->regions[0].base = base;
+-		type->regions[0].size = size;
+-		type->regions[0].flags = flags;
+-		memblock_set_region_node(&type->regions[0], nid);
+-		type->total_size = size;
++		memblock_insert_region(type, 0, base, size, nid, flags);
+ 		return 0;
+ 	}
+ repeat:
+--
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
