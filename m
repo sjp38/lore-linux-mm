@@ -1,74 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E49886B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 20:58:47 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so17740651pac.1
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 17:58:47 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id r191si23148504pfr.27.2015.12.04.17.58.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Dec 2015 17:58:46 -0800 (PST)
-References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
- <562AA15E.3010403@deltatee.com>
- <CAPcyv4gQ-8-tL-rhAPzPxKzBLmWKnFcqSFVy4KVOM56_9gn6RA@mail.gmail.com>
- <565F6A7A.4040302@deltatee.com>
- <CAPcyv4jjyzKgPMzdwms8xH-_RoKEGxRp1r4qxEcPYmPv7qStqw@mail.gmail.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <566244CC.5080107@deltatee.com>
-Date: Fri, 4 Dec 2015 18:58:36 -0700
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CE0996B0258
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 21:36:38 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so34829521pfn.0
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 18:36:38 -0800 (PST)
+Received: from m50-132.163.com (m50-132.163.com. [123.125.50.132])
+        by mx.google.com with ESMTP id he9si23299527pac.102.2015.12.04.18.36.36
+        for <linux-mm@kvack.org>;
+        Fri, 04 Dec 2015 18:36:37 -0800 (PST)
+Date: Sat, 5 Dec 2015 10:36:27 +0800
+From: Geliang Tang <geliangtang@163.com>
+Subject: Re: [PATCH v2] mm/slab.c: use list_{empty_careful,last_entry} in
+ drain_freelist
+Message-ID: <20151205023627.GA9812@bogon>
+References: <3ea815dc52bf1a2bb5e324d7398315597900be84.1449151365.git.geliangtang@163.com>
+ <alpine.DEB.2.20.1512030850390.7483@east.gentwo.org>
+ <20151204134302.GA6388@bogon>
+ <alpine.DEB.2.20.1512041014440.21427@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jjyzKgPMzdwms8xH-_RoKEGxRp1r4qxEcPYmPv7qStqw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH v2 00/20] get_user_pages() for dax mappings
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1512041014440.21427@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Stephen Bates <Stephen.Bates@pmcs.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geliang Tang <geliangtang@163.com>
 
-Hey,
+On Fri, Dec 04, 2015 at 10:16:38AM -0600, Christoph Lameter wrote:
+> On Fri, 4 Dec 2015, Geliang Tang wrote:
+> 
+> > On Thu, Dec 03, 2015 at 08:53:21AM -0600, Christoph Lameter wrote:
+> > > On Thu, 3 Dec 2015, Geliang Tang wrote:
+> > >
+> > > >  	while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
+> > > >
+> > > >  		spin_lock_irq(&n->list_lock);
+> > > > -		p = n->slabs_free.prev;
+> > > > -		if (p == &n->slabs_free) {
+> > > > +		if (list_empty_careful(&n->slabs_free)) {
+> > >
+> > > We have taken the lock. Why do we need to be "careful"? list_empty()
+> > > shoudl work right?
+> >
+> > Yes. list_empty() is OK.
+> >
+> > >
+> > > >  			spin_unlock_irq(&n->list_lock);
+> > > >  			goto out;
+> > > >  		}
+> > > >
+> > > > -		page = list_entry(p, struct page, lru);
+> > > > +		page = list_last_entry(&n->slabs_free, struct page, lru);
+> > >
+> > > last???
+> >
+> > The original code delete the page from the tail of slabs_free list.
+> 
+> Maybe make the code clearer by using another method to get the page
+> pointer?
+> 
+> > >
+> > > Would the the other new function that returns NULL on the empty list or
+> > > the pointer not be useful here too and save some code?
+> >
+> > Sorry, I don't really understand what do you mean. Can you please specify
+> > it a little bit?
+> 
+> I take that back. list_empty is the best choice here.
 
-On 03/12/15 07:16 PM, Dan Williams wrote:
-> I could loosen the restriction a bit to allow one unaligned mapping
-> per section.  However, if another mapping request came along that
-> tried to map a free part of the section it would fail because the code
-> depends on a  "1 dev_pagemap per section" relationship.  Seems an ok
-> compromise to me...
+If we use list_empty(), there will be two list_empty() in the code:
 
-Sure, that would work fine for us. I think it would be very unusual ;to 
-need to map two adjacent BARs in this way.
+        while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
+                spin_lock_irq(&n->list_lock);
+                if (list_empty(&n->slabs_free)) {
+                        spin_unlock_irq(&n->list_lock);
+                        goto out; 
+                }
+                page = list_last_entry(&n->slabs_free, struct page, lru);
+                list_del(&page->lru);
+                spin_unlock_irq(&n->list_lock);
+        }
 
-> Could you share the test setup for this one so I can try to reproduce?
->   As far as I can see this looks like an ext4 internals issue.
+Or can we drop the first list_empty() like this? It will function the same as the above code.
 
-Ok, well it's somewhat specialized and I can't run the failing test in a 
-VM because it requires infiniband hardware. We have a PCI card that has 
-a large memory backed BAR space. To use that with zone_device we have a 
-kernel patch that allows doing the zone device mapping with io memory 
-that has write combining enabled. Then we have an out of tree kernel 
-module that creates a block device from the PCI bar (similar to the pmem 
-code).
+        while (nr_freed < tofree) {
+                spin_lock_irq(&n->list_lock);
+                if (list_empty(&n->slabs_free)) {
+                        spin_unlock_irq(&n->list_lock);
+                        goto out; 
+                }
+                page = list_last_entry(&n->slabs_free, struct page, lru);
+                list_del(&page->lru);
+                spin_unlock_irq(&n->list_lock);
+        }
 
-I could send you all of that, assuming you have a suitable PCI device. 
-However, I'm hoping none of the above has anything to do with the failure.
+Please let me know which one is better?
 
-The test that is failing is a very simple RDMA test with an mmaped DAX 
-file. So hopefully it has nothing to do with the fact that a PCI device 
-backs it. So if you have some IB hardware available you could try our 
-simple test code from here:
+Thanks.
 
-https://github.com/sbates130272/io_peer_mem/tree/master/test
-
-The server must be run with no arguments. Then the client can be run 
-with the address of the server as the first argument and a file that's 
-in a DAX fs (with a size greater than 4MB). The client and server should 
-be able to run on the same node, if necessary.
-
-Let me know if this helps or if there's anything else I can provide. I 
-can probably dig into it some more on Monday on our setup.
-
-Logan
+- Geliang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
