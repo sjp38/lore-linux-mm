@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B2DD56B0038
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 18:38:44 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so96352621pab.0
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 15:38:44 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id pi4si22297609pac.212.2015.12.04.15.38.42
-        for <linux-mm@kvack.org>;
-        Fri, 04 Dec 2015 15:38:44 -0800 (PST)
-Subject: Re: [PATCH 00/34] x86: Memory Protection Keys (v5)
-References: <20151204011424.8A36E365@viggo.jf.intel.com>
- <CALCETrXwVb99hAvqR2o54aPwtpr8oubROtiRt45SiYRfUTAxCw@mail.gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <56622401.20001@sr71.net>
-Date: Fri, 4 Dec 2015 15:38:41 -0800
-MIME-Version: 1.0
-In-Reply-To: <CALCETrXwVb99hAvqR2o54aPwtpr8oubROtiRt45SiYRfUTAxCw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 816376B0257
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 19:51:20 -0500 (EST)
+Received: by wmww144 with SMTP id w144so85370642wmw.0
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 16:51:20 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l7si9208232wmf.85.2015.12.04.16.51.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Dec 2015 16:51:18 -0800 (PST)
+Date: Fri, 4 Dec 2015 16:51:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: account pglazyfreed exactly
+Message-Id: <20151204165116.e878bc3de8e461f7f020312a@linux-foundation.org>
+In-Reply-To: <1449147064-1345-1-git-send-email-minchan@kernel.org>
+References: <1449147064-1345-1-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com
 
-On 12/04/2015 03:31 PM, Andy Lutomirski wrote:
-> On Thu, Dec 3, 2015 at 5:14 PM, Dave Hansen <dave@sr71.net> wrote:
->> Memory Protection Keys for User pages is a CPU feature which will
->> first appear on Skylake Servers, but will also be supported on
->> future non-server parts.  It provides a mechanism for enforcing
->> page-based protections, but without requiring modification of the
->> page tables when an application changes protection domains.  See
->> the Documentation/ patch for more details.
+On Thu,  3 Dec 2015 21:51:04 +0900 Minchan Kim <minchan@kernel.org> wrote:
+
+> If anon pages are zapped by unmapping between page_mapped check
+> and try_to_unmap in shrink_page_list, they could be !PG_dirty
+> although thre are not MADV_FREEed pages so that VM accoutns it
+> as pglazyfreed wrongly.
 > 
-> What, if anything, happened to the signal handling parts?
+> To fix, this patch counts the number of lazyfree ptes in
+> try_to_unmap_one and try_to_unmap returns SWAP_LZFREE only if
+> the count is not zero, page is !PG_dirty and SWAP_SUCCESS.
 
-Patches 12 and 13 contain most of it:
+A few tiny things...
 
-	x86, pkeys: fill in pkey field in siginfo
-	signals, pkeys: notify userspace about protection key faults	
-
-I decided to just not try to preserve the pkey_get/set() semantics
-across entering and returning from signals, fwiw.
-
-> Also, do you have a git tree for this somewhere?  I can't actually
-> enable it (my laptop, while very shiny, is not a Skylake server), but
-> I can poke around a bit.
-
-http://git.kernel.org/cgit/linux/kernel/git/daveh/x86-pkeys.git/
-
-Thanks for taking a look!
+diff -puN mm/rmap.c~mm-support-madvisemadv_free-fix-2-fix mm/rmap.c
+--- a/mm/rmap.c~mm-support-madvisemadv_free-fix-2-fix
++++ a/mm/rmap.c
+@@ -1605,7 +1605,7 @@ int try_to_unmap(struct page *page, enum
+ 
+ 	struct rmap_walk_control rwc = {
+ 		.rmap_one = try_to_unmap_one,
+-		.arg = (void *)&rp,
++		.arg = &rp,
+ 		.done = page_not_mapped,
+ 		.anon_lock = page_lock_anon_vma_read,
+ 	};
+@@ -1651,7 +1651,6 @@ int try_to_unmap(struct page *page, enum
+ int try_to_munlock(struct page *page)
+ {
+ 	int ret;
+-
+ 	struct rmap_private rp = {
+ 		.flags = TTU_MUNLOCK,
+ 		.lazyfreed = 0,
+@@ -1659,7 +1658,7 @@ int try_to_munlock(struct page *page)
+ 
+ 	struct rmap_walk_control rwc = {
+ 		.rmap_one = try_to_unmap_one,
+-		.arg = (void *)&rp,
++		.arg = &rp,
+ 		.done = page_not_mapped,
+ 		.anon_lock = page_lock_anon_vma_read,
+ 
+diff -puN mm/vmscan.c~mm-support-madvisemadv_free-fix-2-fix mm/vmscan.c
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
