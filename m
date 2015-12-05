@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5DE6B0259
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 20:01:16 -0500 (EST)
-Received: by wmec201 with SMTP id c201so96915305wme.0
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 17:01:16 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5647A6B0259
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 20:03:21 -0500 (EST)
+Received: by wmww144 with SMTP id w144so81673539wmw.1
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 17:03:20 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id wk7si21953167wjb.244.2015.12.04.17.01.15
+        by mx.google.com with ESMTPS id b128si9247098wmd.90.2015.12.04.17.03.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Dec 2015 17:01:15 -0800 (PST)
-Date: Fri, 4 Dec 2015 17:01:13 -0800
+        Fri, 04 Dec 2015 17:03:20 -0800 (PST)
+Date: Fri, 4 Dec 2015 17:03:17 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 4174/4356] kernel/built-in.o:undefined
- reference to `mmap_rnd_bits'
-Message-Id: <20151204170113.c5cd8a9cc9658c491851bc33@linux-foundation.org>
-In-Reply-To: <CAJQetW4L6Zuzd9GENK6XMg+OVtFUjyE4jOzoG+VB3HtwmoUmiA@mail.gmail.com>
-References: <201512050045.l2G9WhTi%fengguang.wu@intel.com>
-	<20151204151424.e73641da44c61f20f10d93e9@linux-foundation.org>
-	<20151204151913.166e5cb795359ff1a53d26ac@linux-foundation.org>
-	<CAJQetW4L6Zuzd9GENK6XMg+OVtFUjyE4jOzoG+VB3HtwmoUmiA@mail.gmail.com>
+Subject: Re: [PATCH] memcg, vmscan: Do not wait for writeback if killed
+Message-Id: <20151204170317.4bb1347cce4d4b3e03a18e1e@linux-foundation.org>
+In-Reply-To: <20151203090826.GD9264@dhcp22.suse.cz>
+References: <1449066378-4764-1-git-send-email-mhocko@kernel.org>
+	<20151202142503.0921c0d6e06394ff7dff85fa@linux-foundation.org>
+	<20151203090826.GD9264@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@google.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 4 Dec 2015 16:56:19 -0800 Daniel Cashman <dcashman@google.com> wrote:
+On Thu, 3 Dec 2015 10:08:26 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-> I've left the question of whether or not
-> the value should be the number of randomized bits (current situation)
-> or the size of the address space chunk affected up to akpm@.
+> So you think a comment would be sufficient?
+> ---
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 98a1934493af..2e8ee9e5fcb5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1031,9 +1031,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				/*
+>  				 * We've got killed while waiting here so
+>  				 * expedite our way out from the reclaim
+> +				 *
+> +				 * Our callers should make sure we do not
+> +				 * get here with fatal signals again.
+>  				 */
 
-Does it matter much?  It can always be changed later if it proves to be
-a problem.
+Seems OK.  s/should/must/
 
-> Please let me know what else should be done in v6 to keep these in.
-
-It sounds like all we need to do at present is to fix this build error?
+Please resend it all after the usual exhaustive testing ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
