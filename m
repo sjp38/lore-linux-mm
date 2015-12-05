@@ -1,73 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 68C076B0258
-	for <linux-mm@kvack.org>; Sat,  5 Dec 2015 06:09:07 -0500 (EST)
-Received: by qkeg192 with SMTP id g192so8589537qke.1
-        for <linux-mm@kvack.org>; Sat, 05 Dec 2015 03:09:07 -0800 (PST)
-Received: from mx5-phx2.redhat.com (mx5-phx2.redhat.com. [209.132.183.37])
-        by mx.google.com with ESMTPS id 97si9846888qkt.81.2015.12.05.03.09.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Dec 2015 03:09:06 -0800 (PST)
-Date: Sat, 5 Dec 2015 06:09:05 -0500 (EST)
-From: Rodrigo Freire <rfreire@redhat.com>
-Message-ID: <1518369124.22714085.1449313745139.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1281769343.11551980.1447959500824.JavaMail.zimbra@redhat.com>
-Subject: [PATCH RESEND] Documentation: Describe the shared memory
- usage/accounting
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DBCA16B0258
+	for <linux-mm@kvack.org>; Sat,  5 Dec 2015 06:10:45 -0500 (EST)
+Received: by wmww144 with SMTP id w144so90187173wmw.1
+        for <linux-mm@kvack.org>; Sat, 05 Dec 2015 03:10:45 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id q9si24299883wjz.241.2015.12.05.03.10.44
+        for <linux-mm@kvack.org>;
+        Sat, 05 Dec 2015 03:10:44 -0800 (PST)
+Date: Sat, 5 Dec 2015 12:10:42 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH v2 00/13] MADV_FREE support
+Message-ID: <20151205111042.GA11598@amd>
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com
 
+On Wed 2015-11-04 10:25:54, Minchan Kim wrote:
+> MADV_FREE is on linux-next so long time. The reason was two, I think.
+> 
+> 1. MADV_FREE code on reclaim path was really mess.
 
-The Shared Memory accounting support is present in Kernel since 
-commit 4b02108ac1b3 ("mm: oom analysis: add shmem vmstat") and in userland 
-free(1) since 2014. This patch updates the Documentation to reflect 
-this change. 
+Could you explain what MADV_FREE does?
 
-Signed-off-by: Rodrigo Freire <rfreire@redhat.com> 
---- 
---- a/Documentation/filesystems/proc.txt 
-+++ b/Documentation/filesystems/proc.txt 
-@@ -842,6 +842,7 @@ 
-Writeback: 0 kB 
-AnonPages: 861800 kB 
-Mapped: 280372 kB 
-+Shmem: 644 kB 
-Slab: 284364 kB 
-SReclaimable: 159856 kB 
-SUnreclaim: 124508 kB 
-@@ -898,6 +899,7 @@ 
-AnonPages: Non-file backed pages mapped into userspace page tables 
-AnonHugePages: Non-file backed huge pages mapped into userspace page tables 
-Mapped: files which have been mmaped, such as libraries 
-+ Shmem: Total memory used by shared memory (shmem) and tmpfs 
-Slab: in-kernel data structures cache 
-SReclaimable: Part of Slab, that might be reclaimed, such as caches 
-SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure 
---- a/Documentation/filesystems/tmpfs.txt 
-+++ b/Documentation/filesystems/tmpfs.txt 
-@@ -17,10 +17,10 @@ 
-cannot swap and you do not have the possibility to resize them. 
+Comment in code says 'free the page only when there's memory
+pressure'. So I mark my caches MADV_FREE, no memory pressure, I can
+keep using it? And if there's memory pressure, what happens? I get
+zeros? SIGSEGV?
 
-Since tmpfs lives completely in the page cache and on swap, all tmpfs 
--pages currently in memory will show up as cached. It will not show up 
--as shared or something like that. Further on you can check the actual 
--RAM+swap use of a tmpfs instance with df(1) and du(1). 
-- 
-+pages will be shown in /proc/meminfo as "Shmem" and "Shared" in 
-+free(1). Notice that shared memory pages (see ipcs(1)) will be also 
-+counted as shared memory. The most reliable way to get the count is 
-+using df(1) and du(1). 
+Thanks,
+								Pavel
 
-tmpfs has the following uses: 
-
---- 
-1.7.1 
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
