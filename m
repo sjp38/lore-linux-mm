@@ -1,104 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0996B0258
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 21:36:38 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so34829521pfn.0
-        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 18:36:38 -0800 (PST)
-Received: from m50-132.163.com (m50-132.163.com. [123.125.50.132])
-        by mx.google.com with ESMTP id he9si23299527pac.102.2015.12.04.18.36.36
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C4E6B0258
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2015 21:56:33 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so35037351pfd.3
+        for <linux-mm@kvack.org>; Fri, 04 Dec 2015 18:56:32 -0800 (PST)
+Received: from m50-138.163.com (m50-138.163.com. [123.125.50.138])
+        by mx.google.com with ESMTP id 2si23436415pfh.103.2015.12.04.18.56.29
         for <linux-mm@kvack.org>;
-        Fri, 04 Dec 2015 18:36:37 -0800 (PST)
-Date: Sat, 5 Dec 2015 10:36:27 +0800
+        Fri, 04 Dec 2015 18:56:32 -0800 (PST)
+Date: Sat, 5 Dec 2015 10:55:42 +0800
 From: Geliang Tang <geliangtang@163.com>
-Subject: Re: [PATCH v2] mm/slab.c: use list_{empty_careful,last_entry} in
- drain_freelist
-Message-ID: <20151205023627.GA9812@bogon>
-References: <3ea815dc52bf1a2bb5e324d7398315597900be84.1449151365.git.geliangtang@163.com>
- <alpine.DEB.2.20.1512030850390.7483@east.gentwo.org>
- <20151204134302.GA6388@bogon>
- <alpine.DEB.2.20.1512041014440.21427@east.gentwo.org>
+Subject: Re: [PATCH] mm/memcontrol.c: use list_{first,next}_entry
+Message-ID: <20151205025542.GB9812@bogon>
+References: <9e62e3006561653fcbf0c49cf0b9c2b653a8ed0e.1449152124.git.geliangtang@163.com>
+ <20151203162718.GK9264@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1512041014440.21427@east.gentwo.org>
+In-Reply-To: <20151203162718.GK9264@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geliang Tang <geliangtang@163.com>
+To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geliang Tang <geliangtang@163.com>
 
-On Fri, Dec 04, 2015 at 10:16:38AM -0600, Christoph Lameter wrote:
-> On Fri, 4 Dec 2015, Geliang Tang wrote:
+On Thu, Dec 03, 2015 at 05:27:18PM +0100, Michal Hocko wrote:
+> On Thu 03-12-15 22:16:55, Geliang Tang wrote:
+> > To make the intention clearer, use list_{first,next}_entry instead
+> > of list_entry.
 > 
-> > On Thu, Dec 03, 2015 at 08:53:21AM -0600, Christoph Lameter wrote:
-> > > On Thu, 3 Dec 2015, Geliang Tang wrote:
-> > >
-> > > >  	while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
-> > > >
-> > > >  		spin_lock_irq(&n->list_lock);
-> > > > -		p = n->slabs_free.prev;
-> > > > -		if (p == &n->slabs_free) {
-> > > > +		if (list_empty_careful(&n->slabs_free)) {
-> > >
-> > > We have taken the lock. Why do we need to be "careful"? list_empty()
-> > > shoudl work right?
-> >
-> > Yes. list_empty() is OK.
-> >
-> > >
-> > > >  			spin_unlock_irq(&n->list_lock);
-> > > >  			goto out;
-> > > >  		}
-> > > >
-> > > > -		page = list_entry(p, struct page, lru);
-> > > > +		page = list_last_entry(&n->slabs_free, struct page, lru);
-> > >
-> > > last???
-> >
-> > The original code delete the page from the tail of slabs_free list.
-> 
-> Maybe make the code clearer by using another method to get the page
-> pointer?
-> 
-> > >
-> > > Would the the other new function that returns NULL on the empty list or
-> > > the pointer not be useful here too and save some code?
-> >
-> > Sorry, I don't really understand what do you mean. Can you please specify
-> > it a little bit?
-> 
-> I take that back. list_empty is the best choice here.
+> Does this really help readability? This function simply uncharges the
+> given list of pages. Why cannot we simply use list_for_each_entry
+> instead...
 
-If we use list_empty(), there will be two list_empty() in the code:
-
-        while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
-                spin_lock_irq(&n->list_lock);
-                if (list_empty(&n->slabs_free)) {
-                        spin_unlock_irq(&n->list_lock);
-                        goto out; 
-                }
-                page = list_last_entry(&n->slabs_free, struct page, lru);
-                list_del(&page->lru);
-                spin_unlock_irq(&n->list_lock);
-        }
-
-Or can we drop the first list_empty() like this? It will function the same as the above code.
-
-        while (nr_freed < tofree) {
-                spin_lock_irq(&n->list_lock);
-                if (list_empty(&n->slabs_free)) {
-                        spin_unlock_irq(&n->list_lock);
-                        goto out; 
-                }
-                page = list_last_entry(&n->slabs_free, struct page, lru);
-                list_del(&page->lru);
-                spin_unlock_irq(&n->list_lock);
-        }
-
-Please let me know which one is better?
+I have tested it, list_for_each_entry can't work. Dose it mean that my
+patch is OK? Or please give me some other advices.
 
 Thanks.
 
 - Geliang
+
+> > Signed-off-by: Geliang Tang <geliangtang@163.com>
+> > ---
+> >  mm/memcontrol.c | 9 +++------
+> >  1 file changed, 3 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 79a29d5..a6301ea 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5395,16 +5395,12 @@ static void uncharge_list(struct list_head *page_list)
+> >  	unsigned long nr_file = 0;
+> >  	unsigned long nr_huge = 0;
+> >  	unsigned long pgpgout = 0;
+> > -	struct list_head *next;
+> >  	struct page *page;
+> >  
+> > -	next = page_list->next;
+> > +	page = list_first_entry(page_list, struct page, lru);
+> >  	do {
+> >  		unsigned int nr_pages = 1;
+> >  
+> > -		page = list_entry(next, struct page, lru);
+> > -		next = page->lru.next;
+> > -
+> >  		VM_BUG_ON_PAGE(PageLRU(page), page);
+> >  		VM_BUG_ON_PAGE(page_count(page), page);
+> >  
+> > @@ -5440,7 +5436,8 @@ static void uncharge_list(struct list_head *page_list)
+> >  		page->mem_cgroup = NULL;
+> >  
+> >  		pgpgout++;
+> > -	} while (next != page_list);
+> > +	} while (!list_is_last(&page->lru, page_list) &&
+> > +		 (page = list_next_entry(page, lru)));
+> >  
+> >  	if (memcg)
+> >  		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+> > -- 
+> > 2.5.0
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
