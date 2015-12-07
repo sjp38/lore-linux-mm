@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CC0C76B0257
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 09:44:51 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so146077661qge.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 06:44:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u127si19594435qka.6.2015.12.07.06.44.50
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4370A6B0257
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 09:57:54 -0500 (EST)
+Received: by ioir85 with SMTP id r85so183284842ioi.1
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 06:57:54 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id p19si21988503igs.16.2015.12.07.06.57.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Dec 2015 06:44:51 -0800 (PST)
-Date: Mon, 7 Dec 2015 15:44:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm: thp: introduce thp_mmu_gather to pin tail pages
- during MMU gather
-Message-ID: <20151207144445.GG29105@redhat.com>
-References: <1447938052-22165-1-git-send-email-aarcange@redhat.com>
- <1447938052-22165-2-git-send-email-aarcange@redhat.com>
- <20151119162255.b73e9db832501b40e1850c1a@linux-foundation.org>
- <20151123160302.GX5078@redhat.com>
- <87poyl5mlo.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87poyl5mlo.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Dec 2015 06:57:53 -0800 (PST)
+Date: Mon, 7 Dec 2015 08:57:52 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH 1/2] slab: implement bulk alloc in SLAB allocator
+In-Reply-To: <20151207112057.1566dd5c@redhat.com>
+Message-ID: <alpine.DEB.2.20.1512070856290.8762@east.gentwo.org>
+References: <20151203155600.3589.86568.stgit@firesoul> <20151203155637.3589.62609.stgit@firesoul> <alpine.DEB.2.20.1512041106410.21819@east.gentwo.org> <20151207112057.1566dd5c@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "\\\"Kirill A. Shutemov\\\"" <kirill@shutemov.name>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Dec 05, 2015 at 01:54:51PM +0530, Aneesh Kumar K.V wrote:
-> If we can update mmu_gather to track the page size of the pages, that
-> will also help some archs to better implement tlb_flush(struct
-> mmu_gather *). Right now arch/powerpc/mm/tlb_nohash.c does flush the tlb
-> mapping for the entire mm_struct. 
-> 
-> we can also make sure that we do a force flush when we are trying to
-> gather pages of different size. So one instance of mmu_gather will end
-> up gathering pages of specific size only ?
+On Mon, 7 Dec 2015, Jesper Dangaard Brouer wrote:
 
-Tracking the TLB flush of multiple page sizes won't bring down the
-complexity of the fix though, in fact the multiple page sizes are
-arch-knowledge so such improvement would need to break the arch API
-of the MMU gather.
+> A question: SLAB takes the "boot_cache" into account before calling
+> should_failslab(), but SLUB does not.  Should we also do so for SLUB?
 
-THP is a common code abstraction, so the fix is self contained into
-the common code and it can't take more than one bit to encode the
-flush size because THP supports only one page size.
+Not necessary in SLUB.
 
-To achieve the multiple TLB flush size we could use an array of
-unsigned long long physaddr where the bits below PAGE_SHIFT are the
-page order. That would however require a pfn_to_page then to free the
-page, so it's probably better to have the page struct and a order in
-two different fields and double up the array size of the MMU
-gather. Then we could as well look if we can go cross-mm so that it's
-usable for the rmap-walk too, which is what I was looking into when I
-found the THP SMP TLB flushing theoretical race.
+> Besides, maybe we can consolidate first loop and replace it with
+> slab_post_alloc_hook()?
 
-In my view this is even more complicated from an implementation
-standpoint because it isn't self contained in the common code. So I
-doubt it's worth mixing the optimization in arch code for hugetlbfs
-with the THP race fix that is all common code knowledge and it's
-actually a fix (albeit purely theoretical) and not an optimization.
+Ok.
 
-Thanks,
-Andrea
+> Or should we create trace calls that are specific to bulk'ing?
+> (which would allow us to study/record bulk sizes)
+
+I would prefer that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
