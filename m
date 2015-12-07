@@ -1,144 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A2806B0257
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 05:21:05 -0500 (EST)
-Received: by qkcb135 with SMTP id b135so20732053qkc.3
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 02:21:05 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 61si22132133qgz.37.2015.12.07.02.21.04
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5033C6B0257
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 05:26:26 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so63026599pfd.3
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 02:26:26 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id eo16si8218719pab.209.2015.12.07.02.26.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Dec 2015 02:21:04 -0800 (PST)
-Date: Mon, 7 Dec 2015 11:20:57 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 1/2] slab: implement bulk alloc in SLAB allocator
-Message-ID: <20151207112057.1566dd5c@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1512041106410.21819@east.gentwo.org>
-References: <20151203155600.3589.86568.stgit@firesoul>
-	<20151203155637.3589.62609.stgit@firesoul>
-	<alpine.DEB.2.20.1512041106410.21819@east.gentwo.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 07 Dec 2015 02:26:25 -0800 (PST)
+Subject: Re: [PATCH v5 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+References: <1449000658-11475-1-git-send-email-dcashman@android.com>
+ <1449000658-11475-2-git-send-email-dcashman@android.com>
+ <1449000658-11475-3-git-send-email-dcashman@android.com>
+ <1449000658-11475-4-git-send-email-dcashman@android.com>
+From: Jon Hunter <jonathanh@nvidia.com>
+Message-ID: <56655EC8.6030905@nvidia.com>
+Date: Mon, 7 Dec 2015 10:26:16 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1449000658-11475-4-git-send-email-dcashman@android.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
+To: Daniel Cashman <dcashman@android.com>, linux-kernel@vger.kernel.org
+Cc: dcashman@google.com, linux-doc@vger.kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, linux-mm@kvack.org, hpa@zytor.com, mingo@kernel.org, aarcange@redhat.com, linux@arm.linux.org.uk, corbet@lwn.net, xypron.glpk@gmx.de, x86@kernel.org, hecmargi@upv.es, mgorman@suse.de, rientjes@google.com, bp@suse.de, nnk@google.com, dzickus@redhat.com, keescook@chromium.org, arnd@arndb.de, jpoimboe@redhat.com, tglx@linutronix.de, n-horiguchi@ah.jp.nec.com, linux-arm-kernel@lists.infradead.org, salyzyn@android.com, ebiederm@xmission.com, jeffv@google.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com
 
-On Fri, 4 Dec 2015 11:10:05 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
 
-> On Thu, 3 Dec 2015, Jesper Dangaard Brouer wrote:
-> 
-> > +	size_t i;
-> > +
-> > +	flags &= gfp_allowed_mask;
-> > +	lockdep_trace_alloc(flags);
-> > +
-> > +	if (slab_should_failslab(s, flags))
-> > +		return 0;
-> 
-> Ok here is an overlap with slub;'s pre_alloc_hook() and that stuff is
-> really not allocator specific. Could make it generic and move the hook
-> calls into slab_common.c/slab.h? That also gives you the opportunity to
-> get the array option in there.
+On 01/12/15 20:10, Daniel Cashman wrote:
+> From: dcashman <dcashman@google.com>
+>=20
+> arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
+> random offset for the mmap base address.  This value represents a
+> compromise between increased ASLR effectiveness and avoiding
+> address-space fragmentation. Replace it with a Kconfig option, which
+> is sensibly bounded, so that platform developers may choose where to
+> place this compromise. Keep default values as new minimums.
+>=20
+> Signed-off-by: Daniel Cashman <dcashman@android.com>
+> ---
+>  arch/arm64/Kconfig   | 31 +++++++++++++++++++++++++++++++
+>  arch/arm64/mm/mmap.c |  8 ++++++--
+>  2 files changed, 37 insertions(+), 2 deletions(-)
 
-Perhaps we could consolidate some code here. (This would also help code
-SLAB elimination between slab_alloc_node() and slab_alloc())
+[snip]
 
-A question: SLAB takes the "boot_cache" into account before calling
-should_failslab(), but SLUB does not.  Should we also do so for SLUB?
+> diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
+> index ed17747..af461b9 100644
+> --- a/arch/arm64/mm/mmap.c
+> +++ b/arch/arm64/mm/mmap.c
+> @@ -51,8 +51,12 @@ unsigned long arch_mmap_rnd(void)
+>  {
+>  	unsigned long rnd;
+> =20
+> -	rnd =3D (unsigned long)get_random_int() & STACK_RND_MASK;
+> -
+> +ifdef CONFIG_COMPAT
+> +	if (test_thread_flag(TIF_32BIT))
+> +		rnd =3D (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+> +	else
+> +#endif
+> +		rnd =3D (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+>  	return rnd << PAGE_SHIFT;
+>  }
 
-SLAB code:
- static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
+The above is causing a build failure on -next today.
+
+commit 42a6c8953112a9856dd09148c3d6a2cc106b6003
+Author: Jon Hunter <jonathanh@nvidia.com>
+Date:   Mon Dec 7 10:15:47 2015 +0000
+
+    ARM64: mm: Fix build failure caused by invalid ifdef statement
+   =20
+    Commit 2e4614190421 ("arm64-mm-support-arch_mmap_rnd_bits-v4") caused t=
+he
+    following build failure due to a missing "#". Fix this.
+   =20
+    arch/arm64/mm/mmap.c: In function =91arch_mmap_rnd=92:
+    arch/arm64/mm/mmap.c:54:1: error: =91ifdef=92 undeclared (first use in =
+this function)
+     ifdef CONFIG_COMPAT
+      ^
+    Signed-off-by: Jon Hunter <jonathanh@nvidia.com>
+
+diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
+index af461b935137..e59a75a308bc 100644
+--- a/arch/arm64/mm/mmap.c
++++ b/arch/arm64/mm/mmap.c
+@@ -51,7 +51,7 @@ unsigned long arch_mmap_rnd(void)
  {
-	if (unlikely(cachep == kmem_cache))
-		return false;
+        unsigned long rnd;
+=20
+-ifdef CONFIG_COMPAT
++#ifdef CONFIG_COMPAT
+        if (test_thread_flag(TIF_32BIT))
+                rnd =3D (unsigned long)get_random_int() % (1 << mmap_rnd_co=
+mpat_bits);
+        else
 
-	return should_failslab(cachep->object_size, flags, cachep->flags);
- }
-
-
-
-> > +	s = memcg_kmem_get_cache(s, flags);
-> > +
-> > +	cache_alloc_debugcheck_before(s, flags);
-> > +
-> > +	local_irq_disable();
-> > +	for (i = 0; i < size; i++) {
-> > +		void *objp = __do_cache_alloc(s, flags);
-> > +
-> > +		// this call could be done outside IRQ disabled section
-> > +		objp = cache_alloc_debugcheck_after(s, flags, objp, _RET_IP_);
-> > +
-> > +		if (unlikely(!objp))
-> > +			goto error;
-> > +
-> > +		prefetchw(objp);
-> 
-> Is the prefetch really useful here? Only if these objects are immediately
-> used I would think.
-
-I primarily have prefetch here because I'm mimicking the behavior of
-slab_alloc().  We can remove it here.
-
- 
-> > +		p[i] = objp;
-> > +	}
-> > +	local_irq_enable();
-> > +
-> > +	/* Kmemleak and kmemcheck outside IRQ disabled section */
-> > +	for (i = 0; i < size; i++) {
-> > +		void *x = p[i];
-> > +
-> > +		kmemleak_alloc_recursive(x, s->object_size, 1, s->flags, flags);
-> > +		kmemcheck_slab_alloc(s, flags, x, s->object_size);
-> > +	}
-> > +
-> > +	/* Clear memory outside IRQ disabled section */
-> > +	if (unlikely(flags & __GFP_ZERO))
-> > +		for (i = 0; i < size; i++)
-> > +			memset(p[i], 0, s->object_size);
-> 
-> Maybe make this one loop instead of two?
-
-I kept it two loops to get the advantage of only needing to check the
-__GFP_ZERO flag once.  (Plus, in case debugging is enabled, we might get
-a small advantage of better instruction and pipeline usage, as erms
-memset rep-stos operations flush the CPU pipeline).
-
-I also wrote it this way to make it more obvious what code I want the
-compiler to generate.  If no debugging is enabled to top loop should be
-compiled out.  If I didn't pullout the flag check, the compiler should
-be smart enough to realize this optimization itself, but can only
-realize this in case the other code compiles out (case where loops were
-combined).  Thus, compiler might already do this optimization, but I'm
-making it explicit.
-
-
-Besides, maybe we can consolidate first loop and replace it with
-slab_post_alloc_hook()?
-
-
-> > +// FIXME: Trace call missing... should we create a bulk variant?
-> > +/*  Like:
-> > +	trace_kmem_cache_alloc(_RET_IP_, ret, s->object_size,
-> > s->size, flags); +*/
-> 
-> That trace call could be created when you do the genericization of the
-> hooks() which also involve debugging stuff.
-
-Should we call trace_kmem_cache_alloc() for each object?
-
-Or should we create trace calls that are specific to bulk'ing?
-(which would allow us to study/record bulk sizes)
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Cheers
+Jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
