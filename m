@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D20B6B0278
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 17:20:00 -0500 (EST)
-Received: by obciw8 with SMTP id iw8so962946obc.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 14:19:59 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id o9si98223oek.20.2015.12.07.14.19.58
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0396B027C
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 17:42:23 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so4285082igb.1
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 14:42:23 -0800 (PST)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id u81si938960ioi.164.2015.12.07.14.42.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Dec 2015 14:19:59 -0800 (PST)
-Subject: Re: [RFC PATCH -v2] mm, oom: introduce oom reaper
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201511281339.JHH78172.SLOQFOFHVFOMJt@I-love.SAKURA.ne.jp>
-	<201511290110.FJB87096.OHJLVQOSFFtMFO@I-love.SAKURA.ne.jp>
-	<20151201132927.GG4567@dhcp22.suse.cz>
-	<201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp>
-	<20151207160718.GA20774@dhcp22.suse.cz>
-In-Reply-To: <20151207160718.GA20774@dhcp22.suse.cz>
-Message-Id: <201512080719.EHD73429.JQHFtMOFLOFSVO@I-love.SAKURA.ne.jp>
-Date: Tue, 8 Dec 2015 07:19:42 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Dec 2015 14:42:22 -0800 (PST)
+Received: by ioir85 with SMTP id r85so6071536ioi.1
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 14:42:22 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <B4520E53-6DD9-44D7-A064-9F405FBAA793@gmail.com>
+References: <20151203000342.GA30015@www.outflux.net>
+	<B4520E53-6DD9-44D7-A064-9F405FBAA793@gmail.com>
+Date: Mon, 7 Dec 2015 14:42:22 -0800
+Message-ID: <CAGXu5jJaY9WeR-NiZXfAu=hM6U7DaPD_d8ZZTAdo_EkS3WDxCw@mail.gmail.com>
+Subject: Re: [PATCH v2] clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, rientjes@google.com, riel@redhat.com, hughd@google.com, oleg@redhat.com, andrea@kernel.org, linux-kernel@vger.kernel.org
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> Yes you are right! The reference count should be incremented before
-> publishing the new mm_to_reap. I thought that an elevated ref. count by
-> the caller would be enough but this was clearly wrong. Does the update
-> below looks better?
+On Thu, Dec 3, 2015 at 5:45 PM, yalin wang <yalin.wang2010@gmail.com> wrote=
+:
+>
+>> On Dec 2, 2015, at 16:03, Kees Cook <keescook@chromium.org> wrote:
+>>
+>> Normally, when a user can modify a file that has setuid or setgid bits,
+>> those bits are cleared when they are not the file owner or a member
+>> of the group. This is enforced when using write and truncate but not
+>> when writing to a shared mmap on the file. This could allow the file
+>> writer to gain privileges by changing a binary without losing the
+>> setuid/setgid/caps bits.
+>>
+>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>> during the page fault (due to mmap_sem being held during the fault).
+>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+>>
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> Cc: stable@vger.kernel.org
+>> =E2=80=94
+>
+> is this means mprotect() sys call also need add this check?
+> mprotect() can change to PROT_WRITE, then it can write to a
+> read only map again , also a secure hole here .
 
-I think that moving mmdrop() from oom_kill_process() to
-oom_reap_vmas() xor wake_oom_reaper() makes the patch simpler.
+Yes, good point. This needs to be added. I will send a new patch. Thanks!
 
- 	rcu_read_unlock();
- 
-+	if (can_oom_reap)
-+		wake_oom_reaper(mm); /* will call mmdrop() */
-+	else
-+		mmdrop(mm);
--	mmdrop(mm);
- 	put_task_struct(victim);
- }
+-Kees
+
+--=20
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
