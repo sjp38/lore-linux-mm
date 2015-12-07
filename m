@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CBFF64402F0
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 13:10:04 -0500 (EST)
-Received: by pfu207 with SMTP id 207so68481170pfu.2
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 10:10:04 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id r134si3410739pfr.18.2015.12.07.10.10.04
-        for <linux-mm@kvack.org>;
-        Mon, 07 Dec 2015 10:10:04 -0800 (PST)
-Subject: Re: [Intel-gfx] [PATCH v2 1/2] mm: Export nr_swap_pages
-References: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
- <20151207134812.GA20782@dhcp22.suse.cz> <20151207164831.GA7256@cmpxchg.org>
-From: Dave Gordon <david.s.gordon@intel.com>
-Message-ID: <5665CB78.7000106@intel.com>
-Date: Mon, 7 Dec 2015 18:10:00 +0000
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B20C34402F0
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 13:13:49 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so128543910pac.3
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 10:13:49 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id n12si2716906pfa.89.2015.12.07.10.13.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Dec 2015 10:13:48 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so128732718pac.2
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 10:13:48 -0800 (PST)
+Subject: Re: [linux-next:master 4174/4356] kernel/built-in.o:undefined
+ reference to `mmap_rnd_bits'
+References: <201512050045.l2G9WhTi%fengguang.wu@intel.com>
+ <20151204151424.e73641da44c61f20f10d93e9@linux-foundation.org>
+ <20151204151913.166e5cb795359ff1a53d26ac@linux-foundation.org>
+ <CAJQetW4L6Zuzd9GENK6XMg+OVtFUjyE4jOzoG+VB3HtwmoUmiA@mail.gmail.com>
+ <20151204170113.c5cd8a9cc9658c491851bc33@linux-foundation.org>
+ <CAJQetW54FNRKd5LtpkAk0P_bPyAZi6iKnZhEhz1n9oSOm-Wc9Q@mail.gmail.com>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <5665CC5A.7030407@android.com>
+Date: Mon, 7 Dec 2015 10:13:46 -0800
 MIME-Version: 1.0
-In-Reply-To: <20151207164831.GA7256@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <CAJQetW54FNRKd5LtpkAk0P_bPyAZi6iKnZhEhz1n9oSOm-Wc9Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, "Goel, Akash" <akash.goel@intel.com>
+To: Daniel Cashman <dcashman@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 07/12/15 16:48, Johannes Weiner wrote:
-> On Mon, Dec 07, 2015 at 02:48:12PM +0100, Michal Hocko wrote:
->> On Fri 04-12-15 15:58:53, Chris Wilson wrote:
->>> Some modules, like i915.ko, use swappable objects and may try to swap
->>> them out under memory pressure (via the shrinker). Before doing so, they
->>> want to check using get_nr_swap_pages() to see if any swap space is
->>> available as otherwise they will waste time purging the object from the
->>> device without recovering any memory for the system. This requires the
->>> nr_swap_pages counter to be exported to the modules.
+On 12/04/2015 05:46 PM, Daniel Cashman wrote:
+>>> Please let me know what else should be done in v6 to keep these in.
 >>
->> I guess it should be sufficient to change get_nr_swap_pages into a real
->> function and export it rather than giving the access to the counter
->> directly?
->
-> What do you mean by "sufficient"? That is actually more work.
->
-> It should be sufficient to just export the counter.
-> _______________________________________________
+>> It sounds like all we need to do at present is to fix this build error?
+> 
+> My apologies, I thought this was the one related to CONFIG_MMU=n.
+> I've reproduced locally and will look into this on Monday.
+> 
 
-Exporting random uncontrolled variables from the kernel to loaded 
-modules is not really considered best practice. It would be preferable 
-to provide an accessor function - which is just what the declaration 
-says we have; the implementation as a static inline (and/or macro) is 
-what causes the problem here.
+Actually, I just cloned linux-next and am not seeing this when
+cross-compiling arm with the provided config unless "if MMU" is removed.
+ So perhaps it was the same error and my local state was strange?
 
-.Dave.
+At present, I plan to prepare v6 to make some minor arm64 Kconfig
+changes and corrects the ifdef missing character.
+
+Thank You,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
