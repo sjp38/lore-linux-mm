@@ -1,164 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5646B025E
-	for <linux-mm@kvack.org>; Sun,  6 Dec 2015 22:14:15 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so117509743pac.2
-        for <linux-mm@kvack.org>; Sun, 06 Dec 2015 19:14:15 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id gy7si39097701pac.227.2015.12.06.19.14.14
-        for <linux-mm@kvack.org>;
-        Sun, 06 Dec 2015 19:14:14 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 276766B0257
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 02:34:17 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so120964565pac.2
+        for <linux-mm@kvack.org>; Sun, 06 Dec 2015 23:34:16 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id b65si40709228pfj.253.2015.12.06.23.34.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 06 Dec 2015 23:34:16 -0800 (PST)
+Date: Mon, 7 Dec 2015 16:35:24 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [RFC 0/3] reduce latency of direct async compaction
+Message-ID: <20151207073523.GA27292@js1304-P5Q-DELUXE>
 References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
- <20151204062552.GA2243@aaronlu.sh.intel.com> <56618949.10208@suse.cz>
-From: Aaron Lu <aaron.lu@intel.com>
-Message-ID: <5664F983.6040306@intel.com>
-Date: Mon, 7 Dec 2015 11:14:11 +0800
+ <20151203092525.GA20945@aaronlu.sh.intel.com>
+ <56600DAA.4050208@suse.cz>
+ <20151203113508.GA23780@aaronlu.sh.intel.com>
+ <20151203115255.GA24773@aaronlu.sh.intel.com>
+ <56618841.2080808@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <56618949.10208@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56618841.2080808@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-On 12/04/2015 08:38 PM, Vlastimil Babka wrote:
-> On 12/04/2015 07:25 AM, Aaron Lu wrote:
->> On Thu, Dec 03, 2015 at 09:10:44AM +0100, Vlastimil Babka wrote:
->>> Aaron, could you try this on your testcase?
->>
->> One time result isn't stable enough, so I did 9 runs for each commit,
->> here is the result:
->>
->> base: 25364a9e54fb8296837061bf684b76d20eec01fb
->> head: 7433b1009ff5a02e1e9f3444802daba2cf385d27
->> (head =  base + this_patch_serie)
->>
->> The always-always case(transparent_hugepage set to always and defrag set
->> to always):
->>
->> Result for base:
->> $ cat {0..8}/swap
->> cmdline: /lkp/aaron/src/bin/usemem 100000622592
->> 100000622592 transferred in 103 seconds, throughput: 925 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99999559680
->> 99999559680 transferred in 92 seconds, throughput: 1036 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99996171264
->> 99996171264 transferred in 92 seconds, throughput: 1036 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100005663744
->> 100005663744 transferred in 150 seconds, throughput: 635 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100002966528
->> 100002966528 transferred in 87 seconds, throughput: 1096 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99995784192
->> 99995784192 transferred in 131 seconds, throughput: 727 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100003731456
->> 100003731456 transferred in 97 seconds, throughput: 983 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100006440960
->> 100006440960 transferred in 109 seconds, throughput: 874 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99998813184
->> 99998813184 transferred in 122 seconds, throughput: 781 MB/s
->> Max: 1096 MB/s
->> Min: 635 MB/s
->> Avg: 899 MB/s
->>
->> Result for head:
->> $ cat {0..8}/swap
->> cmdline: /lkp/aaron/src/bin/usemem 100003163136
->> 100003163136 transferred in 105 seconds, throughput: 908 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99998524416
->> 99998524416 transferred in 78 seconds, throughput: 1222 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99993646080
->> 99993646080 transferred in 108 seconds, throughput: 882 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99998936064
->> 99998936064 transferred in 114 seconds, throughput: 836 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100002204672
->> 100002204672 transferred in 73 seconds, throughput: 1306 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99998140416
->> 99998140416 transferred in 146 seconds, throughput: 653 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100002941952
->> 100002941952 transferred in 78 seconds, throughput: 1222 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99996917760
->> 99996917760 transferred in 109 seconds, throughput: 874 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100001405952
->> 100001405952 transferred in 96 seconds, throughput: 993 MB/s
->> Max: 1306 MB/s
->> Min: 653 MB/s
->> Avg: 988 MB/s
+On Fri, Dec 04, 2015 at 01:34:09PM +0100, Vlastimil Babka wrote:
+> On 12/03/2015 12:52 PM, Aaron Lu wrote:
+> >On Thu, Dec 03, 2015 at 07:35:08PM +0800, Aaron Lu wrote:
+> >>On Thu, Dec 03, 2015 at 10:38:50AM +0100, Vlastimil Babka wrote:
+> >>>On 12/03/2015 10:25 AM, Aaron Lu wrote:
+> >>>>On Thu, Dec 03, 2015 at 09:10:44AM +0100, Vlastimil Babka wrote:
+> >>
+> >>My bad, I uploaded the wrong data :-/
+> >>I uploaded again:
+> >>https://drive.google.com/file/d/0B49uX3igf4K4UFI4TEQ3THYta0E
+> >>
+> >>And I just run the base tree with trace-cmd and found that its
+> >>performace drops significantly(from 1000MB/s to 6xxMB/s), is it that
+> >>trace-cmd will impact performace a lot?
 > 
-> Ok that looks better than the first results :) The series either helped, 
-> or it's just noise. But hopefully not worse.
-
-Well, it looks to be the case :-)
-
+> Yeah it has some overhead depending on how many events it has to
+> process. Your workload is quite sensitive to that.
 > 
->> Result for v4.3 as a reference:
->> $ cat {0..8}/swap
->> cmdline: /lkp/aaron/src/bin/usemem 100002459648
->> 100002459648 transferred in 96 seconds, throughput: 993 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99997375488
->> 99997375488 transferred in 96 seconds, throughput: 993 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99999028224
->> 99999028224 transferred in 107 seconds, throughput: 891 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100000137216
->> 100000137216 transferred in 91 seconds, throughput: 1047 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100003835904
->> 100003835904 transferred in 80 seconds, throughput: 1192 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100000143360
->> 100000143360 transferred in 96 seconds, throughput: 993 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100020593664
->> 100020593664 transferred in 101 seconds, throughput: 944 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100005805056
->> 100005805056 transferred in 87 seconds, throughput: 1096 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100008360960
->> 100008360960 transferred in 74 seconds, throughput: 1288 MB/s
->> Max: 1288 MB/s
->> Min: 891 MB/s
->> Avg: 1048 MB/s
+> >>Any suggestions on how to run
+> >>the test regarding trace-cmd? i.e. should I aways run usemem under
+> >>trace-cmd or only when necessary?
 > 
-> Hard to say if there's actual regression from 4.3 to 4.4, it's too 
-> noisy. More iterations could help, but then the eventual bisection would 
-> need them too.
-
-One thing puzzles me most is that once compaction is involved, the
-results will become undetermined, i.e. the result could be as high
-as 1xxx MB/s or as low as 6xx MB/s. The always-never's case is much
-better in this regard.
-
-Thanks,
-Aaron
-
+> I'd run it with tracing only when the goal is to collect traces, but
+> not for any performance comparisons. Also it's not useful to collect
+> perf data while also tracing.
 > 
->> The always-never case:
->>
->> Result for head:
->> $ cat {0..8}/swap
->> cmdline: /lkp/aaron/src/bin/usemem 100003940352
->> 100003940352 transferred in 71 seconds, throughput: 1343 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100007411712
->> 100007411712 transferred in 62 seconds, throughput: 1538 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100001875968
->> 100001875968 transferred in 64 seconds, throughput: 1490 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100003912704
->> 100003912704 transferred in 62 seconds, throughput: 1538 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100002238464
->> 100002238464 transferred in 66 seconds, throughput: 1444 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100003670016
->> 100003670016 transferred in 65 seconds, throughput: 1467 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 99998364672
->> 99998364672 transferred in 68 seconds, throughput: 1402 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100005417984
->> 100005417984 transferred in 70 seconds, throughput: 1362 MB/s
->> cmdline: /lkp/aaron/src/bin/usemem 100005304320
->> 100005304320 transferred in 64 seconds, throughput: 1490 MB/s
->> Max: 1538 MB/s
->> Min: 1343 MB/s
->> Avg: 1452 MB/s
->>
+> >I just run the test with the base tree and with this patch series
+> >applied(head), I didn't use trace-cmd this time.
+> >
+> >The throughput for base tree is 963MB/s while the head is 815MB/s, I
+> >have attached pagetypeinfo/proc-vmstat/perf-profile for them.
 > 
+> The compact stats improvements look fine, perhaps better than in my tests:
+> 
+> base: compact_migrate_scanned 3476360
+> head: compact_migrate_scanned 1020827
+> 
+> - that's the eager skipping of patch 2
+> 
+> base: compact_free_scanned 5924928
+> head: compact_free_scanned 0
+>       compact_free_direct 918813
+>       compact_free_direct_miss 500308
+> 
+> As your workload does exclusively async direct compaction through
+> THP faults, the traditional free scanner isn't used at all. Direct
+> allocations should be much cheaper, although the "miss" ratio (the
+> allocations that were from the same pageblock as the one we are
+> compacting) is quite high. I should probably look into making
+> migration release pages to the tails of the freelists - could be
+> that it's grabbing the very pages that were just freed in the
+> previous COMPACT_CLUSTER_MAX cycle (modulo pcplist buffering).
+> 
+> I however find it strange that your original stats (4.3?) differ
+> from the base so much:
+> 
+> compact_migrate_scanned 1982396
+> compact_free_scanned 40576943
+> 
+> That was order of magnitude more free scanned on 4.3, and half the
+> migrate scanned. But your throughput figures in the other mail
+> suggested a regression from 4.3 to 4.4, which would be the opposite
+> of what the stats say. And anyway, compaction code didn't change
+> between 4.3 and 4.4 except changes to tracepoint format...
+> 
+> moving on...
+> base:
+> compact_isolated 731304
+> compact_stall 10561
+> compact_fail 9459
+> compact_success 1102
+> 
+> head:
+> compact_isolated 921087
+> compact_stall 14451
+> compact_fail 12550
+> compact_success 1901
+> 
+> More success in both isolation and compaction results.
+> 
+> base:
+> thp_fault_alloc 45337
+> thp_fault_fallback 2349
+> 
+> head:
+> thp_fault_alloc 45564
+> thp_fault_fallback 2120
+> 
+> Somehow the extra compact success didn't fully translate to thp
+> alloc success... But given how many of the alloc's didn't even
+> involve a compact_stall (two thirds of them), that interpretation
+> could also be easily misleading. So, hard to say.
+> 
+> Looking at the perf profiles...
+> base:
+>     54.55%    54.55%            :1550  [kernel.kallsyms]   [k]
+> pageblock_pfn_to_page
+> 
+> head:
+>     40.13%    40.13%            :1551  [kernel.kallsyms]   [k]
+> pageblock_pfn_to_page
+> 
+> Since the freepage allocation doesn't hit this code anymore, it
+> shows that the bulk was actually from the migration scanner,
+> although the perf callgraph and vmstats suggested otherwise.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+It looks like overhead still remain. I guess that migration scanner
+would call pageblock_pfn_to_page() for more extended range so
+overhead still remain.
+
+I have an idea to solve his problem. Aaron, could you test following patch
+on top of base? It tries to skip calling pageblock_pfn_to_page()
+if we check that zone is contiguous at initialization stage.
+
+Thanks.
+
+---->8----
