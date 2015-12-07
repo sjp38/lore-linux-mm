@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4370A6B0257
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 09:57:54 -0500 (EST)
-Received: by ioir85 with SMTP id r85so183284842ioi.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 06:57:54 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id p19si21988503igs.16.2015.12.07.06.57.53
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B12D6B0257
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 09:59:27 -0500 (EST)
+Received: by ioc74 with SMTP id 74so183093494ioc.2
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 06:59:26 -0800 (PST)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id i80si5524137ioi.14.2015.12.07.06.59.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Dec 2015 06:57:53 -0800 (PST)
-Date: Mon, 7 Dec 2015 08:57:52 -0600 (CST)
+        Mon, 07 Dec 2015 06:59:26 -0800 (PST)
+Date: Mon, 7 Dec 2015 08:59:25 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 1/2] slab: implement bulk alloc in SLAB allocator
-In-Reply-To: <20151207112057.1566dd5c@redhat.com>
-Message-ID: <alpine.DEB.2.20.1512070856290.8762@east.gentwo.org>
-References: <20151203155600.3589.86568.stgit@firesoul> <20151203155637.3589.62609.stgit@firesoul> <alpine.DEB.2.20.1512041106410.21819@east.gentwo.org> <20151207112057.1566dd5c@redhat.com>
+Subject: Re: [RFC PATCH 2/2] slab: implement bulk free in SLAB allocator
+In-Reply-To: <20151207122549.109e82db@redhat.com>
+Message-ID: <alpine.DEB.2.20.1512070858140.8762@east.gentwo.org>
+References: <20151203155600.3589.86568.stgit@firesoul> <20151203155736.3589.67424.stgit@firesoul> <alpine.DEB.2.20.1512041111180.21819@east.gentwo.org> <20151207122549.109e82db@redhat.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,20 +23,33 @@ Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <
 
 On Mon, 7 Dec 2015, Jesper Dangaard Brouer wrote:
 
-> A question: SLAB takes the "boot_cache" into account before calling
-> should_failslab(), but SLUB does not.  Should we also do so for SLUB?
+> > s?
+>
+> The "s" comes from the slub.c code uses "struct kmem_cache *s" everywhere.
 
-Not necessary in SLUB.
+Ok then use it. Why is there an orig_s here.
 
-> Besides, maybe we can consolidate first loop and replace it with
-> slab_post_alloc_hook()?
+> > > +
+> > > +	local_irq_disable();
+> > > +	for (i = 0; i < size; i++) {
+> > > +		void *objp = p[i];
+> > > +
+> > > +		s = cache_from_obj(orig_s, objp);
+> >
+> > Does this support freeing objects from a set of different caches?
+>
+> This is for supporting memcg (CONFIG_MEMCG_KMEM).
+>
+> Quoting from commit 033745189b1b ("slub: add missing kmem cgroup
+> support to kmem_cache_free_bulk"):
+>
+>    Incoming bulk free objects can belong to different kmem cgroups, and
+>    object free call can happen at a later point outside memcg context.  Thus,
+>    we need to keep the orig kmem_cache, to correctly verify if a memcg object
+>    match against its "root_cache" (s->memcg_params.root_cache).
 
-Ok.
-
-> Or should we create trace calls that are specific to bulk'ing?
-> (which would allow us to study/record bulk sizes)
-
-I would prefer that.
+Where is that verification? This looks like SLAB would support freeing
+objects from different caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
