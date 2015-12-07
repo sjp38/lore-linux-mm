@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FE0582F65
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 13:02:46 -0500 (EST)
-Received: by wmec201 with SMTP id c201so177928520wme.0
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 10:02:45 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i129si25201430wma.2.2015.12.07.10.02.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Dec 2015 10:02:44 -0800 (PST)
-Date: Mon, 7 Dec 2015 13:02:25 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 1/2] mm: Export nr_swap_pages
-Message-ID: <20151207180225.GA7826@cmpxchg.org>
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CBFF64402F0
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 13:10:04 -0500 (EST)
+Received: by pfu207 with SMTP id 207so68481170pfu.2
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 10:10:04 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id r134si3410739pfr.18.2015.12.07.10.10.04
+        for <linux-mm@kvack.org>;
+        Mon, 07 Dec 2015 10:10:04 -0800 (PST)
+Subject: Re: [Intel-gfx] [PATCH v2 1/2] mm: Export nr_swap_pages
 References: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
- <20151207134812.GA20782@dhcp22.suse.cz>
- <20151207164831.GA7256@cmpxchg.org>
- <20151207170434.GD20774@dhcp22.suse.cz>
+ <20151207134812.GA20782@dhcp22.suse.cz> <20151207164831.GA7256@cmpxchg.org>
+From: Dave Gordon <david.s.gordon@intel.com>
+Message-ID: <5665CB78.7000106@intel.com>
+Date: Mon, 7 Dec 2015 18:10:00 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151207170434.GD20774@dhcp22.suse.cz>
+In-Reply-To: <20151207164831.GA7256@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, "Goel, Akash" <akash.goel@intel.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, "Goel, Akash" <akash.goel@intel.com>
 
-On Mon, Dec 07, 2015 at 06:04:35PM +0100, Michal Hocko wrote:
-> Yes but the counter is an internal thing to the MM and the outside code
-> should have no business in manipulating it directly.
+On 07/12/15 16:48, Johannes Weiner wrote:
+> On Mon, Dec 07, 2015 at 02:48:12PM +0100, Michal Hocko wrote:
+>> On Fri 04-12-15 15:58:53, Chris Wilson wrote:
+>>> Some modules, like i915.ko, use swappable objects and may try to swap
+>>> them out under memory pressure (via the shrinker). Before doing so, they
+>>> want to check using get_nr_swap_pages() to see if any swap space is
+>>> available as otherwise they will waste time purging the object from the
+>>> device without recovering any memory for the system. This requires the
+>>> nr_swap_pages counter to be exported to the modules.
+>>
+>> I guess it should be sufficient to change get_nr_swap_pages into a real
+>> function and export it rather than giving the access to the counter
+>> directly?
+>
+> What do you mean by "sufficient"? That is actually more work.
+>
+> It should be sufficient to just export the counter.
+> _______________________________________________
 
-The counter has been global scope forever. If you want to encapsulate
-it, send a patch yourself and make your case in the changelog.  There
-is no reason to make people with reasonable working code jump through
-your personal preference hoops that have little to do with what their
-patch is pursuing.
+Exporting random uncontrolled variables from the kernel to loaded 
+modules is not really considered best practice. It would be preferable 
+to provide an accessor function - which is just what the declaration 
+says we have; the implementation as a static inline (and/or macro) is 
+what causes the problem here.
 
-That being said, I'd NAK any patch that would turn a trivial accessor
-like this into a full-blown function. Our interfaces encapsulate for
-convenience, not out of distrust and bad faith.
+.Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
