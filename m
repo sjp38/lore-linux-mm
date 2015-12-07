@@ -1,162 +1,62 @@
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] fs: clear file privilege bits when mmap writing
-Date: Thu, 3 Dec 2015 11:22:12 -0800
-Message-ID: <20151203192212.GA31034@www.outflux.net>
+From: Andrey Ryabinin <aryabinin@odin.com>
+Subject: undefined shift in wb_update_dirty_ratelimit()
+Date: Mon, 7 Dec 2015 17:17:06 +0300
+Message-ID: <566594E2.3050306@odin.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
 Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Sasha Levin <sasha.levin@oracle.com>
 List-Id: linux-mm.kvack.org
 
-Normally, when a user can modify a file that has setuid or setgid bits,
-those bits are cleared when they are not the file owner or a member
-of the group. This is enforced when using write and truncate but not
-when writing to a shared mmap on the file. This could allow the file
-writer to gain privileges by changing a binary without losing the
-setuid/setgid/caps bits.
 
-Changing the bits requires holding inode->i_mutex, so it cannot be done
-during the page fault (due to mmap_sem being held during the fault).
-Instead, clear the bits if PROT_WRITE is being used at mmap open time.
-But we can't do the check in the right place inside mmap, so we have to
-do it before holding mmap_sem, which means duplicating some checks, which
-have to be available to the non-MMU builds too.
+I've hit undefined shift in wb_update_dirty_ratelimit() which does some
+mysterious 'step' calculations:
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-This just keeps getting uglier. :(
-
-v3:
-- move outside of mmap_sem for real now, fengguang
-- check return code of file_remove_privs, akpm
-v2:
-- move to mmap from fault handler, jack
----
- include/linux/mm.h |  1 +
- mm/mmap.c          | 19 ++++---------------
- mm/util.c          | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 55 insertions(+), 15 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 00bad7793788..b264c8be7114 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1912,6 +1912,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
- 
- extern unsigned long mmap_region(struct file *file, unsigned long addr,
- 	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
-+extern int do_mmap_shared_checks(struct file *file, unsigned long prot);
- extern unsigned long do_mmap(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot, unsigned long flags,
- 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2ce04a649f6b..bcbe592a2c49 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1321,24 +1321,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 
- 	if (file) {
- 		struct inode *inode = file_inode(file);
-+		int err;
- 
- 		switch (flags & MAP_TYPE) {
- 		case MAP_SHARED:
--			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
--				return -EACCES;
--
--			/*
--			 * Make sure we don't allow writing to an append-only
--			 * file..
--			 */
--			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
--				return -EACCES;
--
--			/*
--			 * Make sure there are no mandatory locks on the file.
--			 */
--			if (locks_verify_locked(file))
--				return -EAGAIN;
-+			err = do_mmap_shared_checks(file, prot);
-+			if (err)
-+				return err;
- 
- 			vm_flags |= VM_SHARED | VM_MAYSHARE;
- 			if (!(file->f_mode & FMODE_WRITE))
-diff --git a/mm/util.c b/mm/util.c
-index 9af1c12b310c..1882eaf33a37 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -283,6 +283,29 @@ int __weak get_user_pages_fast(unsigned long start,
- }
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
- 
-+int do_mmap_shared_checks(struct file *file, unsigned long prot)
-+{
-+	struct inode *inode = file_inode(file);
-+
-+	if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
-+		return -EACCES;
-+
-+	/*
-+	 * Make sure we don't allow writing to an append-only
-+	 * file..
-+	 */
-+	if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
-+		return -EACCES;
-+
-+	/*
-+	 * Make sure there are no mandatory locks on the file.
-+	 */
-+	if (locks_verify_locked(file))
-+		return -EAGAIN;
-+
-+	return 0;
-+}
-+
- unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot,
- 	unsigned long flag, unsigned long pgoff)
-@@ -291,6 +314,33 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
- 	struct mm_struct *mm = current->mm;
- 	unsigned long populate;
- 
-+	/*
-+	 * If we must remove privs, we do it here since doing it during
-+	 * page fault may be expensive and cannot hold inode->i_mutex,
-+	 * since mm->mmap_sem is already held.
-+	 */
-+	if (file && (flag & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE)) {
-+		struct inode *inode = file_inode(file);
-+		int err;
-+
-+		if (!IS_NOSEC(inode)) {
-+			/*
-+			 * Make sure we can't strip privs from a file that
-+			 * wouldn't otherwise be allowed to be mmapped.
-+			 */
-+			err = do_mmap_shared_checks(file, prot);
-+			if (err)
-+				return err;
-+
-+			mutex_lock(&inode->i_mutex);
-+			err = file_remove_privs(file);
-+			mutex_unlock(&inode->i_mutex);
-+
-+			if (err)
-+				return err;
-+		}
-+	}
-+
- 	ret = security_mmap_file(file, prot, flag);
- 	if (!ret) {
- 		down_write(&mm->mmap_sem);
--- 
-1.9.1
+	/*
+	 * Don't pursue 100% rate matching. It's impossible since the balanced
+	 * rate itself is constantly fluctuating. So decrease the track speed
+	 * when it gets close to the target. Helps eliminate pointless tremors.
+	 */
+	step >>= dirty_ratelimit / (2 * step + 1);
 
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+dirty_ratelimit = INIT_BW and step = 0 results in this:
+
+[ 5006.957366] ================================================================================
+[ 5006.957798] UBSAN: Undefined behaviour in ../mm/page-writeback.c:1286:7
+[ 5006.958091] shift exponent 25600 is too large for 64-bit type 'long unsigned int'
+[ 5006.958414] CPU: 2 PID: 7452 Comm: trinity-c2 Not tainted 4.4.0-rc1+ #19
+[ 5006.958740] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.8.2-0-g33fbe13 by qemu-project.org 04/01/2014
+[ 5006.959247]  ffffffff8261427a ffff88007ddaf798 ffffffff815e6cd6 0000000000000001
+[ 5006.959630]  ffff88007ddaf7c8 ffff88007ddaf7b0 ffffffff8163a62d ffffffff8261427a
+[ 5006.959997]  ffff88007ddaf850 ffffffff8163accf ffff88013afac780 0000000000000202
+[ 5006.960345] Call Trace:
+[ 5006.960460]  [<ffffffff815e6cd6>] dump_stack+0x45/0x5f
+[ 5006.960723]  [<ffffffff8163a62d>] ubsan_epilogue+0xd/0x40
+[ 5006.960961]  [<ffffffff8163accf>] __ubsan_handle_shift_out_of_bounds+0xef/0x130
+[ 5006.961282]  [<ffffffff8140555c>] ? __es_insert_extent+0x2ec/0x670
+[ 5006.961554]  [<ffffffff815f19f3>] ? radix_tree_lookup_slot+0x13/0x30
+[ 5006.961867]  [<ffffffff81218431>] __wb_update_bandwidth.constprop.26+0x521/0x6a0
+[ 5006.962190]  [<ffffffff81219c67>] balance_dirty_pages.isra.23+0xa27/0x1900
+[ 5006.962498]  [<ffffffff814174b7>] ? jbd2_journal_stop+0x237/0x6b0
+[ 5006.962835]  [<ffffffff81301d1f>] ? __block_commit_write.isra.23+0x6f/0x140
+[ 5006.963140]  [<ffffffff8121aca3>] balance_dirty_pages_ratelimited+0x163/0x340
+[ 5006.963453]  [<ffffffff81204954>] generic_perform_write+0x184/0x290
+[ 5006.963750]  [<ffffffff81206bb7>] __generic_file_write_iter+0x1b7/0x3b0
+[ 5006.964064]  [<ffffffff8137fdc4>] ext4_file_write_iter+0x154/0x930
+[ 5006.964336]  [<ffffffff812ad414>] vfs_iter_write+0xa4/0x140
+[ 5006.964581]  [<ffffffff812fa32a>] iter_file_splice_write+0x27a/0x4f0
+[ 5006.964881]  [<ffffffff812f8c13>] direct_splice_actor+0x53/0xd0
+[ 5006.965141]  [<ffffffff812f91f6>] splice_direct_to_actor+0xf6/0x390
+[ 5006.965417]  [<ffffffff81526c11>] ? security_file_permission+0x41/0x110
+[ 5006.965708]  [<ffffffff812f8bc0>] ? wakeup_pipe_writers+0x60/0x60
+[ 5006.965976]  [<ffffffff812f9529>] do_splice_direct+0x99/0x100
+[ 5006.966228]  [<ffffffff81526c11>] ? security_file_permission+0x41/0x110
+[ 5006.966539]  [<ffffffff812af36b>] do_sendfile+0x18b/0x6a0
+[ 5006.966825]  [<ffffffff812b0431>] compat_SyS_sendfile+0x71/0x80
+[ 5006.967092]  [<ffffffff81004875>] do_syscall_32_irqs_off+0x75/0x110
+[ 5006.967382]  [<ffffffff81e35903>] entry_INT80_compat+0x33/0x40
+[ 5006.967653] ================================================================================
