@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B18376B025C
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 11:19:22 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so23389602qge.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 08:19:22 -0800 (PST)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E88C66B025D
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 11:19:27 -0500 (EST)
+Received: by qgeb1 with SMTP id b1so23393895qge.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 08:19:27 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d139si4035448qhd.89.2015.12.08.08.18.49
+        by mx.google.com with ESMTPS id a59si4069225qgf.42.2015.12.08.08.18.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 08:18:49 -0800 (PST)
-Subject: [RFC PATCH V2 5/9] slab: use slab_post_alloc_hook in SLAB allocator
+        Tue, 08 Dec 2015 08:18:55 -0800 (PST)
+Subject: [RFC PATCH V2 6/9] slab: implement bulk alloc in SLAB allocator
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Tue, 08 Dec 2015 17:18:47 +0100
-Message-ID: <20151208161847.21945.28194.stgit@firesoul>
+Date: Tue, 08 Dec 2015 17:18:52 +0100
+Message-ID: <20151208161852.21945.85266.stgit@firesoul>
 In-Reply-To: <20151208161751.21945.53936.stgit@firesoul>
 References: <20151208161751.21945.53936.stgit@firesoul>
 MIME-Version: 1.0
@@ -23,62 +23,59 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Reviewers notice that the order in slab_post_alloc_hook() of
-kmemcheck_slab_alloc() and kmemleak_alloc_recursive() gets
-swapped compared to slab.c.
-
-Also notice memset now occurs before calling kmemcheck_slab_alloc()
-and kmemleak_alloc_recursive().
-
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 ---
- mm/slab.c |   22 ++++++----------------
- 1 file changed, 6 insertions(+), 16 deletions(-)
+ mm/slab.c |   37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 17fd6268ad41..47e7bcab8c3b 100644
+index 47e7bcab8c3b..70be9235e083 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3172,16 +3172,11 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-   out:
- 	local_irq_restore(save_flags);
- 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
--	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
--				 flags);
+@@ -3392,9 +3392,42 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ EXPORT_SYMBOL(kmem_cache_free_bulk);
  
--	if (likely(ptr)) {
--		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
--		if (unlikely(flags & __GFP_ZERO))
--			memset(ptr, 0, cachep->object_size);
--	}
-+	if (unlikely(flags & __GFP_ZERO) && ptr)
-+		memset(ptr, 0, cachep->object_size);
- 
--	memcg_kmem_put_cache(cachep);
-+	slab_post_alloc_hook(cachep, flags, 1, &ptr);
- 	return ptr;
+ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+-								void **p)
++			  void **p)
+ {
+-	return __kmem_cache_alloc_bulk(s, flags, size, p);
++	size_t i;
++
++	s = slab_pre_alloc_hook(s, flags);
++	if (!s)
++		return 0;
++
++	cache_alloc_debugcheck_before(s, flags);
++
++	local_irq_disable();
++	for (i = 0; i < size; i++) {
++		void *objp = __do_cache_alloc(s, flags);
++
++		/* this call could be done outside IRQ disabled section */
++		objp = cache_alloc_debugcheck_after(s, flags, objp, _RET_IP_);
++
++		if (unlikely(!objp))
++			goto error;
++		p[i] = objp;
++	}
++	local_irq_enable();
++
++	/* Clear memory outside IRQ disabled section */
++	if (unlikely(flags & __GFP_ZERO))
++		for (i = 0; i < size; i++)
++			memset(p[i], 0, s->object_size);
++
++	slab_post_alloc_hook(s, flags, size, p);
++	/* FIXME: Trace call missing. Christoph would like a bulk variant */
++	return size;
++error:
++	local_irq_enable();
++	slab_post_alloc_hook(s, flags, i, p);
++	__kmem_cache_free_bulk(s, i, p);
++	return 0;
  }
- 
-@@ -3232,17 +3227,12 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
- 	objp = __do_cache_alloc(cachep, flags);
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
--	kmemleak_alloc_recursive(objp, cachep->object_size, 1, cachep->flags,
--				 flags);
- 	prefetchw(objp);
- 
--	if (likely(objp)) {
--		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
--		if (unlikely(flags & __GFP_ZERO))
--			memset(objp, 0, cachep->object_size);
--	}
-+	if (unlikely(flags & __GFP_ZERO) && objp)
-+		memset(objp, 0, cachep->object_size);
- 
--	memcg_kmem_put_cache(cachep);
-+	slab_post_alloc_hook(cachep, flags, 1, &objp);
- 	return objp;
- }
+ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
  
 
 --
