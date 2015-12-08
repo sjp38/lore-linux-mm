@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 029056B0254
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:46:47 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so226969521wmv.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:46:46 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 988CA6B0255
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:49:09 -0500 (EST)
+Received: by wmww144 with SMTP id w144so41742439wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:49:09 -0800 (PST)
 Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id b127si32156857wmh.67.2015.12.08.10.46.46
+        by mx.google.com with ESMTPS id n16si5938416wjw.236.2015.12.08.10.49.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 10:46:46 -0800 (PST)
-Date: Tue, 8 Dec 2015 19:45:57 +0100 (CET)
+        Tue, 08 Dec 2015 10:49:08 -0800 (PST)
+Date: Tue, 8 Dec 2015 19:48:19 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 29/34] x86: separate out LDT init from context init
-In-Reply-To: <20151204011504.49720E0D@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1512081945440.3595@nanos>
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011504.49720E0D@viggo.jf.intel.com>
+Subject: Re: [PATCH 30/34] x86, fpu: allow setting of XSAVE state
+In-Reply-To: <20151204011506.7A3C77FA@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1512081948020.3595@nanos>
+References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011506.7A3C77FA@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -23,19 +23,27 @@ To: Dave Hansen <dave@sr71.net>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
 On Thu, 3 Dec 2015, Dave Hansen wrote:
-> The arch-specific mm_context_t is a great place to put
-> protection-key allocation state.
+
 > 
-> But, we need to initialize the allocation state because pkey 0 is
-> always "allocated".  All of the runtime initialization of
-> mm_context_t is done in *_ldt() manipulation functions.  This
-> renames the existing LDT functions like this:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> 	init_new_context() -> init_new_context_ldt()
-> 	destroy_context() -> destroy_context_ldt()
+> We want to modify the Protection Key rights inside the kernel, so
+> we need to change PKRU's contents.  But, if we do a plain
+> 'wrpkru', when we return to userspace we might do an XRSTOR and
+> wipe out the kernel's 'wrpkru'.  So, we need to go after PKRU in
+> the xsave buffer.
 > 
-> and makes init_new_context() and destroy_context() available for
-> generic use.
+> We do this by:
+> 1. Ensuring that we have the XSAVE registers (fpregs) in the
+>    kernel FPU buffer (fpstate)
+> 2. Looking up the location of a given state in the buffer
+> 3. Filling in the stat
+> 4. Ensuring that the hardware knows that state is present there
+>    (basically that the 'init optimization' is not in place).
+> 5. Copying the newly-modified state back to the registers if
+>    necessary.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
