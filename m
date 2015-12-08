@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C44DB6B025B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 14:19:03 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so16438880pac.3
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:19:03 -0800 (PST)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 977FE6B025C
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 14:19:05 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so16520341pfd.3
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:19:05 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 76si6919595pfp.49.2015.12.08.11.19.03
+        by mx.google.com with ESMTP id 76si6919595pfp.49.2015.12.08.11.19.04
         for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 11:19:03 -0800 (PST)
+        Tue, 08 Dec 2015 11:19:04 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 6/7] ext4: call dax_pfn_mkwrite() for DAX fsync/msync
-Date: Tue,  8 Dec 2015 12:18:44 -0700
-Message-Id: <1449602325-20572-7-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 7/7] xfs: call dax_pfn_mkwrite() for DAX fsync/msync
+Date: Tue,  8 Dec 2015 12:18:45 -0700
+Message-Id: <1449602325-20572-8-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,32 +25,34 @@ dirtied.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/ext4/file.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/xfs/xfs_file.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 749b222..8c8965c 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -291,8 +291,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
- {
- 	struct inode *inode = file_inode(vma->vm_file);
- 	struct super_block *sb = inode->i_sb;
--	int ret = VM_FAULT_NOPAGE;
- 	loff_t size;
-+	int ret;
- 
- 	sb_start_pagefault(sb);
- 	file_update_time(vma->vm_file);
-@@ -300,6 +300,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index f5392ab..40ffbb1 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1603,9 +1603,8 @@ xfs_filemap_pmd_fault(
+ /*
+  * pfn_mkwrite was originally inteneded to ensure we capture time stamp
+  * updates on write faults. In reality, it's need to serialise against
+- * truncate similar to page_mkwrite. Hence we open-code dax_pfn_mkwrite()
+- * here and cycle the XFS_MMAPLOCK_SHARED to ensure we serialise the fault
+- * barrier in place.
++ * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
++ * to ensure we serialise the fault barrier in place.
+  */
+ static int
+ xfs_filemap_pfn_mkwrite(
+@@ -1628,6 +1627,8 @@ xfs_filemap_pfn_mkwrite(
  	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
  	if (vmf->pgoff >= size)
  		ret = VM_FAULT_SIGBUS;
-+	else
++	else if (IS_DAX(inode))
 +		ret = dax_pfn_mkwrite(vma, vmf);
- 	up_read(&EXT4_I(inode)->i_mmap_sem);
- 	sb_end_pagefault(sb);
- 
+ 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+ 	sb_end_pagefault(inode->i_sb);
+ 	return ret;
 -- 
 2.5.0
 
