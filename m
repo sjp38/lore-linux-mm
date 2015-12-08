@@ -1,95 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A30556B0278
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:01:07 -0500 (EST)
-Received: by pfu207 with SMTP id 207so1885904pfu.2
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:01:07 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id a10si748314pat.195.2015.12.07.16.01.05
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C4AC76B027C
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:25:34 -0500 (EST)
+Received: by wmec201 with SMTP id c201so9171646wme.1
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:25:34 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id f81si27006970wmh.9.2015.12.07.16.25.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Dec 2015 16:01:05 -0800 (PST)
-References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
- <562AA15E.3010403@deltatee.com>
- <CAPcyv4gQ-8-tL-rhAPzPxKzBLmWKnFcqSFVy4KVOM56_9gn6RA@mail.gmail.com>
- <565F6A7A.4040302@deltatee.com>
- <CAPcyv4jjyzKgPMzdwms8xH-_RoKEGxRp1r4qxEcPYmPv7qStqw@mail.gmail.com>
- <566244CC.5080107@deltatee.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <56661DBA.5000302@deltatee.com>
-Date: Mon, 7 Dec 2015 17:00:58 -0700
+        Mon, 07 Dec 2015 16:25:33 -0800 (PST)
+Received: by wmec201 with SMTP id c201so190192306wme.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:25:33 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <566244CC.5080107@deltatee.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH v2 00/20] get_user_pages() for dax mappings
+In-Reply-To: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
+References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
+Date: Mon, 7 Dec 2015 16:25:32 -0800
+Message-ID: <CA+8MBb++DH+X-KHaABBTzOc0ygkiR0xU4JpJaLmXac90kFf6pw@mail.gmail.com>
+Subject: Re: [PATCH v2 0/2] mm: Introduce kernelcore=reliable option
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Stephen Bates <Stephen.Bates@pmcs.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, matt@codeblueprint.co.uk
 
-Hi Dan,
+Sorry for the slow turnaround testing this.
 
-I've done a bit of digging and here's some more information:
+This version seems to do better with my quirky system.
+Summary of /proc/zoneinfo now looks like this:
 
-* The crash occurs in ext4_end_io_unwritten when it tries to dereference 
-bh->b_assoc_map which is not necessarily NULL.
+$ ./zoneinfo
+Node          Normal         Movable             DMA           DMA32
+   0        17090.04        85687.43           14.93         1677.41
+   1        17949.70        81490.98
+   2        17911.66        85675.00
+   3        17936.42        85313.32
 
-* That function is called by __dax_pmd_fault, as the argument 
-complete_unwritten.
+which gets close to the mirror numbers reported in early part of boot:
 
-* Looking in __dax_pmd_fault, the bug occurs if we hit either of the 
-first two 'goto fallback' lines. (In my case, it's hitting the first one.)
+[    0.000000] efi: Memory: 81050M/420096M mirrored memory
 
-* After the fallback code, it goes back to 'out', then checks '&bh'
-for the unwritten flag. But bh hasn't been initialized yet and, on my 
-setup, the unwritten flag happens to be set. So, it then calls 
-complete_unwritten with a garbage bh and crashes.
+SUM(Normal) = 70887.82
 
-If I move the memset(&bh) up in the code, before the goto fallbacks can 
-occur, I can fix the crash.  I don't know if this is really the best way 
-to fix the problem though.
+There are ~8GB of "struct page" allocated from boot time allocator,
+which covers most of the difference in the values.
 
---
-
-However, unfortunately, fixing the above just uncovered another issue. 
-Now the MR de-registration seems to have completed but the task hangs 
-when it's trying to munmap the memory. (Stack trace at the end of this 
-email.)
-
-It looks like the i_mmap_lock_write is hanging in unlink_file_vma. I'm 
-not really sure how to go about debugging this lock issue. If you have 
-any steps I can try to get you more information let me know. I'm also 
-happy to re-test if you have any other changes you'd like me to try.
-
-Thanks,
-
-Logan
-
-
-> [ 240.520522] INFO: task client:1997 blocked for more than 120 seconds.
-> [ 240.520638] Tainted: G O 4.4.0-rc3+donard2.5+ #87
-> [ 240.520741] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 240.520847] client D ffff88047fd14800 0 1997 1912 0x00000004
-> [ 240.520856] ffff88026bc7b240 0000000000000000 ffff88026bd38000 ffff88026bd37d30
-> [ 240.520861] fffffffeffffffff ffff88026bc7b240 00007f4297513000 ffff880473aba240
-> [ 240.520866] ffffffff81422896 ffff880470b34e40 ffffffff814242f1 ffff880476deddc0
-> [ 240.520871] Call Trace:
-> [ 240.520886] [<ffffffff81422896>] ? schedule+0x6c/0x79
-> [ 240.520893] [<ffffffff814242f1>] ? rwsem_down_write_failed+0x285/0x2cb
-> [ 240.520903] [<ffffffff8124d833>] ? call_rwsem_down_write_failed+0x13/0x20
-> [ 240.520907] [<ffffffff8124d833>] ? call_rwsem_down_write_failed+0x13/0x20
-> [ 240.520913] [<ffffffff81423b22>] ? down_write+0x24/0x33
-> [ 240.520923] [<ffffffff8110836e>] ? unlink_file_vma+0x28/0x4b
-> [ 240.520928] [<ffffffff811033e4>] ? free_pgtables+0x3c/0xba
-> [ 240.520933] [<ffffffff81107c15>] ? unmap_region+0xa4/0xc1
-> [ 240.520941] [<ffffffff8106c60c>] ? pick_next_task_fair+0x11b/0x347
-> [ 240.520947] [<ffffffff8110795f>] ? vma_gap_callbacks_propagate+0x16/0x2c
-> [ 240.520951] [<ffffffff81108101>] ? vma_rb_erase+0x161/0x18f
-> [ 240.520957] [<ffffffff81109524>] ? do_munmap+0x271/0x2e6
-> [ 240.520962] [<ffffffff811095d0>] ? vm_munmap+0x37/0x4f
-> [ 240.520967] [<ffffffff81109602>] ? SyS_munmap+0x1a/0x1f
-> [ 240.520971] [<ffffffff81424d57>] ? entry_SYSCALL_64_fastpath+0x12/0x6a
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
