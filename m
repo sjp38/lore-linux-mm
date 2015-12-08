@@ -1,79 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3E76B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 10:14:04 -0500 (EST)
-Received: by qgcc31 with SMTP id c31so20011942qgc.3
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 07:14:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h82si3746533qhd.119.2015.12.08.07.14.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 07:14:03 -0800 (PST)
-Date: Tue, 8 Dec 2015 16:13:57 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 2/2] slab: implement bulk free in SLAB allocator
-Message-ID: <20151208161357.47323842@redhat.com>
-In-Reply-To: <20151208145635.GI11488@esperanza>
-References: <20151203155600.3589.86568.stgit@firesoul>
-	<20151203155736.3589.67424.stgit@firesoul>
-	<alpine.DEB.2.20.1512041111180.21819@east.gentwo.org>
-	<20151207122549.109e82db@redhat.com>
-	<alpine.DEB.2.20.1512070858140.8762@east.gentwo.org>
-	<20151208141211.GH11488@esperanza>
-	<alpine.DEB.2.20.1512080814350.20678@east.gentwo.org>
-	<20151208145635.GI11488@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 138B76B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 10:15:01 -0500 (EST)
+Received: by oixx65 with SMTP id x65so10873972oix.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 07:15:00 -0800 (PST)
+Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
+        by mx.google.com with ESMTP id h2si3294990oeq.93.2015.12.08.07.14.58
+        for <linux-mm@kvack.org>;
+        Tue, 08 Dec 2015 07:15:00 -0800 (PST)
+From: Geliang Tang <geliangtang@163.com>
+Subject: [PATCH] mm/ksm.c: use list_for_each_entry_safe
+Date: Tue,  8 Dec 2015 23:12:18 +0800
+Message-Id: <cc05942081a468570047a00a08020faca477603b.1449587435.git.geliangtang@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Marchand <jmarchan@redhat.com>
+Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 8 Dec 2015 17:56:35 +0300
-Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+Use list_for_each_entry_safe() instead of list_for_each_safe() to
+simplify the code.
 
-> On Tue, Dec 08, 2015 at 08:15:21AM -0600, Christoph Lameter wrote:
-> > On Tue, 8 Dec 2015, Vladimir Davydov wrote:
-> > 
-> > > If producers are represented by different processes, they can belong to
-> > > different memory cgroups, so that objects passed to the consumer will
-> > > come from different kmem caches (per memcg caches), although they are
-> > > all of the same kind. This means, we must call cache_from_obj() on each
-> > > object passed to kmem_cache_free_bulk() in order to free each object to
-> > > the cache it was allocated from.
-> > 
-> > The we should change the API so that we do not specify kmem_cache on bulk
-> > free. Do it like kfree without any cache spec.
-> > 
-> 
-> Don't think so, because AFAIU the whole kmem_cache_free_bulk
-> optimization comes from the assumption that objects passed to it are
-> likely to share the same slab page. So they must be of the same kind,
-> otherwise no optimization would be possible and the function wouldn't
-> perform any better than calling kfree directly in a for-loop. By
-> requiring the caller to specify the cache we emphasize this.
+Signed-off-by: Geliang Tang <geliangtang@163.com>
+---
+ mm/ksm.c | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)
 
-I agree with Vladimir here.  The performance gain for SLUB is
-especially depended on that objects are likely to share the same slab
-page.  It might not hurt SLAB as much.
-
-> Enabling kmemcg might break the assumption and neglect the benefit of
-> using kmem_cache_free_bulk, but it is to be expected, because kmem
-> accounting does not come for free. Callers who do care about the
-> performance and count every cpu cycle will surely disable it, in which
-> case cache_from_obj() will be a no-op and kmem_cache_free_bulk will bear
-> fruit.
-
-True, compiler does realize, when CONFIG_MEMCG_KMEM is disabled, that it
-can optimize the call to cache_from_obj() away.
-
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 5e96753..ca6d2a0 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -726,8 +726,7 @@ static int remove_stable_node(struct stable_node *stable_node)
+ 
+ static int remove_all_stable_nodes(void)
+ {
+-	struct stable_node *stable_node;
+-	struct list_head *this, *next;
++	struct stable_node *stable_node, *next;
+ 	int nid;
+ 	int err = 0;
+ 
+@@ -742,8 +741,7 @@ static int remove_all_stable_nodes(void)
+ 			cond_resched();
+ 		}
+ 	}
+-	list_for_each_safe(this, next, &migrate_nodes) {
+-		stable_node = list_entry(this, struct stable_node, list);
++	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
+ 		if (remove_stable_node(stable_node))
+ 			err = -EBUSY;
+ 		cond_resched();
+@@ -1553,13 +1551,11 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 		 * so prune them once before each full scan.
+ 		 */
+ 		if (!ksm_merge_across_nodes) {
+-			struct stable_node *stable_node;
+-			struct list_head *this, *next;
++			struct stable_node *stable_node, *next;
+ 			struct page *page;
+ 
+-			list_for_each_safe(this, next, &migrate_nodes) {
+-				stable_node = list_entry(this,
+-						struct stable_node, list);
++			list_for_each_entry_safe(stable_node, next,
++						 &migrate_nodes, list) {
+ 				page = get_ksm_page(stable_node, false);
+ 				if (page)
+ 					put_page(page);
+@@ -1981,8 +1977,7 @@ static void wait_while_offlining(void)
+ static void ksm_check_stable_tree(unsigned long start_pfn,
+ 				  unsigned long end_pfn)
+ {
+-	struct stable_node *stable_node;
+-	struct list_head *this, *next;
++	struct stable_node *stable_node, *next;
+ 	struct rb_node *node;
+ 	int nid;
+ 
+@@ -2003,8 +1998,7 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
+ 			cond_resched();
+ 		}
+ 	}
+-	list_for_each_safe(this, next, &migrate_nodes) {
+-		stable_node = list_entry(this, struct stable_node, list);
++	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
+ 		if (stable_node->kpfn >= start_pfn &&
+ 		    stable_node->kpfn < end_pfn)
+ 			remove_node_from_stable_tree(stable_node);
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+2.5.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
