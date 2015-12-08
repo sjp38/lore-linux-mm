@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE6E6B0257
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:30:00 -0500 (EST)
-Received: by wmec201 with SMTP id c201so41257422wme.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:30:00 -0800 (PST)
-Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id z8si32055532wmg.102.2015.12.08.10.29.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 10:30:00 -0800 (PST)
-Date: Tue, 8 Dec 2015 19:29:10 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 10/34] x86, pkeys: arch-specific protection bitsy
-In-Reply-To: <56671C15.10304@sr71.net>
-Message-ID: <alpine.DEB.2.11.1512081928010.3595@nanos>
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011438.E50D1498@viggo.jf.intel.com> <alpine.DEB.2.11.1512081523180.3595@nanos> <566706A1.3040906@sr71.net> <alpine.DEB.2.11.1512081817160.3595@nanos> <56671C15.10304@sr71.net>
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AED826B025C
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:30:40 -0500 (EST)
+Received: by pfu207 with SMTP id 207so15965048pfu.2
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:30:40 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id uo3si6624804pac.221.2015.12.08.10.30.40
+        for <linux-mm@kvack.org>;
+        Tue, 08 Dec 2015 10:30:40 -0800 (PST)
+Subject: Re: [PATCH 16/34] x86, mm: simplify get_user_pages() PTE bit handling
+References: <20151204011424.8A36E365@viggo.jf.intel.com>
+ <20151204011446.DDC6435F@viggo.jf.intel.com>
+ <alpine.DEB.2.11.1512081839471.3595@nanos>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <566721CE.1060800@sr71.net>
+Date: Tue, 8 Dec 2015 10:30:38 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.11.1512081839471.3595@nanos>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
+To: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
-On Tue, 8 Dec 2015, Dave Hansen wrote:
-
-> Here's how it looks with the suggested modifications.
+On 12/08/2015 10:01 AM, Thomas Gleixner wrote:
+> static inline int pte_allows_gup(unsigned long pteval, int write)
+> {
+> 	unsigned long mask = _PAGE_PRESENT|_PAGE_USER;
 > 
-> Whatever compiler wonkiness I was seeing is gone now, so I've used the
-> most straightforward version of the shifts.
+> 	if (write)
+> 		mask |= _PAGE_RW;
+> 
+> 	if ((pteval & mask) != mask)
+> 		return 0;
+> 
+> 	if (!__pkru_allows_pkey(pte_flags_pkey(pteval), write))
+> 	   	return 0;
+> 	return 1;
+> }
+> 
+> and at the callsites do:
+> 
+>     if (pte_allows_gup(pte_val(pte, write))
+> 
+>     if (pte_allows_gup(pmd_val(pmd, write))
+> 
+>     if (pte_allows_gup(pud_val(pud, write))
+> 
+> Hmm?
 
-> +        * gcc generates better code if we do this rather than:
-> +        * pkey = (flags & mask) >> shift
-> +        */
-> +       pkey = (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
-
-ROTFL!
+Looks fine to me.  I'll do that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
