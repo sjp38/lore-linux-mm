@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C09C76B0257
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:19:58 -0500 (EST)
-Received: by wmec201 with SMTP id c201so224825874wme.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:19:58 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 633816B0258
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:21:06 -0500 (EST)
+Received: by wmec201 with SMTP id c201so40953931wme.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:21:06 -0800 (PST)
 Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id pk5si5844718wjb.102.2015.12.08.10.19.57
+        by mx.google.com with ESMTPS id wo7si5817824wjb.160.2015.12.08.10.21.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 10:19:57 -0800 (PST)
-Date: Tue, 8 Dec 2015 19:19:08 +0100 (CET)
+        Tue, 08 Dec 2015 10:21:05 -0800 (PST)
+Date: Tue, 8 Dec 2015 19:20:15 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 21/34] x86, pkeys: dump PKRU with other kernel
- registers
-In-Reply-To: <20151204011453.007731D7@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1512081918060.3595@nanos>
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011453.007731D7@viggo.jf.intel.com>
+Subject: Re: [PATCH 22/34] x86, pkeys: dump PTE pkey in /proc/pid/smaps
+In-Reply-To: <20151204011454.9E6D5829@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1512081919580.3595@nanos>
+References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011454.9E6D5829@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,43 +23,22 @@ To: Dave Hansen <dave@sr71.net>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
 On Thu, 3 Dec 2015, Dave Hansen wrote:
-
+> The protection key can now be just as important as read/write
+> permissions on a VMA.  We need some debug mechanism to help
+> figure out if it is in play.  smaps seems like a logical
+> place to expose it.
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> arch/x86/kernel/setup.c is a bit of a weirdo place to put
+> this code, but it already had seq_file.h and there was not
+> a much better existing place to put it.
 > 
-> I'm a bit ambivalent about whether this is needed or not.
->
-> Protection Keys never affect kernel mappings.  But, they can
-> affect whether the kernel will fault when it touches a user
-> mapping.  But, the kernel doesn't touch user mappings without
-> some careful choreography and these accesses don't generally
-> result in oopses.
-
-Well, if we miss some careful choreography at some place, this
-information is going to be helpful.
+> We also use no #ifdef.  If protection keys is .config'd out
+> we will get the same function as if we used the weak generic
+> function.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
- 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> ---
-> 
->  b/arch/x86/kernel/process_64.c |    2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff -puN arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps arch/x86/kernel/process_64.c
-> --- a/arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps	2015-12-03 16:21:27.874773264 -0800
-> +++ b/arch/x86/kernel/process_64.c	2015-12-03 16:21:27.877773400 -0800
-> @@ -116,6 +116,8 @@ void __show_regs(struct pt_regs *regs, i
->  	printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
->  	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
->  
-> +	if (boot_cpu_has(X86_FEATURE_OSPKE))
-> +		printk(KERN_DEFAULT "PKRU: %08x\n", read_pkru());
->  }
->  
->  void release_thread(struct task_struct *dead_task)
-> _
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
