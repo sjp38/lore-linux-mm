@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A50BC6B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 04:45:52 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so205314047wmv.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 01:45:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uq9si3312237wjc.17.2015.12.08.01.45.51
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 01:45:51 -0800 (PST)
-Date: Tue, 8 Dec 2015 09:45:46 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm/compaction: restore COMPACT_CLUSTER_MAX to 32
-Message-ID: <20151208094546.GD19677@suse.de>
-References: <1449115900-20112-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20151207170041.c470d362915ae1b42a8a4ef8@linux-foundation.org>
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6666B0038
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 05:19:07 -0500 (EST)
+Received: by wmww144 with SMTP id w144so174944347wmw.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 02:19:06 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id t190si4072103wme.110.2015.12.08.02.19.05
+        for <linux-mm@kvack.org>;
+        Tue, 08 Dec 2015 02:19:05 -0800 (PST)
+From: Qais Yousef <qais.yousef@imgtec.com>
+Subject: [PATCH] MIPS: Fix DMA contiguous allocation
+Date: Tue, 8 Dec 2015 10:18:50 +0000
+Message-ID: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20151207170041.c470d362915ae1b42a8a4ef8@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mips@linux-mips.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ralf@linux-mips.org, akpm@linux-foundation.org, mgorman@techsingularity.net, Qais Yousef <qais.yousef@imgtec.com>
 
-On Mon, Dec 07, 2015 at 05:00:41PM -0800, Andrew Morton wrote:
-> On Thu,  3 Dec 2015 13:11:40 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
-> 
-> > Until now, COMPACT_CLUSTER_MAX is defined as SWAP_CLUSTER_MAX.
-> > Commit ("mm: increase SWAP_CLUSTER_MAX to batch TLB flushes")
-> > changes SWAP_CLUSTER_MAX from 32 to 256 to improve tlb flush performance
-> > so COMPACT_CLUSTER_MAX is also changed to 256.
-> 
-> "mm: increase SWAP_CLUSTER_MAX to batch TLB flushes" has been in limbo
-> for quite a while.  Because it has been unclear whether the patch's
-> benefits exceed its costs+risks.
-> 
-> We should make a decision here - either do the appropriate testing or
-> drop the patch.
-> 
+Recent changes to how GFP_ATOMIC is defined seems to have broken the condition
+to use mips_alloc_from_contiguous() in mips_dma_alloc_coherent().
 
-At this point, drop it. The benefits that apply to some corner cases are
-marginal but the concerns about potentially isolating and reclaiming too
-much persist.
+I couldn't bottom out the exact change but I think it's this one
 
+d0164adc89f6 (mm, page_alloc: distinguish between being unable to sleep,
+unwilling to sleep and avoiding waking kswapd)
+
+>From what I see GFP_ATOMIC has multiple bits set and the check for !(gfp
+& GFP_ATOMIC) isn't enough. To verify if the flag is atomic we need to make
+sure that (gfp & GFP_ATOMIC) == GFP_ATOMIC to verify that all bits rquired to
+satisfy GFP_ATOMIC condition are set.
+
+Signed-off-by: Qais Yousef <qais.yousef@imgtec.com>
+---
+ arch/mips/mm/dma-default.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
+index d8117be729a2..d6b8a1445a3a 100644
+--- a/arch/mips/mm/dma-default.c
++++ b/arch/mips/mm/dma-default.c
+@@ -145,7 +145,7 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
+ 
+ 	gfp = massage_gfp_flags(dev, gfp);
+ 
+-	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
++	if (IS_ENABLED(CONFIG_DMA_CMA) && ((gfp & GFP_ATOMIC) != GFP_ATOMIC))
+ 		page = dma_alloc_from_contiguous(dev,
+ 					count, get_order(size));
+ 	if (!page)
 -- 
-Mel Gorman
-SUSE Labs
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
