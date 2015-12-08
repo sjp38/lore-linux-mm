@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 518566B0256
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 13:50:11 -0500 (EST)
-Received: by qgec40 with SMTP id c40so30304512qge.2
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:50:11 -0800 (PST)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id b133si4647746qhd.40.2015.12.08.10.50.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 10:50:08 -0800 (PST)
-Received: by qgea14 with SMTP id a14so30711147qge.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 10:50:08 -0800 (PST)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B77946B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 14:06:58 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so16215881pac.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:06:58 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id gt3si6855779pac.72.2015.12.08.11.06.57
+        for <linux-mm@kvack.org>;
+        Tue, 08 Dec 2015 11:06:57 -0800 (PST)
+Subject: Re: [PATCH 28/34] x86: wire up mprotect_key() system call
+References: <20151204011424.8A36E365@viggo.jf.intel.com>
+ <20151204011503.2A095839@viggo.jf.intel.com>
+ <alpine.DEB.2.11.1512081943270.3595@nanos>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <56672A50.4010801@sr71.net>
+Date: Tue, 8 Dec 2015 11:06:56 -0800
 MIME-Version: 1.0
-In-Reply-To: <5667249F.6040507@deltatee.com>
-References: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
-	<5667249F.6040507@deltatee.com>
-Date: Tue, 8 Dec 2015 10:50:06 -0800
-Message-ID: <CAPcyv4iKE4U1fniZyQZ8QdGrPj74tTz0bX-=VLvc4=4WjSEj-g@mail.gmail.com>
-Subject: Re: [PATCH -mm 00/25] get_user_pages() for dax pte and pmd mappings
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.DEB.2.11.1512081943270.3595@nanos>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Logan Gunthorpe <logang@deltatee.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, David Airlie <airlied@linux.ie>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Linux MM <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Christoph Hellwig <hch@lst.de>, Andrea Arcangeli <aarcange@redhat.com>, kbuild test robot <lkp@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Richard Weinberger <richard@nod.at>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Dike <jdike@addtoit.com>, Jens Axboe <axboe@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, Christoffer Dall <christoffer.dall@linaro.org>, Stephen Bates <Stephen.Bates@pmcs.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
 
-On Tue, Dec 8, 2015 at 10:42 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
-> Hi Dan,
->
-> Perfect. This latest version of the patch set is once again passing all
-> my tests without any issues.
->
-> Tested-By: Logan Gunthorpe <logang@deltatee.com>
->
-> Thanks,
->
-> Logan
+On 12/08/2015 10:44 AM, Thomas Gleixner wrote:
+> On Thu, 3 Dec 2015, Dave Hansen wrote:
+>>  #include <asm-generic/mman.h>
+>> diff -puN mm/Kconfig~pkeys-16-x86-mprotect_key mm/Kconfig
+>> --- a/mm/Kconfig~pkeys-16-x86-mprotect_key	2015-12-03 16:21:31.114920208 -0800
+>> +++ b/mm/Kconfig	2015-12-03 16:21:31.119920435 -0800
+>> @@ -679,4 +679,5 @@ config NR_PROTECTION_KEYS
+>>  	# Everything supports a _single_ key, so allow folks to
+>>  	# at least call APIs that take keys, but require that the
+>>  	# key be 0.
+>> +	default 16 if X86_INTEL_MEMORY_PROTECTION_KEYS
+>>  	default 1
+> 
+> What happens if I set that to 42?
+> 
+> I think we want to make this a runtime evaluated thingy. If pkeys are
+> compiled in, but the machine does not support it then we don't support
+> 16 keys, or do we?
 
-Thank you for the testing, Logan!
+We do have runtime evaluation:
+
+#define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ?      \
+                             CONFIG_NR_PROTECTION_KEYS : 1)
+
+The config option really just sets the architectural limit for how many
+are supported.  So it probably needs a better name at least.  Let me
+take a look at getting rid of this config option entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
