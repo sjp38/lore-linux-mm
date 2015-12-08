@@ -1,72 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C09A56B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 07:07:43 -0500 (EST)
-Received: by pfbg73 with SMTP id g73so11688515pfb.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 04:07:43 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id qz6si4908860pab.168.2015.12.08.04.07.42
-        for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 04:07:42 -0800 (PST)
-Date: Tue, 8 Dec 2015 12:07:44 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v4 01/13] mm/memblock: add MEMBLOCK_NOMAP attribute to
- memblock memory table
-Message-ID: <20151208120743.GG19612@arm.com>
-References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
- <1448886507-3216-2-git-send-email-ard.biesheuvel@linaro.org>
- <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
-MIME-Version: 1.0
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 886416B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 07:07:58 -0500 (EST)
+Received: by igcmv3 with SMTP id mv3so99786719igc.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 04:07:58 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j3si28354437igx.20.2015.12.08.04.07.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Dec 2015 04:07:57 -0800 (PST)
+Subject: Why can't we use __GFP_KILLABLE?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201512082107.HIH90660.MQVFFSLHOFOtJO@I-love.SAKURA.ne.jp>
+Date: Tue, 8 Dec 2015 21:07:48 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Leif Lindholm <leif.lindholm@linaro.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org
 
-Hi Ard,
+Forking from http://lkml.kernel.org/r/20151207160718.GA20774@dhcp22.suse.cz .
 
-On Thu, Dec 03, 2015 at 11:55:53AM +0100, Ard Biesheuvel wrote:
-> On 30 November 2015 at 13:28, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-> > This introduces the MEMBLOCK_NOMAP attribute and the required plumbing
-> > to make it usable as an indicator that some parts of normal memory
-> > should not be covered by the kernel direct mapping. It is up to the
-> > arch to actually honor the attribute when laying out this mapping,
-> > but the memblock code itself is modified to disregard these regions
-> > for allocations and other general use.
-> >
-> > Cc: linux-mm@kvack.org
-> > Cc: Alexander Kuleshov <kuleshovmail@gmail.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
-> > Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> > ---
-> >  include/linux/memblock.h |  8 ++++++
-> >  mm/memblock.c            | 28 ++++++++++++++++++++
-> >  2 files changed, 36 insertions(+)
+Michal Hocko wrote:
+> On Sat 05-12-15 21:33:47, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Sun 29-11-15 01:10:10, Tetsuo Handa wrote:
+> > > > Tetsuo Handa wrote:
+> > > > > > Users of mmap_sem which need it for write should be carefully reviewed
+> > > > > > to use _killable waiting as much as possible and reduce allocations
+> > > > > > requests done with the lock held to absolute minimum to reduce the risk
+> > > > > > even further.
+> > > > > 
+> > > > > It will be nice if we can have down_write_killable()/down_read_killable().
+> > > > 
+> > > > It will be nice if we can also have __GFP_KILLABLE.
+> > > 
+> > > Well, we already do this implicitly because OOM killer will
+> > > automatically do mark_oom_victim if it has fatal_signal_pending and then
+> > > __alloc_pages_slowpath fails the allocation if the memory reserves do
+> > > not help to finish the allocation.
+> > 
+> > I don't think so because !__GFP_FS && !__GFP_NOFAIL allocations do not do
+> > mark_oom_victim() even if fatal_signal_pending() is true because
+> > out_of_memory() is not called.
+> 
+> OK you are right about GFP_NOFS allocations. I didn't consider them
+> because I still think that GFP_NOFS needs a separate solution. Ideally
+> systematic one but if this is really urgent and cannot wait for it then
+> we can at least check for fatal_signal_pending in __alloc_pages_may_oom.
 
-[...]
+Really urgent patch for me is kmallocwd kernel thread. I showed you that
+it is not difficult to defeat oom_reaper kernel thread. Without a watchdog
+mechanism, we will continue failing to catch problems caused by memory
+allocators.
 
-> May I kindly ask team-mm/Andrew/Alexander to chime in here, and
-> indicate whether you are ok with this patch going in for 4.5? If so,
-> could you please provide your ack so the patch can be kept together
-> with the rest of the series, which depends on it?
+> Something like:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 728b7a129df3..42a78aee36f3 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2754,9 +2754,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  			/*
+>  			 * XXX: Page reclaim didn't yield anything,
+>  			 * and the OOM killer can't be invoked, but
+> -			 * keep looping as per tradition.
+> +			 * keep looping as per tradition. Do not bother
+> +			 * if we are killed already though
+>  			 */
+> -			*did_some_progress = 1;
+> +			if (!fatal_signal_pending(current))
+> +				*did_some_progress = 1;
+>  			goto out;
+>  		}
+>  		if (pm_suspended_storage())
+> 
 
-I'm keen to queue this in the arm64 tree, since it's a prerequisite for
-cleaning up a bunch of our EFI code and sharing it with 32-bit ARM.
+I don't think this change is acceptable. This change is almost same with
+commit 9879de7373fc ("mm: page_alloc: embed OOM killing naturally into
+allocation slowpath") because it exposes any !__GFP_FS && !__GFP_NOFAIL
+allocations by killable tasks to risk of triggering filesystem errors
+and/or disk I/O errors due to -ENOMEM when SIGKILL is delivered under
+almost OOM and/or OOM-livelock.
 
-> I should note that this change should not affect any memblock users
-> that never set the MEMBLOCK_NOMAP flag, but please, if you see any
-> issues beyond 'this may conflict with other stuff we have queued for
-> 4.5', please do let me know.
+> __GFP_KILLABLE sounds like adding more mess to the current situation
+> to me. Weak reclaim context which is unkillable is simply a bad
+> design. Putting __GFP_KILLABLE doesn't make it work properly.
 
-Indeed, I can't see that this would cause any issues, but I would really
-like an Ack from one of the MM maintainers before taking this.
+I think it is quite opposite. __GFP_KILLABLE allows __GFP_FS allocations
+to leave the memory allocation loop regardless of whether we are in OOM
+livelock trouble or not. If we are in OOM livelock trouble, voluntarily
+leaving the memory allocator (than burning CPU cycles) should be welcomed.
+Imagine a situation where one of 1000 tasks sharing the same memory got
+TIF_MEMDIE + SIGKILL while the remaining 999 tasks got only SIGKILL. If
+999 tasks voluntarily leave the memory allocator upon SIGKILL and releases
+the lock which the TIF_MEMDIE + SIGKILL task is waiting for, it helps
+resolving OOM livelock trouble because we don't need to allow 999 tasks
+to access memory reserves.
 
-Please could somebody take a look?
+Many of memory allocations which are associated with current thread (e.g.
+system calls) can bail out upon SIGKILL because current thread is allowed
+to die without completing the request. Many of memory allocations which
+are not associated with current thread (e.g. flushing buffered write data
+to storage) should not bail out upon SIGKILL because it means loss of data
+which is too late to notify the thread which requested the buffered write.
+Administrators should be able to choose from "(A) Buffered I/O looses data
+upon OOM (possibly with filesystem errors, because the kernel does not
+allocate memory used by I/O, by not invoking the OOM killer" and "(B)
+Buffered I/O does not loose data upon OOM (no filesystem errors, because
+the kernel allocates memory used by I/O, by invoking the OOM killer)".
 
-Will
+ From the point of view of the memory allocator callers, majority of the
+callers are not willing to use weaker reclaim context. Some of the callers
+which are willing to give up use __GFP_NORETRY. Speak of syscall checkers
+like my module, I'm not willing to give up by using __GFP_NORETRY, but I'm
+willing to give up if current thread received SIGKILL.
+
+Use of __GFP_KILLABLE is similar to use of _killable version of lock
+primitives. That is, the caller decides whether it is safe to bail out
+upon SIGKILL. I want to use __GFP_KILLABLE which is between __GFP_NORETRY
+and __GFP_NOFAIL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
