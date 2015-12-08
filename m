@@ -1,95 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB4E6B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 09:50:31 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so13069390pac.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:50:31 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id la15si5672344pab.205.2015.12.08.06.50.31
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 407166B0254
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 09:56:53 -0500 (EST)
+Received: by lbblt2 with SMTP id lt2so12516267lbb.3
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:56:52 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id r13si1879575lfe.161.2015.12.08.06.56.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 06:50:31 -0800 (PST)
-Received: by pfnn128 with SMTP id n128so13223166pfn.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:50:31 -0800 (PST)
-From: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Subject: [PATCH v2] arch/*/include/uapi/asm/mman.h: correct uniform value of MADV_FREE
-Date: Tue,  8 Dec 2015 20:20:22 +0530
-Message-Id: <1449586222-4689-1-git-send-email-sudipm.mukherjee@gmail.com>
+        Tue, 08 Dec 2015 06:56:51 -0800 (PST)
+Date: Tue, 8 Dec 2015 17:56:35 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [RFC PATCH 2/2] slab: implement bulk free in SLAB allocator
+Message-ID: <20151208145635.GI11488@esperanza>
+References: <20151203155600.3589.86568.stgit@firesoul>
+ <20151203155736.3589.67424.stgit@firesoul>
+ <alpine.DEB.2.20.1512041111180.21819@east.gentwo.org>
+ <20151207122549.109e82db@redhat.com>
+ <alpine.DEB.2.20.1512070858140.8762@east.gentwo.org>
+ <20151208141211.GH11488@esperanza>
+ <alpine.DEB.2.20.1512080814350.20678@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1512080814350.20678@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Minchan Kim <minchan@kernel.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-commit d53d95838c7d introduced uniform values for all architecture but
-missed removing the old value.
+On Tue, Dec 08, 2015 at 08:15:21AM -0600, Christoph Lameter wrote:
+> On Tue, 8 Dec 2015, Vladimir Davydov wrote:
+> 
+> > If producers are represented by different processes, they can belong to
+> > different memory cgroups, so that objects passed to the consumer will
+> > come from different kmem caches (per memcg caches), although they are
+> > all of the same kind. This means, we must call cache_from_obj() on each
+> > object passed to kmem_cache_free_bulk() in order to free each object to
+> > the cache it was allocated from.
+> 
+> The we should change the API so that we do not specify kmem_cache on bulk
+> free. Do it like kfree without any cache spec.
+> 
 
-As a result we are having build failure with mips defconfig, alpha
-defconfig.
+Don't think so, because AFAIU the whole kmem_cache_free_bulk
+optimization comes from the assumption that objects passed to it are
+likely to share the same slab page. So they must be of the same kind,
+otherwise no optimization would be possible and the function wouldn't
+perform any better than calling kfree directly in a for-loop. By
+requiring the caller to specify the cache we emphasize this.
 
-Fixes: d53d95838c7d ("arch/*/include/uapi/asm/mman.h: : let MADV_FREE have same value for all architectures")
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Chen Gang <gang.chen.5i5j@gmail.com>
-Signed-off-by: Sudip Mukherjee <sudip@vectorindia.org>
----
+Enabling kmemcg might break the assumption and neglect the benefit of
+using kmem_cache_free_bulk, but it is to be expected, because kmem
+accounting does not come for free. Callers who do care about the
+performance and count every cpu cycle will surely disable it, in which
+case cache_from_obj() will be a no-op and kmem_cache_free_bulk will bear
+fruit.
 
-v2: combined the patches for different arch in this single patch.
-
- arch/alpha/include/uapi/asm/mman.h  | 1 -
- arch/mips/include/uapi/asm/mman.h   | 1 -
- arch/parisc/include/uapi/asm/mman.h | 1 -
- arch/xtensa/include/uapi/asm/mman.h | 1 -
- 4 files changed, 4 deletions(-)
-
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index ab336c0..fec1947 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -47,7 +47,6 @@
- #define MADV_WILLNEED	3		/* will need these pages */
- #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
- #define MADV_DONTNEED	6		/* don't need these pages */
--#define MADV_FREE	7		/* free pages only if memory pressure */
- 
- /* common/generic parameters */
- #define MADV_FREE	8		/* free pages only if memory pressure */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index b0ebe59..ccdcfcb 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -73,7 +73,6 @@
- #define MADV_SEQUENTIAL 2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
- 
- /* common parameters: try to keep these consistent across architectures */
- #define MADV_FREE	8		/* free pages only if memory pressure */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index cf830d4..f3db7d8 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -43,7 +43,6 @@
- #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
- #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
- #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
--#define MADV_FREE	8		/* free pages only if memory pressure */
- 
- /* common/generic parameters */
- #define MADV_FREE	8		/* free pages only if memory pressure */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index d030594..9e079d4 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -86,7 +86,6 @@
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
- 
- /* common parameters: try to keep these consistent across architectures */
- #define MADV_FREE	8		/* free pages only if memory pressure */
--- 
-1.9.1
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
