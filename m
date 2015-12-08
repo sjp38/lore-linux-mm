@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 590AF6B027F
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:33:31 -0500 (EST)
-Received: by pfdd184 with SMTP id d184so3048219pfd.3
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:33:31 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id a17si1306232pfj.84.2015.12.07.17.33.30
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 59EF76B0280
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:33:36 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so3059522pac.2
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:33:36 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id 10si1325700pfk.32.2015.12.07.17.33.35
         for <linux-mm@kvack.org>;
-        Mon, 07 Dec 2015 17:33:30 -0800 (PST)
-Subject: [PATCH -mm 05/25] mm, dax: fix livelock,
- allow dax pmd mappings to become writeable
+        Mon, 07 Dec 2015 17:33:35 -0800 (PST)
+Subject: [PATCH -mm 06/25] dax: Split pmd map when fallback on COW
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Dec 2015 17:33:03 -0800
-Message-ID: <20151208013303.25030.56683.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 07 Dec 2015 17:33:08 -0800
+Message-ID: <20151208013308.25030.16548.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -21,55 +20,46 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org
+Cc: Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+From: Toshi Kani <toshi.kani@hpe.com>
 
-Prior to this change DAX PMD mappings that were made read-only were
-never able to be made writable again.  This is because the code in
-insert_pfn_pmd() that calls pmd_mkdirty() and pmd_mkwrite() would skip
-these calls if the PMD already existed in the page table.
+An infinite loop of PMD faults was observed when attempted to
+mlock() a private read-only PMD mmap'd range of a DAX file.
 
-Instead, if we are doing a write always mark the PMD entry as dirty and
-writeable.  Without this code we can get into a condition where we mark
-the PMD as read-only, and then on a subsequent write fault we get into
-an infinite loop of PMD faults where we try unsuccessfully to make the
-PMD writeable.
+__dax_pmd_fault() simply returns with VM_FAULT_FALLBACK when
+falling back to PTE on COW.  However, __handle_mm_fault()
+returns without falling back to handle_pte_fault() because
+a PMD map is present in this case.
 
-Reported-by: Jeff Moyer <jmoyer@redhat.com>
-Reported-by: Toshi Kani <toshi.kani@hpe.com>
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Change __dax_pmd_fault() to split the PMD map, if present,
+before returning with VM_FAULT_FALLBACK.
+
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/huge_memory.c |   14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ fs/dax.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b41793b12a2d..70323839bd0d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -967,15 +967,13 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	spinlock_t *ptl;
+diff --git a/fs/dax.c b/fs/dax.c
+index 68b04de71d19..88e7b3bfef21 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -578,8 +578,10 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		return VM_FAULT_FALLBACK;
  
- 	ptl = pmd_lock(mm, pmd);
--	if (pmd_none(*pmd)) {
--		entry = pmd_mkhuge(pfn_pmd(pfn, prot));
--		if (write) {
--			entry = pmd_mkyoung(pmd_mkdirty(entry));
--			entry = maybe_pmd_mkwrite(entry, vma);
--		}
--		set_pmd_at(mm, addr, pmd, entry);
--		update_mmu_cache_pmd(vma, addr, pmd);
-+	entry = pmd_mkhuge(pfn_pmd(pfn, prot));
-+	if (write) {
-+		entry = pmd_mkyoung(pmd_mkdirty(entry));
-+		entry = maybe_pmd_mkwrite(entry, vma);
- 	}
-+	set_pmd_at(mm, addr, pmd, entry);
-+	update_mmu_cache_pmd(vma, addr, pmd);
- 	spin_unlock(ptl);
- }
- 
+ 	/* Fall back to PTEs if we're going to COW */
+-	if (write && !(vma->vm_flags & VM_SHARED))
++	if (write && !(vma->vm_flags & VM_SHARED)) {
++		split_huge_pmd(vma, pmd, address);
+ 		return VM_FAULT_FALLBACK;
++	}
+ 	/* If the PMD would extend outside the VMA */
+ 	if (pmd_addr < vma->vm_start)
+ 		return VM_FAULT_FALLBACK;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
