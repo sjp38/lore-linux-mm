@@ -1,38 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0426B0256
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:27:17 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so223886453wmv.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:27:17 -0800 (PST)
-Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id ki4si5520675wjc.178.2015.12.08.09.27.16
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C5816B0254
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:35:45 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so224230826wmv.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:35:44 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m186si6252820wmb.108.2015.12.08.09.35.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 09:27:16 -0800 (PST)
-Date: Tue, 8 Dec 2015 18:26:11 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 15/34] mm: factor out VMA fault permission checking
-In-Reply-To: <20151204011445.19B1F2B3@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1512081825470.3595@nanos>
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011445.19B1F2B3@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 09:35:44 -0800 (PST)
+Date: Tue, 8 Dec 2015 12:35:28 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH mmotm] memcg: Ignore partial THP when moving task
+Message-ID: <20151208173528.GA32265@cmpxchg.org>
+References: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, 3 Dec 2015, Dave Hansen wrote:
-> This code matches a fault condition up with the VMA and ensures
-> that the VMA allows the fault to be handled instead of just
-> erroring out.
+On Tue, Dec 08, 2015 at 06:13:09PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> We will be extending this in a moment to comprehend protection
-> keys.
+> After "mm: rework mapcount accounting to enable 4k mapping of THPs"
+> it is possible to have a partial THP accessible via ptes. Memcg task
+> migration code is not prepared for this situation and uncharges the tail
+> page from the original memcg while the original THP is still charged via
+> the head page which is not mapped to the moved task. The page counter
+> of the origin memcg will underflow when the whole THP is uncharged later
+> on and lead to:
+> WARNING: CPU: 0 PID: 1340 at mm/page_counter.c:26 page_counter_cancel+0x34/0x40()
+> reported by Minchan Kim.
 > 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> This patch prevents from the underflow by skipping any partial THP pages
+> in mem_cgroup_move_charge_pte_range. PageTransCompound is checked when
+> we do pte walk. This means that a process might leave a partial THP
+> behind in the original memcg if there is no other process mapping it via
+> pmd but this is considered acceptable because it shouldn't happen often
+> and this is not considered a memory leak because the original THP is
+> still accessible and reclaimable. Moreover the task migration has always
+> been racy and never guaranteed to move all pages.
+> 
+> Reported-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+> Hi,
+> this is a patch tested by Minchan in the original thread [1]. I have
+> only replaced PageCompound with PageTransCompound because other similar
+> fixes in mmotm used this one. The underlying implementation is the same.
+> Johannes, I have kept your a-b but let me know if you are not OK with the
+> changelog.
 
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Looks good to me, thanks Michal. Please keep my Acked-by.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
