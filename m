@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F616B0289
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:34:44 -0500 (EST)
-Received: by pfdd184 with SMTP id d184so3064085pfd.3
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:34:44 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id v9si1261639pfi.234.2015.12.07.17.34.44
+	by kanga.kvack.org (Postfix) with ESMTP id 5852C6B0292
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:34:50 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so3129014pfn.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:34:50 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id p70si1259627pfi.231.2015.12.07.17.34.49
         for <linux-mm@kvack.org>;
-        Mon, 07 Dec 2015 17:34:44 -0800 (PST)
-Subject: [PATCH -mm 19/25] list: introduce list_del_poison()
+        Mon, 07 Dec 2015 17:34:49 -0800 (PST)
+Subject: [PATCH -mm 20/25] libnvdimm,
+ pmem: move request_queue allocation earlier in probe
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Dec 2015 17:34:17 -0800
-Message-ID: <20151208013417.25030.89815.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 07 Dec 2015 17:34:22 -0800
+Message-ID: <20151208013422.25030.59833.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,75 +21,100 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
+Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org
 
-ZONE_DEVICE pages always have an elevated count and will never be on an
-lru reclaim list.  That space in 'struct page' can be redirected for
-other uses, but for safety introduce a poison value that will always
-trip __list_add() to assert.  This allows half of the struct list_head
-storage to be reclaimed with some assurance to back up the assumption
-that the page count never goes to zero and a list_add() is never
-attempted.
+Before the dynamically allocated struct pages from devm_memremap_pages()
+can be put to use outside the driver, we need a mechanism to track
+whether they are still in use at teardown.  Towards that goal reorder
+the initialization sequence to allow the 'q_usage_counter' from the
+request_queue to be used by the devm_memremap_pages() implementation (in
+subsequent patches).
 
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/list.h |   17 +++++++++++++++++
- lib/list_debug.c     |    4 ++++
- 2 files changed, 21 insertions(+)
+ drivers/nvdimm/pmem.c |   33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/list.h b/include/linux/list.h
-index 5356f4d661a7..0d07bc1387aa 100644
---- a/include/linux/list.h
-+++ b/include/linux/list.h
-@@ -108,9 +108,26 @@ static inline void list_del(struct list_head *entry)
- 	entry->next = LIST_POISON1;
- 	entry->prev = LIST_POISON2;
- }
-+
-+#define list_del_poison list_del
- #else
- extern void __list_del_entry(struct list_head *entry);
- extern void list_del(struct list_head *entry);
-+extern struct list_head list_force_poison;
-+
-+/**
-+ * list_del_poison - poison an entry to always assert on list_add
-+ * @entry: the element to delete and poison
-+ *
-+ * Note: the assertion on list_add() only occurs when CONFIG_DEBUG_LIST=y,
-+ * otherwise this is identical to list_del()
-+ */
-+static inline void list_del_poison(struct list_head *entry)
-+{
-+	__list_del(entry->prev, entry->next);
-+	entry->next = &list_force_poison;
-+	entry->prev = &list_force_poison;
-+}
- #endif
- 
- /**
-diff --git a/lib/list_debug.c b/lib/list_debug.c
-index 3859bf63561c..d730c064a4df 100644
---- a/lib/list_debug.c
-+++ b/lib/list_debug.c
-@@ -12,6 +12,8 @@
- #include <linux/kernel.h>
- #include <linux/rculist.h>
- 
-+struct list_head list_force_poison;
-+
- /*
-  * Insert a new entry between two known consecutive entries.
-  *
-@@ -23,6 +25,8 @@ void __list_add(struct list_head *new,
- 			      struct list_head *prev,
- 			      struct list_head *next)
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 1d884318c67b..9060a64628ae 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -124,6 +124,7 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		struct resource *res, int id)
  {
-+	WARN(new->next == &list_force_poison || new->prev == &list_force_poison,
-+		"list_add attempted on force-poisoned entry\n");
- 	WARN(next->prev != prev,
- 		"list_add corruption. next->prev should be "
- 		"prev (%p), but was %p. (next=%p).\n",
+ 	struct pmem_device *pmem;
++	struct request_queue *q;
+ 
+ 	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
+ 	if (!pmem)
+@@ -141,6 +142,10 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		return ERR_PTR(-EBUSY);
+ 	}
+ 
++	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
++	if (!q)
++		return ERR_PTR(-ENOMEM);
++
+ 	pmem->pfn_flags = PFN_DEV;
+ 	if (pmem_should_map_pages(dev)) {
+ 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res,
+@@ -151,9 +156,12 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 				pmem->phys_addr, pmem->size,
+ 				ARCH_MEMREMAP_PMEM);
+ 
+-	if (IS_ERR(pmem->virt_addr))
++	if (IS_ERR(pmem->virt_addr)) {
++		blk_cleanup_queue(q);
+ 		return (void __force *) pmem->virt_addr;
++	}
+ 
++	pmem->pmem_queue = q;
+ 	return pmem;
+ }
+ 
+@@ -173,10 +181,6 @@ static int pmem_attach_disk(struct device *dev,
+ 	int nid = dev_to_node(dev);
+ 	struct gendisk *disk;
+ 
+-	pmem->pmem_queue = blk_alloc_queue_node(GFP_KERNEL, nid);
+-	if (!pmem->pmem_queue)
+-		return -ENOMEM;
+-
+ 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
+ 	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
+ 	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
+@@ -411,19 +415,22 @@ static int nd_pmem_probe(struct device *dev)
+ 	dev_set_drvdata(dev, pmem);
+ 	ndns->rw_bytes = pmem_rw_bytes;
+ 
+-	if (is_nd_btt(dev))
++	if (is_nd_btt(dev)) {
++		/* btt allocates its own request_queue */
++		blk_cleanup_queue(pmem->pmem_queue);
++		pmem->pmem_queue = NULL;
+ 		return nvdimm_namespace_attach_btt(ndns);
++	}
+ 
+ 	if (is_nd_pfn(dev))
+ 		return nvdimm_namespace_attach_pfn(ndns);
+ 
+-	if (nd_btt_probe(ndns, pmem) == 0) {
+-		/* we'll come back as btt-pmem */
+-		return -ENXIO;
+-	}
+-
+-	if (nd_pfn_probe(ndns, pmem) == 0) {
+-		/* we'll come back as pfn-pmem */
++	if (nd_btt_probe(ndns, pmem) == 0 || nd_pfn_probe(ndns, pmem) == 0) {
++		/*
++		 * We'll come back as either btt-pmem, or pfn-pmem, so
++		 * drop the queue allocation for now.
++		 */
++		blk_cleanup_queue(pmem->pmem_queue);
+ 		return -ENXIO;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
