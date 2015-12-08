@@ -1,65 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 392CF6B0278
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:40:09 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so2349851pac.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:40:09 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id b10si995694pas.127.2015.12.07.16.40.07
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D9ABA6B027A
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:40:15 -0500 (EST)
+Received: by igl9 with SMTP id 9so86096649igl.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:40:15 -0800 (PST)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id i86si1515267ioo.118.2015.12.07.16.40.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 07 Dec 2015 16:40:08 -0800 (PST)
-Date: Tue, 8 Dec 2015 09:41:18 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC 0/3] reduce latency of direct async compaction
-Message-ID: <20151208004118.GA4325@js1304-P5Q-DELUXE>
-References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
- <20151203092525.GA20945@aaronlu.sh.intel.com>
- <56600DAA.4050208@suse.cz>
- <20151203113508.GA23780@aaronlu.sh.intel.com>
- <20151203115255.GA24773@aaronlu.sh.intel.com>
- <56618841.2080808@suse.cz>
- <20151207073523.GA27292@js1304-P5Q-DELUXE>
- <20151207085956.GA16783@aaronlu.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Dec 2015 16:40:15 -0800 (PST)
+Received: by igcmv3 with SMTP id mv3so91012434igc.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:40:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151207085956.GA16783@aaronlu.sh.intel.com>
+In-Reply-To: <CAGXu5jJaY9WeR-NiZXfAu=hM6U7DaPD_d8ZZTAdo_EkS3WDxCw@mail.gmail.com>
+References: <20151203000342.GA30015@www.outflux.net>
+	<B4520E53-6DD9-44D7-A064-9F405FBAA793@gmail.com>
+	<CAGXu5jJaY9WeR-NiZXfAu=hM6U7DaPD_d8ZZTAdo_EkS3WDxCw@mail.gmail.com>
+Date: Mon, 7 Dec 2015 16:40:14 -0800
+Message-ID: <CAGXu5jKtj89bgyLaYt6hMBXc+rWD9CWxE2nZP9xbSWyXBvf5qw@mail.gmail.com>
+Subject: Re: [PATCH v2] clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 07, 2015 at 04:59:56PM +0800, Aaron Lu wrote:
-> On Mon, Dec 07, 2015 at 04:35:24PM +0900, Joonsoo Kim wrote:
-> > It looks like overhead still remain. I guess that migration scanner
-> > would call pageblock_pfn_to_page() for more extended range so
-> > overhead still remain.
-> > 
-> > I have an idea to solve his problem. Aaron, could you test following patch
-> > on top of base? It tries to skip calling pageblock_pfn_to_page()
-> 
-> It doesn't apply on top of 25364a9e54fb8296837061bf684b76d20eec01fb
-> cleanly, so I made some changes to make it apply and the result is:
-> https://github.com/aaronlu/linux/commit/cb8d05829190b806ad3948ff9b9e08c8ba1daf63
+On Mon, Dec 7, 2015 at 2:42 PM, Kees Cook <keescook@chromium.org> wrote:
+> On Thu, Dec 3, 2015 at 5:45 PM, yalin wang <yalin.wang2010@gmail.com> wro=
+te:
+>>
+>>> On Dec 2, 2015, at 16:03, Kees Cook <keescook@chromium.org> wrote:
+>>>
+>>> Normally, when a user can modify a file that has setuid or setgid bits,
+>>> those bits are cleared when they are not the file owner or a member
+>>> of the group. This is enforced when using write and truncate but not
+>>> when writing to a shared mmap on the file. This could allow the file
+>>> writer to gain privileges by changing a binary without losing the
+>>> setuid/setgid/caps bits.
+>>>
+>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>>> during the page fault (due to mmap_sem being held during the fault).
+>>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+>>>
+>>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>>> Cc: stable@vger.kernel.org
+>>> =E2=80=94
+>>
+>> is this means mprotect() sys call also need add this check?
+>> mprotect() can change to PROT_WRITE, then it can write to a
+>> read only map again , also a secure hole here .
+>
+> Yes, good point. This needs to be added. I will send a new patch. Thanks!
 
-Yes, that's okay. I made it on my working branch but it will not result in
-any problem except applying.
+This continues to look worse and worse.
 
-> 
-> There is a problem occured right after the test starts:
-> [   58.080962] BUG: unable to handle kernel paging request at ffffea0082000018
-> [   58.089124] IP: [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> [   58.096109] PGD 107ffd6067 PUD 207f7d5067 PMD 0
-> [   58.101569] Oops: 0000 [#1] SMP 
+So... to check this at mprotect time, I have to know it's MAP_SHARED,
+but that's in the vma_flags, which I can only see after holding
+mmap_sem.
 
-I did some mistake. Please test following patch. It is also made
-on my working branch so you need to resolve conflict but it would be
-trivial.
+The best I can think of now is to strip the bits at munmap time, since
+you can't execute an mmapped file until it closes.
 
-I inserted some logs to check whether zone is contiguous or not.
-Please check that normal zone is set to contiguous after testing.
+Jan, thoughts on this?
 
-Thanks.
+-Kees
 
------->8------
+--=20
+Kees Cook
+Chrome OS & Brillo Security
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
