@@ -1,86 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CEAA6B0257
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 11:34:43 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so14491134pfn.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 08:34:43 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id f22si6176544pfd.61.2015.12.08.08.34.42
-        for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 08:34:42 -0800 (PST)
-Subject: Re: [PATCH 10/34] x86, pkeys: arch-specific protection bitsy
-References: <20151204011424.8A36E365@viggo.jf.intel.com>
- <20151204011438.E50D1498@viggo.jf.intel.com>
- <alpine.DEB.2.11.1512081523180.3595@nanos>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <566706A1.3040906@sr71.net>
-Date: Tue, 8 Dec 2015 08:34:41 -0800
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1512081523180.3595@nanos>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 137476B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:13:20 -0500 (EST)
+Received: by wmww144 with SMTP id w144so38368331wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:13:19 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id y83si6171902wmb.27.2015.12.08.09.13.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 09:13:19 -0800 (PST)
+Received: by wmww144 with SMTP id w144so38367735wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:13:18 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH mmotm] memcg: Ignore partial THP when moving task
+Date: Tue,  8 Dec 2015 18:13:09 +0100
+Message-Id: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 12/08/2015 07:15 AM, Thomas Gleixner wrote:
-> On Thu, 3 Dec 2015, Dave Hansen wrote:
->>  
->> +static inline int vma_pkey(struct vm_area_struct *vma)
-> 
-> Shouldn't this return something unsigned?
+From: Michal Hocko <mhocko@suse.com>
 
-Ingo had asked that we use 'int' in the syscalls at some point.  We also
-use a -1 to mean "no pkey set" (to differentiate it from pkey=0) at
-least at the very top of the syscall level.
+After "mm: rework mapcount accounting to enable 4k mapping of THPs"
+it is possible to have a partial THP accessible via ptes. Memcg task
+migration code is not prepared for this situation and uncharges the tail
+page from the original memcg while the original THP is still charged via
+the head page which is not mapped to the moved task. The page counter
+of the origin memcg will underflow when the whole THP is uncharged later
+on and lead to:
+WARNING: CPU: 0 PID: 1340 at mm/page_counter.c:26 page_counter_cancel+0x34/0x40()
+reported by Minchan Kim.
 
->> +{
->> +	u16 pkey = 0;
->> +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
->> +	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
->> +				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
->> +	/*
->> +	 * ffs is one-based, not zero-based, so bias back down by 1.
->> +	 */
->> +	int vm_pkey_shift = __builtin_ffsl(vma_pkey_mask) - 1;
-> 
-> Took me some time to figure out that this will resolve to a compile
-> time constant (hopefully). Is there a reason why we don't have a
-> VM_PKEY_SHIFT constant in the header file which makes that code just
-> simple and intuitive?
+This patch prevents from the underflow by skipping any partial THP pages
+in mem_cgroup_move_charge_pte_range. PageTransCompound is checked when
+we do pte walk. This means that a process might leave a partial THP
+behind in the original memcg if there is no other process mapping it via
+pmd but this is considered acceptable because it shouldn't happen often
+and this is not considered a memory leak because the original THP is
+still accessible and reclaimable. Moreover the task migration has always
+been racy and never guaranteed to move all pages.
 
-All of the VM_* flags are #defined as bitmaps directly and don't define
-shifts:
+Reported-by: Minchan Kim <minchan@kernel.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
 
-#define VM_MAYWRITE     0x00000020
-#define VM_MAYEXEC      0x00000040
-#define VM_MAYSHARE     0x00000080
-...
+Hi,
+this is a patch tested by Minchan in the original thread [1]. I have
+only replaced PageCompound with PageTransCompound because other similar
+fixes in mmotm used this one. The underlying implementation is the same.
+Johannes, I have kept your a-b but let me know if you are not OK with the
+changelog.
 
-So to get a shift we've either got to do a ffs somewhere, or we have to
-define the VM_PKEY_BIT*'s differently from all of the other VM_* flags.
- Or, we do something along the lines of:
+This is mmotm only material. It can be merged into the page which
+has introduced the issue but maybe it is worth having on its own for
+documentation purposes. I will leave the decision to you Andrew.
 
-#define VM_PKEY_BIT0 0x100000000UL
-#define __VM_PKEY_SHIFT (32)
+[1] http://lkml.kernel.org/r/20151201133455.GB27574@bbox
 
-and we run a small risk that somebody will desynchronize the shift and
-the bit definition.
+ mm/memcontrol.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-We only need this shift in this *one* place, so that's why I opted for
-the local variable and ffs.
-
->> +	/*
->> +	 * gcc generates better code if we do this rather than:
->> +	 * pkey = (flags & mask) >> shift
->> +	 */
->> +	pkey = (vma->vm_flags >> vm_pkey_shift) &
->> +	       (vma_pkey_mask >> vm_pkey_shift);
-> 
-> My gcc (4.9) does it the other way round for whatever reason.
-
-I'll go recheck.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 79a29d564bff..143c933f0b81 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4895,6 +4895,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
+ 		case MC_TARGET_PAGE:
+ 			page = target.page;
++			/*
++			 * We can have a part of the split pmd here. Moving it
++			 * can be done but it would be too convoluted so simply
++			 * ignore such a partial THP and keep it in original
++			 * memcg. There should be somebody mapping the head.
++			 */
++			if (PageCompound(page))
++				goto put;
+ 			if (isolate_lru_page(page))
+ 				goto put;
+ 			if (!mem_cgroup_move_account(page, false,
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
