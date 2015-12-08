@@ -1,48 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F60D6B0254
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 09:18:20 -0500 (EST)
-Received: by wmww144 with SMTP id w144so182791212wmw.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:18:19 -0800 (PST)
-Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id dc4si4562053wjc.52.2015.12.08.06.18.18
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EBB4E6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 09:50:31 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so13069390pac.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:50:31 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id la15si5672344pab.205.2015.12.08.06.50.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 06:18:19 -0800 (PST)
-Date: Tue, 8 Dec 2015 15:17:11 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 09/34] x86, pkeys: store protection in high VMA flags
-In-Reply-To: <20151204011437.1F3BB55E@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1512081516470.3595@nanos>
-References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011437.1F3BB55E@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 06:50:31 -0800 (PST)
+Received: by pfnn128 with SMTP id n128so13223166pfn.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 06:50:31 -0800 (PST)
+From: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Subject: [PATCH v2] arch/*/include/uapi/asm/mman.h: correct uniform value of MADV_FREE
+Date: Tue,  8 Dec 2015 20:20:22 +0530
+Message-Id: <1449586222-4689-1-git-send-email-sudipm.mukherjee@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Minchan Kim <minchan@kernel.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Thu, 3 Dec 2015, Dave Hansen wrote:
-> vma->vm_flags is an 'unsigned long', so has space for 32 flags
-> on 32-bit architectures.  The high 32 bits are unused on 64-bit
-> platforms.  We've steered away from using the unused high VMA
-> bits for things because we would have difficulty supporting it
-> on 32-bit.
-> 
-> Protection Keys are not available in 32-bit mode, so there is
-> no concern about supporting this feature in 32-bit mode or on
-> 32-bit CPUs.
-> 
-> This patch carves out 4 bits from the high half of
-> vma->vm_flags and allows architectures to set config option
-> to make them available.
-> 
-> Sparse complains about these constants unless we explicitly
-> call them "UL".
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+commit d53d95838c7d introduced uniform values for all architecture but
+missed removing the old value.
 
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+As a result we are having build failure with mips defconfig, alpha
+defconfig.
+
+Fixes: d53d95838c7d ("arch/*/include/uapi/asm/mman.h: : let MADV_FREE have same value for all architectures")
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Chen Gang <gang.chen.5i5j@gmail.com>
+Signed-off-by: Sudip Mukherjee <sudip@vectorindia.org>
+---
+
+v2: combined the patches for different arch in this single patch.
+
+ arch/alpha/include/uapi/asm/mman.h  | 1 -
+ arch/mips/include/uapi/asm/mman.h   | 1 -
+ arch/parisc/include/uapi/asm/mman.h | 1 -
+ arch/xtensa/include/uapi/asm/mman.h | 1 -
+ 4 files changed, 4 deletions(-)
+
+diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+index ab336c0..fec1947 100644
+--- a/arch/alpha/include/uapi/asm/mman.h
++++ b/arch/alpha/include/uapi/asm/mman.h
+@@ -47,7 +47,6 @@
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
+ #define MADV_DONTNEED	6		/* don't need these pages */
+-#define MADV_FREE	7		/* free pages only if memory pressure */
+ 
+ /* common/generic parameters */
+ #define MADV_FREE	8		/* free pages only if memory pressure */
+diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
+index b0ebe59..ccdcfcb 100644
+--- a/arch/mips/include/uapi/asm/mman.h
++++ b/arch/mips/include/uapi/asm/mman.h
+@@ -73,7 +73,6 @@
+ #define MADV_SEQUENTIAL 2		/* expect sequential page references */
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
+-#define MADV_FREE	5		/* free pages only if memory pressure */
+ 
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_FREE	8		/* free pages only if memory pressure */
+diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+index cf830d4..f3db7d8 100644
+--- a/arch/parisc/include/uapi/asm/mman.h
++++ b/arch/parisc/include/uapi/asm/mman.h
+@@ -43,7 +43,6 @@
+ #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
+ #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
+ #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
+-#define MADV_FREE	8		/* free pages only if memory pressure */
+ 
+ /* common/generic parameters */
+ #define MADV_FREE	8		/* free pages only if memory pressure */
+diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+index d030594..9e079d4 100644
+--- a/arch/xtensa/include/uapi/asm/mman.h
++++ b/arch/xtensa/include/uapi/asm/mman.h
+@@ -86,7 +86,6 @@
+ #define MADV_SEQUENTIAL	2		/* expect sequential page references */
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
+-#define MADV_FREE	5		/* free pages only if memory pressure */
+ 
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_FREE	8		/* free pages only if memory pressure */
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
