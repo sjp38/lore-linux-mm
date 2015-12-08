@@ -1,94 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 138B76B0253
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 10:15:01 -0500 (EST)
-Received: by oixx65 with SMTP id x65so10873972oix.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 07:15:00 -0800 (PST)
-Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
-        by mx.google.com with ESMTP id h2si3294990oeq.93.2015.12.08.07.14.58
-        for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 07:15:00 -0800 (PST)
-From: Geliang Tang <geliangtang@163.com>
-Subject: [PATCH] mm/ksm.c: use list_for_each_entry_safe
-Date: Tue,  8 Dec 2015 23:12:18 +0800
-Message-Id: <cc05942081a468570047a00a08020faca477603b.1449587435.git.geliangtang@163.com>
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 799786B0254
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 10:16:37 -0500 (EST)
+Received: by wmww144 with SMTP id w144so184989680wmw.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 07:16:37 -0800 (PST)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id s3si4859521wjw.65.2015.12.08.07.16.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Dec 2015 07:16:36 -0800 (PST)
+Date: Tue, 8 Dec 2015 16:15:29 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 10/34] x86, pkeys: arch-specific protection bitsy
+In-Reply-To: <20151204011438.E50D1498@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1512081523180.3595@nanos>
+References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011438.E50D1498@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Marchand <jmarchan@redhat.com>
-Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
-Use list_for_each_entry_safe() instead of list_for_each_safe() to
-simplify the code.
+Dave,
 
-Signed-off-by: Geliang Tang <geliangtang@163.com>
----
- mm/ksm.c | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+On Thu, 3 Dec 2015, Dave Hansen wrote:
+>  
+> +static inline int vma_pkey(struct vm_area_struct *vma)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 5e96753..ca6d2a0 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -726,8 +726,7 @@ static int remove_stable_node(struct stable_node *stable_node)
- 
- static int remove_all_stable_nodes(void)
- {
--	struct stable_node *stable_node;
--	struct list_head *this, *next;
-+	struct stable_node *stable_node, *next;
- 	int nid;
- 	int err = 0;
- 
-@@ -742,8 +741,7 @@ static int remove_all_stable_nodes(void)
- 			cond_resched();
- 		}
- 	}
--	list_for_each_safe(this, next, &migrate_nodes) {
--		stable_node = list_entry(this, struct stable_node, list);
-+	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
- 		if (remove_stable_node(stable_node))
- 			err = -EBUSY;
- 		cond_resched();
-@@ -1553,13 +1551,11 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
- 		 * so prune them once before each full scan.
- 		 */
- 		if (!ksm_merge_across_nodes) {
--			struct stable_node *stable_node;
--			struct list_head *this, *next;
-+			struct stable_node *stable_node, *next;
- 			struct page *page;
- 
--			list_for_each_safe(this, next, &migrate_nodes) {
--				stable_node = list_entry(this,
--						struct stable_node, list);
-+			list_for_each_entry_safe(stable_node, next,
-+						 &migrate_nodes, list) {
- 				page = get_ksm_page(stable_node, false);
- 				if (page)
- 					put_page(page);
-@@ -1981,8 +1977,7 @@ static void wait_while_offlining(void)
- static void ksm_check_stable_tree(unsigned long start_pfn,
- 				  unsigned long end_pfn)
- {
--	struct stable_node *stable_node;
--	struct list_head *this, *next;
-+	struct stable_node *stable_node, *next;
- 	struct rb_node *node;
- 	int nid;
- 
-@@ -2003,8 +1998,7 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
- 			cond_resched();
- 		}
- 	}
--	list_for_each_safe(this, next, &migrate_nodes) {
--		stable_node = list_entry(this, struct stable_node, list);
-+	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
- 		if (stable_node->kpfn >= start_pfn &&
- 		    stable_node->kpfn < end_pfn)
- 			remove_node_from_stable_tree(stable_node);
--- 
-2.5.0
+Shouldn't this return something unsigned?
 
+> +{
+> +	u16 pkey = 0;
+> +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> +	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
+> +				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
+> +	/*
+> +	 * ffs is one-based, not zero-based, so bias back down by 1.
+> +	 */
+> +	int vm_pkey_shift = __builtin_ffsl(vma_pkey_mask) - 1;
+
+Took me some time to figure out that this will resolve to a compile
+time constant (hopefully). Is there a reason why we don't have a
+VM_PKEY_SHIFT constant in the header file which makes that code just
+simple and intuitive?
+
+> +	/*
+> +	 * gcc generates better code if we do this rather than:
+> +	 * pkey = (flags & mask) >> shift
+> +	 */
+> +	pkey = (vma->vm_flags >> vm_pkey_shift) &
+> +	       (vma_pkey_mask >> vm_pkey_shift);
+
+My gcc (4.9) does it the other way round for whatever reason.
+
+I really prefer to have this as simple as:
+
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+#define VM_PKEY_MASK (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | VM_PKEY_BIT3)
+#define VM_PKEY_SHIFT 
+#else
+#define VM_PKEY_MASK 0UL
+#define VM_PKEY_SHIFT 0
+#endif
+    	 
+static inline unsigned int vma_pkey(struct vm_area_struct *vma)
+{
+	 return (vma->vm_flags & VM_PKEY_MASK) >> VM_PKEY_SHIFT;
+}
+
+or 
+
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+#define VM_PKEY_MASK (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | VM_PKEY_BIT3)
+#define VM_PKEY_SHIFT 
+static inline unsigned int vma_pkey(struct vm_area_struct *vma)
+{
+	 return (vma->vm_flags & VM_PKEY_MASK) >> VM_PKEY_SHIFT;
+}
+#else
+static inline unsigned int vma_pkey(struct vm_area_struct *vma)
+{
+	 return 0;
+}
+#endif
+
+Hmm?
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
