@@ -1,41 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F4B6B0254
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 05:22:53 -0500 (EST)
-Received: by wmec201 with SMTP id c201so205571262wme.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 02:22:53 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id i7si3404374wjw.174.2015.12.08.02.22.52
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CC98C6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 06:06:56 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so176471690wmu.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 03:06:56 -0800 (PST)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id s4si4320000wmd.38.2015.12.08.03.06.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 02:22:52 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v5 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
-Date: Tue, 08 Dec 2015 11:03:51 +0100
-Message-ID: <7610963.Sys3aageLY@wuerfel>
-In-Reply-To: <5665CF5A.1090207@android.com>
-References: <1449000658-11475-1-git-send-email-dcashman@android.com> <1720878.JdEcLd8bhL@wuerfel> <5665CF5A.1090207@android.com>
+        Tue, 08 Dec 2015 03:06:55 -0800 (PST)
+Received: by wmec201 with SMTP id c201so24955245wme.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 03:06:55 -0800 (PST)
+Date: Tue, 8 Dec 2015 12:06:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH -v2] mm, oom: introduce oom reaper
+Message-ID: <20151208110653.GA25800@dhcp22.suse.cz>
+References: <201511281339.JHH78172.SLOQFOFHVFOMJt@I-love.SAKURA.ne.jp>
+ <201511290110.FJB87096.OHJLVQOSFFtMFO@I-love.SAKURA.ne.jp>
+ <20151201132927.GG4567@dhcp22.suse.cz>
+ <201512052133.IAE00551.LSOQFtMFFVOHOJ@I-love.SAKURA.ne.jp>
+ <20151207160718.GA20774@dhcp22.suse.cz>
+ <201512080719.EHD73429.JQHFtMOFLOFSVO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201512080719.EHD73429.JQHFtMOFLOFSVO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Daniel Cashman <dcashman@android.com>, Jon Hunter <jonathanh@nvidia.com>, linux-doc@vger.kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, linux-mm@kvack.org, hpa@zytor.com, mingo@kernel.org, aarcange@redhat.com, linux@arm.linux.org.uk, kirill.shutemov@linux.intel.com, corbet@lwn.net, xypron.glpk@gmx.de, x86@kernel.org, hecmargi@upv.es, mgorman@suse.de, rientjes@google.com, bp@suse.de, nnk@google.com, dzickus@redhat.com, keescook@chromium.org, jpoimboe@redhat.com, tglx@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, salyzyn@android.com, ebiederm@xmission.com, jeffv@google.com, n-horiguchi@ah.jp.nec.com, dcashman@google.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, rientjes@google.com, riel@redhat.com, hughd@google.com, oleg@redhat.com, andrea@kernel.org, linux-kernel@vger.kernel.org
 
-On Monday 07 December 2015 10:26:34 Daniel Cashman wrote:
-> > Ideally we'd remove the #ifdef around the mmap_rnd_compat_bits declaration
-> > and change this code to use
-> > 
-> >       if (IS_ENABLED(CONFIG_COMPAT) && test_thread_flag(TIF_32BIT))
-> > 
-> That would result in "undefined reference to mmap_rnd_compat_bits" in
-> the not-defined case, no?
+On Tue 08-12-15 07:19:42, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > Yes you are right! The reference count should be incremented before
+> > publishing the new mm_to_reap. I thought that an elevated ref. count by
+> > the caller would be enough but this was clearly wrong. Does the update
+> > below looks better?
+> 
+> I think that moving mmdrop() from oom_kill_process() to
+> oom_reap_vmas() xor wake_oom_reaper() makes the patch simpler.
 
-No. The compiler eliminates all code paths that it knows are unused.
-The IS_ENABLED() macro is designed to let the compiler figure this out.
+It surely is less lines of code but I am not sure it is simpler. I do
+not think we should drop the reference in a different path than it is
+taken.  Maybe we will grow more users of wake_oom_reaper in the future
+and this is quite subtle behavior.
 
-	Arnd
+> 
+>  	rcu_read_unlock();
+>  
+> +	if (can_oom_reap)
+> +		wake_oom_reaper(mm); /* will call mmdrop() */
+> +	else
+> +		mmdrop(mm);
+> -	mmdrop(mm);
+>  	put_task_struct(victim);
+>  }
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
