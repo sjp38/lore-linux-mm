@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C5816B0254
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:35:45 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so224230826wmv.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:35:44 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m186si6252820wmb.108.2015.12.08.09.35.43
+Received: from mail-lf0-f52.google.com (mail-lf0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A82086B0254
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:39:00 -0500 (EST)
+Received: by lfs39 with SMTP id 39so17584318lfs.3
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:38:59 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id pd3si2261308lbb.196.2015.12.08.09.38.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 09:35:44 -0800 (PST)
-Date: Tue, 8 Dec 2015 12:35:28 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH mmotm] memcg: Ignore partial THP when moving task
-Message-ID: <20151208173528.GA32265@cmpxchg.org>
-References: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
+        Tue, 08 Dec 2015 09:38:59 -0800 (PST)
+Date: Tue, 8 Dec 2015 09:38:26 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V3][for-next] mm: add a new vector based madvise syscall
+Message-ID: <20151208173825.GA1351950@devbig084.prn1.facebook.com>
+References: <7c6ce0f1fe29fc22faf72134f4e2674da8d3d149.1449532062.git.shli@fb.com>
+ <20151208061807.GO15533@two.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20151208061807.GO15533@two.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, Dec 08, 2015 at 06:13:09PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Tue, Dec 08, 2015 at 07:18:08AM +0100, Andi Kleen wrote:
+> > +	if (behavior != MADV_DONTNEED && behavior != MADV_FREE)
+> > +		return -EINVAL;
 > 
-> After "mm: rework mapcount accounting to enable 4k mapping of THPs"
-> it is possible to have a partial THP accessible via ptes. Memcg task
-> migration code is not prepared for this situation and uncharges the tail
-> page from the original memcg while the original THP is still charged via
-> the head page which is not mapped to the moved task. The page counter
-> of the origin memcg will underflow when the whole THP is uncharged later
-> on and lead to:
-> WARNING: CPU: 0 PID: 1340 at mm/page_counter.c:26 page_counter_cancel+0x34/0x40()
-> reported by Minchan Kim.
+> This limitations is kind of lame and makes it a special purpose hack.
 > 
-> This patch prevents from the underflow by skipping any partial THP pages
-> in mem_cgroup_move_charge_pte_range. PageTransCompound is checked when
-> we do pte walk. This means that a process might leave a partial THP
-> behind in the original memcg if there is no other process mapping it via
-> pmd but this is considered acceptable because it shouldn't happen often
-> and this is not considered a memory leak because the original THP is
-> still accessible and reclaimable. Moreover the task migration has always
-> been racy and never guaranteed to move all pages.
+> It will also cause backwards compatibility issues if it needs
+> to be extended later.
 > 
-> Reported-by: Minchan Kim <minchan@kernel.org>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
+> How hard would it be to support all of madvise vectored?
 > 
-> Hi,
-> this is a patch tested by Minchan in the original thread [1]. I have
-> only replaced PageCompound with PageTransCompound because other similar
-> fixes in mmotm used this one. The underlying implementation is the same.
-> Johannes, I have kept your a-b but let me know if you are not OK with the
-> changelog.
+> That would also give much cleaner documentation.
 
-Looks good to me, thanks Michal. Please keep my Acked-by.
+Ok, I'll add other behavior. Reducing syscall and mmap_sem locking is a
+win for other madvise.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
