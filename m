@@ -1,70 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 82C396B027C
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:31:15 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so161930726wmu.0
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:31:15 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o16si26916566wmd.116.2015.12.07.16.31.14
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 392CF6B0278
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 19:40:09 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so2349851pac.1
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 16:40:09 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id b10si995694pas.127.2015.12.07.16.40.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Dec 2015 16:31:14 -0800 (PST)
-Date: Mon, 7 Dec 2015 16:31:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/2] mm: Introduce kernelcore=reliable option
-Message-Id: <20151207163112.930a495d24ab259cad9020ac@linux-foundation.org>
-In-Reply-To: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
-References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 07 Dec 2015 16:40:08 -0800 (PST)
+Date: Tue, 8 Dec 2015 09:41:18 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC 0/3] reduce latency of direct async compaction
+Message-ID: <20151208004118.GA4325@js1304-P5Q-DELUXE>
+References: <1449130247-8040-1-git-send-email-vbabka@suse.cz>
+ <20151203092525.GA20945@aaronlu.sh.intel.com>
+ <56600DAA.4050208@suse.cz>
+ <20151203113508.GA23780@aaronlu.sh.intel.com>
+ <20151203115255.GA24773@aaronlu.sh.intel.com>
+ <56618841.2080808@suse.cz>
+ <20151207073523.GA27292@js1304-P5Q-DELUXE>
+ <20151207085956.GA16783@aaronlu.sh.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151207085956.GA16783@aaronlu.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-On Sat, 28 Nov 2015 00:03:55 +0900 Taku Izumi <izumi.taku@jp.fujitsu.com> wrote:
-
-> Xeon E7 v3 based systems supports Address Range Mirroring
-> and UEFI BIOS complied with UEFI spec 2.5 can notify which
-> ranges are reliable (mirrored) via EFI memory map.
-> Now Linux kernel utilize its information and allocates
-> boot time memory from reliable region.
+On Mon, Dec 07, 2015 at 04:59:56PM +0800, Aaron Lu wrote:
+> On Mon, Dec 07, 2015 at 04:35:24PM +0900, Joonsoo Kim wrote:
+> > It looks like overhead still remain. I guess that migration scanner
+> > would call pageblock_pfn_to_page() for more extended range so
+> > overhead still remain.
+> > 
+> > I have an idea to solve his problem. Aaron, could you test following patch
+> > on top of base? It tries to skip calling pageblock_pfn_to_page()
 > 
-> My requirement is:
->   - allocate kernel memory from reliable region
->   - allocate user memory from non-reliable region
+> It doesn't apply on top of 25364a9e54fb8296837061bf684b76d20eec01fb
+> cleanly, so I made some changes to make it apply and the result is:
+> https://github.com/aaronlu/linux/commit/cb8d05829190b806ad3948ff9b9e08c8ba1daf63
+
+Yes, that's okay. I made it on my working branch but it will not result in
+any problem except applying.
+
 > 
-> In order to meet my requirement, ZONE_MOVABLE is useful.
-> By arranging non-reliable range into ZONE_MOVABLE,
-> reliable memory is only used for kernel allocations.
-> 
-> My idea is to extend existing "kernelcore" option and
-> introduces kernelcore=reliable option. By specifying
-> "reliable" instead of specifying the amount of memory,
-> non-reliable region will be arranged into ZONE_MOVABLE.
+> There is a problem occured right after the test starts:
+> [   58.080962] BUG: unable to handle kernel paging request at ffffea0082000018
+> [   58.089124] IP: [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
+> [   58.096109] PGD 107ffd6067 PUD 207f7d5067 PMD 0
+> [   58.101569] Oops: 0000 [#1] SMP 
 
-It is unfortunate that the kernel presently refers to this memory as
-"mirrored", but this patchset introduces the new term "reliable".  I
-think it would be better if we use "mirrored" throughout.
+I did some mistake. Please test following patch. It is also made
+on my working branch so you need to resolve conflict but it would be
+trivial.
 
-Of course, mirroring isn't the only way to get reliable memory. 
-Perhaps if a part of the system memory has ECC correction then this
-also can be accessed using "reliable", in which case your proposed
-naming makes sense.  reliable == mirrored || ecc?
+I inserted some logs to check whether zone is contiguous or not.
+Please check that normal zone is set to contiguous after testing.
 
+Thanks.
 
-
-Secondly, does this patchset mean that kernelcore=reliable and
-kernelcore=100M are exclusive?  Or can the user specify
-"kernelcore=reliable,kernelcore=100M" to use 100M of reliable memory
-for kernelcore?
-
-This is unclear from the documentation and I suggest that this be
-spelled out.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------>8------
