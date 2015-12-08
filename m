@@ -1,65 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 537276B0254
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 17:19:42 -0500 (EST)
-Received: by wmec201 with SMTP id c201so233126609wme.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 14:19:42 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A39386B0257
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 17:23:44 -0500 (EST)
+Received: by wmec201 with SMTP id c201so233241386wme.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 14:23:44 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j62si7823980wmd.65.2015.12.08.14.19.41
+        by mx.google.com with ESMTPS id pu5si7172675wjc.50.2015.12.08.14.23.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 14:19:41 -0800 (PST)
-Date: Tue, 8 Dec 2015 14:19:39 -0800
+        Tue, 08 Dec 2015 14:23:43 -0800 (PST)
+Date: Tue, 8 Dec 2015 14:23:41 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MIPS: Fix DMA contiguous allocation
-Message-Id: <20151208141939.d0edbb72b3c15844c5ac25ea@linux-foundation.org>
-In-Reply-To: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
-References: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
+Subject: Re: [PATCH v4 01/13] mm/memblock: add MEMBLOCK_NOMAP attribute to
+ memblock memory table
+Message-Id: <20151208142341.b91ab5728f244a68231e3b87@linux-foundation.org>
+In-Reply-To: <20151208120743.GG19612@arm.com>
+References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
+	<1448886507-3216-2-git-send-email-ard.biesheuvel@linaro.org>
+	<CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
+	<20151208120743.GG19612@arm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qais Yousef <qais.yousef@imgtec.com>
-Cc: linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ralf@linux-mips.org, mgorman@techsingularity.net
+To: Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Leif Lindholm <leif.lindholm@linaro.org>
 
-On Tue, 8 Dec 2015 10:18:50 +0000 Qais Yousef <qais.yousef@imgtec.com> wrote:
+On Tue, 8 Dec 2015 12:07:44 +0000 Will Deacon <will.deacon@arm.com> wrote:
 
-> Recent changes to how GFP_ATOMIC is defined seems to have broken the condition
-> to use mips_alloc_from_contiguous() in mips_dma_alloc_coherent().
+> > I should note that this change should not affect any memblock users
+> > that never set the MEMBLOCK_NOMAP flag, but please, if you see any
+> > issues beyond 'this may conflict with other stuff we have queued for
+> > 4.5', please do let me know.
 > 
-> I couldn't bottom out the exact change but I think it's this one
+> Indeed, I can't see that this would cause any issues, but I would really
+> like an Ack from one of the MM maintainers before taking this.
 > 
-> d0164adc89f6 (mm, page_alloc: distinguish between being unable to sleep,
-> unwilling to sleep and avoiding waking kswapd)
-> 
-> >From what I see GFP_ATOMIC has multiple bits set and the check for !(gfp
-> & GFP_ATOMIC) isn't enough. To verify if the flag is atomic we need to make
-> sure that (gfp & GFP_ATOMIC) == GFP_ATOMIC to verify that all bits rquired to
-> satisfy GFP_ATOMIC condition are set.
-> 
-> ...
->
-> --- a/arch/mips/mm/dma-default.c
-> +++ b/arch/mips/mm/dma-default.c
-> @@ -145,7 +145,7 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
->  
->  	gfp = massage_gfp_flags(dev, gfp);
->  
-> -	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
-> +	if (IS_ENABLED(CONFIG_DMA_CMA) && ((gfp & GFP_ATOMIC) != GFP_ATOMIC))
->  		page = dma_alloc_from_contiguous(dev,
->  					count, get_order(size));
->  	if (!page)
+> Please could somebody take a look?
 
-hm.  It seems that the code is asking "can I do a potentially-sleeping
-memory allocation"?
-
-The way to do that under the new regime is
-
-	if (IS_ENABLED(CONFIG_DMA_CMA) && gfpflags_allow_blocking(gfp))
-
-Mel, can you please confirm?
+It looks OK to me.  Please go ahead and merge it via an arm tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
