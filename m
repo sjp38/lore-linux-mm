@@ -1,87 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 843E16B0253
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 15:25:59 -0500 (EST)
-Received: by igcto18 with SMTP id to18so25200233igc.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 12:25:59 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0249.hostedemail.com. [216.40.44.249])
-        by mx.google.com with ESMTPS id p19si9665791igr.55.2015.12.08.12.25.58
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EA3E06B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 15:39:02 -0500 (EST)
+Received: by wmww144 with SMTP id w144so45365867wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 12:39:02 -0800 (PST)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id h62si7232396wmd.122.2015.12.08.12.39.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 12:25:58 -0800 (PST)
-Date: Tue, 8 Dec 2015 15:25:55 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v3 2/7] mm/gup: add gup trace points
-Message-ID: <20151208152555.1c03ae54@gandalf.local.home>
-In-Reply-To: <1449603595-718-3-git-send-email-yang.shi@linaro.org>
-References: <1449603595-718-1-git-send-email-yang.shi@linaro.org>
-	<1449603595-718-3-git-send-email-yang.shi@linaro.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Dec 2015 12:39:01 -0800 (PST)
+Date: Tue, 8 Dec 2015 21:38:12 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 28/34] x86: wire up mprotect_key() system call
+In-Reply-To: <56672A50.4010801@sr71.net>
+Message-ID: <alpine.DEB.2.11.1512082134470.3595@nanos>
+References: <20151204011424.8A36E365@viggo.jf.intel.com> <20151204011503.2A095839@viggo.jf.intel.com> <alpine.DEB.2.11.1512081943270.3595@nanos> <56672A50.4010801@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
 
-On Tue,  8 Dec 2015 11:39:50 -0800
-Yang Shi <yang.shi@linaro.org> wrote:
-
-> For slow version, just add trace point for raw __get_user_pages since all
-> slow variants call it to do the real work finally.
+On Tue, 8 Dec 2015, Dave Hansen wrote:
+> On 12/08/2015 10:44 AM, Thomas Gleixner wrote:
+> > On Thu, 3 Dec 2015, Dave Hansen wrote:
+> >>  #include <asm-generic/mman.h>
+> >> diff -puN mm/Kconfig~pkeys-16-x86-mprotect_key mm/Kconfig
+> >> --- a/mm/Kconfig~pkeys-16-x86-mprotect_key	2015-12-03 16:21:31.114920208 -0800
+> >> +++ b/mm/Kconfig	2015-12-03 16:21:31.119920435 -0800
+> >> @@ -679,4 +679,5 @@ config NR_PROTECTION_KEYS
+> >>  	# Everything supports a _single_ key, so allow folks to
+> >>  	# at least call APIs that take keys, but require that the
+> >>  	# key be 0.
+> >> +	default 16 if X86_INTEL_MEMORY_PROTECTION_KEYS
+> >>  	default 1
+> > 
+> > What happens if I set that to 42?
+> > 
+> > I think we want to make this a runtime evaluated thingy. If pkeys are
+> > compiled in, but the machine does not support it then we don't support
+> > 16 keys, or do we?
 > 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> ---
->  mm/gup.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
+> We do have runtime evaluation:
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index deafa2c..44f05c9 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -18,6 +18,9 @@
->  
->  #include "internal.h"
->  
-> +#define CREATE_TRACE_POINTS
-> +#include <trace/events/gup.h>
-> +
->  static struct page *no_page_table(struct vm_area_struct *vma,
->  		unsigned int flags)
->  {
-> @@ -462,6 +465,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  	if (!nr_pages)
->  		return 0;
->  
-> +	trace_gup_get_user_pages(start, nr_pages);
-> +
->  	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
->  
->  	/*
-> @@ -599,6 +604,7 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
->  	if (!(vm_flags & vma->vm_flags))
->  		return -EFAULT;
->  
-> +	trace_gup_fixup_user_fault(address);
->  	ret = handle_mm_fault(mm, vma, address, fault_flags);
->  	if (ret & VM_FAULT_ERROR) {
->  		if (ret & VM_FAULT_OOM)
-> @@ -1340,6 +1346,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  					start, len)))
->  		return 0;
->  
-> +	trace_gup_get_user_pages_fast(start, (unsigned long) nr_pages);
+> #define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ?      \
+>                              CONFIG_NR_PROTECTION_KEYS : 1)
+> 
+> The config option really just sets the architectural limit for how many
+> are supported.  So it probably needs a better name at least.  Let me
+> take a look at getting rid of this config option entirely.
 
-typecast shouldn't be needed. But I'm wondering, it would save space in
-the ring buffer if we used unsigend int instead of long. Will nr_pages
-ever be bigger than 4 billion?
+Well, it does not set the architectural limit. It sets some random
+value which the guy who configures the kernel choses.
 
--- Steve
+The limit we have in the architecture is 16 because we only have 4
+bits for it.
+ 
+arch_max_pkey() is architecture specific, so we can make this:
 
-> +
->  	/*
->  	 * Disable interrupts.  We use the nested form as we can already have
->  	 * interrupts disabled by get_futex_key.
+#define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
+
+And when we magically get more bits in the next century, then '16' can
+become a variable or whatever.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
