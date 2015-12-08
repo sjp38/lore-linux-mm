@@ -1,69 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB126B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 07:12:52 -0500 (EST)
-Received: by lbblt2 with SMTP id lt2so9913002lbb.3
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 04:12:51 -0800 (PST)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id 40si1534818lfq.17.2015.12.08.04.12.50
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4406D6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 08:39:22 -0500 (EST)
+Received: by qgeb1 with SMTP id b1so15648488qge.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 05:39:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t64si3410117qht.71.2015.12.08.05.39.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 04:12:50 -0800 (PST)
-Received: by lbbcs9 with SMTP id cs9so9888135lbb.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 04:12:50 -0800 (PST)
-Subject: Re: [PATCH] MIPS: Fix DMA contiguous allocation
-References: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
-Message-ID: <5666C941.20209@cogentembedded.com>
-Date: Tue, 8 Dec 2015 15:12:49 +0300
+        Tue, 08 Dec 2015 05:39:21 -0800 (PST)
+Date: Tue, 8 Dec 2015 14:39:15 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 2/2] slab: implement bulk free in SLAB allocator
+Message-ID: <20151208143915.0ffbdf51@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1512070858140.8762@east.gentwo.org>
+References: <20151203155600.3589.86568.stgit@firesoul>
+	<20151203155736.3589.67424.stgit@firesoul>
+	<alpine.DEB.2.20.1512041111180.21819@east.gentwo.org>
+	<20151207122549.109e82db@redhat.com>
+	<alpine.DEB.2.20.1512070858140.8762@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qais Yousef <qais.yousef@imgtec.com>, linux-mips@linux-mips.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ralf@linux-mips.org, akpm@linux-foundation.org, mgorman@techsingularity.net
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
 
-On 12/8/2015 1:18 PM, Qais Yousef wrote:
 
-> Recent changes to how GFP_ATOMIC is defined seems to have broken the condition
-> to use mips_alloc_from_contiguous() in mips_dma_alloc_coherent().
->
-> I couldn't bottom out the exact change but I think it's this one
->
-> d0164adc89f6 (mm, page_alloc: distinguish between being unable to sleep,
-> unwilling to sleep and avoiding waking kswapd)
->
->  From what I see GFP_ATOMIC has multiple bits set and the check for !(gfp
-> & GFP_ATOMIC) isn't enough. To verify if the flag is atomic we need to make
-> sure that (gfp & GFP_ATOMIC) == GFP_ATOMIC to verify that all bits rquired to
+(To Vladimir can you comment on memcg?)
 
-    Required.
 
-> satisfy GFP_ATOMIC condition are set.
->
-> Signed-off-by: Qais Yousef <qais.yousef@imgtec.com>
-> ---
->   arch/mips/mm/dma-default.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
-> index d8117be729a2..d6b8a1445a3a 100644
-> --- a/arch/mips/mm/dma-default.c
-> +++ b/arch/mips/mm/dma-default.c
-> @@ -145,7 +145,7 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
->
->   	gfp = massage_gfp_flags(dev, gfp);
->
-> -	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
-> +	if (IS_ENABLED(CONFIG_DMA_CMA) && ((gfp & GFP_ATOMIC) != GFP_ATOMIC))
+On Mon, 7 Dec 2015 08:59:25 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
 
-    () around != not necessary.
+> On Mon, 7 Dec 2015, Jesper Dangaard Brouer wrote:
+> 
+> > > > +
+> > > > +	local_irq_disable();
+> > > > +	for (i = 0; i < size; i++) {
+> > > > +		void *objp = p[i];
+> > > > +
+> > > > +		s = cache_from_obj(orig_s, objp);
+> > >
+> > > Does this support freeing objects from a set of different caches?
+> >
+> > This is for supporting memcg (CONFIG_MEMCG_KMEM).
+> >
+> > Quoting from commit 033745189b1b ("slub: add missing kmem cgroup
+> > support to kmem_cache_free_bulk"):
+> >
+> >    Incoming bulk free objects can belong to different kmem cgroups, and
+> >    object free call can happen at a later point outside memcg context.  Thus,
+> >    we need to keep the orig kmem_cache, to correctly verify if a memcg object
+> >    match against its "root_cache" (s->memcg_params.root_cache).
+> 
+> Where is that verification? This looks like SLAB would support freeing
+> objects from different caches.
 
-[...]
+This is for supporting CONFIG_MEMCG_KMEM, thus I would like Vladimir
+input on this, as I don't know enough about memcg....
 
-MBR, Sergei
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
