@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6726B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 06:22:27 -0500 (EST)
-Received: by wmww144 with SMTP id w144so176942466wmw.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 03:22:27 -0800 (PST)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id j84si29861844wma.50.2015.12.08.03.22.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 03:22:26 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so208865548wmv.1
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 03:22:26 -0800 (PST)
-Date: Tue, 8 Dec 2015 12:22:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Intel-gfx] [PATCH v2 1/2] mm: Export nr_swap_pages
-Message-ID: <20151208112225.GB25800@dhcp22.suse.cz>
-References: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
- <20151207134812.GA20782@dhcp22.suse.cz>
- <20151207164831.GA7256@cmpxchg.org>
- <5665CB78.7000106@intel.com>
- <20151207191346.GA3872@cmpxchg.org>
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C09A56B0038
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 07:07:43 -0500 (EST)
+Received: by pfbg73 with SMTP id g73so11688515pfb.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 04:07:43 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id qz6si4908860pab.168.2015.12.08.04.07.42
+        for <linux-mm@kvack.org>;
+        Tue, 08 Dec 2015 04:07:42 -0800 (PST)
+Date: Tue, 8 Dec 2015 12:07:44 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v4 01/13] mm/memblock: add MEMBLOCK_NOMAP attribute to
+ memblock memory table
+Message-ID: <20151208120743.GG19612@arm.com>
+References: <1448886507-3216-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1448886507-3216-2-git-send-email-ard.biesheuvel@linaro.org>
+ <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151207191346.GA3872@cmpxchg.org>
+In-Reply-To: <CAKv+Gu9oboT_Lk8heJWRcM=oxRW=EWioVCvZLH7N0YCkfU5tJw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Dave Gordon <david.s.gordon@intel.com>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, "Goel, Akash" <akash.goel@intel.com>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ryan Harkin <ryan.harkin@linaro.org>, Grant Likely <grant.likely@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt@codeblueprint.co.uk>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Leif Lindholm <leif.lindholm@linaro.org>
 
-On Mon 07-12-15 14:13:46, Johannes Weiner wrote:
-> On Mon, Dec 07, 2015 at 06:10:00PM +0000, Dave Gordon wrote:
-> > Exporting random uncontrolled variables from the kernel to loaded modules is
-> > not really considered best practice. It would be preferable to provide an
-> > accessor function - which is just what the declaration says we have; the
-> > implementation as a static inline (and/or macro) is what causes the problem
-> > here.
-> 
-> No, what causes the problem is thinking we can't trust in-kernel code.
+Hi Ard,
 
-This is not about the trust. It is about a clear API and separation.
+On Thu, Dec 03, 2015 at 11:55:53AM +0100, Ard Biesheuvel wrote:
+> On 30 November 2015 at 13:28, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
+> > This introduces the MEMBLOCK_NOMAP attribute and the required plumbing
+> > to make it usable as an indicator that some parts of normal memory
+> > should not be covered by the kernel direct mapping. It is up to the
+> > arch to actually honor the attribute when laying out this mapping,
+> > but the memblock code itself is modified to disregard these regions
+> > for allocations and other general use.
+> >
+> > Cc: linux-mm@kvack.org
+> > Cc: Alexander Kuleshov <kuleshovmail@gmail.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
+> > Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> > ---
+> >  include/linux/memblock.h |  8 ++++++
+> >  mm/memblock.c            | 28 ++++++++++++++++++++
+> >  2 files changed, 36 insertions(+)
 
-> If somebody screws up, we can fix it easily enough. Sure, we shouldn't
-> be laying traps and create easy-to-misuse interfaces, but that's not
-> what's happening here. There is no reason to add function overhead to
-> what should be a single 'mov' instruction.
+[...]
 
-The mere fact that the current implementation is a simple atomic_long_read
-is a detail and not important for the API. The function is not used
-in any hot path where a single function call overhead would be a
-performance killer. Exporting implementation details to random users
-tends to add maintenance burden in future.
+> May I kindly ask team-mm/Andrew/Alexander to chime in here, and
+> indicate whether you are ok with this patch going in for 4.5? If so,
+> could you please provide your ack so the patch can be kept together
+> with the rest of the series, which depends on it?
 
-I think it is natural to export symbols which are consumed by modules
-and that will be get_nr_swap_pages(). I do not even understand the
-resistance against that. Anyway I am not going to argue about it more.
-I have raised my review comment and leave the decision to Chris/Andrew.
--- 
-Michal Hocko
-SUSE Labs
+I'm keen to queue this in the arm64 tree, since it's a prerequisite for
+cleaning up a bunch of our EFI code and sharing it with 32-bit ARM.
+
+> I should note that this change should not affect any memblock users
+> that never set the MEMBLOCK_NOMAP flag, but please, if you see any
+> issues beyond 'this may conflict with other stuff we have queued for
+> 4.5', please do let me know.
+
+Indeed, I can't see that this would cause any issues, but I would really
+like an Ack from one of the MM maintainers before taking this.
+
+Please could somebody take a look?
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
