@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DDDB96B027A
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:35:17 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so3076023pac.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:35:17 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id t10si1304668pfi.128.2015.12.07.17.35.17
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 63BF96B0298
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:35:19 -0500 (EST)
+Received: by pabur14 with SMTP id ur14so3120113pab.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:35:19 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id e1si1274169pas.161.2015.12.07.17.35.18
         for <linux-mm@kvack.org>;
-        Mon, 07 Dec 2015 17:35:17 -0800 (PST)
-Subject: [PATCH -mm 25/25] dax: re-enable dax pmd mappings
+        Mon, 07 Dec 2015 17:35:18 -0800 (PST)
+Subject: [PATCH -mm 24/25] dax: provide diagnostics for pmd mapping failures
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Dec 2015 17:34:49 -0800
-Message-ID: <20151208013449.25030.62637.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 07 Dec 2015 17:34:43 -0800
+Message-ID: <20151208013443.25030.39965.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -22,59 +22,161 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-Now that the get_user_pages() path knows how to handle dax-pmd mappings,
-remove the protections that disabled dax-pmd support.
-
-Tests available from github.com/pmem/ndctl:
-
-    make TESTS="lib/test-dax.sh lib/test-mmap.sh" check
+There is a wide gamut of conditions that can trigger the dax pmd path to
+fallback to pte mappings.  Ideally we'd have a syscall interface to
+determine mapping characteristics after the fact.  In the meantime
+provide debug messages.
 
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/Kconfig |    3 ++-
- fs/dax.c   |    8 ++------
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ fs/dax.c |   57 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 9 deletions(-)
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 7a6ff07c183f..922893f8ab4a 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -50,7 +50,8 @@ config FS_DAX_PMD
- 	bool
- 	default FS_DAX
- 	depends on FS_DAX
--	depends on BROKEN
-+	depends on ZONE_DEVICE
-+	depends on TRANSPARENT_HUGEPAGE
- 
- endif # BLOCK
- 
 diff --git a/fs/dax.c b/fs/dax.c
-index 7bfe6cd59636..27ad9ac54de5 100644
+index b9ab7138f5cb..7bfe6cd59636 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -581,7 +581,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+@@ -557,6 +557,14 @@ EXPORT_SYMBOL_GPL(dax_fault);
+  */
+ #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+ 
++static void dax_pmd_dbg(struct block_device *bdev, unsigned long address,
++		const char *reason)
++{
++	pr_debug("%s%s dax_pmd: %s addr: %lx fallback: %s\n", bdev
++			? dev_name(part_to_dev(bdev->bd_part)) : "", bdev
++			? ": " : "", current->comm, address, reason);
++}
++
+ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		pmd_t *pmd, unsigned int flags, get_block_t get_block,
+ 		dax_iodone_t complete_unwritten)
+@@ -568,7 +576,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	unsigned blkbits = inode->i_blkbits;
+ 	unsigned long pmd_addr = address & PMD_MASK;
+ 	bool write = flags & FAULT_FLAG_WRITE;
+-	struct block_device *bdev;
++	struct block_device *bdev = NULL;
+ 	pgoff_t size, pgoff;
  	sector_t block;
  	int result = 0;
- 
--	/* dax pmd mappings are broken wrt gup and fork */
-+	/* dax pmd mappings require pfn_t_devmap() */
- 	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
+@@ -580,21 +588,29 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	/* Fall back to PTEs if we're going to COW */
+ 	if (write && !(vma->vm_flags & VM_SHARED)) {
+ 		split_huge_pmd(vma, pmd, address);
++		dax_pmd_dbg(bdev, address, "cow write");
  		return VM_FAULT_FALLBACK;
+ 	}
+ 	/* If the PMD would extend outside the VMA */
+-	if (pmd_addr < vma->vm_start)
++	if (pmd_addr < vma->vm_start) {
++		dax_pmd_dbg(bdev, address, "vma start unaligned");
+ 		return VM_FAULT_FALLBACK;
+-	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
++	}
++	if ((pmd_addr + PMD_SIZE) > vma->vm_end) {
++		dax_pmd_dbg(bdev, address, "vma end unaligned");
+ 		return VM_FAULT_FALLBACK;
++	}
  
-@@ -706,11 +706,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	pgoff = linear_page_index(vma, pmd_addr);
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (pgoff >= size)
+ 		return VM_FAULT_SIGBUS;
+ 	/* If the PMD would cover blocks out of the file */
+-	if ((pgoff | PG_PMD_COLOUR) >= size)
++	if ((pgoff | PG_PMD_COLOUR) >= size) {
++		dax_pmd_dbg(bdev, address,
++				"offset + huge page size > file size");
+ 		return VM_FAULT_FALLBACK;
++	}
+ 
+ 	memset(&bh, 0, sizeof(bh));
+ 	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
+@@ -610,8 +626,10 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	 * just fall back to PTEs.  Calling get_block 512 times in a loop
+ 	 * would be silly.
+ 	 */
+-	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
++	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE) {
++		dax_pmd_dbg(bdev, address, "block allocation size invalid");
+ 		goto fallback;
++	}
+ 
+ 	/*
+ 	 * If we allocated new storage, make sure no process has any
+@@ -634,23 +652,33 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		result = VM_FAULT_SIGBUS;
+ 		goto out;
+ 	}
+-	if ((pgoff | PG_PMD_COLOUR) >= size)
++	if ((pgoff | PG_PMD_COLOUR) >= size) {
++		dax_pmd_dbg(bdev, address, "pgoff unaligned");
+ 		goto fallback;
++	}
+ 
+ 	if (!write && !buffer_mapped(&bh) && buffer_uptodate(&bh)) {
+ 		spinlock_t *ptl;
+ 		pmd_t entry;
+ 		struct page *zero_page = get_huge_zero_page();
+ 
+-		if (unlikely(!zero_page))
++		if (unlikely(!zero_page)) {
++			dax_pmd_dbg(bdev, address, "no zero page");
+ 			goto fallback;
++		}
+ 
+ 		ptl = pmd_lock(vma->vm_mm, pmd);
+ 		if (!pmd_none(*pmd)) {
+ 			spin_unlock(ptl);
++			dax_pmd_dbg(bdev, address, "pmd already present");
  			goto fallback;
  		}
  
--		/*
--		 * TODO: teach vmf_insert_pfn_pmd() to support
--		 * 'pte_special' for pmds
--		 */
--		if (pfn_t_has_page(dax.pfn)) {
-+		if (!pfn_t_devmap(dax.pfn)) {
++		dev_dbg(part_to_dev(bdev->bd_part),
++				"%s: %s addr: %lx pfn: <zero> sect: %llx\n",
++				__func__, current->comm, address,
++				(unsigned long long) to_sector(&bh, inode));
++
+ 		entry = mk_pmd(zero_page, vma->vm_page_prot);
+ 		entry = pmd_mkhuge(entry);
+ 		set_pmd_at(vma->vm_mm, pmd_addr, pmd, entry);
+@@ -667,8 +695,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			result = VM_FAULT_SIGBUS;
+ 			goto out;
+ 		}
+-		if (length < PMD_SIZE
+-				|| (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)) {
++		if (length < PMD_SIZE) {
++			dax_pmd_dbg(bdev, address, "dax-length too small");
++			dax_unmap_atomic(bdev, &dax);
++			goto fallback;
++		}
++		if (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR) {
++			dax_pmd_dbg(bdev, address, "pfn unaligned");
  			dax_unmap_atomic(bdev, &dax);
- 			dax_pmd_dbg(bdev, address, "pfn not in memmap");
  			goto fallback;
+ 		}
+@@ -679,6 +712,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		 */
+ 		if (pfn_t_has_page(dax.pfn)) {
+ 			dax_unmap_atomic(bdev, &dax);
++			dax_pmd_dbg(bdev, address, "pfn not in memmap");
+ 			goto fallback;
+ 		}
+ 
+@@ -691,6 +725,11 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		}
+ 		dax_unmap_atomic(bdev, &dax);
+ 
++		dev_dbg(part_to_dev(bdev->bd_part),
++				"%s: %s addr: %lx pfn: %lx sect: %llx\n",
++				__func__, current->comm, address,
++				pfn_t_to_pfn(dax.pfn),
++				(unsigned long long) dax.sector);
+ 		result |= vmf_insert_pfn_pmd(vma, address, pmd,
+ 				dax.pfn, write);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
