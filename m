@@ -1,88 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 137476B0253
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:13:20 -0500 (EST)
-Received: by wmww144 with SMTP id w144so38368331wmw.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:13:19 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id y83si6171902wmb.27.2015.12.08.09.13.18
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 31FD46B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 12:15:55 -0500 (EST)
+Received: by ioc74 with SMTP id 74so30964090ioc.2
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:15:55 -0800 (PST)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id uh6si4250537igb.90.2015.12.08.09.15.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 09:13:19 -0800 (PST)
-Received: by wmww144 with SMTP id w144so38367735wmw.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 09:13:18 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH mmotm] memcg: Ignore partial THP when moving task
-Date: Tue,  8 Dec 2015 18:13:09 +0100
-Message-Id: <1449594789-15866-1-git-send-email-mhocko@kernel.org>
+        Tue, 08 Dec 2015 09:15:54 -0800 (PST)
+Date: Tue, 8 Dec 2015 10:15:42 -0700
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [RFC contig pages support 1/2] IB: Supports contiguous memory
+ operations
+Message-ID: <20151208171542.GB13549@obsidianresearch.com>
+References: <1449587707-24214-1-git-send-email-yishaih@mellanox.com>
+ <1449587707-24214-2-git-send-email-yishaih@mellanox.com>
+ <20151208151852.GA6688@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151208151852.GA6688@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Yishai Hadas <yishaih@mellanox.com>, dledford@redhat.com, linux-rdma@vger.kernel.org, ogerlitz@mellanox.com, talal@mellanox.com, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Dec 08, 2015 at 07:18:52AM -0800, Christoph Hellwig wrote:
+> There is absolutely nothing IB specific here.  If you want to support
+> anonymous mmaps to allocate large contiguous pages work with the MM
+> folks on providing that in a generic fashion.
 
-After "mm: rework mapcount accounting to enable 4k mapping of THPs"
-it is possible to have a partial THP accessible via ptes. Memcg task
-migration code is not prepared for this situation and uncharges the tail
-page from the original memcg while the original THP is still charged via
-the head page which is not mapped to the moved task. The page counter
-of the origin memcg will underflow when the whole THP is uncharged later
-on and lead to:
-WARNING: CPU: 0 PID: 1340 at mm/page_counter.c:26 page_counter_cancel+0x34/0x40()
-reported by Minchan Kim.
+Yes please.
 
-This patch prevents from the underflow by skipping any partial THP pages
-in mem_cgroup_move_charge_pte_range. PageTransCompound is checked when
-we do pte walk. This means that a process might leave a partial THP
-behind in the original memcg if there is no other process mapping it via
-pmd but this is considered acceptable because it shouldn't happen often
-and this is not considered a memory leak because the original THP is
-still accessible and reclaimable. Moreover the task migration has always
-been racy and never guaranteed to move all pages.
+We already have huge page mmaps, how much win is had by going from
+huge page maps to this contiguous map?
 
-Reported-by: Minchan Kim <minchan@kernel.org>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-this is a patch tested by Minchan in the original thread [1]. I have
-only replaced PageCompound with PageTransCompound because other similar
-fixes in mmotm used this one. The underlying implementation is the same.
-Johannes, I have kept your a-b but let me know if you are not OK with the
-changelog.
-
-This is mmotm only material. It can be merged into the page which
-has introduced the issue but maybe it is worth having on its own for
-documentation purposes. I will leave the decision to you Andrew.
-
-[1] http://lkml.kernel.org/r/20151201133455.GB27574@bbox
-
- mm/memcontrol.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 79a29d564bff..143c933f0b81 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4895,6 +4895,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
- 		case MC_TARGET_PAGE:
- 			page = target.page;
-+			/*
-+			 * We can have a part of the split pmd here. Moving it
-+			 * can be done but it would be too convoluted so simply
-+			 * ignore such a partial THP and keep it in original
-+			 * memcg. There should be somebody mapping the head.
-+			 */
-+			if (PageCompound(page))
-+				goto put;
- 			if (isolate_lru_page(page))
- 				goto put;
- 			if (!mem_cgroup_move_account(page, false,
--- 
-2.6.2
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
