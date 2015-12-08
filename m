@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 904C56B0253
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 16:56:44 -0500 (EST)
-Received: by pfu207 with SMTP id 207so18403524pfu.2
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 13:56:44 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id mi6si7645605pab.95.2015.12.08.13.56.43
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 537276B0254
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 17:19:42 -0500 (EST)
+Received: by wmec201 with SMTP id c201so233126609wme.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 14:19:42 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j62si7823980wmd.65.2015.12.08.14.19.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Dec 2015 13:56:43 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so18309907pac.2
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 13:56:43 -0800 (PST)
-Date: Tue, 8 Dec 2015 13:56:42 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: page_alloc: fix variable type in zonelist type
- iteration
-In-Reply-To: <1449583412-22740-1-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1512081356290.29940@chino.kir.corp.google.com>
-References: <1449583412-22740-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-616683805-1449611802=:29940"
+        Tue, 08 Dec 2015 14:19:41 -0800 (PST)
+Date: Tue, 8 Dec 2015 14:19:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] MIPS: Fix DMA contiguous allocation
+Message-Id: <20151208141939.d0edbb72b3c15844c5ac25ea@linux-foundation.org>
+In-Reply-To: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
+References: <1449569930-2118-1-git-send-email-qais.yousef@imgtec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Qais Yousef <qais.yousef@imgtec.com>
+Cc: linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ralf@linux-mips.org, mgorman@techsingularity.net
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Tue, 8 Dec 2015 10:18:50 +0000 Qais Yousef <qais.yousef@imgtec.com> wrote:
 
---397176738-616683805-1449611802=:29940
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Tue, 8 Dec 2015, Johannes Weiner wrote:
-
-> /home/hannes/src/linux/linux/mm/page_alloc.c: In function a??build_zonelistsa??:
-> /home/hannes/src/linux/linux/mm/page_alloc.c:4171:16: warning: comparison between a??enum zone_typea?? and a??enum <anonymous>a?? [-Wenum-compare]
->   for (i = 0; i < MAX_ZONELISTS; i++) {
->                 ^
+> Recent changes to how GFP_ATOMIC is defined seems to have broken the condition
+> to use mips_alloc_from_contiguous() in mips_dma_alloc_coherent().
 > 
-> MAX_ZONELISTS has never been of enum zone_type, probably gcc only
-> recently started including -Wenum-compare in -Wall.
+> I couldn't bottom out the exact change but I think it's this one
 > 
-> Make i a simple int.
+> d0164adc89f6 (mm, page_alloc: distinguish between being unable to sleep,
+> unwilling to sleep and avoiding waking kswapd)
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> >From what I see GFP_ATOMIC has multiple bits set and the check for !(gfp
+> & GFP_ATOMIC) isn't enough. To verify if the flag is atomic we need to make
+> sure that (gfp & GFP_ATOMIC) == GFP_ATOMIC to verify that all bits rquired to
+> satisfy GFP_ATOMIC condition are set.
+> 
+> ...
+>
+> --- a/arch/mips/mm/dma-default.c
+> +++ b/arch/mips/mm/dma-default.c
+> @@ -145,7 +145,7 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
+>  
+>  	gfp = massage_gfp_flags(dev, gfp);
+>  
+> -	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
+> +	if (IS_ENABLED(CONFIG_DMA_CMA) && ((gfp & GFP_ATOMIC) != GFP_ATOMIC))
+>  		page = dma_alloc_from_contiguous(dev,
+>  					count, get_order(size));
+>  	if (!page)
 
-I think this is already handled by 
-http://marc.info/?l=linux-kernel&m=144901185732632.
---397176738-616683805-1449611802=:29940--
+hm.  It seems that the code is asking "can I do a potentially-sleeping
+memory allocation"?
+
+The way to do that under the new regime is
+
+	if (IS_ENABLED(CONFIG_DMA_CMA) && gfpflags_allow_blocking(gfp))
+
+Mel, can you please confirm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
