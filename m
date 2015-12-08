@@ -1,60 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 977FE6B025C
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 14:19:05 -0500 (EST)
-Received: by pfdd184 with SMTP id d184so16520341pfd.3
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:19:05 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 76si6919595pfp.49.2015.12.08.11.19.04
-        for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 11:19:04 -0800 (PST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 7/7] xfs: call dax_pfn_mkwrite() for DAX fsync/msync
-Date: Tue,  8 Dec 2015 12:18:45 -0700
-Message-Id: <1449602325-20572-8-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 853576B0253
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 14:59:54 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so17048953pfn.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:59:54 -0800 (PST)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id e86si7082750pfj.161.2015.12.08.11.59.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 11:59:53 -0800 (PST)
+Received: by pfnn128 with SMTP id n128so17048811pfn.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 11:59:53 -0800 (PST)
+From: Yang Shi <yang.shi@linaro.org>
+Subject: [RFC V3] Add gup trace points support
+Date: Tue,  8 Dec 2015 11:39:48 -0800
+Message-Id: <1449603595-718-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-To properly support the new DAX fsync/msync infrastructure filesystems
-need to call dax_pfn_mkwrite() so that DAX can track when user pages are
-dirtied.
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- fs/xfs/xfs_file.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+v3:
+* Adopted suggestion from Dave Hansen to move the gup header include to the last
+* Adopted comments from Steven:
+  - Use DECLARE_EVENT_CLASS and DEFINE_EVENT
+  - Just keep necessary TP_ARGS
+* Moved archtichture specific fall-backable fast version trace point after the
+  do while loop since it may jump to the slow version.
+* Not implement recording return value since Steven plans to have it in generic
+  tracing code
+ 
+v2:
+* Adopted commetns from Steven
+  - remove all reference to tsk->comm since it is unnecessary for non-sched
+    trace points
+  - reduce arguments for __get_user_pages trace point and update mm/gup.c
+    accordingly
+* Added Ralf's acked-by for patch 4/7.
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index f5392ab..40ffbb1 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1603,9 +1603,8 @@ xfs_filemap_pmd_fault(
- /*
-  * pfn_mkwrite was originally inteneded to ensure we capture time stamp
-  * updates on write faults. In reality, it's need to serialise against
-- * truncate similar to page_mkwrite. Hence we open-code dax_pfn_mkwrite()
-- * here and cycle the XFS_MMAPLOCK_SHARED to ensure we serialise the fault
-- * barrier in place.
-+ * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
-+ * to ensure we serialise the fault barrier in place.
-  */
- static int
- xfs_filemap_pfn_mkwrite(
-@@ -1628,6 +1627,8 @@ xfs_filemap_pfn_mkwrite(
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	if (vmf->pgoff >= size)
- 		ret = VM_FAULT_SIGBUS;
-+	else if (IS_DAX(inode))
-+		ret = dax_pfn_mkwrite(vma, vmf);
- 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
- 	sb_end_pagefault(inode->i_sb);
- 	return ret;
--- 
-2.5.0
+There is not content change for the trace points in arch specific mm/gup.c.
+
+
+Some background about why I think this might be useful.
+
+When I was profiling some hugetlb related program, I got page-faults event
+doubled when hugetlb is enabled. When I looked into the code, I found page-faults
+come from two places, do_page_fault and gup. So, I tried to figure out which
+play a role (or both) in my use case. But I can't find existing finer tracing
+event for sub page-faults in current mainline kernel.
+
+So, I added the gup trace points support to have finer tracing events for
+page-faults. The below events are added:
+
+__get_user_pages
+__get_user_pages_fast
+fixup_user_fault
+
+Both __get_user_pages and fixup_user_fault call handle_mm_fault.
+
+Just added trace points to raw version __get_user_pages since all variants
+will call it finally to do real work.
+
+Although __get_user_pages_fast doesn't call handle_mm_fault, it might be useful
+to have it to distinguish between slow and fast version.
+
+Yang Shi (7):
+      trace/events: Add gup trace events
+      mm/gup: add gup trace points
+      x86: mm/gup: add gup trace points
+      mips: mm/gup: add gup trace points
+      s390: mm/gup: add gup trace points
+      sh: mm/gup: add gup trace points
+      sparc64: mm/gup: add gup trace points
+
+ arch/mips/mm/gup.c         |  7 +++++++
+ arch/s390/mm/gup.c         |  6 ++++++
+ arch/sh/mm/gup.c           |  7 +++++++
+ arch/sparc/mm/gup.c        |  7 +++++++
+ arch/x86/mm/gup.c          |  7 +++++++
+ include/trace/events/gup.h | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/gup.c                   |  8 ++++++++
+ 7 files changed, 105 insertions(+)
+ create mode 100644 include/trace/events/gup.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
