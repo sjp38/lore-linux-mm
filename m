@@ -1,198 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1DC6B0275
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:33:05 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so3046838pac.1
-        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:33:04 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id c17si1320241pfd.44.2015.12.07.17.33.04
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC8A6B027A
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2015 20:33:10 -0500 (EST)
+Received: by pabur14 with SMTP id ur14so3091781pab.0
+        for <linux-mm@kvack.org>; Mon, 07 Dec 2015 17:33:09 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id py7si1301764pab.64.2015.12.07.17.33.09
         for <linux-mm@kvack.org>;
-        Mon, 07 Dec 2015 17:33:04 -0800 (PST)
-Subject: [PATCH -mm 00/25] get_user_pages() for dax pte and pmd mappings
+        Mon, 07 Dec 2015 17:33:09 -0800 (PST)
+Subject: [PATCH -mm 01/25] pmem, dax: clean up clear_pmem()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Dec 2015 17:32:36 -0800
-Message-ID: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 07 Dec 2015 17:32:41 -0800
+Message-ID: <20151208013241.25030.29103.stgit@dwillia2-desk3.jf.intel.com>
+In-Reply-To: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
+References: <20151208013236.25030.68781.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Dave Hansen <dave@sr71.net>, Toshi Kani <toshi.kani@hpe.com>, David Airlie <airlied@linux.ie>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Christoph Hellwig <hch@lst.de>, Andrea Arcangeli <aarcange@redhat.com>, kbuild test robot <lkp@intel.com>, linux-nvdimm@lists.01.org, Richard Weinberger <richard@nod.at>, Peter Zijlstra <peterz@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Dike <jdike@addtoit.com>, Jens Axboe <axboe@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoffer Dall <christoffer.dall@linaro.org>, Jan Kara <jack@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jeff Moyer <jmoyer@redhat.com>, linux-nvdimm@lists.01.org
 
-Andrew, please pull dax-gup support into -mm.
+Both, __dax_pmd_fault, and clear_pmem() were taking special steps to
+clear memory a page at a time to take advantage of non-temporal
+clear_page() implementations.  However, x86_64 does not use
+non-temporal instructions for clear_page(), and arch_clear_pmem() was
+always incurring the cost of __arch_wb_cache_pmem().
 
-This series, based on next-20151203, has been out for review in one form
-or another since September [1].  The concept was reviewed at Kernel
-Summit in the "ZONE_DEVICE" tech-topic presentation.  Since the RFC
-posting [2] it has received fixes and is now passing the unit tests from
-ndctl [3] and nvml [4].
+Clean up the assumption that doing clear_pmem() a page at a time is more
+performant.
 
-Logan Gunthorpe has also offered up functional testing of his use case
-for devm_memremap_pages() [5] (a "Tested-by" for the latest revision is
-still pending).
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-September/002199.html
-[2]: https://lists.01.org/pipermail/linux-nvdimm/2015-November/003033.html
-[3]: https://github.com/pmem/ndctl
-[4]: https://github.com/pmem/nvml
-[5]: https://lists.01.org/pipermail/linux-nvdimm/2015-October/002576.html
-
-A git tree of this set is available here:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm libnvdimm-pending
-
-The libnvdimm-pending branch has received a build success notification
-from the kbuild-test-robot over 105 configs.
-
+Reported-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ arch/x86/include/asm/pmem.h |    7 +------
+ fs/dax.c                    |    4 +---
+ 2 files changed, 2 insertions(+), 9 deletions(-)
 
-Summary:
-
-To date, we have implemented two I/O usage models for persistent memory,
-PMEM (a persistent "ram disk") and DAX (mmap persistent memory into
-userspace).  This series adds a third, DAX-GUP, that allows DAX mappings
-to be the target of direct-i/o.  It allows userspace to coordinate
-DMA/RDMA from/to persistent memory.
-
-The implementation leverages the ZONE_DEVICE mm-zone that went into
-4.3-rc1 (also discussed at kernel summit) to flag pages that are owned
-and dynamically mapped by a device driver.  The pmem driver, after
-mapping a persistent memory range into the system memmap via
-devm_memremap_pages(), arranges for DAX to distinguish pfn-only versus
-page-backed pmem-pfns via flags in the new pfn_t type.
-
-The DAX code, upon seeing a PFN_DEV+PFN_MAP flagged pfn, flags the
-resulting pte(s) inserted into the process page tables with a new
-_PAGE_DEVMAP flag.  Later, when get_user_pages() is walking ptes it keys
-off _PAGE_DEVMAP to pin the device hosting the page range active.
-Finally, get_page() and put_page() are modified to take references
-against the device driver established page mapping.
-
-Finally, this need for "struct page" for persistent memory requires
-memory capacity to store the memmap array.  Given the memmap array for a
-large pool of persistent may exhaust available DRAM introduce a
-mechanism to allocate the memmap from persistent memory.  The new "struct
-vmem_altmap *"  parameter to devm_memremap_pages() enables
-arch_add_memory() to use reserved pmem capacity rather than the page
-allocator.
-
----
-
-Dan Williams (23):
-      pmem, dax: clean up clear_pmem()
-      dax: increase granularity of dax_clear_blocks() operations
-      dax: guarantee page aligned results from bdev_direct_access()
-      dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()
-      um: kill pfn_t
-      kvm: rename pfn_t to kvm_pfn_t
-      mm, dax, pmem: introduce pfn_t
-      mm: introduce find_dev_pagemap()
-      x86, mm: introduce vmem_altmap to augment vmemmap_populate()
-      libnvdimm, pfn, pmem: allocate memmap array in persistent memory
-      avr32: convert to asm-generic/memory_model.h
-      hugetlb: fix compile error on tile
-      frv: fix compiler warning from definition of __pmd()
-      x86, mm: introduce _PAGE_DEVMAP
-      mm, dax, gpu: convert vm_insert_mixed to pfn_t
-      mm, dax: convert vmf_insert_pfn_pmd() to pfn_t
-      list: introduce list_del_poison()
-      libnvdimm, pmem: move request_queue allocation earlier in probe
-      mm, dax, pmem: introduce {get|put}_dev_pagemap() for dax-gup
-      mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd
-      mm, x86: get_user_pages() for dax mappings
-      dax: provide diagnostics for pmd mapping failures
-      dax: re-enable dax pmd mappings
-
-Ross Zwisler (1):
-      mm, dax: fix livelock, allow dax pmd mappings to become writeable
-
-Toshi Kani (1):
-      dax: Split pmd map when fallback on COW
-
-
- arch/alpha/include/asm/pgtable.h        |    1 
- arch/arm/include/asm/kvm_mmu.h          |    5 -
- arch/arm/kvm/mmu.c                      |   10 +
- arch/arm64/include/asm/kvm_mmu.h        |    3 
- arch/avr32/include/asm/page.h           |    8 -
- arch/frv/include/asm/page.h             |    2 
- arch/ia64/include/asm/page.h            |    1 
- arch/ia64/include/asm/pgtable.h         |    1 
- arch/m68k/include/asm/page_mm.h         |    1 
- arch/m68k/include/asm/page_no.h         |    1 
- arch/mips/include/asm/kvm_host.h        |    6 -
- arch/mips/kvm/emulate.c                 |    2 
- arch/mips/kvm/tlb.c                     |   14 +
- arch/mn10300/include/asm/page.h         |    1 
- arch/parisc/include/asm/pgtable.h       |    1 
- arch/powerpc/include/asm/kvm_book3s.h   |    4 
- arch/powerpc/include/asm/kvm_ppc.h      |    2 
- arch/powerpc/include/asm/pgtable.h      |    1 
- arch/powerpc/kvm/book3s.c               |    6 -
- arch/powerpc/kvm/book3s_32_mmu_host.c   |    2 
- arch/powerpc/kvm/book3s_64_mmu_host.c   |    2 
- arch/powerpc/kvm/e500.h                 |    2 
- arch/powerpc/kvm/e500_mmu_host.c        |    8 -
- arch/powerpc/kvm/trace_pr.h             |    2 
- arch/powerpc/sysdev/axonram.c           |    8 -
- arch/sh/include/asm/pgtable-3level.h    |    1 
- arch/sparc/include/asm/pgtable_64.h     |    2 
- arch/tile/include/asm/pgtable.h         |    1 
- arch/um/include/asm/page.h              |    7 -
- arch/um/include/asm/pgtable-3level.h    |    5 -
- arch/um/include/asm/pgtable.h           |    2 
- arch/x86/include/asm/page_types.h       |    3 
- arch/x86/include/asm/pgtable.h          |   26 +++
- arch/x86/include/asm/pgtable_types.h    |    7 +
- arch/x86/include/asm/pmem.h             |    7 -
- arch/x86/kvm/iommu.c                    |   11 +
- arch/x86/kvm/mmu.c                      |   37 ++--
- arch/x86/kvm/mmu_audit.c                |    2 
- arch/x86/kvm/paging_tmpl.h              |    6 -
- arch/x86/kvm/vmx.c                      |    2 
- arch/x86/kvm/x86.c                      |    2 
- arch/x86/mm/gup.c                       |   56 +++++-
- arch/x86/mm/init_64.c                   |   32 +++
- arch/x86/mm/pat.c                       |    4 
- drivers/block/brd.c                     |    4 
- drivers/gpu/drm/exynos/exynos_drm_gem.c |    3 
- drivers/gpu/drm/gma500/framebuffer.c    |    3 
- drivers/gpu/drm/msm/msm_gem.c           |    3 
- drivers/gpu/drm/omapdrm/omap_gem.c      |    6 -
- drivers/gpu/drm/ttm/ttm_bo_vm.c         |    3 
- drivers/nvdimm/pfn_devs.c               |    3 
- drivers/nvdimm/pmem.c                   |   70 +++++--
- drivers/s390/block/dcssblk.c            |   10 -
- fs/Kconfig                              |    3 
- fs/block_dev.c                          |   15 +-
- fs/dax.c                                |  290 +++++++++++++++++++----------
- include/asm-generic/pgtable.h           |   10 +
- include/linux/blkdev.h                  |   19 ++
- include/linux/huge_mm.h                 |   15 +-
- include/linux/hugetlb.h                 |    1 
- include/linux/io.h                      |   15 --
- include/linux/kvm_host.h                |   37 ++--
- include/linux/kvm_types.h               |    2 
- include/linux/list.h                    |   17 ++
- include/linux/memory_hotplug.h          |    3 
- include/linux/mm.h                      |  310 ++++++++++++++++++++++++++++++-
- include/linux/mm_types.h                |    5 +
- include/linux/pfn.h                     |    9 +
- kernel/memremap.c                       |  188 ++++++++++++++++++-
- lib/list_debug.c                        |    4 
- mm/gup.c                                |   18 ++
- mm/huge_memory.c                        |  131 +++++++++----
- mm/memory.c                             |   25 +--
- mm/memory_hotplug.c                     |   66 +++++--
- mm/mprotect.c                           |    5 -
- mm/page_alloc.c                         |   10 +
- mm/pgtable-generic.c                    |    2 
- mm/sparse-vmemmap.c                     |   37 ++++
- mm/sparse.c                             |    8 +
- mm/swap.c                               |   15 ++
- virt/kvm/kvm_main.c                     |   47 ++---
- 81 files changed, 1302 insertions(+), 417 deletions(-)
+diff --git a/arch/x86/include/asm/pmem.h b/arch/x86/include/asm/pmem.h
+index d8ce3ec816ab..1544fabcd7f9 100644
+--- a/arch/x86/include/asm/pmem.h
++++ b/arch/x86/include/asm/pmem.h
+@@ -132,12 +132,7 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
+ {
+ 	void *vaddr = (void __force *)addr;
+ 
+-	/* TODO: implement the zeroing via non-temporal writes */
+-	if (size == PAGE_SIZE && ((unsigned long)vaddr & ~PAGE_MASK) == 0)
+-		clear_page(vaddr);
+-	else
+-		memset(vaddr, 0, size);
+-
++	memset(vaddr, 0, size);
+ 	__arch_wb_cache_pmem(vaddr, size);
+ }
+ 
+diff --git a/fs/dax.c b/fs/dax.c
+index 43671b68220e..19492cc65a30 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -641,9 +641,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			goto fallback;
+ 
+ 		if (buffer_unwritten(&bh) || buffer_new(&bh)) {
+-			int i;
+-			for (i = 0; i < PTRS_PER_PMD; i++)
+-				clear_pmem(kaddr + i * PAGE_SIZE, PAGE_SIZE);
++			clear_pmem(kaddr, PMD_SIZE);
+ 			wmb_pmem();
+ 			count_vm_event(PGMAJFAULT);
+ 			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
