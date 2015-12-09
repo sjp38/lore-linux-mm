@@ -1,90 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1805C6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:48:47 -0500 (EST)
-Received: by wmww144 with SMTP id w144so239222814wmw.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:48:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lh8si13799404wjb.110.2015.12.09.12.48.45
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1946B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:51:05 -0500 (EST)
+Received: by iouu10 with SMTP id u10so74669766iou.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:51:05 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id xa3si9808620igb.56.2015.12.09.12.51.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 12:48:45 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
- <1449242195-16374-1-git-send-email-vbabka@suse.cz>
- <9558837.lN284KClUg@wuerfel>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <566893A9.7050704@suse.cz>
-Date: Wed, 9 Dec 2015 21:48:41 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Dec 2015 12:51:05 -0800 (PST)
+Date: Wed, 9 Dec 2015 21:50:58 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
+Message-ID: <20151209215058.0ef5964a@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
+References: <20151208161751.21945.53936.stgit@firesoul>
+	<20151208161903.21945.33876.stgit@firesoul>
+	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
+	<20151209195325.68eaf314@redhat.com>
+	<alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <9558837.lN284KClUg@wuerfel>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Andi Kleen <andi@firstfloor.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com, David Miller <davem@davemloft.net>
 
-On 12/09/2015 12:29 PM, Arnd Bergmann wrote:
-> On Friday 04 December 2015 16:16:33 Vlastimil Babka wrote:
->> --- a/include/linux/mmdebug.h
->> +++ b/include/linux/mmdebug.h
->> @@ -2,15 +2,20 @@
->>  #define LINUX_MM_DEBUG_H 1
->>  
->>  #include <linux/stringify.h>
->> +#include <linux/types.h>
->> +#include <linux/tracepoint.h>
-> 
-> 8<-----
-> Subject: mm: fix generated/bounds.h
-> 
-> The inclusion of linux/tracepoint.h is causing build errors for me in ARM
-> randconfig:
-> 
-> In file included from /git/arm-soc/include/linux/ktime.h:25:0,
->                  from /git/arm-soc/include/linux/rcupdate.h:47,
->                  from /git/arm-soc/include/linux/tracepoint.h:19,
->                  from /git/arm-soc/include/linux/mmdebug.h:6,
->                  from /git/arm-soc/include/linux/page-flags.h:10,
->                  from /git/arm-soc/kernel/bounds.c:9:
-> /git/arm-soc/include/linux/jiffies.h:10:33: fatal error: generated/timeconst.h: No such file or directory
-> compilation terminated.
-> 
-> To work around this, we can stop including linux/mmdebug.h from linux/page_flags.h
-> while generating bounds.h, as we do for mm_types.h already.
-> 
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Thanks and sorry. Andrew can you please include it in mmotm as -fix for now?
-I plan to respin the whole of this later with some patch splitting and
-reordering to reduce churn and follow Rasmus' advice.
+On Wed, 9 Dec 2015 13:41:07 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
 
-Also I've just learned that there's a new lightweight tracepoint-defs.h in -tip
-thanks to Andi, which would be a better place for struct trace_print_flags than
-tracepoint.h is, so I'll look into using it for the respin, which should make
-this temporary -fix redundant.
-
-> Fixes: 8c0d593d0f8f ("mm, printk: introduce new format string for flags")
-
-Note that the linux-next commit id is volatile here (regenerated from quilt series).
-
+> On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
 > 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 19724e6ebd26..4efad0578a28 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -7,8 +7,8 @@
->  
->  #include <linux/types.h>
->  #include <linux/bug.h>
-> -#include <linux/mmdebug.h>
->  #ifndef __GENERATING_BOUNDS_H
-> +#include <linux/mmdebug.h>
->  #include <linux/mm_types.h>
->  #include <generated/bounds.h>
->  #endif /* !__GENERATING_BOUNDS_H */
+> > I really like the idea of making it able to free kmalloc'ed objects.
+> > But I hate to change the API again... (I do have a use-case in the
+> > network stack where I could use this feature).
 > 
+> Now is the time to fix the API since its not that much in use yet if
+> at all.
+
+True. I was just so close submitting the network use-case to DaveM.
+Guess, that will have to wait if we choose this API change (and
+I'll have to wait another 3 month before the trees are in sync again).
+
+
+> > I'm traveling (to Sweden) Thursday (afternoon) and will be back late
+> > Friday (and have to play Viking in the weekend), thus to be realistic
+> > I'll start working on this Monday, so we can get some benchmark numbers
+> > to guide this decision.
+> 
+> Ok great.
+
+I'm actually very eager to see if this works out :-)
+
+
+> > > -		struct kmem_cache *s;
+> > > +		struct page *page;
+> > >
+> > > -		/* Support for memcg */
+> > > -		s = cache_from_obj(orig_s, p[size - 1]);
+> > > +		page = virt_to_head_page(p[size - 1]);
+> >
+> > Think we can drop this.
+> 
+> Well then you wont be able to check for a compound page. And you do not
+> want this check in build detached freelist.
+> 
+> >
+> > > -		size = build_detached_freelist(s, size, p, &df);
+> > > +		if (unlikely(!PageSlab(page))) {
+> > > +			BUG_ON(!PageCompound(page));
+> > > +			kfree_hook(p[size - 1]);
+> > > +			__free_kmem_pages(page, compound_order(page));
+> > > +			p[--size] = NULL;
+> > > +			continue;
+> > > +		}
+> >
+> > and move above into build_detached_freelist() and make it a little more
+> > pretty code wise (avoiding the p[size -1] juggling).
+> 
+> If we do this check here then we wont be needing it in
+> build_detached_freelist.
+
+I'll try see what looks best coding style wise...
+
+ 
+> > > +
+> > > +		size = build_detached_freelist(page->slab_cache, size, p, &df);
+> >
+> > also think we should be able to drop the kmem_cache param "page->slab_cache".
+> 
+> Yep.
+> 
+> >
+> >
+> > >  		if (unlikely(!df.page))
+> > >  			continue;
+> > >
+> > > -		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+> > > +		slab_free(page->slab_cache, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+> 
+> Then we need df.slab_cache or something.
+
+What about df.page->slab_cache (?)
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
