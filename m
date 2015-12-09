@@ -1,115 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AF1946B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:51:05 -0500 (EST)
-Received: by iouu10 with SMTP id u10so74669766iou.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:51:05 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id xa3si9808620igb.56.2015.12.09.12.51.05
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C76F6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:03:13 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id v187so3817657wmv.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:03:13 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
+        by mx.google.com with ESMTPS id 5si40114075wml.2.2015.12.09.13.03.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 12:51:05 -0800 (PST)
-Date: Wed, 9 Dec 2015 21:50:58 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
-Message-ID: <20151209215058.0ef5964a@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
-References: <20151208161751.21945.53936.stgit@firesoul>
-	<20151208161903.21945.33876.stgit@firesoul>
-	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
-	<20151209195325.68eaf314@redhat.com>
-	<alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
+        Wed, 09 Dec 2015 13:03:12 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] mm: memcontrol: MEMCG no longer works with SLOB
+Date: Wed, 09 Dec 2015 22:03:06 +0100
+Message-ID: <1555665.xW941mUeCs@wuerfel>
+In-Reply-To: <20151209200107.GA17409@cmpxchg.org>
+References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org> <1558902.EBTjGmY9S2@wuerfel> <20151209200107.GA17409@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com, David Miller <davem@davemloft.net>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-
-On Wed, 9 Dec 2015 13:41:07 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
-
-> On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
+On Wednesday 09 December 2015 15:01:07 Johannes Weiner wrote:
+> On Wed, Dec 09, 2015 at 05:32:39PM +0100, Arnd Bergmann wrote:
+> > The change to move the kmem accounting into the normal memcg
+> > code means we can no longer use memcg with slob, which lacks
+> > the memcg_params member in its struct kmem_cache:
+> > 
+> > ../mm/slab.h: In function 'is_root_cache':
+> > ../mm/slab.h:187:10: error: 'struct kmem_cache' has no member named 'memcg_params'
+> > 
+> > This enforces the new dependency in Kconfig. Alternatively,
+> > we could change the slob code to allow using MEMCG.
 > 
-> > I really like the idea of making it able to free kmalloc'ed objects.
-> > But I hate to change the API again... (I do have a use-case in the
-> > network stack where I could use this feature).
-> 
-> Now is the time to fix the API since its not that much in use yet if
-> at all.
+> I'm curious, was this a random config or do you actually use
+> CONFIG_SLOB && CONFIG_MEMCG?
 
-True. I was just so close submitting the network use-case to DaveM.
-Guess, that will have to wait if we choose this API change (and
-I'll have to wait another 3 month before the trees are in sync again).
+Just a randconfig build, I do a lot of those to check for ARM specific
+regressions.
+> index 5adec08..0b3ec4b 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -25,6 +25,9 @@ struct kmem_cache {
+>         int refcount;           /* Use counter */
+>         void (*ctor)(void *);   /* Called on object slot creation */
+>         struct list_head list;  /* List of all slab caches on the system */
+> +#ifdef CONFIG_MEMCG
+> +       struct memcg_cache_params memcg_params;
+> +#endif
+>  };
+>  
+>  #endif /* CONFIG_SLOB */
 
+This was my first approach to the problem, and it solves the build issues,
+I just wasn't sure if it works as expected.
 
-> > I'm traveling (to Sweden) Thursday (afternoon) and will be back late
-> > Friday (and have to play Viking in the weekend), thus to be realistic
-> > I'll start working on this Monday, so we can get some benchmark numbers
-> > to guide this decision.
-> 
-> Ok great.
-
-I'm actually very eager to see if this works out :-)
-
-
-> > > -		struct kmem_cache *s;
-> > > +		struct page *page;
-> > >
-> > > -		/* Support for memcg */
-> > > -		s = cache_from_obj(orig_s, p[size - 1]);
-> > > +		page = virt_to_head_page(p[size - 1]);
-> >
-> > Think we can drop this.
-> 
-> Well then you wont be able to check for a compound page. And you do not
-> want this check in build detached freelist.
-> 
-> >
-> > > -		size = build_detached_freelist(s, size, p, &df);
-> > > +		if (unlikely(!PageSlab(page))) {
-> > > +			BUG_ON(!PageCompound(page));
-> > > +			kfree_hook(p[size - 1]);
-> > > +			__free_kmem_pages(page, compound_order(page));
-> > > +			p[--size] = NULL;
-> > > +			continue;
-> > > +		}
-> >
-> > and move above into build_detached_freelist() and make it a little more
-> > pretty code wise (avoiding the p[size -1] juggling).
-> 
-> If we do this check here then we wont be needing it in
-> build_detached_freelist.
-
-I'll try see what looks best coding style wise...
-
- 
-> > > +
-> > > +		size = build_detached_freelist(page->slab_cache, size, p, &df);
-> >
-> > also think we should be able to drop the kmem_cache param "page->slab_cache".
-> 
-> Yep.
-> 
-> >
-> >
-> > >  		if (unlikely(!df.page))
-> > >  			continue;
-> > >
-> > > -		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
-> > > +		slab_free(page->slab_cache, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
-> 
-> Then we need df.slab_cache or something.
-
-What about df.page->slab_cache (?)
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
