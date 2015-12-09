@@ -1,95 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C086D6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:40:09 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id c201so3024709wme.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:40:09 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id y127si14412711wmy.71.2015.12.09.12.40.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 12:40:08 -0800 (PST)
-Received: by wmec201 with SMTP id c201so90816459wme.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:40:08 -0800 (PST)
-Received: from [192.168.0.12] ([94.4.235.180])
-        by smtp.gmail.com with ESMTPSA id w6sm9295367wjy.31.2015.12.09.12.40.06
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1805C6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:48:47 -0500 (EST)
+Received: by wmww144 with SMTP id w144so239222814wmw.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:48:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lh8si13799404wjb.110.2015.12.09.12.48.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 12:40:06 -0800 (PST)
-From: allan mcaleavy <allan.mcaleavy@gmail.com>
-Content-Type: multipart/alternative; boundary="Apple-Mail=_100CF241-8BA2-455E-B869-1BA1672F0407"
-Subject: tracing linux page cache usage.
-Message-Id: <139BE42D-F635-46A0-B7E4-216F9ADF6137@gmail.com>
-Date: Wed, 9 Dec 2015 20:40:04 +0000
-Mime-Version: 1.0 (Mac OS X Mail 9.1 \(3096.5\))
+        Wed, 09 Dec 2015 12:48:45 -0800 (PST)
+Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
+References: <87io4hi06n.fsf@rasmusvillemoes.dk>
+ <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+ <9558837.lN284KClUg@wuerfel>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <566893A9.7050704@suse.cz>
+Date: Wed, 9 Dec 2015 21:48:41 +0100
+MIME-Version: 1.0
+In-Reply-To: <9558837.lN284KClUg@wuerfel>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Andi Kleen <andi@firstfloor.org>
 
+On 12/09/2015 12:29 PM, Arnd Bergmann wrote:
+> On Friday 04 December 2015 16:16:33 Vlastimil Babka wrote:
+>> --- a/include/linux/mmdebug.h
+>> +++ b/include/linux/mmdebug.h
+>> @@ -2,15 +2,20 @@
+>>  #define LINUX_MM_DEBUG_H 1
+>>  
+>>  #include <linux/stringify.h>
+>> +#include <linux/types.h>
+>> +#include <linux/tracepoint.h>
+> 
+> 8<-----
+> Subject: mm: fix generated/bounds.h
+> 
+> The inclusion of linux/tracepoint.h is causing build errors for me in ARM
+> randconfig:
+> 
+> In file included from /git/arm-soc/include/linux/ktime.h:25:0,
+>                  from /git/arm-soc/include/linux/rcupdate.h:47,
+>                  from /git/arm-soc/include/linux/tracepoint.h:19,
+>                  from /git/arm-soc/include/linux/mmdebug.h:6,
+>                  from /git/arm-soc/include/linux/page-flags.h:10,
+>                  from /git/arm-soc/kernel/bounds.c:9:
+> /git/arm-soc/include/linux/jiffies.h:10:33: fatal error: generated/timeconst.h: No such file or directory
+> compilation terminated.
+> 
+> To work around this, we can stop including linux/mmdebug.h from linux/page_flags.h
+> while generating bounds.h, as we do for mm_types.h already.
+> 
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
---Apple-Mail=_100CF241-8BA2-455E-B869-1BA1672F0407
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
+Thanks and sorry. Andrew can you please include it in mmotm as -fix for now?
+I plan to respin the whole of this later with some patch splitting and
+reordering to reduce churn and follow Rasmus' advice.
 
-Hi Folks,
+Also I've just learned that there's a new lightweight tracepoint-defs.h in -tip
+thanks to Andi, which would be a better place for struct trace_print_flags than
+tracepoint.h is, so I'll look into using it for the respin, which should make
+this temporary -fix redundant.
 
-I am working on a rewrite of Brendan Greggs original cachestat (ftrace) =
-script into bcc. What I was looking for was a steer in the right =
-direction for what functions to trace. At present I trace the following.=20=
+> Fixes: 8c0d593d0f8f ("mm, printk: introduce new format string for flags")
 
+Note that the linux-next commit id is volatile here (regenerated from quilt series).
 
-add_to_page_cache_lru
-account_page_dirtied
-mark_page_accessed
-mark_buffer_dirty
-
-Where total =3D (mark_page_accessed - mark_buffer_dirty) & misses =3D =
-(add_to_page_cache_lru - account_page_dirtied), from this I then work =
-out the hit ratio etc. Is there any other key functions I should be =
-tracing?
-
-Thanks
-Allan=20=
-
---Apple-Mail=_100CF241-8BA2-455E-B869-1BA1672F0407
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html;
-	charset=us-ascii
-
-<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html =
-charset=3Dus-ascii"></head><body style=3D"word-wrap: break-word; =
--webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
-class=3D""><font face=3D"Menlo" class=3D"">Hi Folks,</font><div =
-class=3D""><font face=3D"Menlo" class=3D""><br =
-class=3D""></font></div><div class=3D""><font face=3D"Menlo" class=3D"">I =
-am working on a rewrite of Brendan Greggs original cachestat (ftrace) =
-script into bcc. What I was looking for was a steer in the right =
-direction for what functions to trace. At present I trace the =
-following.&nbsp;</font></div><div class=3D""><font face=3D"Menlo" =
-class=3D""><br class=3D""></font></div><div class=3D""><font =
-face=3D"Menlo" class=3D"">add_to_page_cache_lru</font></div><div =
-class=3D""><div style=3D"margin: 0px; line-height: normal;" =
-class=3D""><span style=3D"font-family: Menlo;" =
-class=3D"">account_page_dirtied</span></div><div style=3D"margin: 0px; =
-line-height: normal;" class=3D""><font face=3D"Menlo" =
-class=3D"">mark_page_accessed</font></div><div style=3D"margin: 0px; =
-line-height: normal;" class=3D""><span style=3D"font-family: Menlo;" =
-class=3D"">mark_buffer_dirty</span></div><div style=3D"margin: 0px; =
-line-height: normal;" class=3D""><font face=3D"Menlo" class=3D""><br =
-class=3D""></font></div></div><div style=3D"margin: 0px; line-height: =
-normal;" class=3D""><font face=3D"Menlo" class=3D"">Where total =3D =
-(mark_page_accessed - mark_buffer_dirty) &amp; misses =3D =
-(add_to_page_cache_lru - account_page_dirtied), from this I then work =
-out the hit ratio etc. Is there any other key functions I should be =
-tracing?</font></div><div style=3D"margin: 0px; line-height: normal;" =
-class=3D""><font face=3D"Menlo" class=3D""><br =
-class=3D""></font></div><div style=3D"margin: 0px; line-height: normal;" =
-class=3D""><font face=3D"Menlo" class=3D"">Thanks</font></div><div =
-style=3D"margin: 0px; line-height: normal;" class=3D""><font =
-face=3D"Menlo" class=3D"">Allan&nbsp;</font></div></body></html>=
-
---Apple-Mail=_100CF241-8BA2-455E-B869-1BA1672F0407--
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 19724e6ebd26..4efad0578a28 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -7,8 +7,8 @@
+>  
+>  #include <linux/types.h>
+>  #include <linux/bug.h>
+> -#include <linux/mmdebug.h>
+>  #ifndef __GENERATING_BOUNDS_H
+> +#include <linux/mmdebug.h>
+>  #include <linux/mm_types.h>
+>  #include <generated/bounds.h>
+>  #endif /* !__GENERATING_BOUNDS_H */
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
