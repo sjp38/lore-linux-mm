@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C76F6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:03:13 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id v187so3817657wmv.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:03:13 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
-        by mx.google.com with ESMTPS id 5si40114075wml.2.2015.12.09.13.03.11
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AD606B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:07:53 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so50865521igb.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:07:53 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0231.hostedemail.com. [216.40.44.231])
+        by mx.google.com with ESMTPS id u29si15008743ioi.124.2015.12.09.13.07.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 13:03:12 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] mm: memcontrol: MEMCG no longer works with SLOB
-Date: Wed, 09 Dec 2015 22:03:06 +0100
-Message-ID: <1555665.xW941mUeCs@wuerfel>
-In-Reply-To: <20151209200107.GA17409@cmpxchg.org>
-References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org> <1558902.EBTjGmY9S2@wuerfel> <20151209200107.GA17409@cmpxchg.org>
+        Wed, 09 Dec 2015 13:07:52 -0800 (PST)
+Date: Wed, 9 Dec 2015 16:07:49 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v4 3/7] x86: mm/gup: add gup trace points
+Message-ID: <20151209160749.250a2f56@gandalf.local.home>
+In-Reply-To: <1449682164-9933-4-git-send-email-yang.shi@linaro.org>
+References: <1449682164-9933-1-git-send-email-yang.shi@linaro.org>
+	<1449682164-9933-4-git-send-email-yang.shi@linaro.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: Yang Shi <yang.shi@linaro.org>
+Cc: akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Thomas Gleixner <tglx@linutronix.de>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org
 
-On Wednesday 09 December 2015 15:01:07 Johannes Weiner wrote:
-> On Wed, Dec 09, 2015 at 05:32:39PM +0100, Arnd Bergmann wrote:
-> > The change to move the kmem accounting into the normal memcg
-> > code means we can no longer use memcg with slob, which lacks
-> > the memcg_params member in its struct kmem_cache:
-> > 
-> > ../mm/slab.h: In function 'is_root_cache':
-> > ../mm/slab.h:187:10: error: 'struct kmem_cache' has no member named 'memcg_params'
-> > 
-> > This enforces the new dependency in Kconfig. Alternatively,
-> > we could change the slob code to allow using MEMCG.
+On Wed,  9 Dec 2015 09:29:20 -0800
+Yang Shi <yang.shi@linaro.org> wrote:
+
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: x86@kernel.org
+> Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> ---
+>  arch/x86/mm/gup.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
 > 
-> I'm curious, was this a random config or do you actually use
-> CONFIG_SLOB && CONFIG_MEMCG?
-
-Just a randconfig build, I do a lot of those to check for ARM specific
-regressions.
-> index 5adec08..0b3ec4b 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -25,6 +25,9 @@ struct kmem_cache {
->         int refcount;           /* Use counter */
->         void (*ctor)(void *);   /* Called on object slot creation */
->         struct list_head list;  /* List of all slab caches on the system */
-> +#ifdef CONFIG_MEMCG
-> +       struct memcg_cache_params memcg_params;
-> +#endif
->  };
+> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+> index ae9a37b..a96bcb7 100644
+> --- a/arch/x86/mm/gup.c
+> +++ b/arch/x86/mm/gup.c
+> @@ -12,6 +12,9 @@
 >  
->  #endif /* CONFIG_SLOB */
+>  #include <asm/pgtable.h>
+>  
+> +#define CREATE_TRACE_POINTS
+> +#include <trace/events/gup.h>>
 
-This was my first approach to the problem, and it solves the build issues,
-I just wasn't sure if it works as expected.
+First off, does the above even compile?
 
-	Arnd
+Second, you already created the tracepoints in mm/gup.c, why are you
+creating them here again? CREATE_TRACE_POINTS must be defined only once
+per events/.h file.
+
+-- Steve
+
+> +
+>  static inline pte_t gup_get_pte(pte_t *ptep)
+>  {
+>  #ifndef CONFIG_X86_PAE
+> @@ -270,6 +273,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  					(void __user *)start, len)))
+>  		return 0;
+>  
+> +	trace_gup_get_user_pages_fast(start, nr_pages);
+> +
+>  	/*
+>  	 * XXX: batch / limit 'nr', to avoid large irq off latency
+>  	 * needs some instrumenting to determine the common sizes used by
+> @@ -373,6 +378,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  	} while (pgdp++, addr = next, addr != end);
+>  	local_irq_enable();
+>  
+> +	trace_gup_get_user_pages_fast(start, nr_pages);
+> +
+>  	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+>  	return nr;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
