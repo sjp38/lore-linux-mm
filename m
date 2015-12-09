@@ -1,139 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C0D236B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 14:44:17 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so97161560qge.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 11:44:17 -0800 (PST)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id 200si10406563qhd.46.2015.12.09.11.44.16
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8AD6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 15:01:20 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id v187so1479538wmv.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 12:01:20 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ix3si13492985wjb.141.2015.12.09.12.01.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 11:44:16 -0800 (PST)
-Received: by qgeb1 with SMTP id b1so97160903qge.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 11:44:16 -0800 (PST)
+        Wed, 09 Dec 2015 12:01:19 -0800 (PST)
+Date: Wed, 9 Dec 2015 15:01:07 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: MEMCG no longer works with SLOB
+Message-ID: <20151209200107.GA17409@cmpxchg.org>
+References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org>
+ <2564892.qO1q7YJ6Nb@wuerfel>
+ <1558902.EBTjGmY9S2@wuerfel>
 MIME-Version: 1.0
-In-Reply-To: <1449602325-20572-4-git-send-email-ross.zwisler@linux.intel.com>
-References: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1449602325-20572-4-git-send-email-ross.zwisler@linux.intel.com>
-Date: Wed, 9 Dec 2015 11:44:16 -0800
-Message-ID: <CAA9_cmeVYinm4mMiDU4oz8fW4HQ3n1RqEbPHBW7A3OGmi9eXtw@mail.gmail.com>
-Subject: Re: [PATCH v3 3/7] mm: add find_get_entries_tag()
-From: Dan Williams <dan.j.williams@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1558902.EBTjGmY9S2@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Andreas Dilger <adilger.kernel@dilger.ca>, "H. Peter Anvin" <hpa@zytor.com>, Jeff Layton <jlayton@poochiereds.net>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, ext4 hackers <linux-ext4@vger.kernel.org>, xfs@oss.sgi.com, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On Tue, Dec 8, 2015 at 11:18 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> Add find_get_entries_tag() to the family of functions that include
-> find_get_entries(), find_get_pages() and find_get_pages_tag().  This is
-> needed for DAX dirty page handling because we need a list of both page
-> offsets and radix tree entries ('indices' and 'entries' in this function)
-> that are marked with the PAGECACHE_TAG_TOWRITE tag.
->
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  include/linux/pagemap.h |  3 +++
->  mm/filemap.c            | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 71 insertions(+)
->
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index 26eabf5..4db0425 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -361,6 +361,9 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
->                                unsigned int nr_pages, struct page **pages);
->  unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
->                         int tag, unsigned int nr_pages, struct page **pages);
-> +unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-> +                       int tag, unsigned int nr_entries,
-> +                       struct page **entries, pgoff_t *indices);
->
->  struct page *grab_cache_page_write_begin(struct address_space *mapping,
->                         pgoff_t index, unsigned flags);
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 167a4d9..99dfbc9 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1498,6 +1498,74 @@ repeat:
->  }
->  EXPORT_SYMBOL(find_get_pages_tag);
->
-> +/**
-> + * find_get_entries_tag - find and return entries that match @tag
-> + * @mapping:   the address_space to search
-> + * @start:     the starting page cache index
-> + * @tag:       the tag index
-> + * @nr_entries:        the maximum number of entries
-> + * @entries:   where the resulting entries are placed
-> + * @indices:   the cache indices corresponding to the entries in @entries
-> + *
-> + * Like find_get_entries, except we only return entries which are tagged with
-> + * @tag.
-> + */
-> +unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-> +                       int tag, unsigned int nr_entries,
-> +                       struct page **entries, pgoff_t *indices)
-> +{
-> +       void **slot;
-> +       unsigned int ret = 0;
-> +       struct radix_tree_iter iter;
-> +
-> +       if (!nr_entries)
-> +               return 0;
-> +
-> +       rcu_read_lock();
-> +restart:
-> +       radix_tree_for_each_tagged(slot, &mapping->page_tree,
-> +                                  &iter, start, tag) {
-> +               struct page *page;
-> +repeat:
-> +               page = radix_tree_deref_slot(slot);
-> +               if (unlikely(!page))
-> +                       continue;
-> +               if (radix_tree_exception(page)) {
-> +                       if (radix_tree_deref_retry(page)) {
-> +                               /*
-> +                                * Transient condition which can only trigger
-> +                                * when entry at index 0 moves out of or back
-> +                                * to root: none yet gotten, safe to restart.
-> +                                */
-> +                               goto restart;
-> +                       }
-> +
-> +                       /*
-> +                        * A shadow entry of a recently evicted page, a swap
-> +                        * entry from shmem/tmpfs or a DAX entry.  Return it
-> +                        * without attempting to raise page count.
-> +                        */
-> +                       goto export;
-> +               }
-> +               if (!page_cache_get_speculative(page))
-> +                       goto repeat;
-> +
-> +               /* Has the page moved? */
-> +               if (unlikely(page != *slot)) {
-> +                       page_cache_release(page);
-> +                       goto repeat;
-> +               }
-> +export:
-> +               indices[ret] = iter.index;
-> +               entries[ret] = page;
-> +               if (++ret == nr_entries)
-> +                       break;
-> +       }
-> +       rcu_read_unlock();
-> +       return ret;
-> +}
-> +EXPORT_SYMBOL(find_get_entries_tag);
-> +
+On Wed, Dec 09, 2015 at 05:32:39PM +0100, Arnd Bergmann wrote:
+> The change to move the kmem accounting into the normal memcg
+> code means we can no longer use memcg with slob, which lacks
+> the memcg_params member in its struct kmem_cache:
+> 
+> ../mm/slab.h: In function 'is_root_cache':
+> ../mm/slab.h:187:10: error: 'struct kmem_cache' has no member named 'memcg_params'
+> 
+> This enforces the new dependency in Kconfig. Alternatively,
+> we could change the slob code to allow using MEMCG.
 
-Why does this mostly duplicate find_get_entries()?
+I'm curious, was this a random config or do you actually use
+CONFIG_SLOB && CONFIG_MEMCG?
 
-Surely find_get_entries() can be implemented as a special case of
-find_get_entries_tag().
+Excluding CONFIG_MEMCG completely for slob seems harsh, but I would
+prefer not littering the source with
+
+#if defined(CONFIG_MEMCG) && (defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
+
+or
+
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+
+for such a special case. The #ifdefs are already out of hand in there.
+
+Vladimir, what would you think of simply doing this?
+
+diff --git a/mm/slab.h b/mm/slab.h
+index 5adec08..0b3ec4b 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -25,6 +25,9 @@ struct kmem_cache {
+ 	int refcount;		/* Use counter */
+ 	void (*ctor)(void *);	/* Called on object slot creation */
+ 	struct list_head list;	/* List of all slab caches on the system */
++#ifdef CONFIG_MEMCG
++	struct memcg_cache_params memcg_params;
++#endif
+ };
+ 
+ #endif /* CONFIG_SLOB */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
