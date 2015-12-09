@@ -1,166 +1,321 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9310D6B0255
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 21:40:22 -0500 (EST)
-Received: by wmww144 with SMTP id w144so53991848wmw.0
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 18:40:22 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id b14si8396523wjs.44.2015.12.08.18.40.18
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E90906B0257
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 22:10:56 -0500 (EST)
+Received: by ioir85 with SMTP id r85so45774515ioi.1
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 19:10:56 -0800 (PST)
+Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
+        by mx.google.com with ESMTPS id i101si9568679iod.13.2015.12.08.19.10.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 18:40:21 -0800 (PST)
-Message-ID: <56679480.2050106@huawei.com>
-Date: Wed, 9 Dec 2015 10:40:00 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] mm: Introduce kernelcore=reliable option
-References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com> <1448636696-16044-1-git-send-email-izumi.taku@jp.fujitsu.com> <56679124.2050501@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 19:10:56 -0800 (PST)
+Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 89C03AC02A9
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 12:10:46 +0900 (JST)
+From: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
+Subject: RE: [PATCH v2 2/2] mm: Introduce kernelcore=reliable option
+Date: Wed, 9 Dec 2015 03:10:43 +0000
+Message-ID: <E86EADE93E2D054CBCD4E708C38D364A542992FA@G01JPEXMBYT01>
+References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <1448636696-16044-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <56679124.2050501@huawei.com>
 In-Reply-To: <56679124.2050501@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, akpm@linux-foundation.org, dave.hansen@intel.com, matt@codeblueprint.co.uk
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tony.luck@intel.com" <tony.luck@intel.com>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-On 2015/12/9 10:25, Xishi Qiu wrote:
+Dear Xishi,
 
+ Thanks for reviewing.
+
+> -----Original Message-----
+> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
+> Sent: Wednesday, December 09, 2015 11:26 AM
+> To: Izumi, Taku/泉 拓
+> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; tony.luck@intel.com; Kamezawa, Hiroyuki/亀澤 寛之; mel@csn.ul.ie;
+> akpm@linux-foundation.org; dave.hansen@intel.com; matt@codeblueprint.co.uk
+> Subject: Re: [PATCH v2 2/2] mm: Introduce kernelcore=reliable option
+> 
 > On 2015/11/27 23:04, Taku Izumi wrote:
 > 
->> This patch extends existing "kernelcore" option and
->> introduces kernelcore=reliable option. By specifying
->> "reliable" instead of specifying the amount of memory,
->> non-reliable region will be arranged into ZONE_MOVABLE.
->>
->> v1 -> v2:
->>  - Refine so that the following case also can be
->>    handled properly:
->>
->>  Node X:  |MMMMMM------MMMMMM--------|
->>    (legend) M: mirrored  -: not mirrrored
->>
->>  In this case, ZONE_NORMAL and ZONE_MOVABLE are
->>  arranged like bellow:
->>
->>  Node X:  |--------------------------|
->>           |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
->>                 |ooooooxxxxxxoooooooo| ZONE_MOVABLE
->>    (legend) o: present  x: absent
->>
->> Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
->> ---
->>  Documentation/kernel-parameters.txt |   9 ++-
->>  mm/page_alloc.c                     | 110 ++++++++++++++++++++++++++++++++++--
->>  2 files changed, 112 insertions(+), 7 deletions(-)
->>
->> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
->> index f8aae63..ed44c2c8 100644
->> --- a/Documentation/kernel-parameters.txt
->> +++ b/Documentation/kernel-parameters.txt
->> @@ -1695,7 +1695,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->>  
->>  	keepinitrd	[HW,ARM]
->>  
->> -	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
->> +	kernelcore=	Format: nn[KMG] | "reliable"
->> +			[KNL,X86,IA-64,PPC] This parameter
->>  			specifies the amount of memory usable by the kernel
->>  			for non-movable allocations.  The requested amount is
->>  			spread evenly throughout all nodes in the system. The
->> @@ -1711,6 +1712,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->>  			use the HighMem zone if it exists, and the Normal
->>  			zone if it does not.
->>  
->> +			Instead of specifying the amount of memory (nn[KMS]),
->> +			you can specify "reliable" option. In case "reliable"
->> +			option is specified, reliable memory is used for
->> +			non-movable allocations and remaining memory is used
->> +			for Movable pages.
->> +
->>  	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
->>  			Format: <Controller#>[,poll interval]
->>  			The controller # is the number of the ehci usb debug
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index acb0b4e..006a3d8 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -251,6 +251,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
->>  static unsigned long __initdata required_kernelcore;
->>  static unsigned long __initdata required_movablecore;
->>  static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
->> +static bool reliable_kernelcore;
->>  
->>  /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
->>  int movable_zone;
->> @@ -4472,6 +4473,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>  	unsigned long pfn;
->>  	struct zone *z;
->>  	unsigned long nr_initialised = 0;
->> +	struct memblock_region *r = NULL, *tmp;
->>  
->>  	if (highest_memmap_pfn < end_pfn - 1)
->>  		highest_memmap_pfn = end_pfn - 1;
->> @@ -4491,6 +4493,38 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>  			if (!update_defer_init(pgdat, pfn, end_pfn,
->>  						&nr_initialised))
->>  				break;
->> +
->> +			/*
->> +			 * if not reliable_kernelcore and ZONE_MOVABLE exists,
->> +			 * range from zone_movable_pfn[nid] to end of each node
->> +			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
->> +			 */
->> +			if (!reliable_kernelcore && zone_movable_pfn[nid])
->> +				if (zone == ZONE_NORMAL &&
->> +				    pfn >= zone_movable_pfn[nid])
->> +					continue;
->> +
->> +			/*
->> +			 * check given memblock attribute by firmware which
->> +			 * can affect kernel memory layout.
->> +			 * if zone==ZONE_MOVABLE but memory is mirrored,
->> +			 * it's an overlapped memmap init. skip it.
->> +			 */
->> +			if (reliable_kernelcore && zone == ZONE_MOVABLE) {
->> +				if (!r ||
->> +				    pfn >= memblock_region_memory_end_pfn(r)) {
->> +					for_each_memblock(memory, tmp)
->> +						if (pfn < memblock_region_memory_end_pfn(tmp))
->> +							break;
->> +					r = tmp;
->> +				}
->> +				if (pfn >= memblock_region_memory_base_pfn(r) &&
->> +				    memblock_is_mirror(r)) {
->> +					/* already initialized as NORMAL */
->> +					pfn = memblock_region_memory_end_pfn(r);
->> +					continue;
->> +				}
->> +			}
+> > This patch extends existing "kernelcore" option and
+> > introduces kernelcore=reliable option. By specifying
+> > "reliable" instead of specifying the amount of memory,
+> > non-reliable region will be arranged into ZONE_MOVABLE.
+> >
+> > v1 -> v2:
+> >  - Refine so that the following case also can be
+> >    handled properly:
+> >
+> >  Node X:  |MMMMMM------MMMMMM--------|
+> >    (legend) M: mirrored  -: not mirrrored
+> >
+> >  In this case, ZONE_NORMAL and ZONE_MOVABLE are
+> >  arranged like bellow:
+> >
+> >  Node X:  |--------------------------|
+> >           |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
+> >                 |ooooooxxxxxxoooooooo| ZONE_MOVABLE
+> >    (legend) o: present  x: absent
+> >
+> > Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+> > ---
+> >  Documentation/kernel-parameters.txt |   9 ++-
+> >  mm/page_alloc.c                     | 110 ++++++++++++++++++++++++++++++++++--
+> >  2 files changed, 112 insertions(+), 7 deletions(-)
+> >
+> > diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> > index f8aae63..ed44c2c8 100644
+> > --- a/Documentation/kernel-parameters.txt
+> > +++ b/Documentation/kernel-parameters.txt
+> > @@ -1695,7 +1695,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+> >
+> >  	keepinitrd	[HW,ARM]
+> >
+> > -	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
+> > +	kernelcore=	Format: nn[KMG] | "reliable"
+> > +			[KNL,X86,IA-64,PPC] This parameter
+> >  			specifies the amount of memory usable by the kernel
+> >  			for non-movable allocations.  The requested amount is
+> >  			spread evenly throughout all nodes in the system. The
+> > @@ -1711,6 +1712,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+> >  			use the HighMem zone if it exists, and the Normal
+> >  			zone if it does not.
+> >
+> > +			Instead of specifying the amount of memory (nn[KMS]),
+> > +			you can specify "reliable" option. In case "reliable"
+> > +			option is specified, reliable memory is used for
+> > +			non-movable allocations and remaining memory is used
+> > +			for Movable pages.
+> > +
+> >  	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+> >  			Format: <Controller#>[,poll interval]
+> >  			The controller # is the number of the ehci usb debug
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index acb0b4e..006a3d8 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -251,6 +251,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+> >  static unsigned long __initdata required_kernelcore;
+> >  static unsigned long __initdata required_movablecore;
+> >  static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
+> > +static bool reliable_kernelcore;
+> >
+> >  /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+> >  int movable_zone;
+> > @@ -4472,6 +4473,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> >  	unsigned long pfn;
+> >  	struct zone *z;
+> >  	unsigned long nr_initialised = 0;
+> > +	struct memblock_region *r = NULL, *tmp;
+> >
+> >  	if (highest_memmap_pfn < end_pfn - 1)
+> >  		highest_memmap_pfn = end_pfn - 1;
+> > @@ -4491,6 +4493,38 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> >  			if (!update_defer_init(pgdat, pfn, end_pfn,
+> >  						&nr_initialised))
+> >  				break;
+> > +
+> > +			/*
+> > +			 * if not reliable_kernelcore and ZONE_MOVABLE exists,
+> > +			 * range from zone_movable_pfn[nid] to end of each node
+> > +			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
+> > +			 */
+> > +			if (!reliable_kernelcore && zone_movable_pfn[nid])
+> > +				if (zone == ZONE_NORMAL &&
+> > +				    pfn >= zone_movable_pfn[nid])
+> > +					continue;
+> > +
+> > +			/*
+> > +			 * check given memblock attribute by firmware which
+> > +			 * can affect kernel memory layout.
+> > +			 * if zone==ZONE_MOVABLE but memory is mirrored,
+> > +			 * it's an overlapped memmap init. skip it.
+> > +			 */
+> > +			if (reliable_kernelcore && zone == ZONE_MOVABLE) {
+> > +				if (!r ||
+> > +				    pfn >= memblock_region_memory_end_pfn(r)) {
+> > +					for_each_memblock(memory, tmp)
+> > +						if (pfn < memblock_region_memory_end_pfn(tmp))
+> > +							break;
+> > +					r = tmp;
+> > +				}
+> > +				if (pfn >= memblock_region_memory_base_pfn(r) &&
+> > +				    memblock_is_mirror(r)) {
+> > +					/* already initialized as NORMAL */
+> > +					pfn = memblock_region_memory_end_pfn(r);
+> > +					continue;
+> > +				}
+> > +			}
 > 
 > Hi Taku,
 > 
 > It has checked this case: zone==ZONE_MOVABLE but memory is mirrored,
 > but how about another case: zone==ZONE_NORMAL but memory is not mirrored?
+
+  Both case are handled.
+
 > 
 >   Node X:  |--------------------------|
 >            |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
 >                  |ooooooxxxxxxoooooooo| ZONE_MOVABLE
 >     (legend) o: present  x: absent
+
+
+            A     B                    C
+   Node X:  |--------------------------|
+            |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
+                  |ooooooxxxxxxoooooooo| ZONE_MOVABLE
+     (legend) o: present  x: absent
+
+  ZONE_NORMAL,  zone_start_pfn: A, size(spanned_pages): C-A
+  ZONE_MOVABLE, zone_start_pfn: B, size(spanned_pages): C-B
+  A: node_start_pfn
+  B: zone_movable_pfn[nid]
+
+  First memmap_init_zone() is invoked with zone = ZONE_NORMAL, so
+  pages are initialized as ZONE_NORMAL like bellow:
+
+            A                          C
+            |NNNNNNNNNNNNNNNNNNNNNNNNNN| ZONE_NORMAL
+
+ Then, memmap_init_zone() is invoked with zone = ZONE_MOVABLE,
+ pages to be ZONE_MOVABLE are reinitialized as ZONE_MOVABLE, and
+ others are skipped (so they are still ZONE_NORMAL) like bellow:
+
+                  B                    C
+                  |MMMMMM------MMMMMMMM| ZONE_MOVABLE
+
+ So finally pages result in maps like bellow:
+
+            A     B                    C
+            |NNNNNMMMMMMMNNNNNNMMMMMMMM| 
+
+
+ Sincerely,
+ Taku Izumi
+
 > 
-> Thanks,
-> Xishi Qiu
+> >  		}
+> >
+> >  		/*
+> > @@ -4909,11 +4943,6 @@ static void __meminit adjust_zone_range_for_zone_movable(int nid,
+> >  			*zone_end_pfn = min(node_end_pfn,
+> >  				arch_zone_highest_possible_pfn[movable_zone]);
+> >
+> > -		/* Adjust for ZONE_MOVABLE starting within this range */
+> > -		} else if (*zone_start_pfn < zone_movable_pfn[nid] &&
+> > -				*zone_end_pfn > zone_movable_pfn[nid]) {
+> > -			*zone_end_pfn = zone_movable_pfn[nid];
+> > -
+> >  		/* Check if this whole range is within ZONE_MOVABLE */
+> >  		} else if (*zone_start_pfn >= zone_movable_pfn[nid])
+> >  			*zone_start_pfn = *zone_end_pfn;
+> > @@ -4998,6 +5027,7 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+> >  	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
+> >  	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+> >  	unsigned long zone_start_pfn, zone_end_pfn;
+> > +	unsigned long nr_absent;
+> >
+> >  	/* When hotadd a new node from cpu_up(), the node should be empty */
+> >  	if (!node_start_pfn && !node_end_pfn)
+> > @@ -5009,7 +5039,39 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+> >  	adjust_zone_range_for_zone_movable(nid, zone_type,
+> >  			node_start_pfn, node_end_pfn,
+> >  			&zone_start_pfn, &zone_end_pfn);
+> > -	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+> > +	nr_absent = __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+> > +
+> > +	/*
+> > +	 * ZONE_MOVABLE handling.
+> > +	 * Treat pages to be ZONE_MOVABLE in ZONE_NORMAL as absent pages
+> > +	 * and vice versa.
+> > +	 */
+> > +	if (zone_movable_pfn[nid]) {
+> > +		if (reliable_kernelcore) {
+> > +			unsigned long start_pfn, end_pfn;
+> > +			struct memblock_region *r;
+> > +
+> > +			for_each_memblock(memory, r) {
+> > +				start_pfn = clamp((ulong)PFN_DOWN(r->base),
+> > +						  zone_start_pfn, zone_end_pfn);
+> > +				end_pfn = clamp((ulong)PFN_DOWN(r->base + r->size),
+> > +						zone_start_pfn, zone_end_pfn);
+> > +
+> > +				if (zone_type == ZONE_MOVABLE &&
+> > +				    memblock_is_mirror(r))
+> > +					nr_absent += end_pfn - start_pfn;
+> > +
+> > +				if (zone_type == ZONE_NORMAL &&
+> > +				    !memblock_is_mirror(r))
+> > +					nr_absent += end_pfn - start_pfn;
+> > +			}
+> > +		} else {
+> > +			if (zone_type == ZONE_NORMAL)
+> > +				nr_absent += node_end_pfn - zone_movable_pfn[nid];
+> > +		}
+> > +	}
+> > +
+> > +	return nr_absent;
+> >  }
+> >
+> >  #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> > @@ -5507,6 +5569,36 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+> >  	}
+> >
+> >  	/*
+> > +	 * If kernelcore=reliable is specified, ignore movablecore option
+> > +	 */
+> > +	if (reliable_kernelcore) {
+> > +		bool mem_below_4gb_not_mirrored = false;
+> > +
+> > +		for_each_memblock(memory, r) {
+> > +			if (memblock_is_mirror(r))
+> > +				continue;
+> > +
+> > +			nid = r->nid;
+> > +
+> > +			usable_startpfn = PFN_DOWN(r->base);
+> > +
+> > +			if (usable_startpfn < 0x100000) {
+> > +				mem_below_4gb_not_mirrored = true;
+> > +				continue;
+> > +			}
+> > +
+> > +			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
+> > +				min(usable_startpfn, zone_movable_pfn[nid]) :
+> > +				usable_startpfn;
+> > +		}
+> > +
+> > +		if (mem_below_4gb_not_mirrored)
+> > +			pr_warn("This configuration results in unmirrored kernel memory.");
+> > +
+> > +		goto out2;
+> > +	}
+> > +
+> > +	/*
+> >  	 * If movablecore=nn[KMG] was specified, calculate what size of
+> >  	 * kernelcore that corresponds so that memory usable for
+> >  	 * any allocation type is evenly spread. If both kernelcore
+> > @@ -5766,6 +5858,12 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
+> >   */
+> >  static int __init cmdline_parse_kernelcore(char *p)
+> >  {
+> > +	/* parse kernelcore=reliable */
+> > +	if (parse_option_str(p, "reliable")) {
+> > +		reliable_kernelcore = true;
+> > +		return 0;
+> > +	}
+> > +
+> >  	return cmdline_parse_core(p, &required_kernelcore);
+> >  }
+> >
 > 
-
-Hi Taku,
-
-memmap_init_zone() will init normal zone first, then init the movable
-zone, and it will change the page initialization which has already inited
-in normal zone, so it need not to check the other case, right?
-
-I think this is a little confusion and waste time.
-
-Thanks,
-Xishi Qiu
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
