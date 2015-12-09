@@ -1,124 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B42936B0255
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 21:35:44 -0500 (EST)
-Received: by ioc74 with SMTP id 74so44880751ioc.2
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 18:35:44 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id i4si9345552igu.39.2015.12.08.18.35.43
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9310D6B0255
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 21:40:22 -0500 (EST)
+Received: by wmww144 with SMTP id w144so53991848wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 18:40:22 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id b14si8396523wjs.44.2015.12.08.18.40.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 18:35:43 -0800 (PST)
-Date: Wed, 9 Dec 2015 11:36:58 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH V2 2/9] mm: generalize avoid fault-inject on
- bootstrap kmem_cache
-Message-ID: <20151209023658.GA12482@js1304-P5Q-DELUXE>
-References: <20151208161751.21945.53936.stgit@firesoul>
- <20151208161832.21945.55076.stgit@firesoul>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Dec 2015 18:40:21 -0800 (PST)
+Message-ID: <56679480.2050106@huawei.com>
+Date: Wed, 9 Dec 2015 10:40:00 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151208161832.21945.55076.stgit@firesoul>
+Subject: Re: [PATCH v2 2/2] mm: Introduce kernelcore=reliable option
+References: <1448636635-15946-1-git-send-email-izumi.taku@jp.fujitsu.com> <1448636696-16044-1-git-send-email-izumi.taku@jp.fujitsu.com> <56679124.2050501@huawei.com>
+In-Reply-To: <56679124.2050501@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, akpm@linux-foundation.org, dave.hansen@intel.com, matt@codeblueprint.co.uk
 
-On Tue, Dec 08, 2015 at 05:18:32PM +0100, Jesper Dangaard Brouer wrote:
-> Move slab_should_failslab() check from SLAB allocator to generic
-> slab_pre_alloc_hook().  The check guards against slab alloc
-> fault-injects failures for the bootstrap slab that is used for
-> allocating "kmem_cache" objects to the allocator itself.
+On 2015/12/9 10:25, Xishi Qiu wrote:
+
+> On 2015/11/27 23:04, Taku Izumi wrote:
 > 
-> I'm not really happy with this code...
-> ---
->  mm/failslab.c |    2 ++
->  mm/slab.c     |    8 --------
->  mm/slab.h     |   23 ++++++++++++++++++++++-
->  3 files changed, 24 insertions(+), 9 deletions(-)
+>> This patch extends existing "kernelcore" option and
+>> introduces kernelcore=reliable option. By specifying
+>> "reliable" instead of specifying the amount of memory,
+>> non-reliable region will be arranged into ZONE_MOVABLE.
+>>
+>> v1 -> v2:
+>>  - Refine so that the following case also can be
+>>    handled properly:
+>>
+>>  Node X:  |MMMMMM------MMMMMM--------|
+>>    (legend) M: mirrored  -: not mirrrored
+>>
+>>  In this case, ZONE_NORMAL and ZONE_MOVABLE are
+>>  arranged like bellow:
+>>
+>>  Node X:  |--------------------------|
+>>           |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
+>>                 |ooooooxxxxxxoooooooo| ZONE_MOVABLE
+>>    (legend) o: present  x: absent
+>>
+>> Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+>> ---
+>>  Documentation/kernel-parameters.txt |   9 ++-
+>>  mm/page_alloc.c                     | 110 ++++++++++++++++++++++++++++++++++--
+>>  2 files changed, 112 insertions(+), 7 deletions(-)
+>>
+>> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+>> index f8aae63..ed44c2c8 100644
+>> --- a/Documentation/kernel-parameters.txt
+>> +++ b/Documentation/kernel-parameters.txt
+>> @@ -1695,7 +1695,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>>  
+>>  	keepinitrd	[HW,ARM]
+>>  
+>> -	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
+>> +	kernelcore=	Format: nn[KMG] | "reliable"
+>> +			[KNL,X86,IA-64,PPC] This parameter
+>>  			specifies the amount of memory usable by the kernel
+>>  			for non-movable allocations.  The requested amount is
+>>  			spread evenly throughout all nodes in the system. The
+>> @@ -1711,6 +1712,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>>  			use the HighMem zone if it exists, and the Normal
+>>  			zone if it does not.
+>>  
+>> +			Instead of specifying the amount of memory (nn[KMS]),
+>> +			you can specify "reliable" option. In case "reliable"
+>> +			option is specified, reliable memory is used for
+>> +			non-movable allocations and remaining memory is used
+>> +			for Movable pages.
+>> +
+>>  	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+>>  			Format: <Controller#>[,poll interval]
+>>  			The controller # is the number of the ehci usb debug
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index acb0b4e..006a3d8 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -251,6 +251,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+>>  static unsigned long __initdata required_kernelcore;
+>>  static unsigned long __initdata required_movablecore;
+>>  static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
+>> +static bool reliable_kernelcore;
+>>  
+>>  /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+>>  int movable_zone;
+>> @@ -4472,6 +4473,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>  	unsigned long pfn;
+>>  	struct zone *z;
+>>  	unsigned long nr_initialised = 0;
+>> +	struct memblock_region *r = NULL, *tmp;
+>>  
+>>  	if (highest_memmap_pfn < end_pfn - 1)
+>>  		highest_memmap_pfn = end_pfn - 1;
+>> @@ -4491,6 +4493,38 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>  			if (!update_defer_init(pgdat, pfn, end_pfn,
+>>  						&nr_initialised))
+>>  				break;
+>> +
+>> +			/*
+>> +			 * if not reliable_kernelcore and ZONE_MOVABLE exists,
+>> +			 * range from zone_movable_pfn[nid] to end of each node
+>> +			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
+>> +			 */
+>> +			if (!reliable_kernelcore && zone_movable_pfn[nid])
+>> +				if (zone == ZONE_NORMAL &&
+>> +				    pfn >= zone_movable_pfn[nid])
+>> +					continue;
+>> +
+>> +			/*
+>> +			 * check given memblock attribute by firmware which
+>> +			 * can affect kernel memory layout.
+>> +			 * if zone==ZONE_MOVABLE but memory is mirrored,
+>> +			 * it's an overlapped memmap init. skip it.
+>> +			 */
+>> +			if (reliable_kernelcore && zone == ZONE_MOVABLE) {
+>> +				if (!r ||
+>> +				    pfn >= memblock_region_memory_end_pfn(r)) {
+>> +					for_each_memblock(memory, tmp)
+>> +						if (pfn < memblock_region_memory_end_pfn(tmp))
+>> +							break;
+>> +					r = tmp;
+>> +				}
+>> +				if (pfn >= memblock_region_memory_base_pfn(r) &&
+>> +				    memblock_is_mirror(r)) {
+>> +					/* already initialized as NORMAL */
+>> +					pfn = memblock_region_memory_end_pfn(r);
+>> +					continue;
+>> +				}
+>> +			}
 > 
-> diff --git a/mm/failslab.c b/mm/failslab.c
-> index 79171b4a5826..a2ad28ba696c 100644
-> --- a/mm/failslab.c
-> +++ b/mm/failslab.c
-> @@ -13,6 +13,8 @@ static struct {
->  
->  bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
->  {
-> +	// Should we place bootstrap kmem_cache check here???
-> +
->  	if (gfpflags & __GFP_NOFAIL)
->  		return false;
->  
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 4765c97ce690..4684c2496982 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2917,14 +2917,6 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
->  #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
->  #endif
->  
-> -static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
-> -{
-> -	if (unlikely(cachep == kmem_cache))
-> -		return false;
-> -
-> -	return should_failslab(cachep->object_size, flags, cachep->flags);
-> -}
-> -
->  static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
->  {
->  	void *objp;
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 588bc5281fc8..4e7b0e62f3f4 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -360,6 +360,27 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
->  }
->  #endif
->  
-> +/* FIXME: This construct sucks, because this compare+branch needs to
-> + * get removed by compiler then !CONFIG_FAILSLAB (maybe compiler is
-> + * smart enough to realize only "false" can be generated).
-> + *
-> + * Comments please: Pulling out CONFIG_FAILSLAB here looks ugly...
-> + *  should we instead change API of should_failslab() ??
-> + *
-> + * Next question: is the bootstrap cache check okay to add for all
-> + * allocators? (this would be the easiest, else need more ugly ifdef's)
-> + */
-> +static inline bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
-> +{
-> +	/* No fault-injection for bootstrap cache */
-> +#ifdef CONFIG_FAILSLAB
-> +	if (unlikely(cachep == kmem_cache))
-> +		return false;
-> +#endif
-> +
-> +	return should_failslab(cachep->object_size, flags, cachep->flags);
-> +}
-> +
->  static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
->  						     gfp_t flags)
->  {
-> @@ -367,7 +388,7 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
->  	lockdep_trace_alloc(flags);
->  	might_sleep_if(gfpflags_allow_blocking(flags));
->  
-> -	if (should_failslab(s->object_size, flags, s->flags))
-> +	if (slab_should_failslab(s, flags))
->  		return NULL;
+> Hi Taku,
+> 
+> It has checked this case: zone==ZONE_MOVABLE but memory is mirrored,
+> but how about another case: zone==ZONE_NORMAL but memory is not mirrored?
+> 
+>   Node X:  |--------------------------|
+>            |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
+>                  |ooooooxxxxxxoooooooo| ZONE_MOVABLE
+>     (legend) o: present  x: absent
+> 
+> Thanks,
+> Xishi Qiu
+> 
 
-It'd be better to remove slab_should_failslab() and insert following code
-snippet here.
+Hi Taku,
 
-if (IS_ENABLED(CONFIG_FAILSLAB) &&
-        cachep != kmem_cache &&
-        should_failslab())
-        return NULL;
+memmap_init_zone() will init normal zone first, then init the movable
+zone, and it will change the page initialization which has already inited
+in normal zone, so it need not to check the other case, right?
 
-Thanks.
+I think this is a little confusion and waste time.
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
