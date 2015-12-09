@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 222736B0260
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 12:49:29 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so32971948pac.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 09:49:28 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id qy7si13977760pab.169.2015.12.09.09.49.23
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 173936B0261
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 12:49:31 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so33350517pfd.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 09:49:30 -0800 (PST)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id f7si13946512pas.159.2015.12.09.09.49.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 09:49:23 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so33170795pac.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 09:49:23 -0800 (PST)
+        Wed, 09 Dec 2015 09:49:24 -0800 (PST)
+Received: by pfdd184 with SMTP id d184so33349346pfd.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 09:49:24 -0800 (PST)
 From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH v4 5/7] s390: mm/gup: add gup trace points
-Date: Wed,  9 Dec 2015 09:29:22 -0800
-Message-Id: <1449682164-9933-6-git-send-email-yang.shi@linaro.org>
+Subject: [PATCH v4 6/7] sh: mm/gup: add gup trace points
+Date: Wed,  9 Dec 2015 09:29:23 -0800
+Message-Id: <1449682164-9933-7-git-send-email-yang.shi@linaro.org>
 In-Reply-To: <1449682164-9933-1-git-send-email-yang.shi@linaro.org>
 References: <1449682164-9933-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org, linux-sh@vger.kernel.org
 
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-s390@vger.kernel.org
+Cc: linux-sh@vger.kernel.org
 Signed-off-by: Yang Shi <yang.shi@linaro.org>
 ---
- arch/s390/mm/gup.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/sh/mm/gup.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
-index 12bbf0e..0ff7e92 100644
---- a/arch/s390/mm/gup.c
-+++ b/arch/s390/mm/gup.c
-@@ -12,6 +12,9 @@
- #include <linux/rwsem.h>
+diff --git a/arch/sh/mm/gup.c b/arch/sh/mm/gup.c
+index e7af6a6..fa72aac 100644
+--- a/arch/sh/mm/gup.c
++++ b/arch/sh/mm/gup.c
+@@ -14,6 +14,9 @@
+ #include <linux/highmem.h>
  #include <asm/pgtable.h>
  
 +#define CREATE_TRACE_POINTS
 +#include <trace/events/gup.h>
 +
- /*
-  * The performance critical leaf functions are made noinline otherwise gcc
-  * inlines everything into a single function which results in too much
-@@ -188,6 +191,9 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	end = start + len;
- 	if ((end <= start) || (end > TASK_SIZE))
+ static inline pte_t gup_get_pte(pte_t *ptep)
+ {
+ #ifndef CONFIG_X2TLB
+@@ -178,6 +181,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 					(void __user *)start, len)))
  		return 0;
-+
+ 
 +	trace_gup_get_user_pages_fast(start, nr_pages);
 +
  	/*
- 	 * local_irq_save() doesn't prevent pagetable teardown, but does
- 	 * prevent the pagetables from being freed on s390.
+ 	 * This doesn't prevent pagetable teardown, but does prevent
+ 	 * the pagetables and pages from being freed.
+@@ -244,6 +249,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	} while (pgdp++, addr = next, addr != end);
+ 	local_irq_enable();
+ 
++	trace_gup_get_user_pages_fast(start, nr_pages);
++
+ 	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+ 	return nr;
+ 
 -- 
 2.0.2
 
