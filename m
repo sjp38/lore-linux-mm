@@ -1,75 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 784AD6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 17:28:39 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id c201so6671244wme.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:28:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b20si14291314wjr.226.2015.12.09.14.28.38
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C655D6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 17:51:51 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so36754213pac.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:51:51 -0800 (PST)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id kg9si15493574pab.53.2015.12.09.14.51.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 14:28:38 -0800 (PST)
-Date: Wed, 9 Dec 2015 14:28:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: memcontrol: only manage socket pressure for
- CONFIG_INET
-Message-Id: <20151209142836.e81260567879110f319c01a4@linux-foundation.org>
-In-Reply-To: <20151209185858.GA2342@cmpxchg.org>
-References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org>
-	<2564892.qO1q7YJ6Nb@wuerfel>
-	<7343206.sFybcLLUN2@wuerfel>
-	<20151209185858.GA2342@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 09 Dec 2015 14:51:50 -0800 (PST)
+Received: by pfbg73 with SMTP id g73so37808808pfb.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:51:50 -0800 (PST)
+Date: Wed, 9 Dec 2015 14:51:48 -0800
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v5] fs: clear file privilege bits when mmap writing
+Message-ID: <20151209225148.GA14794@www.outflux.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 9 Dec 2015 13:58:58 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+Normally, when a user can modify a file that has setuid or setgid bits,
+those bits are cleared when they are not the file owner or a member
+of the group. This is enforced when using write and truncate but not
+when writing to a shared mmap on the file. This could allow the file
+writer to gain privileges by changing a binary without losing the
+setuid/setgid/caps bits.
 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 6faea81e66d7..73cd572167bb 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -4220,13 +4220,13 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
-> >  	if (ret)
-> >  		return ret;
-> >  
-> > +#ifdef CONFIG_INET
-> >  #ifdef CONFIG_MEMCG_LEGACY_KMEM
-> >  	ret = tcp_init_cgroup(memcg);
-> >  	if (ret)
-> >  		return ret;
-> >  #endif
-> 
-> The calls to tcp_init_cgroup() appear earlier in the series than "mm:
-> memcontrol: hook up vmpressure to socket pressure". However, they get
-> moved around a few times so fixing it earlier means respinning the
-> series. Andrew, it's up to you whether we take the bisectability hit
-> for !CONFIG_INET && CONFIG_MEMCG (how common is this?) or whether you
-> want me to resend the series.
+Changing the bits requires holding inode->i_mutex, so it cannot be done
+during the page fault (due to mmap_sem being held during the fault). We
+could do this during vm_mmap_pgoff, but that would need coverage in
+mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
+again. We could clear at open() time, but it's possible things are
+accidentally opening with O_RDWR and only reading. Better to clear on
+close and error failures (i.e. an improvement over now, which is not
+clearing at all).
 
-hm, drat, I was suspecting dependency issues here, but a test build
-said it was OK.
+Instead, detect the need to clear the bits during the page fault, and
+actually remove the bits during final fput. Since the file was open for
+writing, it wouldn't have been possible to execute it yet.
 
-Actually, I was expecting this patch series to depend on the linux-next
-cgroup2 changes, but that doesn't appear to be the case.  *should* this
-series be staged after the cgroup2 code?
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+I think this is the best we can do; everything else is blocked by mmap_sem.
+---
+ fs/file_table.c    | 11 +++++++++++
+ include/linux/fs.h |  1 +
+ mm/memory.c        |  1 +
+ 3 files changed, 13 insertions(+)
 
-Regarding this particular series: yes, I think we can live with a
-bisection hole for !CONFIG_INET && CONFIG_MEMCG users.  But I'm not
-sure why we're discussing bisection issues, because Arnd's build
-failure occurs with everything applied?
+diff --git a/fs/file_table.c b/fs/file_table.c
+index ad17e05ebf95..3a7eee76ea90 100644
+--- a/fs/file_table.c
++++ b/fs/file_table.c
+@@ -191,6 +191,17 @@ static void __fput(struct file *file)
+ 
+ 	might_sleep();
+ 
++	/*
++	 * XXX: While avoiding mmap_sem, we've already been written to.
++	 * We must ignore the return value, since we can't reject the
++	 * write.
++	 */
++	if (unlikely(file->f_remove_privs)) {
++		mutex_lock(&inode->i_mutex);
++		file_remove_privs(file);
++		mutex_unlock(&inode->i_mutex);
++	}
++
+ 	fsnotify_close(file);
+ 	/*
+ 	 * The function eventpoll_release() should be the first called
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 3aa514254161..409bd7047e7e 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -872,6 +872,7 @@ struct file {
+ 	struct list_head	f_tfile_llink;
+ #endif /* #ifdef CONFIG_EPOLL */
+ 	struct address_space	*f_mapping;
++	bool			f_remove_privs;
+ } __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
+ 
+ struct file_handle {
+diff --git a/mm/memory.c b/mm/memory.c
+index c387430f06c3..08a77e0cf65f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2036,6 +2036,7 @@ static inline int wp_page_reuse(struct mm_struct *mm,
+ 
+ 		if (!page_mkwrite)
+ 			file_update_time(vma->vm_file);
++		vma->vm_file->f_remove_privs = true;
+ 	}
+ 
+ 	return VM_FAULT_WRITE;
+-- 
+1.9.1
 
-> Sorry about the trouble. I don't have a git tree on kernel.org because
-> we don't really use git in -mm, but the downside is that we don't get
-> the benefits of the automatic build testing for all kinds of configs.
-> I'll try to set up a git tree to expose series to full build coverage
-> before they hit -mm and -next.
 
-This sort of thing happens quite rarely.
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
