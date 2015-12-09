@@ -1,48 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0566B0255
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 13:59:40 -0500 (EST)
-Received: by ioir85 with SMTP id r85so69951707ioi.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 10:59:40 -0800 (PST)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id 68si14345854iot.191.2015.12.09.10.59.40
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EF1436B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 14:41:09 -0500 (EST)
+Received: by obc18 with SMTP id 18so42158614obc.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 11:41:09 -0800 (PST)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id zd2si771996obb.43.2015.12.09.11.41.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 10:59:40 -0800 (PST)
-Received: by ioir85 with SMTP id r85so69951417ioi.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 10:59:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1449300220-30108-1-git-send-email-kuleshovmail@gmail.com>
-References: <1449300220-30108-1-git-send-email-kuleshovmail@gmail.com>
-Date: Wed, 9 Dec 2015 10:59:40 -0800
-Message-ID: <CANMBJr7U3DfsRC4ATx0=d6pVFXGJJAB2qs2sRS1dZ3xV5csZzg@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: use memblock_insert_region() for the empty array
-From: Tyler Baker <tyler.baker@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 09 Dec 2015 11:41:08 -0800 (PST)
+Date: Wed, 9 Dec 2015 13:41:07 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
+In-Reply-To: <20151209195325.68eaf314@redhat.com>
+Message-ID: <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
+References: <20151208161751.21945.53936.stgit@firesoul> <20151208161903.21945.33876.stgit@firesoul> <alpine.DEB.2.20.1512090945570.30894@east.gentwo.org> <20151209195325.68eaf314@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Kuleshov <kuleshovmail@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Wei Yang <weiyang@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin's boot bot <khilman@kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 4 December 2015 at 23:23, Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
-> We have the special case for an empty array in the memblock_add_range()
-> function. In the same time we have almost the same functional in the
-> memblock_insert_region() function. Let's use the memblock_insert_region()
-> instead of direct initialization.
+On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
+
+> I really like the idea of making it able to free kmalloc'ed objects.
+> But I hate to change the API again... (I do have a use-case in the
+> network stack where I could use this feature).
+
+Now is the time to fix the API since its not that much in use yet if at
+all.
+
+> I'm traveling (to Sweden) Thursday (afternoon) and will be back late
+> Friday (and have to play Viking in the weekend), thus to be realistic
+> I'll start working on this Monday, so we can get some benchmark numbers
+> to guide this decision.
+
+Ok great.
+> > -		struct kmem_cache *s;
+> > +		struct page *page;
+> >
+> > -		/* Support for memcg */
+> > -		s = cache_from_obj(orig_s, p[size - 1]);
+> > +		page = virt_to_head_page(p[size - 1]);
 >
-> Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+> Think we can drop this.
 
-Just to add on to the report from Dan, the kernelci.org boot bot has
-also detected ~65 new boot failures in next-20151209[1], which have
-been bisected to this patch[2]. It doesn't revert cleanly, so I'm
-going to try to clean it up by hand and see if it resolves the issue.
+Well then you wont be able to check for a compound page. And you do not
+want this check in build detached freelist.
 
-Cheers,
+>
+> > -		size = build_detached_freelist(s, size, p, &df);
+> > +		if (unlikely(!PageSlab(page))) {
+> > +			BUG_ON(!PageCompound(page));
+> > +			kfree_hook(p[size - 1]);
+> > +			__free_kmem_pages(page, compound_order(page));
+> > +			p[--size] = NULL;
+> > +			continue;
+> > +		}
+>
+> and move above into build_detached_freelist() and make it a little more
+> pretty code wise (avoiding the p[size -1] juggling).
 
-Tyler
+If we do this check here then we wont be needing it in
+build_detached_freelist.
 
-[1] http://kernelci.org/boot/all/job/next/kernel/next-20151209/
-[2] http://hastebin.com/ufiwonuraw.vhdl
+> > +
+> > +		size = build_detached_freelist(page->slab_cache, size, p, &df);
+>
+> also think we should be able to drop the kmem_cache param "page->slab_cache".
+
+Yep.
+
+>
+>
+> >  		if (unlikely(!df.page))
+> >  			continue;
+> >
+> > -		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+> > +		slab_free(page->slab_cache, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+
+Then we need df.slab_cache or something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
