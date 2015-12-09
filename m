@@ -1,184 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3476B6B0254
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 13:53:34 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so94765752qge.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 10:53:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d133si10154439qkb.91.2015.12.09.10.53.32
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 29C746B0254
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 13:59:10 -0500 (EST)
+Received: by wmww144 with SMTP id w144so235611621wmw.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 10:59:09 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 76si13836642wms.44.2015.12.09.10.59.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 10:53:33 -0800 (PST)
-Date: Wed, 9 Dec 2015 19:53:25 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
-Message-ID: <20151209195325.68eaf314@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
-References: <20151208161751.21945.53936.stgit@firesoul>
-	<20151208161903.21945.33876.stgit@firesoul>
-	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
+        Wed, 09 Dec 2015 10:59:08 -0800 (PST)
+Date: Wed, 9 Dec 2015 13:58:58 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: only manage socket pressure for
+ CONFIG_INET
+Message-ID: <20151209185858.GA2342@cmpxchg.org>
+References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org>
+ <2564892.qO1q7YJ6Nb@wuerfel>
+ <7343206.sFybcLLUN2@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7343206.sFybcLLUN2@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 9 Dec 2015 10:06:39 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+On Wed, Dec 09, 2015 at 05:32:16PM +0100, Arnd Bergmann wrote:
+> When IPV4 support is disabled, the memcg->socket_pressure field is
+> not defined and we get a build error from the vmpressure code:
+> 
+> mm/vmpressure.c: In function 'vmpressure':
+> mm/vmpressure.c:287:9: error: 'struct mem_cgroup' has no member named 'socket_pressure'
+>     memcg->socket_pressure = jiffies + HZ;
+> mm/built-in.o: In function `mem_cgroup_css_free':
+> :(.text+0x1c03a): undefined reference to `tcp_destroy_cgroup'
+> mm/built-in.o: In function `mem_cgroup_css_online':
+> :(.text+0x1c20e): undefined reference to `tcp_init_cgroup'
+> 
+> This puts the code causing this in the same #ifdef that guards the
+> struct member and the TCP implementation.
+> 
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: 20cc40e66c42 ("mm: memcontrol: hook up vmpressure to socket pressure")
 
-> On Tue, 8 Dec 2015, Jesper Dangaard Brouer wrote:
-> 
-> > +void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
-> 
-> Drop orig_s as a parameter? This makes the function have less code and
-> makes it more universally useful for freeing large amount of objects.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I really like the idea of making it able to free kmalloc'ed objects.
-But I hate to change the API again... (I do have a use-case in the
-network stack where I could use this feature).
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6faea81e66d7..73cd572167bb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4220,13 +4220,13 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>  	if (ret)
+>  		return ret;
+>  
+> +#ifdef CONFIG_INET
+>  #ifdef CONFIG_MEMCG_LEGACY_KMEM
+>  	ret = tcp_init_cgroup(memcg);
+>  	if (ret)
+>  		return ret;
+>  #endif
 
+The calls to tcp_init_cgroup() appear earlier in the series than "mm:
+memcontrol: hook up vmpressure to socket pressure". However, they get
+moved around a few times so fixing it earlier means respinning the
+series. Andrew, it's up to you whether we take the bisectability hit
+for !CONFIG_INET && CONFIG_MEMCG (how common is this?) or whether you
+want me to resend the series.
 
-> Could we do the following API change patch before this series so that
-> kmem_cache_free_bulk is properly generalized?
-
-I'm traveling (to Sweden) Thursday (afternoon) and will be back late
-Friday (and have to play Viking in the weekend), thus to be realistic
-I'll start working on this Monday, so we can get some benchmark numbers
-to guide this decision.
- 
- 
-> From: Christoph Lameter <cl@linux.com>
-> Subject: slab bulk api: Remove the kmem_cache parameter from kmem_cache_bulk_free()
-> 
-> It is desirable and necessary to free objects from different kmem_caches.
-> It is required in order to support memcg object freeing across different5
-> cgroups.
-> 
-> So drop the pointless parameter and allow freeing of arbitrary lists
-> of slab allocated objects.
-> 
-> This patch also does the proper compound page handling so that
-> arbitrary objects allocated via kmalloc() can be handled by
-> kmem_cache_bulk_free().
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/include/linux/slab.h
-> ===================================================================
-> --- linux.orig/include/linux/slab.h
-> +++ linux/include/linux/slab.h
-> @@ -315,7 +315,7 @@ void kmem_cache_free(struct kmem_cache *
->   *
->   * Note that interrupts must be enabled when calling these functions.
->   */
-> -void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-> +void kmem_cache_free_bulk(size_t, void **);
->  int kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-> 
->  #ifdef CONFIG_NUMA
-> Index: linux/mm/slab.c
-> ===================================================================
-> --- linux.orig/mm/slab.c
-> +++ linux/mm/slab.c
-> @@ -3413,9 +3413,9 @@ void *kmem_cache_alloc(struct kmem_cache
->  }
->  EXPORT_SYMBOL(kmem_cache_alloc);
-> 
-> -void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-> +void kmem_cache_free_bulk(size_t size, void **p)
->  {
-> -	__kmem_cache_free_bulk(s, size, p);
-> +	__kmem_cache_free_bulk(size, p);
->  }
->  EXPORT_SYMBOL(kmem_cache_free_bulk);
-> 
-> Index: linux/mm/slab.h
-> ===================================================================
-> --- linux.orig/mm/slab.h
-> +++ linux/mm/slab.h
-> @@ -166,10 +166,10 @@ ssize_t slabinfo_write(struct file *file
->  /*
->   * Generic implementation of bulk operations
->   * These are useful for situations in which the allocator cannot
-> - * perform optimizations. In that case segments of the objecct listed
-> + * perform optimizations. In that case segments of the object listed
->   * may be allocated or freed using these operations.
->   */
-> -void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-> +void __kmem_cache_free_bulk(size_t, void **);
->  int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-> 
->  #ifdef CONFIG_MEMCG_KMEM
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c
-> +++ linux/mm/slub.c
-> @@ -2887,23 +2887,30 @@ static int build_detached_freelist(struc
-> 
-> 
->  /* Note that interrupts must be enabled when calling this function. */
-> -void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
-> +void kmem_cache_free_bulk(size_t size, void **p)
->  {
->  	if (WARN_ON(!size))
->  		return;
-> 
->  	do {
->  		struct detached_freelist df;
-> -		struct kmem_cache *s;
-> +		struct page *page;
-> 
-> -		/* Support for memcg */
-> -		s = cache_from_obj(orig_s, p[size - 1]);
-> +		page = virt_to_head_page(p[size - 1]);
-
-Think we can drop this.
- 
-> -		size = build_detached_freelist(s, size, p, &df);
-> +		if (unlikely(!PageSlab(page))) {
-> +			BUG_ON(!PageCompound(page));
-> +			kfree_hook(p[size - 1]);
-> +			__free_kmem_pages(page, compound_order(page));
-> +			p[--size] = NULL;
-> +			continue;
-> +		}
-
-and move above into build_detached_freelist() and make it a little more
-pretty code wise (avoiding the p[size -1] juggling).
-
-> +
-> +		size = build_detached_freelist(page->slab_cache, size, p, &df);
-
-also think we should be able to drop the kmem_cache param "page->slab_cache".
-
-
->  		if (unlikely(!df.page))
->  			continue;
-> 
-> -		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
-> +		slab_free(page->slab_cache, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
->  	} while (likely(size));
->  }
->  EXPORT_SYMBOL(kmem_cache_free_bulk);
-> @@ -2963,7 +2970,7 @@ int kmem_cache_alloc_bulk(struct kmem_ca
->  error:
->  	local_irq_enable();
->  	slab_post_alloc_hook(s, flags, i, p);
-> -	__kmem_cache_free_bulk(s, i, p);
-> +	__kmem_cache_free_bulk(i, p);
->  	return 0;
->  }
->  EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Sorry about the trouble. I don't have a git tree on kernel.org because
+we don't really use git in -mm, but the downside is that we don't get
+the benefits of the automatic build testing for all kinds of configs.
+I'll try to set up a git tree to expose series to full build coverage
+before they hit -mm and -next.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
