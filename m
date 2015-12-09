@@ -1,67 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B71606B025A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:42:35 -0500 (EST)
-Received: by pfbg73 with SMTP id g73so36983043pfb.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:35 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id 20si15150550pfp.88.2015.12.09.13.42.28
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 76CE16B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:44:24 -0500 (EST)
+Received: by oige206 with SMTP id e206so34347353oig.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:44:24 -0800 (PST)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id n8si1353030oed.49.2015.12.09.13.44.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 13:42:28 -0800 (PST)
-Received: by pacwq6 with SMTP id wq6so35724467pac.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:28 -0800 (PST)
-From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH v5 7/7] sparc64: mm/gup: add gup trace points
-Date: Wed,  9 Dec 2015 13:22:31 -0800
-Message-Id: <1449696151-4195-8-git-send-email-yang.shi@linaro.org>
-In-Reply-To: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
-References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
+        Wed, 09 Dec 2015 13:44:23 -0800 (PST)
+Message-ID: <1449697455.29051.6.camel@hpe.com>
+Subject: Re: [PATCH v3 1/3] resource: Add @flags to region_intersects()
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Wed, 09 Dec 2015 14:44:15 -0700
+In-Reply-To: <CAA9_cmeDbpQg3XmsKaEb1f+hSVxq5+3DpLm004wiagf_uwbFMw@mail.gmail.com>
+References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
+	 <1448404418-28800-2-git-send-email-toshi.kani@hpe.com>
+	 <20151201135000.GB4341@pd.tnic>
+	 <CAPcyv4g2n9yTWye2aVvKMP0X7mrm_NLKmGd5WBO2SesTj77gbg@mail.gmail.com>
+	 <20151201171322.GD4341@pd.tnic>
+	 <CA+55aFw22JD8W2cy3w=5VcU9-ENXSP9utmhGB2NeiDVqwpnUSw@mail.gmail.com>
+	 <1449168859.9855.54.camel@hpe.com> <20151203184051.GE3213@pd.tnic>
+	 <CA+55aFy4WQrWexC4u2LxX9Mw2NVoznw7p3Yh=iF4Xtf7zKWnRw@mail.gmail.com>
+	 <1449174925.9855.83.camel@hpe.com>
+	 <CAA9_cmeDbpQg3XmsKaEb1f+hSVxq5+3DpLm004wiagf_uwbFMw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org
+To: Dan Williams <dan.j.williams@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Tony Luck <tony.luck@intel.com>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: sparclinux@vger.kernel.org
-Signed-off-by: Yang Shi <yang.shi@linaro.org>
----
- arch/sparc/mm/gup.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+On Wed, 2015-12-09 at 08:25 -0800, Dan Williams wrote:
+> On Thu, Dec 3, 2015 at 12:35 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> > On Thu, 2015-12-03 at 11:01 -0800, Linus Torvalds wrote:
+> > > On Thu, Dec 3, 2015 at 10:40 AM, Borislav Petkov <bp@alien8.de>
+> > > wrote:
+> > > > On Thu, Dec 03, 2015 at 11:54:19AM -0700, Toshi Kani wrote:
+> > > > > Adding a new type for regular memory will require inspecting the
+> > > > > codes using IORESOURCE_MEM currently, and modify them to use the 
+> > > > > new type if their target ranges are regular memory.  There are 
+> > > > > many references to this type across multiple architectures and
+> > > > > drivers, which make this inspection and testing challenging.
+> > > > 
+> > > > What's wrong with adding a new type_flags to struct resource and 
+> > > > not touching IORESOURCE_* at all?
+> > > 
+> > > Bah. Both of these ideas are bogus.
+> > > 
+> > > Just add a new flag. The bits are already modifiers that you can
+> > > *combine* to show what kind of resource it is, and we already have
+> > > things like IORESOURCE_PREFETCH etc, that are in *addition* to the
+> > > normal IORESOURCE_MEM bit.
+> > > 
+> > > Just add another modifier: IORESOURCE_RAM.
+> > > 
+> > > So it would still show up as IORESOURCE_MEM, but it would have
+> > > additional information specifying that it's actually RAM.
+> > > 
+> > > If somebody does something like
+> > > 
+> > >      if (res->flags == IORESOURCE_MEM)
+> > > 
+> > > then they are already completely broken and won't work *anyway*. It's
+> > > a bitmask, bit a set of values.
+> > 
+> > Yes, if we can assign new modifiers, that will be quite simple. :-)  I
+> > assume we can allocate new bits from the remaining free bits as
+> > follows.
+> > 
+> > +#define IORESOURCE_SYSTEM_RAM  0x01000000      /* System RAM */
+> > +#define IORESOURCE_PMEM        0x02000000      /* Persistent memory */
+> >  #define IORESOURCE_EXCLUSIVE   0x08000000      /* Userland may not map
+> > this resource */
+> > 
+> > Note, SYSTEM_RAM represents the OS memory, i.e. "System RAM", not any 
+> > RAM ranges.
+> > 
+> > With the new modifiers, region_intersect() can check these ranges.  One
+> > caveat is that the modifiers are not very extensible for new types as 
+> > they are bit maps.  region_intersect() will no longer be capable of 
+> > checking any regions with any given name.  I think this is OK since 
+> > this function was introduced recently, and is only used for checking 
+> > "System RAM" and "Persistent Memory" (with this patch series).
+> 
+> IORESOURCE_PMEM is not descriptive enough for the two different types
+> of pmem in the kernel.  How about we go with just
+> IORESOURCE_SYSTEM_RAM for now since "is_ram()" checks are common.  Let
+> the rest continue to be checked by strcmp().
+> 
+> For example the nvdimm-e820 driver cares about "Persistent Memory
+> (legacy)", while other forms of pmem may just be "reserved" and only
+> the driver knows that it is pmem.  An IORESOURCE_PMEM would not be
+> reliable nor descriptive enough.
 
-diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
-index 2e5c4fc..5a06c34 100644
---- a/arch/sparc/mm/gup.c
-+++ b/arch/sparc/mm/gup.c
-@@ -12,6 +12,8 @@
- #include <linux/rwsem.h>
- #include <asm/pgtable.h>
- 
-+#include <trace/events/gup.h>
-+
- /*
-  * The performance critical leaf functions are made noinline otherwise gcc
-  * inlines everything into a single function which results in too much
-@@ -174,6 +176,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
- 	end = start + len;
- 
-+	trace_gup_get_user_pages_fast(start, nr_pages);
-+
- 	local_irq_save(flags);
- 	pgdp = pgd_offset(mm, addr);
- 	do {
-@@ -236,6 +240,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 	local_irq_enable();
- 
-+	trace_gup_get_user_pages_fast(start, nr_pages);
-+
- 	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
- 	return nr;
- 
--- 
-2.0.2
+Agreed.  I will introduce a new type for System RAM, and leave the strcmp
+check for other types.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
