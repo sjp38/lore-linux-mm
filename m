@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 065546B0254
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 09:53:28 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so30975247pac.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 06:53:27 -0800 (PST)
-Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.14])
-        by mx.google.com with ESMTPS id s20si13157798pfa.146.2015.12.09.06.53.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 06:53:27 -0800 (PST)
-Message-ID: <56684062.9090505@sigmadesigns.com>
-Date: Wed, 9 Dec 2015 15:53:22 +0100
-From: Sebastian Frias <sebastian_frias@sigmadesigns.com>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D4B006B0255
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 09:54:19 -0500 (EST)
+Received: by wmec201 with SMTP id c201so77151337wme.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 06:54:19 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id f81si38001631wmh.9.2015.12.09.06.54.18
+        for <linux-mm@kvack.org>;
+        Wed, 09 Dec 2015 06:54:18 -0800 (PST)
+From: Qais Yousef <qais.yousef@imgtec.com>
+Subject: [PATCH v2] MIPS: fix DMA contiguous allocation
+Date: Wed, 9 Dec 2015 14:54:05 +0000
+Message-ID: <1449672845-2196-1-git-send-email-qais.yousef@imgtec.com>
 MIME-Version: 1.0
-Subject: Re: m(un)map kmalloc buffers to userspace
-References: <5667128B.3080704@sigmadesigns.com> <20151209135544.GE30907@dhcp22.suse.cz> <566835B6.9010605@sigmadesigns.com> <20151209143207.GF30907@dhcp22.suse.cz>
-In-Reply-To: <20151209143207.GF30907@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mips@linux-mips.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ralf@linux-mips.org, akpm@linux-foundation.org, mgorman@techsingularity.net, Qais Yousef <qais.yousef@imgtec.com>
 
-On 12/09/2015 03:32 PM, Michal Hocko wrote:
-> On Wed 09-12-15 15:07:50, Marc Gonzalez wrote:
->> On 09/12/2015 14:55, Michal Hocko wrote:
->>> On Tue 08-12-15 18:25:31, Sebastian Frias wrote:
->>>> Hi,
->>>>
->>>> We are porting a driver from Linux 3.4.39+ to 4.1.13+, CPU is Cortex-A9.
->>>>
->>>> The driver maps kmalloc'ed memory to user space.
->>>
->>> This sounds like a terrible idea to me. Why don't you simply use the
->>> page allocator directly? Try to imagine what would happen if you mmaped
->>> a kmalloc with a size which is not page aligned? mmaped memory uses
->>> whole page granularity.
->>
->> According to the source code, this kernel module calls
->>
->>    kmalloc(1 << 17, GFP_KERNEL | __GFP_REPEAT);
->
-> So I guess you are mapping with 32pages granularity? If this is really
-> needed for internal usage you can use highorder page and map its
-> subpages directly.
->
->> I suppose kmalloc() would return page-aligned memory?
->
-> I do not think there is any guarantee like that. AFAIK you only get
-> guarantee for the natural word alignment. Slab allocator is allowed
-> to use larger allocation and put its metadata or whatever before the
-> returned pointer.
->
+Recent changes to how GFP_ATOMIC is defined seems to have broken the condition
+to use mips_alloc_from_contiguous() in mips_dma_alloc_coherent().
 
-Thanks for your answer.
-Do you have any suggestions regarding the rest of the questions? 
-(copy/pasted below for convenience)
+I couldn't bottom out the exact change but I think it's this one
 
-2) Now that VM_RESERVED was removed, is there another recommended flag 
-to replace it for the purposes above?
-3) Since it was working before, we suppose that something that was 
-previously done by default on the kernel it is not done anymore, could 
-that be a remap_pfn_range during mmap or kmalloc?
-4) We tried using remap_pfn_range inside mmap and while it seems to 
-work, we still get occasional crashes due to corrupted memory (in this 
-case the behaviour is the same between 4.1 and 3.4 when using the same 
-modified driver), are we missing something?
+d0164adc89f6 (mm, page_alloc: distinguish between being unable to sleep,
+unwilling to sleep and avoiding waking kswapd)
+
+>From what I see GFP_ATOMIC has multiple bits set and the check for !(gfp
+& GFP_ATOMIC) isn't enough.
+
+The reason behind this condition is to check whether we can potentially do
+a sleeping memory allocation. Use gfpflags_allow_blocking() instead which
+should be more robust.
+
+Signed-off-by: Qais Yousef <qais.yousef@imgtec.com>
+---
+ arch/mips/mm/dma-default.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
+index d8117be729a2..730d394ce5f0 100644
+--- a/arch/mips/mm/dma-default.c
++++ b/arch/mips/mm/dma-default.c
+@@ -145,7 +145,7 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
+ 
+ 	gfp = massage_gfp_flags(dev, gfp);
+ 
+-	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
++	if (IS_ENABLED(CONFIG_DMA_CMA) && gfpflags_allow_blocking(gfp))
+ 		page = dma_alloc_from_contiguous(dev,
+ 					count, get_order(size));
+ 	if (!page)
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
