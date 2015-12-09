@@ -1,108 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C655D6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 17:51:51 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so36754213pac.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:51:51 -0800 (PST)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id kg9si15493574pab.53.2015.12.09.14.51.50
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E44D46B0255
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 17:52:19 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id g19so3753825igv.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:52:19 -0800 (PST)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id n10si17460925ige.30.2015.12.09.14.52.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 14:51:50 -0800 (PST)
-Received: by pfbg73 with SMTP id g73so37808808pfb.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:51:50 -0800 (PST)
-Date: Wed, 9 Dec 2015 14:51:48 -0800
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v5] fs: clear file privilege bits when mmap writing
-Message-ID: <20151209225148.GA14794@www.outflux.net>
+        Wed, 09 Dec 2015 14:52:19 -0800 (PST)
+Received: by mail-ig0-x22e.google.com with SMTP id mv3so3788696igc.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 14:52:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20151209082638.GA3137@quack.suse.cz>
+References: <20151203000342.GA30015@www.outflux.net>
+	<B4520E53-6DD9-44D7-A064-9F405FBAA793@gmail.com>
+	<CAGXu5jJaY9WeR-NiZXfAu=hM6U7DaPD_d8ZZTAdo_EkS3WDxCw@mail.gmail.com>
+	<CAGXu5jKtj89bgyLaYt6hMBXc+rWD9CWxE2nZP9xbSWyXBvf5qw@mail.gmail.com>
+	<20151209082638.GA3137@quack.suse.cz>
+Date: Wed, 9 Dec 2015 14:52:19 -0800
+Message-ID: <CAGXu5j+i9JNqYrv+ze8f9GRZ7ZnjLwfgmN4roGpVrok4KNe-bw@mail.gmail.com>
+Subject: Re: [PATCH v2] clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: yalin wang <yalin.wang2010@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-Normally, when a user can modify a file that has setuid or setgid bits,
-those bits are cleared when they are not the file owner or a member
-of the group. This is enforced when using write and truncate but not
-when writing to a shared mmap on the file. This could allow the file
-writer to gain privileges by changing a binary without losing the
-setuid/setgid/caps bits.
+On Wed, Dec 9, 2015 at 12:26 AM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 07-12-15 16:40:14, Kees Cook wrote:
+>> On Mon, Dec 7, 2015 at 2:42 PM, Kees Cook <keescook@chromium.org> wrote:
+>> > On Thu, Dec 3, 2015 at 5:45 PM, yalin wang <yalin.wang2010@gmail.com> =
+wrote:
+>> >>
+>> >>> On Dec 2, 2015, at 16:03, Kees Cook <keescook@chromium.org> wrote:
+>> >>>
+>> >>> Normally, when a user can modify a file that has setuid or setgid bi=
+ts,
+>> >>> those bits are cleared when they are not the file owner or a member
+>> >>> of the group. This is enforced when using write and truncate but not
+>> >>> when writing to a shared mmap on the file. This could allow the file
+>> >>> writer to gain privileges by changing a binary without losing the
+>> >>> setuid/setgid/caps bits.
+>> >>>
+>> >>> Changing the bits requires holding inode->i_mutex, so it cannot be d=
+one
+>> >>> during the page fault (due to mmap_sem being held during the fault).
+>> >>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+>> >>>
+>> >>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> >>> Cc: stable@vger.kernel.org
+>> >>> =E2=80=94
+>> >>
+>> >> is this means mprotect() sys call also need add this check?
+>> >> mprotect() can change to PROT_WRITE, then it can write to a
+>> >> read only map again , also a secure hole here .
+>> >
+>> > Yes, good point. This needs to be added. I will send a new patch. Than=
+ks!
+>>
+>> This continues to look worse and worse.
+>>
+>> So... to check this at mprotect time, I have to know it's MAP_SHARED,
+>> but that's in the vma_flags, which I can only see after holding
+>> mmap_sem.
+>>
+>> The best I can think of now is to strip the bits at munmap time, since
+>> you can't execute an mmapped file until it closes.
+>>
+>> Jan, thoughts on this?
+>
+> Umm, so we actually refuse to execute a file while someone has it open fo=
+r
+> writing (deny_write_access() in do_open_execat()). So dropping the suid /
+> sgid bits when closing file for writing could be plausible. Grabbing
+> i_mutex from __fput() context is safe (it gets called from task_work
+> context when returning to userspace).
+>
+> That way we could actually remove the checks done for each write. To avoi=
+d
+> unexpected removal of suid/sgid bits when someone just opens & closes the
+> file, we could mark the file as needing suid/sgid treatment by a flag in
+> inode->i_flags when file gets written to or mmaped and then check for thi=
+s
+> in __fput().
 
-Changing the bits requires holding inode->i_mutex, so it cannot be done
-during the page fault (due to mmap_sem being held during the fault). We
-could do this during vm_mmap_pgoff, but that would need coverage in
-mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
-again. We could clear at open() time, but it's possible things are
-accidentally opening with O_RDWR and only reading. Better to clear on
-close and error failures (i.e. an improvement over now, which is not
-clearing at all).
+Yeah, this is ultimately where I ended up for the v4 (and fixed up in
+v5). I added the flag to file, though, not inode. Sending v5 now...
 
-Instead, detect the need to clear the bits during the page fault, and
-actually remove the bits during final fput. Since the file was open for
-writing, it wouldn't have been possible to execute it yet.
+-Kees
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-I think this is the best we can do; everything else is blocked by mmap_sem.
----
- fs/file_table.c    | 11 +++++++++++
- include/linux/fs.h |  1 +
- mm/memory.c        |  1 +
- 3 files changed, 13 insertions(+)
-
-diff --git a/fs/file_table.c b/fs/file_table.c
-index ad17e05ebf95..3a7eee76ea90 100644
---- a/fs/file_table.c
-+++ b/fs/file_table.c
-@@ -191,6 +191,17 @@ static void __fput(struct file *file)
- 
- 	might_sleep();
- 
-+	/*
-+	 * XXX: While avoiding mmap_sem, we've already been written to.
-+	 * We must ignore the return value, since we can't reject the
-+	 * write.
-+	 */
-+	if (unlikely(file->f_remove_privs)) {
-+		mutex_lock(&inode->i_mutex);
-+		file_remove_privs(file);
-+		mutex_unlock(&inode->i_mutex);
-+	}
-+
- 	fsnotify_close(file);
- 	/*
- 	 * The function eventpoll_release() should be the first called
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 3aa514254161..409bd7047e7e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -872,6 +872,7 @@ struct file {
- 	struct list_head	f_tfile_llink;
- #endif /* #ifdef CONFIG_EPOLL */
- 	struct address_space	*f_mapping;
-+	bool			f_remove_privs;
- } __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
- 
- struct file_handle {
-diff --git a/mm/memory.c b/mm/memory.c
-index c387430f06c3..08a77e0cf65f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2036,6 +2036,7 @@ static inline int wp_page_reuse(struct mm_struct *mm,
- 
- 		if (!page_mkwrite)
- 			file_update_time(vma->vm_file);
-+		vma->vm_file->f_remove_privs = true;
- 	}
- 
- 	return VM_FAULT_WRITE;
--- 
-1.9.1
+>
+> I've added Al Viro to CC just in case he is aware of some issues with
+> this...
+>
+>                                                                 Honza
+> --
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
 
--- 
+
+--=20
 Kees Cook
 Chrome OS & Brillo Security
 
