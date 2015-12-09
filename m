@@ -1,73 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F5526B0254
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 10:43:22 -0500 (EST)
-Received: by ioir85 with SMTP id r85so63365490ioi.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 07:43:22 -0800 (PST)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id d16si13351896igo.8.2015.12.09.07.43.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 07:43:21 -0800 (PST)
-Date: Wed, 9 Dec 2015 09:43:20 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH V2 1/9] mm/slab: move SLUB alloc hooks to common
- mm/slab.h
-In-Reply-To: <20151208161827.21945.25463.stgit@firesoul>
-Message-ID: <alpine.DEB.2.20.1512090941200.30894@east.gentwo.org>
-References: <20151208161751.21945.53936.stgit@firesoul> <20151208161827.21945.25463.stgit@firesoul>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 314566B0254
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 10:48:13 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so31803151pfd.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 07:48:12 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id ym10si13397765pab.146.2015.12.09.07.48.12
+        for <linux-mm@kvack.org>;
+        Wed, 09 Dec 2015 07:48:12 -0800 (PST)
+Subject: Re: [PATCH 26/34] mm: implement new mprotect_key() system call
+References: <20151204011424.8A36E365@viggo.jf.intel.com>
+ <20151204011500.69487A6C@viggo.jf.intel.com> <5662894B.7090903@gmail.com>
+ <5665B767.8020802@sr71.net> <56680BA6.20406@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <56684D3B.5050805@sr71.net>
+Date: Wed, 9 Dec 2015 07:48:11 -0800
+MIME-Version: 1.0
+In-Reply-To: <56680BA6.20406@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
 
-On Tue, 8 Dec 2015, Jesper Dangaard Brouer wrote:
+Hi Michael,
 
-> +/* Q: Howto handle this nicely? below includes are needed for alloc hooks
-> + *
-> + * e.g. mm/mempool.c and mm/slab_common.c does not include kmemcheck.h
-> + * including it here solves the probem, but should they include it
-> + * themselves?
-> + */
+Thanks for all the comments!  I'll fix most of it when I post a new
+version of the manpage, but I have a few general questions.
 
-Including in mm/slab.h is enough.
+On 12/09/2015 03:08 AM, Michael Kerrisk (man-pages) wrote:
+>>
+>> +is the protection or storage key to assign to the memory.
+> 
+> Why "protection or storage key" here? This phrasing seems a
+> little ambiguous to me, given that we also have a 'prot'
+> argument.  I think it would be clearer just to say 
+> "protection key". But maybe I'm missing something.
 
-> +#ifdef CONFIG_SLUB
+x86 calls it a "protection key" while powerpc calls it a "storage key".
+ They're called "protection keys" consistently inside the kernel.
 
-Move this into slab_ksize?
+Should we just stick to one name in the manpages?
 
-> +static inline size_t slab_ksize(const struct kmem_cache *s)
-> +{
-> +#ifdef CONFIG_SLUB_DEBUG
-> +	/*
-> +	 * Debugging requires use of the padding between object
-> +	 * and whatever may come after it.
-> +	 */
-> +	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
-> +		return s->object_size;
-> +#endif
-> +	/*
-> +	 * If we have the need to store the freelist pointer
-> +	 * back there or track user information then we can
-> +	 * only use the space before that information.
-> +	 */
-> +	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
-> +		return s->inuse;
-> +	/*
-> +	 * Else we can use all the padding etc for the allocation
-> +	 */
-> +	return s->size;
-> +}
-> +#else /* !CONFIG_SLUB */
+> * A general overview of why this functionality is useful.
 
-Abnd drop the else branch?
+Any preference on a central spot to do the general overview?  Does it go
+in one of the manpages I'm already modifying, or a new one?
 
-> +static inline size_t slab_ksize(const struct kmem_cache *s)
-> +{
-> +	return s->object_size;
-> +}
-> +#endif
+> * A note on which architectures support/will support
+>   this functionality.
+
+x86 only for now.  We might get powerpc support down the road somewhere.
+
+> * Explanation of what a protection domain is.
+
+A protection domain is a unique view of memory and is represented by the
+value in the PKRU register.
+
+> * Explanation of how a process (thread?) changes its
+>   protection domain.
+
+Changing protection domains is done by pkey_set() system call, or by
+using the WRPKRU instruction.  The system call is preferred and less
+error-prone since it enforces that a protection is allocated before its
+access protection can be modified.
+
+> * Explanation of the relationship between page permission
+>   bits (PROT_READ/PROT_WRITE/PROTE_EXEC) and 
+>   PKEY_DISABLE_ACCESS and PKEY_DISABLE_WRITE.
+>   It's still not clear to me. Do the PKEY_* bits
+>   override the PROT_* bits. Or, something else?
+
+Protection keys add access restrictions in addition to existing page
+permissions.  They can only take away access; they never grant
+additional access.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
