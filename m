@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B67056B0258
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 09:07:55 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so30450264pac.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 06:07:55 -0800 (PST)
-Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.8])
-        by mx.google.com with ESMTPS id f18si12970192pfj.115.2015.12.09.06.07.54
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE256B0258
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 09:32:10 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so224967426wmu.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 06:32:10 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id lm2si10323363wjc.94.2015.12.09.06.32.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 06:07:55 -0800 (PST)
+        Wed, 09 Dec 2015 06:32:09 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so264686080wmv.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 06:32:09 -0800 (PST)
+Date: Wed, 9 Dec 2015 15:32:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: m(un)map kmalloc buffers to userspace
+Message-ID: <20151209143207.GF30907@dhcp22.suse.cz>
 References: <5667128B.3080704@sigmadesigns.com>
  <20151209135544.GE30907@dhcp22.suse.cz>
-From: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
-Message-ID: <566835B6.9010605@sigmadesigns.com>
-Date: Wed, 9 Dec 2015 15:07:50 +0100
+ <566835B6.9010605@sigmadesigns.com>
 MIME-Version: 1.0
-In-Reply-To: <20151209135544.GE30907@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <566835B6.9010605@sigmadesigns.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
 Cc: Sebastian Frias <sebastian_frias@sigmadesigns.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/12/2015 14:55, Michal Hocko wrote:
-> On Tue 08-12-15 18:25:31, Sebastian Frias wrote:
->> Hi,
->>
->> We are porting a driver from Linux 3.4.39+ to 4.1.13+, CPU is Cortex-A9.
->>
->> The driver maps kmalloc'ed memory to user space.
+On Wed 09-12-15 15:07:50, Marc Gonzalez wrote:
+> On 09/12/2015 14:55, Michal Hocko wrote:
+> > On Tue 08-12-15 18:25:31, Sebastian Frias wrote:
+> >> Hi,
+> >>
+> >> We are porting a driver from Linux 3.4.39+ to 4.1.13+, CPU is Cortex-A9.
+> >>
+> >> The driver maps kmalloc'ed memory to user space.
+> > 
+> > This sounds like a terrible idea to me. Why don't you simply use the
+> > page allocator directly? Try to imagine what would happen if you mmaped
+> > a kmalloc with a size which is not page aligned? mmaped memory uses
+> > whole page granularity.
 > 
-> This sounds like a terrible idea to me. Why don't you simply use the
-> page allocator directly? Try to imagine what would happen if you mmaped
-> a kmalloc with a size which is not page aligned? mmaped memory uses
-> whole page granularity.
+> According to the source code, this kernel module calls
+> 
+>   kmalloc(1 << 17, GFP_KERNEL | __GFP_REPEAT);
 
-According to the source code, this kernel module calls
+So I guess you are mapping with 32pages granularity? If this is really
+needed for internal usage you can use highorder page and map its
+subpages directly.
 
-  kmalloc(1 << 17, GFP_KERNEL | __GFP_REPEAT);
+> I suppose kmalloc() would return page-aligned memory?
 
-I suppose kmalloc() would return page-aligned memory?
-
-(Note: the kernel module was originally written for 2.4 and was updated
-inconsistently over the years.)
-
-Regards.
+I do not think there is any guarantee like that. AFAIK you only get
+guarantee for the natural word alignment. Slab allocator is allowed
+to use larger allocation and put its metadata or whatever before the
+returned pointer.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
