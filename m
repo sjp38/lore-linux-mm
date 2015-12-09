@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B00B56B0257
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:42:29 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so35724672pac.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:29 -0800 (PST)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id c10si15119524pat.36.2015.12.09.13.42.25
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id AD0066B0258
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 16:42:31 -0500 (EST)
+Received: by pfu207 with SMTP id 207so36188948pfu.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:31 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id 17si15089641pfo.238.2015.12.09.13.42.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 13:42:25 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so35940672pac.2
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:25 -0800 (PST)
+        Wed, 09 Dec 2015 13:42:26 -0800 (PST)
+Received: by pabur14 with SMTP id ur14so35923186pab.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 13:42:26 -0800 (PST)
 From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH v5 4/7] mips: mm/gup: add gup trace points
-Date: Wed,  9 Dec 2015 13:22:28 -0800
-Message-Id: <1449696151-4195-5-git-send-email-yang.shi@linaro.org>
+Subject: [PATCH v5 5/7] s390: mm/gup: add gup trace points
+Date: Wed,  9 Dec 2015 13:22:29 -0800
+Message-Id: <1449696151-4195-6-git-send-email-yang.shi@linaro.org>
 In-Reply-To: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
 References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org, linux-mips@linux-mips.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
 
-Cc: linux-mips@linux-mips.org
-Acked-by: Ralf Baechle <ralf@linux-mips.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-s390@vger.kernel.org
 Signed-off-by: Yang Shi <yang.shi@linaro.org>
 ---
- arch/mips/mm/gup.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/s390/mm/gup.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-index 349995d..7d90883 100644
---- a/arch/mips/mm/gup.c
-+++ b/arch/mips/mm/gup.c
-@@ -15,6 +15,8 @@
- #include <asm/cpu-features.h>
+diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
+index 12bbf0e..a1d5db7 100644
+--- a/arch/s390/mm/gup.c
++++ b/arch/s390/mm/gup.c
+@@ -12,6 +12,8 @@
+ #include <linux/rwsem.h>
  #include <asm/pgtable.h>
  
 +#include <trace/events/gup.h>
 +
- static inline pte_t gup_get_pte(pte_t *ptep)
- {
- #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-@@ -211,6 +213,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 					(void __user *)start, len)))
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -188,6 +190,9 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	end = start + len;
+ 	if ((end <= start) || (end > TASK_SIZE))
  		return 0;
- 
++
 +	trace_gup_get_user_pages_fast(start, nr_pages);
 +
  	/*
- 	 * XXX: batch / limit 'nr', to avoid large irq off latency
- 	 * needs some instrumenting to determine the common sizes used by
-@@ -291,6 +295,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	} while (pgdp++, addr = next, addr != end);
- 	local_irq_enable();
- 
-+	trace_gup_get_user_pages_fast(start, nr_pages);
-+
- 	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
- 	return nr;
- slow:
+ 	 * local_irq_save() doesn't prevent pagetable teardown, but does
+ 	 * prevent the pagetables from being freed on s390.
 -- 
 2.0.2
 
