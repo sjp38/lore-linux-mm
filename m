@@ -1,278 +1,508 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 976246B0038
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 19:32:41 -0500 (EST)
-Received: by ioc74 with SMTP id 74so42446002ioc.2
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 16:32:40 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id 191si8663730ioo.78.2015.12.08.16.32.38
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BF96B0255
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2015 19:43:35 -0500 (EST)
+Received: by wmww144 with SMTP id w144so51652379wmw.0
+        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 16:43:35 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h7si7862099wjy.46.2015.12.08.16.43.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 08 Dec 2015 16:32:39 -0800 (PST)
-Date: Wed, 9 Dec 2015 09:33:53 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC 0/3] reduce latency of direct async compaction
-Message-ID: <20151209003353.GA12417@js1304-P5Q-DELUXE>
-References: <56600DAA.4050208@suse.cz>
- <20151203113508.GA23780@aaronlu.sh.intel.com>
- <20151203115255.GA24773@aaronlu.sh.intel.com>
- <56618841.2080808@suse.cz>
- <20151207073523.GA27292@js1304-P5Q-DELUXE>
- <20151207085956.GA16783@aaronlu.sh.intel.com>
- <20151208004118.GA4325@js1304-P5Q-DELUXE>
- <20151208051439.GA20797@aaronlu.sh.intel.com>
- <20151208065116.GA6902@js1304-P5Q-DELUXE>
- <20151208085242.GA6801@aaronlu.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Dec 2015 16:43:33 -0800 (PST)
+Date: Tue, 08 Dec 2015 16:43:31 -0800
+From: akpm@linux-foundation.org
+Subject: mmotm 2015-12-08-16-42 uploaded
+Message-ID: <56677933.Mo/R7kUpTlB0cZyh%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151208085242.GA6801@aaronlu.sh.intel.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On Tue, Dec 08, 2015 at 04:52:42PM +0800, Aaron Lu wrote:
-> On Tue, Dec 08, 2015 at 03:51:16PM +0900, Joonsoo Kim wrote:
-> > On Tue, Dec 08, 2015 at 01:14:39PM +0800, Aaron Lu wrote:
-> > > On Tue, Dec 08, 2015 at 09:41:18AM +0900, Joonsoo Kim wrote:
-> > > > On Mon, Dec 07, 2015 at 04:59:56PM +0800, Aaron Lu wrote:
-> > > > > On Mon, Dec 07, 2015 at 04:35:24PM +0900, Joonsoo Kim wrote:
-> > > > > > It looks like overhead still remain. I guess that migration scanner
-> > > > > > would call pageblock_pfn_to_page() for more extended range so
-> > > > > > overhead still remain.
-> > > > > > 
-> > > > > > I have an idea to solve his problem. Aaron, could you test following patch
-> > > > > > on top of base? It tries to skip calling pageblock_pfn_to_page()
-> > > > > 
-> > > > > It doesn't apply on top of 25364a9e54fb8296837061bf684b76d20eec01fb
-> > > > > cleanly, so I made some changes to make it apply and the result is:
-> > > > > https://github.com/aaronlu/linux/commit/cb8d05829190b806ad3948ff9b9e08c8ba1daf63
-> > > > 
-> > > > Yes, that's okay. I made it on my working branch but it will not result in
-> > > > any problem except applying.
-> > > > 
-> > > > > 
-> > > > > There is a problem occured right after the test starts:
-> > > > > [   58.080962] BUG: unable to handle kernel paging request at ffffea0082000018
-> > > > > [   58.089124] IP: [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> > > > > [   58.096109] PGD 107ffd6067 PUD 207f7d5067 PMD 0
-> > > > > [   58.101569] Oops: 0000 [#1] SMP 
-> > > > 
-> > > > I did some mistake. Please test following patch. It is also made
-> > > > on my working branch so you need to resolve conflict but it would be
-> > > > trivial.
-> > > > 
-> > > > I inserted some logs to check whether zone is contiguous or not.
-> > > > Please check that normal zone is set to contiguous after testing.
-> > > 
-> > > Yes it is contiguous, but unfortunately, the problem remains:
-> > > [   56.536930] check_zone_contiguous: Normal
-> > > [   56.543467] check_zone_contiguous: Normal: contiguous
-> > > [   56.549640] BUG: unable to handle kernel paging request at ffffea0082000018
-> > > [   56.557717] IP: [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> > > [   56.564719] PGD 107ffd6067 PUD 207f7d5067 PMD 0
-> > > 
-> > 
-> > Maybe, I find the reason. cc->free_pfn can be initialized to invalid pfn
-> > that isn't checked so optimized pageblock_pfn_to_page() causes BUG().
-> > 
-> > I add work-around for this problem at isolate_freepages(). Please test
-> > following one.
-> 
-> Still no luck and the error is about the same:
+The mm-of-the-moment snapshot 2015-12-08-16-42 has been uploaded to
 
-There is a mistake... Could you insert () for
-cc->free_pfn & ~(pageblock_nr_pages-1) like as following?
+   http://www.ozlabs.org/~akpm/mmotm/
 
-cc->free_pfn == (cc->free_pfn & ~(pageblock_nr_pages-1))
+mmotm-readme.txt says
 
-Thanks.
+README for mm-of-the-moment:
 
-> 
-> [   64.727792] check_zone_contiguous: Normal
-> [   64.733950] check_zone_contiguous: Normal: contiguous
-> [   64.741610] BUG: unable to handle kernel paging request at ffffea0082000018
-> [   64.749708] IP: [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> [   64.756806] PGD 107ffd6067 PUD 207f7d5067 PMD 0 
-> [   64.762302] Oops: 0000 [#1] SMP 
-> [   64.766294] Modules linked in: scsi_debug rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver netconsole sg sd_mod x86_pkg_temp_thermal coretemp kvm_intel kvm mgag200 irqbypass crct10dif_pclmul ttm crc32_pclmul crc32c_intel drm_kms_helper ahci syscopyarea sysfillrect sysimgblt snd_pcm libahci fb_sys_fops snd_timer snd sb_edac aesni_intel soundcore lrw drm gf128mul pcspkr edac_core ipmi_devintf glue_helper ablk_helper cryptd libata ipmi_si shpchp wmi ipmi_msghandler acpi_power_meter acpi_pad
-> [   64.816579] CPU: 19 PID: 1526 Comm: usemem Not tainted 4.4.0-rc3-00025-gf60ea5f #1
-> [   64.825419] Hardware name: Intel Corporation S2600WTT/S2600WTT, BIOS SE5C610.86B.01.01.0008.021120151325 02/11/2015
-> [   64.837483] task: ffff88168a0aca80 ti: ffff88168a564000 task.ti:ffff88168a564000
-> [   64.846264] RIP: 0010:[<ffffffff81193f29>]  [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> [   64.856147] RSP: 0000:ffff88168a567940  EFLAGS: 00010286
-> [   64.862520] RAX: ffff88207ffdcd80 RBX: ffff88168a567ac0 RCX: ffff88207ffdcd80
-> [   64.870944] RDX: 0000000002080000 RSI: ffff88168a567ac0 RDI: ffff88168a567ac0
-> [   64.879377] RBP: ffff88168a567990 R08: ffffea0082000000 R09: 0000000000000000
-> [   64.887813] R10: 0000000000000000 R11: 000000000001ae88 R12: ffffea0082000000
-> [   64.896254] R13: ffffea0059f20780 R14: 0000000002080000 R15: 0000000002080000
-> [   64.904704] FS:  00007f2d4e6e8700(0000) GS:ffff882034440000(0000) knlGS:0000000000000000
-> [   64.914232] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   64.921151] CR2: ffffea0082000018 CR3: 0000002015771000 CR4: 00000000001406e0
-> [   64.929635] Stack:
-> [   64.932413]  ffff88168a568000 000000000167ca00 ffffffff81193196 ffff88207ffdcd80
-> [   64.941292]  0000000002080000 ffffea0059f207c0 ffff88168a567ac0 ffffea0059f20780
-> [   64.950179]  ffffea0059f207e0 ffff88207ffdcd80 ffff88168a567a20 ffffffff811d097e
-> [   64.959071] Call Trace:
-> [   64.962364]  [<ffffffff81193196>] ? update_pageblock_skip+0x56/0xa0
-> [   64.969939]  [<ffffffff811d097e>] migrate_pages+0x28e/0x7b0
-> [   64.976728]  [<ffffffff811931e0>] ? update_pageblock_skip+0xa0/0xa0
-> [   64.984312]  [<ffffffff81193e30>] ? __pageblock_pfn_to_page+0xe0/0xe0
-> [   64.992093]  [<ffffffff811954da>] compact_zone+0x38a/0x8e0
-> [   64.998811]  [<ffffffff81195a9d>] compact_zone_order+0x6d/0x90
-> [   65.005926]  [<ffffffff81174f44>] ? get_page_from_freelist+0xd4/0xa20
-> [   65.013861]  [<ffffffff81195d2c>] try_to_compact_pages+0xec/0x210
-> [   65.021212]  [<ffffffffa00d0c72>] ? sdebug_queuecommand_lock_or_not+0x22/0x60 [scsi_debug]
-> [   65.030984]  [<ffffffff811758cd>] __alloc_pages_direct_compact+0x3d/0x110
-> [   65.039106]  [<ffffffff81175f06>] __alloc_pages_nodemask+0x566/0xb40
-> [   65.046739]  [<ffffffff811c02c1>] alloc_pages_vma+0x1d1/0x230
-> [   65.053690]  [<ffffffff811d5d77>] do_huge_pmd_anonymous_page+0x107/0x3f0
-> [   65.061713]  [<ffffffff8119ed2a>] handle_mm_fault+0x178a/0x1940
-> [   65.068859]  [<ffffffff811a6614>] ? change_protection+0x14/0x20
-> [   65.075999]  [<ffffffff8109d8a2>] ? __might_sleep+0x52/0xb0
-> [   65.082750]  [<ffffffff81063c4d>] __do_page_fault+0x1ad/0x410
-> [   65.089690]  [<ffffffff81063edf>] do_page_fault+0x2f/0x80
-> [   65.096242]  [<ffffffff818c8008>] page_fault+0x28/0x30
-> [   65.102491] Code: 90 00 00 00 48 8b 45 c8 4d 89 e0 83 b8 50 05 00 00 01 74 12 48 8b 55 c8 4c 89 f6 4c 89 ff e8 2f fe ff ff 49 89 c0 4d 85 c0 74 47 <41> 8b 40 18 83 f8 80 75 0a 49 8b 40 30 48 83 f8 08 77 34 48 b8 
-> [   65.125421] RIP  [<ffffffff81193f29>] compaction_alloc+0xf9/0x270
-> [   65.132777]  RSP <ffff88168a567940>
-> [   65.141419] ---[ end trace c17c6b894e4340a8 ]---
-> [   65.149001] Kernel panic - not syncing: Fatal exception
-> 
-> 
-> Thanks,
-> Aaron
-> 
-> > 
-> > Thanks.
-> > 
-> > ---------->8---------------
-> > From 7e954a68fb555a868acc5860627a1ad8dadbe3bf Mon Sep 17 00:00:00 2001
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Date: Mon, 7 Dec 2015 14:51:42 +0900
-> > Subject: [PATCH] mm/compaction: Optimize pageblock_pfn_to_page() for
-> >  contiguous zone
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > ---
-> >  include/linux/mmzone.h |  1 +
-> >  mm/compaction.c        | 60 +++++++++++++++++++++++++++++++++++++++++++++++++-
-> >  2 files changed, 60 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index e23a9e7..573f9a9 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -521,6 +521,7 @@ struct zone {
-> >  #endif
-> >  
-> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> > +       int                     contiguous;
-> >         /* Set to true when the PG_migrate_skip bits should be cleared */
-> >         bool                    compact_blockskip_flush;
-> >  #endif
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index de3e1e7..ff5fb04 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -88,7 +88,7 @@ static inline bool migrate_async_suitable(int migratetype)
-> >   * the first and last page of a pageblock and avoid checking each individual
-> >   * page in a pageblock.
-> >   */
-> > -static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
-> > +static struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-> >                                 unsigned long end_pfn, struct zone *zone)
-> >  {
-> >         struct page *start_page;
-> > @@ -114,6 +114,56 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
-> >         return start_page;
-> >  }
-> >  
-> > +static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
-> > +                               unsigned long end_pfn, struct zone *zone)
-> > +{
-> > +       if (zone->contiguous == 1)
-> > +               return pfn_to_page(start_pfn);
-> > +
-> > +       return __pageblock_pfn_to_page(start_pfn, end_pfn, zone);
-> > +}
-> > +
-> > +static void check_zone_contiguous(struct zone *zone)
-> > +{
-> > +       unsigned long block_start_pfn = zone->zone_start_pfn;
-> > +       unsigned long block_end_pfn;
-> > +       unsigned long pfn;
-> > +
-> > +       /* Already checked */
-> > +       if (zone->contiguous)
-> > +               return;
-> > +
-> > +       printk("%s: %s\n", __func__, zone->name);
-> > +       block_end_pfn = ALIGN(block_start_pfn + 1, pageblock_nr_pages);
-> > +       for (; block_start_pfn < zone_end_pfn(zone);
-> > +               block_start_pfn = block_end_pfn,
-> > +               block_end_pfn += pageblock_nr_pages) {
-> > +
-> > +               block_end_pfn = min(block_end_pfn, zone_end_pfn(zone));
-> > +
-> > +               if (!__pageblock_pfn_to_page(block_start_pfn,
-> > +                                       block_end_pfn, zone)) {
-> > +                       /* We have hole */
-> > +                       zone->contiguous = -1;
-> > +                       printk("%s: %s: uncontiguous\n", __func__, zone->name);
-> > +                       return;
-> > +               }
-> > +
-> > +               /* Check validity of pfn within pageblock */
-> > +               for (pfn = block_start_pfn; pfn < block_end_pfn; pfn++) {
-> > +                       if (!pfn_valid_within(pfn)) {
-> > +                               zone->contiguous = -1;
-> > +                               printk("%s: %s: uncontiguous\n", __func__, zone->name);
-> > +                               return;
-> > +                       }
-> > +               }
-> > +       }
-> > +
-> > +       /* We don't have hole */
-> > +       zone->contiguous = 1;
-> > +       printk("%s: %s: contiguous\n", __func__, zone->name);
-> > +}
-> > +
-> >  #ifdef CONFIG_COMPACTION
-> >  
-> >  /* Do not skip compaction more than 64 times */
-> > @@ -948,6 +998,12 @@ static void isolate_freepages(struct compact_control *cc)
-> >         unsigned long low_pfn;       /* lowest pfn scanner is able to scan */
-> >         struct list_head *freelist = &cc->freepages;
-> >  
-> > +       /* Work-around */
-> > +       if (zone->contiguous == 1 &&
-> > +               cc->free_pfn == zone_end_pfn(zone) &&
-> > +               cc->free_pfn == cc->free_pfn & ~(pageblock_nr_pages-1))
-> > +               cc->free_pfn -= pageblock_nr_pages;
-> > +
-> >         /*
-> >          * Initialise the free scanner. The starting point is where we last
-> >          * successfully isolated from, zone-cached value, or the end of the
-> > @@ -1356,6 +1412,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >                 ;
-> >         }
-> >  
-> > +       check_zone_contiguous(zone);
-> > +
-> >         /*
-> >          * Clear pageblock skip if there were failures recently and compaction
-> >          * is about to be retried after being deferred. kswapd does not do
-> > -- 
-> > 1.9.1
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.4-rc4:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  drivers-gpu-drm-i915-intel_spritec-fix-build.patch
+  drivers-gpu-drm-i915-intel_tvc-fix-build.patch
+  arm-mm-do-not-use-virt_to_idmap-for-nommu-systems.patch
+* mm-hugetlb-fix-hugepage-memory-leak-caused-by-wrong-reserve-count.patch
+* memcg-fix-memoryhigh-target.patch
+* mm-fix-swapped-movable-and-reclaimable-in-proc-pagetypeinfo.patch
+* mm-vmstat-allow-wq-concurrency-to-discover-memory-reclaim-doesnt-make-any-progress.patch
+* maintainers-make-vladimir-co-maintainer-of-the-memory-controller.patch
+* osd-fs-__r4w_get_page-rely-on-pageuptodate-for-uptodate.patch
+* mm-fix-kerneldoc-on-mem_cgroup_replace_page.patch
+* mm-kmemleak-mark-kmemleak_init-prototype-as-__init.patch
+* kernel-remove-stop_machine-kconfig-dependency.patch
+* mm-hugetlb-call-huge_pte_alloc-only-if-ptep-is-null.patch
+* mm-hugetlb-resv-map-memory-leak-for-placeholder-entries.patch
+* mm-hugetlb-resv-map-memory-leak-for-placeholder-entries-v2.patch
+* tmpfs-fix-shmem_evict_inode-warnings-on-i_blocks.patch
+* drivers-memory-prohibit-offlining-of-memory-blocks-with-missing-sections.patch
+* oom-kill-init-lead-panic.patch
+* oom-kill-init-lead-panic-fix.patch
+* drivers-memory-check-for-missing-sections-when-testing-zones.patch
+* ocfs2-dlm-fix-deadlock-due-to-nested-lock.patch
+* ocfs2-fix-sgid-not-inherited-issue.patch
+* fsnotify-use-list_next_entry-in-fsnotify_unmount_inodes.patch
+* fsnotify-destroy-marks-with-call_srcu-instead-of-dedicated-thread.patch
+* modpost-dont-add-a-trailing-wildcard-for-of-module-aliases.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* ocfs2-optimize-bad-declarations-and-redundant-assignment.patch
+* ocfs2-return-non-zero-st_blocks-for-inline-data.patch
+* o2hb-increase-unsteady-iterations.patch
+* ocfs2-dlm-fix-a-race-between-purge-and-migratio.patch
+* ocfs2-constify-ocfs2_extent_tree_operations-structures.patch
+* ocfs2-add-ocfs2_write_type_t-type-to-identify-the-caller-of-write.patch
+* ocfs2-use-c_new-to-indicate-newly-allocated-extents.patch
+* ocfs2-test-target-page-before-change-it.patch
+* ocfs2-do-not-change-i_size-in-write_end-for-direct-io.patch
+* ocfs2-return-the-physical-address-in-ocfs2_write_cluster.patch
+* ocfs2-record-unwritten-extents-when-populate-write-desc.patch
+* ocfs2-fix-sparse-file-data-ordering-issue-in-direct-io.patch
+* ocfs2-code-clean-up-for-direct-io.patch
+* ocfs2-fix-ip_unaligned_aio-deadlock-with-dio-work-queue.patch
+* ocfs2-fix-ip_unaligned_aio-deadlock-with-dio-work-queue-fix.patch
+* ocfs2-take-ip_alloc_sem-in-ocfs2_dio_get_block-ocfs2_dio_end_io_write.patch
+* ocfs2-fix-disk-file-size-and-memory-file-size-mismatch.patch
+* ocfs2-fix-a-deadlock-issue-in-ocfs2_dio_end_io_write.patch
+* ocfs2-dlm-fix-race-between-convert-and-recovery.patch
+* ocfs2-dlm-fix-race-between-convert-and-recovery-v2.patch
+* ocfs2-dlm-fix-race-between-convert-and-recovery-v3.patch
+* ocfs2-dlm-fix-bug-in-dlm_move_lockres_to_recovery_list.patch
+* ocfs2-extend-transaction-for-ocfs2_remove_rightmost_path-and-ocfs2_update_edge_lengths-before-to-avoid-inconsistency-between-inode-and-et.patch
+* extend-enough-credits-for-freeing-one-truncate-record-while-replaying-truncate-records.patch
+* ocfs2-avoid-occurring-deadlock-by-changing-ocfs2_wq-from-global-to-local.patch
+* ocfs2-solve-a-problem-of-crossing-the-boundary-in-updating-backups.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* include-linux-dcacheh-remove-semicolons-from-hash_len_declare.patch
+  mm.patch
+* mm-slab-use-list_first_entry_or_null.patch
+* mm-slab-use-list_for_each_entry-in-cache_flusharray.patch
+* mm-slabc-add-a-helper-function-get_first_slab.patch
+* revert-kernfs-do-not-account-ino_ida-allocations-to-memcg.patch
+* revert-gfp-add-__gfp_noaccount.patch
+* memcg-only-account-kmem-allocations-marked-as-__gfp_account.patch
+* slab-add-slab_account-flag.patch
+* vmalloc-allow-to-account-vmalloc-to-memcg.patch
+* account-certain-kmem-allocations-to-memcg.patch
+* account-certain-kmem-allocations-to-memcg-checkpatch-fixes.patch
+* mm-mlockc-drop-unneeded-initialization-in-munlock_vma_pages_range.patch
+* mm-mmapc-remove-redundant-local-variables-for-may_expand_vm.patch
+* mm-mmapc-remove-redundant-local-variables-for-may_expand_vm-fix.patch
+* mm-change-trace_mm_vmscan_writepage-proto-type.patch
+* include-define-__phys_to_pfn-as-phys_pfn.patch
+* include-define-__phys_to_pfn-as-phys_pfn-fix.patch
+* include-define-__phys_to_pfn-as-phys_pfn-fix-2.patch
+* mempolicy-convert-the-shared_policy-lock-to-a-rwlock.patch
+* mempolicy-convert-the-shared_policy-lock-to-a-rwlock-fix.patch
+* mempolicy-convert-the-shared_policy-lock-to-a-rwlock-fix-2.patch
+* mm-page_isolation-return-last-tested-pfn-rather-than-failure-indicator.patch
+* mm-page_isolation-add-new-tracepoint-test_pages_isolated.patch
+* mm-cma-always-check-which-page-cause-allocation-failure.patch
+* mm-cma-always-check-which-page-cause-allocation-failure-v2.patch
+* mm-change-mm_vmscan_lru_shrink_inactive-proto-types.patch
+* mm-hugetlb-is_file_hugepages-can-be-boolean.patch
+* mm-memblock-memblock_is_memory-reserved-can-be-boolean.patch
+* mm-lru-remove-unused-is_unevictable_lru-function.patch
+* mm-zonelist-enumerate-zonelists-array-index.patch
+* mm-zonelist-enumerate-zonelists-array-index-checkpatch-fixes.patch
+* mm-zonelist-enumerate-zonelists-array-index-fix.patch
+* mm-zonelist-enumerate-zonelists-array-index-fix-fix.patch
+* mm-zonelist-enumerate-zonelists-array-index-fix-fix-fix.patch
+* mm-get-rid-of-__alloc_pages_high_priority.patch
+* mm-get-rid-of-__alloc_pages_high_priority-checkpatch-fixes.patch
+* mm-do-not-loop-over-alloc_no_watermarks-without-triggering-reclaim.patch
+* mm-vmalloc-use-list_nextfirst_entry.patch
+* mm-mmzone-memmap_valid_within-can-be-boolean.patch
+* mm-documentation-clarify-proc-pid-status-vmswap-limitations-for-shmem.patch
+* mm-proc-account-for-shmem-swap-in-proc-pid-smaps.patch
+* mm-proc-reduce-cost-of-proc-pid-smaps-for-shmem-mappings.patch
+* mm-proc-reduce-cost-of-proc-pid-smaps-for-unpopulated-shmem-mappings.patch
+* mm-shmem-add-internal-shmem-resident-memory-accounting.patch
+* mm-procfs-breakdown-rss-for-anon-shmem-and-file-in-proc-pid-status.patch
+* mm-thp-use-list_first_entry_or_null.patch
+* tree-wide-use-kvfree-than-conditional-kfree-vfree.patch
+* mm-vmalloc-remove-vm_vpages.patch
+* vmscan-do-not-force-scan-file-lru-if-its-absolute-size-is-small.patch
+* vmscan-do-not-force-scan-file-lru-if-its-absolute-size-is-small-v2.patch
+* memcg-do-not-allow-to-disable-tcp-accounting-after-limit-is-set.patch
+* fs-block_devc-bdev_write_page-use-blk_queue_enter-gfp_noio.patch
+* mm-vmscan-consider-isolated-pages-in-zone_reclaimable_pages.patch
+* mm-mmapc-remove-incorrect-map_fixed-flag-comparison-from-mmap_region.patch
+* mm-mmap-add-new-proc-tunable-for-mmap_base-aslr.patch
+* arm-mm-support-arch_mmap_rnd_bits.patch
+* arm64-mm-support-arch_mmap_rnd_bits.patch
+* arm64-mm-support-arch_mmap_rnd_bits-fix.patch
+* x86-mm-support-arch_mmap_rnd_bits.patch
+* mm-compaction-improve-comment-for-compact_memory-tunable-knob-handler.patch
+* mm-allow-gfp_iofs-for-page_cache_read-page-cache-allocation.patch
+* mm-page_alloc-generalize-the-dirty-balance-reserve.patch
+* proc-meminfo-estimate-available-memory-more-conservatively.patch
+* drivers-memory-clean-up-section-counting.patch
+* drivers-memory-rename-remove_memory_block-to-remove_memory_section.patch
+* mm-page_alloc-remove-unnecessary-parameter-from-__rmqueue.patch
+* mm-page_allocc-use-list_firstlast_entry-instead-of-list_entry.patch
+* mm-page_allocc-use-list_for_each_entry-in-mark_free_pages.patch
+* mm-oom-give-__gfp_nofail-allocations-access-to-memory-reserves.patch
+* mm-memblock-remove-rgnbase-and-rgnsize-variables.patch
+* mm-memblock-introduce-for_each_memblock_type.patch
+* mm-swapfilec-use-list_nextfirst_entry.patch
+* mm-compaction-__compact_pgdat-code-cleanuup.patch
+* mm-memblock-use-memblock_insert_region-for-the-empty-array.patch
+* mm-memblock-use-memblock_insert_region-for-the-empty-array-checkpatch-fixes.patch
+* mm-readaheadc-mm-vmscanc-use-lru_to_page-instead-of-list_to_page.patch
+* mm-ksmc-use-list_for_each_entry_safe.patch
+* mm-memcontrol-export-root_mem_cgroup.patch
+* net-tcp_memcontrol-properly-detect-ancestor-socket-pressure.patch
+* net-tcp_memcontrol-remove-bogus-hierarchy-pressure-propagation.patch
+* net-tcp_memcontrol-protect-all-tcp_memcontrol-calls-by-jump-label.patch
+* net-tcp_memcontrol-remove-dead-per-memcg-count-of-allocated-sockets.patch
+* net-tcp_memcontrol-simplify-the-per-memcg-limit-access.patch
+* net-tcp_memcontrol-sanitize-tcp-memory-accounting-callbacks.patch
+* net-tcp_memcontrol-simplify-linkage-between-socket-and-page-counter.patch
+* mm-memcontrol-generalize-the-socket-accounting-jump-label.patch
+* mm-memcontrol-do-not-account-memoryswap-on-unified-hierarchy.patch
+* mm-memcontrol-move-socket-code-for-unified-hierarchy-accounting.patch
+* mm-memcontrol-account-socket-memory-in-unified-hierarchy-memory-controller.patch
+* mm-memcontrol-hook-up-vmpressure-to-socket-pressure.patch
+* mm-memcontrol-switch-to-the-updated-jump-label-api.patch
+* mm-add-tracepoint-for-scanning-pages.patch
+* mm-add-tracepoint-for-scanning-pages-fix.patch
+* mm-make-optimistic-check-for-swapin-readahead.patch
+* mm-make-optimistic-check-for-swapin-readahead-fix.patch
+* mm-make-optimistic-check-for-swapin-readahead-fix-2.patch
+* mm-fix-kernel-crash-in-khugepaged-thread.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-2.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-3.patch
+* zram-zcomp-use-gfp_noio-to-allocate-streams.patch
+* zram-try-vmalloc-after-kmalloc.patch
+* zram-pass-gfp-from-zcomp-frontend-to-backend.patch
+* zram-zcomp-do-not-zero-out-zcomp-private-pages.patch
+* mm-zbud-use-list_last_entry-instead-of-list_tail_entry.patch
+* page-flags-trivial-cleanup-for-pagetrans-helpers.patch
+* page-flags-move-code-around.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages-fix.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages-fix-fix.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages-fix-3.patch
+* page-flags-define-pg_locked-behavior-on-compound-pages.patch
+* page-flags-define-pg_locked-behavior-on-compound-pages-fix.patch
+* page-flags-define-behavior-of-fs-io-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-lru-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-slb-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-xen-related-flags-on-compound-pages.patch
+* page-flags-define-pg_reserved-behavior-on-compound-pages.patch
+* page-flags-define-pg_reserved-behavior-on-compound-pages-fix.patch
+* page-flags-define-pg_swapbacked-behavior-on-compound-pages.patch
+* page-flags-define-pg_swapcache-behavior-on-compound-pages.patch
+* page-flags-define-pg_mlocked-behavior-on-compound-pages.patch
+* page-flags-define-pg_uncached-behavior-on-compound-pages.patch
+* page-flags-define-pg_uptodate-behavior-on-compound-pages.patch
+* page-flags-look-at-head-page-if-the-flag-is-encoded-in-page-mapping.patch
+* mm-sanitize-page-mapping-for-tail-pages.patch
+* page-flags-drop-__testclearpage-helpers.patch
+* mm-proc-adjust-pss-calculation.patch
+* rmap-add-argument-to-charge-compound-page.patch
+* rmap-add-argument-to-charge-compound-page-fix.patch
+* memcg-adjust-to-support-new-thp-refcounting.patch
+* mm-thp-adjust-conditions-when-we-can-reuse-the-page-on-wp-fault.patch
+* mm-adjust-foll_split-for-new-refcounting.patch
+* mm-handle-pte-mapped-tail-pages-in-gerneric-fast-gup-implementaiton.patch
+* thp-mlock-do-not-allow-huge-pages-in-mlocked-area.patch
+* khugepaged-ignore-pmd-tables-with-thp-mapped-with-ptes.patch
+* thp-rename-split_huge_page_pmd-to-split_huge_pmd.patch
+* mm-vmstats-new-thp-splitting-event.patch
+* mm-temporally-mark-thp-broken.patch
+* thp-drop-all-split_huge_page-related-code.patch
+* mm-drop-tail-page-refcounting.patch
+* futex-thp-remove-special-case-for-thp-in-get_futex_key.patch
+* futex-thp-remove-special-case-for-thp-in-get_futex_key-fix.patch
+* ksm-prepare-to-new-thp-semantics.patch
+* mm-thp-remove-compound_lock.patch
+* arm64-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* arm-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* arm-thp-remove-infrastructure-for-handling-splitting-pmds-fix.patch
+* mips-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* powerpc-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* s390-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* sparc-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* tile-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* x86-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* mm-thp-remove-infrastructure-for-handling-splitting-pmds.patch
+* mm-thp-remove-infrastructure-for-handling-splitting-pmds-fix.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps-fix.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps-fix-2.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps-fix-3.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps-fix-4.patch
+* mm-rework-mapcount-accounting-to-enable-4k-mapping-of-thps-fix-5.patch
+* mm-differentiate-page_mapped-from-page_mapcount-for-compound-pages.patch
+* mm-numa-skip-pte-mapped-thp-on-numa-fault.patch
+* thp-implement-split_huge_pmd.patch
+* thp-add-option-to-setup-migration-entries-during-pmd-split.patch
+* thp-mm-split_huge_page-caller-need-to-lock-page.patch
+* mm-hwpoison-adjust-for-new-thp-refcounting.patch
+* mm-hwpoison-adjust-for-new-thp-refcounting-fix.patch
+* thp-reintroduce-split_huge_page.patch
+* thp-reintroduce-split_huge_page-fix-2.patch
+* thp-reintroduce-split_huge_page-fix-3.patch
+* thp-reintroduce-split_huge_page-fix-4.patch
+* migrate_pages-try-to-split-pages-on-qeueuing.patch
+* thp-introduce-deferred_split_huge_page.patch
+* thp-introduce-deferred_split_huge_page-fix.patch
+* mm-re-enable-thp.patch
+* thp-update-documentation.patch
+* thp-allow-mlocked-thp-again.patch
+* mm-prepare-page_referenced-and-page_idle-to-new-thp-refcounting.patch
+* mm-prepare-page_referenced-and-page_idle-to-new-thp-refcounting-fix.patch
+* mm-prepare-page_referenced-and-page_idle-to-new-thp-refcounting-checkpatch-fixes.patch
+* mm-prepare-page_referenced-and-page_idle-to-new-thp-refcounting-fix-fix.patch
+* mm-prepare-page_referenced-and-page_idle-to-new-thp-refcounting-fix-fix-fix.patch
+* mm-add-page_check_address_transhuge-helper.patch
+* mm-add-page_check_address_transhuge-helper-fix.patch
+* mm-add-page_check_address_transhuge-helper-fix-fix.patch
+* mm-debug-fix-wrongly-filtered-flags-in-dump_vma.patch
+* mm-debug-fix-wrongly-filtered-flags-in-dump_vma-fix.patch
+* mm-page_owner-print-symbolic-migratetype-of-both-page-and-pageblock.patch
+* mm-page_owner-convert-page_owner_inited-to-static-key.patch
+* mm-page_owner-copy-page-owner-info-during-migration.patch
+* mm-page_owner-track-and-print-last-migrate-reason.patch
+* mm-page_owner-track-and-print-last-migrate-reason-fix.patch
+* mm-debug-introduce-dump_gfpflag_names-for-symbolic-printing-of-gfp_flags.patch
+* mm-page_owner-dump-page-owner-info-from-dump_page.patch
+* mm-page_owner-dump-page-owner-info-from-dump_page-fix.patch
+* mm-page_alloc-print-symbolic-gfp_flags-on-allocation-failure.patch
+* mm-oom-print-symbolic-gfp_flags-in-oom-warning.patch
+* mm-printk-introduce-new-format-string-for-flags.patch
+* mm-page_owner-provide-symbolic-page-flags-and-gfp_flags.patch
+* mm-debug-move-bad-flags-printing-to-bad_page.patch
+* mm-support-madvisemadv_free.patch
+* mm-support-madvisemadv_free-fix.patch
+* mm-support-madvisemadv_free-fix-2.patch
+* mm-support-madvisemadv_free-fix-2-fix.patch
+* mm-define-madv_free-for-some-arches.patch
+* arch-uapi-asm-mmanh-let-madv_free-have-same-value-for-all-architectures.patch
+* arch-uapi-asm-mmanh-let-madv_free-have-same-value-for-all-architectures-fix.patch
+* arch-uapi-asm-mmanh-let-madv_free-have-same-value-for-all-architectures-fix-fix-2.patch
+* arch-uapi-asm-mmanh-let-madv_free-have-same-value-for-all-architectures-fix-fix-2-fix-3.patch
+* arch-uapi-asm-mmanh-let-madv_free-have-same-value-for-all-architectures-fix-fix-2-fix-4.patch
+* mm-free-swp_entry-in-madvise_free.patch
+* mm-move-lazily-freed-pages-to-inactive-list.patch
+* mm-mark-stable-page-dirty-in-ksm.patch
+* x86-add-pmd_-for-thp.patch
+* sparc-add-pmd_-for-thp.patch
+* powerpc-add-pmd_-for-thp.patch
+* arm-add-pmd_mkclean-for-thp.patch
+* arm64-add-pmd_mkclean-for-thp.patch
+* mm-dont-split-thp-page-when-syscall-is-called.patch
+* proc-add-a-reschedule-point-in-proc_readfd_common.patch
+* use-poison_pointer_delta-for-poison-pointers.patch
+* include-kernelh-change-abs-macro-so-it-uses-consistent-return-type.patch
+* fs-statc-drop-the-last-new_valid_dev-check.patch
+* include-linux-kdev_th-remove-new_valid_dev.patch
+* kconfig-remove-have_latencytop_support.patch
+* errh-add-missing-unlikely-to-is_err_or_null.patch
+* uselib-default-depending-if-libc5-was-used.patch
+* asm-sections-add-helpers-to-check-for-section-data.patch
+* printk-only-unregister-boot-consoles-when-necessary.patch
+* printk-do-cond_resched-between-lines-while-outputting-to-consoles.patch
+* lib-vsprintfc-pull-out-padding-code-from-dentry_name.patch
+* lib-vsprintfc-move-string-below-widen_string.patch
+* lib-vsprintfc-eliminate-potential-race-in-string.patch
+* lib-vsprintfc-expand-field_width-to-24-bits.patch
+* lib-vsprintfc-expand-field_width-to-24-bits-fix.patch
+* lib-vsprintfc-help-gcc-make-number-smaller.patch
+* lib-vsprintfc-warn-about-too-large-precisions-and-field-widths.patch
+* lib-kasprintfc-add-sanity-check-to-kvasprintf.patch
+* lib-test_printfc-dont-bug.patch
+* lib-test_printfc-check-for-out-of-bound-writes.patch
+* lib-test_printfc-test-precision-quirks.patch
+* lib-test_printfc-add-a-few-number-tests.patch
+* lib-test_printfc-account-for-kvasprintf-tests.patch
+* lib-test_printfc-add-test-for-large-bitmaps.patch
+* lib-test_printfc-test-dentry-printing.patch
+* lib-test_printfc-test-dentry-printing-fix.patch
+* printk-help-pr_debug-and-pr_devel-to-optimize-out-arguments.patch
+* printk-help-pr_debug-and-pr_devel-to-optimize-out-arguments-fix.patch
+* printk-formatstxt-remove-unimplemented-%pt.patch
+* string_helpers-fix-precision-loss-for-some-inputs.patch
+* test_hexdump-rename-to-test_hexdump.patch
+* test_hexdump-introduce-test_hexdump_prepare_test-helper.patch
+* test_hexdump-go-through-all-possible-lengths-of-buffer.patch
+* test_hexdump-replace-magic-numbers-by-their-meaning.patch
+* test_hexdump-check-all-bytes-in-real-buffer.patch
+* test_hexdump-test-all-possible-group-sizes-for-overflow.patch
+* test_hexdump-print-statistics-at-the-end.patch
+* frv-io-accept-const-void-pointers-for-readbwl.patch
+* lib-iomap_copy-add-__ioread32_copy.patch
+* soc-qcom-smd-use-__ioread32_copy-instead-of-open-coding-it.patch
+* firmware-bcm47xx_nvram-use-__ioread32_copy-instead-of-open-coding.patch
+* mm-utilc-add-kstrimdup.patch
+* lib-add-crc64-ecma-module.patch
+* checkpatch-warn-when-casting-constants-to-c90-int-or-longer-types.patch
+* checkpatch-improve-macros-with-flow-control-test.patch
+* checkpatch-fix-a-number-of-complex_macro-false-positives.patch
+* epoll-add-epollexclusive-flag.patch
+* init-mainc-obsolete_checksetup-can-be-boolean.patch
+* init-do_mounts-initrd_load-can-be-boolean.patch
+* hfs-use-list_for_each_entry-in-hfs_cat_delete.patch
+* fat-allow-time_offset-to-be-upto-24-hours.patch
+* fat-add-simple-validation-for-directory-inode.patch
+* fat-add-fat_fallocate-operation.patch
+* fat-skip-cluster-allocation-on-fallocated-region.patch
+* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
+* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate.patch
+* fat-constify-fatent_operations-structures.patch
+* ptrace-make-wait_on_bitjobctl_trapping_bit-in-ptrace_attach-killable.patch
+* ptrace-task_stopped_codeptrace-=-true-cant-see-task_stopped-task.patch
+* ptrace-task_stopped_codeptrace-=-true-cant-see-task_stopped-task-fix.patch
+* security-let-security-modules-use-ptrace_mode_-with-bitmasks.patch
+* ptrace-use-fsuid-fsgid-effective-creds-for-fs-access-checks.patch
+* ptrace-use-fsuid-fsgid-effective-creds-for-fs-access-checks-fix.patch
+* powerpc-fadump-rename-cpu_online_mask-member-of-struct-fadump_crash_info_header.patch
+* kernel-cpuc-change-type-of-cpu_possible_bits-and-friends.patch
+* kernel-cpuc-export-__cpu__mask.patch
+* drivers-base-cpuc-use-__cpu__mask-directly.patch
+* kernel-cpuc-eliminate-cpu__mask.patch
+* kernel-cpuc-make-set_cpu_-static-inlines.patch
+* kexec-set-kexec_type_crash-before-sanity_check_segment_list.patch
+* kexec-use-list_for_each_entry_safe-in-kimage_free_page_list.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* sysctl-enable-strict-writes.patch
+* kernel-printk-specify-alignment-for-struct-printk_log.patch
+* mac80211-prevent-build-failure-with-config_ubsan=y.patch
+* ubsan-run-time-undefined-behavior-sanity-checker.patch
+* ubsan-run-time-undefined-behavior-sanity-checker-fix.patch
+* ubsan-run-time-undefined-behavior-sanity-checker-fix-2.patch
+* ubsan-run-time-undefined-behavior-sanity-checker-fix-3.patch
+* lz4-fix-wrong-compress-buffer-size-for-64-bits.patch
+* ipc-shm-is_file_shm_hugepages-can-be-boolean.patch
+* ipc-msgc-msgsnd-use-freezable-blocking-call.patch
+* msgrcv-use-freezable-blocking-call.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* fs-adfs-adfsh-tidy-up-comments.patch
+* iio-core-introduce-iio-configfs-support.patch
+* iio-core-introduce-iio-software-triggers.patch
+* iio-core-introduce-iio-software-triggers-fix.patch
+* iio-trigger-introduce-iio-hrtimer-based-trigger.patch
+* iio-documentation-add-iio-configfs-documentation.patch
+* dma-mapping-make-the-generic-coherent-dma-mmap-implementation-optional.patch
+* arc-convert-to-dma_map_ops.patch
+* arc-convert-to-dma_map_ops-fix.patch
+* avr32-convert-to-dma_map_ops.patch
+* blackfin-convert-to-dma_map_ops.patch
+* c6x-convert-to-dma_map_ops.patch
+* c6x-convert-to-dma_map_ops-fix.patch
+* c6x-convert-to-dma_map_ops-fix-2.patch
+* cris-convert-to-dma_map_ops.patch
+* nios2-convert-to-dma_map_ops.patch
+* nios2-convert-to-dma_map_ops-fix.patch
+* frv-convert-to-dma_map_ops.patch
+* parisc-convert-to-dma_map_ops.patch
+* mn10300-convert-to-dma_map_ops.patch
+* m68k-convert-to-dma_map_ops.patch
+* metag-convert-to-dma_map_ops.patch
+* sparc-use-generic-dma_set_mask.patch
+* tile-uninline-dma_set_mask.patch
+* dma-mapping-always-provide-the-dma_map_ops-based-implementation.patch
+* dma-mapping-always-provide-the-dma_map_ops-based-implementation-fix.patch
+* dma-mapping-remove-asm-generic-dma-coherenth.patch
+* dma-mapping-use-offset_in_page-macro.patch
+* memstick-use-sector_div-instead-of-do_div.patch
+* mm-memcontrol-drop-unused-css-argument-in-memcg_init_kmem.patch
+* mm-memcontrol-remove-double-kmem-page_counter-init.patch
+* mm-memcontrol-give-the-kmem-states-more-descriptive-names.patch
+* mm-memcontrol-group-kmem-init-and-exit-functions-together.patch
+* mm-memcontrol-separate-kmem-code-from-legacy-tcp-accounting-code.patch
+* mm-memcontrol-move-kmem-accounting-code-to-config_memcg.patch
+* mm-memcontrol-account-kmem-consumers-in-cgroup2-memory-controller.patch
+* mm-memcontrol-introduce-config_memcg_legacy_kmem.patch
+  mm-add-strictlimit-knob-v2.patch
+  do_shared_fault-check-that-mmap_sem-is-held.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
