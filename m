@@ -1,98 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C6EE66B0038
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 00:40:09 -0500 (EST)
-Received: by pfdd184 with SMTP id d184so24197837pfd.3
-        for <linux-mm@kvack.org>; Tue, 08 Dec 2015 21:40:09 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 73si10175782pfp.17.2015.12.08.21.40.08
-        for <linux-mm@kvack.org>;
-        Tue, 08 Dec 2015 21:40:08 -0800 (PST)
-Date: Wed, 9 Dec 2015 13:40:06 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC 0/3] reduce latency of direct async compaction
-Message-ID: <20151209054006.GA13682@aaronlu.sh.intel.com>
-References: <20151203113508.GA23780@aaronlu.sh.intel.com>
- <20151203115255.GA24773@aaronlu.sh.intel.com>
- <56618841.2080808@suse.cz>
- <20151207073523.GA27292@js1304-P5Q-DELUXE>
- <20151207085956.GA16783@aaronlu.sh.intel.com>
- <20151208004118.GA4325@js1304-P5Q-DELUXE>
- <20151208051439.GA20797@aaronlu.sh.intel.com>
- <20151208065116.GA6902@js1304-P5Q-DELUXE>
- <20151208085242.GA6801@aaronlu.sh.intel.com>
- <20151209003353.GA12417@js1304-P5Q-DELUXE>
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D02E26B0038
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 03:26:47 -0500 (EST)
+Received: by wmec201 with SMTP id c201so62194432wme.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 00:26:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v129si10598761wma.12.2015.12.09.00.26.46
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 09 Dec 2015 00:26:46 -0800 (PST)
+Date: Wed, 9 Dec 2015 09:26:38 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2] clear file privilege bits when mmap writing
+Message-ID: <20151209082638.GA3137@quack.suse.cz>
+References: <20151203000342.GA30015@www.outflux.net>
+ <B4520E53-6DD9-44D7-A064-9F405FBAA793@gmail.com>
+ <CAGXu5jJaY9WeR-NiZXfAu=hM6U7DaPD_d8ZZTAdo_EkS3WDxCw@mail.gmail.com>
+ <CAGXu5jKtj89bgyLaYt6hMBXc+rWD9CWxE2nZP9xbSWyXBvf5qw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20151209003353.GA12417@js1304-P5Q-DELUXE>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAGXu5jKtj89bgyLaYt6hMBXc+rWD9CWxE2nZP9xbSWyXBvf5qw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: yalin wang <yalin.wang2010@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>
 
-On Wed, Dec 09, 2015 at 09:33:53AM +0900, Joonsoo Kim wrote:
-> On Tue, Dec 08, 2015 at 04:52:42PM +0800, Aaron Lu wrote:
-> > On Tue, Dec 08, 2015 at 03:51:16PM +0900, Joonsoo Kim wrote:
-> > > I add work-around for this problem at isolate_freepages(). Please test
-> > > following one.
-> > 
-> > Still no luck and the error is about the same:
+On Mon 07-12-15 16:40:14, Kees Cook wrote:
+> On Mon, Dec 7, 2015 at 2:42 PM, Kees Cook <keescook@chromium.org> wrote:
+> > On Thu, Dec 3, 2015 at 5:45 PM, yalin wang <yalin.wang2010@gmail.com> wrote:
+> >>
+> >>> On Dec 2, 2015, at 16:03, Kees Cook <keescook@chromium.org> wrote:
+> >>>
+> >>> Normally, when a user can modify a file that has setuid or setgid bits,
+> >>> those bits are cleared when they are not the file owner or a member
+> >>> of the group. This is enforced when using write and truncate but not
+> >>> when writing to a shared mmap on the file. This could allow the file
+> >>> writer to gain privileges by changing a binary without losing the
+> >>> setuid/setgid/caps bits.
+> >>>
+> >>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+> >>> during the page fault (due to mmap_sem being held during the fault).
+> >>> Instead, clear the bits if PROT_WRITE is being used at mmap time.
+> >>>
+> >>> Signed-off-by: Kees Cook <keescook@chromium.org>
+> >>> Cc: stable@vger.kernel.org
+> >>> a??
+> >>
+> >> is this means mprotect() sys call also need add this check?
+> >> mprotect() can change to PROT_WRITE, then it can write to a
+> >> read only map again , also a secure hole here .
+> >
+> > Yes, good point. This needs to be added. I will send a new patch. Thanks!
 > 
-> There is a mistake... Could you insert () for
-> cc->free_pfn & ~(pageblock_nr_pages-1) like as following?
+> This continues to look worse and worse.
 > 
-> cc->free_pfn == (cc->free_pfn & ~(pageblock_nr_pages-1))
+> So... to check this at mprotect time, I have to know it's MAP_SHARED,
+> but that's in the vma_flags, which I can only see after holding
+> mmap_sem.
+> 
+> The best I can think of now is to strip the bits at munmap time, since
+> you can't execute an mmapped file until it closes.
+> 
+> Jan, thoughts on this?
 
-Oh right, of course.
+Umm, so we actually refuse to execute a file while someone has it open for
+writing (deny_write_access() in do_open_execat()). So dropping the suid /
+sgid bits when closing file for writing could be plausible. Grabbing
+i_mutex from __fput() context is safe (it gets called from task_work
+context when returning to userspace).
 
-Good news, the result is much better now:
-$ cat {0..8}/swap
-cmdline: /lkp/aaron/src/bin/usemem 100064603136
-100064603136 transferred in 72 seconds, throughput: 1325 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100072049664
-100072049664 transferred in 74 seconds, throughput: 1289 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100070246400
-100070246400 transferred in 92 seconds, throughput: 1037 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100069545984
-100069545984 transferred in 81 seconds, throughput: 1178 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100058895360
-100058895360 transferred in 78 seconds, throughput: 1223 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100066074624
-100066074624 transferred in 94 seconds, throughput: 1015 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100062855168
-100062855168 transferred in 77 seconds, throughput: 1239 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100060990464
-100060990464 transferred in 73 seconds, throughput: 1307 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100064996352
-100064996352 transferred in 84 seconds, throughput: 1136 MB/s
-Max: 1325 MB/s
-Min: 1015 MB/s
-Avg: 1194 MB/s
+That way we could actually remove the checks done for each write. To avoid
+unexpected removal of suid/sgid bits when someone just opens & closes the
+file, we could mark the file as needing suid/sgid treatment by a flag in
+inode->i_flags when file gets written to or mmaped and then check for this
+in __fput().
 
-The base result for reference:
-$ cat {0..8}/swap
-cmdline: /lkp/aaron/src/bin/usemem 100000622592
-100000622592 transferred in 103 seconds, throughput: 925 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 99999559680
-99999559680 transferred in 92 seconds, throughput: 1036 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 99996171264
-99996171264 transferred in 92 seconds, throughput: 1036 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100005663744
-100005663744 transferred in 150 seconds, throughput: 635 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100002966528
-100002966528 transferred in 87 seconds, throughput: 1096 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 99995784192
-99995784192 transferred in 131 seconds, throughput: 727 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100003731456
-100003731456 transferred in 97 seconds, throughput: 983 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 100006440960
-100006440960 transferred in 109 seconds, throughput: 874 MB/s
-cmdline: /lkp/aaron/src/bin/usemem 99998813184
-99998813184 transferred in 122 seconds, throughput: 781 MB/s
-Max: 1096 MB/s
-Min: 635 MB/s
-Avg: 899 MB/s
+I've added Al Viro to CC just in case he is aware of some issues with
+this...
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
