@@ -1,94 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 53B006B0257
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 11:48:36 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so50281789pab.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 08:48:36 -0800 (PST)
-Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.2])
-        by mx.google.com with ESMTPS id qd3si21252897pab.208.2015.12.10.08.48.35
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C0DBC6B0254
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 12:00:31 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so7026924pfb.3
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 09:00:31 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ag6si21307031pad.210.2015.12.10.09.00.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 08:48:35 -0800 (PST)
-Message-ID: <5669ACDF.4030900@sigmadesigns.com>
-Date: Thu, 10 Dec 2015 17:48:31 +0100
-From: Sebastian Frias <sebastian_frias@sigmadesigns.com>
+        Thu, 10 Dec 2015 09:00:29 -0800 (PST)
+Date: Thu, 10 Dec 2015 20:00:20 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+Message-ID: <20151210170020.GA5171@esperanza>
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+ <20151210160027.GA3308@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: m(un)map kmalloc buffers to userspace
-References: <5667128B.3080704@sigmadesigns.com> <20151209135544.GE30907@dhcp22.suse.cz> <566835B6.9010605@sigmadesigns.com> <20151209143207.GF30907@dhcp22.suse.cz> <56684062.9090505@sigmadesigns.com> <20151209151254.GH30907@dhcp22.suse.cz> <56684A59.7030605@sigmadesigns.com> <20151210114005.GF19496@dhcp22.suse.cz> <56698022.1070305@sigmadesigns.com> <20151210140631.GO19496@dhcp22.suse.cz>
-In-Reply-To: <20151210140631.GO19496@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151210160027.GA3308@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/10/2015 03:06 PM, Michal Hocko wrote:
-> On Thu 10-12-15 14:37:38, Sebastian Frias wrote:
->> On 12/10/2015 12:40 PM, Michal Hocko wrote:
->>> On Wed 09-12-15 16:35:53, Sebastian Frias wrote:
->>> [...]
->>>> We've seen that drivers/media/pci/zoran/zoran_driver.c for example seems to
->>>> be doing as us kmalloc+remap_pfn_range,
->>>
->>> This driver is broken - I will post a patch.
->>
->> Ok, we'll be glad to see a good example, please keep us posted.
->>
->>>
->>>> is there any guarantee (or at least an advised heuristic) to determine
->>>> if a driver is "current" (ie: uses the latest APIs and works)?
->>>
->>> OK, it seems I was overly optimistic when directing you to existing
->>> drivers. Sorry about that I wasn't aware you could find such a terrible
->>> code there. Please refer to Linux Device Drivers book which should give
->>> you a much better lead (e.g. http://www.makelinux.net/ldd3/chp-15-sect-2)
->>>
->>
->> Thank you for the link.
->> The current code of our driver was has portions written following LDD3,
->> however, we it seems that LDD3 advice is not relevant anymore.
->> Indeed, it talks about VM_RESERVED, it talks about using "nopage" and it
->> says that remap_pfn_range cannot be used for pages from get_user_page (or
->> kmalloc).
->
-> Heh, it seems that we are indeed outdated there as well. The memory
-> management code doesn't really require pages to be reserved and it
-> allows to use get_user_page(s) memory to be mapped to user ptes.
-> remap_pfn_range will set all the appropriate flags to make sure MM code
-> will not stumble over those pages and let's the driver to take care of
-> the memory deallocation.
+On Thu, Dec 10, 2015 at 11:00:27AM -0500, Johannes Weiner wrote:
+> On Thu, Dec 10, 2015 at 02:39:14PM +0300, Vladimir Davydov wrote:
+...
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > index c6a5ed2f2744..993c9a26b637 100644
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -169,6 +169,7 @@ struct mem_cgroup {
+> >  
+> >  	/* Accounted resources */
+> >  	struct page_counter memory;
+> > +	struct page_counter swap;
+> >  	struct page_counter memsw;
+> >  	struct page_counter kmem;
+> 
+> We should probably separate this to differentiate the new counters
+> from the old ones. Only memory and swap are actual resources, the
+> memsw and kmem counters are counting consumer-oriented.
 
-Ok, just for information, do you know since when it is possible to use 
-remap_pfn_range on kmalloc/get_user_page memory?
+Yeah, but we'd better do it in a separate patch.
 
->
->> It seems such assertions are valid on older kernels, because the code stops
->> working on 3.4+ if we use remap_pfn_range the same way than
->> drivers/media/pci/zoran/zoran_driver.c
->> However, kmalloc+remap_pfn_range does work on 4.1.13+
->
-> As I've said nothing will guarantee that the kmalloc returned address
-> will be page aligned so you might corrupt slab internal data structures.
-> You might allocate a larger buffer via kmalloc and make sure it is
-> aligned properly but I fail to see why should be kmalloc used in the
-> first place as you need a memory in page size unnits anyway.
->
+> 
+> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+> > index 457181844b6e..f4b3ccdcba91 100644
+> > --- a/include/linux/swap.h
+> > +++ b/include/linux/swap.h
+> > @@ -368,11 +368,16 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+> >  #endif
+> >  #ifdef CONFIG_MEMCG_SWAP
+> >  extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+> > +extern int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry);
+> 
+> Should this be mem_cgroup_try_swap() to keep in line with the page
+> counter terminology? So it's clear this is not forcing a charge.
 
-Ok, so let's say we stop using kmalloc in favor of __get_user_pages, do 
-you see other things that would need to be done to be compliant with 
-current practices?
+Hmm, I thought we only use try_charge name in memcontrol.c if there is
+commit stage, e.g. we have memcg_kmem_charge, not memcg_kmem_try_charge.
+This conflicts with page_counter semantics though, so we might want to
+rename it.
 
-For instance, drivers/media/pci/zoran/zoran_driver.c is doing:
+> 
+> > @@ -1248,12 +1248,15 @@ static unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
+> >  {
+> >  	unsigned long limit;
+> >  
+> > -	limit = memcg->memory.limit;
+> > +	limit = READ_ONCE(memcg->memory.limit);
+> >  	if (mem_cgroup_swappiness(memcg)) {
+> >  		unsigned long memsw_limit;
+> > +		unsigned long swap_limit;
+> >  
+> > -		memsw_limit = memcg->memsw.limit;
+> > -		limit = min(limit + total_swap_pages, memsw_limit);
+> > +		memsw_limit = READ_ONCE(memcg->memsw.limit);
+> > +		swap_limit = min(READ_ONCE(memcg->swap.limit),
+> > +				 (unsigned long)total_swap_pages);
+> > +		limit = min(limit + swap_limit, memsw_limit);
+> >  	}
+> >  	return limit;
+> 
+> This is taking a racy snapshot, so we don't rely on 100% accuracy. Can
+> we do without the READ_ONCE()?
 
-    for (off = 0; off < fh->buffers.buffer_size; off += PAGE_SIZE)
-       SetPageReserved(virt_to_page(mem + off));
+Well, I suppose we can, but passing a volatile value to min macro looks
+a bit scary to me. What if swap_limit is changed from a finite value
+less than total_swap_pages to inf while we are there? We might use an
+infinite memory size in OOM which would screw up OOM scores AFAIU.
+Unlikely, but still.
 
-on the memory allocated with kmalloc, but we are not doing any of that, 
-yet it was working. Would the switch to __get_user_pages require the 
-calls to SetPageReserved?
+> 
+> > @@ -5754,26 +5760,66 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> >  	memcg_check_events(memcg, page);
+> >  }
+> >  
+> > +/*
+> > + * mem_cgroup_charge_swap - charge a swap entry
+> > + * @page: page being added to swap
+> > + * @entry: swap entry to charge
+> > + *
+> > + * Try to charge @entry to the memcg that @page belongs to.
+> > + *
+> > + * Returns 0 on success, -ENOMEM on failure.
+> > + */
+> > +int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry)
+> > +{
+> > +	struct mem_cgroup *memcg;
+> > +	struct page_counter *counter;
+> > +	unsigned short oldid;
+> > +
+> > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) || !do_swap_account)
+> > +		return 0;
+> > +
+> > +	memcg = page->mem_cgroup;
+> > +
+> > +	/* Readahead page, never charged */
+> > +	if (!memcg)
+> > +		return 0;
+> > +
+> > +	if (!mem_cgroup_is_root(memcg) &&
+> > +	    !page_counter_try_charge(&memcg->swap, 1, &counter))
+> > +		return -ENOMEM;
+> > +
+> > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+> > +	VM_BUG_ON_PAGE(oldid, page);
+> > +	mem_cgroup_swap_statistics(memcg, true);
+> > +
+> > +	css_get(&memcg->css);
+> 
+> I think we don't have to duplicate the swap record code. Both cgroup1
+> and cgroup2 could run this function to handle the swapout record and
+> statistics, and then mem_cgroup_swapout() would simply uncharge memsw.
 
-Thanks for your help.
+Well, may be. I'm afraid this might make mem_cgroup_charge_swap look a
+bit messy due to necessity to check cgroup_subsys_on_dfl in the middle
+of it, but I'll give it a try.
+
+> 
+> > @@ -5828,6 +5931,8 @@ static int __init mem_cgroup_swap_init(void)
+> >  {
+> >  	if (!mem_cgroup_disabled() && really_do_swap_account) {
+> >  		do_swap_account = 1;
+> > +		WARN_ON(cgroup_add_dfl_cftypes(&memory_cgrp_subsys,
+> > +					       swap_files));
+> >  		WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
+> >  						  memsw_cgroup_files));
+> 
+> I guess we could also support cgroup.memory=noswap.
+> 
+
+Yeah, that would be cleaner. I wonder if we could drop swapaccount boot
+param then so as not to clutter the API.
+
+Thanks for the review!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
