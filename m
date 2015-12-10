@@ -1,89 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A67882F7A
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 01:17:39 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so42420412pab.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 22:17:39 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id r79si18085738pfi.230.2015.12.09.22.17.37
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 22:17:38 -0800 (PST)
-Message-ID: <56691819.3040105@huawei.com>
-Date: Thu, 10 Dec 2015 14:13:45 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com> <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com> <56679FDC.1080800@huawei.com> <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com> <5668D1FA.4050108@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
-In-Reply-To: <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA2382F82
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 02:06:44 -0500 (EST)
+Received: by pfu207 with SMTP id 207so43399365pfu.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 23:06:44 -0800 (PST)
+Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
+        by mx.google.com with ESMTP id lf12si18400821pab.22.2015.12.09.23.06.41
+        for <linux-mm@kvack.org>;
+        Wed, 09 Dec 2015 23:06:42 -0800 (PST)
+Date: Thu, 10 Dec 2015 08:06:35 +0100
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
+Message-ID: <20151210070635.GC31922@1wt.eu>
+References: <20151209225148.GA14794@www.outflux.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151209225148.GA14794@www.outflux.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen,
- Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/12/10 13:37, Izumi, Taku wrote:
+Hi Kees,
 
-> Dear Tony, Xishi,
-> 
->>>> How about add some comment, if mirrored memroy is too small, then the
->>>> normal zone is small, so it may be oom.
->>>> The mirrored memory is at least 1/64 of whole memory, because struct
->>>> pages usually take 64 bytes per page.
->>>
->>> 1/64th is the absolute lower bound (for the page structures as you say). I
->>> expect people will need to configure 10% or more to run any real workloads.
-> 
->>>
->>> I made the memblock boot time allocator fall back to non-mirrored memory
->>> if mirrored memory ran out.  What happens in the run time allocator if the
->>> non-movable zones run out of pages? Will we allocate kernel pages from movable
->>> memory?
->>>
->>
->> As I know, the kernel pages will not allocated from movable zone.
-> 
->  Yes, kernel pages are not allocated from ZONE_MOVABLE.
-> 
->  In this case administrator must review and reconfigure the mirror ratio via 
->  "MirrorRequest" EFI variable.
->  
->   Sincerely,
->   Taku Izumi
-> 
+Why not add a new file flag instead ?
 
-Hi Taku,
+Something like this (editing your patch by hand to illustrate) :
 
-Whether it is possible that we rewrite the fallback function in buddy system
-when zone_movable and mirrored_kernelcore are both enabled?
+diff --git a/fs/file_table.c b/fs/file_table.c
+index ad17e05ebf95..3a7eee76ea90 100644
+--- a/fs/file_table.c
++++ b/fs/file_table.c
+@@ -191,6 +191,17 @@ static void __fput(struct file *file)
+ 
+ 	might_sleep();
+ 
++	/*
++	 * XXX: While avoiding mmap_sem, we've already been written to.
++	 * We must ignore the return value, since we can't reject the
++	 * write.
++	 */
++	if (unlikely(file->f_flags & FL_DROP_PRIVS)) {
++		mutex_lock(&inode->i_mutex);
++		file_remove_privs(file);
++		mutex_unlock(&inode->i_mutex);
++	}
++
+ 	fsnotify_close(file);
+ 	/*
+ 	 * The function eventpoll_release() should be the first called
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 3aa514254161..409bd7047e7e 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -913,3 +913,4 @@
+ #define FL_OFDLCK       1024    /* lock is "owned" by struct file */
+ #define FL_LAYOUT       2048    /* outstanding pNFS layout */
++#define FL_DROP_PRIVS   4096    /* lest something weird decides that 2 is OK */
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index c387430f06c3..08a77e0cf65f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2036,6 +2036,7 @@ static inline int wp_page_reuse(struct mm_struct *mm,
+ 
+ 		if (!page_mkwrite)
+ 			file_update_time(vma->vm_file);
++		vma->vm_file->f_flags |= FL_DROP_PRIVS;
+ 	}
+ 
+ 	return VM_FAULT_WRITE;
 
-It seems something like that we add a new zone but the name is zone_movable,
-not zone_mirror. And the prerequisite is that we won't enable these two
-features(movable memory and mirrored memory) at the same time. Thus we can
-reuse the code of movable zone.
-
-Thanks,
-Xishi Qiu
-
->>
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>> Please read the FAQ at  http://www.tux.org/lkml/
->>>
->>> .
->>>
->>
->>
-> 
-> 
-> .
-> 
-
-
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
