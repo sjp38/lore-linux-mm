@@ -1,80 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 140586B026A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:04:58 -0500 (EST)
-Received: by igcto18 with SMTP id to18so5068064igc.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:04:57 -0800 (PST)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.228])
-        by mx.google.com with ESMTP id o62si12991591ioe.179.2015.12.09.20.04.57
-        for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 20:04:57 -0800 (PST)
-Date: Wed, 9 Dec 2015 23:04:56 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-Message-ID: <20151210040456.GC7814@home.goodmis.org>
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
- <1449242195-16374-1-git-send-email-vbabka@suse.cz>
- <20151210025944.GB17967@js1304-P5Q-DELUXE>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2675982F7A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:14:54 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id c201so14230715wme.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:14:54 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id d4si42372677wmf.31.2015.12.09.20.14.52
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 Dec 2015 20:14:53 -0800 (PST)
+Date: Thu, 10 Dec 2015 04:14:24 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
+Message-ID: <20151210041424.GD20997@ZenIV.linux.org.uk>
+References: <20151209225148.GA14794@www.outflux.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151210025944.GB17967@js1304-P5Q-DELUXE>
+In-Reply-To: <20151209225148.GA14794@www.outflux.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 10, 2015 at 11:59:44AM +0900, Joonsoo Kim wrote:
-> Ccing, Steven to ask trace-cmd problem.
+On Wed, Dec 09, 2015 at 02:51:48PM -0800, Kees Cook wrote:
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 3aa514254161..409bd7047e7e 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -872,6 +872,7 @@ struct file {
+>  	struct list_head	f_tfile_llink;
+>  #endif /* #ifdef CONFIG_EPOLL */
+>  	struct address_space	*f_mapping;
+> +	bool			f_remove_privs;
 
-Thanks, I should have been Cc'd for the rest as well.
-
-> 
-> On Fri, Dec 04, 2015 at 04:16:33PM +0100, Vlastimil Babka wrote:
-> > In mm we use several kinds of flags bitfields that are sometimes printed for
-> > debugging purposes, or exported to userspace via sysfs. To make them easier to
-> > interpret independently on kernel version and config, we want to dump also the
-> > symbolic flag names. So far this has been done with repeated calls to
-> > pr_cont(), which is unreliable on SMP, and not usable for e.g. sysfs export.
-> > 
-> > To get a more reliable and universal solution, this patch extends printk()
-> > format string for pointers to handle the page flags (%pgp), gfp_flags (%pgg)
-> > and vma flags (%pgv). Existing users of dump_flag_names() are converted and
-> > simplified.
-> > 
-> > It would be possible to pass flags by value instead of pointer, but the %p
-> > format string for pointers already has extensions for various kernel
-> > structures, so it's a good fit, and the extra indirection in a non-critical
-> > path is negligible.
-> 
-> I'd like to use %pgp in tracepoint output. It works well when I do
-> 'cat /sys/kernel/debug/tracing/trace' but not works well when I do
-> './trace-cmd report'. It prints following error log.
-> 
->   [page_ref:page_ref_unfreeze] bad op token &
->   [page_ref:page_ref_set] bad op token &
->   [page_ref:page_ref_mod_unless] bad op token &
->   [page_ref:page_ref_mod_and_test] bad op token &
->   [page_ref:page_ref_mod_and_return] bad op token &
->   [page_ref:page_ref_mod] bad op token &
->   [page_ref:page_ref_freeze] bad op token &
-> 
-> Following is the format I used.
-> 
-> TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
->                 __entry->pfn, &__entry->flags, __entry->count,
->                 __entry->mapcount, __entry->mapping, __entry->mt,
->                 __entry->val, __entry->ret)
-> 
-> Could it be solved by 'trace-cmd' itself?
-> Or it's better to pass flags by value?
-> Or should I use something like show_gfp_flags()?
-
-Yes this can be solved in perf and trace-cmd via the parse-events.c file. And
-as soon as that happens, whatever method we decide upon becomes a userspace
-ABI. So don't think you can change it later.
-
--- Steve
+NAK.  If anything, such things belong in ->f_flags.  _If_ this is worth
+doing at all, that is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
