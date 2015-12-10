@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC4E82F82
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:43:01 -0500 (EST)
-Received: by lfed137 with SMTP id d137so2103181lfe.3
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 01:43:00 -0800 (PST)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id g78si7157236lfb.151.2015.12.10.01.42.59
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DF65482F82
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:51:50 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id v187so24199516wmv.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 01:51:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 21si14268wmn.45.2015.12.10.01.51.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 01:43:00 -0800 (PST)
-Received: by lfdl133 with SMTP id l133so52470932lfd.2
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 01:42:59 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 10 Dec 2015 01:51:49 -0800 (PST)
+Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
+References: <87io4hi06n.fsf@rasmusvillemoes.dk>
+ <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+ <20151210035128.GA7814@home.goodmis.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56694B32.9060504@suse.cz>
+Date: Thu, 10 Dec 2015 10:51:46 +0100
 MIME-Version: 1.0
-Date: Thu, 10 Dec 2015 09:42:59 +0000
-Message-ID: <CAF6XsOeYWvuNm=uuMCM4YD4a2dCoBe6TvimygPKRe4PMiHwQmw@mail.gmail.com>
-Subject: Page Cache Monitoring ( Hit/Miss )
-From: Allan McAleavy <allan.mcaleavy@gmail.com>
-Content-Type: multipart/alternative; boundary=001a114017c645d3bb052688085e
+In-Reply-To: <20151210035128.GA7814@home.goodmis.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Ingo Molnar <mingo@kernel.org>
 
---001a114017c645d3bb052688085e
-Content-Type: text/plain; charset=UTF-8
+On 12/10/2015 04:51 AM, Steven Rostedt wrote:
+> I should have been Cc'd on this as I'm the maintainer of a few of the files
+> here that is being modified.
 
-Hi Folks,
+Sorry about that.
 
-I am working on a rewrite of Brendan Greggs original cachestat (ftrace)
-script into bcc. What I was looking for was a steer in the right direction
-for what functions to trace. At present I trace the following.
+>> --- a/include/linux/trace_events.h
+>> +++ b/include/linux/trace_events.h
+>> @@ -15,16 +15,6 @@ struct tracer;
+>>   struct dentry;
+>>   struct bpf_prog;
+>>
+>> -struct trace_print_flags {
+>> -	unsigned long		mask;
+>> -	const char		*name;
+>> -};
+>> -
+>> -struct trace_print_flags_u64 {
+>> -	unsigned long long	mask;
+>> -	const char		*name;
+>> -};
+>> -
+>
+> Ingo took some patches from Andi Kleen that creates a tracepoint-defs.h file
+> If anything, these should be moved there. That code is currently in tip.
 
-add_to_page_cache_lru
-account_page_dirtied
-mark_page_accessed
-mark_buffer_dirty
-
-Where total = (mark_page_accessed - mark_buffer_dirty) & misses =
-(add_to_page_cache_lru - account_page_dirtied), from this I then work out
-the hit ratio etc. Is there any other key functions I should be tracing?
-
-Thanks
-
---001a114017c645d3bb052688085e
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><font face=3D"Menlo" style=3D"font-size:12.8px">Hi Folks,<=
-/font><div style=3D"font-size:12.8px"><font face=3D"Menlo"><br></font></div=
-><div style=3D"font-size:12.8px"><font face=3D"Menlo">I am working on a rew=
-rite of Brendan Greggs original cachestat (ftrace) script into bcc. What I =
-was looking for was a steer in the right direction for what functions to tr=
-ace. At present I trace the following.=C2=A0</font></div><div style=3D"font=
--size:12.8px"><font face=3D"Menlo"><br></font></div><div style=3D"font-size=
-:12.8px"><font face=3D"Menlo">add_to_page_cache_lru</font></div><div style=
-=3D"font-size:12.8px"><div style=3D"margin:0px"><span style=3D"font-family:=
-Menlo">account_page_dirtied</span></div><div style=3D"margin:0px"><font fac=
-e=3D"Menlo">mark_page_accessed</font></div><div style=3D"margin:0px"><span =
-style=3D"font-family:Menlo">mark_buffer_dirty</span></div><div style=3D"mar=
-gin:0px"><font face=3D"Menlo"><br></font></div></div><div style=3D"font-siz=
-e:12.8px;margin:0px"><font face=3D"Menlo">Where total =3D (mark_page_access=
-ed - mark_buffer_dirty) &amp; misses =3D (add_to_page_cache_lru - account_p=
-age_dirtied), from this I then work out the hit ratio etc. Is there any oth=
-er key functions I should be tracing?</font></div><div style=3D"font-size:1=
-2.8px;margin:0px"><font face=3D"Menlo"><br></font></div><div style=3D"font-=
-size:12.8px;margin:0px"><font face=3D"Menlo">Thanks</font></div></div>
-
---001a114017c645d3bb052688085e--
+Yeah I noticed that yesterday and seems like a good idea. Rasmus 
+suggested types.h but these didn't seem general enough for that one. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
