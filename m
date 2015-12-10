@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 04C746B0276
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:57 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so39798000pfn.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:56 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 85si16797899pfl.178.2015.12.09.18.38.56
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id EEAF182F6A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:39:01 -0500 (EST)
+Received: by pfbg73 with SMTP id g73so40687206pfb.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:39:01 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id t12si16810159pfi.76.2015.12.09.18.39.01
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 18:38:56 -0800 (PST)
-Subject: [-mm PATCH v2 14/25] hugetlb: fix compile error on tile
+        Wed, 09 Dec 2015 18:39:01 -0800 (PST)
+Subject: [-mm PATCH v2 15/25] frv: fix compiler warning from definition of
+ __pmd()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 09 Dec 2015 18:38:29 -0800
-Message-ID: <20151210023829.30368.73975.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 09 Dec 2015 18:38:34 -0800
+Message-ID: <20151210023834.30368.98425.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -22,27 +23,30 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-Inlude asm/pgtable.h to get the definition for pud_t to fix:
+Take into account that the pmd_t type is a array inside a struct, so it
+needs two levels of brackets to initialize.  Otherwise, a usage of __pmd
+generates a warning:
 
-include/linux/hugetlb.h:203:29: error: unknown type name 'pud_t'
+include/linux/mm.h:986:2: warning: missing braces around initializer [-Wmissing-braces]
 
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/hugetlb.h |    1 +
- 1 file changed, 1 insertion(+)
+ arch/frv/include/asm/page.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 204c7f56f35a..2b61bf566161 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -8,6 +8,7 @@
- #include <linux/cgroup.h>
- #include <linux/list.h>
- #include <linux/kref.h>
-+#include <asm/pgtable.h>
+diff --git a/arch/frv/include/asm/page.h b/arch/frv/include/asm/page.h
+index 52ace96a4f55..ec5eebce4fb3 100644
+--- a/arch/frv/include/asm/page.h
++++ b/arch/frv/include/asm/page.h
+@@ -31,7 +31,7 @@ typedef struct page *pgtable_t;
+ #define pgprot_val(x)	((x).pgprot)
  
- struct ctl_table;
- struct user_struct;
+ #define __pte(x)	((pte_t) { (x) } )
+-#define __pmd(x)	((pmd_t) { (x) } )
++#define __pmd(x)	((pmd_t) { { (x) } } )
+ #define __pud(x)	((pud_t) { (x) } )
+ #define __pgd(x)	((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
