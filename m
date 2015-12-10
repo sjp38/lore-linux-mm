@@ -1,94 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 836606B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:25:01 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so46464497pab.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:25:01 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 38F5E6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:38:26 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so46609063pac.3
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:38:26 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id x10si19754495pas.190.2015.12.10.03.25.00
+        by mx.google.com with ESMTPS id 67si19883027pfc.1.2015.12.10.03.38.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 03:25:00 -0800 (PST)
-Date: Thu, 10 Dec 2015 14:24:47 +0300
+        Thu, 10 Dec 2015 03:38:25 -0800 (PST)
+Date: Thu, 10 Dec 2015 14:38:07 +0300
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: MEMCG no longer works with SLOB
-Message-ID: <20151210112447.GV11488@esperanza>
-References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org>
- <2564892.qO1q7YJ6Nb@wuerfel>
- <1558902.EBTjGmY9S2@wuerfel>
- <20151209200107.GA17409@cmpxchg.org>
+Subject: Re: [RFC PATCH] mm: memcontrol: reign in CONFIG space madness
+Message-ID: <20151210113807.GW11488@esperanza>
+References: <20151209203004.GA5820@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151209200107.GA17409@cmpxchg.org>
+In-Reply-To: <20151209203004.GA5820@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 09, 2015 at 03:01:07PM -0500, Johannes Weiner wrote:
-> On Wed, Dec 09, 2015 at 05:32:39PM +0100, Arnd Bergmann wrote:
-> > The change to move the kmem accounting into the normal memcg
-> > code means we can no longer use memcg with slob, which lacks
-> > the memcg_params member in its struct kmem_cache:
-> > 
-> > ../mm/slab.h: In function 'is_root_cache':
-> > ../mm/slab.h:187:10: error: 'struct kmem_cache' has no member named 'memcg_params'
+On Wed, Dec 09, 2015 at 03:30:04PM -0500, Johannes Weiner wrote:
+> there has been quite a bit of trouble that stems from dividing our
+> CONFIG space and having to provide real code and dummy functions
+> correctly in all possible combinations. This is amplified by having
+> the legacy mode and the cgroup2 mode in the same file sharing code.
+> 
+> The socket memory and kmem accounting series is a nightmare in that
+> respect, and I'm still in the process of sorting it out. But no matter
+> what the outcome there is going to be, what do you think about getting
+> rid of the CONFIG_MEMCG[_LEGACY]_KMEM and CONFIG_INET stuff?
+> 
+> Because they end up saving very little and it doesn't seem worth the
+> trouble. CONFIG_MEMCG_LEGACY_KMEM basically allows not compiling the
+> interface structures and the limit updating function. Everything else
+> is included anyway because of cgroup2. And CONFIG_INET also only saves
+> a page_counter and two words in struct mem_cgroup, as well as the tiny
+> socket-specific charge and uncharge wrappers that nobody would call.
+> 
+> Would you be opposed to getting rid of them to simplify things?
 
-Argh, I completely forgot about this SLOB thing :-(
+That's exactly what I was thinking about while cooking the patch which
+would get rid of tcp_memcontrol.c, but I was afraid I would be turned
+down flat, so I dopped the idea :-)
 
-> > 
-> > This enforces the new dependency in Kconfig. Alternatively,
-> > we could change the slob code to allow using MEMCG.
-> 
-> I'm curious, was this a random config or do you actually use
-> CONFIG_SLOB && CONFIG_MEMCG?
-> 
-> Excluding CONFIG_MEMCG completely for slob seems harsh, but I would
-> prefer not littering the source with
-> 
-> #if defined(CONFIG_MEMCG) && (defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
-> 
-> or
-> 
-> #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-> 
-> for such a special case. The #ifdefs are already out of hand in there.
-> 
-> Vladimir, what would you think of simply doing this?
-> 
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 5adec08..0b3ec4b 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -25,6 +25,9 @@ struct kmem_cache {
->  	int refcount;		/* Use counter */
->  	void (*ctor)(void *);	/* Called on object slot creation */
->  	struct list_head list;	/* List of all slab caches on the system */
-> +#ifdef CONFIG_MEMCG
-> +	struct memcg_cache_params memcg_params;
-> +#endif
->  };
->  
->  #endif /* CONFIG_SLOB */
+So I'm all for this change. Actually, we already follow the trend when
+we define kmem and memsw counters even if MEMCG_KMEM/MEMCG_SWAP is
+disabled, and that's reasonable, because wrapping them in ifdefs would
+make the code look like hell.
 
-I don't like it. This would result in allocation of per memcg arrays for
-each list_lru/kmem_cache, which would never be used. This looks
-extremely ugly. I'd prefer to make CONFIG_MEMCG depend on SL[AU]B, but
-I'm afraid such a change will be frowned upon - who knows who uses
-MEMCG & SLOB?
+Besides, !CONFIG_INET && CONFIG_MEMCG looks exotic. I doubt such a
+configuration exists in real life.
 
-I guess SLOB could be made memcg-aware, but I don't think it's worth the
-trouble, although I can take a look in this direction - from a quick
-glance at SLOB it shouldn't be difficult. If we decide to go this way, I
-think we could use this patch as a temporary fix, which would be
-reverted eventually.
+...
+> @@ -1040,22 +1040,6 @@ config MEMCG_SWAP_ENABLED
+>  	  For those who want to have the feature enabled by default should
+>  	  select this option (if, for some reason, they need to disable it
+>  	  then swapaccount=0 does the trick).
+> -config MEMCG_LEGACY_KMEM
+> -	bool "Legacy Memory Resource Controller Kernel Memory accounting"
+> -	depends on MEMCG
+> -	depends on SLUB || SLAB
+> -	help
+> -	  The Kernel Memory extension for Memory Resource Controller can limit
+> -	  the amount of memory used by kernel objects in the system. Those are
+> -	  fundamentally different from the entities handled by the standard
+> -	  Memory Controller, which are page-based, and can be swapped. Users of
+> -	  the kmem extension can use it to guarantee that no group of processes
+> -	  will ever exhaust kernel resources alone.
+> -
+> -	  This option affects the ORIGINAL cgroup interface. The cgroup2 memory
+> -	  controller includes important in-kernel memory consumers per default.
+> -
+> -	  If you're using cgroup2, say N.
 
-Otherwise, no matter how tempting the idea to put all memcg stuff under
-CONFIG_MEMCG is, I think it won't fly, so for now we should use ifdefs.
-To avoid complex checks, we could define a macro in memcontrol.h, say
-MEMCG_KMEM_ENABLED, and use it throughout the code. And I think we
-should wrap list_lru stuff in it either :-/
+Hmm, should we hide memory.kmem.* files if this option is disabled?
+Probably, but it won't do anything bad if we don't.
+
+>From a quick glance, the patch looks good to me.
 
 Thanks,
 Vladimir
