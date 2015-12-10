@@ -1,77 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 423D06B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:07:06 -0500 (EST)
-Received: by lbpu9 with SMTP id u9so46413925lbp.2
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:07:05 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j67si7974026lfd.82.2015.12.10.07.07.03
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B76E6B0255
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:10:27 -0500 (EST)
+Received: by qgec40 with SMTP id c40so145497993qge.2
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:10:27 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f79si15213539qge.19.2015.12.10.07.10.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 07:07:03 -0800 (PST)
-Date: Thu, 10 Dec 2015 10:06:50 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH] mm: memcontrol: reign in CONFIG space madness
-Message-ID: <20151210150650.GA1431@cmpxchg.org>
-References: <20151209203004.GA5820@cmpxchg.org>
- <20151210134031.GN19496@dhcp22.suse.cz>
+        Thu, 10 Dec 2015 07:10:23 -0800 (PST)
+Date: Thu, 10 Dec 2015 16:10:18 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
+Message-ID: <20151210161018.28cedb68@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
+References: <20151208161751.21945.53936.stgit@firesoul>
+	<20151208161903.21945.33876.stgit@firesoul>
+	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
+	<20151209195325.68eaf314@redhat.com>
+	<alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151210134031.GN19496@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
 
-On Thu, Dec 10, 2015 at 02:40:31PM +0100, Michal Hocko wrote:
-> On Wed 09-12-15 15:30:04, Johannes Weiner wrote:
-> > Hey guys,
-> > 
-> > there has been quite a bit of trouble that stems from dividing our
-> > CONFIG space and having to provide real code and dummy functions
-> > correctly in all possible combinations. This is amplified by having
-> > the legacy mode and the cgroup2 mode in the same file sharing code.
-> > 
-> > The socket memory and kmem accounting series is a nightmare in that
-> > respect, and I'm still in the process of sorting it out. But no matter
-> > what the outcome there is going to be, what do you think about getting
-> > rid of the CONFIG_MEMCG[_LEGACY]_KMEM and CONFIG_INET stuff?
+On Wed, 9 Dec 2015 13:41:07 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
+
+> On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
 > 
-> The code size difference after your recent patches is indeed not that
-> large but that is only because huge part of the kmem code is enabled by
-> default now. I have raised this in the reply to the respective patch.
-> This is ~8K of the code 1K for data. I do understand your reasoning
-> about the complications but this is quite a lot of code. CONFIG_INET
-> ifdefs are probably pointless - they do not add really much and most
-> configs will have it by default. The core for KMEM seems to be a
-> different thing to me. Maybe we can reorganize the code to make the
-> maintenance easier and still allow to enable KMEM accounting separately
-> for kernel size savy users?
+> > I really like the idea of making it able to free kmalloc'ed objects.
+> > But I hate to change the API again... (I do have a use-case in the
+> > network stack where I could use this feature).
+> 
+> Now is the time to fix the API since its not that much in use yet if at
+> all.
 
-Look, if kernel size savvy users care THAT much about TWO pages then
-they must absolutely LOVE me for having eliminated page_cgroup and
-saving them THOUSANDS of pages, and deleted hundreds of lines of code
-and static data in memcontrol.c ever since I started working on it.
+Lets start the naming thread/flame (while waiting for my flight ;-))
 
-Yet this has been the only point you have been bringing up this entire
-time: the cost I'm putting on users with all this in both memory and
-cpu cycles. When I have just made all hotpaths and accounting in memcg
-completely lockless. And when cgroup2 is going to be a FRACTION of the
-original memcg code, data size, and runtime cost, even INCLUDING the
-entirety of the kmem accounting.
+If we drop the "kmem_cache *s" parameter from kmem_cache_free_bulk(),
+and also make it handle kmalloc'ed objects. Why should we name it
+"kmem_cache_free_bulk"? ... what about naming it kfree_bulk() ???
 
-There is no perspective to your criticism.
+Or should we keep the name to have a symmetric API
+kmem_cache_{alloc,free}_bulk() call convention?
 
-So let's just say I'm going to cash some of that credit I built up in
-order to get to v2 as fast as possible, without having to spend days
-engineering a solution to save two damn pages in legacy code, okay?
-
-And if you DO care so much about cost for legacy users beyond this, I
-think it's time for you to put your money where your mouth is and
-start sending patches that save those users memory and cpu cycles,
-instead of constantly demanding this from people who work on making
-this whole thing much leaner, faster, and cleaner for EVERYBODY.
+I'm undecided... 
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
