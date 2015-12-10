@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E0F3382F6A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:39:12 -0500 (EST)
-Received: by pfdd184 with SMTP id d184so39763495pfd.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:39:12 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 95EAB82F6A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:39:18 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so39557053pac.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:39:18 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id di6si16750068pad.172.2015.12.09.18.39.12
+        by mx.google.com with ESMTP id h25si16802375pfj.182.2015.12.09.18.39.17
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 18:39:12 -0800 (PST)
-Subject: [-mm PATCH v2 17/25] mm, dax, gpu: convert vm_insert_mixed to pfn_t
+        Wed, 09 Dec 2015 18:39:17 -0800 (PST)
+Subject: [-mm PATCH v2 18/25] mm, dax: convert vmf_insert_pfn_pmd() to pfn_t
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 09 Dec 2015 18:38:44 -0800
-Message-ID: <20151210023844.30368.3133.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 09 Dec 2015 18:38:50 -0800
+Message-ID: <20151210023849.30368.33862.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,356 +20,277 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: David Airlie <airlied@linux.ie>, linux-mm@kvack.org, Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-nvdimm@lists.01.org, Dave Hansen <dave@sr71.net>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
 
-Convert the raw unsigned long 'pfn' argument to pfn_t for the purpose
-of evaluating the PFN_MAP and PFN_DEV flags.  When both are set it
-triggers _PAGE_DEVMAP to be set in the resulting pte.
-
-There are no functional changes to the gpu drivers as a result of this
-conversion.
-
-This uncovered several architectures with no local definition for
-pfn_pte(), in response pfn_t_pte() is only defined when an arch opts-in
-by "#define pfn_pte pfn_pte".
+Similar to the conversion of vm_insert_mixed() use pfn_t in the
+vmf_insert_pfn_pmd() to tag the resulting pte with _PAGE_DEVICE when the
+pfn is backed by a devm_memremap_pages() mapping.
 
 Cc: Dave Hansen <dave@sr71.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Airlie <airlied@linux.ie>
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/alpha/include/asm/pgtable.h        |    1 +
- arch/parisc/include/asm/pgtable.h       |    1 +
- arch/powerpc/include/asm/pgtable.h      |    1 +
  arch/sparc/include/asm/pgtable_64.h     |    1 +
- arch/tile/include/asm/pgtable.h         |    1 +
- arch/um/include/asm/pgtable-3level.h    |    1 +
- arch/x86/include/asm/pgtable.h          |   12 +++++++++++
- drivers/gpu/drm/exynos/exynos_drm_gem.c |    3 ++-
- drivers/gpu/drm/gma500/framebuffer.c    |    3 ++-
- drivers/gpu/drm/msm/msm_gem.c           |    3 ++-
- drivers/gpu/drm/omapdrm/omap_gem.c      |    6 ++++--
- drivers/gpu/drm/ttm/ttm_bo_vm.c         |    3 ++-
+ arch/x86/include/asm/pgtable.h          |    6 ++++++
+ arch/x86/mm/pat.c                       |    4 ++--
+ drivers/gpu/drm/exynos/exynos_drm_gem.c |    2 +-
+ drivers/gpu/drm/msm/msm_gem.c           |    2 +-
+ drivers/gpu/drm/omapdrm/omap_gem.c      |    4 ++--
  fs/dax.c                                |    2 +-
- include/linux/mm.h                      |   33 ++++++++++++++++++++++++++++++-
- mm/memory.c                             |   15 ++++++++------
- 15 files changed, 72 insertions(+), 14 deletions(-)
+ include/asm-generic/pgtable.h           |    6 ++++--
+ include/linux/huge_mm.h                 |    2 +-
+ include/linux/mm.h                      |   10 +++++++++-
+ mm/huge_memory.c                        |   10 ++++++----
+ mm/memory.c                             |    2 +-
+ 12 files changed, 35 insertions(+), 16 deletions(-)
 
-diff --git a/arch/alpha/include/asm/pgtable.h b/arch/alpha/include/asm/pgtable.h
-index a9a119592372..a54050fe867e 100644
---- a/arch/alpha/include/asm/pgtable.h
-+++ b/arch/alpha/include/asm/pgtable.h
-@@ -216,6 +216,7 @@ extern unsigned long __zero_page(void);
- })
- #endif
- 
-+#define pfn_pte pfn_pte
- extern inline pte_t pfn_pte(unsigned long physpfn, pgprot_t pgprot)
- { pte_t pte; pte_val(pte) = (PHYS_TWIDDLE(physpfn) << 32) | pgprot_val(pgprot); return pte; }
- 
-diff --git a/arch/parisc/include/asm/pgtable.h b/arch/parisc/include/asm/pgtable.h
-index 291cee28ccb6..72ded95212c1 100644
---- a/arch/parisc/include/asm/pgtable.h
-+++ b/arch/parisc/include/asm/pgtable.h
-@@ -395,6 +395,7 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
- 
- #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
- 
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
- {
- 	pte_t pte;
-diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-index b64b4212b71f..38563174acef 100644
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -67,6 +67,7 @@ static inline int pte_present(pte_t pte)
-  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
-  * long for now.
-  */
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
- 	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
- 		     pgprot_val(pgprot)); }
 diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 7a38d6a576c5..e2ea1000f770 100644
+index e2ea1000f770..bf13625f8f90 100644
 --- a/arch/sparc/include/asm/pgtable_64.h
 +++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -234,6 +234,7 @@ extern struct page *mem_map_zero;
-  * the first physical page in the machine is at some huge physical address,
-  * such as 4GB.   This is common on a partitioned E10000, for example.
-  */
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
- {
- 	unsigned long paddr = pfn << PAGE_SHIFT;
-diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
-index 96cecf55522e..983f1ed37d62 100644
---- a/arch/tile/include/asm/pgtable.h
-+++ b/arch/tile/include/asm/pgtable.h
-@@ -275,6 +275,7 @@ static inline unsigned long pte_pfn(pte_t pte)
- extern pgprot_t set_remote_cache_cpu(pgprot_t prot, int cpu);
- extern int get_remote_cache_cpu(pgprot_t prot);
+@@ -245,6 +245,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+ #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
  
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define pfn_pmd pfn_pmd
+ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
  {
- 	return hv_pte_set_pa(prot, PFN_PHYS(pfn));
-diff --git a/arch/um/include/asm/pgtable-3level.h b/arch/um/include/asm/pgtable-3level.h
-index bae8523a162f..b7b51db14c2f 100644
---- a/arch/um/include/asm/pgtable-3level.h
-+++ b/arch/um/include/asm/pgtable-3level.h
-@@ -98,6 +98,7 @@ static inline unsigned long pte_pfn(pte_t pte)
- 	return phys_to_pfn(pte_val(pte));
- }
- 
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
- {
- 	pte_t pte;
+ 	pte_t pte = pfn_pte(page_nr, pgprot);
 diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 4973cc9eacce..7f52fa9c0284 100644
+index 7f52fa9c0284..e7b82509c267 100644
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -247,6 +247,11 @@ static inline pte_t pte_mkspecial(pte_t pte)
- 	return pte_set_flags(pte, _PAGE_SPECIAL);
+@@ -286,6 +286,11 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
+ 	return pmd_set_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
  }
  
-+static inline pte_t pte_mkdevmap(pte_t pte)
++static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 +{
-+	return pte_set_flags(pte, _PAGE_SPECIAL|_PAGE_DEVMAP);
++	return pmd_set_flags(pmd, _PAGE_DEVMAP);
 +}
 +
- static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
+ static inline pmd_t pmd_mkhuge(pmd_t pmd)
  {
- 	pmdval_t v = native_pmd_val(pmd);
-@@ -348,6 +353,7 @@ static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
- 	return protval;
+ 	return pmd_set_flags(pmd, _PAGE_PSE);
+@@ -360,6 +365,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
+ 		     massage_pgprot(pgprot));
  }
  
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
++#define pfn_pmd pfn_pmd
+ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
  {
- 	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
-@@ -462,6 +468,12 @@ static inline int pte_present(pte_t a)
- 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+ 	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) |
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 188e3e07eeeb..98efd3c02374 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -949,7 +949,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
  }
  
-+#define pte_devmap pte_devmap
-+static inline int pte_devmap(pte_t a)
-+{
-+	return (pte_flags(a) & _PAGE_DEVMAP) == _PAGE_DEVMAP;
-+}
-+
- #define pte_accessible pte_accessible
- static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
+ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-		     unsigned long pfn)
++		     pfn_t pfn)
  {
+ 	enum page_cache_mode pcm;
+ 
+@@ -957,7 +957,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+ 		return 0;
+ 
+ 	/* Set prot based on lookup */
+-	pcm = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
++	pcm = lookup_memtype(pfn_t_to_phys(pfn));
+ 	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+ 			 cachemode2protval(pcm));
+ 
 diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-index 252eb301470c..973df42fc1eb 100644
+index 973df42fc1eb..d6a6dd7d0ffe 100644
 --- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
 +++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-@@ -490,7 +490,8 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	}
+@@ -491,7 +491,7 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  
  	pfn = page_to_pfn(exynos_gem->pages[page_offset]);
--	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
-+	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
-+			pfn_to_pfn_t(pfn, PFN_DEV));
+ 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+-			pfn_to_pfn_t(pfn, PFN_DEV));
++			__pfn_to_pfn_t(pfn, PFN_DEV));
  
  out:
  	switch (ret) {
-diff --git a/drivers/gpu/drm/gma500/framebuffer.c b/drivers/gpu/drm/gma500/framebuffer.c
-index ee95c03a8c54..ecb5b1f66f87 100644
---- a/drivers/gpu/drm/gma500/framebuffer.c
-+++ b/drivers/gpu/drm/gma500/framebuffer.c
-@@ -132,7 +132,8 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	for (i = 0; i < page_num; i++) {
- 		pfn = (phys_addr >> PAGE_SHIFT);
- 
--		ret = vm_insert_mixed(vma, address, pfn);
-+		ret = vm_insert_mixed(vma, address,
-+				__pfn_to_pfn_t(pfn, PFN_DEV));
- 		if (unlikely((ret == -EBUSY) || (ret != 0 && i > 0)))
- 			break;
- 		else if (unlikely(ret != 0)) {
 diff --git a/drivers/gpu/drm/msm/msm_gem.c b/drivers/gpu/drm/msm/msm_gem.c
-index c76cc853b08a..0f4ed5bfda83 100644
+index 0f4ed5bfda83..6509d9b23912 100644
 --- a/drivers/gpu/drm/msm/msm_gem.c
 +++ b/drivers/gpu/drm/msm/msm_gem.c
-@@ -222,7 +222,8 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+@@ -223,7 +223,7 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  			pfn, pfn << PAGE_SHIFT);
  
--	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
-+	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
-+			pfn_to_pfn_t(pfn, PFN_DEV));
+ 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+-			pfn_to_pfn_t(pfn, PFN_DEV));
++			__pfn_to_pfn_t(pfn, PFN_DEV));
  
  out_unlock:
  	mutex_unlock(&dev->struct_mutex);
 diff --git a/drivers/gpu/drm/omapdrm/omap_gem.c b/drivers/gpu/drm/omapdrm/omap_gem.c
-index 7ed08fdc4c42..910cb276a7ea 100644
+index 910cb276a7ea..94b6d23ec202 100644
 --- a/drivers/gpu/drm/omapdrm/omap_gem.c
 +++ b/drivers/gpu/drm/omapdrm/omap_gem.c
-@@ -385,7 +385,8 @@ static int fault_1d(struct drm_gem_object *obj,
- 	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+@@ -386,7 +386,7 @@ static int fault_1d(struct drm_gem_object *obj,
  			pfn, pfn << PAGE_SHIFT);
  
--	return vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
-+	return vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
-+			pfn_to_pfn_t(pfn, PFN_DEV));
+ 	return vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+-			pfn_to_pfn_t(pfn, PFN_DEV));
++			__pfn_to_pfn_t(pfn, PFN_DEV));
  }
  
  /* Special handling for the case of faulting in 2d tiled buffers */
-@@ -478,7 +479,8 @@ static int fault_2d(struct drm_gem_object *obj,
- 			pfn, pfn << PAGE_SHIFT);
+@@ -480,7 +480,7 @@ static int fault_2d(struct drm_gem_object *obj,
  
  	for (i = n; i > 0; i--) {
--		vm_insert_mixed(vma, (unsigned long)vaddr, pfn);
-+		vm_insert_mixed(vma, (unsigned long)vaddr,
-+				pfn_to_pfn_t(pfn, PFN_DEV));
+ 		vm_insert_mixed(vma, (unsigned long)vaddr,
+-				pfn_to_pfn_t(pfn, PFN_DEV));
++				__pfn_to_pfn_t(pfn, PFN_DEV));
  		pfn += usergart[fmt].stride_pfn;
  		vaddr += PAGE_SIZE * m;
  	}
-diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-index 8fb7213277cc..bab765a7c501 100644
---- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
-+++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-@@ -229,7 +229,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		}
- 
- 		if (vma->vm_flags & VM_MIXEDMAP)
--			ret = vm_insert_mixed(&cvma, address, pfn);
-+			ret = vm_insert_mixed(&cvma, address,
-+					__pfn_to_pfn_t(pfn, PFN_DEV));
- 		else
- 			ret = vm_insert_pfn(&cvma, address, pfn);
- 
 diff --git a/fs/dax.c b/fs/dax.c
-index 9aadf121a274..520ac864f7a4 100644
+index 520ac864f7a4..27ded3c6df64 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -362,7 +362,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	}
- 	dax_unmap_atomic(bdev, &dax);
+@@ -692,7 +692,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		dax_unmap_atomic(bdev, &dax);
  
--	error = vm_insert_mixed(vma, vaddr, pfn_t_to_pfn(dax.pfn));
-+	error = vm_insert_mixed(vma, vaddr, dax.pfn);
+ 		result |= vmf_insert_pfn_pmd(vma, address, pmd,
+-				pfn_t_to_pfn(dax.pfn), write);
++				dax.pfn, write);
+ 	}
  
   out:
- 	i_mmap_unlock_read(mapping);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 63abda1ac06d..bdff35e90889 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1,6 +1,8 @@
+ #ifndef _ASM_GENERIC_PGTABLE_H
+ #define _ASM_GENERIC_PGTABLE_H
+ 
++#include <linux/pfn.h>
++
+ #ifndef __ASSEMBLY__
+ #ifdef CONFIG_MMU
+ 
+@@ -549,7 +551,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+  * by vm_insert_pfn().
+  */
+ static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-				   unsigned long pfn)
++				   pfn_t pfn)
+ {
+ 	return 0;
+ }
+@@ -577,7 +579,7 @@ extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 			   unsigned long pfn, unsigned long addr,
+ 			   unsigned long size);
+ extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-			    unsigned long pfn);
++			    pfn_t pfn);
+ extern int track_pfn_copy(struct vm_area_struct *vma);
+ extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ 			unsigned long size);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 0160201993d4..8ca35a131904 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -37,7 +37,7 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			unsigned long addr, pgprot_t newprot,
+ 			int prot_numa);
+ int vmf_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
+-			unsigned long pfn, bool write);
++			pfn_t pfn, bool write);
+ 
+ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_FLAG,
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 94ea0177fe3f..6e89f38e5778 100644
+index 6e89f38e5778..e8130b798da8 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1060,6 +1060,33 @@ static inline pfn_t page_to_pfn_t(struct page *page)
- 	return pfn_to_pfn_t(page_to_pfn(page));
+@@ -1072,7 +1072,14 @@ static inline pte_t pfn_t_pte(pfn_t pfn, pgprot_t pgprot)
  }
- 
-+static inline int pfn_t_valid(pfn_t pfn)
-+{
-+	return pfn_valid(pfn_t_to_pfn(pfn));
-+}
-+
-+#ifdef pfn_pte
-+static inline pte_t pfn_t_pte(pfn_t pfn, pgprot_t pgprot)
-+{
-+	return pfn_pte(pfn_t_to_pfn(pfn), pgprot);
-+}
-+#endif
-+
-+#ifdef __HAVE_ARCH_PTE_DEVICE
-+static inline bool pfn_t_devmap(pfn_t pfn)
-+{
-+	const unsigned long flags = PFN_DEV|PFN_MAP;
-+
-+	return (pfn.val & flags) == flags;
-+}
-+#else
-+static inline bool pfn_t_devmap(pfn_t pfn)
-+{
-+	return false;
-+}
-+pte_t pte_mkdevmap(pte_t pte);
-+#endif
-+
- /*
-  * Some inline functions in vmstat.h depend on page_zone()
-  */
-@@ -1851,6 +1878,10 @@ static inline void pgtable_pmd_page_dtor(struct page *page) {}
- 
  #endif
  
-+#ifndef pte_devmap
-+#define pte_devmap(x) (0)
+-#ifdef __HAVE_ARCH_PTE_DEVICE
++#ifdef pfn_pmd
++static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
++{
++	return pfn_pmd(pfn_t_to_pfn(pfn), pgprot);
++}
 +#endif
 +
- static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
++#ifdef __HAVE_ARCH_PTE_DEVMAP
+ static inline bool pfn_t_devmap(pfn_t pfn)
  {
- 	spinlock_t *ptl = pmd_lockptr(mm, pmd);
-@@ -2270,7 +2301,7 @@ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
- int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
- int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
--			unsigned long pfn);
-+			pfn_t pfn);
- int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+ 	const unsigned long flags = PFN_DEV|PFN_MAP;
+@@ -1085,6 +1092,7 @@ static inline bool pfn_t_devmap(pfn_t pfn)
+ 	return false;
+ }
+ pte_t pte_mkdevmap(pte_t pte);
++pmd_t pmd_mkdevmap(pmd_t pmd);
+ #endif
  
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a4bfeb07394b..545cec46f2f4 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -960,14 +960,16 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ }
  
-diff --git a/mm/memory.c b/mm/memory.c
-index a624219853ac..9c023ca7fd30 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1500,7 +1500,7 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- EXPORT_SYMBOL(vm_insert_page);
- 
- static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
--			unsigned long pfn, pgprot_t prot)
-+			pfn_t pfn, pgprot_t prot)
+ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+-		pmd_t *pmd, unsigned long pfn, pgprot_t prot, bool write)
++		pmd_t *pmd, pfn_t pfn, pgprot_t prot, bool write)
  {
  	struct mm_struct *mm = vma->vm_mm;
- 	int retval;
-@@ -1516,7 +1516,10 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 		goto out_unlock;
+ 	pmd_t entry;
+ 	spinlock_t *ptl;
  
- 	/* Ok, finally just insert the thing.. */
--	entry = pte_mkspecial(pfn_pte(pfn, prot));
+ 	ptl = pmd_lock(mm, pmd);
+-	entry = pmd_mkhuge(pfn_pmd(pfn, prot));
++	entry = pmd_mkhuge(pfn_t_pmd(pfn, prot));
 +	if (pfn_t_devmap(pfn))
-+		entry = pte_mkdevmap(pfn_t_pte(pfn, prot));
-+	else
-+		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
- 	set_pte_at(mm, addr, pte, entry);
- 	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
++		entry = pmd_mkdevmap(entry);
+ 	if (write) {
+ 		entry = pmd_mkyoung(pmd_mkdirty(entry));
+ 		entry = maybe_pmd_mkwrite(entry, vma);
+@@ -978,7 +980,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ }
  
-@@ -1566,14 +1569,14 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 	if (track_pfn_insert(vma, &pgprot, pfn))
+ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+-			pmd_t *pmd, unsigned long pfn, bool write)
++			pmd_t *pmd, pfn_t pfn, bool write)
+ {
+ 	pgprot_t pgprot = vma->vm_page_prot;
+ 	/*
+@@ -990,7 +992,7 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+ 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+-	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++	BUG_ON(!pfn_t_devmap(pfn));
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return VM_FAULT_SIGBUS;
+diff --git a/mm/memory.c b/mm/memory.c
+index 9c023ca7fd30..a68f59db6b62 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1566,7 +1566,7 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return -EFAULT;
+-	if (track_pfn_insert(vma, &pgprot, pfn))
++	if (track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV)))
  		return -EINVAL;
  
--	ret = insert_pfn(vma, addr, pfn, pgprot);
-+	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
- 
- 	return ret;
- }
- EXPORT_SYMBOL(vm_insert_pfn);
- 
- int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
--			unsigned long pfn)
-+			pfn_t pfn)
- {
- 	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
- 
-@@ -1587,10 +1590,10 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
- 	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
- 	 * without pte special, it would there be refcounted as a normal page.
- 	 */
--	if (!HAVE_PTE_SPECIAL && pfn_valid(pfn)) {
-+	if (!HAVE_PTE_SPECIAL && pfn_t_valid(pfn)) {
- 		struct page *page;
- 
--		page = pfn_to_page(pfn);
-+		page = pfn_t_to_page(pfn);
- 		return insert_page(vma, addr, page, vma->vm_page_prot);
- 	}
- 	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+ 	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
