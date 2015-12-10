@@ -1,58 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 077516B025E
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:03:22 -0500 (EST)
-Received: by iofh3 with SMTP id h3so82783208iof.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:03:21 -0800 (PST)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.231])
-        by mx.google.com with ESMTP id nr4si17266708igb.68.2015.12.09.20.03.21
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 140586B026A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:04:58 -0500 (EST)
+Received: by igcto18 with SMTP id to18so5068064igc.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:04:57 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.228])
+        by mx.google.com with ESMTP id o62si12991591ioe.179.2015.12.09.20.04.57
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 20:03:21 -0800 (PST)
-Date: Wed, 9 Dec 2015 23:03:19 -0500
+        Wed, 09 Dec 2015 20:04:57 -0800 (PST)
+Date: Wed, 9 Dec 2015 23:04:56 -0500
 From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/2] mm, printk: introduce new format string for flags
-Message-ID: <20151210040319.GB7814@home.goodmis.org>
-References: <20151125143010.GI27283@dhcp22.suse.cz>
- <1448899821-9671-1-git-send-email-vbabka@suse.cz>
- <4EAD2C33-D0E4-4DEB-92E5-9C0457E8635C@gmail.com>
- <565F5CD9.9080301@suse.cz>
- <1F60C207-1CC2-4B28-89AC-58C72D95A39D@gmail.com>
- <87a8psq7r6.fsf@rasmusvillemoes.dk>
- <89A4C9BC-47F6-4768-8AA8-C1C4EFEFC52D@gmail.com>
- <5661A011.2010400@suse.cz>
+Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
+Message-ID: <20151210040456.GC7814@home.goodmis.org>
+References: <87io4hi06n.fsf@rasmusvillemoes.dk>
+ <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+ <20151210025944.GB17967@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5661A011.2010400@suse.cz>
+In-Reply-To: <20151210025944.GB17967@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: yalin wang <yalin.wang2010@gmail.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-On Fri, Dec 04, 2015 at 03:15:45PM +0100, Vlastimil Babka wrote:
-> On 12/03/2015 07:38 PM, yalin wang wrote:
-> >thata??s all, see cpumask_pr_args(masks) macro,
-> >it also use macro and  %*pb  to print cpu mask .
-> >i think this method is not very complex to use .
-> 
-> Well, one also has to write the appropriate translation tables.
-> 
-> >search source code ,
-> >there is lots of printk to print flag into hex number :
-> >$ grep -n  -r 'printk.*flag.*%xa??  .
-> >it will be great if this flag string print is generic.
-> 
-> I think it can always be done later, this is an internal API. For now we
-> just have 3 quite generic flags, so let's not over-engineer things right
-> now.
-> 
+On Thu, Dec 10, 2015 at 11:59:44AM +0900, Joonsoo Kim wrote:
+> Ccing, Steven to ask trace-cmd problem.
 
-As long as it is never used in the TP_printk() part of a tracepoint. As soon
-as it is, trace-cmd and perf will update parse-events to handle that
-parameter, and as soon as that is done, it becomes a userspace ABI.
+Thanks, I should have been Cc'd for the rest as well.
 
-Just be warned.
+> 
+> On Fri, Dec 04, 2015 at 04:16:33PM +0100, Vlastimil Babka wrote:
+> > In mm we use several kinds of flags bitfields that are sometimes printed for
+> > debugging purposes, or exported to userspace via sysfs. To make them easier to
+> > interpret independently on kernel version and config, we want to dump also the
+> > symbolic flag names. So far this has been done with repeated calls to
+> > pr_cont(), which is unreliable on SMP, and not usable for e.g. sysfs export.
+> > 
+> > To get a more reliable and universal solution, this patch extends printk()
+> > format string for pointers to handle the page flags (%pgp), gfp_flags (%pgg)
+> > and vma flags (%pgv). Existing users of dump_flag_names() are converted and
+> > simplified.
+> > 
+> > It would be possible to pass flags by value instead of pointer, but the %p
+> > format string for pointers already has extensions for various kernel
+> > structures, so it's a good fit, and the extra indirection in a non-critical
+> > path is negligible.
+> 
+> I'd like to use %pgp in tracepoint output. It works well when I do
+> 'cat /sys/kernel/debug/tracing/trace' but not works well when I do
+> './trace-cmd report'. It prints following error log.
+> 
+>   [page_ref:page_ref_unfreeze] bad op token &
+>   [page_ref:page_ref_set] bad op token &
+>   [page_ref:page_ref_mod_unless] bad op token &
+>   [page_ref:page_ref_mod_and_test] bad op token &
+>   [page_ref:page_ref_mod_and_return] bad op token &
+>   [page_ref:page_ref_mod] bad op token &
+>   [page_ref:page_ref_freeze] bad op token &
+> 
+> Following is the format I used.
+> 
+> TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
+>                 __entry->pfn, &__entry->flags, __entry->count,
+>                 __entry->mapcount, __entry->mapping, __entry->mt,
+>                 __entry->val, __entry->ret)
+> 
+> Could it be solved by 'trace-cmd' itself?
+> Or it's better to pass flags by value?
+> Or should I use something like show_gfp_flags()?
+
+Yes this can be solved in perf and trace-cmd via the parse-events.c file. And
+as soon as that happens, whatever method we decide upon becomes a userspace
+ABI. So don't think you can change it later.
 
 -- Steve
 
