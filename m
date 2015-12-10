@@ -1,85 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CE95682F7A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:44:45 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id ph11so5543116igc.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:44:45 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id e13si2676785ioe.10.2015.12.09.20.44.44
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1E182F7A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:46:03 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id mv3so8285043igc.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:46:03 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id s31si17512241ioe.98.2015.12.09.20.46.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 20:44:45 -0800 (PST)
-Date: Thu, 10 Dec 2015 13:12:33 +0900
+        Wed, 09 Dec 2015 20:46:02 -0800 (PST)
+Date: Thu, 10 Dec 2015 13:35:57 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-Message-ID: <20151210041233.GD17967@js1304-P5Q-DELUXE>
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
- <1449242195-16374-1-git-send-email-vbabka@suse.cz>
- <20151210025944.GB17967@js1304-P5Q-DELUXE>
- <20151210040456.GC7814@home.goodmis.org>
+Subject: Re: [RFC 0/3] reduce latency of direct async compaction
+Message-ID: <20151210043556.GA19062@js1304-P5Q-DELUXE>
+References: <20151203115255.GA24773@aaronlu.sh.intel.com>
+ <56618841.2080808@suse.cz>
+ <20151207073523.GA27292@js1304-P5Q-DELUXE>
+ <20151207085956.GA16783@aaronlu.sh.intel.com>
+ <20151208004118.GA4325@js1304-P5Q-DELUXE>
+ <20151208051439.GA20797@aaronlu.sh.intel.com>
+ <20151208065116.GA6902@js1304-P5Q-DELUXE>
+ <20151208085242.GA6801@aaronlu.sh.intel.com>
+ <20151209003353.GA12417@js1304-P5Q-DELUXE>
+ <20151209054006.GA13682@aaronlu.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151210040456.GC7814@home.goodmis.org>
+In-Reply-To: <20151209054006.GA13682@aaronlu.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Dec 09, 2015 at 11:04:56PM -0500, Steven Rostedt wrote:
-> On Thu, Dec 10, 2015 at 11:59:44AM +0900, Joonsoo Kim wrote:
-> > Ccing, Steven to ask trace-cmd problem.
-> 
-> Thanks, I should have been Cc'd for the rest as well.
-> 
-> > 
-> > On Fri, Dec 04, 2015 at 04:16:33PM +0100, Vlastimil Babka wrote:
-> > > In mm we use several kinds of flags bitfields that are sometimes printed for
-> > > debugging purposes, or exported to userspace via sysfs. To make them easier to
-> > > interpret independently on kernel version and config, we want to dump also the
-> > > symbolic flag names. So far this has been done with repeated calls to
-> > > pr_cont(), which is unreliable on SMP, and not usable for e.g. sysfs export.
+On Wed, Dec 09, 2015 at 01:40:06PM +0800, Aaron Lu wrote:
+> On Wed, Dec 09, 2015 at 09:33:53AM +0900, Joonsoo Kim wrote:
+> > On Tue, Dec 08, 2015 at 04:52:42PM +0800, Aaron Lu wrote:
+> > > On Tue, Dec 08, 2015 at 03:51:16PM +0900, Joonsoo Kim wrote:
+> > > > I add work-around for this problem at isolate_freepages(). Please test
+> > > > following one.
 > > > 
-> > > To get a more reliable and universal solution, this patch extends printk()
-> > > format string for pointers to handle the page flags (%pgp), gfp_flags (%pgg)
-> > > and vma flags (%pgv). Existing users of dump_flag_names() are converted and
-> > > simplified.
-> > > 
-> > > It would be possible to pass flags by value instead of pointer, but the %p
-> > > format string for pointers already has extensions for various kernel
-> > > structures, so it's a good fit, and the extra indirection in a non-critical
-> > > path is negligible.
+> > > Still no luck and the error is about the same:
 > > 
-> > I'd like to use %pgp in tracepoint output. It works well when I do
-> > 'cat /sys/kernel/debug/tracing/trace' but not works well when I do
-> > './trace-cmd report'. It prints following error log.
+> > There is a mistake... Could you insert () for
+> > cc->free_pfn & ~(pageblock_nr_pages-1) like as following?
 > > 
-> >   [page_ref:page_ref_unfreeze] bad op token &
-> >   [page_ref:page_ref_set] bad op token &
-> >   [page_ref:page_ref_mod_unless] bad op token &
-> >   [page_ref:page_ref_mod_and_test] bad op token &
-> >   [page_ref:page_ref_mod_and_return] bad op token &
-> >   [page_ref:page_ref_mod] bad op token &
-> >   [page_ref:page_ref_freeze] bad op token &
-> > 
-> > Following is the format I used.
-> > 
-> > TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
-> >                 __entry->pfn, &__entry->flags, __entry->count,
-> >                 __entry->mapcount, __entry->mapping, __entry->mt,
-> >                 __entry->val, __entry->ret)
-> > 
-> > Could it be solved by 'trace-cmd' itself?
-> > Or it's better to pass flags by value?
-> > Or should I use something like show_gfp_flags()?
+> > cc->free_pfn == (cc->free_pfn & ~(pageblock_nr_pages-1))
 > 
-> Yes this can be solved in perf and trace-cmd via the parse-events.c file. And
-> as soon as that happens, whatever method we decide upon becomes a userspace
-> ABI. So don't think you can change it later.
+> Oh right, of course.
+> 
+> Good news, the result is much better now:
+> $ cat {0..8}/swap
+> cmdline: /lkp/aaron/src/bin/usemem 100064603136
+> 100064603136 transferred in 72 seconds, throughput: 1325 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100072049664
+> 100072049664 transferred in 74 seconds, throughput: 1289 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100070246400
+> 100070246400 transferred in 92 seconds, throughput: 1037 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100069545984
+> 100069545984 transferred in 81 seconds, throughput: 1178 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100058895360
+> 100058895360 transferred in 78 seconds, throughput: 1223 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100066074624
+> 100066074624 transferred in 94 seconds, throughput: 1015 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100062855168
+> 100062855168 transferred in 77 seconds, throughput: 1239 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100060990464
+> 100060990464 transferred in 73 seconds, throughput: 1307 MB/s
+> cmdline: /lkp/aaron/src/bin/usemem 100064996352
+> 100064996352 transferred in 84 seconds, throughput: 1136 MB/s
+> Max: 1325 MB/s
+> Min: 1015 MB/s
+> Avg: 1194 MB/s
 
-Okay. Because it can be solved by perf and trace-cmd via the
-parse-events.c, I have no preference whether it is passed by value or
-not.
+Nice result! Thanks for testing.
+I will make a proper formatted patch soon.
+
+Then, your concern is solved? I think that performance of
+always-always on this test case can't follow up performance of
+always-never because migration cost to make hugepage is additionally
+charged to always-always case. Instead, it will have more hugepage
+mapping and it may result in better performance in some situation.
+I guess that it is intention of that option.
 
 Thanks.
 
