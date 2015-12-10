@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 43DBD82F6A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:59:36 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id ph11so4283894igc.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:59:36 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id q17si10198909igr.102.2015.12.09.18.59.34
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id F0FB76B026A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 22:25:27 -0500 (EST)
+Received: by ioir85 with SMTP id r85so82056699ioi.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 19:25:27 -0800 (PST)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id f126si17081611ioe.64.2015.12.09.19.25.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 18:59:35 -0800 (PST)
-Date: Thu, 10 Dec 2015 11:59:44 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-Message-ID: <20151210025944.GB17967@js1304-P5Q-DELUXE>
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
- <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Dec 2015 19:25:27 -0800 (PST)
+Received: by iofh3 with SMTP id h3so82104774iof.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 19:25:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20151210012130.GA17673@infradead.org>
+References: <20151209225148.GA14794@www.outflux.net>
+	<20151210012130.GA17673@infradead.org>
+Date: Wed, 9 Dec 2015 19:25:26 -0800
+Message-ID: <CAGXu5jL0Zv6mCoEw6pyZsgHjo8BdcF0B-xM_EkMtp7TRB94dKQ@mail.gmail.com>
+Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Steven Rostedt <rostedt@goodmis.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Ccing, Steven to ask trace-cmd problem.
+On Wed, Dec 9, 2015 at 5:21 PM, Christoph Hellwig <hch@infradead.org> wrote:
+>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>> during the page fault (due to mmap_sem being held during the fault). We
+>> could do this during vm_mmap_pgoff, but that would need coverage in
+>> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
+>> again. We could clear at open() time, but it's possible things are
+>> accidentally opening with O_RDWR and only reading. Better to clear on
+>> close and error failures (i.e. an improvement over now, which is not
+>> clearing at all).
+>>
+>> Instead, detect the need to clear the bits during the page fault, and
+>> actually remove the bits during final fput. Since the file was open for
+>> writing, it wouldn't have been possible to execute it yet.
+>
+>
+>>
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> ---
+>> I think this is the best we can do; everything else is blocked by mmap_sem.
+>
+> It should be done at mmap time, before even taking mmap_sem.
+>
+> Adding a new field for this to strut file isn't really acceptable.
 
-On Fri, Dec 04, 2015 at 04:16:33PM +0100, Vlastimil Babka wrote:
-> In mm we use several kinds of flags bitfields that are sometimes printed for
-> debugging purposes, or exported to userspace via sysfs. To make them easier to
-> interpret independently on kernel version and config, we want to dump also the
-> symbolic flag names. So far this has been done with repeated calls to
-> pr_cont(), which is unreliable on SMP, and not usable for e.g. sysfs export.
-> 
-> To get a more reliable and universal solution, this patch extends printk()
-> format string for pointers to handle the page flags (%pgp), gfp_flags (%pgg)
-> and vma flags (%pgv). Existing users of dump_flag_names() are converted and
-> simplified.
-> 
-> It would be possible to pass flags by value instead of pointer, but the %p
-> format string for pointers already has extensions for various kernel
-> structures, so it's a good fit, and the extra indirection in a non-critical
-> path is negligible.
+I already covered this: there's no way to handle the mprotect case --
+checking for MAP_SHARED is under mmap_sem still.
 
-I'd like to use %pgp in tracepoint output. It works well when I do
-'cat /sys/kernel/debug/tracing/trace' but not works well when I do
-'./trace-cmd report'. It prints following error log.
+-Kees
 
-  [page_ref:page_ref_unfreeze] bad op token &
-  [page_ref:page_ref_set] bad op token &
-  [page_ref:page_ref_mod_unless] bad op token &
-  [page_ref:page_ref_mod_and_test] bad op token &
-  [page_ref:page_ref_mod_and_return] bad op token &
-  [page_ref:page_ref_mod] bad op token &
-  [page_ref:page_ref_freeze] bad op token &
-
-Following is the format I used.
-
-TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
-                __entry->pfn, &__entry->flags, __entry->count,
-                __entry->mapcount, __entry->mapping, __entry->mt,
-                __entry->val, __entry->ret)
-
-Could it be solved by 'trace-cmd' itself?
-Or it's better to pass flags by value?
-Or should I use something like show_gfp_flags()?
-
-Thanks.
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
