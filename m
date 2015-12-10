@@ -1,111 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA976B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 08:28:36 -0500 (EST)
-Received: by wmww144 with SMTP id w144so24705258wmw.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 05:28:36 -0800 (PST)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id im4si18808086wjb.193.2015.12.10.05.28.35
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3F66B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 08:37:43 -0500 (EST)
+Received: by pfu207 with SMTP id 207so48373696pfu.2
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 05:37:42 -0800 (PST)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.6])
+        by mx.google.com with ESMTPS id e25si20455994pfd.29.2015.12.10.05.37.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 05:28:35 -0800 (PST)
-Received: by wmww144 with SMTP id w144so24704596wmw.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 05:28:34 -0800 (PST)
-Date: Thu, 10 Dec 2015 14:28:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/8] mm: memcontrol: account "kmem" consumers in cgroup2
- memory controller
-Message-ID: <20151210132833.GM19496@dhcp22.suse.cz>
-References: <1449599665-18047-1-git-send-email-hannes@cmpxchg.org>
- <1449599665-18047-8-git-send-email-hannes@cmpxchg.org>
- <20151209113037.GS11488@esperanza>
+        Thu, 10 Dec 2015 05:37:42 -0800 (PST)
+Message-ID: <56698022.1070305@sigmadesigns.com>
+Date: Thu, 10 Dec 2015 14:37:38 +0100
+From: Sebastian Frias <sebastian_frias@sigmadesigns.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151209113037.GS11488@esperanza>
+Subject: Re: m(un)map kmalloc buffers to userspace
+References: <5667128B.3080704@sigmadesigns.com> <20151209135544.GE30907@dhcp22.suse.cz> <566835B6.9010605@sigmadesigns.com> <20151209143207.GF30907@dhcp22.suse.cz> <56684062.9090505@sigmadesigns.com> <20151209151254.GH30907@dhcp22.suse.cz> <56684A59.7030605@sigmadesigns.com> <20151210114005.GF19496@dhcp22.suse.cz>
+In-Reply-To: <20151210114005.GF19496@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 09-12-15 14:30:38, Vladimir Davydov wrote:
-> From: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Subject: [PATCH] mm: memcontrol: allow to disable kmem accounting for cgroup2
-> 
-> Kmem accounting might incur overhead that some users can't put up with.
-> Besides, the implementation is still considered unstable. So let's
-> provide a way to disable it for those users who aren't happy with it.
+On 12/10/2015 12:40 PM, Michal Hocko wrote:
+> On Wed 09-12-15 16:35:53, Sebastian Frias wrote:
+> [...]
+>> We've seen that drivers/media/pci/zoran/zoran_driver.c for example seems to
+>> be doing as us kmalloc+remap_pfn_range,
+>
+> This driver is broken - I will post a patch.
 
-Yes there will be users who do not want to pay an additional overhead
-and still accoplish what they need.
-I haven't measured the overhead lately - especially after the opt-out ->
-opt-in change so it might be much lower than my previous ~5% for kbuild
-load.
- 
-> To disable kmem accounting for cgroup2, pass cgroup.memory=nokmem at
-> boot time.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Ok, we'll be glad to see a good example, please keep us posted.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+>
+>> is there any guarantee (or at least an advised heuristic) to determine
+>> if a driver is "current" (ie: uses the latest APIs and works)?
+>
+> OK, it seems I was overly optimistic when directing you to existing
+> drivers. Sorry about that I wasn't aware you could find such a terrible
+> code there. Please refer to Linux Device Drivers book which should give
+> you a much better lead (e.g. http://www.makelinux.net/ldd3/chp-15-sect-2)
+>
 
-Thanks!
-
-> 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index c1bda3bbb7db..1b7a85dc6013 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -602,6 +602,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
->  			Format: <string>
->  			nosocket -- Disable socket memory accounting.
-> +			nokmem -- Disable kernel memory accounting.
->  
->  	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
->  			Format: { "0" | "1" }
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6faea81e66d7..6a5572241dc6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -83,6 +83,9 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
->  /* Socket memory accounting disabled? */
->  static bool cgroup_memory_nosocket;
->  
-> +/* Kernel memory accounting disabled? */
-> +static bool cgroup_memory_nokmem;
-> +
->  /* Whether the swap controller is active */
->  #ifdef CONFIG_MEMCG_SWAP
->  int do_swap_account __read_mostly;
-> @@ -2898,8 +2901,8 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
->  	 * onlined after this point, because it has at least one child
->  	 * already.
->  	 */
-> -	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) ||
-> -	    memcg_kmem_online(parent))
-> +	if (memcg_kmem_online(parent) ||
-> +	    (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nokmem))
->  		ret = memcg_online_kmem(memcg);
->  	mutex_unlock(&memcg_limit_mutex);
->  	return ret;
-> @@ -5587,6 +5590,8 @@ static int __init cgroup_memory(char *s)
->  			continue;
->  		if (!strcmp(token, "nosocket"))
->  			cgroup_memory_nosocket = true;
-> +		if (!strcmp(token, "nokmem"))
-> +			cgroup_memory_nokmem = true;
->  	}
->  	return 0;
->  }
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
+Thank you for the link.
+The current code of our driver was has portions written following LDD3, 
+however, we it seems that LDD3 advice is not relevant anymore.
+Indeed, it talks about VM_RESERVED, it talks about using "nopage" and it 
+says that remap_pfn_range cannot be used for pages from get_user_page 
+(or kmalloc).
+It seems such assertions are valid on older kernels, because the code 
+stops working on 3.4+ if we use remap_pfn_range the same way than 
+drivers/media/pci/zoran/zoran_driver.c
+However, kmalloc+remap_pfn_range does work on 4.1.13+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
