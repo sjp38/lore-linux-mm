@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 566A56B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 17:00:08 -0500 (EST)
-Received: by iofh3 with SMTP id h3so107955526iof.3
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 14:00:08 -0800 (PST)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id u7si893667igk.100.2015.12.10.14.00.07
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 59F3A6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 18:31:20 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so54769558pac.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 15:31:20 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p23si23174507pfi.236.2015.12.10.15.31.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 14:00:07 -0800 (PST)
-Received: by mail-ig0-x236.google.com with SMTP id mv3so27660668igc.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 14:00:07 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20151210215648.GG20997@ZenIV.linux.org.uk>
-References: <20151209225148.GA14794@www.outflux.net>
-	<20151210070635.GC31922@1wt.eu>
-	<CAGXu5jLZ8Ldv4vCjN6+QOa8v=GuUDU9t8sJsTNaQJGYtpdCayA@mail.gmail.com>
-	<20151210181611.GB32083@1wt.eu>
-	<20151210193351.GE20997@ZenIV.linux.org.uk>
-	<CAGXu5jLF5-jbQ8tEHWnTZKqWj5_kmrqdKcJMb_B_HdN34RwCqA@mail.gmail.com>
-	<20151210202749.GF20997@ZenIV.linux.org.uk>
-	<CAGXu5jLAK8SYDcrCbJhb4jRtLVW9xjaNi-k68-QV-8_FqZrdqA@mail.gmail.com>
-	<20151210215648.GG20997@ZenIV.linux.org.uk>
-Date: Thu, 10 Dec 2015 14:00:07 -0800
-Message-ID: <CAGXu5jJWe8F-uj+ukPNMeo0W02YA4ssmLyBX4VTJ1nmeB-HxHw@mail.gmail.com>
-Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 10 Dec 2015 15:31:19 -0800 (PST)
+Date: Thu, 10 Dec 2015 15:31:18 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: vmstat: make vmstat_updater deferrable again and shut down on
+ idle
+Message-Id: <20151210153118.4f39d6a4f04c96189ce015c9@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org>
+References: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp
 
-On Thu, Dec 10, 2015 at 1:56 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Thu, Dec 10, 2015 at 01:45:09PM -0800, Kees Cook wrote:
->> > but generally you need ->f_lock.  And in situations where the bit can
->> > go only off->on, check it lockless, skip the whole thing entirely if it's
->> > already set and grab the spinlock otherwise.
->>
->> And I can take f_lock safely under mmap_sem?
+On Thu, 10 Dec 2015 14:45:02 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
+
+> Currently the vmstat updater is not deferrable as a result of commit
+> ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+> interruptions of the applications because the vmstat updater may run at
+> different times than tick processing. No good.
+> 
+> Make vmstate_update deferrable again and provide a function that
+> folds the differentials when the processor is going to idle mode thus
+> addressing the issue of the above commit in a clean way.
+> 
+> Note that the shepherd thread will continue scanning the differentials
+> from another processor and will reenable the vmstat workers if it
+> detects any changes.
+> 
+> Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> ...
 >
-> Are you asking whether it's safe to take a spinlock under an rwsem?
+>  /*
+> + * Switch off vmstat processing and then fold all the remaining differentials
+> + * until the diffs stay at zero. The function is used by NOHZ and can only be
+> + * invoked when tick processing is not active.
+> + */
+> +void quiet_vmstat(void)
+> +{
+> +	do {
+> +		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
+> +			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
+> +
+> +	} while (refresh_cpu_vm_stats(false));
+> +}
 
-I keep getting various surprises while trying to implement this
-change, so yeah, I just want to make sure I won't waste my time adding
-taking the spinlock to the patch.
+How do we know this will terminate in a reasonable amount of time if
+other CPUs are pounding away?
 
--Kees
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
