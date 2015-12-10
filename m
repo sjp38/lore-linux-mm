@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A775E6B0276
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:55 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so39566566pac.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:55 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id xq4si16767863pab.229.2015.12.09.18.38.54
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C746B0276
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:57 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so39798000pfn.0
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:56 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id 85si16797899pfl.178.2015.12.09.18.38.56
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 18:38:54 -0800 (PST)
-Subject: [-mm PATCH v2 10/25] mm: introduce find_dev_pagemap()
+        Wed, 09 Dec 2015 18:38:56 -0800 (PST)
+Subject: [-mm PATCH v2 14/25] hugetlb: fix compile error on tile
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 09 Dec 2015 18:38:07 -0800
-Message-ID: <20151210023807.30368.57693.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 09 Dec 2015 18:38:29 -0800
+Message-ID: <20151210023829.30368.73975.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,239 +20,29 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-There are several scenarios where we need to retrieve and update
-metadata associated with a given devm_memremap_pages() mapping, and the
-only lookup key available is a pfn in the range:
+Inlude asm/pgtable.h to get the definition for pud_t to fix:
 
-1/ We want to augment vmemmap_populate() (called via arch_add_memory())
-   to allocate memmap storage from pre-allocated pages reserved by the
-   device driver.  At vmemmap_alloc_block_buf() time it grabs device pages
-   rather than page allocator pages.  This is in support of
-   devm_memremap_pages() mappings where the memmap is too large to fit in
-   main memory (i.e. large persistent memory devices).
+include/linux/hugetlb.h:203:29: error: unknown type name 'pud_t'
 
-2/ Taking a reference against the mapping when inserting device pages
-   into the address_space radix of a given inode.  This facilitates
-   unmap_mapping_range() and truncate_inode_pages() operations when the
-   driver is tearing down the mapping.
-
-3/ get_user_pages() operations on ZONE_DEVICE memory require taking a
-   reference against the mapping so that the driver teardown path can
-   revoke and drain usage of device pages.
-
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Tested-by: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/io.h |   15 ---------
- include/linux/mm.h |   33 ++++++++++++++++++++
- kernel/memremap.c  |   84 +++++++++++++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 109 insertions(+), 23 deletions(-)
+ include/linux/hugetlb.h |    1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/include/linux/io.h b/include/linux/io.h
-index 72c35e0a41d1..32403b5716e5 100644
---- a/include/linux/io.h
-+++ b/include/linux/io.h
-@@ -90,21 +90,6 @@ void devm_memunmap(struct device *dev, void *addr);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 204c7f56f35a..2b61bf566161 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -8,6 +8,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/list.h>
+ #include <linux/kref.h>
++#include <asm/pgtable.h>
  
- void *__devm_memremap_pages(struct device *dev, struct resource *res);
- 
--#ifdef CONFIG_ZONE_DEVICE
--void *devm_memremap_pages(struct device *dev, struct resource *res);
--#else
--static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
--{
--	/*
--	 * Fail attempts to call devm_memremap_pages() without
--	 * ZONE_DEVICE support enabled, this requires callers to fall
--	 * back to plain devm_memremap() based on config
--	 */
--	WARN_ON_ONCE(1);
--	return ERR_PTR(-ENXIO);
--}
--#endif
--
- /*
-  * Some systems do not have legacy ISA devices.
-  * /dev/port is not a valid interface on these systems.
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index dd05e24f904d..5e043fc04e52 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -674,6 +674,39 @@ static inline enum zone_type page_zonenum(const struct page *page)
- 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
- 
-+struct resource;
-+struct device;
-+/**
-+ * struct dev_pagemap - metadata for ZONE_DEVICE mappings
-+ * @dev: host device of the mapping for debug
-+ */
-+struct dev_pagemap {
-+	/* TODO: vmem_altmap and percpu_ref count */
-+	struct device *dev;
-+};
-+
-+#ifdef CONFIG_ZONE_DEVICE
-+void *devm_memremap_pages(struct device *dev, struct resource *res);
-+struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
-+#else
-+static inline void *devm_memremap_pages(struct device *dev,
-+		struct resource *res)
-+{
-+	/*
-+	 * Fail attempts to call devm_memremap_pages() without
-+	 * ZONE_DEVICE support enabled, this requires callers to fall
-+	 * back to plain devm_memremap() based on config
-+	 */
-+	WARN_ON_ONCE(1);
-+	return ERR_PTR(-ENXIO);
-+}
-+
-+static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-+{
-+	return NULL;
-+}
-+#endif
-+
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
- #define SECTION_IN_PAGE_FLAGS
- #endif
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 7658d32c5c78..9698d82e5e48 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -10,6 +10,7 @@
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  */
-+#include <linux/radix-tree.h>
- #include <linux/device.h>
- #include <linux/types.h>
- #include <linux/io.h>
-@@ -148,22 +149,57 @@ void devm_memunmap(struct device *dev, void *addr)
- EXPORT_SYMBOL(devm_memunmap);
- 
- #ifdef CONFIG_ZONE_DEVICE
-+static DEFINE_MUTEX(pgmap_lock);
-+static RADIX_TREE(pgmap_radix, GFP_KERNEL);
-+#define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
-+#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
-+
- struct page_map {
- 	struct resource res;
-+	struct percpu_ref *ref;
-+	struct dev_pagemap pgmap;
- };
- 
--static void devm_memremap_pages_release(struct device *dev, void *res)
-+static void pgmap_radix_release(struct resource *res)
-+{
-+	resource_size_t key;
-+
-+	mutex_lock(&pgmap_lock);
-+	for (key = res->start; key <= res->end; key += SECTION_SIZE)
-+		radix_tree_delete(&pgmap_radix, key >> PA_SECTION_SHIFT);
-+	mutex_unlock(&pgmap_lock);
-+}
-+
-+static void devm_memremap_pages_release(struct device *dev, void *data)
- {
--	struct page_map *page_map = res;
-+	struct page_map *page_map = data;
-+	struct resource *res = &page_map->res;
-+	resource_size_t align_start, align_size;
-+
-+	pgmap_radix_release(res);
- 
- 	/* pages are dead and unused, undo the arch mapping */
--	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
-+	align_start = res->start & ~(SECTION_SIZE - 1);
-+	align_size = ALIGN(resource_size(res), SECTION_SIZE);
-+	arch_remove_memory(align_start, align_size);
-+}
-+
-+/* assumes rcu_read_lock() held at entry */
-+struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-+{
-+	struct page_map *page_map;
-+
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+
-+	page_map = radix_tree_lookup(&pgmap_radix, phys >> PA_SECTION_SHIFT);
-+	return page_map ? &page_map->pgmap : NULL;
- }
- 
- void *devm_memremap_pages(struct device *dev, struct resource *res)
- {
- 	int is_ram = region_intersects(res->start, resource_size(res),
- 			"System RAM");
-+	resource_size_t key, align_start, align_size;
- 	struct page_map *page_map;
- 	int error, nid;
- 
-@@ -183,18 +219,50 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
- 
- 	memcpy(&page_map->res, res, sizeof(*res));
- 
-+	page_map->pgmap.dev = dev;
-+	mutex_lock(&pgmap_lock);
-+	error = 0;
-+	for (key = res->start; key <= res->end; key += SECTION_SIZE) {
-+		struct dev_pagemap *dup;
-+
-+		rcu_read_lock();
-+		dup = find_dev_pagemap(key);
-+		rcu_read_unlock();
-+		if (dup) {
-+			dev_err(dev, "%s: %pr collides with mapping for %s\n",
-+					__func__, res, dev_name(dup->dev));
-+			error = -EBUSY;
-+			break;
-+		}
-+		error = radix_tree_insert(&pgmap_radix, key >> PA_SECTION_SHIFT,
-+				page_map);
-+		if (error) {
-+			dev_err(dev, "%s: failed: %d\n", __func__, error);
-+			break;
-+		}
-+	}
-+	mutex_unlock(&pgmap_lock);
-+	if (error)
-+		goto err_radix;
-+
- 	nid = dev_to_node(dev);
- 	if (nid < 0)
- 		nid = numa_mem_id();
- 
--	error = arch_add_memory(nid, res->start, resource_size(res), true);
--	if (error) {
--		devres_free(page_map);
--		return ERR_PTR(error);
--	}
-+	align_start = res->start & ~(SECTION_SIZE - 1);
-+	align_size = ALIGN(resource_size(res), SECTION_SIZE);
-+	error = arch_add_memory(nid, align_start, align_size, true);
-+	if (error)
-+		goto err_add_memory;
- 
- 	devres_add(dev, page_map);
- 	return __va(res->start);
-+
-+ err_add_memory:
-+ err_radix:
-+	pgmap_radix_release(res);
-+	devres_free(page_map);
-+	return ERR_PTR(error);
- }
- EXPORT_SYMBOL(devm_memremap_pages);
- #endif /* CONFIG_ZONE_DEVICE */
+ struct ctl_table;
+ struct user_struct;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
