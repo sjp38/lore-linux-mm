@@ -1,83 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 792FB6B0259
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 09:06:34 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id w144so25354592wmw.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:06:34 -0800 (PST)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id r62si1356269wmg.24.2015.12.10.06.06.33
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AF5846B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 09:21:50 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id u63so26020529wmu.0
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:21:50 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id x1si12084599wjy.37.2015.12.10.06.21.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 06:06:33 -0800 (PST)
-Received: by wmec201 with SMTP id c201so26324579wme.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:06:33 -0800 (PST)
-Date: Thu, 10 Dec 2015 15:06:31 +0100
+        Thu, 10 Dec 2015 06:21:49 -0800 (PST)
+Received: by mail-wm0-f48.google.com with SMTP id c201so35469551wme.0
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:21:49 -0800 (PST)
+Date: Thu, 10 Dec 2015 15:21:47 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: m(un)map kmalloc buffers to userspace
-Message-ID: <20151210140631.GO19496@dhcp22.suse.cz>
-References: <5667128B.3080704@sigmadesigns.com>
- <20151209135544.GE30907@dhcp22.suse.cz>
- <566835B6.9010605@sigmadesigns.com>
- <20151209143207.GF30907@dhcp22.suse.cz>
- <56684062.9090505@sigmadesigns.com>
- <20151209151254.GH30907@dhcp22.suse.cz>
- <56684A59.7030605@sigmadesigns.com>
- <20151210114005.GF19496@dhcp22.suse.cz>
- <56698022.1070305@sigmadesigns.com>
+Subject: Re: [PATCH 7/8] mm: memcontrol: account "kmem" consumers in cgroup2
+ memory controller
+Message-ID: <20151210142147.GP19496@dhcp22.suse.cz>
+References: <1449599665-18047-1-git-send-email-hannes@cmpxchg.org>
+ <1449599665-18047-8-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56698022.1070305@sigmadesigns.com>
+In-Reply-To: <1449599665-18047-8-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Frias <sebastian_frias@sigmadesigns.com>
-Cc: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu 10-12-15 14:37:38, Sebastian Frias wrote:
-> On 12/10/2015 12:40 PM, Michal Hocko wrote:
-> >On Wed 09-12-15 16:35:53, Sebastian Frias wrote:
-> >[...]
-> >>We've seen that drivers/media/pci/zoran/zoran_driver.c for example seems to
-> >>be doing as us kmalloc+remap_pfn_range,
-> >
-> >This driver is broken - I will post a patch.
+On Tue 08-12-15 13:34:24, Johannes Weiner wrote:
+> The original cgroup memory controller has an extension to account slab
+> memory (and other "kernel memory" consumers) in a separate "kmem"
+> counter, once the user set an explicit limit on that "kmem" pool.
 > 
-> Ok, we'll be glad to see a good example, please keep us posted.
+> However, this includes various consumers whose sizes are directly
+> linked to userspace activity. Accounting them as an optional "kmem"
+> extension is problematic for several reasons:
 > 
-> >
-> >>is there any guarantee (or at least an advised heuristic) to determine
-> >>if a driver is "current" (ie: uses the latest APIs and works)?
-> >
-> >OK, it seems I was overly optimistic when directing you to existing
-> >drivers. Sorry about that I wasn't aware you could find such a terrible
-> >code there. Please refer to Linux Device Drivers book which should give
-> >you a much better lead (e.g. http://www.makelinux.net/ldd3/chp-15-sect-2)
-> >
+> 1. It leaves the main memory interface with incomplete semantics. A
+>    user who puts their workload into a cgroup and configures a memory
+>    limit does not expect us to leave holes in the containment as big
+>    as the dentry and inode cache, or the kernel stack pages.
 > 
-> Thank you for the link.
-> The current code of our driver was has portions written following LDD3,
-> however, we it seems that LDD3 advice is not relevant anymore.
-> Indeed, it talks about VM_RESERVED, it talks about using "nopage" and it
-> says that remap_pfn_range cannot be used for pages from get_user_page (or
-> kmalloc).
+> 2. If the limit set on this random historical subgroup of consumers is
+>    reached, subsequent allocations will fail even when the main memory
+>    pool available to the cgroup is not yet exhausted and/or has
+>    reclaimable memory in it.
+> 
+> 3. Calling it 'kernel memory' is misleading. The dentry and inode
+>    caches are no more 'kernel' (or no less 'user') memory than the
+>    page cache itself. Treating these consumers as different classes is
+>    a historical implementation detail that should not leak to users.
+> 
+> So, in addition to page cache, anonymous memory, and network socket
+> memory, account the following memory consumers per default in the
+> cgroup2 memory controller:
+> 
+>      - threadinfo
+>      - task_struct
+>      - task_delay_info
+>      - pid
+>      - cred
+>      - mm_struct
+>      - vm_area_struct and vm_region (nommu)
+>      - anon_vma and anon_vma_chain
+>      - signal_struct
+>      - sighand_struct
+>      - fs_struct
+>      - files_struct
+>      - fdtable and fdtable->full_fds_bits
+>      - dentry and external_name
+>      - inode for all filesystems.
+> 
+> This should give us reasonable memory isolation for most common
+> workloads out of the box.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Heh, it seems that we are indeed outdated there as well. The memory
-management code doesn't really require pages to be reserved and it
-allows to use get_user_page(s) memory to be mapped to user ptes.
-remap_pfn_range will set all the appropriate flags to make sure MM code
-will not stumble over those pages and let's the driver to take care of
-the memory deallocation.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> It seems such assertions are valid on older kernels, because the code stops
-> working on 3.4+ if we use remap_pfn_range the same way than
-> drivers/media/pci/zoran/zoran_driver.c
-> However, kmalloc+remap_pfn_range does work on 4.1.13+
+> ---
+>  mm/memcontrol.c | 18 +++++++++++-------
+>  1 file changed, 11 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ab72c47..d048137 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2356,13 +2356,14 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+>  	if (!memcg_kmem_online(memcg))
+>  		return 0;
+>  
+> -	if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter))
+> -		return -ENOMEM;
+> -
+>  	ret = try_charge(memcg, gfp, nr_pages);
+> -	if (ret) {
+> -		page_counter_uncharge(&memcg->kmem, nr_pages);
+> +	if (ret)
+>  		return ret;
+> +
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+> +	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+> +		cancel_charge(memcg, nr_pages);
+> +		return -ENOMEM;
+>  	}
+>  
+>  	page->mem_cgroup = memcg;
+> @@ -2391,7 +2392,9 @@ void __memcg_kmem_uncharge(struct page *page, int order)
+>  
+>  	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
+>  
+> -	page_counter_uncharge(&memcg->kmem, nr_pages);
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> +		page_counter_uncharge(&memcg->kmem, nr_pages);
+> +
+>  	page_counter_uncharge(&memcg->memory, nr_pages);
+>  	if (do_memsw_account())
+>  		page_counter_uncharge(&memcg->memsw, nr_pages);
+> @@ -2895,7 +2898,8 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+>  	 * onlined after this point, because it has at least one child
+>  	 * already.
+>  	 */
+> -	if (memcg_kmem_online(parent))
+> +	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) ||
+> +	    memcg_kmem_online(parent))
+>  		ret = memcg_online_kmem(memcg);
+>  	mutex_unlock(&memcg_limit_mutex);
+>  	return ret;
+> -- 
+> 2.6.3
 
-As I've said nothing will guarantee that the kmalloc returned address
-will be page aligned so you might corrupt slab internal data structures.
-You might allocate a larger buffer via kmalloc and make sure it is
-aligned properly but I fail to see why should be kmalloc used in the
-first place as you need a memory in page size unnits anyway.
 -- 
 Michal Hocko
 SUSE Labs
