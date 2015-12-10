@@ -1,62 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id F0FB76B026A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 22:25:27 -0500 (EST)
-Received: by ioir85 with SMTP id r85so82056699ioi.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 19:25:27 -0800 (PST)
-Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
-        by mx.google.com with ESMTPS id f126si17081611ioe.64.2015.12.09.19.25.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Dec 2015 19:25:27 -0800 (PST)
-Received: by iofh3 with SMTP id h3so82104774iof.3
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 19:25:27 -0800 (PST)
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D77E782F77
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 22:36:52 -0500 (EST)
+Received: by ioc74 with SMTP id 74so81934962ioc.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 19:36:52 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.231])
+        by mx.google.com with ESMTP id l10si11254603igu.15.2015.12.09.19.36.52
+        for <linux-mm@kvack.org>;
+        Wed, 09 Dec 2015 19:36:52 -0800 (PST)
+Date: Wed, 9 Dec 2015 22:36:48 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20151209223648.4e9122b5@grimm.local.home>
+In-Reply-To: <20151210025015.GA17967@js1304-P5Q-DELUXE>
+References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1447053784-27811-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<564C9A86.1090906@suse.cz>
+	<20151120063325.GB13061@js1304-P5Q-DELUXE>
+	<20151120114225.7efeeafe@grimm.local.home>
+	<20151123082805.GB29397@js1304-P5Q-DELUXE>
+	<20151123092604.7ec1397d@gandalf.local.home>
+	<20151124014527.GA32335@js1304-P5Q-DELUXE>
+	<20151203041657.GB1495@js1304-P5Q-DELUXE>
+	<20151209150154.31c142b9@gandalf.local.home>
+	<20151210025015.GA17967@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-In-Reply-To: <20151210012130.GA17673@infradead.org>
-References: <20151209225148.GA14794@www.outflux.net>
-	<20151210012130.GA17673@infradead.org>
-Date: Wed, 9 Dec 2015 19:25:26 -0800
-Message-ID: <CAGXu5jL0Zv6mCoEw6pyZsgHjo8BdcF0B-xM_EkMtp7TRB94dKQ@mail.gmail.com>
-Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed, Dec 9, 2015 at 5:21 PM, Christoph Hellwig <hch@infradead.org> wrote:
->> Changing the bits requires holding inode->i_mutex, so it cannot be done
->> during the page fault (due to mmap_sem being held during the fault). We
->> could do this during vm_mmap_pgoff, but that would need coverage in
->> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
->> again. We could clear at open() time, but it's possible things are
->> accidentally opening with O_RDWR and only reading. Better to clear on
->> close and error failures (i.e. an improvement over now, which is not
->> clearing at all).
->>
->> Instead, detect the need to clear the bits during the page fault, and
->> actually remove the bits during final fput. Since the file was open for
->> writing, it wouldn't have been possible to execute it yet.
->
->
->>
->> Signed-off-by: Kees Cook <keescook@chromium.org>
->> ---
->> I think this is the best we can do; everything else is blocked by mmap_sem.
->
-> It should be done at mmap time, before even taking mmap_sem.
->
-> Adding a new field for this to strut file isn't really acceptable.
+On Thu, 10 Dec 2015 11:50:15 +0900
+Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-I already covered this: there's no way to handle the mprotect case --
-checking for MAP_SHARED is under mmap_sem still.
+> Output of cpu 3, 7 are mixed and it's not easy to analyze it.
+> 
+> I think that it'd be better not to sort stack trace. How do
+> you think about it? Could you fix it, please?
 
--Kees
+It may not be that easy to fix because of the sorting algorithm. That
+would require looking going ahead one more event each time and then
+checking if its a stacktrace. I may look at it and see if I can come up
+with something that's not too invasive in the algorithms.
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+That said, for now you can use the --cpu option. I'm not sure I ever
+documented it as it was originally added for debugging, but I use it
+enough that it may be worth while to officially support it.
+
+ trace-cmd report --cpu 3
+
+Will show you just cpu 3 and nothing else. Which is what I use a lot.
+
+But doing the stack trace thing may be something to fix as well. I'll
+see what I can do, but no guarantees.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
