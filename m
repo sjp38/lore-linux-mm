@@ -1,39 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D78FB6B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 12:24:58 -0500 (EST)
-Received: by iofh3 with SMTP id h3so99899626iof.3
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 09:24:58 -0800 (PST)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id c141si21357394ioc.40.2015.12.10.09.24.58
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2436B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 13:05:51 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so21451396igb.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:05:51 -0800 (PST)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id v97si21630860iov.33.2015.12.10.10.05.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Dec 2015 09:24:58 -0800 (PST)
-Date: Thu, 10 Dec 2015 11:24:57 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
-In-Reply-To: <20151210152632.GA11488@esperanza>
-Message-ID: <alpine.DEB.2.20.1512101124001.16497@east.gentwo.org>
-References: <20151208161751.21945.53936.stgit@firesoul> <20151208161903.21945.33876.stgit@firesoul> <alpine.DEB.2.20.1512090945570.30894@east.gentwo.org> <20151209195325.68eaf314@redhat.com> <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
- <20151210161018.28cedb68@redhat.com> <alpine.DEB.2.20.1512100918010.15476@east.gentwo.org> <20151210152632.GA11488@esperanza>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Dec 2015 10:05:51 -0800 (PST)
+Received: by iouu10 with SMTP id u10so102864346iou.0
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:05:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151210070635.GC31922@1wt.eu>
+References: <20151209225148.GA14794@www.outflux.net>
+	<20151210070635.GC31922@1wt.eu>
+Date: Thu, 10 Dec 2015 10:05:50 -0800
+Message-ID: <CAGXu5jLZ8Ldv4vCjN6+QOa8v=GuUDU9t8sJsTNaQJGYtpdCayA@mail.gmail.com>
+Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Willy Tarreau <w@1wt.eu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 10 Dec 2015, Vladimir Davydov wrote:
-
-> IMHO kmem_cache_alloc_bulk/kfree_bulk looks awkward, especially taking
-> into account the fact that we pair kmem_cache_alloc/kmem_cache_free and
-> kmalloc/kfree, but never kmem_cache_alloc/kfree.
+On Wed, Dec 9, 2015 at 11:06 PM, Willy Tarreau <w@1wt.eu> wrote:
+> Hi Kees,
 >
-> So I'd vote for kmem_cache_free_bulk taking a kmem_cache as an argument,
-> but I'm not a potential user of this API, so please don't count my vote
-> :-)
+> Why not add a new file flag instead ?
+>
+> Something like this (editing your patch by hand to illustrate) :
+>
+> diff --git a/fs/file_table.c b/fs/file_table.c
+> index ad17e05ebf95..3a7eee76ea90 100644
+> --- a/fs/file_table.c
+> +++ b/fs/file_table.c
+> @@ -191,6 +191,17 @@ static void __fput(struct file *file)
+>
+>         might_sleep();
+>
+> +       /*
+> +        * XXX: While avoiding mmap_sem, we've already been written to.
+> +        * We must ignore the return value, since we can't reject the
+> +        * write.
+> +        */
+> +       if (unlikely(file->f_flags & FL_DROP_PRIVS)) {
+> +               mutex_lock(&inode->i_mutex);
+> +               file_remove_privs(file);
+> +               mutex_unlock(&inode->i_mutex);
+> +       }
+> +
+>         fsnotify_close(file);
+>         /*
+>          * The function eventpoll_release() should be the first called
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 3aa514254161..409bd7047e7e 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -913,3 +913,4 @@
+>  #define FL_OFDLCK       1024    /* lock is "owned" by struct file */
+>  #define FL_LAYOUT       2048    /* outstanding pNFS layout */
+> +#define FL_DROP_PRIVS   4096    /* lest something weird decides that 2 is OK */
+>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index c387430f06c3..08a77e0cf65f 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2036,6 +2036,7 @@ static inline int wp_page_reuse(struct mm_struct *mm,
+>
+>                 if (!page_mkwrite)
+>                         file_update_time(vma->vm_file);
+> +               vma->vm_file->f_flags |= FL_DROP_PRIVS;
+>         }
+>
+>         return VM_FAULT_WRITE;
+>
+> Willy
+>
 
-One way to have it less awkward is to keep naming it kmem_cache_free_bulk
-but omit the kmem_cache parameter like what I did initially.
+Is f_flags safe to write like this without holding a lock?
+
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
