@@ -1,60 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B76E6B0255
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:10:27 -0500 (EST)
-Received: by qgec40 with SMTP id c40so145497993qge.2
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:10:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f79si15213539qge.19.2015.12.10.07.10.23
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC046B0257
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 10:15:52 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id mv3so19693939igc.0
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:15:52 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id v76si20745605ioi.35.2015.12.10.07.15.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 07:10:23 -0800 (PST)
-Date: Thu, 10 Dec 2015 16:10:18 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Dec 2015 07:15:51 -0800 (PST)
+Date: Thu, 10 Dec 2015 09:15:50 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
-Message-ID: <20151210161018.28cedb68@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
-References: <20151208161751.21945.53936.stgit@firesoul>
-	<20151208161903.21945.33876.stgit@firesoul>
-	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
-	<20151209195325.68eaf314@redhat.com>
-	<alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
-MIME-Version: 1.0
+In-Reply-To: <20151209215058.0ef5964a@redhat.com>
+Message-ID: <alpine.DEB.2.20.1512100914580.15342@east.gentwo.org>
+References: <20151208161751.21945.53936.stgit@firesoul> <20151208161903.21945.33876.stgit@firesoul> <alpine.DEB.2.20.1512090945570.30894@east.gentwo.org> <20151209195325.68eaf314@redhat.com> <alpine.DEB.2.20.1512091338240.7552@east.gentwo.org>
+ <20151209215058.0ef5964a@redhat.com>
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>
 
-On Wed, 9 Dec 2015 13:41:07 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
 
-> On Wed, 9 Dec 2015, Jesper Dangaard Brouer wrote:
-> 
-> > I really like the idea of making it able to free kmalloc'ed objects.
-> > But I hate to change the API again... (I do have a use-case in the
-> > network stack where I could use this feature).
-> 
-> Now is the time to fix the API since its not that much in use yet if at
-> all.
+> True. I was just so close submitting the network use-case to DaveM.
+> Guess, that will have to wait if we choose this API change (and
+> I'll have to wait another 3 month before the trees are in sync again).
 
-Lets start the naming thread/flame (while waiting for my flight ;-))
+why? Andrew can push that to next pretty soon and DaveM could carry that
+patch too.
 
-If we drop the "kmem_cache *s" parameter from kmem_cache_free_bulk(),
-and also make it handle kmalloc'ed objects. Why should we name it
-"kmem_cache_free_bulk"? ... what about naming it kfree_bulk() ???
+> > Then we need df.slab_cache or something.
+>
+> What about df.page->slab_cache (?)
 
-Or should we keep the name to have a symmetric API
-kmem_cache_{alloc,free}_bulk() call convention?
-
-I'm undecided... 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Fine come up with a patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
