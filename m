@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 233EF6B0257
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:39:45 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so46639265pab.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:39:44 -0800 (PST)
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 49B106B0259
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:39:50 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so46957072pfn.0
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:39:50 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id wh2si19850092pac.170.2015.12.10.03.39.44
+        by mx.google.com with ESMTPS id 85si19875403pfl.178.2015.12.10.03.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 03:39:44 -0800 (PST)
+        Thu, 10 Dec 2015 03:39:48 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 4/7] swap.h: move memcg related stuff to the end of the file
-Date: Thu, 10 Dec 2015 14:39:17 +0300
-Message-ID: <72ad884dba8e3a9b13935bc0f27b2e46681c53c0.1449742561.git.vdavydov@virtuozzo.com>
+Subject: [PATCH 5/7] mm: vmscan: do not scan anon pages if memcg swap limit is hit
+Date: Thu, 10 Dec 2015 14:39:18 +0300
+Message-ID: <04c56c92f57c90a1f626546fcfade747fbfa9ec5.1449742561.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1449742560.git.vdavydov@virtuozzo.com>
 References: <cover.1449742560.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,102 +22,78 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The following patches will add more functions to the memcg section of
-include/linux/swap.h. Some of them will need values defined below the
-current location of the section. So let's move the section to the end of
-the file. No functional changes intended.
+We don't scan anonymous memory if we ran out of swap, neither should we
+do it in case memcg swap limit is hit, because swap out is impossible
+anyway.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 ---
- include/linux/swap.h | 68 ++++++++++++++++++++++++++++------------------------
- 1 file changed, 37 insertions(+), 31 deletions(-)
+ include/linux/swap.h |  6 ++++++
+ mm/memcontrol.c      | 13 +++++++++++++
+ mm/vmscan.c          |  2 +-
+ 3 files changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index f4b3ccdcba91..66ea62cf256d 100644
+index 66ea62cf256d..e3344d8ca2e9 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -350,38 +350,7 @@ extern void check_move_unevictable_pages(struct page **, int nr_pages);
+@@ -551,6 +551,7 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+ extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+ extern int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry);
+ extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
++extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
+ #else
+ static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ {
+@@ -564,6 +565,11 @@ static inline int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry)
+ static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
+ {
+ }
++
++static inline long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
++{
++	return get_nr_swap_pages();
++}
+ #endif
  
- extern int kswapd_run(int nid);
- extern void kswapd_stop(int nid);
--#ifdef CONFIG_MEMCG
--static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
--{
--	/* root ? */
--	if (mem_cgroup_disabled() || !memcg->css.parent)
--		return vm_swappiness;
--
--	return memcg->swappiness;
--}
- 
--#else
--static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
--{
--	return vm_swappiness;
--}
--#endif
--#ifdef CONFIG_MEMCG_SWAP
--extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
--extern int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry);
--extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
--#else
--static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
--{
--}
--static inline int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry)
--{
--	return 0;
--}
--static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
--{
--}
--#endif
- #ifdef CONFIG_SWAP
- /* linux/mm/page_io.c */
- extern int swap_readpage(struct page *);
-@@ -560,5 +529,42 @@ static inline swp_entry_t get_swap_page(void)
+ #endif /* __KERNEL__*/
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9d10e2819ec4..2ee823d62f80 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5826,6 +5826,19 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
+ 	rcu_read_unlock();
  }
  
- #endif /* CONFIG_SWAP */
-+
-+#ifdef CONFIG_MEMCG
-+static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
++long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
 +{
-+	/* root ? */
-+	if (mem_cgroup_disabled() || !memcg->css.parent)
-+		return vm_swappiness;
++	long nr_swap_pages = get_nr_swap_pages();
 +
-+	return memcg->swappiness;
++	if (!do_swap_account)
++		return nr_swap_pages;
++	for (; memcg != root_mem_cgroup; memcg = parent_mem_cgroup(memcg))
++		nr_swap_pages = min_t(long, nr_swap_pages,
++				      READ_ONCE(memcg->swap.limit) -
++				      page_counter_read(&memcg->swap));
++	return nr_swap_pages;
 +}
 +
-+#else
-+static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
-+{
-+	return vm_swappiness;
-+}
-+#endif
-+
-+#ifdef CONFIG_MEMCG_SWAP
-+extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
-+extern int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry);
-+extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
-+#else
-+static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-+{
-+}
-+
-+static inline int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
-+{
-+}
-+#endif
-+
- #endif /* __KERNEL__*/
- #endif /* _LINUX_SWAP_H */
+ /* for remember boot option*/
+ #ifdef CONFIG_MEMCG_SWAP_ENABLED
+ static int really_do_swap_account __initdata = 1;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b220e6cda25d..ab52d865d922 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1995,7 +1995,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 		force_scan = true;
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+-	if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
++	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
 -- 
 2.1.4
 
