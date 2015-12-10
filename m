@@ -1,58 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C517F6B0256
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 11:01:35 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so50064485pfn.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 08:01:35 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rm10si21082333pab.25.2015.12.10.08.01.34
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 10C856B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 11:07:05 -0500 (EST)
+Received: by qgeb1 with SMTP id b1so149499970qge.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 08:07:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j11si15401904qga.123.2015.12.10.08.06.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 08:01:35 -0800 (PST)
-Subject: Re: [linux-next:master 5266/5426]
- arch/x86/kernel/cpu/mcheck/mce.c:884:5: warning: 'order' may be used
- uninitialized in this function
-References: <201512102333.nZemw8i3%fengguang.wu@intel.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <5669A205.7080205@virtuozzo.com>
-Date: Thu, 10 Dec 2015 19:02:13 +0300
+        Thu, 10 Dec 2015 08:06:51 -0800 (PST)
+Date: Thu, 10 Dec 2015 17:06:49 +0100
+From: Petr Holasek <pholasek@redhat.com>
+Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
+Message-ID: <20151210160649.GF3540@stainedmachine.brq.redhat.com>
+References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
+ <1447181081-30056-2-git-send-email-aarcange@redhat.com>
+ <20151209161959.GC3540@stainedmachine.brq.redhat.com>
+ <20151209171508.GI29105@redhat.com>
+ <20151209181033.GJ29105@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <201512102333.nZemw8i3%fengguang.wu@intel.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151209181033.GJ29105@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>
 
-
-
-On 12/10/2015 06:05 PM, kbuild test robot wrote:
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   8225f4e85cb03daea14661380745886ce01fd83a
-> commit: 0dd08f12cafd7868be55bc10ebcd4ea13880860b [5266/5426] UBSAN: run-time undefined behavior sanity checker
-> config: x86_64-randconfig-s5-12102221 (attached as .config)
-> reproduce:
->         git checkout 0dd08f12cafd7868be55bc10ebcd4ea13880860b
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
+On Wed, 09 Dec 2015, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Wed, Dec 09, 2015 at 06:15:08PM +0100, Andrea Arcangeli wrote:
+> > Hello Petr,
+> > 
+> > On Wed, Dec 09, 2015 at 05:19:59PM +0100, Petr Holasek wrote:
+> > > Hi Andrea,
+> > > 
+> > > I've been running stress tests against this patchset for a couple of hours
+> > > and everything was ok. However, I've allocated ~1TB of memory and got
+> > > following lockup during disabling KSM with 'echo 2 > /sys/kernel/mm/ksm/run':
+> > > 
+> > > [13201.060601] INFO: task ksmd:351 blocked for more than 120 seconds.
+> > > [13201.066812]       Not tainted 4.4.0-rc4+ #5
+> > > [13201.070996] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables
+> > > this message.
+> > > [13201.078830] ksmd            D ffff883f65eb7dc8     0   351      2
+> > > 0x00000000
+> > > [13201.085903]  ffff883f65eb7dc8 ffff887f66e26400 ffff883f65d5e400
+> > > ffff883f65eb8000
+> > > [13201.093343]  ffffffff81a65144 ffff883f65d5e400 00000000ffffffff
+> > > ffffffff81a65148
+> > > [13201.100792]  ffff883f65eb7de0 ffffffff816907e5 ffffffff81a65140
+> > > ffff883f65eb7df0
+> > > [13201.108242] Call Trace:
+> > > [13201.110708]  [<ffffffff816907e5>] schedule+0x35/0x80
+> > > [13201.115676]  [<ffffffff81690ace>] schedule_preempt_disabled+0xe/0x10
+> > > [13201.122044]  [<ffffffff81692524>] __mutex_lock_slowpath+0xb4/0x130
+> > > [13201.128237]  [<ffffffff816925bf>] mutex_lock+0x1f/0x2f
+> > > [13201.133395]  [<ffffffff811debd2>] ksm_scan_thread+0x62/0x1f0
+> > > [13201.139068]  [<ffffffff810c8ac0>] ? wait_woken+0x80/0x80
+> > > [13201.144391]  [<ffffffff811deb70>] ? ksm_do_scan+0x1140/0x1140
+> > > [13201.150164]  [<ffffffff810a4378>] kthread+0xd8/0xf0
+> > > [13201.155056]  [<ffffffff810a42a0>] ? kthread_park+0x60/0x60
+> > > [13201.160551]  [<ffffffff8169460f>] ret_from_fork+0x3f/0x70
+> > > [13201.165961]  [<ffffffff810a42a0>] ? kthread_park+0x60/0x60
+> > > 
+> > > It seems this is not connected with the new code, but it would be nice to
+> > > also make unmerge_and_remove_all_rmap_items() more scheduler friendly.
+> > 
+> > Agreed. I run echo 2 many times here with big stable_node chains but
+> > this one never happened here, it likely shows easier on the 1TiB.
 > 
-> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
-> http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
+> I thought the above was a problem with "scheduler friendliness" in
+> turn missing cond_resched() but the above is not a softlockup.
 > 
-
-This is certainly a false positive. 
-It seems that UBSAN could make gcc more stupid and increase number of maybe-uninitialized false-positives.
-
-
-> All warnings (new ones prefixed by >>):
+> The above can't be solved by improving scheduler friendliness, we
+> didn't prevent the schedule for 120sec, just the mutex_lock was stuck
+> and a stuck was in D state for too long, which in the KSM case for
+> servers would be just a false positive. KSM would immediately stop
+> after it takes the mutex anyway so the above only informs that we
+> didn't run try_to_freeze() fast enough. The only trouble there could
+> be with suspend for non-server usage.
 > 
->    arch/x86/kernel/cpu/mcheck/mce.c: In function 'do_machine_check':
->>> arch/x86/kernel/cpu/mcheck/mce.c:884:5: warning: 'order' may be used uninitialized in this function [-Wmaybe-uninitialized]
->      if (order == 1) {
->         ^
->    arch/x86/kernel/cpu/mcheck/mce.c:984:6: note: 'order' was declared here
->      int order;
+> To hide the above (and reach try_to_freeze() quick) we could just do
+> trylock in ksm_scan_thread and mutex_lock_interruptible() in the other
+> places, but that still leaves the uninterruptible wait_on_bit to
+> solve.
+> 
+> Improving scheduler friendliness would have been more important than
+> avoiding the above. remove_node_from_stable_tree would also do a
+> cond_resched() if the rmap_item list is not empty so it was unlikely
+> it could generate a softlockup for 120sec even with an enormous
+> chain. However just like the &migrate_nodes list walk and like the
+> remove_stable_node_chain caller both do a cond_resched() after
+> remove_stable_node(), it sounds better to do it inside
+> remove_stable_node_chain too in case we run into a chain and we need
+> to free the dups. Just the previous patch won't help with the above.
+
+Yep, I've applied the patch attached above and still got the hunk during
+cleaning memory above ~800GB.
+
+Anyway, this thing is not connected with this RFC and no other problems
+were observed -
+
+Tested-by: Petr Holasek <pholasek@redhat.com>
+
+-- 
+Petr Holasek
+pholasek@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
