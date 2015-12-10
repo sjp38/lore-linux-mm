@@ -1,83 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f41.google.com (mail-vk0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F7D6B0038
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:26:56 -0500 (EST)
-Received: by vkbs1 with SMTP id s1so79424609vkb.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:26:56 -0800 (PST)
-Received: from mail-vk0-x233.google.com (mail-vk0-x233.google.com. [2607:f8b0:400c:c05::233])
-        by mx.google.com with ESMTPS id d141si10155227vka.151.2015.12.10.04.26.55
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C756B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 07:37:34 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id w144so21981247wmw.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:37:34 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id gy4si18554534wjc.133.2015.12.10.04.37.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 04:26:55 -0800 (PST)
-Received: by vkbs1 with SMTP id s1so79423754vkb.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:26:54 -0800 (PST)
+        Thu, 10 Dec 2015 04:37:33 -0800 (PST)
+Received: by wmec201 with SMTP id c201so22897310wme.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 04:37:33 -0800 (PST)
+Date: Thu, 10 Dec 2015 13:37:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/8] mm: memcontrol: drop unused @css argument in
+ memcg_init_kmem
+Message-ID: <20151210123732.GG19496@dhcp22.suse.cz>
+References: <1449599665-18047-1-git-send-email-hannes@cmpxchg.org>
+ <1449599665-18047-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <9558837.lN284KClUg@wuerfel>
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
-	<1449242195-16374-1-git-send-email-vbabka@suse.cz>
-	<9558837.lN284KClUg@wuerfel>
-Date: Thu, 10 Dec 2015 12:26:53 +0000
-Message-ID: <CAAG0J98vnEBq-vXtJcS6p9dvcsnyJpgR25zom238b8a20BKTEg@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-From: James Hogan <james.hogan@imgtec.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1449599665-18047-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, metag <linux-metag@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 9 December 2015 at 11:29, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Friday 04 December 2015 16:16:33 Vlastimil Babka wrote:
->> --- a/include/linux/mmdebug.h
->> +++ b/include/linux/mmdebug.h
->> @@ -2,15 +2,20 @@
->>  #define LINUX_MM_DEBUG_H 1
->>
->>  #include <linux/stringify.h>
->> +#include <linux/types.h>
->> +#include <linux/tracepoint.h>
->
-> 8<-----
-> Subject: mm: fix generated/bounds.h
->
-> The inclusion of linux/tracepoint.h is causing build errors for me in ARM
-> randconfig:
->
-> In file included from /git/arm-soc/include/linux/ktime.h:25:0,
->                  from /git/arm-soc/include/linux/rcupdate.h:47,
->                  from /git/arm-soc/include/linux/tracepoint.h:19,
->                  from /git/arm-soc/include/linux/mmdebug.h:6,
->                  from /git/arm-soc/include/linux/page-flags.h:10,
->                  from /git/arm-soc/kernel/bounds.c:9:
-> /git/arm-soc/include/linux/jiffies.h:10:33: fatal error: generated/timeconst.h: No such file or directory
-> compilation terminated.
->
-> To work around this, we can stop including linux/mmdebug.h from linux/page_flags.h
-> while generating bounds.h, as we do for mm_types.h already.
->
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> Fixes: 8c0d593d0f8f ("mm, printk: introduce new format string for flags")
->
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 19724e6ebd26..4efad0578a28 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -7,8 +7,8 @@
->
->  #include <linux/types.h>
->  #include <linux/bug.h>
-> -#include <linux/mmdebug.h>
->  #ifndef __GENERATING_BOUNDS_H
-> +#include <linux/mmdebug.h>
->  #include <linux/mm_types.h>
->  #include <generated/bounds.h>
->  #endif /* !__GENERATING_BOUNDS_H */
+On Tue 08-12-15 13:34:18, Johannes Weiner wrote:
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Same build issue observed for metag too.
-Tested-by: James Hogan <james.hogan@imgtec.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Cheers
-James
+> ---
+>  include/net/tcp_memcontrol.h | 3 ++-
+>  mm/memcontrol.c              | 6 +++---
+>  net/ipv4/tcp_memcontrol.c    | 2 +-
+>  3 files changed, 6 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/net/tcp_memcontrol.h b/include/net/tcp_memcontrol.h
+> index 3a17b16..dc2da2f 100644
+> --- a/include/net/tcp_memcontrol.h
+> +++ b/include/net/tcp_memcontrol.h
+> @@ -1,6 +1,7 @@
+>  #ifndef _TCP_MEMCG_H
+>  #define _TCP_MEMCG_H
+>  
+> -int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss);
+> +int tcp_init_cgroup(struct mem_cgroup *memcg);
+>  void tcp_destroy_cgroup(struct mem_cgroup *memcg);
+> +
+>  #endif /* _TCP_MEMCG_H */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 5fe45d68..eda8d43 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3561,7 +3561,7 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
+>  }
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> -static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+> +static int memcg_init_kmem(struct mem_cgroup *memcg)
+>  {
+>  	int ret;
+>  
+> @@ -3569,7 +3569,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+>  	if (ret)
+>  		return ret;
+>  
+> -	return tcp_init_cgroup(memcg, ss);
+> +	return tcp_init_cgroup(memcg);
+>  }
+>  
+>  static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+> @@ -4252,7 +4252,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>  	}
+>  	mutex_unlock(&memcg_create_mutex);
+>  
+> -	ret = memcg_init_kmem(memcg, &memory_cgrp_subsys);
+> +	ret = memcg_init_kmem(memcg);
+>  	if (ret)
+>  		return ret;
+>  
+> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+> index 18bc7f7..133eb5e 100644
+> --- a/net/ipv4/tcp_memcontrol.c
+> +++ b/net/ipv4/tcp_memcontrol.c
+> @@ -6,7 +6,7 @@
+>  #include <linux/memcontrol.h>
+>  #include <linux/module.h>
+>  
+> -int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+> +int tcp_init_cgroup(struct mem_cgroup *memcg)
+>  {
+>  	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
+>  	struct page_counter *counter_parent = NULL;
+> -- 
+> 2.6.3
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
