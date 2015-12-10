@@ -1,41 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2675982F7A
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:14:54 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id c201so14230715wme.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:14:54 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id d4si42372677wmf.31.2015.12.09.20.14.52
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5509A82F7A
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 23:20:35 -0500 (EST)
+Received: by ioir85 with SMTP id r85so83034776ioi.1
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 20:20:35 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id f97si17350137ioj.171.2015.12.09.20.20.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Dec 2015 20:14:53 -0800 (PST)
-Date: Thu, 10 Dec 2015 04:14:24 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v5] fs: clear file privilege bits when mmap writing
-Message-ID: <20151210041424.GD20997@ZenIV.linux.org.uk>
-References: <20151209225148.GA14794@www.outflux.net>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 09 Dec 2015 20:20:34 -0800 (PST)
+Date: Thu, 10 Dec 2015 13:07:29 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20151210040729.GC17967@js1304-P5Q-DELUXE>
+References: <564C9A86.1090906@suse.cz>
+ <20151120063325.GB13061@js1304-P5Q-DELUXE>
+ <20151120114225.7efeeafe@grimm.local.home>
+ <20151123082805.GB29397@js1304-P5Q-DELUXE>
+ <20151123092604.7ec1397d@gandalf.local.home>
+ <20151124014527.GA32335@js1304-P5Q-DELUXE>
+ <20151203041657.GB1495@js1304-P5Q-DELUXE>
+ <20151209150154.31c142b9@gandalf.local.home>
+ <20151210025015.GA17967@js1304-P5Q-DELUXE>
+ <20151209223648.4e9122b5@grimm.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151209225148.GA14794@www.outflux.net>
+In-Reply-To: <20151209223648.4e9122b5@grimm.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed, Dec 09, 2015 at 02:51:48PM -0800, Kees Cook wrote:
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 3aa514254161..409bd7047e7e 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -872,6 +872,7 @@ struct file {
->  	struct list_head	f_tfile_llink;
->  #endif /* #ifdef CONFIG_EPOLL */
->  	struct address_space	*f_mapping;
-> +	bool			f_remove_privs;
+On Wed, Dec 09, 2015 at 10:36:48PM -0500, Steven Rostedt wrote:
+> On Thu, 10 Dec 2015 11:50:15 +0900
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> 
+> > Output of cpu 3, 7 are mixed and it's not easy to analyze it.
+> > 
+> > I think that it'd be better not to sort stack trace. How do
+> > you think about it? Could you fix it, please?
+> 
+> It may not be that easy to fix because of the sorting algorithm. That
+> would require looking going ahead one more event each time and then
+> checking if its a stacktrace. I may look at it and see if I can come up
+> with something that's not too invasive in the algorithms.
 
-NAK.  If anything, such things belong in ->f_flags.  _If_ this is worth
-doing at all, that is.
+Okay.
+
+> That said, for now you can use the --cpu option. I'm not sure I ever
+> documented it as it was originally added for debugging, but I use it
+> enough that it may be worth while to officially support it.
+> 
+>  trace-cmd report --cpu 3
+> 
+> Will show you just cpu 3 and nothing else. Which is what I use a lot.
+
+Thanks for the input. It works but it's not sufficient to me.
+Page reference is manipulated by multiple cpus so it's better to
+analyze unified output.
+
+> 
+> But doing the stack trace thing may be something to fix as well. I'll
+> see what I can do, but no guarantees.
+
+Okay. Don't be hurry. :)
+trace-cmd is excellent and works well for me as it is.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
