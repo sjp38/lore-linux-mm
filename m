@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 971136B0272
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:46 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so39795893pfn.0
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:46 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id d3si16761019pas.116.2015.12.09.18.38.45
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A98486B0274
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:51 -0500 (EST)
+Received: by pfdd184 with SMTP id d184so39758866pfd.3
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:51 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id q18si16772570pfi.244.2015.12.09.18.38.50
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 18:38:45 -0800 (PST)
-Subject: [-mm PATCH v2 12/25] libnvdimm, pfn,
- pmem: allocate memmap array in persistent memory
+        Wed, 09 Dec 2015 18:38:50 -0800 (PST)
+Subject: [-mm PATCH v2 13/25] avr32: convert to asm-generic/memory_model.h
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 09 Dec 2015 18:38:18 -0800
-Message-ID: <20151210023818.30368.10196.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 09 Dec 2015 18:38:24 -0800
+Message-ID: <20151210023824.30368.66042.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -21,97 +20,41 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, linux-nvdimm@lists.01.org
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-Use the new vmem_altmap capability to enable the pmem driver to arrange
-for a struct page memmap to be established in persistent memory.
+Switch avr32/include/asm/page.h to use the common defintions for
+pfn_to_page(), page_to_pfn(), and ARCH_PFN_OFFSET.
 
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/ia64/include/asm/page.h |    1 +
- drivers/nvdimm/pfn_devs.c    |    3 +--
- drivers/nvdimm/pmem.c        |   19 +++++++++++++++++--
- 3 files changed, 19 insertions(+), 4 deletions(-)
+ arch/avr32/include/asm/page.h |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/ia64/include/asm/page.h b/arch/ia64/include/asm/page.h
-index ec48bb9f95e1..e8c486ef0d76 100644
---- a/arch/ia64/include/asm/page.h
-+++ b/arch/ia64/include/asm/page.h
-@@ -105,6 +105,7 @@ extern struct page *vmem_map;
- #ifdef CONFIG_DISCONTIGMEM
- # define page_to_pfn(page)	((unsigned long) (page - vmem_map))
- # define pfn_to_page(pfn)	(vmem_map + (pfn))
-+# define __pfn_to_phys(pfn)	PFN_PHYS(pfn)
- #else
- # include <asm-generic/memory_model.h>
- #endif
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 71805a1aa0f3..a642cfacee07 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -83,8 +83,7 @@ static ssize_t mode_store(struct device *dev,
+diff --git a/arch/avr32/include/asm/page.h b/arch/avr32/include/asm/page.h
+index f805d1cb11bc..c5d2a3e2c62f 100644
+--- a/arch/avr32/include/asm/page.h
++++ b/arch/avr32/include/asm/page.h
+@@ -83,11 +83,9 @@ static inline int get_order(unsigned long size)
  
- 		if (strncmp(buf, "pmem\n", n) == 0
- 				|| strncmp(buf, "pmem", n) == 0) {
--			/* TODO: allocate from PMEM support */
--			rc = -ENOTTY;
-+			nd_pfn->mode = PFN_MODE_PMEM;
- 		} else if (strncmp(buf, "ram\n", n) == 0
- 				|| strncmp(buf, "ram", n) == 0)
- 			nd_pfn->mode = PFN_MODE_RAM;
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 34fa2f003602..1d884318c67b 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -315,12 +315,16 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
- 	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
- 	struct device *dev = &nd_pfn->dev;
--	struct vmem_altmap *altmap;
- 	struct nd_region *nd_region;
-+	struct vmem_altmap *altmap;
- 	struct nd_pfn_sb *pfn_sb;
- 	struct pmem_device *pmem;
- 	phys_addr_t offset;
- 	int rc;
-+	struct vmem_altmap __altmap = {
-+		.base_pfn = __phys_to_pfn(nsio->res.start),
-+		.reserve = __phys_to_pfn(SZ_8K),
-+	};
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
  
- 	if (!nd_pfn->uuid || !nd_pfn->ndns)
- 		return -ENODEV;
-@@ -348,6 +352,17 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 			return -EINVAL;
- 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
- 		altmap = NULL;
-+	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
-+		nd_pfn->npfns = (resource_size(&nsio->res) - offset)
-+			/ PAGE_SIZE;
-+		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
-+			dev_info(&nd_pfn->dev,
-+					"number of pfns truncated from %lld to %ld\n",
-+					le64_to_cpu(nd_pfn->pfn_sb->npfns),
-+					nd_pfn->npfns);
-+		altmap = & __altmap;
-+		altmap->free = __phys_to_pfn(offset - SZ_8K);
-+		altmap->alloc = 0;
- 	} else {
- 		rc = -ENXIO;
- 		goto err;
-@@ -357,7 +372,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 	pmem = dev_get_drvdata(dev);
- 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
- 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res,
--			NULL);
-+			altmap);
- 	pmem->pfn_flags |= PFN_MAP;
- 	if (IS_ERR(pmem->virt_addr)) {
- 		rc = PTR_ERR(pmem->virt_addr);
+-#define PHYS_PFN_OFFSET		(CONFIG_PHYS_OFFSET >> PAGE_SHIFT)
++#define ARCH_PFN_OFFSET		(CONFIG_PHYS_OFFSET >> PAGE_SHIFT)
+ 
+-#define pfn_to_page(pfn)	(mem_map + ((pfn) - PHYS_PFN_OFFSET))
+-#define page_to_pfn(page)	((unsigned long)((page) - mem_map) + PHYS_PFN_OFFSET)
+-#define pfn_valid(pfn)		((pfn) >= PHYS_PFN_OFFSET && (pfn) < (PHYS_PFN_OFFSET + max_mapnr))
++#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < (ARCH_PFN_OFFSET + max_mapnr))
+ #endif /* CONFIG_NEED_MULTIPLE_NODES */
+ 
+ #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+@@ -101,4 +99,6 @@ static inline int get_order(unsigned long size)
+  */
+ #define HIGHMEM_START		0x20000000UL
+ 
++#include <asm-generic/memory_model.h>
++
+ #endif /* __ASM_AVR32_PAGE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
