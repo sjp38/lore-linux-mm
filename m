@@ -1,71 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CF9DC6B0254
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 15:32:56 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so161968417qge.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 12:32:56 -0800 (PST)
-Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com. [2607:f8b0:400d:c04::22d])
-        by mx.google.com with ESMTPS id b25si16502846qkb.118.2015.12.10.12.32.55
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 91E8E6B0254
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 15:45:06 -0500 (EST)
+Received: by oige206 with SMTP id e206so53297029oig.2
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 12:45:06 -0800 (PST)
+Received: from resqmta-po-12v.sys.comcast.net (resqmta-po-12v.sys.comcast.net. [2001:558:fe16:19:96:114:154:171])
+        by mx.google.com with ESMTPS id p14si5966131obq.85.2015.12.10.12.45.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 12:32:55 -0800 (PST)
-Received: by qgcc31 with SMTP id c31so162371547qgc.3
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 12:32:55 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20151210202438.GA6590@linux.intel.com>
-References: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1449602325-20572-4-git-send-email-ross.zwisler@linux.intel.com>
-	<CAA9_cmeVYinm4mMiDU4oz8fW4HQ3n1RqEbPHBW7A3OGmi9eXtw@mail.gmail.com>
-	<20151210202438.GA6590@linux.intel.com>
-Date: Thu, 10 Dec 2015 12:31:53 -0800
-Message-ID: <CAPcyv4g6ieXDUSGUCpevmQfvGWZUqfW-2NTNC9TsVUxF0aoTNQ@mail.gmail.com>
-Subject: Re: [PATCH v3 3/7] mm: add find_get_entries_tag()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Dec 2015 12:45:05 -0800 (PST)
+Date: Thu, 10 Dec 2015 14:45:02 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: vmstat: make vmstat_updater deferrable again and shut down on idle
+Message-ID: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Andreas Dilger <adilger.kernel@dilger.ca>, "H. Peter Anvin" <hpa@zytor.com>, Jeff Layton <jlayton@poochiereds.net>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, ext4 hackers <linux-ext4@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp
 
-On Thu, Dec 10, 2015 at 12:24 PM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Wed, Dec 09, 2015 at 11:44:16AM -0800, Dan Williams wrote:
->> On Tue, Dec 8, 2015 at 11:18 AM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > Add find_get_entries_tag() to the family of functions that include
->> > find_get_entries(), find_get_pages() and find_get_pages_tag().  This is
->> > needed for DAX dirty page handling because we need a list of both page
->> > offsets and radix tree entries ('indices' and 'entries' in this function)
->> > that are marked with the PAGECACHE_TAG_TOWRITE tag.
->> >
->> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> <>
->> Why does this mostly duplicate find_get_entries()?
->>
->> Surely find_get_entries() can be implemented as a special case of
->> find_get_entries_tag().
->
-> I'm adding find_get_entries_tag() to the family of functions that already
-> exist and include find_get_entries(), find_get_pages(),
-> find_get_pages_contig() and find_get_pages_tag().
->
-> These functions all contain very similar code with small changes to the
-> internal looping based on whether you're looking through all radix slots or
-> only the ones that match a certain tag (radix_tree_for_each_slot() vs
-> radix_tree_for_each_tagged()).
->
-> We already have find_get_page() to get all pages in a range and
-> find_get_pages_tag() to get all pages in the range with a certain tag.  We
-> have find_get_entries() to get all pages and indices for a given range, but we
-> are currently missing find_get_entries_tag() to do that same search based on a
-> tag, which is what I'm adding.
->
-> I agree that we could probably figure out a way to combine the code for
-> find_get_entries() with find_get_entries_tag(), as we could do for the
-> existing functions find_get_pages() and find_get_pages_tag().  I think we
-> should probably add find_get_entries_tag() per this patch, though, and then
-> decide whether to do any combining later as a separate step.
+Currently the vmstat updater is not deferrable as a result of commit
+ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+interruptions of the applications because the vmstat updater may run at
+different times than tick processing. No good.
 
-Ok, sounds good to me.
+Make vmstate_update deferrable again and provide a function that
+folds the differentials when the processor is going to idle mode thus
+addressing the issue of the above commit in a clean way.
+
+Note that the shepherd thread will continue scanning the differentials
+from another processor and will reenable the vmstat workers if it
+detects any changes.
+
+Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -460,7 +460,7 @@ static int fold_diff(int *diff)
+  *
+  * The function returns the number of global counters updated.
+  */
+-static int refresh_cpu_vm_stats(void)
++static int refresh_cpu_vm_stats(bool do_pagesets)
+ {
+ 	struct zone *zone;
+ 	int i;
+@@ -484,33 +484,35 @@ static int refresh_cpu_vm_stats(void)
+ #endif
+ 			}
+ 		}
+-		cond_resched();
+ #ifdef CONFIG_NUMA
+-		/*
+-		 * Deal with draining the remote pageset of this
+-		 * processor
+-		 *
+-		 * Check if there are pages remaining in this pageset
+-		 * if not then there is nothing to expire.
+-		 */
+-		if (!__this_cpu_read(p->expire) ||
++		if (do_pagesets) {
++			cond_resched();
++			/*
++			 * Deal with draining the remote pageset of this
++			 * processor
++			 *
++			 * Check if there are pages remaining in this pageset
++			 * if not then there is nothing to expire.
++			 */
++			if (!__this_cpu_read(p->expire) ||
+ 			       !__this_cpu_read(p->pcp.count))
+-			continue;
++				continue;
+
+-		/*
+-		 * We never drain zones local to this processor.
+-		 */
+-		if (zone_to_nid(zone) == numa_node_id()) {
+-			__this_cpu_write(p->expire, 0);
+-			continue;
+-		}
++			/*
++			 * We never drain zones local to this processor.
++			 */
++			if (zone_to_nid(zone) == numa_node_id()) {
++				__this_cpu_write(p->expire, 0);
++				continue;
++			}
+
+-		if (__this_cpu_dec_return(p->expire))
+-			continue;
++			if (__this_cpu_dec_return(p->expire))
++				continue;
+
+-		if (__this_cpu_read(p->pcp.count)) {
+-			drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
+-			changes++;
++			if (__this_cpu_read(p->pcp.count)) {
++				drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
++				changes++;
++			}
+ 		}
+ #endif
+ 	}
+@@ -1376,7 +1378,7 @@ static cpumask_var_t cpu_stat_off;
+
+ static void vmstat_update(struct work_struct *w)
+ {
+-	if (refresh_cpu_vm_stats()) {
++	if (refresh_cpu_vm_stats(true)) {
+ 		/*
+ 		 * Counters were updated so we expect more updates
+ 		 * to occur in the future. Keep on running the
+@@ -1408,6 +1410,20 @@ static void vmstat_update(struct work_st
+ }
+
+ /*
++ * Switch off vmstat processing and then fold all the remaining differentials
++ * until the diffs stay at zero. The function is used by NOHZ and can only be
++ * invoked when tick processing is not active.
++ */
++void quiet_vmstat(void)
++{
++	do {
++		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
++			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
++
++	} while (refresh_cpu_vm_stats(false));
++}
++
++/*
+  * Check if the diffs for a certain cpu indicate that
+  * an update is needed.
+  */
+@@ -1439,7 +1455,7 @@ static bool need_update(int cpu)
+  */
+ static void vmstat_shepherd(struct work_struct *w);
+
+-static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
++static DECLARE_DEFERRABLE_WORK(shepherd, vmstat_shepherd);
+
+ static void vmstat_shepherd(struct work_struct *w)
+ {
+Index: linux/include/linux/vmstat.h
+===================================================================
+--- linux.orig/include/linux/vmstat.h
++++ linux/include/linux/vmstat.h
+@@ -189,6 +189,7 @@ extern void __inc_zone_state(struct zone
+ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+
++void quiet_vmstat(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
+
+@@ -249,6 +250,7 @@ static inline void __dec_zone_page_state
+
+ static inline void refresh_zone_stat_thresholds(void) { }
+ static inline void cpu_vm_stats_fold(int cpu) { }
++static inline void quiet_vmstat(void) { }
+
+ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+Index: linux/kernel/sched/idle.c
+===================================================================
+--- linux.orig/kernel/sched/idle.c
++++ linux/kernel/sched/idle.c
+@@ -219,6 +219,7 @@ static void cpu_idle_loop(void)
+ 		 */
+
+ 		__current_set_polling();
++		quiet_vmstat();
+ 		tick_nohz_idle_enter();
+
+ 		while (!need_resched()) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
