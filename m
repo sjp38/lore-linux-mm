@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 569C46B026D
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:21 -0500 (EST)
-Received: by pfbg73 with SMTP id g73so40678511pfb.1
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:21 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id gy7si16767387pac.227.2015.12.09.18.38.19
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EBD96B0272
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2015 21:38:30 -0500 (EST)
+Received: by pfu207 with SMTP id 207so39800098pfu.2
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2015 18:38:30 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id q19si16780259pfq.8.2015.12.09.18.38.29
         for <linux-mm@kvack.org>;
-        Wed, 09 Dec 2015 18:38:19 -0800 (PST)
-Subject: [-mm PATCH v2 08/25] kvm: rename pfn_t to kvm_pfn_t
+        Wed, 09 Dec 2015 18:38:29 -0800 (PST)
+Subject: [-mm PATCH v2 09/25] mm, dax, pmem: introduce pfn_t
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 09 Dec 2015 18:37:52 -0800
-Message-ID: <20151210023752.30368.60240.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 09 Dec 2015 18:37:57 -0800
+Message-ID: <20151210023757.30368.20786.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,917 +20,331 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Paolo Bonzini <pbonzini@redhat.com>, linux-nvdimm@lists.01.org, Christoffer Dall <christoffer.dall@linaro.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave@sr71.net>, Christoph Hellwig <hch@lst.de>, linux-nvdimm@lists.01.org
 
-The core has developed a need for a "pfn_t" type [1].  Move the existing
-pfn_t in KVM to kvm_pfn_t [2].
+For the purpose of communicating the optional presence of a 'struct
+page' for the pfn returned from ->direct_access(), introduce a type that
+encapsulates a page-frame-number plus flags.  These flags contain the
+historical "page_link" encoding for a scatterlist entry, but can also
+denote "device memory".  Where "device memory" is a set of pfns that are
+not part of the kernel's linear mapping by default, but are accessed via
+the same memory controller as ram.
 
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-September/002199.html
-[2]: https://lists.01.org/pipermail/linux-nvdimm/2015-September/002218.html
+The motivation for this new type is large capacity persistent memory
+that needs struct page entries in the 'memmap' to support 3rd party DMA
+(i.e. O_DIRECT I/O with a persistent memory source/target).  However, we
+also need it in support of maintaining a list of mapped inodes which
+need to be unmapped at driver teardown or freeze_bdev() time.
 
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Acked-by: Christoffer Dall <christoffer.dall@linaro.org>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/arm/include/asm/kvm_mmu.h        |    5 ++--
- arch/arm/kvm/mmu.c                    |   10 ++++---
- arch/arm64/include/asm/kvm_mmu.h      |    3 +-
- arch/mips/include/asm/kvm_host.h      |    6 ++--
- arch/mips/kvm/emulate.c               |    2 +
- arch/mips/kvm/tlb.c                   |   14 +++++-----
- arch/powerpc/include/asm/kvm_book3s.h |    4 +--
- arch/powerpc/include/asm/kvm_ppc.h    |    2 +
- arch/powerpc/kvm/book3s.c             |    6 ++--
- arch/powerpc/kvm/book3s_32_mmu_host.c |    2 +
- arch/powerpc/kvm/book3s_64_mmu_host.c |    2 +
- arch/powerpc/kvm/e500.h               |    2 +
- arch/powerpc/kvm/e500_mmu_host.c      |    8 +++---
- arch/powerpc/kvm/trace_pr.h           |    2 +
- arch/x86/kvm/iommu.c                  |   11 ++++----
- arch/x86/kvm/mmu.c                    |   37 +++++++++++++-------------
- arch/x86/kvm/mmu_audit.c              |    2 +
- arch/x86/kvm/paging_tmpl.h            |    6 ++--
- arch/x86/kvm/vmx.c                    |    2 +
- arch/x86/kvm/x86.c                    |    2 +
- include/linux/kvm_host.h              |   37 +++++++++++++-------------
- include/linux/kvm_types.h             |    2 +
- virt/kvm/kvm_main.c                   |   47 +++++++++++++++++----------------
- 23 files changed, 110 insertions(+), 104 deletions(-)
+ arch/powerpc/sysdev/axonram.c |    8 ++---
+ drivers/block/brd.c           |    4 +-
+ drivers/nvdimm/pmem.c         |   12 +++++--
+ drivers/s390/block/dcssblk.c  |   10 ++----
+ fs/dax.c                      |   10 ++++--
+ include/linux/blkdev.h        |    4 +-
+ include/linux/mm.h            |   66 +++++++++++++++++++++++++++++++++++++++++
+ include/linux/pfn.h           |    9 ++++++
+ 8 files changed, 100 insertions(+), 23 deletions(-)
 
-diff --git a/arch/arm/include/asm/kvm_mmu.h b/arch/arm/include/asm/kvm_mmu.h
-index 405aa1883307..8ebd282dfc2b 100644
---- a/arch/arm/include/asm/kvm_mmu.h
-+++ b/arch/arm/include/asm/kvm_mmu.h
-@@ -182,7 +182,8 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
- 	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index c713b349d967..801e22fa0b02 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -142,15 +142,13 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
+  */
+ static long
+ axon_ram_direct_access(struct block_device *device, sector_t sector,
+-		       void __pmem **kaddr, unsigned long *pfn)
++		       void __pmem **kaddr, pfn_t *pfn)
+ {
+ 	struct axon_ram_bank *bank = device->bd_disk->private_data;
+ 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+-	void *addr = (void *)(bank->ph_addr + offset);
+-
+-	*kaddr = (void __pmem *)addr;
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+ 
++	*kaddr = (void __pmem __force *) bank->io_addr + offset;
++	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
+ 	return bank->size - offset;
  }
  
--static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
-+static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
-+					       kvm_pfn_t pfn,
- 					       unsigned long size,
- 					       bool ipa_uncached)
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index a5880f4ab40e..13e5c2fe9f7c 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -378,7 +378,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
+ 
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, pfn_t *pfn)
  {
-@@ -246,7 +247,7 @@ static inline void __kvm_flush_dcache_pte(pte_t pte)
- static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
- {
- 	unsigned long size = PMD_SIZE;
--	pfn_t pfn = pmd_pfn(pmd);
-+	kvm_pfn_t pfn = pmd_pfn(pmd);
- 
- 	while (size) {
- 		void *va = kmap_atomic_pfn(pfn);
-diff --git a/arch/arm/kvm/mmu.c b/arch/arm/kvm/mmu.c
-index 61d96a645ff3..178c4b00673c 100644
---- a/arch/arm/kvm/mmu.c
-+++ b/arch/arm/kvm/mmu.c
-@@ -992,9 +992,9 @@ out:
- 	return ret;
- }
- 
--static bool transparent_hugepage_adjust(pfn_t *pfnp, phys_addr_t *ipap)
-+static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
- {
--	pfn_t pfn = *pfnp;
-+	kvm_pfn_t pfn = *pfnp;
- 	gfn_t gfn = *ipap >> PAGE_SHIFT;
- 
- 	if (PageTransCompound(pfn_to_page(pfn))) {
-@@ -1201,7 +1201,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
- 	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
- }
- 
--static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
-+static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
- 				      unsigned long size, bool uncached)
- {
- 	__coherent_cache_guest_page(vcpu, pfn, size, uncached);
-@@ -1218,7 +1218,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
- 	struct kvm *kvm = vcpu->kvm;
- 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
- 	struct vm_area_struct *vma;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	pgprot_t mem_type = PAGE_S2;
- 	bool fault_ipa_uncached;
- 	bool logging_active = memslot_is_logging(memslot);
-@@ -1346,7 +1346,7 @@ static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
- {
- 	pmd_t *pmd;
- 	pte_t *pte;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	bool pfn_valid = false;
- 
- 	trace_kvm_access_fault(fault_ipa);
-diff --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
-index 61505676d085..385fc8cef82d 100644
---- a/arch/arm64/include/asm/kvm_mmu.h
-+++ b/arch/arm64/include/asm/kvm_mmu.h
-@@ -230,7 +230,8 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
- 	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
- }
- 
--static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
-+static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
-+					       kvm_pfn_t pfn,
- 					       unsigned long size,
- 					       bool ipa_uncached)
- {
-diff --git a/arch/mips/include/asm/kvm_host.h b/arch/mips/include/asm/kvm_host.h
-index 6ded8d347af9..7c191443c7ea 100644
---- a/arch/mips/include/asm/kvm_host.h
-+++ b/arch/mips/include/asm/kvm_host.h
-@@ -101,9 +101,9 @@
- #define CAUSEF_DC			(_ULCAST_(1) << 27)
- 
- extern atomic_t kvm_mips_instance;
--extern pfn_t(*kvm_mips_gfn_to_pfn) (struct kvm *kvm, gfn_t gfn);
--extern void (*kvm_mips_release_pfn_clean) (pfn_t pfn);
--extern bool(*kvm_mips_is_error_pfn) (pfn_t pfn);
-+extern kvm_pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
-+extern void (*kvm_mips_release_pfn_clean)(kvm_pfn_t pfn);
-+extern bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
- 
- struct kvm_vm_stat {
- 	u32 remote_tlb_flush;
-diff --git a/arch/mips/kvm/emulate.c b/arch/mips/kvm/emulate.c
-index 41b1b090f56f..1b675c7ce89f 100644
---- a/arch/mips/kvm/emulate.c
-+++ b/arch/mips/kvm/emulate.c
-@@ -1525,7 +1525,7 @@ int kvm_mips_sync_icache(unsigned long va, struct kvm_vcpu *vcpu)
- 	struct kvm *kvm = vcpu->kvm;
- 	unsigned long pa;
- 	gfn_t gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	gfn = va >> PAGE_SHIFT;
- 
-diff --git a/arch/mips/kvm/tlb.c b/arch/mips/kvm/tlb.c
-index aed0ac2a4972..570479c03bdc 100644
---- a/arch/mips/kvm/tlb.c
-+++ b/arch/mips/kvm/tlb.c
-@@ -38,13 +38,13 @@ atomic_t kvm_mips_instance;
- EXPORT_SYMBOL(kvm_mips_instance);
- 
- /* These function pointers are initialized once the KVM module is loaded */
--pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
-+kvm_pfn_t (*kvm_mips_gfn_to_pfn)(struct kvm *kvm, gfn_t gfn);
- EXPORT_SYMBOL(kvm_mips_gfn_to_pfn);
- 
--void (*kvm_mips_release_pfn_clean)(pfn_t pfn);
-+void (*kvm_mips_release_pfn_clean)(kvm_pfn_t pfn);
- EXPORT_SYMBOL(kvm_mips_release_pfn_clean);
- 
--bool (*kvm_mips_is_error_pfn)(pfn_t pfn);
-+bool (*kvm_mips_is_error_pfn)(kvm_pfn_t pfn);
- EXPORT_SYMBOL(kvm_mips_is_error_pfn);
- 
- uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
-@@ -144,7 +144,7 @@ EXPORT_SYMBOL(kvm_mips_dump_guest_tlbs);
- static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
- {
- 	int srcu_idx, err = 0;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	if (kvm->arch.guest_pmap[gfn] != KVM_INVALID_PAGE)
- 		return 0;
-@@ -262,7 +262,7 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
- 				    struct kvm_vcpu *vcpu)
- {
- 	gfn_t gfn;
--	pfn_t pfn0, pfn1;
-+	kvm_pfn_t pfn0, pfn1;
- 	unsigned long vaddr = 0;
- 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
- 	int even;
-@@ -313,7 +313,7 @@ EXPORT_SYMBOL(kvm_mips_handle_kseg0_tlb_fault);
- int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
- 	struct kvm_vcpu *vcpu)
- {
--	pfn_t pfn0, pfn1;
-+	kvm_pfn_t pfn0, pfn1;
- 	unsigned long flags, old_entryhi = 0, vaddr = 0;
- 	unsigned long entrylo0 = 0, entrylo1 = 0;
- 
-@@ -360,7 +360,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
- {
- 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
- 	struct kvm *kvm = vcpu->kvm;
--	pfn_t pfn0, pfn1;
-+	kvm_pfn_t pfn0, pfn1;
- 
- 	if ((tlb->tlb_hi & VPN2_MASK) == 0) {
- 		pfn0 = 0;
-diff --git a/arch/powerpc/include/asm/kvm_book3s.h b/arch/powerpc/include/asm/kvm_book3s.h
-index 9fac01cb89c1..8f39796c9da8 100644
---- a/arch/powerpc/include/asm/kvm_book3s.h
-+++ b/arch/powerpc/include/asm/kvm_book3s.h
-@@ -154,8 +154,8 @@ extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
- 			   bool upper, u32 val);
- extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
- extern int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu);
--extern pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
--			bool *writable);
-+extern kvm_pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa,
-+			bool writing, bool *writable);
- extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
- 			unsigned long *rmap, long pte_index, int realmode);
- extern void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize);
-diff --git a/arch/powerpc/include/asm/kvm_ppc.h b/arch/powerpc/include/asm/kvm_ppc.h
-index c6ef05bd0765..2241d5357129 100644
---- a/arch/powerpc/include/asm/kvm_ppc.h
-+++ b/arch/powerpc/include/asm/kvm_ppc.h
-@@ -515,7 +515,7 @@ void kvmppc_claim_lpid(long lpid);
- void kvmppc_free_lpid(long lpid);
- void kvmppc_init_lpid(unsigned long nr_lpids);
- 
--static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
-+static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
- {
+ 	struct brd_device *brd = bdev->bd_disk->private_data;
  	struct page *page;
- 	/*
-diff --git a/arch/powerpc/kvm/book3s.c b/arch/powerpc/kvm/book3s.c
-index 099c79d8c160..638c6d9be9e0 100644
---- a/arch/powerpc/kvm/book3s.c
-+++ b/arch/powerpc/kvm/book3s.c
-@@ -366,7 +366,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+@@ -389,7 +389,7 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 	if (!page)
+ 		return -ENOSPC;
+ 	*kaddr = (void __pmem *)page_address(page);
+-	*pfn = page_to_pfn(page);
++	*pfn = page_to_pfn_t(page);
+ 
+ 	return PAGE_SIZE;
  }
- EXPORT_SYMBOL_GPL(kvmppc_core_prepare_to_enter);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 8ee79893d2f5..157951043b34 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -39,6 +39,7 @@ struct pmem_device {
+ 	phys_addr_t		phys_addr;
+ 	/* when non-zero this device is hosting a 'pfn' instance */
+ 	phys_addr_t		data_offset;
++	unsigned long		pfn_flags;
+ 	void __pmem		*virt_addr;
+ 	size_t			size;
+ };
+@@ -101,13 +102,13 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
+ }
  
--pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
-+kvm_pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
- 			bool *writable)
+ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
+-		      void __pmem **kaddr, unsigned long *pfn)
++		      void __pmem **kaddr, pfn_t *pfn)
  {
- 	ulong mp_pa = vcpu->arch.magic_page_pa & KVM_PAM;
-@@ -379,9 +379,9 @@ pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
- 	gpa &= ~0xFFFULL;
- 	if (unlikely(mp_pa) && unlikely((gpa & KVM_PAM) == mp_pa)) {
- 		ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
--		pfn_t pfn;
-+		kvm_pfn_t pfn;
+ 	struct pmem_device *pmem = bdev->bd_disk->private_data;
+ 	resource_size_t offset = sector * 512 + pmem->data_offset;
  
--		pfn = (pfn_t)virt_to_phys((void*)shared_page) >> PAGE_SHIFT;
-+		pfn = (kvm_pfn_t)virt_to_phys((void*)shared_page) >> PAGE_SHIFT;
- 		get_page(pfn_to_page(pfn));
- 		if (writable)
- 			*writable = true;
-diff --git a/arch/powerpc/kvm/book3s_32_mmu_host.c b/arch/powerpc/kvm/book3s_32_mmu_host.c
-index d5c9bfeb0c9c..55c4d51ea3e2 100644
---- a/arch/powerpc/kvm/book3s_32_mmu_host.c
-+++ b/arch/powerpc/kvm/book3s_32_mmu_host.c
-@@ -142,7 +142,7 @@ extern char etext[];
- int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
- 			bool iswrite)
- {
--	pfn_t hpaddr;
-+	kvm_pfn_t hpaddr;
- 	u64 vpn;
- 	u64 vsid;
- 	struct kvmppc_sid_map *map;
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_host.c b/arch/powerpc/kvm/book3s_64_mmu_host.c
-index 79ad35abd196..913cd2198fa6 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_host.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_host.c
-@@ -83,7 +83,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
- 			bool iswrite)
- {
- 	unsigned long vpn;
--	pfn_t hpaddr;
-+	kvm_pfn_t hpaddr;
- 	ulong hash, hpteg;
- 	u64 vsid;
- 	int ret;
-diff --git a/arch/powerpc/kvm/e500.h b/arch/powerpc/kvm/e500.h
-index 72920bed3ac6..94f04fcb373e 100644
---- a/arch/powerpc/kvm/e500.h
-+++ b/arch/powerpc/kvm/e500.h
-@@ -41,7 +41,7 @@ enum vcpu_ftr {
- #define E500_TLB_MAS2_ATTR	(0x7f)
+ 	*kaddr = pmem->virt_addr + offset;
+-	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
++	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
  
- struct tlbe_ref {
--	pfn_t pfn;		/* valid only for TLB0, except briefly */
-+	kvm_pfn_t pfn;		/* valid only for TLB0, except briefly */
- 	unsigned int flags;	/* E500_TLB_* */
+ 	return pmem->size - offset;
+ }
+@@ -140,9 +141,11 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		return ERR_PTR(-EBUSY);
+ 	}
+ 
+-	if (pmem_should_map_pages(dev))
++	pmem->pfn_flags = PFN_DEV;
++	if (pmem_should_map_pages(dev)) {
+ 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res);
+-	else
++		pmem->pfn_flags |= PFN_MAP;
++	} else
+ 		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+ 				pmem->phys_addr, pmem->size,
+ 				ARCH_MEMREMAP_PMEM);
+@@ -353,6 +356,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+ 	pmem = dev_get_drvdata(dev);
+ 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+ 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res);
++	pmem->pfn_flags |= PFN_MAP;
+ 	if (IS_ERR(pmem->virt_addr)) {
+ 		rc = PTR_ERR(pmem->virt_addr);
+ 		goto err;
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 94a8f4ab57bc..b50c5cb5601f 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -30,7 +30,7 @@ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+ static blk_qc_t dcssblk_make_request(struct request_queue *q,
+ 						struct bio *bio);
+ static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+-			 void __pmem **kaddr, unsigned long *pfn);
++			 void __pmem **kaddr, pfn_t *pfn);
+ 
+ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
+ 
+@@ -883,20 +883,18 @@ fail:
+ 
+ static long
+ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, pfn_t *pfn)
+ {
+ 	struct dcssblk_dev_info *dev_info;
+ 	unsigned long offset, dev_sz;
+-	void *addr;
+ 
+ 	dev_info = bdev->bd_disk->private_data;
+ 	if (!dev_info)
+ 		return -ENODEV;
+ 	dev_sz = dev_info->end - dev_info->start;
+ 	offset = secnum * 512;
+-	addr = (void *) (dev_info->start + offset);
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+-	*kaddr = (void __pmem *) addr;
++	*kaddr = (void __pmem *) (dev_info->start + offset);
++	*pfn = phys_to_pfn_t(dev_info->start + offset, PFN_DEV);
+ 
+ 	return dev_sz - offset;
+ }
+diff --git a/fs/dax.c b/fs/dax.c
+index fdd455030bf0..9aadf121a274 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -362,7 +362,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 	}
+ 	dax_unmap_atomic(bdev, &dax);
+ 
+-	error = vm_insert_mixed(vma, vaddr, dax.pfn);
++	error = vm_insert_mixed(vma, vaddr, pfn_t_to_pfn(dax.pfn));
+ 
+  out:
+ 	i_mmap_unlock_read(mapping);
+@@ -667,7 +667,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			result = VM_FAULT_SIGBUS;
+ 			goto out;
+ 		}
+-		if ((length < PMD_SIZE) || (dax.pfn & PG_PMD_COLOUR)) {
++		if (length < PMD_SIZE
++				|| (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)) {
+ 			dax_unmap_atomic(bdev, &dax);
+ 			goto fallback;
+ 		}
+@@ -676,7 +677,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		 * TODO: teach vmf_insert_pfn_pmd() to support
+ 		 * 'pte_special' for pmds
+ 		 */
+-		if (pfn_valid(dax.pfn)) {
++		if (pfn_t_has_page(dax.pfn)) {
+ 			dax_unmap_atomic(bdev, &dax);
+ 			goto fallback;
+ 		}
+@@ -690,7 +691,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		}
+ 		dax_unmap_atomic(bdev, &dax);
+ 
+-		result |= vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
++		result |= vmf_insert_pfn_pmd(vma, address, pmd,
++				pfn_t_to_pfn(dax.pfn), write);
+ 	}
+ 
+  out:
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index d52eabc76a12..d82513675de3 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1627,7 +1627,7 @@ struct blk_dax_ctl {
+ 	sector_t sector;
+ 	void __pmem *addr;
+ 	long size;
+-	unsigned long pfn;
++	pfn_t pfn;
  };
  
-diff --git a/arch/powerpc/kvm/e500_mmu_host.c b/arch/powerpc/kvm/e500_mmu_host.c
-index 34c43fff4adb..b0333cc737dd 100644
---- a/arch/powerpc/kvm/e500_mmu_host.c
-+++ b/arch/powerpc/kvm/e500_mmu_host.c
-@@ -163,9 +163,9 @@ void kvmppc_map_magic(struct kvm_vcpu *vcpu)
- 	struct kvm_book3e_206_tlb_entry magic;
- 	ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
- 	unsigned int stid;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
+ struct block_device_operations {
+@@ -1637,7 +1637,7 @@ struct block_device_operations {
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	long (*direct_access)(struct block_device *, sector_t, void __pmem **,
+-			unsigned long *pfn);
++			pfn_t *);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+ 				      unsigned int clearing);
+ 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a1e87a3e88c0..dd05e24f904d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -884,6 +884,72 @@ static inline void set_page_memcg(struct page *page, struct mem_cgroup *memcg)
+ #endif
  
--	pfn = (pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
-+	pfn = (kvm_pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
- 	get_page(pfn_to_page(pfn));
- 
- 	preempt_disable();
-@@ -246,7 +246,7 @@ static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
- 
- static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
- 					 struct kvm_book3e_206_tlb_entry *gtlbe,
--					 pfn_t pfn, unsigned int wimg)
-+					 kvm_pfn_t pfn, unsigned int wimg)
- {
- 	ref->pfn = pfn;
- 	ref->flags = E500_TLB_VALID;
-@@ -309,7 +309,7 @@ static void kvmppc_e500_setup_stlbe(
- 	int tsize, struct tlbe_ref *ref, u64 gvaddr,
- 	struct kvm_book3e_206_tlb_entry *stlbe)
- {
--	pfn_t pfn = ref->pfn;
-+	kvm_pfn_t pfn = ref->pfn;
- 	u32 pr = vcpu->arch.shared->msr & MSR_PR;
- 
- 	BUG_ON(!(ref->flags & E500_TLB_VALID));
-diff --git a/arch/powerpc/kvm/trace_pr.h b/arch/powerpc/kvm/trace_pr.h
-index 810507cb688a..d44f324184fb 100644
---- a/arch/powerpc/kvm/trace_pr.h
-+++ b/arch/powerpc/kvm/trace_pr.h
-@@ -30,7 +30,7 @@ TRACE_EVENT(kvm_book3s_reenter,
- #ifdef CONFIG_PPC_BOOK3S_64
- 
- TRACE_EVENT(kvm_book3s_64_mmu_map,
--	TP_PROTO(int rflags, ulong hpteg, ulong va, pfn_t hpaddr,
-+	TP_PROTO(int rflags, ulong hpteg, ulong va, kvm_pfn_t hpaddr,
- 		 struct kvmppc_pte *orig_pte),
- 	TP_ARGS(rflags, hpteg, va, hpaddr, orig_pte),
- 
-diff --git a/arch/x86/kvm/iommu.c b/arch/x86/kvm/iommu.c
-index 5c520ebf6343..a22a488b4622 100644
---- a/arch/x86/kvm/iommu.c
-+++ b/arch/x86/kvm/iommu.c
-@@ -43,11 +43,11 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm);
- static void kvm_iommu_put_pages(struct kvm *kvm,
- 				gfn_t base_gfn, unsigned long npages);
- 
--static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
-+static kvm_pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
- 			   unsigned long npages)
- {
- 	gfn_t end_gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	pfn     = gfn_to_pfn_memslot(slot, gfn);
- 	end_gfn = gfn + npages;
-@@ -62,7 +62,8 @@ static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
- 	return pfn;
- }
- 
--static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
-+static void kvm_unpin_pages(struct kvm *kvm, kvm_pfn_t pfn,
-+		unsigned long npages)
- {
- 	unsigned long i;
- 
-@@ -73,7 +74,7 @@ static void kvm_unpin_pages(struct kvm *kvm, pfn_t pfn, unsigned long npages)
- int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
- {
- 	gfn_t gfn, end_gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	int r = 0;
- 	struct iommu_domain *domain = kvm->arch.iommu_domain;
- 	int flags;
-@@ -275,7 +276,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
- {
- 	struct iommu_domain *domain;
- 	gfn_t end_gfn, gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	u64 phys;
- 
- 	domain  = kvm->arch.iommu_domain;
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index a1a3d1907fdc..c79b790644c7 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -259,7 +259,7 @@ static unsigned get_mmio_spte_access(u64 spte)
- }
- 
- static bool set_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
--			  pfn_t pfn, unsigned access)
-+			  kvm_pfn_t pfn, unsigned access)
- {
- 	if (unlikely(is_noslot_pfn(pfn))) {
- 		mark_mmio_spte(vcpu, sptep, gfn, access);
-@@ -320,7 +320,7 @@ static int is_last_spte(u64 pte, int level)
- 	return 0;
- }
- 
--static pfn_t spte_to_pfn(u64 pte)
-+static kvm_pfn_t spte_to_pfn(u64 pte)
- {
- 	return (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
- }
-@@ -582,7 +582,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
+ /*
++ * PFN_FLAGS_MASK - mask of all the possible valid pfn_t flags
++ * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
++ * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
++ * PFN_DEV - pfn is not covered by system memmap by default
++ * PFN_MAP - pfn has a dynamic page mapping established by a device driver
++ */
++#define PFN_FLAGS_MASK (((unsigned long) ~PAGE_MASK) \
++		<< (BITS_PER_LONG - PAGE_SHIFT))
++#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
++#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
++#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
++#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
++
++static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
++{
++	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
++
++	return pfn_t;
++}
++
++/* a default pfn to pfn_t conversion assumes that @pfn is pfn_valid() */
++static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
++{
++	return __pfn_to_pfn_t(pfn, 0);
++}
++
++static inline pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
++{
++	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
++}
++
++static inline bool pfn_t_has_page(pfn_t pfn)
++{
++	return (pfn.val & PFN_MAP) == PFN_MAP || (pfn.val & PFN_DEV) == 0;
++}
++
++static inline unsigned long pfn_t_to_pfn(pfn_t pfn)
++{
++	return pfn.val & ~PFN_FLAGS_MASK;
++}
++
++static inline struct page *pfn_t_to_page(pfn_t pfn)
++{
++	if (pfn_t_has_page(pfn))
++		return pfn_to_page(pfn_t_to_pfn(pfn));
++	return NULL;
++}
++
++static inline dma_addr_t pfn_t_to_phys(pfn_t pfn)
++{
++	return PFN_PHYS(pfn_t_to_pfn(pfn));
++}
++
++static inline void *pfn_t_to_virt(pfn_t pfn)
++{
++	if (pfn_t_has_page(pfn))
++		return __va(pfn_t_to_phys(pfn));
++	return NULL;
++}
++
++static inline pfn_t page_to_pfn_t(struct page *page)
++{
++	return pfn_to_pfn_t(page_to_pfn(page));
++}
++
++/*
+  * Some inline functions in vmstat.h depend on page_zone()
   */
- static int mmu_spte_clear_track_bits(u64 *sptep)
- {
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	u64 old_spte = *sptep;
+ #include <linux/vmstat.h>
+diff --git a/include/linux/pfn.h b/include/linux/pfn.h
+index 97f3e88aead4..2d8e49711b63 100644
+--- a/include/linux/pfn.h
++++ b/include/linux/pfn.h
+@@ -3,6 +3,15 @@
  
- 	if (!spte_has_volatile_bits(old_spte))
-@@ -1372,7 +1372,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
- 	int need_flush = 0;
- 	u64 new_spte;
- 	pte_t *ptep = (pte_t *)data;
--	pfn_t new_pfn;
-+	kvm_pfn_t new_pfn;
+ #ifndef __ASSEMBLY__
+ #include <linux/types.h>
++
++/*
++ * pfn_t: encapsulates a page-frame number that is optionally backed
++ * by memmap (struct page).  Whether a pfn_t has a 'struct page'
++ * backing is indicated by flags in the high bits of the value.
++ */
++typedef struct {
++	unsigned long val;
++} pfn_t;
+ #endif
  
- 	WARN_ON(pte_huge(*ptep));
- 	new_pfn = pte_pfn(*ptep);
-@@ -2458,7 +2458,7 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
- 	return 0;
- }
- 
--static bool kvm_is_mmio_pfn(pfn_t pfn)
-+static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
- {
- 	if (pfn_valid(pfn))
- 		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn));
-@@ -2468,7 +2468,7 @@ static bool kvm_is_mmio_pfn(pfn_t pfn)
- 
- static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
- 		    unsigned pte_access, int level,
--		    gfn_t gfn, pfn_t pfn, bool speculative,
-+		    gfn_t gfn, kvm_pfn_t pfn, bool speculative,
- 		    bool can_unsync, bool host_writable)
- {
- 	u64 spte;
-@@ -2547,7 +2547,7 @@ done:
- }
- 
- static bool mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
--			 int write_fault, int level, gfn_t gfn, pfn_t pfn,
-+			 int write_fault, int level, gfn_t gfn, kvm_pfn_t pfn,
- 			 bool speculative, bool host_writable)
- {
- 	int was_rmapped = 0;
-@@ -2610,7 +2610,7 @@ static bool mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
- 	return emulate;
- }
- 
--static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
-+static kvm_pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
- 				     bool no_dirty_log)
- {
- 	struct kvm_memory_slot *slot;
-@@ -2692,7 +2692,7 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
- }
- 
- static int __direct_map(struct kvm_vcpu *vcpu, int write, int map_writable,
--			int level, gfn_t gfn, pfn_t pfn, bool prefault)
-+			int level, gfn_t gfn, kvm_pfn_t pfn, bool prefault)
- {
- 	struct kvm_shadow_walk_iterator iterator;
- 	struct kvm_mmu_page *sp;
-@@ -2740,7 +2740,7 @@ static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *
- 	send_sig_info(SIGBUS, &info, tsk);
- }
- 
--static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, pfn_t pfn)
-+static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, kvm_pfn_t pfn)
- {
- 	/*
- 	 * Do not cache the mmio info caused by writing the readonly gfn
-@@ -2760,9 +2760,10 @@ static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, pfn_t pfn)
- }
- 
- static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
--					gfn_t *gfnp, pfn_t *pfnp, int *levelp)
-+					gfn_t *gfnp, kvm_pfn_t *pfnp,
-+					int *levelp)
- {
--	pfn_t pfn = *pfnp;
-+	kvm_pfn_t pfn = *pfnp;
- 	gfn_t gfn = *gfnp;
- 	int level = *levelp;
- 
-@@ -2801,7 +2802,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
- }
- 
- static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
--				pfn_t pfn, unsigned access, int *ret_val)
-+				kvm_pfn_t pfn, unsigned access, int *ret_val)
- {
- 	bool ret = true;
- 
-@@ -2955,7 +2956,7 @@ exit:
- }
- 
- static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
--			 gva_t gva, pfn_t *pfn, bool write, bool *writable);
-+			 gva_t gva, kvm_pfn_t *pfn, bool write, bool *writable);
- static void make_mmu_pages_available(struct kvm_vcpu *vcpu);
- 
- static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
-@@ -2964,7 +2965,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
- 	int r;
- 	int level;
- 	bool force_pt_level = false;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	unsigned long mmu_seq;
- 	bool map_writable, write = error_code & PFERR_WRITE_MASK;
- 
-@@ -3418,7 +3419,7 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
- }
- 
- static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
--			 gva_t gva, pfn_t *pfn, bool write, bool *writable)
-+			 gva_t gva, kvm_pfn_t *pfn, bool write, bool *writable)
- {
- 	struct kvm_memory_slot *slot;
- 	bool async;
-@@ -3456,7 +3457,7 @@ check_hugepage_cache_consistency(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
- static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
- 			  bool prefault)
- {
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	int r;
- 	int level;
- 	bool force_pt_level;
-@@ -4607,7 +4608,7 @@ static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
- 	u64 *sptep;
- 	struct rmap_iterator iter;
- 	int need_tlb_flush = 0;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	struct kvm_mmu_page *sp;
- 
- restart:
-diff --git a/arch/x86/kvm/mmu_audit.c b/arch/x86/kvm/mmu_audit.c
-index 1cee3ec20dd2..dcce533d420c 100644
---- a/arch/x86/kvm/mmu_audit.c
-+++ b/arch/x86/kvm/mmu_audit.c
-@@ -97,7 +97,7 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
- {
- 	struct kvm_mmu_page *sp;
- 	gfn_t gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	hpa_t hpa;
- 
- 	sp = page_header(__pa(sptep));
-diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-index 91e939b486d1..6c9fed957cce 100644
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -456,7 +456,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
- {
- 	unsigned pte_access;
- 	gfn_t gfn;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
- 		return false;
-@@ -551,7 +551,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
- static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
- 			 struct guest_walker *gw,
- 			 int write_fault, int hlevel,
--			 pfn_t pfn, bool map_writable, bool prefault)
-+			 kvm_pfn_t pfn, bool map_writable, bool prefault)
- {
- 	struct kvm_mmu_page *sp = NULL;
- 	struct kvm_shadow_walk_iterator it;
-@@ -694,7 +694,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
- 	int user_fault = error_code & PFERR_USER_MASK;
- 	struct guest_walker walker;
- 	int r;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 	int level = PT_PAGE_TABLE_LEVEL;
- 	bool force_pt_level = false;
- 	unsigned long mmu_seq;
-diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index 1a8bfaab89c7..98d59459f626 100644
---- a/arch/x86/kvm/vmx.c
-+++ b/arch/x86/kvm/vmx.c
-@@ -4185,7 +4185,7 @@ out:
- static int init_rmode_identity_map(struct kvm *kvm)
- {
- 	int i, idx, r = 0;
--	pfn_t identity_map_pfn;
-+	kvm_pfn_t identity_map_pfn;
- 	u32 tmp;
- 
- 	if (!enable_ept)
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index f1d6501180ec..b0b51751d7b1 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -5129,7 +5129,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
- 				  int emulation_type)
- {
- 	gpa_t gpa = cr2;
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	if (emulation_type & EMULTYPE_NO_REEXECUTE)
- 		return false;
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 590c46e672df..08df2fa794ca 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -66,7 +66,7 @@
-  * error pfns indicate that the gfn is in slot but faild to
-  * translate it to pfn on host.
-  */
--static inline bool is_error_pfn(pfn_t pfn)
-+static inline bool is_error_pfn(kvm_pfn_t pfn)
- {
- 	return !!(pfn & KVM_PFN_ERR_MASK);
- }
-@@ -76,13 +76,13 @@ static inline bool is_error_pfn(pfn_t pfn)
-  * translated to pfn - it is not in slot or failed to
-  * translate it to pfn.
-  */
--static inline bool is_error_noslot_pfn(pfn_t pfn)
-+static inline bool is_error_noslot_pfn(kvm_pfn_t pfn)
- {
- 	return !!(pfn & KVM_PFN_ERR_NOSLOT_MASK);
- }
- 
- /* noslot pfn indicates that the gfn is not in slot. */
--static inline bool is_noslot_pfn(pfn_t pfn)
-+static inline bool is_noslot_pfn(kvm_pfn_t pfn)
- {
- 	return pfn == KVM_PFN_NOSLOT;
- }
-@@ -614,19 +614,20 @@ void kvm_release_page_clean(struct page *page);
- void kvm_release_page_dirty(struct page *page);
- void kvm_set_page_accessed(struct page *page);
- 
--pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn);
--pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
--pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
-+kvm_pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn);
-+kvm_pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
-+kvm_pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
- 		      bool *writable);
--pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn);
--pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn);
--pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
--			   bool *async, bool write_fault, bool *writable);
-+kvm_pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn);
-+kvm_pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn);
-+kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
-+			       bool atomic, bool *async, bool write_fault,
-+			       bool *writable);
- 
--void kvm_release_pfn_clean(pfn_t pfn);
--void kvm_set_pfn_dirty(pfn_t pfn);
--void kvm_set_pfn_accessed(pfn_t pfn);
--void kvm_get_pfn(pfn_t pfn);
-+void kvm_release_pfn_clean(kvm_pfn_t pfn);
-+void kvm_set_pfn_dirty(kvm_pfn_t pfn);
-+void kvm_set_pfn_accessed(kvm_pfn_t pfn);
-+void kvm_get_pfn(kvm_pfn_t pfn);
- 
- int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
- 			int len);
-@@ -652,8 +653,8 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
- 
- struct kvm_memslots *kvm_vcpu_memslots(struct kvm_vcpu *vcpu);
- struct kvm_memory_slot *kvm_vcpu_gfn_to_memslot(struct kvm_vcpu *vcpu, gfn_t gfn);
--pfn_t kvm_vcpu_gfn_to_pfn_atomic(struct kvm_vcpu *vcpu, gfn_t gfn);
--pfn_t kvm_vcpu_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
-+kvm_pfn_t kvm_vcpu_gfn_to_pfn_atomic(struct kvm_vcpu *vcpu, gfn_t gfn);
-+kvm_pfn_t kvm_vcpu_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
- struct page *kvm_vcpu_gfn_to_page(struct kvm_vcpu *vcpu, gfn_t gfn);
- unsigned long kvm_vcpu_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn);
- unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *writable);
-@@ -836,7 +837,7 @@ void kvm_arch_sync_events(struct kvm *kvm);
- int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
- void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
- 
--bool kvm_is_reserved_pfn(pfn_t pfn);
-+bool kvm_is_reserved_pfn(kvm_pfn_t pfn);
- 
- struct kvm_irq_ack_notifier {
- 	struct hlist_node link;
-@@ -990,7 +991,7 @@ static inline gfn_t gpa_to_gfn(gpa_t gpa)
- 	return (gfn_t)(gpa >> PAGE_SHIFT);
- }
- 
--static inline hpa_t pfn_to_hpa(pfn_t pfn)
-+static inline hpa_t pfn_to_hpa(kvm_pfn_t pfn)
- {
- 	return (hpa_t)pfn << PAGE_SHIFT;
- }
-diff --git a/include/linux/kvm_types.h b/include/linux/kvm_types.h
-index 1b47a185c2f0..8bf259dae9f6 100644
---- a/include/linux/kvm_types.h
-+++ b/include/linux/kvm_types.h
-@@ -53,7 +53,7 @@ typedef unsigned long  hva_t;
- typedef u64            hpa_t;
- typedef u64            hfn_t;
- 
--typedef hfn_t pfn_t;
-+typedef hfn_t kvm_pfn_t;
- 
- struct gfn_to_hva_cache {
- 	u64 generation;
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index be3cef12706c..fa2e296df24f 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -111,7 +111,7 @@ static void hardware_disable_all(void);
- 
- static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
- 
--static void kvm_release_pfn_dirty(pfn_t pfn);
-+static void kvm_release_pfn_dirty(kvm_pfn_t pfn);
- static void mark_page_dirty_in_slot(struct kvm_memory_slot *memslot, gfn_t gfn);
- 
- __visible bool kvm_rebooting;
-@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(kvm_rebooting);
- 
- static bool largepages_enabled = true;
- 
--bool kvm_is_reserved_pfn(pfn_t pfn)
-+bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
- {
- 	if (pfn_valid(pfn))
- 		return PageReserved(pfn_to_page(pfn));
-@@ -1299,7 +1299,7 @@ static inline int check_user_page_hwpoison(unsigned long addr)
-  * true indicates success, otherwise false is returned.
-  */
- static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
--			    bool write_fault, bool *writable, pfn_t *pfn)
-+			    bool write_fault, bool *writable, kvm_pfn_t *pfn)
- {
- 	struct page *page[1];
- 	int npages;
-@@ -1332,7 +1332,7 @@ static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
-  * 1 indicates success, -errno is returned if error is detected.
-  */
- static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
--			   bool *writable, pfn_t *pfn)
-+			   bool *writable, kvm_pfn_t *pfn)
- {
- 	struct page *page[1];
- 	int npages = 0;
-@@ -1396,11 +1396,11 @@ static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
-  * 2): @write_fault = false && @writable, @writable will tell the caller
-  *     whether the mapping is writable.
-  */
--static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
-+static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
- 			bool write_fault, bool *writable)
- {
- 	struct vm_area_struct *vma;
--	pfn_t pfn = 0;
-+	kvm_pfn_t pfn = 0;
- 	int npages;
- 
- 	/* we can do it either atomically or asynchronously, not both */
-@@ -1441,8 +1441,9 @@ exit:
- 	return pfn;
- }
- 
--pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
--			   bool *async, bool write_fault, bool *writable)
-+kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
-+			       bool atomic, bool *async, bool write_fault,
-+			       bool *writable)
- {
- 	unsigned long addr = __gfn_to_hva_many(slot, gfn, NULL, write_fault);
- 
-@@ -1463,7 +1464,7 @@ pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
- }
- EXPORT_SYMBOL_GPL(__gfn_to_pfn_memslot);
- 
--pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
-+kvm_pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
- 		      bool *writable)
- {
- 	return __gfn_to_pfn_memslot(gfn_to_memslot(kvm, gfn), gfn, false, NULL,
-@@ -1471,37 +1472,37 @@ pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
- }
- EXPORT_SYMBOL_GPL(gfn_to_pfn_prot);
- 
--pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
-+kvm_pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
- {
- 	return __gfn_to_pfn_memslot(slot, gfn, false, NULL, true, NULL);
- }
- EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot);
- 
--pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
-+kvm_pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
- {
- 	return __gfn_to_pfn_memslot(slot, gfn, true, NULL, true, NULL);
- }
- EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot_atomic);
- 
--pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
-+kvm_pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
- {
- 	return gfn_to_pfn_memslot_atomic(gfn_to_memslot(kvm, gfn), gfn);
- }
- EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
- 
--pfn_t kvm_vcpu_gfn_to_pfn_atomic(struct kvm_vcpu *vcpu, gfn_t gfn)
-+kvm_pfn_t kvm_vcpu_gfn_to_pfn_atomic(struct kvm_vcpu *vcpu, gfn_t gfn)
- {
- 	return gfn_to_pfn_memslot_atomic(kvm_vcpu_gfn_to_memslot(vcpu, gfn), gfn);
- }
- EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_pfn_atomic);
- 
--pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
-+kvm_pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
- {
- 	return gfn_to_pfn_memslot(gfn_to_memslot(kvm, gfn), gfn);
- }
- EXPORT_SYMBOL_GPL(gfn_to_pfn);
- 
--pfn_t kvm_vcpu_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
-+kvm_pfn_t kvm_vcpu_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
- {
- 	return gfn_to_pfn_memslot(kvm_vcpu_gfn_to_memslot(vcpu, gfn), gfn);
- }
-@@ -1524,7 +1525,7 @@ int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
- }
- EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
- 
--static struct page *kvm_pfn_to_page(pfn_t pfn)
-+static struct page *kvm_pfn_to_page(kvm_pfn_t pfn)
- {
- 	if (is_error_noslot_pfn(pfn))
- 		return KVM_ERR_PTR_BAD_PAGE;
-@@ -1539,7 +1540,7 @@ static struct page *kvm_pfn_to_page(pfn_t pfn)
- 
- struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
- {
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	pfn = gfn_to_pfn(kvm, gfn);
- 
-@@ -1549,7 +1550,7 @@ EXPORT_SYMBOL_GPL(gfn_to_page);
- 
- struct page *kvm_vcpu_gfn_to_page(struct kvm_vcpu *vcpu, gfn_t gfn)
- {
--	pfn_t pfn;
-+	kvm_pfn_t pfn;
- 
- 	pfn = kvm_vcpu_gfn_to_pfn(vcpu, gfn);
- 
-@@ -1565,7 +1566,7 @@ void kvm_release_page_clean(struct page *page)
- }
- EXPORT_SYMBOL_GPL(kvm_release_page_clean);
- 
--void kvm_release_pfn_clean(pfn_t pfn)
-+void kvm_release_pfn_clean(kvm_pfn_t pfn)
- {
- 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn))
- 		put_page(pfn_to_page(pfn));
-@@ -1580,13 +1581,13 @@ void kvm_release_page_dirty(struct page *page)
- }
- EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
- 
--static void kvm_release_pfn_dirty(pfn_t pfn)
-+static void kvm_release_pfn_dirty(kvm_pfn_t pfn)
- {
- 	kvm_set_pfn_dirty(pfn);
- 	kvm_release_pfn_clean(pfn);
- }
- 
--void kvm_set_pfn_dirty(pfn_t pfn)
-+void kvm_set_pfn_dirty(kvm_pfn_t pfn)
- {
- 	if (!kvm_is_reserved_pfn(pfn)) {
- 		struct page *page = pfn_to_page(pfn);
-@@ -1597,14 +1598,14 @@ void kvm_set_pfn_dirty(pfn_t pfn)
- }
- EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
- 
--void kvm_set_pfn_accessed(pfn_t pfn)
-+void kvm_set_pfn_accessed(kvm_pfn_t pfn)
- {
- 	if (!kvm_is_reserved_pfn(pfn))
- 		mark_page_accessed(pfn_to_page(pfn));
- }
- EXPORT_SYMBOL_GPL(kvm_set_pfn_accessed);
- 
--void kvm_get_pfn(pfn_t pfn)
-+void kvm_get_pfn(kvm_pfn_t pfn)
- {
- 	if (!kvm_is_reserved_pfn(pfn))
- 		get_page(pfn_to_page(pfn));
+ #define PFN_ALIGN(x)	(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
