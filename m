@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B106B0259
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:39:50 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so46957072pfn.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:39:50 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A7C6B025A
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 06:39:53 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so46392301pac.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 03:39:53 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id 85si19875403pfl.178.2015.12.10.03.39.48
+        by mx.google.com with ESMTPS id 70si19855013pfn.58.2015.12.10.03.39.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 03:39:48 -0800 (PST)
+        Thu, 10 Dec 2015 03:39:52 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 5/7] mm: vmscan: do not scan anon pages if memcg swap limit is hit
-Date: Thu, 10 Dec 2015 14:39:18 +0300
-Message-ID: <04c56c92f57c90a1f626546fcfade747fbfa9ec5.1449742561.git.vdavydov@virtuozzo.com>
+Subject: [PATCH 6/7] mm: free swap cache aggressively if memcg swap is full
+Date: Thu, 10 Dec 2015 14:39:19 +0300
+Message-ID: <2c7ac3a5c2a2fb9b1c5136d8409652ed7ecc260f.1449742561.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1449742560.git.vdavydov@virtuozzo.com>
 References: <cover.1449742560.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,78 +22,119 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We don't scan anonymous memory if we ran out of swap, neither should we
-do it in case memcg swap limit is hit, because swap out is impossible
-anyway.
+Swap cache pages are freed aggressively if swap is nearly full (>50%
+currently), because otherwise we are likely to stop scanning anonymous
+when we near the swap limit even if there is plenty of freeable swap
+cache pages. We should follow the same trend in case of memory cgroup,
+which has its own swap limit.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 ---
  include/linux/swap.h |  6 ++++++
- mm/memcontrol.c      | 13 +++++++++++++
+ mm/memcontrol.c      | 23 +++++++++++++++++++++++
+ mm/memory.c          |  3 ++-
+ mm/swapfile.c        |  2 +-
  mm/vmscan.c          |  2 +-
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ 5 files changed, 33 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 66ea62cf256d..e3344d8ca2e9 100644
+index e3344d8ca2e9..1d708860be97 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -551,6 +551,7 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
- extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+@@ -552,6 +552,7 @@ extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
  extern int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry);
  extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
-+extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
+ extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
++extern bool mem_cgroup_swap_full(struct page *page);
  #else
  static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
  {
-@@ -564,6 +565,11 @@ static inline int mem_cgroup_charge_swap(struct page *page, swp_entry_t entry)
- static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
+@@ -570,6 +571,11 @@ static inline long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
  {
+ 	return get_nr_swap_pages();
  }
 +
-+static inline long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
++static inline bool mem_cgroup_swap_full(struct page *page)
 +{
-+	return get_nr_swap_pages();
++	return vm_swap_full();
 +}
  #endif
  
  #endif /* __KERNEL__*/
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9d10e2819ec4..2ee823d62f80 100644
+index 2ee823d62f80..e5bd43340cd8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5826,6 +5826,19 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
- 	rcu_read_unlock();
+@@ -5839,6 +5839,29 @@ long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
+ 	return nr_swap_pages;
  }
  
-+long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
++bool mem_cgroup_swap_full(struct page *page)
 +{
-+	long nr_swap_pages = get_nr_swap_pages();
++	struct mem_cgroup *memcg;
 +
-+	if (!do_swap_account)
-+		return nr_swap_pages;
-+	for (; memcg != root_mem_cgroup; memcg = parent_mem_cgroup(memcg))
-+		nr_swap_pages = min_t(long, nr_swap_pages,
-+				      READ_ONCE(memcg->swap.limit) -
-+				      page_counter_read(&memcg->swap));
-+	return nr_swap_pages;
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++
++	if (vm_swap_full())
++		return true;
++	if (!do_swap_account || !PageSwapCache(page))
++		return false;
++
++	memcg = page->mem_cgroup;
++	if (!memcg)
++		return false;
++
++	for (; memcg != root_mem_cgroup; memcg = parent_mem_cgroup(memcg)) {
++		if (page_counter_read(&memcg->swap) * 2 >=
++				READ_ONCE(memcg->swap.limit))
++			return true;
++	}
++	return false;
 +}
 +
  /* for remember boot option*/
  #ifdef CONFIG_MEMCG_SWAP_ENABLED
  static int really_do_swap_account __initdata = 1;
+diff --git a/mm/memory.c b/mm/memory.c
+index 3b115dcaa26e..2bd6a78c142b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2563,7 +2563,8 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	}
+ 
+ 	swap_free(entry);
+-	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
++	if (mem_cgroup_swap_full(page) ||
++	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+ 		try_to_free_swap(page);
+ 	unlock_page(page);
+ 	if (page != swapcache) {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 7073faecb38f..c0aba04f7a59 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1011,7 +1011,7 @@ int free_swap_and_cache(swp_entry_t entry)
+ 		 * Also recheck PageSwapCache now page is locked (above).
+ 		 */
+ 		if (PageSwapCache(page) && !PageWriteback(page) &&
+-				(!page_mapped(page) || vm_swap_full())) {
++		    (!page_mapped(page) || mem_cgroup_swap_full(page))) {
+ 			delete_from_swap_cache(page);
+ 			SetPageDirty(page);
+ 		}
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b220e6cda25d..ab52d865d922 100644
+index ab52d865d922..1cd88e9b0383 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1995,7 +1995,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		force_scan = true;
+@@ -1206,7 +1206,7 @@ cull_mlocked:
  
- 	/* If we have no swap space, do not bother scanning anon pages. */
--	if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
-+	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
+ activate_locked:
+ 		/* Not a candidate for swapping, so reclaim swap space. */
+-		if (PageSwapCache(page) && vm_swap_full())
++		if (PageSwapCache(page) && mem_cgroup_swap_full(page))
+ 			try_to_free_swap(page);
+ 		VM_BUG_ON_PAGE(PageActive(page), page);
+ 		SetPageActive(page);
 -- 
 2.1.4
 
