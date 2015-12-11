@@ -1,88 +1,60 @@
-From: Geliang Tang <geliangtang@163.com>
-Subject: [PATCH] mm/readahead.c, mm/vmscan.c: use lru_to_page instead of list_to_page
-Date: Tue,  8 Dec 2015 22:40:01 +0800
-Message-ID: <35cab720b3e69d47f03c9ce36d680db336bb5683.1449585319.git.geliangtang@163.com>
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-List-Id: linux-mm.kvack.org
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH 0/5] x86: KVM vdso and clock improvements
+Date: Thu, 10 Dec 2015 19:20:17 -0800
+Message-ID: <cover.1449702533.git.luto__5364.12004516951$1449804044$gmane$org@kernel.org>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1a7EFy-00026S-LW
+	for glkm-linux-mm-2@m.gmane.org; Fri, 11 Dec 2015 04:20:30 +0100
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C6EA96B0038
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:20:28 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so57743519pac.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:20:28 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id b8si280578pas.185.2015.12.10.19.20.27
+        for <linux-mm@kvack.org>;
+        Thu, 10 Dec 2015 19:20:27 -0800 (PST)
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
 
-list_to_page() in readahead.c is the same as lru_to_page() in vmscan.c.
-So I move lru_to_page to internal.h and drop list_to_page().
+NB: patch 1 doesn't really belong here, but it makes this a lot
+easier for me to test.  Patch 1, if it's okay at all, should go
+though the kvm tree.  The rest should probably go through
+tip:x86/vdso once they're reviewed.
 
-Signed-off-by: Geliang Tang <geliangtang@163.com>
----
- mm/internal.h  | 2 ++
- mm/readahead.c | 8 +++-----
- mm/vmscan.c    | 2 --
- 3 files changed, 5 insertions(+), 7 deletions(-)
+I'll do a followup to enable vdso pvclock on 32-bit guests.
+I'm not currently set up to test it.  (The KVM people could also
+do it very easily on top of these patches.)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 4ae7b7c..d01a41c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -80,6 +80,8 @@ extern int isolate_lru_page(struct page *page);
- extern void putback_lru_page(struct page *page);
- extern bool zone_reclaimable(struct zone *zone);
- 
-+#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-+
- /*
-  * in mm/rmap.c:
-  */
-diff --git a/mm/readahead.c b/mm/readahead.c
-index ba22d7f..0aff760 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -32,8 +32,6 @@ file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
- }
- EXPORT_SYMBOL_GPL(file_ra_state_init);
- 
--#define list_to_page(head) (list_entry((head)->prev, struct page, lru))
--
- /*
-  * see if a page needs releasing upon read_cache_pages() failure
-  * - the caller of read_cache_pages() may have set PG_private or PG_fscache
-@@ -64,7 +62,7 @@ static void read_cache_pages_invalidate_pages(struct address_space *mapping,
- 	struct page *victim;
- 
- 	while (!list_empty(pages)) {
--		victim = list_to_page(pages);
-+		victim = lru_to_page(pages);
- 		list_del(&victim->lru);
- 		read_cache_pages_invalidate_page(mapping, victim);
- 	}
-@@ -87,7 +85,7 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
- 	int ret = 0;
- 
- 	while (!list_empty(pages)) {
--		page = list_to_page(pages);
-+		page = lru_to_page(pages);
- 		list_del(&page->lru);
- 		if (add_to_page_cache_lru(page, mapping, page->index,
- 				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
-@@ -125,7 +123,7 @@ static int read_pages(struct address_space *mapping, struct file *filp,
- 	}
- 
- 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
--		struct page *page = list_to_page(pages);
-+		struct page *page = lru_to_page(pages);
- 		list_del(&page->lru);
- 		if (!add_to_page_cache_lru(page, mapping, page->index,
- 				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c2f6944..f284401 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -106,8 +106,6 @@ struct scan_control {
- 	unsigned long nr_reclaimed;
- };
- 
--#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
--
- #ifdef ARCH_HAS_PREFETCH
- #define prefetch_prev_lru_page(_page, _base, _field)			\
- 	do {								\
+Andy Lutomirski (5):
+  x86/kvm: On KVM re-enable (e.g. after suspend), update clocks
+  x86, vdso, pvclock: Simplify and speed up the vdso pvclock reader
+  x86/vdso: Get pvclock data from the vvar VMA instead of the fixmap
+  x86/vdso: Remove pvclock fixmap machinery
+  x86/vdso: Enable vdso pvclock access on all vdso variants
+
+ arch/x86/entry/vdso/vclock_gettime.c  | 151 ++++++++++++++++------------------
+ arch/x86/entry/vdso/vdso-layout.lds.S |   3 +-
+ arch/x86/entry/vdso/vdso2c.c          |   3 +
+ arch/x86/entry/vdso/vma.c             |  14 ++++
+ arch/x86/include/asm/fixmap.h         |   5 --
+ arch/x86/include/asm/pvclock.h        |  14 ++--
+ arch/x86/include/asm/vdso.h           |   1 +
+ arch/x86/kernel/kvmclock.c            |  11 ++-
+ arch/x86/kernel/pvclock.c             |  24 ------
+ arch/x86/kvm/x86.c                    |  75 +----------------
+ 10 files changed, 110 insertions(+), 191 deletions(-)
+
 -- 
 2.5.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
