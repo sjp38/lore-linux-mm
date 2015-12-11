@@ -1,119 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CDAE96B0038
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 04:42:07 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id n186so20805802wmn.1
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 01:42:07 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id y187si4066206wme.46.2015.12.11.01.42.06
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BC6926B0254
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 04:44:43 -0500 (EST)
+Received: by oihr132 with SMTP id r132so565867oih.1
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 01:44:43 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id v81si16875086oia.92.2015.12.11.01.44.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Dec 2015 01:42:06 -0800 (PST)
-Received: by wmnn186 with SMTP id n186so23223502wmn.0
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 01:42:05 -0800 (PST)
-Date: Fri, 11 Dec 2015 10:42:04 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: m(un)map kmalloc buffers to userspace
-Message-ID: <20151211094204.GC32318@dhcp22.suse.cz>
-References: <20151209135544.GE30907@dhcp22.suse.cz>
- <566835B6.9010605@sigmadesigns.com>
- <20151209143207.GF30907@dhcp22.suse.cz>
- <56684062.9090505@sigmadesigns.com>
- <20151209151254.GH30907@dhcp22.suse.cz>
- <56684A59.7030605@sigmadesigns.com>
- <20151210114005.GF19496@dhcp22.suse.cz>
- <56698022.1070305@sigmadesigns.com>
- <20151210140631.GO19496@dhcp22.suse.cz>
- <5669ACDF.4030900@sigmadesigns.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Dec 2015 01:44:43 -0800 (PST)
+Message-ID: <566A9AE1.7020001@huawei.com>
+Date: Fri, 11 Dec 2015 17:44:01 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5669ACDF.4030900@sigmadesigns.com>
+Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
+References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com> <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com> <56679FDC.1080800@huawei.com> <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com> <5668D1FA.4050108@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01> <56691819.3040105@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
+In-Reply-To: <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Frias <sebastian_frias@sigmadesigns.com>
-Cc: Marc Gonzalez <marc_gonzalez@sigmadesigns.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen,
+ Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-On Thu 10-12-15 17:48:31, Sebastian Frias wrote:
-> On 12/10/2015 03:06 PM, Michal Hocko wrote:
-> >On Thu 10-12-15 14:37:38, Sebastian Frias wrote:
-> >>On 12/10/2015 12:40 PM, Michal Hocko wrote:
-> >>>On Wed 09-12-15 16:35:53, Sebastian Frias wrote:
-> >>>[...]
-> >>>>We've seen that drivers/media/pci/zoran/zoran_driver.c for example seems to
-> >>>>be doing as us kmalloc+remap_pfn_range,
-> >>>
-> >>>This driver is broken - I will post a patch.
-> >>
-> >>Ok, we'll be glad to see a good example, please keep us posted.
-> >>
-> >>>
-> >>>>is there any guarantee (or at least an advised heuristic) to determine
-> >>>>if a driver is "current" (ie: uses the latest APIs and works)?
-> >>>
-> >>>OK, it seems I was overly optimistic when directing you to existing
-> >>>drivers. Sorry about that I wasn't aware you could find such a terrible
-> >>>code there. Please refer to Linux Device Drivers book which should give
-> >>>you a much better lead (e.g. http://www.makelinux.net/ldd3/chp-15-sect-2)
-> >>>
-> >>
-> >>Thank you for the link.
-> >>The current code of our driver was has portions written following LDD3,
-> >>however, we it seems that LDD3 advice is not relevant anymore.
-> >>Indeed, it talks about VM_RESERVED, it talks about using "nopage" and it
-> >>says that remap_pfn_range cannot be used for pages from get_user_page (or
-> >>kmalloc).
-> >
-> >Heh, it seems that we are indeed outdated there as well. The memory
-> >management code doesn't really require pages to be reserved and it
-> >allows to use get_user_page(s) memory to be mapped to user ptes.
-> >remap_pfn_range will set all the appropriate flags to make sure MM code
-> >will not stumble over those pages and let's the driver to take care of
-> >the memory deallocation.
+On 2015/12/11 13:53, Izumi, Taku wrote:
+
+> Dear Xishi,
 > 
-> Ok, just for information, do you know since when it is possible to use
-> remap_pfn_range on kmalloc/get_user_page memory?
-
-No from top of my head. But at least since 6aab341e0a28a (2.6.15)
-remap_pfn_page sets PM_PFN which make vm_normal_page ignore those pages
-in MM code.
-
-> >>It seems such assertions are valid on older kernels, because the code stops
-> >>working on 3.4+ if we use remap_pfn_range the same way than
-> >>drivers/media/pci/zoran/zoran_driver.c
-> >>However, kmalloc+remap_pfn_range does work on 4.1.13+
-> >
-> >As I've said nothing will guarantee that the kmalloc returned address
-> >will be page aligned so you might corrupt slab internal data structures.
-> >You might allocate a larger buffer via kmalloc and make sure it is
-> >aligned properly but I fail to see why should be kmalloc used in the
-> >first place as you need a memory in page size unnits anyway.
-> >
+>> Hi Taku,
+>>
+>> Whether it is possible that we rewrite the fallback function in buddy system
+>> when zone_movable and mirrored_kernelcore are both enabled?
 > 
-> Ok, so let's say we stop using kmalloc in favor of __get_user_pages, do you
-> see other things that would need to be done to be compliant with current
-> practices?
-
-I think this should just work.
-
-> For instance, drivers/media/pci/zoran/zoran_driver.c is doing:
+>   What does "when zone_movable and mirrored_kernelcore are both enabled?" mean ?
+>   
+>   My patchset just provides a new way to create ZONE_MOVABLE.
 > 
->    for (off = 0; off < fh->buffers.buffer_size; off += PAGE_SIZE)
->       SetPageReserved(virt_to_page(mem + off));
+
+Hi Taku,
+
+I mean when zone_movable is from kernelcore=mirror, not kernelcore=nn[KMG].
+
+Thanks,
+Xishi Qiu
+
+>   Sincerely,
+>   Taku Izumi
+>>
+>> It seems something like that we add a new zone but the name is zone_movable,
+>> not zone_mirror. And the prerequisite is that we won't enable these two
+>> features(movable memory and mirrored memory) at the same time. Thus we can
+>> reuse the code of movable zone.
+>>
 > 
-> on the memory allocated with kmalloc, but we are not doing any of that, yet
-> it was working. Would the switch to __get_user_pages require the calls to
-> SetPageReserved?
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> .
+> 
 
-I do not see much point of setting pages reserved. MM should ignore them
-based on the vma flags AFAICS via vm_normal_page. Quick check of
-PageReserved usage in the mm code shows that we use it very rarely. It
-would be really a bug when mm would touch such a page even without
-PageReserved. So this seems like a historical heritage.
 
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
