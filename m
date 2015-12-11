@@ -1,206 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C6FBD6B0258
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:32:32 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so70065819pab.0
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 11:32:32 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 82si2919150pft.132.2015.12.11.11.32.31
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E07AD6B0259
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:32:33 -0500 (EST)
+Received: by pfd5 with SMTP id 5so8967861pfd.2
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 11:32:33 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id r79si2948968pfi.230.2015.12.11.11.32.33
         for <linux-mm@kvack.org>;
-        Fri, 11 Dec 2015 11:32:31 -0800 (PST)
-Message-Id: <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+        Fri, 11 Dec 2015 11:32:33 -0800 (PST)
+Message-Id: <e8029c58c7d4b5094ec274c78dee01d390317d4d.1449861203.git.tony.luck@intel.com>
 In-Reply-To: <cover.1449861203.git.tony.luck@intel.com>
 References: <cover.1449861203.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Date: Thu, 10 Dec 2015 13:58:04 -0800
-Subject: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check fixup tables
+Date: Thu, 10 Dec 2015 16:14:44 -0800
+Subject: [PATCHV2 2/3] x86, ras: Extend machine check recovery code to annotated ring0 areas
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-Copy the existing page fault fixup mechanisms to create a new table
-to be used when fixing machine checks. Note:
-1) At this time we only provide a macro to annotate assembly code
-2) We assume all fixups will in code builtin to the kernel.
-3) Only for x86_64
-4) New code under CONFIG_MCE_KERNEL_RECOVERY
+Extend the severity checking code to add a new context IN_KERN_RECOV
+which is used to indicate that the machine check was triggered by code
+in the kernel with a fixup entry.
+
+Add code to check for this situation and respond by altering the return
+IP to the fixup address and changing the regs->ax so that the recovery
+code knows the physical address of the error. Note that we also set bit
+63 because 0x0 is a legal physical address.
+
+Major re-work to the tail code in do_machine_check() to make all this
+readable/maintainable. One functional change is that tolerant=3 no longer
+stops recovery actions. Revert to only skipping sending SIGBUS to the
+current process.
 
 Signed-off-by: Tony Luck <tony.luck@intel.com>
 ---
- arch/x86/Kconfig                  |  4 ++++
- arch/x86/include/asm/asm.h        | 10 ++++++++--
- arch/x86/include/asm/uaccess.h    |  8 ++++++++
- arch/x86/mm/extable.c             | 19 +++++++++++++++++++
- include/asm-generic/vmlinux.lds.h |  6 ++++++
- include/linux/module.h            |  1 +
- kernel/extable.c                  | 20 ++++++++++++++++++++
- 7 files changed, 66 insertions(+), 2 deletions(-)
+ arch/x86/kernel/cpu/mcheck/mce-severity.c | 22 +++++++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          | 69 ++++++++++++++++---------------
+ 2 files changed, 55 insertions(+), 36 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 96d058a87100..db5c6e1d6e37 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1001,6 +1001,10 @@ config X86_MCE_INJECT
- 	  If you don't know what a machine check is and you don't do kernel
- 	  QA it is safe to say n.
+diff --git a/arch/x86/kernel/cpu/mcheck/mce-severity.c b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+index 9c682c222071..ac7fbb0689fb 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce-severity.c
++++ b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+@@ -12,6 +12,7 @@
+ #include <linux/kernel.h>
+ #include <linux/seq_file.h>
+ #include <linux/init.h>
++#include <linux/module.h>
+ #include <linux/debugfs.h>
+ #include <asm/mce.h>
  
-+config MCE_KERNEL_RECOVERY
-+	depends on X86_MCE && X86_64
-+	def_bool y
+@@ -29,7 +30,7 @@
+  * panic situations)
+  */
+ 
+-enum context { IN_KERNEL = 1, IN_USER = 2 };
++enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
+ enum ser { SER_REQUIRED = 1, NO_SER = 2 };
+ enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
+ 
+@@ -48,6 +49,7 @@ static struct severity {
+ #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+ #define  KERNEL		.context = IN_KERNEL
+ #define  USER		.context = IN_USER
++#define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
+ #define  SER		.ser = SER_REQUIRED
+ #define  NOSER		.ser = NO_SER
+ #define  EXCP		.excp = EXCP_CONTEXT
+@@ -87,6 +89,10 @@ static struct severity {
+ 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+ 		),
+ 	MCESEV(
++		PANIC, "In kernel and no restart IP",
++		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
++		),
++	MCESEV(
+ 		DEFERRED, "Deferred error",
+ 		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
+ 		),
+@@ -123,6 +129,11 @@ static struct severity {
+ 		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, MCG_STATUS_RIPV)
+ 		),
+ 	MCESEV(
++		AR, "Action required: data load error recoverable area of kernel",
++		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
++		KERNEL_RECOV
++		),
++	MCESEV(
+ 		AR, "Action required: data load error in a user process",
+ 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
+ 		USER
+@@ -170,6 +181,9 @@ static struct severity {
+ 		)	/* always matches. keep at end */
+ };
+ 
++#define mc_recoverable(mcg) (((mcg) & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) == \
++				(MCG_STATUS_RIPV|MCG_STATUS_EIPV))
 +
- config X86_THERMAL_VECTOR
- 	def_bool y
- 	depends on X86_MCE_INTEL
-diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-index 189679aba703..a5d483ac11fa 100644
---- a/arch/x86/include/asm/asm.h
-+++ b/arch/x86/include/asm/asm.h
-@@ -44,13 +44,19 @@
- 
- /* Exception table entry */
- #ifdef __ASSEMBLY__
--# define _ASM_EXTABLE(from,to)					\
--	.pushsection "__ex_table","a" ;				\
-+# define __ASM_EXTABLE(from, to, table)				\
-+	.pushsection table, "a" ;				\
- 	.balign 8 ;						\
- 	.long (from) - . ;					\
- 	.long (to) - . ;					\
- 	.popsection
- 
-+# define _ASM_EXTABLE(from, to)					\
-+	__ASM_EXTABLE(from, to, "__ex_table")
-+
-+# define _ASM_MCEXTABLE(from, to)				\
-+	__ASM_EXTABLE(from, to, "__mcex_table")
-+
- # define _ASM_EXTABLE_EX(from,to)				\
- 	.pushsection "__ex_table","a" ;				\
- 	.balign 8 ;						\
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index a8df874f3e88..7b02ca1991b4 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -111,6 +111,14 @@ struct exception_table_entry {
- #define ARCH_HAS_SEARCH_EXTABLE
- 
- extern int fixup_exception(struct pt_regs *regs);
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+extern int fixup_mcexception(struct pt_regs *regs, u64 addr);
-+#else
-+static inline int fixup_mcexception(struct pt_regs *regs, u64 addr)
-+{
-+	return 0;
-+}
-+#endif
- extern int early_fixup_exception(unsigned long *ip);
+ /*
+  * If mcgstatus indicated that ip/cs on the stack were
+  * no good, then "m->cs" will be zero and we will have
+@@ -183,7 +197,11 @@ static struct severity {
+  */
+ static int error_context(struct mce *m)
+ {
+-	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
++	if ((m->cs & 3) == 3)
++		return IN_USER;
++	if (mc_recoverable(m->mcgstatus) && search_mcexception_tables(m->ip))
++		return IN_KERNEL_RECOV;
++	return IN_KERNEL;
+ }
  
  /*
-diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
-index 903ec1e9c326..a461c4212758 100644
---- a/arch/x86/mm/extable.c
-+++ b/arch/x86/mm/extable.c
-@@ -49,6 +49,25 @@ int fixup_exception(struct pt_regs *regs)
- 	return 0;
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index 9d014b82a124..f2f568ad6409 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -31,6 +31,7 @@
+ #include <linux/types.h>
+ #include <linux/slab.h>
+ #include <linux/init.h>
++#include <linux/module.h>
+ #include <linux/kmod.h>
+ #include <linux/poll.h>
+ #include <linux/nmi.h>
+@@ -958,6 +959,20 @@ static void mce_clear_state(unsigned long *toclear)
+ 	}
  }
  
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+int fixup_mcexception(struct pt_regs *regs, u64 addr)
++static int do_memory_failure(struct mce *m)
 +{
-+	const struct exception_table_entry *fixup;
-+	unsigned long new_ip;
++	int flags = MF_ACTION_REQUIRED;
++	int ret;
 +
-+	fixup = search_mcexception_tables(regs->ip);
-+	if (fixup) {
-+		new_ip = ex_fixup_addr(fixup);
-+
-+		regs->ip = new_ip;
-+		regs->ax = BIT(63) | addr;
-+		return 1;
-+	}
-+
-+	return 0;
++	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
++	if (!(m->mcgstatus & MCG_STATUS_RIPV))
++		flags |= MF_MUST_KILL;
++	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
++	if (ret)
++		pr_err("Memory error not recovered");
++	return ret;
 +}
-+#endif
 +
- /* Restricted version used during very early boot */
- int __init early_fixup_exception(unsigned long *ip)
- {
-diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
-index 1781e54ea6d3..21bb20d1172a 100644
---- a/include/asm-generic/vmlinux.lds.h
-+++ b/include/asm-generic/vmlinux.lds.h
-@@ -473,6 +473,12 @@
- 		VMLINUX_SYMBOL(__start___ex_table) = .;			\
- 		*(__ex_table)						\
- 		VMLINUX_SYMBOL(__stop___ex_table) = .;			\
-+	}								\
-+	. = ALIGN(align);						\
-+	__mcex_table : AT(ADDR(__mcex_table) - LOAD_OFFSET) {		\
-+		VMLINUX_SYMBOL(__start___mcex_table) = .;		\
-+		*(__mcex_table)						\
-+		VMLINUX_SYMBOL(__stop___mcex_table) = .;		\
- 	}
- 
  /*
-diff --git a/include/linux/module.h b/include/linux/module.h
-index 3a19c79918e0..ffecbfcc462c 100644
---- a/include/linux/module.h
-+++ b/include/linux/module.h
-@@ -270,6 +270,7 @@ extern const typeof(name) __mod_##type##__##name##_device_table		\
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+@@ -995,8 +1010,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+ 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
+ 	char *msg = "Unknown";
+-	u64 recover_paddr = ~0ull;
+-	int flags = MF_ACTION_REQUIRED;
+ 	int lmce = 0;
  
- /* Given an address, look for it in the exception tables */
- const struct exception_table_entry *search_exception_tables(unsigned long add);
-+const struct exception_table_entry *search_mcexception_tables(unsigned long a);
- 
- struct notifier_block;
- 
-diff --git a/kernel/extable.c b/kernel/extable.c
-index e820ccee9846..7b224fbcb708 100644
---- a/kernel/extable.c
-+++ b/kernel/extable.c
-@@ -34,6 +34,10 @@ DEFINE_MUTEX(text_mutex);
- 
- extern struct exception_table_entry __start___ex_table[];
- extern struct exception_table_entry __stop___ex_table[];
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+extern struct exception_table_entry __start___mcex_table[];
-+extern struct exception_table_entry __stop___mcex_table[];
-+#endif
- 
- /* Cleared by build time tools if the table is already sorted. */
- u32 __initdata __visible main_extable_sort_needed = 1;
-@@ -45,6 +49,10 @@ void __init sort_main_extable(void)
- 		pr_notice("Sorting __ex_table...\n");
- 		sort_extable(__start___ex_table, __stop___ex_table);
+ 	ist_enter(regs);
+@@ -1123,22 +1136,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
  	}
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+	if (__stop___mcex_table > __start___mcex_table)
-+		sort_extable(__start___mcex_table, __stop___mcex_table);
-+#endif
- }
  
- /* Given an address, look for it in the exception tables. */
-@@ -58,6 +66,18 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
- 	return e;
- }
+ 	/*
+-	 * At insane "tolerant" levels we take no action. Otherwise
+-	 * we only die if we have no other choice. For less serious
+-	 * issues we try to recover, or limit damage to the current
+-	 * process.
++	 * If tolerant is at an insane level we drop requests to kill
++	 * processes and continue even when there is no way out
+ 	 */
+-	if (cfg->tolerant < 3) {
+-		if (no_way_out)
+-			mce_panic("Fatal machine check on current CPU", &m, msg);
+-		if (worst == MCE_AR_SEVERITY) {
+-			recover_paddr = m.addr;
+-			if (!(m.mcgstatus & MCG_STATUS_RIPV))
+-				flags |= MF_MUST_KILL;
+-		} else if (kill_it) {
+-			force_sig(SIGBUS, current);
+-		}
+-	}
++	if (cfg->tolerant == 3)
++		kill_it = 0;
++	else if (no_way_out)
++		mce_panic("Fatal machine check on current CPU", &m, msg);
  
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+/* Given an address, look for it in the machine check exception tables. */
-+const struct exception_table_entry *search_mcexception_tables(
-+				    unsigned long addr)
-+{
-+	const struct exception_table_entry *e;
+ 	if (worst > 0)
+ 		mce_report_event(regs);
+@@ -1146,25 +1150,22 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ out:
+ 	sync_core();
+ 
+-	if (recover_paddr == ~0ull)
+-		goto done;
++	/* Fault was in user mode and we need to take some action */
++	if ((m.cs & 3) == 3 && (worst == MCE_AR_SEVERITY || kill_it)) {
++		ist_begin_non_atomic(regs);
++		local_irq_enable();
+ 
+-	pr_err("Uncorrected hardware memory error in user-access at %llx",
+-		 recover_paddr);
+-	/*
+-	 * We must call memory_failure() here even if the current process is
+-	 * doomed. We still need to mark the page as poisoned and alert any
+-	 * other users of the page.
+-	 */
+-	ist_begin_non_atomic(regs);
+-	local_irq_enable();
+-	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
+-		pr_err("Memory error not recovered");
+-		force_sig(SIGBUS, current);
++		if (kill_it || do_memory_failure(&m))
++			force_sig(SIGBUS, current);
++		local_irq_disable();
++		ist_end_non_atomic();
+ 	}
+-	local_irq_disable();
+-	ist_end_non_atomic();
+-done:
 +
-+	e = search_extable(__start___mcex_table, __stop___mcex_table-1, addr);
-+	return e;
-+}
-+#endif
++	/* Fault was in recoverable area of the kernel */
++	if ((m.cs & 3) != 3 && worst == MCE_AR_SEVERITY)
++		if (!fixup_mcexception(regs, m.addr))
++			mce_panic("Failed kernel mode recovery", &m, NULL);
 +
- static inline int init_kernel_text(unsigned long addr)
- {
- 	if (addr >= (unsigned long)_sinittext &&
+ 	ist_exit(regs);
+ }
+ EXPORT_SYMBOL_GPL(do_machine_check);
 -- 
 2.1.4
 
