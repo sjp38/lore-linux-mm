@@ -1,57 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 23D586B0038
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 00:53:31 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id ph11so31777892igc.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 21:53:31 -0800 (PST)
-Received: from mgwkm04.jp.fujitsu.com (mgwkm04.jp.fujitsu.com. [202.219.69.171])
-        by mx.google.com with ESMTPS id q11si328648ioi.188.2015.12.10.21.53.29
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4A26B0038
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 01:13:45 -0500 (EST)
+Received: by pfbg73 with SMTP id g73so62021768pfb.1
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:13:45 -0800 (PST)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id wp13si1305032pac.180.2015.12.10.22.13.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 21:53:30 -0800 (PST)
-Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id B6050AC0316
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:53:19 +0900 (JST)
-From: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
-Subject: RE: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-Date: Fri, 11 Dec 2015 05:53:17 +0000
-Message-ID: <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <56679FDC.1080800@huawei.com>
- <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
- <5668D1FA.4050108@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
- <56691819.3040105@huawei.com>
-In-Reply-To: <56691819.3040105@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
+        Thu, 10 Dec 2015 22:13:43 -0800 (PST)
+Received: by pfbu66 with SMTP id u66so17075225pfb.3
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:13:43 -0800 (PST)
+Date: Fri, 11 Dec 2015 15:14:47 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zsmalloc: reorganize struct size_class to pack 4 bytes
+ hole
+Message-ID: <20151211061447.GA6950@swordfish>
+References: <"000001d133d3$b75f09b0$261d1d10$@yang"@samsung.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <"000001d133d3$b75f09b0$261d1d10$@yang"@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen,
- Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Minchan Kim' <minchan@kernel.org>, sergey.senozhatsky.work@gmail.com, ngupta@vflare.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Dear Xishi,
+Cc linux-mm and linux-kernel
 
-> Hi Taku,
+On (12/11/15 13:20), Weijie Yang wrote:
 > 
-> Whether it is possible that we rewrite the fallback function in buddy system
-> when zone_movable and mirrored_kernelcore are both enabled?
-
-  What does "when zone_movable and mirrored_kernelcore are both enabled?" mean ?
-  
-  My patchset just provides a new way to create ZONE_MOVABLE.
-
-  Sincerely,
-  Taku Izumi
+> Reoder the pages_per_zspage field in struct size_class which can eliminate
+> the 4 bytes hole between it and stats field.
 > 
-> It seems something like that we add a new zone but the name is zone_movable,
-> not zone_mirror. And the prerequisite is that we won't enable these two
-> features(movable memory and mirrored memory) at the same time. Thus we can
-> reuse the code of movable zone.
+
+Looks good to me.
+
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> ---
+>  mm/zsmalloc.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
 > 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 9f15bdd..e7414ce 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -213,10 +213,10 @@ struct size_class {
+>  	int size;
+>  	unsigned int index;
+>  
+> -	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+> -	int pages_per_zspage;
+>  	struct zs_size_stat stats;
+>  
+> +	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+> +	int pages_per_zspage;
+>  	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+>  	bool huge;
+>  };
+
+
+we also can re-order `struct zs_pool' -- `gfp_t flags' and `bool shrinker_enabled'
+will be fine together.
+
+I can send a separate patch of we can fold the one below.
+I'm good either way.
+
+---
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 9f15bdd..2a3af25 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -246,19 +246,17 @@ struct zs_pool {
+ 
+ 	struct size_class **size_class;
+ 	struct kmem_cache *handle_cachep;
+-
+-	gfp_t flags;	/* allocation flags used when growing pool */
+-	atomic_long_t pages_allocated;
+-
+ 	struct zs_pool_stats stats;
+-
+-	/* Compact classes */
+-	struct shrinker shrinker;
++	atomic_long_t pages_allocated;
++	/* allocation flags used when growing pool */
++	gfp_t flags;
+ 	/*
+ 	 * To signify that register_shrinker() was successful
+ 	 * and unregister_shrinker() will not Oops.
+ 	 */
+ 	bool shrinker_enabled;
++	/* Compact classes */
++	struct shrinker shrinker;
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct dentry *stat_dentry;
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
