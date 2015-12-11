@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f47.google.com (mail-lf0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 917EF6B0255
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:25:36 -0500 (EST)
-Received: by lfed137 with SMTP id d137so34474495lfe.3
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 11:25:35 -0800 (PST)
+Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0576C6B0256
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:26:06 -0500 (EST)
+Received: by lfdl133 with SMTP id l133so84744622lfd.2
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 11:26:05 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id d12si11210215lfb.152.2015.12.11.11.25.34
+        by mx.google.com with ESMTPS id ja1si11207823lbc.181.2015.12.11.11.26.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Dec 2015 11:25:35 -0800 (PST)
-Date: Fri, 11 Dec 2015 14:25:22 -0500
+        Fri, 11 Dec 2015 11:26:04 -0800 (PST)
+Date: Fri, 11 Dec 2015 14:25:52 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/7] mm: memcontrol: replace mem_cgroup_lruvec_online
- with mem_cgroup_online
-Message-ID: <20151211192522.GB3773@cmpxchg.org>
+Subject: Re: [PATCH 4/7] swap.h: move memcg related stuff to the end of the
+ file
+Message-ID: <20151211192552.GC3773@cmpxchg.org>
 References: <cover.1449742560.git.vdavydov@virtuozzo.com>
- <a024e9b23584aa7bd3a74b7c7a69abd9f920812c.1449742561.git.vdavydov@virtuozzo.com>
+ <72ad884dba8e3a9b13935bc0f27b2e46681c53c0.1449742561.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a024e9b23584aa7bd3a74b7c7a69abd9f920812c.1449742561.git.vdavydov@virtuozzo.com>
+In-Reply-To: <72ad884dba8e3a9b13935bc0f27b2e46681c53c0.1449742561.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 10, 2015 at 02:39:16PM +0300, Vladimir Davydov wrote:
-> mem_cgroup_lruvec_online() takes lruvec, but it only needs memcg. Since
-> get_scan_count(), which is the only user of this function, now possesses
-> pointer to memcg, let's pass memcg directly to mem_cgroup_online()
-> instead of picking it out of lruvec and rename the function accordingly.
+On Thu, Dec 10, 2015 at 02:39:17PM +0300, Vladimir Davydov wrote:
+> The following patches will add more functions to the memcg section of
+> include/linux/swap.h. Some of them will need values defined below the
+> current location of the section. So let's move the section to the end of
+> the file. No functional changes intended.
 > 
 > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
