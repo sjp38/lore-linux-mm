@@ -1,67 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 85BC46B0038
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 02:39:51 -0500 (EST)
-Received: by pfcc203 with SMTP id c203so15146pfc.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 23:39:51 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id xc6si1798739pab.244.2015.12.10.23.39.50
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0E36B0038
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 03:42:37 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id c201so66375889wme.0
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 00:42:37 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id la9si24318638wjc.64.2015.12.11.00.42.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Dec 2015 23:39:50 -0800 (PST)
-Date: Fri, 11 Dec 2015 10:39:37 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
-Message-ID: <20151211073937.GB5171@esperanza>
-References: <cover.1449742560.git.vdavydov@virtuozzo.com>
- <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
- <566A3999.5060509@jp.fujitsu.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 11 Dec 2015 00:42:36 -0800 (PST)
+Date: Fri, 11 Dec 2015 09:42:33 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 0/3] OOM detection rework v3
+Message-ID: <20151211084233.GA32318@dhcp22.suse.cz>
+References: <1448974607-10208-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <566A3999.5060509@jp.fujitsu.com>
+In-Reply-To: <1448974607-10208-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Dec 11, 2015 at 11:48:57AM +0900, Kamezawa Hiroyuki wrote:
-> On 2015/12/10 20:39, Vladimir Davydov wrote:
-> > In the legacy hierarchy we charge memsw, which is dubious, because:
-> > 
-> >   - memsw.limit must be >= memory.limit, so it is impossible to limit
-> >     swap usage less than memory usage. Taking into account the fact that
-> >     the primary limiting mechanism in the unified hierarchy is
-> >     memory.high while memory.limit is either left unset or set to a very
-> >     large value, moving memsw.limit knob to the unified hierarchy would
-> >     effectively make it impossible to limit swap usage according to the
-> >     user preference.
-> > 
-> >   - memsw.usage != memory.usage + swap.usage, because a page occupying
-> >     both swap entry and a swap cache page is charged only once to memsw
-> >     counter. As a result, it is possible to effectively eat up to
-> >     memory.limit of memory pages *and* memsw.limit of swap entries, which
-> >     looks unexpected.
-> > 
-> > That said, we should provide a different swap limiting mechanism for
-> > cgroup2.
-> > 
-> > This patch adds mem_cgroup->swap counter, which charges the actual
-> > number of swap entries used by a cgroup. It is only charged in the
-> > unified hierarchy, while the legacy hierarchy memsw logic is left
-> > intact.
-> > 
-> > The swap usage can be monitored using new memory.swap.current file and
-> > limited using memory.swap.max.
-> > 
-> > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> 
-> setting swap.max=0 will work like mlock ?
+Hi,
+are there any fundamental objections to the new approach? I am very well
+aware that this is not a small change and it will take some time to
+settle but can we move on and get this to mmotm tree (and linux-next) so
+that it gets a larger test coverage. I do not think this is a material
+for the next merge window. Maybe 4.6?
 
-For anonymous memory - yes.
-
-Thanks,
-Vladimir
+What do you think?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
