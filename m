@@ -1,23 +1,23 @@
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 3/5] x86/vdso: Get pvclock data from the vvar VMA instead of the fixmap
-Date: Thu, 10 Dec 2015 19:20:20 -0800
-Message-ID: <9d37826fdc7e2d2809efe31d5345f97186859284.1449702533.git.luto__42717.4003249549$1449804049$gmane$org@kernel.org>
+Subject: [PATCH 4/5] x86/vdso: Remove pvclock fixmap machinery
+Date: Thu, 10 Dec 2015 19:20:21 -0800
+Message-ID: <4933029991103ae44672c82b97a20035f5c1fe4f.1449702533.git.luto__4765.10272496871$1449804054$gmane$org@kernel.org>
 References: <cover.1449702533.git.luto@kernel.org>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1a7EG5-00029D-BN
-	for glkm-linux-mm-2@m.gmane.org; Fri, 11 Dec 2015 04:20:37 +0100
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 994536B0256
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:20:34 -0500 (EST)
-Received: by pfnn128 with SMTP id n128so58450552pfn.0
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:20:34 -0800 (PST)
+	id 1a7EG8-0002Se-UB
+	for glkm-linux-mm-2@m.gmane.org; Fri, 11 Dec 2015 04:20:41 +0100
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C24BC6B0257
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:20:35 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so14675185pfb.3
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:20:35 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id gl10si283964pac.164.2015.12.10.19.20.33
+        by mx.google.com with ESMTP id pv3si284068pac.61.2015.12.10.19.20.34
         for <linux-mm@kvack.org>;
-        Thu, 10 Dec 2015 19:20:33 -0800 (PST)
+        Thu, 10 Dec 2015 19:20:35 -0800 (PST)
 In-Reply-To: <cover.1449702533.git.luto@kernel.org>
 In-Reply-To: <cover.1449702533.git.luto@kernel.org>
 References: <cover.1449702533.git.luto@kernel.org>
@@ -28,186 +28,132 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/entry/vdso/vclock_gettime.c  | 20 ++++++++------------
- arch/x86/entry/vdso/vdso-layout.lds.S |  3 ++-
- arch/x86/entry/vdso/vdso2c.c          |  3 +++
- arch/x86/entry/vdso/vma.c             | 13 +++++++++++++
- arch/x86/include/asm/pvclock.h        |  9 +++++++++
- arch/x86/include/asm/vdso.h           |  1 +
- arch/x86/kernel/kvmclock.c            |  5 +++++
- 7 files changed, 41 insertions(+), 13 deletions(-)
+ arch/x86/entry/vdso/vclock_gettime.c |  1 -
+ arch/x86/entry/vdso/vma.c            |  1 +
+ arch/x86/include/asm/fixmap.h        |  5 -----
+ arch/x86/include/asm/pvclock.h       |  5 -----
+ arch/x86/kernel/kvmclock.c           |  6 ------
+ arch/x86/kernel/pvclock.c            | 24 ------------------------
+ 6 files changed, 1 insertion(+), 41 deletions(-)
 
 diff --git a/arch/x86/entry/vdso/vclock_gettime.c b/arch/x86/entry/vdso/vclock_gettime.c
-index c325ba1bdddf..5dd363d54348 100644
+index 5dd363d54348..59a98c25bde7 100644
 --- a/arch/x86/entry/vdso/vclock_gettime.c
 +++ b/arch/x86/entry/vdso/vclock_gettime.c
-@@ -36,6 +36,11 @@ static notrace cycle_t vread_hpet(void)
- }
- #endif
- 
-+#ifdef CONFIG_PARAVIRT_CLOCK
-+extern u8 pvclock_page
-+	__attribute__((visibility("hidden")));
-+#endif
-+
- #ifndef BUILD_VDSO32
+@@ -45,7 +45,6 @@ extern u8 pvclock_page
  
  #include <linux/kernel.h>
-@@ -62,23 +67,14 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
+ #include <asm/vsyscall.h>
+-#include <asm/fixmap.h>
+ #include <asm/pvclock.h>
  
- #ifdef CONFIG_PARAVIRT_CLOCK
- 
--static notrace const struct pvclock_vsyscall_time_info *get_pvti(int cpu)
-+static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
- {
--	const struct pvclock_vsyscall_time_info *pvti_base;
--	int idx = cpu / (PAGE_SIZE/PVTI_SIZE);
--	int offset = cpu % (PAGE_SIZE/PVTI_SIZE);
--
--	BUG_ON(PVCLOCK_FIXMAP_BEGIN + idx > PVCLOCK_FIXMAP_END);
--
--	pvti_base = (struct pvclock_vsyscall_time_info *)
--		    __fix_to_virt(PVCLOCK_FIXMAP_BEGIN+idx);
--
--	return &pvti_base[offset];
-+	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
- }
- 
- static notrace cycle_t vread_pvclock(int *mode)
- {
--	const struct pvclock_vcpu_time_info *pvti = &get_pvti(0)->pvti;
-+	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
- 	cycle_t ret;
- 	u64 tsc, pvti_tsc;
- 	u64 last, delta, pvti_system_time;
-diff --git a/arch/x86/entry/vdso/vdso-layout.lds.S b/arch/x86/entry/vdso/vdso-layout.lds.S
-index de2c921025f5..4158acc17df0 100644
---- a/arch/x86/entry/vdso/vdso-layout.lds.S
-+++ b/arch/x86/entry/vdso/vdso-layout.lds.S
-@@ -25,7 +25,7 @@ SECTIONS
- 	 * segment.
- 	 */
- 
--	vvar_start = . - 2 * PAGE_SIZE;
-+	vvar_start = . - 3 * PAGE_SIZE;
- 	vvar_page = vvar_start;
- 
- 	/* Place all vvars at the offsets in asm/vvar.h. */
-@@ -36,6 +36,7 @@ SECTIONS
- #undef EMIT_VVAR
- 
- 	hpet_page = vvar_start + PAGE_SIZE;
-+	pvclock_page = vvar_start + 2 * PAGE_SIZE;
- 
- 	. = SIZEOF_HEADERS;
- 
-diff --git a/arch/x86/entry/vdso/vdso2c.c b/arch/x86/entry/vdso/vdso2c.c
-index 785d9922b106..491020b2826d 100644
---- a/arch/x86/entry/vdso/vdso2c.c
-+++ b/arch/x86/entry/vdso/vdso2c.c
-@@ -73,6 +73,7 @@ enum {
- 	sym_vvar_start,
- 	sym_vvar_page,
- 	sym_hpet_page,
-+	sym_pvclock_page,
- 	sym_VDSO_FAKE_SECTION_TABLE_START,
- 	sym_VDSO_FAKE_SECTION_TABLE_END,
- };
-@@ -80,6 +81,7 @@ enum {
- const int special_pages[] = {
- 	sym_vvar_page,
- 	sym_hpet_page,
-+	sym_pvclock_page,
- };
- 
- struct vdso_sym {
-@@ -91,6 +93,7 @@ struct vdso_sym required_syms[] = {
- 	[sym_vvar_start] = {"vvar_start", true},
- 	[sym_vvar_page] = {"vvar_page", true},
- 	[sym_hpet_page] = {"hpet_page", true},
-+	[sym_pvclock_page] = {"pvclock_page", true},
- 	[sym_VDSO_FAKE_SECTION_TABLE_START] = {
- 		"VDSO_FAKE_SECTION_TABLE_START", false
- 	},
+ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index 64df47148160..aa828191c654 100644
+index aa828191c654..b8f69e264ac4 100644
 --- a/arch/x86/entry/vdso/vma.c
 +++ b/arch/x86/entry/vdso/vma.c
-@@ -100,6 +100,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 		.name = "[vvar]",
- 		.pages = no_pages,
- 	};
-+	struct pvclock_vsyscall_time_info *pvti;
- 
- 	if (calculate_addr) {
- 		addr = vdso_addr(current->mm->start_stack,
-@@ -169,6 +170,18 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 	}
+@@ -12,6 +12,7 @@
+ #include <linux/random.h>
+ #include <linux/elf.h>
+ #include <linux/cpu.h>
++#include <asm/pvclock.h>
+ #include <asm/vgtod.h>
+ #include <asm/proto.h>
+ #include <asm/vdso.h>
+diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
+index f80d70009ff8..6d7d0e52ed5a 100644
+--- a/arch/x86/include/asm/fixmap.h
++++ b/arch/x86/include/asm/fixmap.h
+@@ -19,7 +19,6 @@
+ #include <asm/acpi.h>
+ #include <asm/apicdef.h>
+ #include <asm/page.h>
+-#include <asm/pvclock.h>
+ #ifdef CONFIG_X86_32
+ #include <linux/threads.h>
+ #include <asm/kmap_types.h>
+@@ -72,10 +71,6 @@ enum fixed_addresses {
+ #ifdef CONFIG_X86_VSYSCALL_EMULATION
+ 	VSYSCALL_PAGE = (FIXADDR_TOP - VSYSCALL_ADDR) >> PAGE_SHIFT,
  #endif
- 
-+	pvti = pvclock_pvti_cpu0_va();
-+	if (pvti && image->sym_pvclock_page) {
-+		ret = remap_pfn_range(vma,
-+				      text_start + image->sym_pvclock_page,
-+				      __pa(pvti) >> PAGE_SHIFT,
-+				      PAGE_SIZE,
-+				      PAGE_READONLY);
-+
-+		if (ret)
-+			goto up_fail;
-+	}
-+
- up_fail:
- 	if (ret)
- 		current->mm->context.vdso = NULL;
+-#ifdef CONFIG_PARAVIRT_CLOCK
+-	PVCLOCK_FIXMAP_BEGIN,
+-	PVCLOCK_FIXMAP_END = PVCLOCK_FIXMAP_BEGIN+PVCLOCK_VSYSCALL_NR_PAGES-1,
+-#endif
+ #endif
+ 	FIX_DBGP_BASE,
+ 	FIX_EARLYCON_MEM_BASE,
 diff --git a/arch/x86/include/asm/pvclock.h b/arch/x86/include/asm/pvclock.h
-index 7a6bed5c08bc..3864398c7cb2 100644
+index 3864398c7cb2..66df22b2e0c9 100644
 --- a/arch/x86/include/asm/pvclock.h
 +++ b/arch/x86/include/asm/pvclock.h
-@@ -4,6 +4,15 @@
- #include <linux/clocksource.h>
- #include <asm/pvclock-abi.h>
+@@ -100,10 +100,5 @@ struct pvclock_vsyscall_time_info {
+ } __attribute__((__aligned__(SMP_CACHE_BYTES)));
  
-+#ifdef CONFIG_PARAVIRT_CLOCK
-+extern struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void);
-+#else
-+static inline struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
-+{
-+	return NULL;
-+}
-+#endif
-+
- /* some helper functions for xen and kvm pv clock sources */
- cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
- u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
-diff --git a/arch/x86/include/asm/vdso.h b/arch/x86/include/asm/vdso.h
-index 756de9190aec..deabaf9759b6 100644
---- a/arch/x86/include/asm/vdso.h
-+++ b/arch/x86/include/asm/vdso.h
-@@ -22,6 +22,7 @@ struct vdso_image {
+ #define PVTI_SIZE sizeof(struct pvclock_vsyscall_time_info)
+-#define PVCLOCK_VSYSCALL_NR_PAGES (((NR_CPUS-1)/(PAGE_SIZE/PVTI_SIZE))+1)
+-
+-int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
+-				 int size);
+-struct pvclock_vcpu_time_info *pvclock_get_vsyscall_time_info(int cpu);
  
- 	long sym_vvar_page;
- 	long sym_hpet_page;
-+	long sym_pvclock_page;
- 	long sym_VDSO32_NOTE_MASK;
- 	long sym___kernel_sigreturn;
- 	long sym___kernel_rt_sigreturn;
+ #endif /* _ASM_X86_PVCLOCK_H */
 diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
-index 2bd81e302427..ec1b06dc82d2 100644
+index ec1b06dc82d2..72cef58693c7 100644
 --- a/arch/x86/kernel/kvmclock.c
 +++ b/arch/x86/kernel/kvmclock.c
-@@ -45,6 +45,11 @@ early_param("no-kvmclock", parse_no_kvmclock);
- static struct pvclock_vsyscall_time_info *hv_clock;
- static struct pvclock_wall_clock wall_clock;
+@@ -310,7 +310,6 @@ int __init kvm_setup_vsyscall_timeinfo(void)
+ {
+ #ifdef CONFIG_X86_64
+ 	int cpu;
+-	int ret;
+ 	u8 flags;
+ 	struct pvclock_vcpu_time_info *vcpu_time;
+ 	unsigned int size;
+@@ -330,11 +329,6 @@ int __init kvm_setup_vsyscall_timeinfo(void)
+ 		return 1;
+ 	}
  
-+struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
-+{
-+	return hv_clock;
-+}
-+
- /*
-  * The wallclock is the time of day when we booted. Since then, some time may
-  * have elapsed since the hypervisor wrote the data. So we try to account for
+-	if ((ret = pvclock_init_vsyscall(hv_clock, size))) {
+-		put_cpu();
+-		return ret;
+-	}
+-
+ 	put_cpu();
+ 
+ 	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
+diff --git a/arch/x86/kernel/pvclock.c b/arch/x86/kernel/pvclock.c
+index 2f355d229a58..99bfc025111d 100644
+--- a/arch/x86/kernel/pvclock.c
++++ b/arch/x86/kernel/pvclock.c
+@@ -140,27 +140,3 @@ void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
+ 
+ 	set_normalized_timespec(ts, now.tv_sec, now.tv_nsec);
+ }
+-
+-#ifdef CONFIG_X86_64
+-/*
+- * Initialize the generic pvclock vsyscall state.  This will allocate
+- * a/some page(s) for the per-vcpu pvclock information, set up a
+- * fixmap mapping for the page(s)
+- */
+-
+-int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
+-				 int size)
+-{
+-	int idx;
+-
+-	WARN_ON (size != PVCLOCK_VSYSCALL_NR_PAGES*PAGE_SIZE);
+-
+-	for (idx = 0; idx <= (PVCLOCK_FIXMAP_END-PVCLOCK_FIXMAP_BEGIN); idx++) {
+-		__set_fixmap(PVCLOCK_FIXMAP_BEGIN + idx,
+-			     __pa(i) + (idx*PAGE_SIZE),
+-			     PAGE_KERNEL_VVAR);
+-	}
+-
+-	return 0;
+-}
+-#endif
 -- 
 2.5.0
 
