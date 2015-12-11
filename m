@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0556B025B
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:21:58 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so57763126pac.1
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:21:58 -0800 (PST)
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8195D6B025C
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:22:00 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so14692508pfb.3
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:22:00 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id q5si157539pfq.13.2015.12.10.19.21.58
+        by mx.google.com with ESMTP id 85si161453pfn.11.2015.12.10.19.21.59
         for <linux-mm@kvack.org>;
-        Thu, 10 Dec 2015 19:21:58 -0800 (PST)
+        Thu, 10 Dec 2015 19:21:59 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 5/6] x86,vdso: Use .fault instead of remap_pfn_range for the vvar mapping
-Date: Thu, 10 Dec 2015 19:21:46 -0800
-Message-Id: <1312c2af60551278d65e7e410b1cf845fefd7769.1449803537.git.luto@kernel.org>
+Subject: [PATCH 6/6] x86/vdso: Disallow vvar access to vclock IO for never-used vclocks
+Date: Thu, 10 Dec 2015 19:21:47 -0800
+Message-Id: <3edcff8e6f4169cccbb227d74fc65bf061ded6e2.1449803537.git.luto@kernel.org>
 In-Reply-To: <cover.1449803537.git.luto@kernel.org>
 References: <cover.1449803537.git.luto@kernel.org>
 In-Reply-To: <cover.1449803537.git.luto@kernel.org>
@@ -21,145 +21,124 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
 
-This is IMO much less ugly, and it also opens the door to
-disallowing unprivileged userspace HPET access on systems with
-usable TSCs.
+It makes me uncomfortable that even modern systems grant every
+process direct read access to the HPET.
+
+While fixing this for real without regressing anything is a mess
+(unmapping the HPET is tricky because we don't adequately track all
+the mappings), we can do almost as well by tracking which vclocks
+have ever been used and only allowing pages associated with used
+vclocks to be faulted in.
+
+This will cause rogue programs that try to peek at the HPET to get
+SIGBUS instead on most systems.
+
+We can't restrict faults to vclock pages that are associated with
+the currently selected vclock due to a race: a process could start
+to access the HPET for the first time and race against a switch away
+from the HPET as the current clocksource.  We can't segfault the
+process trying to peek at the HPET in this case, even though the
+process isn't going to do anything useful with the data.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/entry/vdso/vma.c | 97 ++++++++++++++++++++++++++++-------------------
- 1 file changed, 57 insertions(+), 40 deletions(-)
+ arch/x86/entry/vdso/vma.c               | 4 ++--
+ arch/x86/entry/vsyscall/vsyscall_gtod.c | 9 ++++++++-
+ arch/x86/include/asm/clocksource.h      | 9 +++++----
+ arch/x86/include/asm/vgtod.h            | 6 ++++++
+ 4 files changed, 21 insertions(+), 7 deletions(-)
 
 diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index eb50d7c1f161..02221e98b83f 100644
+index 02221e98b83f..aa4f5b99f1f3 100644
 --- a/arch/x86/entry/vdso/vma.c
 +++ b/arch/x86/entry/vdso/vma.c
-@@ -102,18 +102,69 @@ static const struct vm_special_mapping text_mapping = {
- 	.fault = vdso_fault,
- };
+@@ -130,7 +130,7 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+ 				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
+ 	} else if (sym_offset == image->sym_hpet_page) {
+ #ifdef CONFIG_HPET_TIMER
+-		if (hpet_address) {
++		if (hpet_address && vclock_was_used(VCLOCK_HPET)) {
+ 			ret = vm_insert_pfn_prot(
+ 				vma,
+ 				(unsigned long)vmf->virtual_address,
+@@ -141,7 +141,7 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+ 	} else if (sym_offset == image->sym_pvclock_page) {
+ 		struct pvclock_vsyscall_time_info *pvti =
+ 			pvclock_pvti_cpu0_va();
+-		if (pvti) {
++		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
+ 			ret = vm_insert_pfn(
+ 				vma,
+ 				(unsigned long)vmf->virtual_address,
+diff --git a/arch/x86/entry/vsyscall/vsyscall_gtod.c b/arch/x86/entry/vsyscall/vsyscall_gtod.c
+index 51e330416995..0fb3a104ac62 100644
+--- a/arch/x86/entry/vsyscall/vsyscall_gtod.c
++++ b/arch/x86/entry/vsyscall/vsyscall_gtod.c
+@@ -16,6 +16,8 @@
+ #include <asm/vgtod.h>
+ #include <asm/vvar.h>
  
-+static int vvar_fault(const struct vm_special_mapping *sm,
-+		      struct vm_area_struct *vma, struct vm_fault *vmf)
++int vclocks_used __read_mostly;
++
+ DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data);
+ 
+ void update_vsyscall_tz(void)
+@@ -26,12 +28,17 @@ void update_vsyscall_tz(void)
+ 
+ void update_vsyscall(struct timekeeper *tk)
+ {
++	int vclock_mode = tk->tkr_mono.clock->archdata.vclock_mode;
+ 	struct vsyscall_gtod_data *vdata = &vsyscall_gtod_data;
+ 
++	/* Mark the new vclock used. */
++	BUILD_BUG_ON(VCLOCK_MAX >= 32);
++	WRITE_ONCE(vclocks_used, READ_ONCE(vclocks_used) | (1 << vclock_mode));
++
+ 	gtod_write_begin(vdata);
+ 
+ 	/* copy vsyscall data */
+-	vdata->vclock_mode	= tk->tkr_mono.clock->archdata.vclock_mode;
++	vdata->vclock_mode	= vclock_mode;
+ 	vdata->cycle_last	= tk->tkr_mono.cycle_last;
+ 	vdata->mask		= tk->tkr_mono.mask;
+ 	vdata->mult		= tk->tkr_mono.mult;
+diff --git a/arch/x86/include/asm/clocksource.h b/arch/x86/include/asm/clocksource.h
+index eda81dc0f4ae..d194266acb28 100644
+--- a/arch/x86/include/asm/clocksource.h
++++ b/arch/x86/include/asm/clocksource.h
+@@ -3,10 +3,11 @@
+ #ifndef _ASM_X86_CLOCKSOURCE_H
+ #define _ASM_X86_CLOCKSOURCE_H
+ 
+-#define VCLOCK_NONE 0  /* No vDSO clock available.	*/
+-#define VCLOCK_TSC  1  /* vDSO should use vread_tsc.	*/
+-#define VCLOCK_HPET 2  /* vDSO should use vread_hpet.	*/
+-#define VCLOCK_PVCLOCK 3 /* vDSO should use vread_pvclock. */
++#define VCLOCK_NONE	0  /* No vDSO clock available.	*/
++#define VCLOCK_TSC	1  /* vDSO should use vread_tsc.	*/
++#define VCLOCK_HPET	2  /* vDSO should use vread_hpet.	*/
++#define VCLOCK_PVCLOCK	3 /* vDSO should use vread_pvclock. */
++#define VCLOCK_MAX	3
+ 
+ struct arch_clocksource_data {
+ 	int vclock_mode;
+diff --git a/arch/x86/include/asm/vgtod.h b/arch/x86/include/asm/vgtod.h
+index f556c4843aa1..e728699db774 100644
+--- a/arch/x86/include/asm/vgtod.h
++++ b/arch/x86/include/asm/vgtod.h
+@@ -37,6 +37,12 @@ struct vsyscall_gtod_data {
+ };
+ extern struct vsyscall_gtod_data vsyscall_gtod_data;
+ 
++extern int vclocks_used;
++static inline bool vclock_was_used(int vclock)
 +{
-+	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
-+	long sym_offset;
-+	int ret = -EFAULT;
-+
-+	if (!image)
-+		return VM_FAULT_SIGBUS;
-+
-+	sym_offset = (long)(vmf->pgoff << PAGE_SHIFT) +
-+		image->sym_vvar_start;
-+
-+	/*
-+	 * Sanity check: a symbol offset of zero means that the page
-+	 * does not exist for this vdso image, not that the page is at
-+	 * offset zero relative to the text mapping.  This should be
-+	 * impossible here, because sym_offset should only be zero for
-+	 * the page past the end of the vvar mapping.
-+	 */
-+	if (sym_offset == 0)
-+		return VM_FAULT_SIGBUS;
-+
-+	if (sym_offset == image->sym_vvar_page) {
-+		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
-+				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
-+	} else if (sym_offset == image->sym_hpet_page) {
-+#ifdef CONFIG_HPET_TIMER
-+		if (hpet_address) {
-+			ret = vm_insert_pfn_prot(
-+				vma,
-+				(unsigned long)vmf->virtual_address,
-+				hpet_address >> PAGE_SHIFT,
-+				pgprot_noncached(PAGE_READONLY));
-+		}
-+#endif
-+	} else if (sym_offset == image->sym_pvclock_page) {
-+		struct pvclock_vsyscall_time_info *pvti =
-+			pvclock_pvti_cpu0_va();
-+		if (pvti) {
-+			ret = vm_insert_pfn(
-+				vma,
-+				(unsigned long)vmf->virtual_address,
-+				__pa(pvti) >> PAGE_SHIFT);
-+		}
-+	}
-+
-+	if (ret == 0)
-+		return VM_FAULT_NOPAGE;
-+
-+	return VM_FAULT_SIGBUS;
++	return READ_ONCE(vclocks_used) & (1 << vclock);
 +}
 +
- static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ static inline unsigned gtod_read_begin(const struct vsyscall_gtod_data *s)
  {
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
- 	unsigned long addr, text_start;
- 	int ret = 0;
--	static struct page *no_pages[] = {NULL};
--	static struct vm_special_mapping vvar_mapping = {
-+	static const struct vm_special_mapping vvar_mapping = {
- 		.name = "[vvar]",
--		.pages = no_pages,
-+		.fault = vvar_fault,
- 	};
--	struct pvclock_vsyscall_time_info *pvti;
- 
- 	if (calculate_addr) {
- 		addr = vdso_addr(current->mm->start_stack,
-@@ -153,7 +204,8 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 	vma = _install_special_mapping(mm,
- 				       addr,
- 				       -image->sym_vvar_start,
--				       VM_READ|VM_MAYREAD,
-+				       VM_READ|VM_MAYREAD|VM_IO|VM_DONTDUMP|
-+				       VM_PFNMAP,
- 				       &vvar_mapping);
- 
- 	if (IS_ERR(vma)) {
-@@ -161,41 +213,6 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 		goto up_fail;
- 	}
- 
--	if (image->sym_vvar_page)
--		ret = remap_pfn_range(vma,
--				      text_start + image->sym_vvar_page,
--				      __pa_symbol(&__vvar_page) >> PAGE_SHIFT,
--				      PAGE_SIZE,
--				      PAGE_READONLY);
--
--	if (ret)
--		goto up_fail;
--
--#ifdef CONFIG_HPET_TIMER
--	if (hpet_address && image->sym_hpet_page) {
--		ret = io_remap_pfn_range(vma,
--			text_start + image->sym_hpet_page,
--			hpet_address >> PAGE_SHIFT,
--			PAGE_SIZE,
--			pgprot_noncached(PAGE_READONLY));
--
--		if (ret)
--			goto up_fail;
--	}
--#endif
--
--	pvti = pvclock_pvti_cpu0_va();
--	if (pvti && image->sym_pvclock_page) {
--		ret = remap_pfn_range(vma,
--				      text_start + image->sym_pvclock_page,
--				      __pa(pvti) >> PAGE_SHIFT,
--				      PAGE_SIZE,
--				      PAGE_READONLY);
--
--		if (ret)
--			goto up_fail;
--	}
--
- up_fail:
- 	if (ret)
- 		current->mm->context.vdso = NULL;
+ 	unsigned ret;
 -- 
 2.5.0
 
