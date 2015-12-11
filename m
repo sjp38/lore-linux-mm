@@ -1,78 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 07B1F6B0253
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 17:44:59 -0500 (EST)
-Received: by oihr132 with SMTP id r132so11216434oih.1
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:44:58 -0800 (PST)
-Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
-        by mx.google.com with ESMTPS id k17si19125891oib.66.2015.12.11.14.44.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Dec 2015 14:44:58 -0800 (PST)
-Received: by oihr132 with SMTP id r132so11216324oih.1
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:44:58 -0800 (PST)
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AE2C6B0254
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 17:45:35 -0500 (EST)
+Received: by pfee188 with SMTP id e188so2426505pfe.1
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 14:45:35 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ie7si3839185pad.155.2015.12.11.14.45.34
+        for <linux-mm@kvack.org>;
+        Fri, 11 Dec 2015 14:45:35 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
+ from machine checks
+Date: Fri, 11 Dec 2015 22:45:33 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F82FED@ORSMSX114.amr.corp.intel.com>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
+ <CALCETrU026BDNk=WZWrsgzpe0yT2Z=DK4Cn6mNYi6yBgsh-+nQ@mail.gmail.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F82D87@ORSMSX114.amr.corp.intel.com>
+ <CALCETrVeALAHbiLytBO=2WAwifon=K-wB6mCCWBfuuUu7dbBVA@mail.gmail.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F82EEF@ORSMSX114.amr.corp.intel.com>
+ <CAPcyv4hR+FNZ7b1duZ9g9e0xWnAwBsMtnzms_ZRvssXNJUaVoA@mail.gmail.com>
+ <CALCETrVcj=4sDaEXGNtYuq0kXLm7K9de1catqWPi25ae56g8Jg@mail.gmail.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F82F97@ORSMSX114.amr.corp.intel.com>
+ <CALCETrUK1raRagO=JxCRpy0_eKfS56gce737fVe9rtJqNwH+_A@mail.gmail.com>
+In-Reply-To: <CALCETrUK1raRagO=JxCRpy0_eKfS56gce737fVe9rtJqNwH+_A@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20151211143300.0ac516fbd219a67954698f9a@linux-foundation.org>
-References: <cover.1449803537.git.luto@kernel.org> <c35a9ff9b8ef452964adbf3d828edceff45b70a8.1449803537.git.luto@kernel.org>
- <20151211143300.0ac516fbd219a67954698f9a@linux-foundation.org>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 11 Dec 2015 14:44:38 -0800
-Message-ID: <CALCETrUgS3Ex9-wMquYrFi823JChsDT1+3nVdv_ezGa3T55vyQ@mail.gmail.com>
-Subject: Re: [PATCH 2/6] mm: Add vm_insert_pfn_prot
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-On Fri, Dec 11, 2015 at 2:33 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 10 Dec 2015 19:21:43 -0800 Andy Lutomirski <luto@kernel.org> wrote:
->
->> The x86 vvar mapping contains pages with differing cacheability
->> flags.  This is currently only supported using (io_)remap_pfn_range,
->> but those functions can't be used inside page faults.
->
-> Foggy.  What does "support" mean here?
-
-We currently have a hack in which every x86 mm has a "vvar" vma that
-has a .fault handler that always fails (it's the vm_special_mapping
-fault handler backed by an empty pages array).  To make everything
-work, at mm startup, the vdso code uses remap_pfn_range and
-io_remap_pfn_range to poke the pfns into the page tables.
-
-I'd much rather implement this using the new .fault mechanism, and the
-canonical way to implement .fault seems to be vm_insert_pfn, and
-vm_insert_pfn doesn't allow setting per-page cacheability.
-Unfortunately, one of the three x86 vvar pages needs to be uncacheable
-because it's a genuine IO page, so I can't use vm_insert_pfn.
-
-I suppose I could just call io_remap_pfn_range from .fault, but I
-think that's frowned upon.  Admittedly, I wasn't really sure *why*
-that's frowned upon.  This goes way back to 2007
-(e0dc0d8f4a327d033bfb63d43f113d5f31d11b3c) when .fault got fancier.
-
->
->> Add vm_insert_pfn_prot to support varying cacheability within the
->> same non-COW VMA in a more sane manner.
->
-> Here, "support" presumably means "insertion of pfns".  Can we spell all
-> this out more completely please?
-
-Yes, will fix.
-
->
->> x86 needs this to avoid a CRIU-breaking and memory-wasting explosion
->> of VMAs when supporting userspace access to the HPET.
->>
->
-> OtherwiseAck.
-
---Andy
-
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Pj4gQnV0IGEgbWFjaGluZSBjaGVjayBzYWZlIGNvcHlfZnJvbV91c2VyKCkgd291bGQgYmUgdXNl
+ZnVsDQo+PiBjdXJyZW50IGdlbmVyYXRpb24gY3B1cyB0aGF0IGJyb2FkY2FzdCBhbGwgdGhlIHRp
+bWUuDQo+DQo+IEZhaXIgZW5vdWdoLg0KDQpUaGFua3MgZm9yIHNwZW5kaW5nIHRoZSB0aW1lIHRv
+IGxvb2sgYXQgdGhpcy4gIENvYXhpbmcgbWUgdG8gcmUtd3JpdGUgdGhlDQp0YWlsIG9mIGRvX21h
+Y2hpbmVfY2hlY2soKSBoYXMgbWFkZSB0aGF0IGNvZGUgbXVjaCBiZXR0ZXIuIFRvbyBtYW55DQp5
+ZWFycyBvZiBvbmUgcGF0Y2ggb24gdG9wIG9mIGFub3RoZXIgd2l0aG91dCBsb29raW5nIGF0IHRo
+ZSB3aG9sZSBjb250ZXh0Lg0KDQpDb2dpdGF0ZSBvbiB0aGlzIHNlcmllcyBvdmVyIHRoZSB3ZWVr
+ZW5kIGFuZCBzZWUgaWYgeW91IGNhbiBnaXZlIG1lDQphbiBBY2tlZC1ieSBvciBSZXZpZXdlZC1i
+eSAoSSdsbCBiZSBhZGRpbmcgYSAjZGVmaW5lIGZvciBCSVQoNjMpKS4NCg0KLVRvbnkNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
