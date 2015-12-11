@@ -1,371 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 122BB6B025D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 13:22:57 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so69263693pab.0
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 10:22:56 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id e73si2583808pfj.171.2015.12.11.10.22.56
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EBFE16B025D
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 13:28:22 -0500 (EST)
+Received: by padhk6 with SMTP id hk6so29030996pad.2
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 10:28:22 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 86si2607271pfn.188.2015.12.11.10.28.21
         for <linux-mm@kvack.org>;
-        Fri, 11 Dec 2015 10:22:56 -0800 (PST)
-Subject: [-mm PATCH v3 09/25] mm, dax, pmem: introduce pfn_t
+        Fri, 11 Dec 2015 10:28:22 -0800 (PST)
+Subject: [-mm PATCH v3 10/25] mm: introduce find_dev_pagemap()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 11 Dec 2015 10:22:28 -0800
-Message-ID: <20151211182014.19145.760.stgit@dwillia2-desk3.jf.intel.com>
-In-Reply-To: <20151210023757.30368.20786.stgit@dwillia2-desk3.jf.intel.com>
-References: <20151210023757.30368.20786.stgit@dwillia2-desk3.jf.intel.com>
+Date: Fri, 11 Dec 2015 10:27:53 -0800
+Message-ID: <20151211182412.19179.54416.stgit@dwillia2-desk3.jf.intel.com>
+In-Reply-To: <20151210023807.30368.57693.stgit@dwillia2-desk3.jf.intel.com>
+References: <20151210023807.30368.57693.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave@sr71.net>, Christoph Hellwig <hch@lst.de>, linux-nvdimm@lists.01.org
+Cc: linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>
 
-For the purpose of communicating the optional presence of a 'struct
-page' for the pfn returned from ->direct_access(), introduce a type that
-encapsulates a page-frame-number plus flags.  These flags contain the
-historical "page_link" encoding for a scatterlist entry, but can also
-denote "device memory".  Where "device memory" is a set of pfns that are
-not part of the kernel's linear mapping by default, but are accessed via
-the same memory controller as ram.
+There are several scenarios where we need to retrieve and update
+metadata associated with a given devm_memremap_pages() mapping, and the
+only lookup key available is a pfn in the range:
 
-The motivation for this new type is large capacity persistent memory
-that needs struct page entries in the 'memmap' to support 3rd party DMA
-(i.e. O_DIRECT I/O with a persistent memory source/target).  However, we
-also need it in support of maintaining a list of mapped inodes which
-need to be unmapped at driver teardown or freeze_bdev() time.
+1/ We want to augment vmemmap_populate() (called via arch_add_memory())
+   to allocate memmap storage from pre-allocated pages reserved by the
+   device driver.  At vmemmap_alloc_block_buf() time it grabs device pages
+   rather than page allocator pages.  This is in support of
+   devm_memremap_pages() mappings where the memmap is too large to fit in
+   main memory (i.e. large persistent memory devices).
+
+2/ Taking a reference against the mapping when inserting device pages
+   into the address_space radix of a given inode.  This facilitates
+   unmap_mapping_range() and truncate_inode_pages() operations when the
+   driver is tearing down the mapping.
+
+3/ get_user_pages() operations on ZONE_DEVICE memory require taking a
+   reference against the mapping so that the driver teardown path can
+   revoke and drain usage of device pages.
 
 Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Hansen <dave@sr71.net>
+Cc: Dave Chinner <david@fromorbit.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Tested-by: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
-
 Changes since v2:
 
-Moved phys_to_pfn_t() out of line so it can be overridden for new unit
-tests in development.
+No changes, just a reflow of the patch to fixup the context differences
+from: "[-mm PATCH v3 09/25] mm, dax, pmem: introduce pfn_t"
 
- arch/powerpc/sysdev/axonram.c |    8 ++---
- drivers/block/brd.c           |    4 +--
- drivers/nvdimm/pmem.c         |   12 +++++---
- drivers/s390/block/dcssblk.c  |   10 +++----
- fs/dax.c                      |   10 ++++---
- include/linux/blkdev.h        |    4 +--
- include/linux/mm.h            |   63 +++++++++++++++++++++++++++++++++++++++++
- include/linux/pfn.h           |    9 ++++++
- kernel/memremap.c             |    6 ++++
- 9 files changed, 103 insertions(+), 23 deletions(-)
+ include/linux/io.h |   15 ---------
+ include/linux/mm.h |   33 ++++++++++++++++++++
+ kernel/memremap.c  |   84 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 109 insertions(+), 23 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index c713b349d967..801e22fa0b02 100644
---- a/arch/powerpc/sysdev/axonram.c
-+++ b/arch/powerpc/sysdev/axonram.c
-@@ -142,15 +142,13 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
-  */
- static long
- axon_ram_direct_access(struct block_device *device, sector_t sector,
--		       void __pmem **kaddr, unsigned long *pfn)
-+		       void __pmem **kaddr, pfn_t *pfn)
- {
- 	struct axon_ram_bank *bank = device->bd_disk->private_data;
- 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
--	void *addr = (void *)(bank->ph_addr + offset);
+diff --git a/include/linux/io.h b/include/linux/io.h
+index 72c35e0a41d1..32403b5716e5 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -90,21 +90,6 @@ void devm_memunmap(struct device *dev, void *addr);
+ 
+ void *__devm_memremap_pages(struct device *dev, struct resource *res);
+ 
+-#ifdef CONFIG_ZONE_DEVICE
+-void *devm_memremap_pages(struct device *dev, struct resource *res);
+-#else
+-static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
+-{
+-	/*
+-	 * Fail attempts to call devm_memremap_pages() without
+-	 * ZONE_DEVICE support enabled, this requires callers to fall
+-	 * back to plain devm_memremap() based on config
+-	 */
+-	WARN_ON_ONCE(1);
+-	return ERR_PTR(-ENXIO);
+-}
+-#endif
 -
--	*kaddr = (void __pmem *)addr;
--	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
- 
-+	*kaddr = (void __pmem __force *) bank->io_addr + offset;
-+	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
- 	return bank->size - offset;
- }
- 
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index a5880f4ab40e..13e5c2fe9f7c 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -378,7 +378,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
- 
- #ifdef CONFIG_BLK_DEV_RAM_DAX
- static long brd_direct_access(struct block_device *bdev, sector_t sector,
--			void __pmem **kaddr, unsigned long *pfn)
-+			void __pmem **kaddr, pfn_t *pfn)
- {
- 	struct brd_device *brd = bdev->bd_disk->private_data;
- 	struct page *page;
-@@ -389,7 +389,7 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
- 	if (!page)
- 		return -ENOSPC;
- 	*kaddr = (void __pmem *)page_address(page);
--	*pfn = page_to_pfn(page);
-+	*pfn = page_to_pfn_t(page);
- 
- 	return PAGE_SIZE;
- }
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 8ee79893d2f5..157951043b34 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -39,6 +39,7 @@ struct pmem_device {
- 	phys_addr_t		phys_addr;
- 	/* when non-zero this device is hosting a 'pfn' instance */
- 	phys_addr_t		data_offset;
-+	unsigned long		pfn_flags;
- 	void __pmem		*virt_addr;
- 	size_t			size;
- };
-@@ -101,13 +102,13 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
- }
- 
- static long pmem_direct_access(struct block_device *bdev, sector_t sector,
--		      void __pmem **kaddr, unsigned long *pfn)
-+		      void __pmem **kaddr, pfn_t *pfn)
- {
- 	struct pmem_device *pmem = bdev->bd_disk->private_data;
- 	resource_size_t offset = sector * 512 + pmem->data_offset;
- 
- 	*kaddr = pmem->virt_addr + offset;
--	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
-+	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
- 
- 	return pmem->size - offset;
- }
-@@ -140,9 +141,11 @@ static struct pmem_device *pmem_alloc(struct device *dev,
- 		return ERR_PTR(-EBUSY);
- 	}
- 
--	if (pmem_should_map_pages(dev))
-+	pmem->pfn_flags = PFN_DEV;
-+	if (pmem_should_map_pages(dev)) {
- 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res);
--	else
-+		pmem->pfn_flags |= PFN_MAP;
-+	} else
- 		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
- 				pmem->phys_addr, pmem->size,
- 				ARCH_MEMREMAP_PMEM);
-@@ -353,6 +356,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 	pmem = dev_get_drvdata(dev);
- 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
- 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res);
-+	pmem->pfn_flags |= PFN_MAP;
- 	if (IS_ERR(pmem->virt_addr)) {
- 		rc = PTR_ERR(pmem->virt_addr);
- 		goto err;
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index 94a8f4ab57bc..b50c5cb5601f 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -30,7 +30,7 @@ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
- static blk_qc_t dcssblk_make_request(struct request_queue *q,
- 						struct bio *bio);
- static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
--			 void __pmem **kaddr, unsigned long *pfn);
-+			 void __pmem **kaddr, pfn_t *pfn);
- 
- static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
- 
-@@ -883,20 +883,18 @@ fail:
- 
- static long
- dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
--			void __pmem **kaddr, unsigned long *pfn)
-+			void __pmem **kaddr, pfn_t *pfn)
- {
- 	struct dcssblk_dev_info *dev_info;
- 	unsigned long offset, dev_sz;
--	void *addr;
- 
- 	dev_info = bdev->bd_disk->private_data;
- 	if (!dev_info)
- 		return -ENODEV;
- 	dev_sz = dev_info->end - dev_info->start;
- 	offset = secnum * 512;
--	addr = (void *) (dev_info->start + offset);
--	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
--	*kaddr = (void __pmem *) addr;
-+	*kaddr = (void __pmem *) (dev_info->start + offset);
-+	*pfn = phys_to_pfn_t(dev_info->start + offset, PFN_DEV);
- 
- 	return dev_sz - offset;
- }
-diff --git a/fs/dax.c b/fs/dax.c
-index 3220da70ee20..a8670660d118 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -362,7 +362,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	}
- 	dax_unmap_atomic(bdev, &dax);
- 
--	error = vm_insert_mixed(vma, vaddr, dax.pfn);
-+	error = vm_insert_mixed(vma, vaddr, pfn_t_to_pfn(dax.pfn));
- 
-  out:
- 	i_mmap_unlock_read(mapping);
-@@ -667,7 +667,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 			result = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
--		if ((length < PMD_SIZE) || (dax.pfn & PG_PMD_COLOUR)) {
-+		if (length < PMD_SIZE
-+				|| (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)) {
- 			dax_unmap_atomic(bdev, &dax);
- 			goto fallback;
- 		}
-@@ -676,7 +677,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		 * TODO: teach vmf_insert_pfn_pmd() to support
- 		 * 'pte_special' for pmds
- 		 */
--		if (pfn_valid(dax.pfn)) {
-+		if (pfn_t_has_page(dax.pfn)) {
- 			dax_unmap_atomic(bdev, &dax);
- 			goto fallback;
- 		}
-@@ -690,7 +691,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		}
- 		dax_unmap_atomic(bdev, &dax);
- 
--		result |= vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
-+		result |= vmf_insert_pfn_pmd(vma, address, pmd,
-+				pfn_t_to_pfn(dax.pfn), write);
- 	}
- 
-  out:
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index d52eabc76a12..d82513675de3 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1627,7 +1627,7 @@ struct blk_dax_ctl {
- 	sector_t sector;
- 	void __pmem *addr;
- 	long size;
--	unsigned long pfn;
-+	pfn_t pfn;
- };
- 
- struct block_device_operations {
-@@ -1637,7 +1637,7 @@ struct block_device_operations {
- 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
- 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
- 	long (*direct_access)(struct block_device *, sector_t, void __pmem **,
--			unsigned long *pfn);
-+			pfn_t *);
- 	unsigned int (*check_events) (struct gendisk *disk,
- 				      unsigned int clearing);
- 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+ /*
+  * Some systems do not have legacy ISA devices.
+  * /dev/port is not a valid interface on these systems.
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a1e87a3e88c0..1fd3ba9a0924 100644
+index 1fd3ba9a0924..ddc71b27493d 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -884,6 +884,69 @@ static inline void set_page_memcg(struct page *page, struct mem_cgroup *memcg)
- #endif
+@@ -674,6 +674,39 @@ static inline enum zone_type page_zonenum(const struct page *page)
+ 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+ }
  
- /*
-+ * PFN_FLAGS_MASK - mask of all the possible valid pfn_t flags
-+ * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
-+ * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
-+ * PFN_DEV - pfn is not covered by system memmap by default
-+ * PFN_MAP - pfn has a dynamic page mapping established by a device driver
++struct resource;
++struct device;
++/**
++ * struct dev_pagemap - metadata for ZONE_DEVICE mappings
++ * @dev: host device of the mapping for debug
 + */
-+#define PFN_FLAGS_MASK (((unsigned long) ~PAGE_MASK) \
-+		<< (BITS_PER_LONG - PAGE_SHIFT))
-+#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
-+#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
-+#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
-+#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
++struct dev_pagemap {
++	/* TODO: vmem_altmap and percpu_ref count */
++	struct device *dev;
++};
 +
-+static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
++#ifdef CONFIG_ZONE_DEVICE
++void *devm_memremap_pages(struct device *dev, struct resource *res);
++struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
++#else
++static inline void *devm_memremap_pages(struct device *dev,
++		struct resource *res)
 +{
-+	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
-+
-+	return pfn_t;
++	/*
++	 * Fail attempts to call devm_memremap_pages() without
++	 * ZONE_DEVICE support enabled, this requires callers to fall
++	 * back to plain devm_memremap() based on config
++	 */
++	WARN_ON_ONCE(1);
++	return ERR_PTR(-ENXIO);
 +}
 +
-+/* a default pfn to pfn_t conversion assumes that @pfn is pfn_valid() */
-+static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
++static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 +{
-+	return __pfn_to_pfn_t(pfn, 0);
-+}
-+
-+extern pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags);
-+
-+static inline bool pfn_t_has_page(pfn_t pfn)
-+{
-+	return (pfn.val & PFN_MAP) == PFN_MAP || (pfn.val & PFN_DEV) == 0;
-+}
-+
-+static inline unsigned long pfn_t_to_pfn(pfn_t pfn)
-+{
-+	return pfn.val & ~PFN_FLAGS_MASK;
-+}
-+
-+static inline struct page *pfn_t_to_page(pfn_t pfn)
-+{
-+	if (pfn_t_has_page(pfn))
-+		return pfn_to_page(pfn_t_to_pfn(pfn));
 +	return NULL;
 +}
++#endif
 +
-+static inline dma_addr_t pfn_t_to_phys(pfn_t pfn)
-+{
-+	return PFN_PHYS(pfn_t_to_pfn(pfn));
-+}
-+
-+static inline void *pfn_t_to_virt(pfn_t pfn)
-+{
-+	if (pfn_t_has_page(pfn))
-+		return __va(pfn_t_to_phys(pfn));
-+	return NULL;
-+}
-+
-+static inline pfn_t page_to_pfn_t(struct page *page)
-+{
-+	return pfn_to_pfn_t(page_to_pfn(page));
-+}
-+
-+/*
-  * Some inline functions in vmstat.h depend on page_zone()
-  */
- #include <linux/vmstat.h>
-diff --git a/include/linux/pfn.h b/include/linux/pfn.h
-index 97f3e88aead4..2d8e49711b63 100644
---- a/include/linux/pfn.h
-+++ b/include/linux/pfn.h
-@@ -3,6 +3,15 @@
- 
- #ifndef __ASSEMBLY__
- #include <linux/types.h>
-+
-+/*
-+ * pfn_t: encapsulates a page-frame number that is optionally backed
-+ * by memmap (struct page).  Whether a pfn_t has a 'struct page'
-+ * backing is indicated by flags in the high bits of the value.
-+ */
-+typedef struct {
-+	unsigned long val;
-+} pfn_t;
+ #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+ #define SECTION_IN_PAGE_FLAGS
  #endif
- 
- #define PFN_ALIGN(x)	(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 7658d32c5c78..4d3bf3cd09a9 100644
+index 4d3bf3cd09a9..e9be623fda58 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -147,6 +147,12 @@ void devm_memunmap(struct device *dev, void *addr)
- }
- EXPORT_SYMBOL(devm_memunmap);
+@@ -10,6 +10,7 @@
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  * General Public License for more details.
+  */
++#include <linux/radix-tree.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
+ #include <linux/io.h>
+@@ -154,22 +155,57 @@ pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
+ EXPORT_SYMBOL(phys_to_pfn_t);
  
-+pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
-+{
-+	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
-+}
-+EXPORT_SYMBOL(phys_to_pfn_t);
-+
  #ifdef CONFIG_ZONE_DEVICE
++static DEFINE_MUTEX(pgmap_lock);
++static RADIX_TREE(pgmap_radix, GFP_KERNEL);
++#define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
++#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
++
  struct page_map {
  	struct resource res;
++	struct percpu_ref *ref;
++	struct dev_pagemap pgmap;
+ };
+ 
+-static void devm_memremap_pages_release(struct device *dev, void *res)
++static void pgmap_radix_release(struct resource *res)
++{
++	resource_size_t key;
++
++	mutex_lock(&pgmap_lock);
++	for (key = res->start; key <= res->end; key += SECTION_SIZE)
++		radix_tree_delete(&pgmap_radix, key >> PA_SECTION_SHIFT);
++	mutex_unlock(&pgmap_lock);
++}
++
++static void devm_memremap_pages_release(struct device *dev, void *data)
+ {
+-	struct page_map *page_map = res;
++	struct page_map *page_map = data;
++	struct resource *res = &page_map->res;
++	resource_size_t align_start, align_size;
++
++	pgmap_radix_release(res);
+ 
+ 	/* pages are dead and unused, undo the arch mapping */
+-	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
++	align_start = res->start & ~(SECTION_SIZE - 1);
++	align_size = ALIGN(resource_size(res), SECTION_SIZE);
++	arch_remove_memory(align_start, align_size);
++}
++
++/* assumes rcu_read_lock() held at entry */
++struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
++{
++	struct page_map *page_map;
++
++	WARN_ON_ONCE(!rcu_read_lock_held());
++
++	page_map = radix_tree_lookup(&pgmap_radix, phys >> PA_SECTION_SHIFT);
++	return page_map ? &page_map->pgmap : NULL;
+ }
+ 
+ void *devm_memremap_pages(struct device *dev, struct resource *res)
+ {
+ 	int is_ram = region_intersects(res->start, resource_size(res),
+ 			"System RAM");
++	resource_size_t key, align_start, align_size;
+ 	struct page_map *page_map;
+ 	int error, nid;
+ 
+@@ -189,18 +225,50 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
+ 
+ 	memcpy(&page_map->res, res, sizeof(*res));
+ 
++	page_map->pgmap.dev = dev;
++	mutex_lock(&pgmap_lock);
++	error = 0;
++	for (key = res->start; key <= res->end; key += SECTION_SIZE) {
++		struct dev_pagemap *dup;
++
++		rcu_read_lock();
++		dup = find_dev_pagemap(key);
++		rcu_read_unlock();
++		if (dup) {
++			dev_err(dev, "%s: %pr collides with mapping for %s\n",
++					__func__, res, dev_name(dup->dev));
++			error = -EBUSY;
++			break;
++		}
++		error = radix_tree_insert(&pgmap_radix, key >> PA_SECTION_SHIFT,
++				page_map);
++		if (error) {
++			dev_err(dev, "%s: failed: %d\n", __func__, error);
++			break;
++		}
++	}
++	mutex_unlock(&pgmap_lock);
++	if (error)
++		goto err_radix;
++
+ 	nid = dev_to_node(dev);
+ 	if (nid < 0)
+ 		nid = numa_mem_id();
+ 
+-	error = arch_add_memory(nid, res->start, resource_size(res), true);
+-	if (error) {
+-		devres_free(page_map);
+-		return ERR_PTR(error);
+-	}
++	align_start = res->start & ~(SECTION_SIZE - 1);
++	align_size = ALIGN(resource_size(res), SECTION_SIZE);
++	error = arch_add_memory(nid, align_start, align_size, true);
++	if (error)
++		goto err_add_memory;
+ 
+ 	devres_add(dev, page_map);
+ 	return __va(res->start);
++
++ err_add_memory:
++ err_radix:
++	pgmap_radix_release(res);
++	devres_free(page_map);
++	return ERR_PTR(error);
+ }
+ EXPORT_SYMBOL(devm_memremap_pages);
+ #endif /* CONFIG_ZONE_DEVICE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
