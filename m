@@ -1,178 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3657F6B0258
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:20:37 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so57955097pac.3
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:20:37 -0800 (PST)
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 04D676B0255
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2015 22:21:52 -0500 (EST)
+Received: by pfv76 with SMTP id 76so5866005pfv.2
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2015 19:21:51 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id w77si154136pfi.227.2015.12.10.19.20.36
+        by mx.google.com with ESMTP id qi3si300843pac.30.2015.12.10.19.21.51
         for <linux-mm@kvack.org>;
-        Thu, 10 Dec 2015 19:20:36 -0800 (PST)
+        Thu, 10 Dec 2015 19:21:51 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 5/5] x86/vdso: Enable vdso pvclock access on all vdso variants
-Date: Thu, 10 Dec 2015 19:20:22 -0800
-Message-Id: <a7ef693b7a4c88dd2173dc1d4bf6bc27023626eb.1449702533.git.luto@kernel.org>
-In-Reply-To: <cover.1449702533.git.luto@kernel.org>
-References: <cover.1449702533.git.luto@kernel.org>
-In-Reply-To: <cover.1449702533.git.luto@kernel.org>
-References: <cover.1449702533.git.luto@kernel.org>
+Subject: [PATCH 0/6] mm, x86/vdso: Special IO mapping improvements
+Date: Thu, 10 Dec 2015 19:21:41 -0800
+Message-Id: <cover.1449803537.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
 
-Now that pvclock doesn't require access to the fixmap, all vdso
-variants can use it.
+This applies on top of the earlier vdso pvclock series I sent out.
+Once that lands in -tip, this will apply to -tip.
 
-The kernel side isn't wired up for 32-bit kernels yet, but this
-covers 32-bit and x32 userspace on 64-bit kernels.
+This series cleans up the hack that is our vvar mapping.  We currently
+initialize the vvar mapping as a special mapping vma backed by nothing
+whatsoever and then we abuse remap_pfn_range to populate it.
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- arch/x86/entry/vdso/vclock_gettime.c | 91 ++++++++++++++++--------------------
- 1 file changed, 40 insertions(+), 51 deletions(-)
+This cheats the mm core, probably breaks under various evil madvise
+workloads, and prevents handling faults in more interesting ways.
 
-diff --git a/arch/x86/entry/vdso/vclock_gettime.c b/arch/x86/entry/vdso/vclock_gettime.c
-index 59a98c25bde7..8602f06c759f 100644
---- a/arch/x86/entry/vdso/vclock_gettime.c
-+++ b/arch/x86/entry/vdso/vclock_gettime.c
-@@ -17,8 +17,10 @@
- #include <asm/vvar.h>
- #include <asm/unistd.h>
- #include <asm/msr.h>
-+#include <asm/pvclock.h>
- #include <linux/math64.h>
- #include <linux/time.h>
-+#include <linux/kernel.h>
- 
- #define gtod (&VVAR(vsyscall_gtod_data))
- 
-@@ -43,10 +45,6 @@ extern u8 pvclock_page
- 
- #ifndef BUILD_VDSO32
- 
--#include <linux/kernel.h>
--#include <asm/vsyscall.h>
--#include <asm/pvclock.h>
--
- notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
- {
- 	long ret;
-@@ -64,8 +62,42 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
- 	return ret;
- }
- 
--#ifdef CONFIG_PARAVIRT_CLOCK
- 
-+#else
-+
-+notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
-+{
-+	long ret;
-+
-+	asm(
-+		"mov %%ebx, %%edx \n"
-+		"mov %2, %%ebx \n"
-+		"call __kernel_vsyscall \n"
-+		"mov %%edx, %%ebx \n"
-+		: "=a" (ret)
-+		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
-+		: "memory", "edx");
-+	return ret;
-+}
-+
-+notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
-+{
-+	long ret;
-+
-+	asm(
-+		"mov %%ebx, %%edx \n"
-+		"mov %2, %%ebx \n"
-+		"call __kernel_vsyscall \n"
-+		"mov %%edx, %%ebx \n"
-+		: "=a" (ret)
-+		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)
-+		: "memory", "edx");
-+	return ret;
-+}
-+
-+#endif
-+
-+#ifdef CONFIG_PARAVIRT_CLOCK
- static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
- {
- 	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
-@@ -109,9 +141,9 @@ static notrace cycle_t vread_pvclock(int *mode)
- 	do {
- 		version = pvti->version;
- 
--		/* This is also a read barrier, so we'll read version first. */
--		tsc = rdtsc_ordered();
-+		smp_rmb();
- 
-+		tsc = rdtsc_ordered();
- 		pvti_tsc_to_system_mul = pvti->tsc_to_system_mul;
- 		pvti_tsc_shift = pvti->tsc_shift;
- 		pvti_system_time = pvti->system_time;
-@@ -126,7 +158,7 @@ static notrace cycle_t vread_pvclock(int *mode)
- 		pvclock_scale_delta(delta, pvti_tsc_to_system_mul,
- 				    pvti_tsc_shift);
- 
--	/* refer to tsc.c read_tsc() comment for rationale */
-+	/* refer to vread_tsc() comment for rationale */
- 	last = gtod->cycle_last;
- 
- 	if (likely(ret >= last))
-@@ -136,49 +168,6 @@ static notrace cycle_t vread_pvclock(int *mode)
- }
- #endif
- 
--#else
--
--notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
--{
--	long ret;
--
--	asm(
--		"mov %%ebx, %%edx \n"
--		"mov %2, %%ebx \n"
--		"call __kernel_vsyscall \n"
--		"mov %%edx, %%ebx \n"
--		: "=a" (ret)
--		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
--		: "memory", "edx");
--	return ret;
--}
--
--notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
--{
--	long ret;
--
--	asm(
--		"mov %%ebx, %%edx \n"
--		"mov %2, %%ebx \n"
--		"call __kernel_vsyscall \n"
--		"mov %%edx, %%ebx \n"
--		: "=a" (ret)
--		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)
--		: "memory", "edx");
--	return ret;
--}
--
--#ifdef CONFIG_PARAVIRT_CLOCK
--
--static notrace cycle_t vread_pvclock(int *mode)
--{
--	*mode = VCLOCK_NONE;
--	return 0;
--}
--#endif
--
--#endif
--
- notrace static cycle_t vread_tsc(void)
- {
- 	cycle_t ret = (cycle_t)rdtsc_ordered();
+To clean it up, this series:
+
+ - Adds a special mapping .fault operation
+ - Adds a vm_insert_pfn_prot helper
+ - Uses the new .fault infrastructure in x86's vdso and vvar mappings
+ - Hardens the HPET mapping, mitigating an HW attack surface that bothers me
+
+I'd appreciate some review from the mm folks.  Also, akpm, if you're
+okay with this whole series going in through -tip, that would be
+great -- it will avoid splitting it across two releases.
+
+Andy Lutomirski (6):
+  mm: Add a vm_special_mapping .fault method
+  mm: Add vm_insert_pfn_prot
+  x86/vdso: Track each mm's loaded vdso image as well as its base
+  x86,vdso: Use .fault for the vdso text mapping
+  x86,vdso: Use .fault instead of remap_pfn_range for the vvar mapping
+  x86/vdso: Disallow vvar access to vclock IO for never-used vclocks
+
+ arch/x86/entry/vdso/vdso2c.h            |   7 --
+ arch/x86/entry/vdso/vma.c               | 124 ++++++++++++++++++++------------
+ arch/x86/entry/vsyscall/vsyscall_gtod.c |   9 ++-
+ arch/x86/include/asm/clocksource.h      |   9 +--
+ arch/x86/include/asm/mmu.h              |   3 +-
+ arch/x86/include/asm/vdso.h             |   3 -
+ arch/x86/include/asm/vgtod.h            |   6 ++
+ include/linux/mm.h                      |   2 +
+ include/linux/mm_types.h                |  19 ++++-
+ mm/memory.c                             |  25 ++++++-
+ mm/mmap.c                               |  13 ++--
+ 11 files changed, 150 insertions(+), 70 deletions(-)
+
 -- 
 2.5.0
 
