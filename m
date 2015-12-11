@@ -1,52 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f42.google.com (mail-lf0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AFB36B0253
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 15:59:55 -0500 (EST)
-Received: by lfcy184 with SMTP id y184so13805488lfc.1
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 12:59:54 -0800 (PST)
-Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
-        by mx.google.com with ESMTPS id an6si11426312lbc.81.2015.12.11.12.59.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Dec 2015 12:59:54 -0800 (PST)
-Received: by lfcy184 with SMTP id y184so13805317lfc.1
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 12:59:53 -0800 (PST)
-Date: Fri, 11 Dec 2015 23:59:52 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [RFC] mm: Account anon mappings as RLIMIT_DATA
-Message-ID: <20151211205951.GA29551@uranus>
-References: <20151211204939.GA2604@uranus>
- <CA+55aFzbBQp-QzWj2k7twuZ7+ESFpzoRPGZVKWkDv04zHCZ3Sg@mail.gmail.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3A46B0253
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 16:01:51 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so70705442pac.1
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 13:01:51 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id rf10si3351326pab.94.2015.12.11.13.01.50
+        for <linux-mm@kvack.org>;
+        Fri, 11 Dec 2015 13:01:50 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine
+ check fixup tables
+Date: Fri, 11 Dec 2015 21:01:49 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F82D35@ORSMSX114.amr.corp.intel.com>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+ <CALCETrUO+g9HbPa8yaA=1JpVxw9ReSvgokT_GDKwePigyGoZLQ@mail.gmail.com>
+In-Reply-To: <CALCETrUO+g9HbPa8yaA=1JpVxw9ReSvgokT_GDKwePigyGoZLQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzbBQp-QzWj2k7twuZ7+ESFpzoRPGZVKWkDv04zHCZ3Sg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew
+ Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-On Fri, Dec 11, 2015 at 12:55:51PM -0800, Linus Torvalds wrote:
-> >
-> > +static inline int anon_accountable_mapping(struct file *file, vm_flags_t vm_flags)
-> > +{
-> > +       return !file &&
-> > +               (vm_flags & (VM_GROWSDOWN | VM_GROWSUP |
-> > +                            VM_SHARED | VM_MAYSHARE)) == 0;
-> > +}
-> 
-> You're duplicating that "is it an anon accountable mapping" logic. I
-> think you should move the inline helper function up, and use it in
-> vm_stat_account().
-> 
-> Other than that, I think the patch certainly looks clean and obvious
-> enough. But I didn't actually try to *run* it, maybe it ends up not
-> working due to something I don't see.
-
-Thank for the note, Linus! I tried to play with it a little bit,
-but I need to test it more first. I sent it simply to be sure
-that i'm moving in right direction. Once I get reviewed all things
-again and test it more deeply, I'll send a new patch.
+Pj4gKyAgICAgICAgICAgICAgIHJlZ3MtPmlwID0gbmV3X2lwOw0KPj4gKyAgICAgICAgICAgICAg
+IHJlZ3MtPmF4ID0gQklUKDYzKSB8IGFkZHI7DQo+DQo+IENhbiB0aGlzIGJlIGFuIGFjdHVhbCAj
+ZGVmaW5lPw0KDQpEb2ghICBZZXMsIG9mIGNvdXJzZS4gVGhhdCB3b3VsZCBiZSBtdWNoIGJldHRl
+ci4NCg0KTm93IEkgbmVlZCB0byB0aGluayBvZiBhIGdvb2QgbmFtZSBmb3IgaXQuDQoNCi1Ub255
+DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
