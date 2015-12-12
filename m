@@ -1,239 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5366B0253
-	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 05:11:46 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so62431708wmn.0
-        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 02:11:46 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id y72si9145667wmd.20.2015.12.12.02.11.45
-        for <linux-mm@kvack.org>;
-        Sat, 12 Dec 2015 02:11:45 -0800 (PST)
-Date: Sat, 12 Dec 2015 11:11:42 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
- fixup tables
-Message-ID: <20151212101142.GA3867@pd.tnic>
-References: <cover.1449861203.git.tony.luck@intel.com>
- <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 891A66B0253
+	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 08:34:14 -0500 (EST)
+Received: by pfbo64 with SMTP id o64so2607863pfb.1
+        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 05:34:14 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id m27si5949147pfj.203.2015.12.12.05.34.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 12 Dec 2015 05:34:13 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] mm: memcontrol: fix possible memcg leak due to interrupted reclaim
+Date: Sat, 12 Dec 2015 16:34:02 +0300
+Message-ID: <1449927242-9608-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 10, 2015 at 01:58:04PM -0800, Tony Luck wrote:
-> Copy the existing page fault fixup mechanisms to create a new table
-> to be used when fixing machine checks. Note:
-> 1) At this time we only provide a macro to annotate assembly code
-> 2) We assume all fixups will in code builtin to the kernel.
-> 3) Only for x86_64
-> 4) New code under CONFIG_MCE_KERNEL_RECOVERY
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> ---
->  arch/x86/Kconfig                  |  4 ++++
->  arch/x86/include/asm/asm.h        | 10 ++++++++--
->  arch/x86/include/asm/uaccess.h    |  8 ++++++++
->  arch/x86/mm/extable.c             | 19 +++++++++++++++++++
->  include/asm-generic/vmlinux.lds.h |  6 ++++++
->  include/linux/module.h            |  1 +
->  kernel/extable.c                  | 20 ++++++++++++++++++++
->  7 files changed, 66 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 96d058a87100..db5c6e1d6e37 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1001,6 +1001,10 @@ config X86_MCE_INJECT
->  	  If you don't know what a machine check is and you don't do kernel
->  	  QA it is safe to say n.
->  
-> +config MCE_KERNEL_RECOVERY
-> +	depends on X86_MCE && X86_64
-> +	def_bool y
+Memory cgroup reclaim can be interrupted with mem_cgroup_iter_break()
+once enough pages have been reclaimed, in which case, in contrast to a
+full round-trip over a cgroup sub-tree, the current position stored in
+mem_cgroup_reclaim_iter of the target cgroup does not get invalidated
+and so is left holding the reference to the last scanned cgroup. If the
+target cgroup does not get scanned again (we might have just reclaimed
+the last page or all processes might exit and free their memory
+voluntary), we will leak it, because there is nobody to put the
+reference held by the iterator.
 
-Shouldn't that depend on NVDIMM or whatnot? Looks too generic now.
+The problem is easy to reproduce by running the following command
+sequence in a loop:
 
-> +
->  config X86_THERMAL_VECTOR
->  	def_bool y
->  	depends on X86_MCE_INTEL
-> diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-> index 189679aba703..a5d483ac11fa 100644
-> --- a/arch/x86/include/asm/asm.h
-> +++ b/arch/x86/include/asm/asm.h
-> @@ -44,13 +44,19 @@
->  
->  /* Exception table entry */
->  #ifdef __ASSEMBLY__
-> -# define _ASM_EXTABLE(from,to)					\
-> -	.pushsection "__ex_table","a" ;				\
-> +# define __ASM_EXTABLE(from, to, table)				\
-> +	.pushsection table, "a" ;				\
->  	.balign 8 ;						\
->  	.long (from) - . ;					\
->  	.long (to) - . ;					\
->  	.popsection
->  
-> +# define _ASM_EXTABLE(from, to)					\
-> +	__ASM_EXTABLE(from, to, "__ex_table")
-> +
-> +# define _ASM_MCEXTABLE(from, to)				\
-> +	__ASM_EXTABLE(from, to, "__mcex_table")
-> +
->  # define _ASM_EXTABLE_EX(from,to)				\
->  	.pushsection "__ex_table","a" ;				\
->  	.balign 8 ;						\
-> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-> index a8df874f3e88..7b02ca1991b4 100644
-> --- a/arch/x86/include/asm/uaccess.h
-> +++ b/arch/x86/include/asm/uaccess.h
-> @@ -111,6 +111,14 @@ struct exception_table_entry {
->  #define ARCH_HAS_SEARCH_EXTABLE
->  
->  extern int fixup_exception(struct pt_regs *regs);
-> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
-> +extern int fixup_mcexception(struct pt_regs *regs, u64 addr);
-> +#else
-> +static inline int fixup_mcexception(struct pt_regs *regs, u64 addr)
-> +{
-> +	return 0;
-> +}
-> +#endif
->  extern int early_fixup_exception(unsigned long *ip);
+    mkdir /sys/fs/cgroup/memory/test
+    echo 100M > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+    echo $$ > /sys/fs/cgroup/memory/test/cgroup.procs
+    memhog 150M
+    echo $$ > /sys/fs/cgroup/memory/cgroup.procs
+    rmdir test
 
-No need for "extern"
+The cgroups generated by it will never get freed.
 
->  
->  /*
-> diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
-> index 903ec1e9c326..a461c4212758 100644
-> --- a/arch/x86/mm/extable.c
-> +++ b/arch/x86/mm/extable.c
-> @@ -49,6 +49,25 @@ int fixup_exception(struct pt_regs *regs)
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
-> +int fixup_mcexception(struct pt_regs *regs, u64 addr)
-> +{
+This patch fixes this issue by making mem_cgroup_iter_break() clear
+mem_cgroup_reclaim_iter->position in case it points to the memory cgroup
+we interrupted reclaim on.
 
-If you move the #ifdef here, you can save yourself the ifdeffery in the
-header above.
+Fixes: 5ac8fb31ad2e ("mm: memcontrol: convert reclaim iterator to simple css refcounting")
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: <stable@vger.kernel.org> # 3.19+
+---
+ include/linux/memcontrol.h |  8 +++++---
+ mm/memcontrol.c            | 28 +++++++++++++++++++++++-----
+ mm/vmscan.c                |  2 +-
+ 3 files changed, 29 insertions(+), 9 deletions(-)
 
-> +	const struct exception_table_entry *fixup;
-> +	unsigned long new_ip;
-> +
-> +	fixup = search_mcexception_tables(regs->ip);
-> +	if (fixup) {
-> +		new_ip = ex_fixup_addr(fixup);
-> +
-> +		regs->ip = new_ip;
-> +		regs->ax = BIT(63) | addr;
-> +		return 1;
-> +	}
-> +
-> +	return 0;
-> +}
-> +#endif
-> +
->  /* Restricted version used during very early boot */
->  int __init early_fixup_exception(unsigned long *ip)
->  {
-> diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
-> index 1781e54ea6d3..21bb20d1172a 100644
-> --- a/include/asm-generic/vmlinux.lds.h
-> +++ b/include/asm-generic/vmlinux.lds.h
-> @@ -473,6 +473,12 @@
->  		VMLINUX_SYMBOL(__start___ex_table) = .;			\
->  		*(__ex_table)						\
->  		VMLINUX_SYMBOL(__stop___ex_table) = .;			\
-> +	}								\
-> +	. = ALIGN(align);						\
-> +	__mcex_table : AT(ADDR(__mcex_table) - LOAD_OFFSET) {		\
-> +		VMLINUX_SYMBOL(__start___mcex_table) = .;		\
-> +		*(__mcex_table)						\
-> +		VMLINUX_SYMBOL(__stop___mcex_table) = .;		\
-
-Of all the places, this one is missing #ifdef CONFIG_MCE_KERNEL_RECOVERY.
-
->  	}
->  
->  /*
-> diff --git a/include/linux/module.h b/include/linux/module.h
-> index 3a19c79918e0..ffecbfcc462c 100644
-> --- a/include/linux/module.h
-> +++ b/include/linux/module.h
-> @@ -270,6 +270,7 @@ extern const typeof(name) __mod_##type##__##name##_device_table		\
->  
->  /* Given an address, look for it in the exception tables */
->  const struct exception_table_entry *search_exception_tables(unsigned long add);
-> +const struct exception_table_entry *search_mcexception_tables(unsigned long a);
->  
->  struct notifier_block;
->  
-> diff --git a/kernel/extable.c b/kernel/extable.c
-> index e820ccee9846..7b224fbcb708 100644
-> --- a/kernel/extable.c
-> +++ b/kernel/extable.c
-> @@ -34,6 +34,10 @@ DEFINE_MUTEX(text_mutex);
->  
->  extern struct exception_table_entry __start___ex_table[];
->  extern struct exception_table_entry __stop___ex_table[];
-> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
-> +extern struct exception_table_entry __start___mcex_table[];
-> +extern struct exception_table_entry __stop___mcex_table[];
-> +#endif
->  
->  /* Cleared by build time tools if the table is already sorted. */
->  u32 __initdata __visible main_extable_sort_needed = 1;
-> @@ -45,6 +49,10 @@ void __init sort_main_extable(void)
->  		pr_notice("Sorting __ex_table...\n");
->  		sort_extable(__start___ex_table, __stop___ex_table);
->  	}
-> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
-> +	if (__stop___mcex_table > __start___mcex_table)
-> +		sort_extable(__start___mcex_table, __stop___mcex_table);
-> +#endif
->  }
->  
->  /* Given an address, look for it in the exception tables. */
-> @@ -58,6 +66,18 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
->  	return e;
->  }
->  
-> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
-> +/* Given an address, look for it in the machine check exception tables. */
-> +const struct exception_table_entry *search_mcexception_tables(
-> +				    unsigned long addr)
-> +{
-> +	const struct exception_table_entry *e;
-> +
-> +	e = search_extable(__start___mcex_table, __stop___mcex_table-1, addr);
-> +	return e;
-> +}
-> +#endif
-
-You can make this one a bit more readable by doing:
-
-/* Given an address, look for it in the machine check exception tables. */
-const struct exception_table_entry *
-search_mcexception_tables(unsigned long addr)
-{
-#ifdef CONFIG_MCE_KERNEL_RECOVERY
-        return search_extable(__start___mcex_table,
-                               __stop___mcex_table - 1, addr);
-#endif
-}
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 2bb14d021cd0..6000fadc6100 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -313,7 +313,8 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+ 				   struct mem_cgroup *,
+ 				   struct mem_cgroup_reclaim_cookie *);
+-void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
++void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *,
++			   struct mem_cgroup_reclaim_cookie *);
+ 
+ /**
+  * parent_mem_cgroup - find the accounting parent of a memcg
+@@ -585,8 +586,9 @@ mem_cgroup_iter(struct mem_cgroup *root,
+ 	return NULL;
+ }
+ 
+-static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
+-					 struct mem_cgroup *prev)
++static inline void
++mem_cgroup_iter_break(struct mem_cgroup *root, struct mem_cgroup *prev,
++		      struct mem_cgroup_reclaim_cookie *reclaim)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fae68111876d..6751ff4f4507 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -945,14 +945,32 @@ out:
+  * mem_cgroup_iter_break - abort a hierarchy walk prematurely
+  * @root: hierarchy root
+  * @prev: last visited hierarchy member as returned by mem_cgroup_iter()
++ * @reclaim: cookie for shared reclaim walks, NULL for full walks
+  */
+ void mem_cgroup_iter_break(struct mem_cgroup *root,
+-			   struct mem_cgroup *prev)
++			   struct mem_cgroup *prev,
++			   struct mem_cgroup_reclaim_cookie *reclaim)
+ {
+ 	if (!root)
+ 		root = root_mem_cgroup;
+ 	if (prev && prev != root)
+ 		css_put(&prev->css);
++	if (prev && reclaim) {
++		struct mem_cgroup_per_zone *mz;
++		struct mem_cgroup_reclaim_iter *iter;
++
++		mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
++		iter = &mz->iter[reclaim->priority];
++
++		/*
++		 * There is no guarantee that root will ever get scanned again
++		 * so we must put reference to prev held by the iterator so as
++		 * not to risk pinning it forever.
++		 */
++		if (reclaim->generation == iter->generation &&
++		    cmpxchg(&iter->position, prev, NULL) == prev)
++			css_put(&prev->css);
++	}
+ }
+ 
+ /*
+@@ -1308,7 +1326,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 				continue;
+ 			case OOM_SCAN_ABORT:
+ 				css_task_iter_end(&it);
+-				mem_cgroup_iter_break(memcg, iter);
++				mem_cgroup_iter_break(memcg, iter, NULL);
+ 				if (chosen)
+ 					put_task_struct(chosen);
+ 				goto unlock;
+@@ -1485,7 +1503,7 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+ 		if (!soft_limit_excess(root_memcg))
+ 			break;
+ 	}
+-	mem_cgroup_iter_break(root_memcg, victim);
++	mem_cgroup_iter_break(root_memcg, victim, NULL);
+ 	return total;
+ }
+ 
+@@ -1514,7 +1532,7 @@ static bool mem_cgroup_oom_trylock(struct mem_cgroup *memcg)
+ 			 * so we cannot give a lock.
+ 			 */
+ 			failed = iter;
+-			mem_cgroup_iter_break(memcg, iter);
++			mem_cgroup_iter_break(memcg, iter, NULL);
+ 			break;
+ 		} else
+ 			iter->oom_lock = true;
+@@ -1527,7 +1545,7 @@ static bool mem_cgroup_oom_trylock(struct mem_cgroup *memcg)
+ 		 */
+ 		for_each_mem_cgroup_tree(iter, memcg) {
+ 			if (iter == failed) {
+-				mem_cgroup_iter_break(memcg, iter);
++				mem_cgroup_iter_break(memcg, iter, NULL);
+ 				break;
+ 			}
+ 			iter->oom_lock = false;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bb01b04154ad..4313495f9bd0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2439,7 +2439,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 			 */
+ 			if (!global_reclaim(sc) &&
+ 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
+-				mem_cgroup_iter_break(root, memcg);
++				mem_cgroup_iter_break(root, memcg, &reclaim);
+ 				break;
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
