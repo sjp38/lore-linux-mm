@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 93E956B0253
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2015 18:43:22 -0500 (EST)
-Received: by padhk6 with SMTP id hk6so32439204pad.2
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2015 15:43:22 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id rf10si4117959pab.94.2015.12.11.15.43.21
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A16B6B0253
+	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 03:52:46 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so34671484pfb.3
+        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 00:52:46 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id w63si7137145pfa.222.2015.12.12.00.52.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Dec 2015 15:43:22 -0800 (PST)
-Date: Fri, 11 Dec 2015 15:43:21 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/zswap: change incorrect strncmp use to strcmp
-Message-Id: <20151211154321.e5b03afe8122d0f5afa38f4d@linux-foundation.org>
-In-Reply-To: <1449876791-15962-1-git-send-email-ddstreet@ieee.org>
-References: <1449876791-15962-1-git-send-email-ddstreet@ieee.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 12 Dec 2015 00:52:45 -0800 (PST)
+Message-ID: <566BE050.3000804@huawei.com>
+Date: Sat, 12 Dec 2015 16:52:32 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: [RFC] REHL 7.1: soft lockup when flush tlb
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Seth Jennings <sjennings@variantweb.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Fri, 11 Dec 2015 18:33:11 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
-
-> Change the use of strncmp in zswap_pool_find_get() to strcmp.
-> 
-> The use of strncmp is no longer correct, now that zswap_zpool_type is
-> not an array; sizeof() will return the size of a pointer, which isn't
-> the right length to compare.
-
-whoops
-
->  We don't need to use strncmp anyway,
-> because the existing params and the passed in params are all guaranteed
-> to be null terminated, so strcmp should be used.
-> 
-
-Thanks, I'll queue this for 4.4.
+[60050.458309] kjournald starting.  Commit interval 5 seconds
+[60076.821224] EXT3-fs (sda1): using internal journal
+[60098.811865] EXT3-fs (sda1): mounted filesystem with ordered data mode
+[60138.687054] kjournald starting.  Commit interval 5 seconds
+[60143.888627] EXT3-fs (sda1): using internal journal
+[60143.888631] EXT3-fs (sda1): mounted filesystem with ordered data mode
+[60164.075002] BUG: soft lockup - CPU#1 stuck for 22s! [mount:3883]
+[60164.075002] Modules linked in: loop binfmt_misc rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver nfs lockd sunrpc fscache hmem_driver(OF) kbox(OF) cirrus syscopyarea sysfillrect sysimgblt ttm drm_kms_helper drm ppdev parport_pc parport i2c_piix4 i2c_core virtio_balloon floppy serio_raw pcspkr ext3 mbcache jbd sd_mod sr_mod crc_t10dif cdrom crct10dif_common ata_generic pata_acpi virtio_scsi virtio_console ata_piix virtio_pci libata e1000 virtio_ring virtio [last unloaded: kernel_allocpage]
+[60164.075002] CPU: 1 PID: 3883 Comm: mount Tainted: GF       W  O --------------   3.10.0-229.20.1.23.x86_64 #1
+[60164.075002] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.7.5-0-ge51488c-20140602_164612-nilsson.home.kraxel.org 04/01/2014
+[60164.075002] task: ffff88061d850b60 ti: ffff88061c500000 task.ti: ffff88061c500000
+[60164.075002] RIP: 0010:[<ffffffff810d7a4a>]  [<ffffffff810d7a4a>] generic_exec_single+0xfa/0x1a0
+[60164.075002] RSP: 0018:ffff88061c503c50  EFLAGS: 00000202
+[60164.075002] RAX: 0000000000000004 RBX: ffff88061c503c20 RCX: 000000000000003c
+[60164.075002] RDX: 000000000000000f RSI: 0000000000000004 RDI: 0000000000000282
+[60164.075002] RBP: ffff88061c503c98 R08: ffffffff81631120 R09: 00000000000169e0
+[60164.075002] R10: ffff88063ffc5000 R11: 0000000000000000 R12: 0000000000000000
+[60164.075002] R13: ffff88063ffc5000 R14: ffff88061c503c20 R15: 0000000200000000
+[60164.075002] FS:  0000000000000000(0000) GS:ffff88063fc80000(0000) knlGS:0000000000000000
+[60164.075002] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[60164.075002] CR2: 00007fab0c4a0c40 CR3: 000000000190a000 CR4: 00000000000006e0
+[60164.075002] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[60164.075002] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[60164.075002] Stack:
+[60164.075002]  0000000000000000 0000000000000000 ffffffff8105fab0 ffff88061c503d20
+[60164.075002]  0000000000000003 000000009383884f 0000000000000002 ffffffff8105fab0
+[60164.075002]  ffffffff8105fab0 ffff88061c503cc8 ffffffff810d7b4f ffff88061c503cc8
+[60164.075002] Call Trace:
+[60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
+[60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
+[60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
+[60164.075002]  [<ffffffff810d7b4f>] smp_call_function_single+0x5f/0xa0
+[60164.075002]  [<ffffffff812d5c15>] ? cpumask_next_and+0x35/0x50
+[60164.075002]  [<ffffffff810d80e3>] smp_call_function_many+0x223/0x260
+[60164.075002]  [<ffffffff8105fc78>] native_flush_tlb_others+0xb8/0xc0
+[60164.075002]  [<ffffffff8105fd3c>] flush_tlb_mm_range+0x5c/0x180
+[60164.075002]  [<ffffffff8117f503>] tlb_flush_mmu.part.53+0x83/0x90
+[60164.075002]  [<ffffffff81180015>] tlb_finish_mmu+0x55/0x60
+[60164.075002]  [<ffffffff8118b0bb>] exit_mmap+0xdb/0x1a0
+[60164.075002]  [<ffffffff8106b487>] mmput+0x67/0xf0
+[60164.075002]  [<ffffffff8107458c>] do_exit+0x28c/0xa60
+[60164.075002]  [<ffffffff816100c3>] ? trace_do_page_fault+0x43/0x100
+[60164.075002]  [<ffffffff81074ddf>] do_group_exit+0x3f/0xa0
+[60164.075002]  [<ffffffff81074e54>] SyS_exit_group+0x14/0x20
+[60164.075002]  [<ffffffff816147c9>] system_call_fastpath+0x16/0x1b
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
