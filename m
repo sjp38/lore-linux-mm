@@ -1,119 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id CB58B6B0253
-	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 04:55:42 -0500 (EST)
-Received: by qkht125 with SMTP id t125so73704470qkh.3
-        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 01:55:42 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m68si24539718qgm.33.2015.12.12.01.55.40
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 12 Dec 2015 01:55:41 -0800 (PST)
-Message-ID: <566BEF00.9090508@huawei.com>
-Date: Sat, 12 Dec 2015 17:55:12 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5366B0253
+	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 05:11:46 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so62431708wmn.0
+        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 02:11:46 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id y72si9145667wmd.20.2015.12.12.02.11.45
+        for <linux-mm@kvack.org>;
+        Sat, 12 Dec 2015 02:11:45 -0800 (PST)
+Date: Sat, 12 Dec 2015 11:11:42 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
+Message-ID: <20151212101142.GA3867@pd.tnic>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] RHEL 7.1: soft lockup when flush tlb
-References: <566BE050.3000804@huawei.com> <566BE89A.1070200@kyup.com>
-In-Reply-To: <566BE89A.1070200@kyup.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Tony Luck <tony.luck@intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On 2015/12/12 17:27, Nikolay Borisov wrote:
-
+On Thu, Dec 10, 2015 at 01:58:04PM -0800, Tony Luck wrote:
+> Copy the existing page fault fixup mechanisms to create a new table
+> to be used when fixing machine checks. Note:
+> 1) At this time we only provide a macro to annotate assembly code
+> 2) We assume all fixups will in code builtin to the kernel.
+> 3) Only for x86_64
+> 4) New code under CONFIG_MCE_KERNEL_RECOVERY
 > 
+> Signed-off-by: Tony Luck <tony.luck@intel.com>
+> ---
+>  arch/x86/Kconfig                  |  4 ++++
+>  arch/x86/include/asm/asm.h        | 10 ++++++++--
+>  arch/x86/include/asm/uaccess.h    |  8 ++++++++
+>  arch/x86/mm/extable.c             | 19 +++++++++++++++++++
+>  include/asm-generic/vmlinux.lds.h |  6 ++++++
+>  include/linux/module.h            |  1 +
+>  kernel/extable.c                  | 20 ++++++++++++++++++++
+>  7 files changed, 66 insertions(+), 2 deletions(-)
 > 
-> On 12/12/2015 10:52 AM, Xishi Qiu wrote:
->> [60050.458309] kjournald starting.  Commit interval 5 seconds
->> [60076.821224] EXT3-fs (sda1): using internal journal
->> [60098.811865] EXT3-fs (sda1): mounted filesystem with ordered data mode
->> [60138.687054] kjournald starting.  Commit interval 5 seconds
->> [60143.888627] EXT3-fs (sda1): using internal journal
->> [60143.888631] EXT3-fs (sda1): mounted filesystem with ordered data mode
->> [60164.075002] BUG: soft lockup - CPU#1 stuck for 22s! [mount:3883]
->> [60164.075002] Modules linked in: loop binfmt_misc rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver nfs lockd sunrpc fscache hmem_driver(OF) kbox(OF) cirrus syscopyarea sysfillrect sysimgblt ttm drm_kms_helper drm ppdev parport_pc parport i2c_piix4 i2c_core virtio_balloon floppy serio_raw pcspkr ext3 mbcache jbd sd_mod sr_mod crc_t10dif cdrom crct10dif_common ata_generic pata_acpi virtio_scsi virtio_console ata_piix virtio_pci libata e1000 virtio_ring virtio [last unloaded: kernel_allocpage]
->> [60164.075002] CPU: 1 PID: 3883 Comm: mount Tainted: GF       W  O --------------   3.10.0-229.20.1.23.x86_64 #1
->> [60164.075002] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.7.5-0-ge51488c-20140602_164612-nilsson.home.kraxel.org 04/01/2014
->> [60164.075002] task: ffff88061d850b60 ti: ffff88061c500000 task.ti: ffff88061c500000
->> [60164.075002] RIP: 0010:[<ffffffff810d7a4a>]  [<ffffffff810d7a4a>] generic_exec_single+0xfa/0x1a0
->> [60164.075002] RSP: 0018:ffff88061c503c50  EFLAGS: 00000202
->> [60164.075002] RAX: 0000000000000004 RBX: ffff88061c503c20 RCX: 000000000000003c
->> [60164.075002] RDX: 000000000000000f RSI: 0000000000000004 RDI: 0000000000000282
->> [60164.075002] RBP: ffff88061c503c98 R08: ffffffff81631120 R09: 00000000000169e0
->> [60164.075002] R10: ffff88063ffc5000 R11: 0000000000000000 R12: 0000000000000000
->> [60164.075002] R13: ffff88063ffc5000 R14: ffff88061c503c20 R15: 0000000200000000
->> [60164.075002] FS:  0000000000000000(0000) GS:ffff88063fc80000(0000) knlGS:0000000000000000
->> [60164.075002] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->> [60164.075002] CR2: 00007fab0c4a0c40 CR3: 000000000190a000 CR4: 00000000000006e0
->> [60164.075002] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->> [60164.075002] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->> [60164.075002] Stack:
->> [60164.075002]  0000000000000000 0000000000000000 ffffffff8105fab0 ffff88061c503d20
->> [60164.075002]  0000000000000003 000000009383884f 0000000000000002 ffffffff8105fab0
->> [60164.075002]  ffffffff8105fab0 ffff88061c503cc8 ffffffff810d7b4f ffff88061c503cc8
->> [60164.075002] Call Trace:
->> [60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
->> [60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
->> [60164.075002]  [<ffffffff8105fab0>] ? leave_mm+0x70/0x70
->> [60164.075002]  [<ffffffff810d7b4f>] smp_call_function_single+0x5f/0xa0
->> [60164.075002]  [<ffffffff812d5c15>] ? cpumask_next_and+0x35/0x50
->> [60164.075002]  [<ffffffff810d80e3>] smp_call_function_many+0x223/0x260
->> [60164.075002]  [<ffffffff8105fc78>] native_flush_tlb_others+0xb8/0xc0
->> [60164.075002]  [<ffffffff8105fd3c>] flush_tlb_mm_range+0x5c/0x180
->> [60164.075002]  [<ffffffff8117f503>] tlb_flush_mmu.part.53+0x83/0x90
->> [60164.075002]  [<ffffffff81180015>] tlb_finish_mmu+0x55/0x60
->> [60164.075002]  [<ffffffff8118b0bb>] exit_mmap+0xdb/0x1a0
->> [60164.075002]  [<ffffffff8106b487>] mmput+0x67/0xf0
->> [60164.075002]  [<ffffffff8107458c>] do_exit+0x28c/0xa60
->> [60164.075002]  [<ffffffff816100c3>] ? trace_do_page_fault+0x43/0x100
->> [60164.075002]  [<ffffffff81074ddf>] do_group_exit+0x3f/0xa0
->> [60164.075002]  [<ffffffff81074e54>] SyS_exit_group+0x14/0x20
->> [60164.075002]  [<ffffffff816147c9>] system_call_fastpath+0x16/0x1b
->>
-> 
-> This stack trace is not sufficient to show what root cause of the lockup
-> is. More often than not what happens is that some other core (the
-> offending one) is stuck with interrupts disabled, and that's why the ipi
-> resulting from native_flush_tlb_others is getting stuck. So you need to
-> see which core failed at handling the IPI.
-> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 96d058a87100..db5c6e1d6e37 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1001,6 +1001,10 @@ config X86_MCE_INJECT
+>  	  If you don't know what a machine check is and you don't do kernel
+>  	  QA it is safe to say n.
+>  
+> +config MCE_KERNEL_RECOVERY
+> +	depends on X86_MCE && X86_64
+> +	def_bool y
 
-Hi Nikolay,
+Shouldn't that depend on NVDIMM or whatnot? Looks too generic now.
 
-Thanks for your comment.
+> +
+>  config X86_THERMAL_VECTOR
+>  	def_bool y
+>  	depends on X86_MCE_INTEL
+> diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
+> index 189679aba703..a5d483ac11fa 100644
+> --- a/arch/x86/include/asm/asm.h
+> +++ b/arch/x86/include/asm/asm.h
+> @@ -44,13 +44,19 @@
+>  
+>  /* Exception table entry */
+>  #ifdef __ASSEMBLY__
+> -# define _ASM_EXTABLE(from,to)					\
+> -	.pushsection "__ex_table","a" ;				\
+> +# define __ASM_EXTABLE(from, to, table)				\
+> +	.pushsection table, "a" ;				\
+>  	.balign 8 ;						\
+>  	.long (from) - . ;					\
+>  	.long (to) - . ;					\
+>  	.popsection
+>  
+> +# define _ASM_EXTABLE(from, to)					\
+> +	__ASM_EXTABLE(from, to, "__ex_table")
+> +
+> +# define _ASM_MCEXTABLE(from, to)				\
+> +	__ASM_EXTABLE(from, to, "__mcex_table")
+> +
+>  # define _ASM_EXTABLE_EX(from,to)				\
+>  	.pushsection "__ex_table","a" ;				\
+>  	.balign 8 ;						\
+> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+> index a8df874f3e88..7b02ca1991b4 100644
+> --- a/arch/x86/include/asm/uaccess.h
+> +++ b/arch/x86/include/asm/uaccess.h
+> @@ -111,6 +111,14 @@ struct exception_table_entry {
+>  #define ARCH_HAS_SEARCH_EXTABLE
+>  
+>  extern int fixup_exception(struct pt_regs *regs);
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +extern int fixup_mcexception(struct pt_regs *regs, u64 addr);
+> +#else
+> +static inline int fixup_mcexception(struct pt_regs *regs, u64 addr)
+> +{
+> +	return 0;
+> +}
+> +#endif
+>  extern int early_fixup_exception(unsigned long *ip);
 
-I find the following code(RHEL 7.1) is almost the same as v4.0.
+No need for "extern"
 
-native_flush_tlb_others()
-		smp_call_function_many()
-			smp_call_function_single()
-				flush_tlb_func()
-				generic_exec_single()
-					csd_lock_wait()
+>  
+>  /*
+> diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
+> index 903ec1e9c326..a461c4212758 100644
+> --- a/arch/x86/mm/extable.c
+> +++ b/arch/x86/mm/extable.c
+> @@ -49,6 +49,25 @@ int fixup_exception(struct pt_regs *regs)
+>  	return 0;
+>  }
+>  
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +int fixup_mcexception(struct pt_regs *regs, u64 addr)
+> +{
 
-And I find two patch in mainline may be related to this problem. 
-8053871d0f7f67c7efb7f226ef031f78877d6625
-5224b9613b91d937c6948fe977023247afbcc04e
+If you move the #ifdef here, you can save yourself the ifdeffery in the
+header above.
 
-Thanks,
-Xishi Qiu
+> +	const struct exception_table_entry *fixup;
+> +	unsigned long new_ip;
+> +
+> +	fixup = search_mcexception_tables(regs->ip);
+> +	if (fixup) {
+> +		new_ip = ex_fixup_addr(fixup);
+> +
+> +		regs->ip = new_ip;
+> +		regs->ax = BIT(63) | addr;
+> +		return 1;
+> +	}
+> +
+> +	return 0;
+> +}
+> +#endif
+> +
+>  /* Restricted version used during very early boot */
+>  int __init early_fixup_exception(unsigned long *ip)
+>  {
+> diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
+> index 1781e54ea6d3..21bb20d1172a 100644
+> --- a/include/asm-generic/vmlinux.lds.h
+> +++ b/include/asm-generic/vmlinux.lds.h
+> @@ -473,6 +473,12 @@
+>  		VMLINUX_SYMBOL(__start___ex_table) = .;			\
+>  		*(__ex_table)						\
+>  		VMLINUX_SYMBOL(__stop___ex_table) = .;			\
+> +	}								\
+> +	. = ALIGN(align);						\
+> +	__mcex_table : AT(ADDR(__mcex_table) - LOAD_OFFSET) {		\
+> +		VMLINUX_SYMBOL(__start___mcex_table) = .;		\
+> +		*(__mcex_table)						\
+> +		VMLINUX_SYMBOL(__stop___mcex_table) = .;		\
 
-> 
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
->>
-> 
-> .
-> 
+Of all the places, this one is missing #ifdef CONFIG_MCE_KERNEL_RECOVERY.
 
+>  	}
+>  
+>  /*
+> diff --git a/include/linux/module.h b/include/linux/module.h
+> index 3a19c79918e0..ffecbfcc462c 100644
+> --- a/include/linux/module.h
+> +++ b/include/linux/module.h
+> @@ -270,6 +270,7 @@ extern const typeof(name) __mod_##type##__##name##_device_table		\
+>  
+>  /* Given an address, look for it in the exception tables */
+>  const struct exception_table_entry *search_exception_tables(unsigned long add);
+> +const struct exception_table_entry *search_mcexception_tables(unsigned long a);
+>  
+>  struct notifier_block;
+>  
+> diff --git a/kernel/extable.c b/kernel/extable.c
+> index e820ccee9846..7b224fbcb708 100644
+> --- a/kernel/extable.c
+> +++ b/kernel/extable.c
+> @@ -34,6 +34,10 @@ DEFINE_MUTEX(text_mutex);
+>  
+>  extern struct exception_table_entry __start___ex_table[];
+>  extern struct exception_table_entry __stop___ex_table[];
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +extern struct exception_table_entry __start___mcex_table[];
+> +extern struct exception_table_entry __stop___mcex_table[];
+> +#endif
+>  
+>  /* Cleared by build time tools if the table is already sorted. */
+>  u32 __initdata __visible main_extable_sort_needed = 1;
+> @@ -45,6 +49,10 @@ void __init sort_main_extable(void)
+>  		pr_notice("Sorting __ex_table...\n");
+>  		sort_extable(__start___ex_table, __stop___ex_table);
+>  	}
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +	if (__stop___mcex_table > __start___mcex_table)
+> +		sort_extable(__start___mcex_table, __stop___mcex_table);
+> +#endif
+>  }
+>  
+>  /* Given an address, look for it in the exception tables. */
+> @@ -58,6 +66,18 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
+>  	return e;
+>  }
+>  
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +/* Given an address, look for it in the machine check exception tables. */
+> +const struct exception_table_entry *search_mcexception_tables(
+> +				    unsigned long addr)
+> +{
+> +	const struct exception_table_entry *e;
+> +
+> +	e = search_extable(__start___mcex_table, __stop___mcex_table-1, addr);
+> +	return e;
+> +}
+> +#endif
 
+You can make this one a bit more readable by doing:
+
+/* Given an address, look for it in the machine check exception tables. */
+const struct exception_table_entry *
+search_mcexception_tables(unsigned long addr)
+{
+#ifdef CONFIG_MCE_KERNEL_RECOVERY
+        return search_extable(__start___mcex_table,
+                               __stop___mcex_table - 1, addr);
+#endif
+}
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
