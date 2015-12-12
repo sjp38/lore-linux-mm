@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 792396B0038
-	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 12:00:46 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id p66so11268591wmp.1
-        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 09:00:46 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B53C46B0038
+	for <linux-mm@kvack.org>; Sat, 12 Dec 2015 12:21:07 -0500 (EST)
+Received: by wmpp66 with SMTP id p66so11320202wmp.1
+        for <linux-mm@kvack.org>; Sat, 12 Dec 2015 09:21:07 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v62si13029937wme.73.2015.12.12.09.00.44
+        by mx.google.com with ESMTPS id i9si33666884wjx.173.2015.12.12.09.21.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 12 Dec 2015 09:00:45 -0800 (PST)
-Date: Sat, 12 Dec 2015 12:00:32 -0500
+        Sat, 12 Dec 2015 09:21:06 -0800 (PST)
+Date: Sat, 12 Dec 2015 12:20:57 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v4] mm,oom: Add memory allocation watchdog kernel thread.
-Message-ID: <20151212170032.GB7107@cmpxchg.org>
-References: <201512130033.ABH90650.FtFOMOFLVOJHQS@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH 2/4] mm: memcontrol: reign in the CONFIG space madness
+Message-ID: <20151212172057.GA7997@cmpxchg.org>
+References: <1449863653-6546-1-git-send-email-hannes@cmpxchg.org>
+ <1449863653-6546-2-git-send-email-hannes@cmpxchg.org>
+ <20151212163332.GC28521@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201512130033.ABH90650.FtFOMOFLVOJHQS@I-love.SAKURA.ne.jp>
+In-Reply-To: <20151212163332.GC28521@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com, arekm@maven.pl
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Sun, Dec 13, 2015 at 12:33:04AM +0900, Tetsuo Handa wrote:
-> +Currently, when something went wrong inside memory allocation request,
-> +the system will stall with either 100% CPU usage (if memory allocating
-> +tasks are doing busy loop) or 0% CPU usage (if memory allocating tasks
-> +are waiting for file data to be flushed to storage).
-> +But /proc/sys/kernel/hung_task_warnings is not helpful because memory
-> +allocating tasks unlikely sleep in uninterruptible state for
-> +/proc/sys/kernel/hung_task_timeout_secs seconds.
+On Sat, Dec 12, 2015 at 07:33:32PM +0300, Vladimir Davydov wrote:
+> On Fri, Dec 11, 2015 at 02:54:11PM -0500, Johannes Weiner wrote:
+> > What CONFIG_INET and CONFIG_LEGACY_KMEM guard inside the memory
+> > controller code is insignificant, having these conditionals is not
+> > worth the complication and fragility that comes with them.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> 
+> > @@ -4374,17 +4342,11 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+> >  {
+> >  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> >  
+> > -#ifdef CONFIG_INET
+> >  	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+> >  		static_branch_dec(&memcg_sockets_enabled_key);
+> > -#endif
+> > -
+> > -	memcg_free_kmem(memcg);
+> 
+> I wonder where the second call to memcg_free_kmem comes from. Luckily,
+> it couldn't result in a breakage. And now it's removed.
 
-Yes, this is very annoying. Other tasks in the system get dumped out
-as they are blocked for too long, but not the allocating task itself
-as it's busy looping.
+Lol, I had to double check my trees to see what's going on as I don't
+remember this being part of the patch. But it looks like the double
+free came from the "net: drop tcp_memcontrol.c" patch and I must have
+removed it again during conflict resolution when rebasing this patch
+on top of yours. I must have thought git's auto-merge added it.
 
-That being said, I'm not entirely sure why we need daemon to do this,
-which then requires us to duplicate allocation state to task_struct.
-There is no scenario where the allocating task is not moving at all
-anymore, right? So can't we dump the allocation state from within the
-allocator and leave the rest to the hung task detector?
+However, this causes an underflow of the kmem static branch, so we
+will have to fix this directly in "net: drop tcp_memcontrol.c".
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 05ef7fb..fbfc581 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3004,6 +3004,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	bool deferred_compaction = false;
- 	int contended_compaction = COMPACT_CONTENDED_NONE;
-+	unsigned int nr_tries = 0;
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3033,6 +3034,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto nopage;
- 
- retry:
-+	if (++nr_retries % 1000 == 0)
-+		warn_alloc_failed(gfp_mask, order, "Potential GFP deadlock\n");
-+
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
- 		wake_all_kswapds(order, ac);
- 
-Basing it on nr_retries alone might be too crude and take too long
-when each cycle spends time waiting for IO. However, if that is a
-problem we can make it time-based instead, like your memalloc_timer,
-to catch tasks that spend too much time in a single alloc attempt.
-
-> +		start_memalloc_timer(alloc_mask, order);
->  		page = __alloc_pages_slowpath(alloc_mask, order, &ac);
-> +		stop_memalloc_timer(alloc_mask);
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrew, could you please pick this up? However, it's important to also
+then remove the hunk above from THIS patch, the one that deletes the
+excessive memcg_free_kmem(). We need exactly one memcg_free_kmem() in
+mem_cgroup_css_free(). :-)
