@@ -1,75 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 664456B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:51:55 -0500 (EST)
-Received: by pff63 with SMTP id 63so17235174pff.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:51:55 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id g87si19316017pfj.194.2015.12.14.12.51.54
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B75BC6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 16:11:35 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id p66so81871251wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:11:35 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id p190si27926478wmg.80.2015.12.14.13.11.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 12:51:54 -0800 (PST)
-Received: by pacwq6 with SMTP id wq6so109440605pac.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:51:54 -0800 (PST)
-Subject: Re: [PATCH v6 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
-References: <1449856338-30984-1-git-send-email-dcashman@android.com>
- <1449856338-30984-2-git-send-email-dcashman@android.com>
- <1449856338-30984-3-git-send-email-dcashman@android.com>
- <1449856338-30984-4-git-send-email-dcashman@android.com>
- <1449856338-30984-5-git-send-email-dcashman@android.com>
- <566F1154.7030703@zytor.com>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <566F2BE7.4090904@android.com>
-Date: Mon, 14 Dec 2015 12:51:51 -0800
+        Mon, 14 Dec 2015 13:11:34 -0800 (PST)
+Received: by mail-wm0-x233.google.com with SMTP id p66so81870671wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:11:34 -0800 (PST)
+Date: Mon, 14 Dec 2015 23:11:32 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC] mm: change find_vma() function
+Message-ID: <20151214211132.GA7390@node.shutemov.name>
+References: <1450090945-4020-1-git-send-email-yalin.wang2010@gmail.com>
+ <20151214121107.GB4201@node.shutemov.name>
+ <20151214175509.GA25681@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <566F1154.7030703@zytor.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151214175509.GA25681@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org
-Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de, jonathanh@nvidia.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: yalin wang <yalin.wang2010@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, gang.chen.5i5j@gmail.com, mhocko@suse.com, kwapulinski.piotr@gmail.com, aarcange@redhat.com, dcashman@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/14/2015 10:58 AM, H. Peter Anvin wrote:
-> On 12/11/15 09:52, Daniel Cashman wrote:
->> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
->> index 844b06d..647fecf 100644
->> --- a/arch/x86/mm/mmap.c
->> +++ b/arch/x86/mm/mmap.c
->> @@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
->>  {
->>  	unsigned long rnd;
->>  
->> -	/*
->> -	 *  8 bits of randomness in 32bit mmaps, 20 address space bits
->> -	 * 28 bits of randomness in 64bit mmaps, 40 address space bits
->> -	 */
->>  	if (mmap_is_ia32())
->> -		rnd = (unsigned long)get_random_int() % (1<<8);
->> +#ifdef CONFIG_COMPAT
->> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
->> +#else
->> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
->> +#endif
->>  	else
->> -		rnd = (unsigned long)get_random_int() % (1<<28);
->> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
->>  
->>  	return rnd << PAGE_SHIFT;
->>  }
->>
+On Mon, Dec 14, 2015 at 06:55:09PM +0100, Oleg Nesterov wrote:
+> On 12/14, Kirill A. Shutemov wrote:
+> >
+> > On Mon, Dec 14, 2015 at 07:02:25PM +0800, yalin wang wrote:
+> > > change find_vma() to break ealier when found the adderss
+> > > is not in any vma, don't need loop to search all vma.
+> > >
+> > > Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> > > ---
+> > >  mm/mmap.c | 3 +++
+> > >  1 file changed, 3 insertions(+)
+> > >
+> > > diff --git a/mm/mmap.c b/mm/mmap.c
+> > > index b513f20..8294c9b 100644
+> > > --- a/mm/mmap.c
+> > > +++ b/mm/mmap.c
+> > > @@ -2064,6 +2064,9 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+> > >  			vma = tmp;
+> > >  			if (tmp->vm_start <= addr)
+> > >  				break;
+> > > +			if (!tmp->vm_prev || tmp->vm_prev->vm_end <= addr)
+> > > +				break;
+> > > +
+> >
+> > This 'break' would return 'tmp' as found vma.
 > 
-> Now, you and I know that both variants can be implemented with a simple
-> AND, but I have a strong suspicion that once this is turned into a
-> variable, this will in fact be changed from an AND to a divide.
+> But this would be right?
+
+Hm. Right. Sorry for my tone.
+
+I think the right condition is 'tmp->vm_prev->vm_end < addr', not '<=' as
+vm_end is the first byte after the vma. But it's equivalent in practice
+here.
+
+Anyway, I don't think it's possible to gain anything measurable from this
+optimization.
+
 > 
-> So I'd prefer to use the
-> "get_random_int() & ((1UL << mmap_rnd_bits) - 1)" construct instead.
+> Not that I think this optimization makes sense, I simply do not know,
+> but to me this change looks technically correct at first glance...
+> 
+> But the changelog is wrong or I missed something. This change can stop
+> the main loop earlier; if "tmp" is the first vma,
 
-Good point.  Will change in v7 across patch-set.
+For the first vma, we don't get anything comparing to what we have now:
+check for !rb_node on the next iteration would have the same trade off and
+effect as the proposed check.
 
-Thank You,
-Dan
+> or if the previous one is below the address.
+
+Yes, but would it compensate additional check on each 'tmp->vm_end > addr'
+iteration to the point? That's not obvious.
+
+> Or perhaps I just misread that "not in any vma" note in the changelog.
+> 
+> No?
+> 
+> Oleg.
+> 
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
