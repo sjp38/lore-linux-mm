@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B726B0254
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:08:31 -0500 (EST)
-Received: by lbpu9 with SMTP id u9so95315849lbp.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 01:08:30 -0800 (PST)
-Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
-        by mx.google.com with ESMTPS id r10si16597429lbb.195.2015.12.14.01.08.29
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 235EA6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:17:14 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id p66so52149688wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 01:17:14 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id w191si24098731wme.107.2015.12.14.01.17.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 01:08:30 -0800 (PST)
-Received: by lfcy184 with SMTP id y184so42064218lfc.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 01:08:29 -0800 (PST)
-Date: Mon, 14 Dec 2015 12:08:27 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH RFC] mm: rework virtual memory accounting
-Message-ID: <20151214090827.GA14045@uranus>
-References: <CALYGNiMTkhb1EeojxvarVOh2q4SGqtKuYU_gv4V+vQ1XocPZ8w@mail.gmail.com>
- <145008075795.15926.4661774822205839673.stgit@zurg>
+        Mon, 14 Dec 2015 01:17:13 -0800 (PST)
+Received: by mail-wm0-x22a.google.com with SMTP id n186so35767579wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 01:17:12 -0800 (PST)
+Date: Mon, 14 Dec 2015 10:17:09 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 1/6] mm: Add a vm_special_mapping .fault method
+Message-ID: <20151214091709.GA29878@gmail.com>
+References: <cover.1449803537.git.luto@kernel.org>
+ <4e911d2752d3b9e52d7496e46b389fc630cdc3a8.1449803537.git.luto@kernel.org>
+ <20151211142814.25cc806e3f5180d525ee807e@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <145008075795.15926.4661774822205839673.stgit@zurg>
+In-Reply-To: <20151211142814.25cc806e3f5180d525ee807e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Mon, Dec 14, 2015 at 11:12:38AM +0300, Konstantin Khlebnikov wrote:
-> Here several rated changes bundled together:
-> * keep vma counting if CONFIG_PROC_FS=n, will be used for limits
-> * replace mm->shared_vm with better defined mm->data_vm
-> * account anonymous executable areas as executable
-> * account file-backed growsdown/up areas as stack
-> * drop struct file* argument from vm_stat_account
-> * enforce RLIMIT_DATA for size of data areas
-> 
-> This way code looks cleaner: now code/stack/data
-> classification depends only on vm_flags state:
-> 
-> VM_EXEC & ~VM_WRITE -> code (VmExe + VmLib in proc)
-> VM_GROWSUP | VM_GROWSDOWN -> stack (VmStk)
-> VM_WRITE & ~VM_SHARED & !stack -> data (VmData)
-> 
-> The rest (VmSize - VmData - VmStk - VmExe - VmLib) could be called "shared",
-> but that might be strange beasts like readonly-private or VM_IO areas.
-> 
-> RLIMIT_AS limits whole address space "VmSize"
-> RLIMIT_STACK limits stack "VmStk" (but each vma individually)
-> RLIMIT_DATA now limits "VmData"
-> 
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 
-Looks OK to me. Lets wait for Linus' opinion.
+* Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> > +	} else {
+> > +		struct vm_special_mapping *sm = vma->vm_private_data;
+> > +
+> > +		if (sm->fault)
+> > +			return sm->fault(sm, vma, vmf);
+> > +
+> > +		pages = sm->pages;
+> > +	}
+> >  
+> >  	for (pgoff = vmf->pgoff; pgoff && *pages; ++pages)
+> >  		pgoff--;
+> 
+> Otherwise looks OK.  I'll assume this will be merged via an x86 tree.
+
+Yeah, was hoping to be able to do that with your Acked-by.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
