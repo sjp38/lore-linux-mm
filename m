@@ -1,79 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B49566B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 06:54:11 -0500 (EST)
-Received: by wmpp66 with SMTP id p66so57351692wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:54:11 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t7si22284699wmg.5.2015.12.14.03.54.10
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2796B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:04:59 -0500 (EST)
+Received: by wmpp66 with SMTP id p66so57743482wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:04:59 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id mn10si45446692wjc.177.2015.12.14.04.04.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 14 Dec 2015 03:54:10 -0800 (PST)
-Date: Mon, 14 Dec 2015 12:54:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mm related crash
-Message-ID: <20151214115408.GC9544@dhcp22.suse.cz>
-References: <20151210154801.GA12007@lahna.fi.intel.com>
- <20151214092433.GA90449@black.fi.intel.com>
- <20151214100556.GB4540@dhcp22.suse.cz>
- <CAPAsAGzrOQAABhOta_o-MzocnikjPtwJLfEKQJ3n5mbBm0T7Bw@mail.gmail.com>
- <20151214105719.GA9544@dhcp22.suse.cz>
- <CAPAsAGxkYf0b_ZzhyuvxyNcWWvAyXHehGJbeGUAgu2Zb2u=31Q@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Dec 2015 04:04:58 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id p66so58668645wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:04:58 -0800 (PST)
+Date: Mon, 14 Dec 2015 14:04:56 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: isolate_lru_page on !head pages
+Message-ID: <20151214120456.GA4201@node.shutemov.name>
+References: <20151209130204.GD30907@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPAsAGxkYf0b_ZzhyuvxyNcWWvAyXHehGJbeGUAgu2Zb2u=31Q@mail.gmail.com>
+In-Reply-To: <20151209130204.GD30907@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mika Westerberg <mika.westerberg@intel.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 14-12-15 14:14:41, Andrey Ryabinin wrote:
-> 2015-12-14 13:57 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
-> > On Mon 14-12-15 13:13:22, Andrey Ryabinin wrote:
-> >> 2015-12-14 13:05 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
-> >> > On Mon 14-12-15 11:24:33, Kirill A. Shutemov wrote:
-> >> >> On Thu, Dec 10, 2015 at 05:48:01PM +0200, Mika Westerberg wrote:
-> >> >> > Hi Kirill,
-> >> >> >
-> >> >> > I got following crash on my desktop machine while building swift. It
-> >> >> > reproduces pretty easily on 4.4-rc4.
-> >> >> >
-> >> >> > Before it happens the ld process is killed by OOM killer. I attached the
-> >> >> > whole dmesg.
-> >> >> >
-> >> >> > [  254.740603] page:ffffea00111c31c0 count:2 mapcount:0 mapping:          (null) index:0x0
-> >> >> > [  254.740636] flags: 0x5fff8000048028(uptodate|lru|swapcache|swapbacked)
-> >> >> > [  254.740655] page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
-> >> >> > [  254.740679] ------------[ cut here ]------------
-> >> >> > [  254.740690] kernel BUG at mm/memcontrol.c:5270!
-> >> >>
-> >> >>
-> >> >> Hm. I don't see how this can happen.
-> >> >
-> >> > What a coincidence. I have just posted a similar report:
-> >> > http://lkml.kernel.org/r/20151214100156.GA4540@dhcp22.suse.cz except I
-> >> > have hit the VM_BUG_ON from a different path. My suspicion is that
-> >> > somebody unlocks the page while we are waiting on the writeback.
-> >> > I am trying to reproduce this now.
-> >>
-> >> Guys, this is fixed in rc5 - dfd01f026058a ("sched/wait: Fix the
-> >> signal handling fix").
-> >> http://lkml.kernel.org/r/<20151212162342.GF11257@ret.masoncoding.com>
-> >
-> > Hmm, so you think that some callpath was doing wait_on_page_locked and
-> > the above bug would allow a race and then unlock the page under our
-> > feet?
+On Wed, Dec 09, 2015 at 02:02:05PM +0100, Michal Hocko wrote:
+> Hi Kirill,
+
+[ sorry for late reply, just back from vacation. ]
+
+> while looking at the issue reported by Minchan [1] I have noticed that
+> there is nothing to prevent from "isolating" a tail page from LRU because
+> isolate_lru_page checks PageLRU which is
+> PAGEFLAG(LRU, lru, PF_HEAD)
+> so it is checked on the head page rather than the given page directly
+> but the rest of the operation is done on the given (tail) page.
+
+Looks like most (all?) callers already exclude PTE-mapped THP already one
+way or another.
+Probably, VM_BUG_ON_PAGE(PageTail(page), page) in isolate_lru_page() would
+be appropriate.
+
+> This is really subtle because this expects that every caller of this
+> function checks for the tail page otherwise we would clobber statistics
+> and who knows what else (I haven't checked that in detail) as the page
+> cannot be on the LRU list and the operation makes sense only on the head
+> page.
 > 
-> It rather more simple, read report carefully from the link I gave.
->  __wait_on_bit_lock() in __lock_page() could just return  -EINTR and
-> leave the page unlocked.
-> So in rc4 lock_page() simply didn't work (sometimes).
+> Would it make more sense to make PageLRU PF_ANY? That would return
+> false for PageLRU on any tail page and so it would be ignored by
+> isolate_lru_page.
 
-Ohhh, right you are! Thanks for the clarification.
+I don't think this is right way to go. What we put on LRU is compound
+page, not 4k subpages. PageLRU() should return true if the compound page
+is on LRU regardless if you ask for head or tail page.
+
+False-negatives PageLRU() can be as bad as bug Minchan reported, but
+perhaps more silent.
+
+> I haven't checked other flags but there might be a similar situation. I
+> am wondering whether it is really a good idea to perform a flag check on
+> a different page then the operation which depends on the result of the
+> test in general. It sounds like a maintenance horror to me.
+> 
+> [1] http://lkml.kernel.org/r/20151201133455.GB27574@bbox
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
