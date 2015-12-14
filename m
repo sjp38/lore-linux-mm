@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 964C66B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:58:46 -0500 (EST)
-Received: by iow186 with SMTP id 186so34640696iow.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 09:58:46 -0800 (PST)
-Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id z134si19141987iod.50.2015.12.14.09.58.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 09:58:46 -0800 (PST)
-Received: by igbxm8 with SMTP id xm8so89862756igb.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 09:58:45 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20151212101142.GA3867@pd.tnic>
-References: <cover.1449861203.git.tony.luck@intel.com>
-	<456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
-	<20151212101142.GA3867@pd.tnic>
-Date: Mon, 14 Dec 2015 10:58:45 -0700
-Message-ID: <CAOxpaSX5SH7T2AqvGoFDtEWKc9k_-77gbQXQd7FYQZ-Ep2kRhA@mail.gmail.com>
-Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
- fixup tables
-From: Ross Zwisler <zwisler@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0186B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:31:24 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so107574801pac.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:24 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id xr9si10411352pab.232.2015.12.14.10.31.23
+        for <linux-mm@kvack.org>;
+        Mon, 14 Dec 2015 10:31:23 -0800 (PST)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v2 0/6] mm, x86/vdso: Special IO mapping improvements
+Date: Mon, 14 Dec 2015 10:31:12 -0800
+Message-Id: <cover.1450117783.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
 
-On Sat, Dec 12, 2015 at 3:11 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Thu, Dec 10, 2015 at 01:58:04PM -0800, Tony Luck wrote:
-<>
->> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
->> +/* Given an address, look for it in the machine check exception tables. */
->> +const struct exception_table_entry *search_mcexception_tables(
->> +                                 unsigned long addr)
->> +{
->> +     const struct exception_table_entry *e;
->> +
->> +     e = search_extable(__start___mcex_table, __stop___mcex_table-1, addr);
->> +     return e;
->> +}
->> +#endif
->
-> You can make this one a bit more readable by doing:
->
-> /* Given an address, look for it in the machine check exception tables. */
-> const struct exception_table_entry *
-> search_mcexception_tables(unsigned long addr)
-> {
-> #ifdef CONFIG_MCE_KERNEL_RECOVERY
->         return search_extable(__start___mcex_table,
->                                __stop___mcex_table - 1, addr);
-> #endif
-> }
+This applies on top of the earlier vdso pvclock series I sent out.
+Once that lands in -tip, this will apply to -tip.
 
-With this code if CONFIG_MCE_KERNEL_RECOVERY isn't defined you'll get
-a compiler error that the function doesn't have a return statement,
-right?  I think we need an #else to return NULL, or to have the #ifdef
-encompass the whole function definition as it was in Tony's version.
+This series cleans up the hack that is our vvar mapping.  We currently
+initialize the vvar mapping as a special mapping vma backed by nothing
+whatsoever and then we abuse remap_pfn_range to populate it.
+
+This cheats the mm core, probably breaks under various evil madvise
+workloads, and prevents handling faults in more interesting ways.
+
+To clean it up, this series:
+
+ - Adds a special mapping .fault operation
+ - Adds a vm_insert_pfn_prot helper
+ - Uses the new .fault infrastructure in x86's vdso and vvar mappings
+ - Hardens the HPET mapping, mitigating an HW attack surface that bothers me
+
+akpm, can you ack patck 1?
+
+Changes from v1:
+ - Lots of changelog clarification requested by akpm
+ - Minor tweaks to style and comments in the first two patches
+
+Andy Lutomirski (6):
+  mm: Add a vm_special_mapping .fault method
+  mm: Add vm_insert_pfn_prot
+  x86/vdso: Track each mm's loaded vdso image as well as its base
+  x86,vdso: Use .fault for the vdso text mapping
+  x86,vdso: Use .fault instead of remap_pfn_range for the vvar mapping
+  x86/vdso: Disallow vvar access to vclock IO for never-used vclocks
+
+ arch/x86/entry/vdso/vdso2c.h            |   7 --
+ arch/x86/entry/vdso/vma.c               | 124 ++++++++++++++++++++------------
+ arch/x86/entry/vsyscall/vsyscall_gtod.c |   9 ++-
+ arch/x86/include/asm/clocksource.h      |   9 +--
+ arch/x86/include/asm/mmu.h              |   3 +-
+ arch/x86/include/asm/vdso.h             |   3 -
+ arch/x86/include/asm/vgtod.h            |   6 ++
+ include/linux/mm.h                      |   2 +
+ include/linux/mm_types.h                |  22 +++++-
+ mm/memory.c                             |  25 ++++++-
+ mm/mmap.c                               |  13 ++--
+ 11 files changed, 151 insertions(+), 72 deletions(-)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
