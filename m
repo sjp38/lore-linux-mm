@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AC5B96B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:39:32 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id ph11so95580135igc.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:39:32 -0800 (PST)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id o35si266234ioi.152.2015.12.14.15.39.32
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 306186B0257
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:39:49 -0500 (EST)
+Received: by obc18 with SMTP id 18so144314781obc.2
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:39:49 -0800 (PST)
+Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
+        by mx.google.com with ESMTPS id mp2si5754982oeb.77.2015.12.14.15.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 15:39:32 -0800 (PST)
-Received: by mail-io0-x236.google.com with SMTP id e126so1333063ioa.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:39:32 -0800 (PST)
+        Mon, 14 Dec 2015 15:39:48 -0800 (PST)
+Received: by oigy66 with SMTP id y66so28721297oig.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:39:48 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <566F52CE.6080501@sr71.net>
-References: <20151214190542.39C4886D@viggo.jf.intel.com>
-	<20151214190632.6A741188@viggo.jf.intel.com>
-	<CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
-	<566F52CE.6080501@sr71.net>
-Date: Mon, 14 Dec 2015 15:39:31 -0800
-Message-ID: <CAGXu5j+7Yv36riu4TG_EksPkEz3XzMNRWvCde_6VrhmkWChxSA@mail.gmail.com>
+References: <20151214190542.39C4886D@viggo.jf.intel.com> <20151214190632.6A741188@viggo.jf.intel.com>
+ <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com> <566F52CE.6080501@sr71.net>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 14 Dec 2015 15:39:28 -0800
+Message-ID: <CALCETrWZbBD9vOrGn+=Qr-mKVzSKkoUbo6u7u5rpG5S0RB6v+Q@mail.gmail.com>
 Subject: Re: [PATCH 31/32] x86, pkeys: execute-only support
-From: Kees Cook <keescook@google.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Kees Cook <keescook@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
 On Mon, Dec 14, 2015 at 3:37 PM, Dave Hansen <dave@sr71.net> wrote:
 > On 12/14/2015 12:05 PM, Kees Cook wrote:
@@ -52,17 +50,15 @@ On Mon, Dec 14, 2015 at 3:37 PM, Dave Hansen <dave@sr71.net> wrote:
 >
 > Do we need some special tag on the section to tell the linker to map it
 > as --x under some conditions and r-x for others?
+>
 
-Yeah, dunno. I was curious to see this working on a real example
-first, and then we could figure out how the linker should behave
-generally. Sounds like we need some kind of ELF flag to say "please
-use unreadable-exec memory mappings for this program, too.
+Why?  Wouldn't --x just end up acting like r-x if PKRU is absent?
 
--Kees
+--Andy
 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
