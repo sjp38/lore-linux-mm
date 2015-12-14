@@ -1,303 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D8686B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 17:21:11 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id n186so68371193wmn.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:21:11 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id t2si48802173wjx.60.2015.12.14.14.21.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 14:21:10 -0800 (PST)
-Received: by mail-wm0-x233.google.com with SMTP id p66so65653694wmp.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:21:10 -0800 (PST)
-Message-ID: <566F40D4.2020405@gmail.com>
-Date: Mon, 14 Dec 2015 23:21:08 +0100
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CDC1D6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 17:28:05 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id n186so68577911wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:28:05 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id xw2si48879112wjc.40.2015.12.14.14.28.04
+        for <linux-mm@kvack.org>;
+        Mon, 14 Dec 2015 14:28:04 -0800 (PST)
+Date: Mon, 14 Dec 2015 23:27:59 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
+Message-ID: <20151214222759.GF10520@pd.tnic>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+ <20151212101142.GA3867@pd.tnic>
+ <CAOxpaSX5SH7T2AqvGoFDtEWKc9k_-77gbQXQd7FYQZ-Ep2kRhA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] mlock.2: mlock2.2: Add entry to for new mlock2 syscall
-References: <1447093655-30832-1-git-send-email-emunson@akamai.com>
-In-Reply-To: <1447093655-30832-1-git-send-email-emunson@akamai.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAOxpaSX5SH7T2AqvGoFDtEWKc9k_-77gbQXQd7FYQZ-Ep2kRhA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: mtk.manpages@gmail.com, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <zwisler@gmail.com>
+Cc: Tony Luck <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 11/09/2015 07:27 PM, Eric B Munson wrote:
-> Update the mlock.2 man page with information on mlock2() and the new
-> mlockall() flag MCL_ONFAULT.
+On Mon, Dec 14, 2015 at 10:58:45AM -0700, Ross Zwisler wrote:
+> With this code if CONFIG_MCE_KERNEL_RECOVERY isn't defined you'll get
+> a compiler error that the function doesn't have a return statement,
+> right?  I think we need an #else to return NULL, or to have the #ifdef
+> encompass the whole function definition as it was in Tony's version.
 
-Hello Eric,
+Right, correct.
 
-Thanks for the nicely written patch. I've applied.
-
-Cheers,
-
-Michael
-
-
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Jonathan Corbet <corbet@lwn.net>
-> Cc: linux-man@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
-> Changes from V3:
->  Add note about not having a glibc wrapper for mlock2
-> 
-> Changes from V2:
->  Update available from kernel version
-> 
->  man2/mlock.2  | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++-------
->  man2/mlock2.2 |   1 +
->  2 files changed, 102 insertions(+), 13 deletions(-)
->  create mode 100644 man2/mlock2.2
-> 
-> diff --git a/man2/mlock.2 b/man2/mlock.2
-> index 79c544d..0ad580c 100644
-> --- a/man2/mlock.2
-> +++ b/man2/mlock.2
-> @@ -23,21 +23,23 @@
->  .\" <http://www.gnu.org/licenses/>.
->  .\" %%%LICENSE_END
->  .\"
-> -.TH MLOCK 2 2015-07-23 "Linux" "Linux Programmer's Manual"
-> +.TH MLOCK 2 2015-08-28 "Linux" "Linux Programmer's Manual"
->  .SH NAME
-> -mlock, munlock, mlockall, munlockall \- lock and unlock memory
-> +mlock, mlock2, munlock, mlockall, munlockall \- lock and unlock memory
->  .SH SYNOPSIS
->  .nf
->  .B #include <sys/mman.h>
->  .sp
->  .BI "int mlock(const void *" addr ", size_t " len );
-> +.BI "int mlock2(const void *" addr ", size_t " len ", int " flags );
->  .BI "int munlock(const void *" addr ", size_t " len );
->  .sp
->  .BI "int mlockall(int " flags );
->  .B int munlockall(void);
->  .fi
->  .SH DESCRIPTION
-> -.BR mlock ()
-> +.BR mlock (),
-> +.BR mlock2 (),
->  and
->  .BR mlockall ()
->  respectively lock part or all of the calling process's virtual address
-> @@ -51,7 +53,7 @@ respectively unlocking part or all of the calling process's virtual
->  address space, so that pages in the specified virtual address range may
->  once more to be swapped out if required by the kernel memory manager.
->  Memory locking and unlocking are performed in units of whole pages.
-> -.SS mlock() and munlock()
-> +.SS mlock(), mlock2(), and munlock()
->  .BR mlock ()
->  locks pages in the address range starting at
->  .I addr
-> @@ -62,6 +64,39 @@ All pages that contain a part of the specified address range are
->  guaranteed to be resident in RAM when the call returns successfully;
->  the pages are guaranteed to stay in RAM until later unlocked.
->  
-> +.BR mlock2 ()
-> +also locks pages in the specified range starting at
-> +.I addr
-> +and continuing for
-> +.I len
-> +bytes.
-> +However, the state of the pages contained in that range after the call
-> +returns successfully will depend on the value in the
-> +.I flags
-> +argument.
-> +
-> +The
-> +.I flags
-> +argument can be either 0 or the following constant:
-> +.TP 1.2i
-> +.B MLOCK_ONFAULT
-> +Lock pages that are currently resident and mark the entire range to have
-> +pages locked when they are populated by the page fault.
-> +.PP
-> +
-> +If
-> +.I flags
-> +is 0,
-> +.BR mlock2 ()
-> +will function exactly as
-> +.BR mlock ()
-> +would.
-> +
-> +Note: Currently, there is not a glibc wrapper for
-> +.BR mlock2 ()
-> +so it will need to be invoked using
-> +.BR syscall (2)
-> +
->  .BR munlock ()
->  unlocks pages in the address range starting at
->  .I addr
-> @@ -93,9 +128,33 @@ the process.
->  .B MCL_FUTURE
->  Lock all pages which will become mapped into the address space of the
->  process in the future.
-> -These could be for instance new pages required
-> +These could be, for instance, new pages required
->  by a growing heap and stack as well as new memory-mapped files or
->  shared memory regions.
-> +.TP
-> +.BR MCL_ONFAULT " (since Linux 4.4)"
-> +Used together with
-> +.BR MCL_CURRENT ,
-> +.BR MCL_FUTURE ,
-> +or both.  Mark all current (with
-> +.BR MCL_CURRENT )
-> +or future (with
-> +.BR MCL_FUTURE )
-> +mappings to lock pages when they are faulted in.  When used with
-> +.BR MCL_CURRENT ,
-> +all present pages are locked, but
-> +.BR mlockall ()
-> +will not fault in non-present pages.  When used with
-> +.BR MCL_FUTURE ,
-> +all future mappings will be marked to lock pages when they are faulted
-> +in, but they will not be populated by the lock when the mapping is
-> +created.
-> +.B MCL_ONFAULT
-> +must be used with either
-> +.B MCL_CURRENT
-> +or
-> +.B MCL_FUTURE
-> +or both.
->  .PP
->  If
->  .B MCL_FUTURE
-> @@ -148,7 +207,8 @@ to perform the requested operation.
->  .\"SVr4 documents an additional EAGAIN error code.
->  .LP
->  For
-> -.BR mlock ()
-> +.BR mlock (),
-> +.BR mlock2 (),
->  and
->  .BR munlock ():
->  .TP
-> @@ -157,9 +217,9 @@ Some or all of the specified address range could not be locked.
->  .TP
->  .B EINVAL
->  The result of the addition
-> -.IR start + len
-> +.IR addr + len
->  was less than
-> -.IR start
-> +.IR addr
->  (e.g., the addition may have resulted in an overflow).
->  .TP
->  .B EINVAL
-> @@ -181,12 +241,23 @@ mapping would result in three mappings:
->  two locked mappings at each end and an unlocked mapping in the middle.)
->  .LP
->  For
-> -.BR mlockall ():
-> +.BR mlock2 ():
->  .TP
->  .B EINVAL
->  Unknown \fIflags\fP were specified.
->  .LP
->  For
-> +.BR mlockall ():
-> +.TP
-> +.B EINVAL
-> +Unknown \fIflags\fP were specified or
-> +.B MCL_ONFAULT
-> +was specified without either
-> +.B MCL_FUTURE
-> +or
-> +.BR MCL_CURRENT .
-> +.LP
-> +For
->  .BR munlockall ():
->  .TP
->  .B EPERM
-> @@ -259,9 +330,11 @@ or when the process terminates.
->  The
->  .BR mlockall ()
->  .B MCL_FUTURE
-> -setting is not inherited by a child created via
-> +and
-> +.B MCL_FUTURE | MCL_ONFAULT
-> +settings are not inherited by a child created via
->  .BR fork (2)
-> -and is cleared during an
-> +and are cleared during an
->  .BR execve (2).
->  
->  The memory lock on an address range is automatically removed
-> @@ -270,7 +343,8 @@ if the address range is unmapped via
->  
->  Memory locks do not stack, that is, pages which have been locked several times
->  by calls to
-> -.BR mlock ()
-> +.BR mlock (),
-> +.BR mlock2 (),
->  or
->  .BR mlockall ()
->  will be unlocked by a single call to
-> @@ -280,9 +354,19 @@ for the corresponding range or by
->  Pages which are mapped to several locations or by several processes stay
->  locked into RAM as long as they are locked at least at one location or by
->  at least one process.
-> +
-> +If a call to
-> +.BR mlockall ()
-> +which uses the
-> +.B MCL_FUTURE
-> +flag is followed by another call that does not specify this flag, the
-> +changes made by the
-> +.B MCL_FUTURE
-> +call will be lost.
->  .SS Linux notes
->  Under Linux,
-> -.BR mlock ()
-> +.BR mlock (),
-> +.BR mlock2 (),
->  and
->  .BR munlock ()
->  automatically round
-> @@ -300,6 +384,7 @@ file shows how many kilobytes of memory the process with ID
->  .I PID
->  has locked using
->  .BR mlock (),
-> +.BR mlock2 (),
->  .BR mlockall (),
->  and
->  .BR mmap (2)
-> @@ -342,6 +427,9 @@ resource limit is encountered.
->  .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=113801392825023&w=2
->  .\" "Rationale for RLIMIT_MEMLOCK"
->  .\" 23 Jan 2006
-> +.SH VERSIONS
-> +.BR mlock2 (2)
-> +is available since Linux 4.4.
->  .SH SEE ALSO
->  .BR mmap (2),
->  .BR setrlimit (2),
-> diff --git a/man2/mlock2.2 b/man2/mlock2.2
-> new file mode 100644
-> index 0000000..5e5b3c7
-> --- /dev/null
-> +++ b/man2/mlock2.2
-> @@ -0,0 +1 @@
-> +.so man2/mlock.2
-> 
-
+Thanks.
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
