@@ -1,114 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4295F6B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:19:20 -0500 (EST)
-Received: by lfcy184 with SMTP id y184so49096919lfc.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:19:19 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bc6si46458657wjc.161.2015.12.14.07.19.18
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D94CE6B0256
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:20:06 -0500 (EST)
+Received: by qkht125 with SMTP id t125so138869617qkh.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:20:06 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y206si6225420qka.77.2015.12.14.07.20.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 07:19:19 -0800 (PST)
-Date: Mon, 14 Dec 2015 10:19:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: fix possible memcg leak due to
- interrupted reclaim
-Message-ID: <20151214151901.GA13289@cmpxchg.org>
-References: <1449927242-9608-1-git-send-email-vdavydov@virtuozzo.com>
- <20151212164540.GA7107@cmpxchg.org>
- <20151212191855.GE28521@esperanza>
+        Mon, 14 Dec 2015 07:20:03 -0800 (PST)
+Date: Mon, 14 Dec 2015 16:19:58 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH V2 8/9] slab: implement bulk free in SLAB allocator
+Message-ID: <20151214161958.1a8edf79@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
+References: <20151208161751.21945.53936.stgit@firesoul>
+	<20151208161903.21945.33876.stgit@firesoul>
+	<alpine.DEB.2.20.1512090945570.30894@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151212191855.GE28521@esperanza>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, brouer@redhat.com
 
-On Sat, Dec 12, 2015 at 10:18:55PM +0300, Vladimir Davydov wrote:
-> On Sat, Dec 12, 2015 at 11:45:40AM -0500, Johannes Weiner wrote:
-> > @@ -2425,21 +2425,6 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
-> >  				   sc->nr_scanned - scanned,
-> >  				   sc->nr_reclaimed - reclaimed);
-> >  
-> > -			/*
-> > -			 * Direct reclaim and kswapd have to scan all memory
-> > -			 * cgroups to fulfill the overall scan target for the
-> > -			 * zone.
-> > -			 *
-> > -			 * Limit reclaim, on the other hand, only cares about
-> > -			 * nr_to_reclaim pages to be reclaimed and it will
-> > -			 * retry with decreasing priority if one round over the
-> > -			 * whole hierarchy is not sufficient.
-> > -			 */
-> > -			if (!global_reclaim(sc) &&
-> > -					sc->nr_reclaimed >= sc->nr_to_reclaim) {
-> > -				mem_cgroup_iter_break(root, memcg);
-> > -				break;
-> > -			}
+
+On Wed, 9 Dec 2015 10:06:39 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
+
+> From: Christoph Lameter <cl@linux.com>
+> Subject: slab bulk api: Remove the kmem_cache parameter from kmem_cache_bulk_free()
 > 
-> Dunno. I like it, because it's simple and clean, but I'm unsure: can't
-> it result in lags when performing memcg reclaim for deep hierarchies?
-> For global reclaim we have kswapd, which tries to keep the system within
-> bounds so as to avoid direct reclaim at all. Memcg lacks such thing, and
-> interleave walks looks like a good compensation for it.
+> It is desirable and necessary to free objects from different kmem_caches.
+> It is required in order to support memcg object freeing across different5
+> cgroups.
 > 
-> Alternatively, we could avoid taking reference to iter->position and
-> make use of css_released cgroup callback to invalidate reclaim
-> iterators. With this approach, upper level cgroups shouldn't receive
-> unfairly high pressure in comparison to their children. Something like
-> this, maybe?
+> So drop the pointless parameter and allow freeing of arbitrary lists
+> of slab allocated objects.
+> 
+> This patch also does the proper compound page handling so that
+> arbitrary objects allocated via kmalloc() can be handled by
+> kmem_cache_bulk_free().
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-This is surprisingly simple, to the point where I'm asking myself if I
-miss something in this patch or if I missed something when I did weak
-references the last time. But I think the last time we didn't want to
-go through all iterator positions like we do here. It doesn't really
-matter, though, that's even performed from a work item.
+I've modified this patch, to instead introduce a kfree_bulk() and keep
+the old behavior of kmem_cache_free_bulk().  This allow us to easier
+compare the two impl. approaches.
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 87af26a24491..fcc5133210a0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -859,14 +859,12 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  		if (prev && reclaim->generation != iter->generation)
->  			goto out_unlock;
->  
-> -		do {
-> +		while (1) {
->  			pos = READ_ONCE(iter->position);
-> -			/*
-> -			 * A racing update may change the position and
-> -			 * put the last reference, hence css_tryget(),
-> -			 * or retry to see the updated position.
-> -			 */
-> -		} while (pos && !css_tryget(&pos->css));
-> +			if (!pos || css_tryget(&pos->css))
-> +				break;
-> +			cmpxchg(&iter->position, pos, NULL);
+[...]
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c
+> +++ linux/mm/slub.c
+> @@ -2887,23 +2887,30 @@ static int build_detached_freelist(struc
+> 
+> 
+>  /* Note that interrupts must be enabled when calling this function. */
+> -void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p) 
+> +void kmem_cache_free_bulk(size_t size, void **p)
+
+Renamed to kfree_bulk(size_t size, void **p)
+
+>  {
+>  	if (WARN_ON(!size))
+>  		return;
+> 
+>  	do {
+>  		struct detached_freelist df;
+> -		struct kmem_cache *s;
+> +		struct page *page;
+> 
+> -		/* Support for memcg */
+> -		s = cache_from_obj(orig_s, p[size - 1]);
+> +		page = virt_to_head_page(p[size - 1]);
+> 
+> -		size = build_detached_freelist(s, size, p, &df);
+> +		if (unlikely(!PageSlab(page))) {
+> +			BUG_ON(!PageCompound(page));
+> +			kfree_hook(p[size - 1]);
+> +			__free_kmem_pages(page, compound_order(page));
+> +			p[--size] = NULL;
+> +			continue;
 > +		}
+> +
+> +		size = build_detached_freelist(page->slab_cache, size, p, &df);
+> 		if (unlikely(!df.page))
+>  			continue;
+> 
+> -		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+> +		slab_free(page->slab_cache, df.page, df.freelist,
+> + 			df.tail, df.cnt, _RET_IP_);
+> 	} while (likely(size));
+>  }
+>  EXPORT_SYMBOL(kmem_cache_free_bulk);
 
-This cmpxchg() looks a little strange. Once tryget fails, the iterator
-should be clear soon enough, no? If not, a comment would be good here.
+This specific implementation was too slow, mostly because we call
+virt_to_head_page() both in this function and inside build_detached_freelist().
 
-> @@ -912,12 +910,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  	}
->  
->  	if (reclaim) {
-> -		if (cmpxchg(&iter->position, pos, memcg) == pos) {
-> -			if (memcg)
-> -				css_get(&memcg->css);
-> -			if (pos)
-> -				css_put(&pos->css);
-> -		}
-> +		cmpxchg(&iter->position, pos, memcg);
+After integrating this directly into build_detached_freelist() I'm
+getting more comparative results.
 
-This looks correct. The next iteration or break will put the memcg,
-potentially free it, which will clear it from the iterator and then
-rcu-free the css. Anybody who sees a pointer set under the RCU lock
-can safely run css_tryget() against it. Awesome!
+Results with disabled CONFIG_MEMCG_KMEM, and SLUB (and slab_nomerge for
+more accurate results between runs):
 
-Care to resend this with changelog?
+ bulk- fallback          - kmem_cache_free_bulk - kfree_bulk
+ 1 - 58 cycles 14.735 ns -  55 cycles 13.880 ns -  59 cycles 14.843 ns
+ 2 - 53 cycles 13.298 ns -  32 cycles  8.037 ns -  34 cycles 8.592 ns
+ 3 - 51 cycles 12.837 ns -  25 cycles  6.442 ns -  27 cycles 6.794 ns
+ 4 - 50 cycles 12.514 ns -  23 cycles  5.952 ns -  23 cycles 5.958 ns
+ 8 - 48 cycles 12.097 ns -  20 cycles  5.160 ns -  22 cycles 5.505 ns
+ 16 - 47 cycles 11.888 ns -  19 cycles 4.900 ns -  19 cycles 4.969 ns
+ 30 - 47 cycles 11.793 ns -  18 cycles 4.688 ns -  18 cycles 4.682 ns
+ 32 - 47 cycles 11.926 ns -  18 cycles 4.674 ns -  18 cycles 4.702 ns
+ 34 - 95 cycles 23.823 ns -  24 cycles 6.068 ns -  24 cycles 6.058 ns
+ 48 - 81 cycles 20.258 ns -  21 cycles 5.360 ns -  21 cycles 5.338 ns
+ 64 - 73 cycles 18.414 ns -  20 cycles 5.160 ns -  20 cycles 5.140 ns
+ 128 - 90 cycles 22.563 ns -  27 cycles 6.765 ns -  27 cycles 6.801 ns
+ 158 - 99 cycles 24.831 ns -  30 cycles 7.625 ns -  30 cycles 7.720 ns
+ 250 - 104 cycles 26.173 ns -  37 cycles 9.271 ns -  37 cycles 9.371 ns
+
+As can been seen the old kmem_cache_free_bulk() is faster than the new
+kfree_bulk() (which omits the kmem_cache pointer and need to derive it
+from the page->slab_cache). The base (bulk=1) extra cost is 4 cycles,
+which then gets amortized as build_detached_freelist() combines objects
+belonging to same page.
+
+This is likely because the compiler, with disabled CONFIG_MEMCG_KMEM=n,
+can optimize and avoid doing the lookup of the kmem_cache structure.
+
+I'll start doing testing with CONFIG_MEMCG_KMEM enabled...
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
