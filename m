@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C156B025C
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:00 -0500 (EST)
-Received: by pfbo64 with SMTP id o64so31300630pfb.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:05:59 -0800 (PST)
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C0B6B025D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:01 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so65611907pfb.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:01 -0800 (PST)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hp4si10205537pad.113.2015.12.14.11.05.58
+        by mx.google.com with ESMTP id hp4si10205537pad.113.2015.12.14.11.06.00
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 11:05:58 -0800 (PST)
-Subject: [PATCH 07/32] x86, pkeys: PTE bits for storing protection key
+        Mon, 14 Dec 2015 11:06:00 -0800 (PST)
+Subject: [PATCH 09/32] x86, pkeys: store protection in high VMA flags
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 14 Dec 2015 11:05:53 -0800
+Date: Mon, 14 Dec 2015 11:06:00 -0800
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
 In-Reply-To: <20151214190542.39C4886D@viggo.jf.intel.com>
-Message-Id: <20151214190553.82072F71@viggo.jf.intel.com>
+Message-Id: <20151214190600.765EFEC9@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,58 +22,74 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Previous documentation has referred to these 4 bits as "ignored".
-That means that software could have made use of them.  But, as
-far as I know, the kernel never used them.
+vma->vm_flags is an 'unsigned long', so has space for 32 flags
+on 32-bit architectures.  The high 32 bits are unused on 64-bit
+platforms.  We've steered away from using the unused high VMA
+bits for things because we would have difficulty supporting it
+on 32-bit.
 
-They are still ignored when protection keys is not enabled, so
-they could theoretically still get used for software purposes.
+Protection Keys are not available in 32-bit mode, so there is
+no concern about supporting this feature in 32-bit mode or on
+32-bit CPUs.
 
-We also implement "empty" versions so that code that references
-to them can be optimized away by the compiler when the config
-option is not enabled.
+This patch carves out 4 bits from the high half of
+vma->vm_flags and allows architectures to set config option
+to make them available.
+
+Sparse complains about these constants unless we explicitly
+call them "UL".
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/pgtable_types.h |   17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ b/arch/x86/Kconfig   |    1 +
+ b/include/linux/mm.h |   11 +++++++++++
+ b/mm/Kconfig         |    3 +++
+ 3 files changed, 15 insertions(+)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits	2015-12-14 10:42:41.837759760 -0800
-+++ b/arch/x86/include/asm/pgtable_types.h	2015-12-14 10:42:41.840759894 -0800
-@@ -25,7 +25,11 @@
- #define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
- #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
--#define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
-+#define _PAGE_BIT_PKEY_BIT0	59       /* Protection Keys, bit 1/4 */
-+#define _PAGE_BIT_PKEY_BIT1	60       /* Protection Keys, bit 2/4 */
-+#define _PAGE_BIT_PKEY_BIT2	61       /* Protection Keys, bit 3/4 */
-+#define _PAGE_BIT_PKEY_BIT3	62       /* Protection Keys, bit 4/4 */
-+#define _PAGE_BIT_NX		63       /* No execute: only valid after cpuid check */
+diff -puN arch/x86/Kconfig~pkeys-06-eat-high-vma-flags arch/x86/Kconfig
+--- a/arch/x86/Kconfig~pkeys-06-eat-high-vma-flags	2015-12-14 10:42:42.651796240 -0800
++++ b/arch/x86/Kconfig	2015-12-14 10:42:42.658796554 -0800
+@@ -152,6 +152,7 @@ config X86
+ 	select VIRT_TO_BUS
+ 	select X86_DEV_DMA_OPS			if X86_64
+ 	select X86_FEATURE_NAMES		if PROC_FS
++	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
  
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
- /* - if the user mapped it with PROT_NONE; pte_present gives true */
-@@ -47,6 +51,17 @@
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
- #define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT0)
-+#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT1)
-+#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT2)
-+#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT3)
-+#else
-+#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 0))
-+#endif
- #define __HAVE_ARCH_PTE_SPECIAL
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff -puN include/linux/mm.h~pkeys-06-eat-high-vma-flags include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-06-eat-high-vma-flags	2015-12-14 10:42:42.653796329 -0800
++++ b/include/linux/mm.h	2015-12-14 10:42:42.659796598 -0800
+@@ -158,6 +158,17 @@ extern unsigned int kobjsize(const void
+ #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
  
- #ifdef CONFIG_KMEMCHECK
++#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
++#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
++#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
++#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
++#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
++#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
++
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #elif defined(CONFIG_PPC)
+diff -puN mm/Kconfig~pkeys-06-eat-high-vma-flags mm/Kconfig
+--- a/mm/Kconfig~pkeys-06-eat-high-vma-flags	2015-12-14 10:42:42.654796374 -0800
++++ b/mm/Kconfig	2015-12-14 10:42:42.659796598 -0800
+@@ -668,3 +668,6 @@ config ZONE_DEVICE
+ 
+ config FRAME_VECTOR
+ 	bool
++
++config ARCH_USES_HIGH_VMA_FLAGS
++	bool
 _
 
 --
