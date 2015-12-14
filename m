@@ -1,149 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 73B7F6B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 06:09:54 -0500 (EST)
-Received: by padhk6 with SMTP id hk6so62284364pad.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:09:54 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id mi6si6086346pab.95.2015.12.14.03.09.53
-        for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 03:09:53 -0800 (PST)
-From: "Wang, Zhi A" <zhi.a.wang@intel.com>
-Subject: [PATCH] mm: mempool: Factor out mempool_refill()
-Date: Mon, 14 Dec 2015 11:09:43 +0000
-Message-ID: <F3B0350DF4CB6849A642218320DE483D4B866043@SHSMSX101.ccr.corp.intel.com>
-References: <1449978390-10931-1-git-send-email-zhi.a.wang@intel.com>
-In-Reply-To: <1449978390-10931-1-git-send-email-zhi.a.wang@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D66B6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 06:14:43 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id n186so40406374wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:14:43 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id lj8si13877400wjb.141.2015.12.14.03.14.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Dec 2015 03:14:42 -0800 (PST)
+Received: by wmpp66 with SMTP id p66so55959359wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:14:41 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20151214105719.GA9544@dhcp22.suse.cz>
+References: <20151210154801.GA12007@lahna.fi.intel.com>
+	<20151214092433.GA90449@black.fi.intel.com>
+	<20151214100556.GB4540@dhcp22.suse.cz>
+	<CAPAsAGzrOQAABhOta_o-MzocnikjPtwJLfEKQJ3n5mbBm0T7Bw@mail.gmail.com>
+	<20151214105719.GA9544@dhcp22.suse.cz>
+Date: Mon, 14 Dec 2015 14:14:41 +0300
+Message-ID: <CAPAsAGxkYf0b_ZzhyuvxyNcWWvAyXHehGJbeGUAgu2Zb2u=31Q@mail.gmail.com>
+Subject: Re: mm related crash
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mika Westerberg <mika.westerberg@intel.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch factors out mempool_refill() from mempool_resize(). It's reasona=
-ble
-that the mempool user wants to refill the pool immdiately when it has chanc=
-e
-e.g. inside a sleepible context, so that next time in the IRQ context the p=
-ool
-would have much more available elements to allocate.
+2015-12-14 13:57 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
+> On Mon 14-12-15 13:13:22, Andrey Ryabinin wrote:
+>> 2015-12-14 13:05 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
+>> > On Mon 14-12-15 11:24:33, Kirill A. Shutemov wrote:
+>> >> On Thu, Dec 10, 2015 at 05:48:01PM +0200, Mika Westerberg wrote:
+>> >> > Hi Kirill,
+>> >> >
+>> >> > I got following crash on my desktop machine while building swift. It
+>> >> > reproduces pretty easily on 4.4-rc4.
+>> >> >
+>> >> > Before it happens the ld process is killed by OOM killer. I attached the
+>> >> > whole dmesg.
+>> >> >
+>> >> > [  254.740603] page:ffffea00111c31c0 count:2 mapcount:0 mapping:          (null) index:0x0
+>> >> > [  254.740636] flags: 0x5fff8000048028(uptodate|lru|swapcache|swapbacked)
+>> >> > [  254.740655] page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
+>> >> > [  254.740679] ------------[ cut here ]------------
+>> >> > [  254.740690] kernel BUG at mm/memcontrol.c:5270!
+>> >>
+>> >>
+>> >> Hm. I don't see how this can happen.
+>> >
+>> > What a coincidence. I have just posted a similar report:
+>> > http://lkml.kernel.org/r/20151214100156.GA4540@dhcp22.suse.cz except I
+>> > have hit the VM_BUG_ON from a different path. My suspicion is that
+>> > somebody unlocks the page while we are waiting on the writeback.
+>> > I am trying to reproduce this now.
+>>
+>> Guys, this is fixed in rc5 - dfd01f026058a ("sched/wait: Fix the
+>> signal handling fix").
+>> http://lkml.kernel.org/r/<20151212162342.GF11257@ret.masoncoding.com>
+>
+> Hmm, so you think that some callpath was doing wait_on_page_locked and
+> the above bug would allow a race and then unlock the page under our
+> feet?
 
-After the refactor, mempool_refill() can also executes with mempool_resize(=
-)
-/mempool_alloc/mempool_free() or another mempool_refill().
+It rather more simple, read report carefully from the link I gave.
+ __wait_on_bit_lock() in __lock_page() could just return  -EINTR and
+leave the page unlocked.
+So in rc4 lock_page() simply didn't work (sometimes).
 
-Signed-off-by: Zhi Wang <zhi.a.wang@intel.com>
----
- include/linux/mempool.h |  1 +
- mm/mempool.c            | 61 ++++++++++++++++++++++++++++++++++++---------=
-----
- 2 files changed, 46 insertions(+), 16 deletions(-)
-
-diff --git a/include/linux/mempool.h b/include/linux/mempool.h
-index 69b6951..71f7460 100644
---- a/include/linux/mempool.h
-+++ b/include/linux/mempool.h
-@@ -30,6 +30,7 @@ extern mempool_t *mempool_create_node(int min_nr, mempool=
-_alloc_t *alloc_fn,
- 			gfp_t gfp_mask, int nid);
-=20
- extern int mempool_resize(mempool_t *pool, int new_min_nr);
-+extern void mempool_refill(mempool_t *pool);
- extern void mempool_destroy(mempool_t *pool);
- extern void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask);
- extern void mempool_free(void *element, mempool_t *pool);
-diff --git a/mm/mempool.c b/mm/mempool.c
-index 004d42b..139c477 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -223,6 +223,47 @@ mempool_t *mempool_create_node(int min_nr, mempool_all=
-oc_t *alloc_fn,
- EXPORT_SYMBOL(mempool_create_node);
-=20
- /**
-+ * mempool_refill - refill an existing memory pool immediately
-+ * @pool:       pointer to the memory pool which was allocated via
-+ *              mempool_create().
-+ *
-+ * This function tries to refill the pool with new elements
-+ * immediately. Similar with mempool_resize(), it cannot be
-+ * guaranteed that the pool will be fully filled immediately.
-+ *
-+ * Note, the caller must guarantee that no mempool_destroy is called
-+ * while this function is running. mempool_alloc() & mempool_free()
-+ * might be called (eg. from IRQ contexts) while this function executes.
-+ */
-+void mempool_refill(mempool_t *pool)
-+{
-+	void *element;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&pool->lock, flags);
-+	if (pool->curr_nr >=3D pool->min_nr) {
-+		spin_unlock_irqrestore(&pool->lock, flags);
-+		return;
-+	}
-+
-+	while (pool->curr_nr < pool->min_nr) {
-+		spin_unlock_irqrestore(&pool->lock, flags);
-+		element =3D pool->alloc(GFP_KERNEL, pool->pool_data);
-+		if (!element)
-+			return;
-+		spin_lock_irqsave(&pool->lock, flags);
-+		if (pool->curr_nr < pool->min_nr) {
-+			add_element(pool, element);
-+		} else {
-+			spin_unlock_irqrestore(&pool->lock, flags);
-+			pool->free(element, pool->pool_data);	/* Raced */
-+			return;
-+		}
-+	}
-+}
-+EXPORT_SYMBOL(mempool_refill);
-+
-+/**
-  * mempool_resize - resize an existing memory pool
-  * @pool:       pointer to the memory pool which was allocated via
-  *              mempool_create().
-@@ -256,7 +297,8 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
- 			spin_lock_irqsave(&pool->lock, flags);
- 		}
- 		pool->min_nr =3D new_min_nr;
--		goto out_unlock;
-+		spin_unlock_irqrestore(&pool->lock, flags);
-+		goto out;
- 	}
- 	spin_unlock_irqrestore(&pool->lock, flags);
-=20
-@@ -279,22 +321,9 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
- 	pool->elements =3D new_elements;
- 	pool->min_nr =3D new_min_nr;
-=20
--	while (pool->curr_nr < pool->min_nr) {
--		spin_unlock_irqrestore(&pool->lock, flags);
--		element =3D pool->alloc(GFP_KERNEL, pool->pool_data);
--		if (!element)
--			goto out;
--		spin_lock_irqsave(&pool->lock, flags);
--		if (pool->curr_nr < pool->min_nr) {
--			add_element(pool, element);
--		} else {
--			spin_unlock_irqrestore(&pool->lock, flags);
--			pool->free(element, pool->pool_data);	/* Raced */
--			goto out;
--		}
--	}
--out_unlock:
- 	spin_unlock_irqrestore(&pool->lock, flags);
-+
-+	mempool_refill(pool);
- out:
- 	return 0;
- }
---=20
-1.9.1
+> That would make some sense to me but I haven't checked the code to
+> see which path that would be. I am also not able to reproduce this
+> again...
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
