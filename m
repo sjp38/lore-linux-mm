@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8531E6B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:50 -0500 (EST)
-Received: by oiai186 with SMTP id i186so34263319oia.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:37:50 -0800 (PST)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id g17si15647761oib.75.2015.12.14.15.37.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 15:37:50 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 02/11] resource: make resource flags handled properly
-Date: Mon, 14 Dec 2015 16:37:17 -0700
-Message-Id: <1450136246-17053-2-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
-References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id BCE416B0256
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:54 -0500 (EST)
+Received: by padhk6 with SMTP id hk6so71618593pad.2
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:37:54 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id xj5si9620714pab.84.2015.12.14.15.37.52
+        for <linux-mm@kvack.org>;
+        Mon, 14 Dec 2015 15:37:52 -0800 (PST)
+Subject: Re: [PATCH 31/32] x86, pkeys: execute-only support
+References: <20151214190542.39C4886D@viggo.jf.intel.com>
+ <20151214190632.6A741188@viggo.jf.intel.com>
+ <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <566F52CE.6080501@sr71.net>
+Date: Mon, 14 Dec 2015 15:37:50 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Toshi Kani <toshi.kani@hpe.com>
+To: Kees Cook <keescook@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@linux.intel.com>
 
-I/O resource flags consist of I/O resource types and modifier
-bits.  Therefore, checking I/O resource type of the flags must
-be performed with a bitwise operation.
+On 12/14/2015 12:05 PM, Kees Cook wrote:
+> On Mon, Dec 14, 2015 at 11:06 AM, Dave Hansen <dave@sr71.net> wrote:
+>> > From: Dave Hansen <dave.hansen@linux.intel.com>
+>> > Protection keys provide new page-based protection in hardware.
+>> > But, they have an interesting attribute: they only affect data
+>> > accesses and never affect instruction fetches.  That means that
+>> > if we set up some memory which is set as "access-disabled" via
+>> > protection keys, we can still execute from it.
+...
+>> > I haven't found any userspace that does this today.
+> To realistically take advantage of this, it sounds like the linker
+> would need to know to keep bss and data page-aligned away from text,
+> and then set text to PROT_EXEC only?
+> 
+> Do you have any example linker scripts for this?
 
-Fix find_next_iomem_res() and region_intersects() that simply
-compare the flags against a given value.
+Nope.  My linker-fu is weak.
 
-Also change __request_region() to set res->flags from
-resource_type() and resource_ext_type() of the parent, so that
-children nodes will inherit the extended I/O resource type.
+Can we even depend on the linker by itself?  Even if the sections were
+marked --x, we can't actually use them with those permissions unless we
+have protection keys.
 
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-Reference: https://lkml.org/lkml/2015/12/3/582
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
----
- kernel/resource.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/resource.c b/kernel/resource.c
-index f150dbb..d30a175 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -358,7 +358,7 @@ static int find_next_iomem_res(struct resource *res, char *name,
- 	read_lock(&resource_lock);
- 
- 	for (p = iomem_resource.child; p; p = next_resource(p, sibling_only)) {
--		if (p->flags != res->flags)
-+		if ((p->flags & res->flags) != res->flags)
- 			continue;
- 		if (name && strcmp(p->name, name))
- 			continue;
-@@ -519,7 +519,8 @@ int region_intersects(resource_size_t start, size_t size, const char *name)
- 
- 	read_lock(&resource_lock);
- 	for (p = iomem_resource.child; p ; p = p->sibling) {
--		bool is_type = strcmp(p->name, name) == 0 && p->flags == flags;
-+		bool is_type = strcmp(p->name, name) == 0 &&
-+				((p->flags & flags) == flags);
- 
- 		if (start >= p->start && start <= p->end)
- 			is_type ? type++ : other++;
-@@ -1071,7 +1072,7 @@ struct resource * __request_region(struct resource *parent,
- 	res->name = name;
- 	res->start = start;
- 	res->end = start + n - 1;
--	res->flags = resource_type(parent);
-+	res->flags = resource_type(parent) | resource_ext_type(parent);
- 	res->flags |= IORESOURCE_BUSY | flags;
- 
- 	write_lock(&resource_lock);
+Do we need some special tag on the section to tell the linker to map it
+as --x under some conditions and r-x for others?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
