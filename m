@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C736B0271
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:40 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so108614881pab.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:39 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id la15si11637192pab.205.2015.12.14.11.06.26
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA196B0273
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:42 -0500 (EST)
+Received: by pfbu66 with SMTP id u66so65620667pfb.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:42 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id t74si18779133pfa.170.2015.12.14.11.06.27
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 11:06:26 -0800 (PST)
-Subject: [PATCH 26/32] x86, pkeys: add arch_validate_pkey()
+        Mon, 14 Dec 2015 11:06:27 -0800 (PST)
+Subject: [PATCH 27/32] x86: separate out LDT init from context init
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 14 Dec 2015 11:06:25 -0800
+Date: Mon, 14 Dec 2015 11:06:26 -0800
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
 In-Reply-To: <20151214190542.39C4886D@viggo.jf.intel.com>
-Message-Id: <20151214190625.958CA94A@viggo.jf.intel.com>
+Message-Id: <20151214190626.26611062@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,83 +22,91 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The syscall-level code is passed a protection key and need to
-return an appropriate error code if the protection key is bogus.
-We will be using this in subsequent patches.
+The arch-specific mm_context_t is a great place to put
+protection-key allocation state.
 
-Note that this also begins a series of arch-specific calls that
-we need to expose in otherwise arch-independent code.  We create
-a linux/pkeys.h header where we will put *all* the stubs for
-these functions.
+But, we need to initialize the allocation state because pkey 0 is
+always "allocated".  All of the runtime initialization of
+mm_context_t is done in *_ldt() manipulation functions.  This
+renames the existing LDT functions like this:
+
+	init_new_context() -> init_new_context_ldt()
+	destroy_context() -> destroy_context_ldt()
+
+and makes init_new_context() and destroy_context() available for
+generic use.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/Kconfig             |    1 +
- b/arch/x86/include/asm/pkeys.h |    6 ++++++
- b/include/linux/pkeys.h        |   25 +++++++++++++++++++++++++
- b/mm/Kconfig                   |    2 ++
- 4 files changed, 34 insertions(+)
+ b/arch/x86/include/asm/mmu_context.h |   21 ++++++++++++++++-----
+ b/arch/x86/kernel/ldt.c              |    4 ++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)
 
-diff -puN /dev/null arch/x86/include/asm/pkeys.h
---- /dev/null	2015-12-10 15:28:13.322405854 -0800
-+++ b/arch/x86/include/asm/pkeys.h	2015-12-14 10:42:50.619153291 -0800
-@@ -0,0 +1,6 @@
-+#ifndef _ASM_X86_PKEYS_H
-+#define _ASM_X86_PKEYS_H
-+
-+#define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
-+
-+#endif /*_ASM_X86_PKEYS_H */
-diff -puN arch/x86/Kconfig~pkeys-71-arch_validate_pkey arch/x86/Kconfig
---- a/arch/x86/Kconfig~pkeys-71-arch_validate_pkey	2015-12-14 10:42:50.614153067 -0800
-+++ b/arch/x86/Kconfig	2015-12-14 10:42:50.620153335 -0800
-@@ -153,6 +153,7 @@ config X86
- 	select X86_DEV_DMA_OPS			if X86_64
- 	select X86_FEATURE_NAMES		if PROC_FS
- 	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
-+	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-72-init-ldt-extricate arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-72-init-ldt-extricate	2015-12-14 10:42:51.088174309 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2015-12-14 10:42:51.093174534 -0800
+@@ -52,15 +52,15 @@ struct ldt_struct {
+ /*
+  * Used for LDT copy/destruction.
+  */
+-int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+-void destroy_context(struct mm_struct *mm);
++int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
++void destroy_context_ldt(struct mm_struct *mm);
+ #else	/* CONFIG_MODIFY_LDT_SYSCALL */
+-static inline int init_new_context(struct task_struct *tsk,
+-				   struct mm_struct *mm)
++static inline int init_new_context_ldt(struct task_struct *tsk,
++				       struct mm_struct *mm)
+ {
+ 	return 0;
+ }
+-static inline void destroy_context(struct mm_struct *mm) {}
++static inline void destroy_context_ldt(struct mm_struct *mm) {}
+ #endif
  
- config INSTRUCTION_DECODER
- 	def_bool y
-diff -puN /dev/null include/linux/pkeys.h
---- /dev/null	2015-12-10 15:28:13.322405854 -0800
-+++ b/include/linux/pkeys.h	2015-12-14 10:42:50.620153335 -0800
-@@ -0,0 +1,25 @@
-+#ifndef _LINUX_PKEYS_H
-+#define _LINUX_PKEYS_H
-+
-+#include <linux/mm_types.h>
-+#include <asm/mmu_context.h>
-+
-+#ifdef CONFIG_ARCH_HAS_PKEYS
-+#include <asm/pkeys.h>
-+#else /* ! CONFIG_ARCH_HAS_PKEYS */
-+#define arch_max_pkey() (1)
-+#endif /* ! CONFIG_ARCH_HAS_PKEYS */
-+
-+/*
-+ * This is called from mprotect_pkey().
-+ *
-+ * Returns true if the protection keys is valid.
-+ */
-+static inline bool validate_pkey(int pkey)
+ static inline void load_mm_ldt(struct mm_struct *mm)
+@@ -104,6 +104,17 @@ static inline void enter_lazy_tlb(struct
+ #endif
+ }
+ 
++static inline int init_new_context(struct task_struct *tsk,
++				   struct mm_struct *mm)
 +{
-+	if (pkey < 0)
-+		return false;
-+	return (pkey < arch_max_pkey());
++	init_new_context_ldt(tsk, mm);
++	return 0;
++}
++static inline void destroy_context(struct mm_struct *mm)
++{
++	destroy_context_ldt(mm);
 +}
 +
-+#endif /* _LINUX_PKEYS_H */
-diff -puN mm/Kconfig~pkeys-71-arch_validate_pkey mm/Kconfig
---- a/mm/Kconfig~pkeys-71-arch_validate_pkey	2015-12-14 10:42:50.616153156 -0800
-+++ b/mm/Kconfig	2015-12-14 10:42:50.621153380 -0800
-@@ -671,3 +671,5 @@ config FRAME_VECTOR
- 
- config ARCH_USES_HIGH_VMA_FLAGS
- 	bool
-+config ARCH_HAS_PKEYS
-+	bool
+ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 			     struct task_struct *tsk)
+ {
+diff -puN arch/x86/kernel/ldt.c~pkeys-72-init-ldt-extricate arch/x86/kernel/ldt.c
+--- a/arch/x86/kernel/ldt.c~pkeys-72-init-ldt-extricate	2015-12-14 10:42:51.090174399 -0800
++++ b/arch/x86/kernel/ldt.c	2015-12-14 10:42:51.094174578 -0800
+@@ -103,7 +103,7 @@ static void free_ldt_struct(struct ldt_s
+  * we do not have to muck with descriptors here, that is
+  * done in switch_mm() as needed.
+  */
+-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
++int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	struct ldt_struct *new_ldt;
+ 	struct mm_struct *old_mm;
+@@ -144,7 +144,7 @@ out_unlock:
+  *
+  * 64bit: Don't touch the LDT register - we're already in the next thread.
+  */
+-void destroy_context(struct mm_struct *mm)
++void destroy_context_ldt(struct mm_struct *mm)
+ {
+ 	free_ldt_struct(mm->context.ldt);
+ 	mm->context.ldt = NULL;
 _
 
 --
