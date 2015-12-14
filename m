@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9508A6B0260
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:05 -0500 (EST)
-Received: by padhk6 with SMTP id hk6so68112042pad.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:05 -0800 (PST)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B17A56B0261
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:07 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so109996078pfn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:07 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id cj5si10520285pad.65.2015.12.14.11.06.04
+        by mx.google.com with ESMTP id cj5si10520285pad.65.2015.12.14.11.06.05
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 11:06:04 -0800 (PST)
-Subject: [PATCH 08/32] x86, pkeys: new page fault error code bit: PF_PK
+        Mon, 14 Dec 2015 11:06:05 -0800 (PST)
+Subject: [PATCH 12/32] signals, pkeys: notify userspace about protection key faults
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 14 Dec 2015 11:05:56 -0800
+Date: Mon, 14 Dec 2015 11:06:04 -0800
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
 In-Reply-To: <20151214190542.39C4886D@viggo.jf.intel.com>
-Message-Id: <20151214190556.92FC3386@viggo.jf.intel.com>
+Message-Id: <20151214190604.759A7ED2@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,51 +22,96 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Note: "PK" is how the Intel SDM refers to this bit, so we also
-use that nomenclature.
+A protection key fault is very similar to any other access error.
+There must be a VMA, etc...  We even want to take the same action
+(SIGSEGV) that we do with a normal access fault.
 
-This only defines the bit, it does not plumb it anywhere to be
-handled.
+However, we do need to let userspace know that something is
+different.  We do this the same way what we did with SEGV_BNDERR
+with Memory Protection eXtensions (MPX): define a new SEGV code:
+SEGV_PKUERR.
+
+We add a siginfo field: si_pkey that reveals to userspace which
+protection key was set on the PTE that we faulted on.  There is
+no other easy way for userspace to figure this out.  They could
+parse smaps but that would be a bit cruel.
+
+We share space with in siginfo with _addr_bnd.  #BR faults from
+MPX are completely separate from page faults (#PF) that trigger
+from protection key violations, so we never need both at the same
+time.
+
+Note that _pkey is a 64-bit value.  The current hardware only
+supports 4-bit protection keys.  We do this because there is
+_plenty_ of space in _sigfault and it is possible that future
+processors would support more than 4 bits of protection keys.
+
+The x86 code to actually fill in the siginfo is in the next
+patch.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/mm/fault.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ b/include/uapi/asm-generic/siginfo.h |   17 ++++++++++++-----
+ b/kernel/signal.c                    |    4 ++++
+ 2 files changed, 16 insertions(+), 5 deletions(-)
 
-diff -puN arch/x86/mm/fault.c~pkeys-05-pfec arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-05-pfec	2015-12-14 10:42:42.240777820 -0800
-+++ b/arch/x86/mm/fault.c	2015-12-14 10:42:42.244778000 -0800
-@@ -33,6 +33,7 @@
-  *   bit 2 ==	 0: kernel-mode access	1: user-mode access
-  *   bit 3 ==				1: use of reserved bit detected
-  *   bit 4 ==				1: fault was an instruction fetch
-+ *   bit 5 ==				1: protection keys block access
-  */
- enum x86_pf_error_code {
+diff -puN include/uapi/asm-generic/siginfo.h~pkeys-09-siginfo-core include/uapi/asm-generic/siginfo.h
+--- a/include/uapi/asm-generic/siginfo.h~pkeys-09-siginfo-core	2015-12-14 10:42:43.997856562 -0800
++++ b/include/uapi/asm-generic/siginfo.h	2015-12-14 10:42:44.002856786 -0800
+@@ -91,10 +91,15 @@ typedef struct siginfo {
+ 			int _trapno;	/* TRAP # which caused the signal */
+ #endif
+ 			short _addr_lsb; /* LSB of the reported address */
+-			struct {
+-				void __user *_lower;
+-				void __user *_upper;
+-			} _addr_bnd;
++			union {
++				/* used when si_code=SEGV_BNDERR */
++				struct {
++					void __user *_lower;
++					void __user *_upper;
++				} _addr_bnd;
++				/* used when si_code=SEGV_PKUERR */
++				u64 _pkey;
++			};
+ 		} _sigfault;
  
-@@ -41,6 +42,7 @@ enum x86_pf_error_code {
- 	PF_USER		=		1 << 2,
- 	PF_RSVD		=		1 << 3,
- 	PF_INSTR	=		1 << 4,
-+	PF_PK		=		1 << 5,
- };
+ 		/* SIGPOLL */
+@@ -137,6 +142,7 @@ typedef struct siginfo {
+ #define si_addr_lsb	_sifields._sigfault._addr_lsb
+ #define si_lower	_sifields._sigfault._addr_bnd._lower
+ #define si_upper	_sifields._sigfault._addr_bnd._upper
++#define si_pkey		_sifields._sigfault._pkey
+ #define si_band		_sifields._sigpoll._band
+ #define si_fd		_sifields._sigpoll._fd
+ #ifdef __ARCH_SIGSYS
+@@ -206,7 +212,8 @@ typedef struct siginfo {
+ #define SEGV_MAPERR	(__SI_FAULT|1)	/* address not mapped to object */
+ #define SEGV_ACCERR	(__SI_FAULT|2)	/* invalid permissions for mapped object */
+ #define SEGV_BNDERR	(__SI_FAULT|3)  /* failed address bound checks */
+-#define NSIGSEGV	3
++#define SEGV_PKUERR	(__SI_FAULT|4)  /* failed protection key checks */
++#define NSIGSEGV	4
  
  /*
-@@ -916,6 +918,12 @@ static int spurious_fault_check(unsigned
- 
- 	if ((error_code & PF_INSTR) && !pte_exec(*pte))
- 		return 0;
-+	/*
-+	 * Note: We do not do lazy flushing on protection key
-+	 * changes, so no spurious fault will ever set PF_PK.
-+	 */
-+	if ((error_code & PF_PK))
-+		return 1;
- 
- 	return 1;
- }
+  * SIGBUS si_codes
+diff -puN kernel/signal.c~pkeys-09-siginfo-core kernel/signal.c
+--- a/kernel/signal.c~pkeys-09-siginfo-core	2015-12-14 10:42:43.999856652 -0800
++++ b/kernel/signal.c	2015-12-14 10:42:44.003856831 -0800
+@@ -2709,6 +2709,10 @@ int copy_siginfo_to_user(siginfo_t __use
+ 			err |= __put_user(from->si_upper, &to->si_upper);
+ 		}
+ #endif
++#ifdef SEGV_PKUERR
++		if (from->si_signo == SIGSEGV && from->si_code == SEGV_PKUERR)
++			err |= __put_user(from->si_pkey, &to->si_pkey);
++#endif
+ 		break;
+ 	case __SI_CHLD:
+ 		err |= __put_user(from->si_pid, &to->si_pid);
 _
 
 --
