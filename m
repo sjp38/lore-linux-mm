@@ -1,53 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE416B0256
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:54 -0500 (EST)
-Received: by padhk6 with SMTP id hk6so71618593pad.2
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 182976B0258
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:55 -0500 (EST)
+Received: by obcno2 with SMTP id no2so25856098obc.3
         for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:37:54 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id xj5si9620714pab.84.2015.12.14.15.37.52
-        for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 15:37:52 -0800 (PST)
-Subject: Re: [PATCH 31/32] x86, pkeys: execute-only support
-References: <20151214190542.39C4886D@viggo.jf.intel.com>
- <20151214190632.6A741188@viggo.jf.intel.com>
- <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <566F52CE.6080501@sr71.net>
-Date: Mon, 14 Dec 2015 15:37:50 -0800
-MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id tp10si9444355obb.49.2015.12.14.15.37.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Dec 2015 15:37:54 -0800 (PST)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH 03/11] x86/e820: Set IORESOURCE_SYSTEM_RAM to System RAM
+Date: Mon, 14 Dec 2015 16:37:18 -0700
+Message-Id: <1450136246-17053-3-git-send-email-toshi.kani@hpe.com>
+In-Reply-To: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
+References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@linux.intel.com>
+To: akpm@linux-foundation.org, bp@alien8.de
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Toshi Kani <toshi.kani@hpe.com>
 
-On 12/14/2015 12:05 PM, Kees Cook wrote:
-> On Mon, Dec 14, 2015 at 11:06 AM, Dave Hansen <dave@sr71.net> wrote:
->> > From: Dave Hansen <dave.hansen@linux.intel.com>
->> > Protection keys provide new page-based protection in hardware.
->> > But, they have an interesting attribute: they only affect data
->> > accesses and never affect instruction fetches.  That means that
->> > if we set up some memory which is set as "access-disabled" via
->> > protection keys, we can still execute from it.
-...
->> > I haven't found any userspace that does this today.
-> To realistically take advantage of this, it sounds like the linker
-> would need to know to keep bss and data page-aligned away from text,
-> and then set text to PROT_EXEC only?
-> 
-> Do you have any example linker scripts for this?
+Change e820_reserve_resources() to set IORESOURCE_SYSTEM_RAM for
+E820_RESERVED_KERN and E820_RAM, which are set to "System RAM".
 
-Nope.  My linker-fu is weak.
+Also set IORESOURCE_SYSTEM_RAM to "Kernel data", "Kernel code",
+and "Kernel bss", which are children nodes of System RAM.
 
-Can we even depend on the linker by itself?  Even if the sections were
-marked --x, we can't actually use them with those permissions unless we
-have protection keys.
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: x86@kernel.org
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+---
+ arch/x86/kernel/e820.c  |   18 +++++++++++++++++-
+ arch/x86/kernel/setup.c |    6 +++---
+ 2 files changed, 20 insertions(+), 4 deletions(-)
 
-Do we need some special tag on the section to tell the linker to map it
-as --x under some conditions and r-x for others?
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 569c1e4..4c8bcbc 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -925,6 +925,22 @@ static const char *e820_type_to_string(int e820_type)
+ 	}
+ }
+ 
++static int e820_type_to_iomem_type(int e820_type)
++{
++	switch (e820_type) {
++	case E820_RESERVED_KERN:
++	case E820_RAM:
++		return IORESOURCE_SYSTEM_RAM;
++	case E820_ACPI:
++	case E820_NVS:
++	case E820_UNUSABLE:
++	case E820_PRAM:
++	case E820_PMEM:
++	default:
++		return IORESOURCE_MEM;
++	}
++}
++
+ static bool do_mark_busy(u32 type, struct resource *res)
+ {
+ 	/* this is the legacy bios/dos rom-shadow + mmio region */
+@@ -967,7 +983,7 @@ void __init e820_reserve_resources(void)
+ 		res->start = e820.map[i].addr;
+ 		res->end = end;
+ 
+-		res->flags = IORESOURCE_MEM;
++		res->flags = e820_type_to_iomem_type(e820.map[i].type);
+ 
+ 		/*
+ 		 * don't register the region that could be conflicted with
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index d2bbe34..a492c30 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -152,21 +152,21 @@ static struct resource data_resource = {
+ 	.name	= "Kernel data",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
+ 
+ static struct resource code_resource = {
+ 	.name	= "Kernel code",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
+ 
+ static struct resource bss_resource = {
+ 	.name	= "Kernel bss",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
+ 
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
