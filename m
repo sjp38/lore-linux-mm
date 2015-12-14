@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A066B0038
-	for <linux-mm@kvack.org>; Sun, 13 Dec 2015 22:01:46 -0500 (EST)
-Received: by igbxm8 with SMTP id xm8so74541224igb.1
-        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 19:01:46 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id j15si14757665iod.139.2015.12.13.19.01.44
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3A16B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 00:02:33 -0500 (EST)
+Received: by pacwq6 with SMTP id wq6so97454345pac.1
+        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 21:02:32 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id 83si14460011pfl.23.2015.12.13.21.02.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 13 Dec 2015 19:01:45 -0800 (PST)
-Date: Mon, 14 Dec 2015 12:03:17 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
-Message-ID: <20151214030317.GA3781@js1304-P5Q-DELUXE>
-References: <87io4hi06n.fsf@rasmusvillemoes.dk>
- <1449242195-16374-1-git-send-email-vbabka@suse.cz>
- <20151210025944.GB17967@js1304-P5Q-DELUXE>
- <20151210040456.GC7814@home.goodmis.org>
- <56694DF6.70600@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56694DF6.70600@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 13 Dec 2015 21:02:32 -0800 (PST)
+Received: by pabur14 with SMTP id ur14so97972206pab.0
+        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 21:02:31 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 1/2] mm/compaction: fix invalid free_pfn and compact_cached_free_pfn
+Date: Mon, 14 Dec 2015 14:02:20 +0900
+Message-Id: <1450069341-28875-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Dec 10, 2015 at 11:03:34AM +0100, Vlastimil Babka wrote:
-> On 12/10/2015 05:04 AM, Steven Rostedt wrote:
-> >On Thu, Dec 10, 2015 at 11:59:44AM +0900, Joonsoo Kim wrote:
-> >>Ccing, Steven to ask trace-cmd problem.
-> >>
-> >>I'd like to use %pgp in tracepoint output. It works well when I do
-> >>'cat /sys/kernel/debug/tracing/trace' but not works well when I do
-> >>'./trace-cmd report'. It prints following error log.
-> >>
-> >>   [page_ref:page_ref_unfreeze] bad op token &
-> >>   [page_ref:page_ref_set] bad op token &
-> >>   [page_ref:page_ref_mod_unless] bad op token &
-> >>   [page_ref:page_ref_mod_and_test] bad op token &
-> >>   [page_ref:page_ref_mod_and_return] bad op token &
-> >>   [page_ref:page_ref_mod] bad op token &
-> >>   [page_ref:page_ref_freeze] bad op token &
-> >>
-> >>Following is the format I used.
-> >>
-> >>TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
-> >>                 __entry->pfn, &__entry->flags, __entry->count,
-> >>                 __entry->mapcount, __entry->mapping, __entry->mt,
-> >>                 __entry->val, __entry->ret)
-> >>
-> >>Could it be solved by 'trace-cmd' itself?
-> 
-> You mean that trace-cmd/parse-events.c would interpret the raw value
-> of flags by itself? That would mean the flags became fixed ABI, not
-> a good idea...
-> 
-> >>Or it's better to pass flags by value?
-> 
-> If it's value (as opposed to a pointer in %pgp), that doesn't change
-> much wrt. having to intepret them?
-> 
-> >>Or should I use something like show_gfp_flags()?
-> 
-> Sounds like least pain to me, at least for now. We just need to have
-> the translation tables available as #define with __print_flags() in
-> some trace/events header, like the existing trace/events/gfpflags.h
-> for gfp flags. These tables can still be reused within mm/debug.c or
-> printk code without copy/paste, like I did in "[PATCH v2 6/9] mm,
-> debug: introduce dump_gfpflag_names() for symbolic printing of
-> gfp_flags" [1]. Maybe it's not the most elegant solution, but works
-> without changing parse-events.c using the existing format export.
-> 
-> So if you agree, I can do this in the next spin.
-> 
+free_pfn and compact_cached_free_pfn are the pointer that remember
+restart position of freepage scanner. When they are reset or invalid,
+we set them to zone_end_pfn because freepage scanner works in reverse
+direction. But, because zone range is defined as [zone_start_pfn,
+zone_end_pfn), zone_end_pfn is invalid to access. Therefore, we should
+not store it to free_pfn and compact_cached_free_pfn. Instead, we need
+to store zone_end_pfn - 1 to them. There is one more thing we should
+consider. Freepage scanner scan reversely by pageblock unit. If free_pfn
+and compact_cached_free_pfn are set to middle of pageblock, it regards
+that sitiation as that it already scans front part of pageblock so we
+lose opportunity to scan there. To fix-up, this patch do round_down()
+to guarantee that reset position will be pageblock aligned.
 
-Okay. I'm okay with this approach.
+Note that thanks to the current pageblock_pfn_to_page() implementation,
+actual access to zone_end_pfn doesn't happen until now. But, following
+patch will change pageblock_pfn_to_page() so this patch is needed
+from now on.
 
-Thanks.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/compaction.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 585de54..56fa321 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -200,7 +200,8 @@ static void reset_cached_positions(struct zone *zone)
+ {
+ 	zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
+ 	zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
+-	zone->compact_cached_free_pfn = zone_end_pfn(zone);
++	zone->compact_cached_free_pfn =
++			round_down(zone_end_pfn(zone) - 1, pageblock_nr_pages);
+ }
+ 
+ /*
+@@ -1371,11 +1372,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	 */
+ 	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
+ 	cc->free_pfn = zone->compact_cached_free_pfn;
+-	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
+-		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
++	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
++		cc->free_pfn = round_down(end_pfn - 1, pageblock_nr_pages);
+ 		zone->compact_cached_free_pfn = cc->free_pfn;
+ 	}
+-	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn > end_pfn) {
++	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
+ 		cc->migrate_pfn = start_pfn;
+ 		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+ 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
