@@ -1,103 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0746B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:31 -0500 (EST)
-Received: by oian133 with SMTP id n133so24334679oia.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:37:31 -0800 (PST)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id p125si30680843oih.81.2015.12.14.15.37.30
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 560266B0254
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:37:47 -0500 (EST)
+Received: by oiao124 with SMTP id o124so11331189oia.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:37:47 -0800 (PST)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id g5si9450579obm.69.2015.12.14.15.37.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 15:37:30 -0800 (PST)
+        Mon, 14 Dec 2015 15:37:46 -0800 (PST)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 00/11] Support System RAM resource type and EINJ to NVDIMM
-Date: Mon, 14 Dec 2015 16:37:15 -0700
-Message-Id: <1450136235-17012-1-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH 01/11] resource: Add System RAM resource type
+Date: Mon, 14 Dec 2015 16:37:16 -0700
+Message-Id: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, bp@alien8.de
-Cc: torvalds@linux-foundation.org, rafael.j.wysocki@intel.com, dan.j.williams@intel.com, x86@kernel.org, konrad.wilk@oracle.com, xen-devel@lists.xenproject.org, dyoung@redhat.com, vgoyal@redhat.com, tangchen@cn.fujitsu.com, kgene@kernel.org, k.kozlowski@samsung.com, linux-samsung-soc@vger.kernel.org, vishal.l.verma@intel.com, tony.luck@intel.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>
 
-This patch-set introduces a new I/O resource type, IORESOURCE_SYSTEM_RAM,
-for System RAM while keeping the current IORESOURCE_MEM type bit set for
-all memory-mapped ranges (including System RAM) for backward compatibility.
-With the new System RAM type, walking through the iomem resource table
-no longer requires to test with strcmp() against "System RAM".  After this
-infrastructure update, this patch changes EINJ to support NVDIMM.
+I/O resource type, IORESOURCE_MEM, is used for all types of
+memory-mapped ranges, ex. System RAM, System ROM, Video RAM,
+Persistent Memory, PCI Bus, PCI MMCONFIG, ACPI Tables, IOAPIC,
+reserved, and so on.  This requires walk_system_ram_range(),
+walk_system_ram_res(), and region_intersects() to use strcmp()
+against string "System RAM" to search System RAM ranges in the
+iomem table, which is inefficient.  __ioremap_caller() and
+reserve_memtype() on x86, for instance, call walk_system_ram_range()
+for every request to check if a given range is in System RAM ranges.
 
-Patches 1-2 add a new System RAM type, and make resource interfaces work
-with resource flags with modifier bits set.
+However, adding a new I/O resource type for System RAM is not
+a viable option [1].  Instead, this patch adds a new modifier
+flag IORESOURCE_SYSRAM to IORESOURCE_MEM, which introduces an
+extended I/O resource type, IORESOURCE_SYSTEM_RAM [2].
 
-Patches 3-7 set the System RAM type to System RAM ranges.
+To keep the code 'if (resource_type(r) == IORESOURCE_MEM)' to
+work continuously for System RAM, resource_ext_type() is added
+for extracting extended type bit(s).
 
-Patches 8-10 extend resource interfaces to check System RAM ranges with
-the System RAM type.
-
-Patch 11 changes the EINJ driver to allow injecting a memory error to
-NVDIMM.
-
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Reference[1]: https://lkml.org/lkml/2015/12/3/540
+Reference[2]: https://lkml.org/lkml/2015/12/3/582
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 ---
-v1:
- - Searching for System RAM in the resource table should not require
-   strcmp(). (Borislav Petkov)
- - Add a new System RAM type as a modifier to IORESOURCE_MEM.
-   (Linus Torvalds)
- - NVDIMM check should remain with strcmp() against "Persistent Memory".
-   (Dan Williams)
- - Reset patch version.
+ include/linux/ioport.h |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-prev-v3:
- - Check the param2 value before target memory type. (Tony Luck)
- - Add a blank line before if-statement. Remove an unnecessary brakets.
-   (Borislav Petkov)
-
-prev-v2:
- - Change the EINJ driver to call region_intersects_ram() for checking
-   RAM with a specified size. (Dan Williams)
-
----
-Toshi Kani (11):
- 01/11 resource: Add System RAM resource type
- 02/11 resource: make resource flags handled properly
- 03/11 x86/e820: Set IORESOURCE_SYSTEM_RAM to System RAM
- 04/11 arch: Set IORESOURCE_SYSTEM_RAM to System RAM
- 05/11 xen: Set IORESOURCE_SYSTEM_RAM to System RAM
- 06/11 kexec: Set IORESOURCE_SYSTEM_RAM to System RAM
- 07/11 memory-hotplug: Set IORESOURCE_SYSTEM_RAM to System RAM
- 08/11 memremap: Change region_intersects() to use System RAM type
- 09/11 resource: Change walk_system_ram to use System RAM type
- 10/11 arm/samsung: Change s3c_pm_run_res() to use System RAM type
- 11/11 ACPI/EINJ: Allow memory error injection to NVDIMM
-
----
- arch/arm/kernel/setup.c          |  6 ++---
- arch/arm/plat-samsung/pm-check.c |  4 +--
- arch/arm64/kernel/setup.c        |  6 ++---
- arch/avr32/kernel/setup.c        |  6 ++---
- arch/ia64/kernel/efi.c           |  6 +++--
- arch/ia64/kernel/setup.c         |  6 ++---
- arch/m32r/kernel/setup.c         |  4 +--
- arch/mips/kernel/setup.c         | 10 +++++---
- arch/parisc/mm/init.c            |  6 ++---
- arch/powerpc/mm/mem.c            |  2 +-
- arch/s390/kernel/setup.c         |  8 +++---
- arch/score/kernel/setup.c        |  2 +-
- arch/sh/kernel/setup.c           |  8 +++---
- arch/sparc/mm/init_64.c          |  8 +++---
- arch/tile/kernel/setup.c         | 11 +++++---
- arch/unicore32/kernel/setup.c    |  6 ++---
- arch/x86/kernel/e820.c           | 18 +++++++++++++-
- arch/x86/kernel/setup.c          |  6 ++---
- drivers/acpi/apei/einj.c         | 15 ++++++++---
- drivers/xen/balloon.c            |  2 +-
- include/linux/ioport.h           | 11 ++++++++
- include/linux/mm.h               |  3 ++-
- kernel/kexec_core.c              |  6 ++---
- kernel/kexec_file.c              |  2 +-
- kernel/memremap.c                | 13 +++++-----
- kernel/resource.c                | 54 +++++++++++++++++++++-------------------
- mm/memory_hotplug.c              |  2 +-
- 27 files changed, 140 insertions(+), 91 deletions(-)
+diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+index 24bea08..4b65d94 100644
+--- a/include/linux/ioport.h
++++ b/include/linux/ioport.h
+@@ -49,12 +49,19 @@ struct resource {
+ #define IORESOURCE_WINDOW	0x00200000	/* forwarded by bridge */
+ #define IORESOURCE_MUXED	0x00400000	/* Resource is software muxed */
+ 
++#define IORESOURCE_EXT_TYPE_BITS 0x01000000	/* Resource extended types */
++#define IORESOURCE_SYSRAM	0x01000000	/* System RAM (modifier) */
++
+ #define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may not map this resource */
++
+ #define IORESOURCE_DISABLED	0x10000000
+ #define IORESOURCE_UNSET	0x20000000	/* No address assigned yet */
+ #define IORESOURCE_AUTO		0x40000000
+ #define IORESOURCE_BUSY		0x80000000	/* Driver has marked this resource busy */
+ 
++/* I/O resource extended types */
++#define IORESOURCE_SYSTEM_RAM		(IORESOURCE_MEM|IORESOURCE_SYSRAM)
++
+ /* PnP IRQ specific bits (IORESOURCE_BITS) */
+ #define IORESOURCE_IRQ_HIGHEDGE		(1<<0)
+ #define IORESOURCE_IRQ_LOWEDGE		(1<<1)
+@@ -170,6 +177,10 @@ static inline unsigned long resource_type(const struct resource *res)
+ {
+ 	return res->flags & IORESOURCE_TYPE_BITS;
+ }
++static inline unsigned long resource_ext_type(const struct resource *res)
++{
++	return res->flags & IORESOURCE_EXT_TYPE_BITS;
++}
+ /* True iff r1 completely contains r2 */
+ static inline bool resource_contains(struct resource *r1, struct resource *r2)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
