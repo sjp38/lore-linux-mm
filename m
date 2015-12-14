@@ -1,215 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f46.google.com (mail-vk0-f46.google.com [209.85.213.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 83E4A6B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:42:26 -0500 (EST)
-Received: by vkgj66 with SMTP id j66so65709163vkg.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:42:26 -0800 (PST)
-Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
-        by mx.google.com with ESMTPS id m78si25468015vke.187.2015.12.14.12.42.25
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E25B66B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:45:20 -0500 (EST)
+Received: by pff63 with SMTP id 63so17146077pff.2
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:45:20 -0800 (PST)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id ym10si11041441pab.146.2015.12.14.12.45.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 12:42:25 -0800 (PST)
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH v2] hugetlb: make mm and fs code explicitly non-modular
-Date: Mon, 14 Dec 2015 15:41:48 -0500
-Message-ID: <1450125708-6977-1-git-send-email-paul.gortmaker@windriver.com>
-In-Reply-To: <20151214161403.GA1067@windriver.com>
-References: <20151214161403.GA1067@windriver.com>
+        Mon, 14 Dec 2015 12:45:20 -0800 (PST)
+Received: by pfnn128 with SMTP id n128so111338722pfn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:45:20 -0800 (PST)
+Subject: Re: [PATCH v6 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+References: <1449856338-30984-1-git-send-email-dcashman@android.com>
+ <1449856338-30984-2-git-send-email-dcashman@android.com>
+ <1449856338-30984-3-git-send-email-dcashman@android.com>
+ <1449856338-30984-4-git-send-email-dcashman@android.com>
+ <20151214111949.GD6992@arm.com>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <566F2A5D.6010100@android.com>
+Date: Mon, 14 Dec 2015 12:45:17 -0800
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20151214111949.GD6992@arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: ying.huang@linux.intel.com, Paul Gortmaker <paul.gortmaker@windriver.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de, jonathanh@nvidia.com
 
-The Kconfig currently controlling compilation of this code is:
+On 12/14/2015 03:19 AM, Will Deacon wrote:
+>> +# max bits determined by the following formula:
+>> +#  VA_BITS - PAGE_SHIFT - 3
+> 
+> Now that we have this comment, I think we can drop the unsupported
+> combinations from the list below. That means we just end up with:
+> 
+>> +config ARCH_MMAP_RND_BITS_MAX
+>> +       default 19 if ARM64_VA_BITS=36
+>> +       default 24 if ARM64_VA_BITS=39
+>> +       default 27 if ARM64_VA_BITS=42
+>> +       default 30 if ARM64_VA_BITS=47
+>> +       default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
+>> +       default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
+>> +       default 33 if ARM64_VA_BITS=48
 
-config HUGETLBFS
-        bool "HugeTLB file system support"
+Unless you object, I'd like to keep the last 3 as well, to mirror the
+min bits, should any new configurations be added but not reflected here:
++       default 15 if ARM64_64K_PAGES
++       default 17 if ARM64_16K_PAGES
++       default 18
 
-...meaning that it currently is not being built as a module by anyone.
+The first two of these three should be changed as well to 14 and 16.
 
-Lets remove the modular code that is essentially orphaned, so that
-when reading the driver there is no doubt it is builtin-only.
-
-Since module_init translates to device_initcall in the non-modular
-case, the init ordering gets moved to earlier levels when we use the
-more appropriate initcalls here.
-
-Originally I had the fs part and the mm part as separate commits,
-just by happenstance of the nature of how I detected these
-non-modular use cases.  But that can possibly introduce regressions
-if the patch merge ordering puts the fs part 1st -- as the 0-day
-testing reported a splat at mount time.
-
-Investigating with "initcall_debug" showed that the delta was
-init_hugetlbfs_fs being called _before_ hugetlb_init instead of
-after.  So both the fs change and the mm change are here together.
-
-In addition, it worked before due to luck of link order, since they
-were both in the same initcall category.  So we now have the fs
-part using fs_initcall, and the mm part using subsys_initcall,
-which puts it one bucket earlier.  It now passes the basic sanity
-test that failed in earlier 0-day testing.
-
-We delete the MODULE_LICENSE tag and capture that information at the
-top of the file alongside author comments, etc.
-
-We don't replace module.h with init.h since the file already has that.
-Also note that MODULE_ALIAS is a no-op for non-modular code.
-
-Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org
-Reported-by: kernel test robot <ying.huang@linux.intel.com>
-Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
----
-
-[v2: combine the mm patch into the fs patch; bump the mm part to use
- subsys_initcall so we are guaranteed proper ordering; retest after
- reproducing the 0-day fail locally; update log to reflect all this.]
-
- fs/hugetlbfs/inode.c | 27 ++-------------------------
- mm/hugetlb.c         | 39 +--------------------------------------
- 2 files changed, 3 insertions(+), 63 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index a1cb8fd2289b..47789292a582 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -4,11 +4,11 @@
-  * Nadia Yvette Chambers, 2002
-  *
-  * Copyright (C) 2002 Linus Torvalds.
-+ * License: GPL
-  */
- 
- #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
- 
--#include <linux/module.h>
- #include <linux/thread_info.h>
- #include <asm/current.h>
- #include <linux/sched.h>		/* remove ASAP */
-@@ -1202,7 +1202,6 @@ static struct file_system_type hugetlbfs_fs_type = {
- 	.mount		= hugetlbfs_mount,
- 	.kill_sb	= kill_litter_super,
- };
--MODULE_ALIAS_FS("hugetlbfs");
- 
- static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
- 
-@@ -1356,26 +1355,4 @@ static int __init init_hugetlbfs_fs(void)
-  out2:
- 	return error;
- }
--
--static void __exit exit_hugetlbfs_fs(void)
--{
--	struct hstate *h;
--	int i;
--
--
--	/*
--	 * Make sure all delayed rcu free inodes are flushed before we
--	 * destroy cache.
--	 */
--	rcu_barrier();
--	kmem_cache_destroy(hugetlbfs_inode_cachep);
--	i = 0;
--	for_each_hstate(h)
--		kern_unmount(hugetlbfs_vfsmount[i++]);
--	unregister_filesystem(&hugetlbfs_fs_type);
--}
--
--module_init(init_hugetlbfs_fs)
--module_exit(exit_hugetlbfs_fs)
--
--MODULE_LICENSE("GPL");
-+fs_initcall(init_hugetlbfs_fs)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index cc4c8789b394..12908dcf5831 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4,7 +4,6 @@
-  */
- #include <linux/list.h>
- #include <linux/init.h>
--#include <linux/module.h>
- #include <linux/mm.h>
- #include <linux/seq_file.h>
- #include <linux/sysctl.h>
-@@ -2549,25 +2548,6 @@ static void hugetlb_unregister_node(struct node *node)
- 	nhs->hugepages_kobj = NULL;
- }
- 
--/*
-- * hugetlb module exit:  unregister hstate attributes from node devices
-- * that have them.
-- */
--static void hugetlb_unregister_all_nodes(void)
--{
--	int nid;
--
--	/*
--	 * disable node device registrations.
--	 */
--	register_hugetlbfs_with_node(NULL, NULL);
--
--	/*
--	 * remove hstate attributes from any nodes that have them.
--	 */
--	for (nid = 0; nid < nr_node_ids; nid++)
--		hugetlb_unregister_node(node_devices[nid]);
--}
- 
- /*
-  * Register hstate attributes for a single node device.
-@@ -2632,27 +2612,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
- 	return NULL;
- }
- 
--static void hugetlb_unregister_all_nodes(void) { }
--
- static void hugetlb_register_all_nodes(void) { }
- 
- #endif
- 
--static void __exit hugetlb_exit(void)
--{
--	struct hstate *h;
--
--	hugetlb_unregister_all_nodes();
--
--	for_each_hstate(h) {
--		kobject_put(hstate_kobjs[hstate_index(h)]);
--	}
--
--	kobject_put(hugepages_kobj);
--	kfree(hugetlb_fault_mutex_table);
--}
--module_exit(hugetlb_exit);
--
- static int __init hugetlb_init(void)
- {
- 	int i;
-@@ -2690,7 +2653,7 @@ static int __init hugetlb_init(void)
- 		mutex_init(&hugetlb_fault_mutex_table[i]);
- 	return 0;
- }
--module_init(hugetlb_init);
-+subsys_initcall(hugetlb_init);
- 
- /* Should be called on processing a hugepagesz=... option */
- void __init hugetlb_add_hstate(unsigned int order)
--- 
-2.6.1
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
