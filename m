@@ -1,282 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 311F76B0257
-	for <linux-mm@kvack.org>; Sun, 13 Dec 2015 15:16:54 -0500 (EST)
-Received: by lbbcs9 with SMTP id cs9so95403923lbb.1
-        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 12:16:53 -0800 (PST)
-Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
-        by mx.google.com with ESMTPS id ad6si15484247lbc.87.2015.12.13.12.16.50
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A066B0038
+	for <linux-mm@kvack.org>; Sun, 13 Dec 2015 22:01:46 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so74541224igb.1
+        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 19:01:46 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id j15si14757665iod.139.2015.12.13.19.01.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Dec 2015 12:16:50 -0800 (PST)
-Received: by lbbcs9 with SMTP id cs9so95403562lbb.1
-        for <linux-mm@kvack.org>; Sun, 13 Dec 2015 12:16:50 -0800 (PST)
-Message-Id: <20151213201646.909312009@gmail.com>
-Date: Sun, 13 Dec 2015 23:14:20 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [RFC 2/2] [RFC] selftests: vm -- Add rlimit data selftest
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 13 Dec 2015 19:01:45 -0800 (PST)
+Date: Mon, 14 Dec 2015 12:03:17 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 1/3] mm, printk: introduce new format string for flags
+Message-ID: <20151214030317.GA3781@js1304-P5Q-DELUXE>
+References: <87io4hi06n.fsf@rasmusvillemoes.dk>
+ <1449242195-16374-1-git-send-email-vbabka@suse.cz>
+ <20151210025944.GB17967@js1304-P5Q-DELUXE>
+ <20151210040456.GC7814@home.goodmis.org>
+ <56694DF6.70600@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=mm-rlimit-data-selftest
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56694DF6.70600@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-Just setup RLIMIT_DATA limit and play with anon memory accounting.
+On Thu, Dec 10, 2015 at 11:03:34AM +0100, Vlastimil Babka wrote:
+> On 12/10/2015 05:04 AM, Steven Rostedt wrote:
+> >On Thu, Dec 10, 2015 at 11:59:44AM +0900, Joonsoo Kim wrote:
+> >>Ccing, Steven to ask trace-cmd problem.
+> >>
+> >>I'd like to use %pgp in tracepoint output. It works well when I do
+> >>'cat /sys/kernel/debug/tracing/trace' but not works well when I do
+> >>'./trace-cmd report'. It prints following error log.
+> >>
+> >>   [page_ref:page_ref_unfreeze] bad op token &
+> >>   [page_ref:page_ref_set] bad op token &
+> >>   [page_ref:page_ref_mod_unless] bad op token &
+> >>   [page_ref:page_ref_mod_and_test] bad op token &
+> >>   [page_ref:page_ref_mod_and_return] bad op token &
+> >>   [page_ref:page_ref_mod] bad op token &
+> >>   [page_ref:page_ref_freeze] bad op token &
+> >>
+> >>Following is the format I used.
+> >>
+> >>TP_printk("pfn=0x%lx flags=%pgp count=%d mapcount=%d mapping=%p mt=%d val=%d ret=%d",
+> >>                 __entry->pfn, &__entry->flags, __entry->count,
+> >>                 __entry->mapcount, __entry->mapping, __entry->mt,
+> >>                 __entry->val, __entry->ret)
+> >>
+> >>Could it be solved by 'trace-cmd' itself?
+> 
+> You mean that trace-cmd/parse-events.c would interpret the raw value
+> of flags by itself? That would mean the flags became fixed ABI, not
+> a good idea...
+> 
+> >>Or it's better to pass flags by value?
+> 
+> If it's value (as opposed to a pointer in %pgp), that doesn't change
+> much wrt. having to intepret them?
+> 
+> >>Or should I use something like show_gfp_flags()?
+> 
+> Sounds like least pain to me, at least for now. We just need to have
+> the translation tables available as #define with __print_flags() in
+> some trace/events header, like the existing trace/events/gfpflags.h
+> for gfp flags. These tables can still be reused within mm/debug.c or
+> printk code without copy/paste, like I did in "[PATCH v2 6/9] mm,
+> debug: introduce dump_gfpflag_names() for symbolic printing of
+> gfp_flags" [1]. Maybe it's not the most elegant solution, but works
+> without changing parse-events.c using the existing format export.
+> 
+> So if you agree, I can do this in the next spin.
+> 
 
-CC: Quentin Casasnovas <quentin.casasnovas@oracle.com>
-CC: Vegard Nossum <vegard.nossum@oracle.com>
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Willy Tarreau <w@1wt.eu>
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Kees Cook <keescook@google.com>
-CC: Vladimir Davydov <vdavydov@virtuozzo.com>
-CC: Konstantin Khlebnikov <koct9i@gmail.com>
-CC: Pavel Emelyanov <xemul@virtuozzo.com>
-CC: Vladimir Davydov <vdavydov@virtuozzo.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
----
- tools/testing/selftests/vm/Makefile      |    1 
- tools/testing/selftests/vm/rlimit-data.c |  201 +++++++++++++++++++++++++++++++
- tools/testing/selftests/vm/run_vmtests   |    4 
- 3 files changed, 204 insertions(+), 2 deletions(-)
+Okay. I'm okay with this approach.
 
-Index: linux-ml.git/tools/testing/selftests/vm/Makefile
-===================================================================
---- linux-ml.git.orig/tools/testing/selftests/vm/Makefile
-+++ linux-ml.git/tools/testing/selftests/vm/Makefile
-@@ -10,6 +10,7 @@ BINARIES += on-fault-limit
- BINARIES += thuge-gen
- BINARIES += transhuge-stress
- BINARIES += userfaultfd
-+BINARIES += rlimit-data
- 
- all: $(BINARIES)
- %: %.c
-Index: linux-ml.git/tools/testing/selftests/vm/rlimit-data.c
-===================================================================
---- /dev/null
-+++ linux-ml.git/tools/testing/selftests/vm/rlimit-data.c
-@@ -0,0 +1,201 @@
-+/*
-+ * rlimit-data:
-+ *
-+ * Test that RLIMIT_DATA accounts anonymous
-+ * memory correctly.
-+ */
-+
-+#define _GNU_SOURCE
-+
-+#include <stdlib.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <fcntl.h>
-+#include <errno.h>
-+#include <string.h>
-+#include <stdbool.h>
-+
-+#include <sys/resource.h>
-+#include <sys/syscall.h>
-+#include <sys/mman.h>
-+
-+#define pr_info(fmt, ...)					\
-+	fprintf(stdout, fmt, ##__VA_ARGS__)
-+#define pr_err(fmt, ...)					\
-+	fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
-+#define pr_perror(fmt, ...)					\
-+	fprintf(stderr, "ERROR: " fmt ": %s\n", ##__VA_ARGS__,	\
-+		strerror(errno))
-+
-+#define mmap_anon(__addr, __size)				\
-+	mmap(__addr, __size, PROT_READ | PROT_WRITE,		\
-+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)
-+
-+static const char self_status_path[] = "/proc/self/status";
-+static int fd_status = -1;
-+static size_t page_size;
-+
-+static const char tplt[] = "VmAnon:";
-+static const size_t tplt_len = sizeof(tplt) - 1;
-+
-+static int get_self_anon_vm(int fd, unsigned long *npages)
-+{
-+	FILE *f = fdopen(fd, "r");
-+	bool found = false;
-+	char buf[1024];
-+
-+	if (!f) {
-+		pr_perror("Can't open status");
-+		return -1;
-+	}
-+
-+	setbuffer(f, NULL, 0);
-+	rewind(f);
-+	while (fgets(buf, sizeof(buf), f)) {
-+		if (strncmp(buf, tplt, tplt_len))
-+			continue;
-+		*npages = (atol(&buf[tplt_len + 1]) << 10) / page_size;
-+		found = true;
-+		break;
-+	}
-+
-+	if (!found)
-+		pr_err("No data found in status\n");
-+	return found ? 0 : -1;
-+}
-+
-+int main(int argc, char *argv[])
-+{
-+	unsigned long npages_cur = 0, npages_new = 0;
-+	unsigned long npages_init = 0;
-+	int ret = 1, match;
-+	struct rlimit lim;
-+
-+	void *mem, *mem_new;
-+	size_t size;
-+
-+	size_t shmem_size;
-+	void *shmem;
-+
-+	page_size = getpagesize();
-+
-+	if (getrlimit(RLIMIT_DATA, &lim)) {
-+		pr_perror("Can't get rlimit data");
-+		return 1;
-+	}
-+
-+	fd_status = open(self_status_path, O_RDONLY);
-+	if (fd_status < 0) {
-+		pr_perror("Can't open %s", self_status_path);
-+		return 1;
-+	}
-+
-+	if (get_self_anon_vm(fd_status, &npages_init))
-+		goto err;
-+	pr_info("Initial anon pages %lu\n", npages_init);
-+
-+	/*
-+	 * Map first chunk.
-+	 */
-+	size = page_size * 10;
-+	mem = mmap_anon(NULL, size);
-+	if (mem == MAP_FAILED) {
-+		pr_perror("Can't map first chunk");
-+		goto err;
-+	}
-+	if (get_self_anon_vm(fd_status, &npages_cur))
-+		goto err;
-+	pr_info("Mapped %zu bytes %lu pages, parsed %lu\n",
-+		size, size / page_size, npages_cur);
-+
-+	if (npages_cur <= (npages_init + 10)) {
-+		pr_err("Parsed number of pages is too small\n");
-+		goto err;
-+	}
-+
-+	/*
-+	 * Allow up to more 80K of anon data.
-+	 */
-+	lim.rlim_cur = (80 << 10) + npages_init * page_size;
-+	lim.rlim_max = RLIM_INFINITY;
-+	if (setrlimit(RLIMIT_DATA, &lim)) {
-+		pr_perror("Can't setup limit to %lu bytes",
-+			  (unsigned long)lim.rlim_cur);
-+		goto err;
-+	}
-+
-+	/*
-+	 * This one should fail.
-+	 */
-+	mem_new = mmap_anon(NULL, lim.rlim_cur);
-+	if (mem_new != MAP_FAILED) {
-+		pr_err("RLIMIT_DATA didn't catch the overrflow\n");
-+		goto err;
-+	}
-+
-+	/*
-+	 * Shrink it.
-+	 */
-+	mem_new = mremap(mem, size, size / 2, MREMAP_MAYMOVE);
-+	if (!mem_new) {
-+		pr_perror("Can't shrink memory");
-+		goto err;
-+	}
-+	size /= 2;
-+	mem = mem_new;
-+
-+	if (get_self_anon_vm(fd_status, &npages_cur))
-+		goto err;
-+	pr_info("Remapped %zu bytes %lu pages, parsed %lu\n",
-+		size, size / page_size, npages_cur);
-+
-+	if (npages_cur <= (npages_init + 5)) {
-+		pr_err("Parsed number of pages is too small\n");
-+		goto err;
-+	}
-+
-+	/*
-+	 * Test via sbrk.
-+	 */
-+	mem_new = sbrk(0);
-+	pr_info("Current brk %p\n", sbrk(0));
-+	mem_new = sbrk(page_size);
-+	if (mem_new != (void *)-1) {
-+		if (get_self_anon_vm(fd_status, &npages_cur))
-+			goto err;
-+
-+		/*
-+		 * Allow up to two pages.
-+		 */
-+		lim.rlim_cur = (npages_cur + 3) * page_size;
-+		lim.rlim_max = RLIM_INFINITY;
-+		if (setrlimit(RLIMIT_DATA, &lim)) {
-+			pr_perror("Can't setup limit to %lu bytes",
-+				  (unsigned long)lim.rlim_cur);
-+			goto err;
-+		}
-+
-+		pr_info("Allocating 3 pages, must pass...");
-+		mem_new = sbrk(page_size * 3);
-+		if (mem_new == (void *)-1) {
-+			pr_err("Can't allocate pages while should\n");
-+			goto err;
-+		} else
-+			pr_info("OK\n");
-+
-+		pr_info("Allocating 1 pages, must fail...");
-+		mem_new = sbrk(page_size);
-+		if (mem_new != (void *)-1) {
-+			pr_err("Allocated page while should not\n");
-+			goto err;
-+		} else
-+			pr_info("OK\n");
-+	}
-+
-+	ret = 0;
-+err:
-+	if (mem)
-+		munmap(mem, size);
-+	close(fd_status);
-+	return ret;
-+}
-Index: linux-ml.git/tools/testing/selftests/vm/run_vmtests
-===================================================================
---- linux-ml.git.orig/tools/testing/selftests/vm/run_vmtests
-+++ linux-ml.git/tools/testing/selftests/vm/run_vmtests
-@@ -131,9 +131,9 @@ else
- fi
- 
- echo "--------------------"
--echo "running mlock2-tests"
-+echo "running rlimit-data"
- echo "--------------------"
--./mlock2-tests
-+./rlimit-data
- if [ $? -ne 0 ]; then
- 	echo "[FAIL]"
- 	exitcode=1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
