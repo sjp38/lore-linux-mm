@@ -1,115 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C4B6B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:17 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so125889087wmn.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:31:17 -0800 (PST)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id hb7si46516508wjc.71.2015.12.14.07.30.47
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 45BAD6B0257
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:40:58 -0500 (EST)
+Received: by obciw8 with SMTP id iw8so134040060obc.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:40:58 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o7si7887894obi.38.2015.12.14.07.40.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 07:30:48 -0800 (PST)
-Received: by mail-wm0-f42.google.com with SMTP id n186so123514926wmn.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:30:47 -0800 (PST)
-Date: Mon, 14 Dec 2015 16:30:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
-Message-ID: <20151214153037.GB4339@dhcp22.suse.cz>
-References: <cover.1449742560.git.vdavydov@virtuozzo.com>
- <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+        Mon, 14 Dec 2015 07:40:57 -0800 (PST)
+Date: Mon, 14 Dec 2015 16:32:34 +0100
+From: Quentin Casasnovas <quentin.casasnovas@oracle.com>
+Subject: Re: [RFC 1/2] [RFC] mm: Account anon mappings as RLIMIT_DATA
+Message-ID: <20151214153234.GE3604@chrystal.uk.oracle.com>
+References: <20151213201646.839778758@gmail.com>
+ <20151214145126.GC3604@chrystal.uk.oracle.com>
+ <20151214151116.GE14045@uranus>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+In-Reply-To: <20151214151116.GE14045@uranus>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Quentin Casasnovas <quentin.casasnovas@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vegard Nossum <vegard.nossum@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Thu 10-12-15 14:39:14, Vladimir Davydov wrote:
-> In the legacy hierarchy we charge memsw, which is dubious, because:
+On Mon, Dec 14, 2015 at 06:11:16PM +0300, Cyrill Gorcunov wrote:
+> On Mon, Dec 14, 2015 at 03:51:26PM +0100, Quentin Casasnovas wrote:
+> ...
+> > 
+> > Do we want to fold may_expand_anon_vm() into may_expand_vm() (potentially
+> > passing it the flags/struct file if needed) so there is just one such
+> > helper function?  Rationale being that it then gets hard to see what
+> > restricts what, and it's easy to miss one place.
 > 
->  - memsw.limit must be >= memory.limit, so it is impossible to limit
->    swap usage less than memory usage. Taking into account the fact that
->    the primary limiting mechanism in the unified hierarchy is
->    memory.high while memory.limit is either left unset or set to a very
->    large value, moving memsw.limit knob to the unified hierarchy would
->    effectively make it impossible to limit swap usage according to the
->    user preference.
+> I tried to make the patch small as possible (because otherwise indeed
+> I would have to pass @vm_file|@file as additional argument). This won't
+> be a problem but may_expand_vm is called way more times than
+> may_expand_anon_vm. That's the only rationale I followed.
+>
+> > For example, I couldn't find anything preventing a user to
+> > mmap(MAP_GROWSDOWN) and uses that as a base to get pages that would not be
+> > accounted for in your patch (making it a poor-man mremap()).
 > 
->  - memsw.usage != memory.usage + swap.usage, because a page occupying
->    both swap entry and a swap cache page is charged only once to memsw
->    counter. As a result, it is possible to effectively eat up to
->    memory.limit of memory pages *and* memsw.limit of swap entries, which
->    looks unexpected.
+> growsup/down stand for stack usage iirc, so it was intentionally
+> not accounted here.
+>
+
+Right, but in the same vein of Linus saying RLIMIT_DATA is/was useless
+because everyone could use mmap() instead of brk() to get anonymous memory,
+what's the point of restricting "almost-all" anonymous memory if one can
+just use MAP_GROWSDOWN/UP and cause repeated page faults to extend that
+mapping, circumventing your checks?  That makes the new restriction as
+useless as what RLIMIT_DATA used to be, doesn't it?
+
+> > 
+> > I only had a quick look so apologies if this is handled and I missed it :)
 > 
-> That said, we should provide a different swap limiting mechanism for
-> cgroup2.
-> This patch adds mem_cgroup->swap counter, which charges the actual
-> number of swap entries used by a cgroup. It is only charged in the
-> unified hierarchy, while the legacy hierarchy memsw logic is left
-> intact.
+> thanks for feedback! also take a look on Kostya's patch, I think it's
+> even better approach (and I like it more than mine).
 
-I agree that the previous semantic was awkward. The problem I can see
-with this approach is that once the swap limit is reached the anon
-memory pressure might spill over to other and unrelated memcgs during
-the global memory pressure. I guess this is what Kame referred to as
-anon would become mlocked basically. This would be even more of an issue
-with resource delegation to sub-hierarchies because nobody will prevent
-setting the swap amount to a small value and use that as an anon memory
-protection.
+Ha I'm not subscribed to LKML so I missed those, I suppose you can ignore
+my comments then! :)
 
-I guess this was the reason why this approach hasn't been chosen before
-but I think we can come up with a way to stop the run away consumption
-even when the swap is accounted separately. All of them are quite nasty
-but let me try.
-
-We could allow charges to fail even for the high limit if the excess is
-way above the amount of reclaimable memory in the given memcg/hierarchy.
-A runaway load would be stopped before it can cause a considerable
-damage outside of its hierarchy this way even when the swap limit
-is configured small.
-Now that goes against the high limit semantic which should only throttle
-the consumer and shouldn't cause any functional failures but maybe this
-is acceptable for the overall system stability. An alternative would
-be to throttle in the high limit reclaim context proportionally to
-the excess. This is normally done by the reclaim itself but with no
-reclaimable memory this wouldn't work that way.
-
-Another option would be to ignore the swap limit during the global
-reclaim. This wouldn't stop the runaway loads but they would at least
-see their fair share of the reclaim. The swap excess could be then used
-as a "handicap" for a more aggressive throttling during high limit reclaim
-or to trigger hard limit sooner.
-
-Or we could teach the global OOM killer to select abusive anon memory
-users with restricted swap. That would require to iterate through all
-memcgs and checks whether their anon consumption is in a large excess to
-their swap limit and fallback to the memcg OOM victim selection if that
-is the case. This adds more complexity to the OOM killer path so I am
-not sure this is generally acceptable, though.
-
-My question now is. Is the knob usable/useful even without additional
-heuristics? Do we want to protect swap space so rigidly that a swap
-limited memcg can cause bigger problems than without the swap limit
-globally?
-
-> The swap usage can be monitored using new memory.swap.current file and
-> limited using memory.swap.max.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> ---
->  include/linux/memcontrol.h |   1 +
->  include/linux/swap.h       |   5 ++
->  mm/memcontrol.c            | 123 +++++++++++++++++++++++++++++++++++++++++----
->  mm/shmem.c                 |   4 ++
->  mm/swap_state.c            |   5 ++
->  5 files changed, 129 insertions(+), 9 deletions(-)
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Quentin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
