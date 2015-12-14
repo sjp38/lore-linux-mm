@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 084BE6B026A
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:29 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so108612318pab.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:28 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id t74si18779133pfa.170.2015.12.14.11.06.19
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 22B4A6B026C
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:31 -0500 (EST)
+Received: by pabur14 with SMTP id ur14so108612831pab.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:30 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id mi6si8224405pab.95.2015.12.14.11.06.19
         for <linux-mm@kvack.org>;
         Mon, 14 Dec 2015 11:06:19 -0800 (PST)
-Subject: [PATCH 21/32] x86, pkeys: dump PKRU with other kernel registers
+Subject: [PATCH 22/32] x86, pkeys: dump PTE pkey in /proc/pid/smaps
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 14 Dec 2015 11:06:18 -0800
+Date: Mon, 14 Dec 2015 11:06:19 -0800
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
 In-Reply-To: <20151214190542.39C4886D@viggo.jf.intel.com>
-Message-Id: <20151214190618.0C15BFA7@viggo.jf.intel.com>
+Message-Id: <20151214190619.BA65327A@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,32 +22,93 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Protection Keys never affect kernel mappings.  But, they can
-affect whether the kernel will fault when it touches a user
-mapping.  The kernel doesn't touch user mappings without some
-careful choreography and these accesses don't generally result in
-oopses.  But, if one does, we definitely want to have PKRU
-available so we can figure out if protection keys played a role.
+The protection key can now be just as important as read/write
+permissions on a VMA.  We need some debug mechanism to help
+figure out if it is in play.  smaps seems like a logical
+place to expose it.
+
+arch/x86/kernel/setup.c is a bit of a weirdo place to put
+this code, but it already had seq_file.h and there was not
+a much better existing place to put it.
+
+We also use no #ifdef.  If protection keys is .config'd out
+we will get the same function as if we used the weak generic
+function.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/kernel/process_64.c |    2 ++
- 1 file changed, 2 insertions(+)
+ b/arch/x86/kernel/setup.c |    9 +++++++++
+ b/fs/proc/task_mmu.c      |   14 ++++++++++++++
+ 2 files changed, 23 insertions(+)
 
-diff -puN arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps arch/x86/kernel/process_64.c
---- a/arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps	2015-12-14 10:42:48.373052633 -0800
-+++ b/arch/x86/kernel/process_64.c	2015-12-14 10:42:48.376052768 -0800
-@@ -116,6 +116,8 @@ void __show_regs(struct pt_regs *regs, i
- 	printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
- 	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
+diff -puN arch/x86/kernel/setup.c~pkeys-40-smaps arch/x86/kernel/setup.c
+--- a/arch/x86/kernel/setup.c~pkeys-40-smaps	2015-12-14 10:42:48.777070739 -0800
++++ b/arch/x86/kernel/setup.c	2015-12-14 10:42:48.782070963 -0800
+@@ -112,6 +112,7 @@
+ #include <asm/alternative.h>
+ #include <asm/prom.h>
+ #include <asm/microcode.h>
++#include <asm/mmu_context.h>
  
-+	if (boot_cpu_has(X86_FEATURE_OSPKE))
-+		printk(KERN_DEFAULT "PKRU: %08x\n", read_pkru());
+ /*
+  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+@@ -1282,3 +1283,11 @@ static int __init register_kernel_offset
+ 	return 0;
  }
+ __initcall(register_kernel_offset_dumper);
++
++void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
++{
++	if (!boot_cpu_has(X86_FEATURE_OSPKE))
++		return;
++
++	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
++}
+diff -puN fs/proc/task_mmu.c~pkeys-40-smaps fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c~pkeys-40-smaps	2015-12-14 10:42:48.779070829 -0800
++++ b/fs/proc/task_mmu.c	2015-12-14 10:42:48.783071008 -0800
+@@ -615,11 +615,20 @@ static void show_smap_vma_flags(struct s
+ 		[ilog2(VM_MERGEABLE)]	= "mg",
+ 		[ilog2(VM_UFFD_MISSING)]= "um",
+ 		[ilog2(VM_UFFD_WP)]	= "uw",
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++		/* These come out via ProtectionKey: */
++		[ilog2(VM_PKEY_BIT0)]	= "",
++		[ilog2(VM_PKEY_BIT1)]	= "",
++		[ilog2(VM_PKEY_BIT2)]	= "",
++		[ilog2(VM_PKEY_BIT3)]	= "",
++#endif
+ 	};
+ 	size_t i;
  
- void release_thread(struct task_struct *dead_task)
+ 	seq_puts(m, "VmFlags: ");
+ 	for (i = 0; i < BITS_PER_LONG; i++) {
++		if (!mnemonics[i][0])
++			continue;
+ 		if (vma->vm_flags & (1UL << i)) {
+ 			seq_printf(m, "%c%c ",
+ 				   mnemonics[i][0], mnemonics[i][1]);
+@@ -657,6 +666,10 @@ static int smaps_hugetlb_range(pte_t *pt
+ }
+ #endif /* HUGETLB_PAGE */
+ 
++void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
++{
++}
++
+ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ {
+ 	struct vm_area_struct *vma = v;
+@@ -713,6 +726,7 @@ static int show_smap(struct seq_file *m,
+ 		   (vma->vm_flags & VM_LOCKED) ?
+ 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+ 
++	arch_show_smap(m, vma);
+ 	show_smap_vma_flags(m, vma);
+ 	m_cache_vma(m, vma);
+ 	return 0;
 _
 
 --
