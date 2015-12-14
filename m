@@ -1,72 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BC2796B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:04:59 -0500 (EST)
-Received: by wmpp66 with SMTP id p66so57743482wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:04:59 -0800 (PST)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id mn10si45446692wjc.177.2015.12.14.04.04.58
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 556156B0255
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:06:30 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so117709155wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:06:30 -0800 (PST)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id t200si8345175wmt.109.2015.12.14.04.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 04:04:58 -0800 (PST)
-Received: by mail-wm0-x230.google.com with SMTP id p66so58668645wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:04:58 -0800 (PST)
-Date: Mon, 14 Dec 2015 14:04:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: isolate_lru_page on !head pages
-Message-ID: <20151214120456.GA4201@node.shutemov.name>
-References: <20151209130204.GD30907@dhcp22.suse.cz>
+        Mon, 14 Dec 2015 04:06:24 -0800 (PST)
+Received: by wmpp66 with SMTP id p66so57795514wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:06:24 -0800 (PST)
+Date: Mon, 14 Dec 2015 13:06:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: !PageLocked from shmem charge path hits VM_BUG_ON with 4.4-rc4
+Message-ID: <20151214120621.GA4339@dhcp22.suse.cz>
+References: <20151214100156.GA4540@dhcp22.suse.cz>
+ <20151214110320.GB9544@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151209130204.GD30907@dhcp22.suse.cz>
+In-Reply-To: <20151214110320.GB9544@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Daniel Vetter <daniel.vetter@intel.com>, David Airlie <airlied@linux.ie>, Mika Westerber <mika.westerberg@intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 09, 2015 at 02:02:05PM +0100, Michal Hocko wrote:
-> Hi Kirill,
-
-[ sorry for late reply, just back from vacation. ]
-
-> while looking at the issue reported by Minchan [1] I have noticed that
-> there is nothing to prevent from "isolating" a tail page from LRU because
-> isolate_lru_page checks PageLRU which is
-> PAGEFLAG(LRU, lru, PF_HEAD)
-> so it is checked on the head page rather than the given page directly
-> but the rest of the operation is done on the given (tail) page.
-
-Looks like most (all?) callers already exclude PTE-mapped THP already one
-way or another.
-Probably, VM_BUG_ON_PAGE(PageTail(page), page) in isolate_lru_page() would
-be appropriate.
-
-> This is really subtle because this expects that every caller of this
-> function checks for the tail page otherwise we would clobber statistics
-> and who knows what else (I haven't checked that in detail) as the page
-> cannot be on the LRU list and the operation makes sense only on the head
-> page.
+On Mon 14-12-15 12:03:20, Michal Hocko wrote:
+> JFYI: Andrey Ryabinin has noticed that this might be related to
+> http://lkml.kernel.org/r/CAPAsAGzrOQAABhOta_o-MzocnikjPtwJLfEKQJ3n5mbBm0T7Bw@mail.gmail.com
 > 
-> Would it make more sense to make PageLRU PF_ANY? That would return
-> false for PageLRU on any tail page and so it would be ignored by
-> isolate_lru_page.
+> and indeed if somebody with pending signals would do wait_on_page_locked
+> then it could race AFAIU.
 
-I don't think this is right way to go. What we put on LRU is compound
-page, not 4k subpages. PageLRU() should return true if the compound page
-is on LRU regardless if you ask for head or tail page.
+No, a simple lock_page would fail to lock the page (thanks Andrey for
+the clarification in the parallel email thread). I have missed that
+__lock_page uses bit_wait_io and that would return EINTR when using
+signal_pending. The fix has changed that to singnal_pending_state so
+this will not happen anymore. I think the mystery is solved...
 
-False-negatives PageLRU() can be as bad as bug Minchan reported, but
-perhaps more silent.
-
-> I haven't checked other flags but there might be a similar situation. I
-> am wondering whether it is really a good idea to perform a flag check on
-> a different page then the operation which depends on the result of the
-> test in general. It sounds like a maintenance horror to me.
-> 
-> [1] http://lkml.kernel.org/r/20151201133455.GB27574@bbox
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
