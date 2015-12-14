@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D4E6B0256
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:31:28 -0500 (EST)
-Received: by pff63 with SMTP id 63so15312038pff.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:28 -0800 (PST)
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A8686B0257
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:31:30 -0500 (EST)
+Received: by pfbo64 with SMTP id o64so30844542pfb.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:29 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id v1si18634560pfa.242.2015.12.14.10.31.27
+        by mx.google.com with ESMTP id kh7si9847316pab.85.2015.12.14.10.31.29
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 10:31:27 -0800 (PST)
+        Mon, 14 Dec 2015 10:31:29 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 3/6] x86/vdso: Track each mm's loaded vdso image as well as its base
-Date: Mon, 14 Dec 2015 10:31:15 -0800
-Message-Id: <69bab428e0db14fc1bc1add051d2a294760137dc.1450117783.git.luto@kernel.org>
+Subject: [PATCH v2 4/6] x86,vdso: Use .fault for the vdso text mapping
+Date: Mon, 14 Dec 2015 10:31:16 -0800
+Message-Id: <a98dc0758ad8a29459b824e3494c1dd0a48e6b69.1450117783.git.luto@kernel.org>
 In-Reply-To: <cover.1450117783.git.luto@kernel.org>
 References: <cover.1450117783.git.luto@kernel.org>
 In-Reply-To: <cover.1450117783.git.luto@kernel.org>
@@ -21,46 +21,109 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
 
-As we start to do more intelligent things with the vdso at runtime
-(as opposed to just at mm initialization time), we'll need to know
-which vdso is in use.
+The old scheme for mapping the vdso text is rather complicated.  vdso2c
+generates a struct vm_special_mapping and a blank .pages array of the
+correct size for each vdso image.  Init code in vdso/vma.c populates
+the .pages array for each vdso image, and the mapping code selects
+the appropriate struct vm_special_mapping.
 
-In principle, we could guess based on the mm type, but that's
-over-complicated and error-prone.  Instead, just track it in the mmu
-context.
+With .fault, we can use a less roundabout approach: vdso_fault
+just returns the appropriate page for the selected vdso image.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/entry/vdso/vma.c  | 1 +
- arch/x86/include/asm/mmu.h | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ arch/x86/entry/vdso/vdso2c.h |  7 -------
+ arch/x86/entry/vdso/vma.c    | 26 +++++++++++++++++++-------
+ arch/x86/include/asm/vdso.h  |  3 ---
+ 3 files changed, 19 insertions(+), 17 deletions(-)
 
+diff --git a/arch/x86/entry/vdso/vdso2c.h b/arch/x86/entry/vdso/vdso2c.h
+index 0224987556ce..abe961c7c71c 100644
+--- a/arch/x86/entry/vdso/vdso2c.h
++++ b/arch/x86/entry/vdso/vdso2c.h
+@@ -150,16 +150,9 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
+ 	}
+ 	fprintf(outfile, "\n};\n\n");
+ 
+-	fprintf(outfile, "static struct page *pages[%lu];\n\n",
+-		mapping_size / 4096);
+-
+ 	fprintf(outfile, "const struct vdso_image %s = {\n", name);
+ 	fprintf(outfile, "\t.data = raw_data,\n");
+ 	fprintf(outfile, "\t.size = %lu,\n", mapping_size);
+-	fprintf(outfile, "\t.text_mapping = {\n");
+-	fprintf(outfile, "\t\t.name = \"[vdso]\",\n");
+-	fprintf(outfile, "\t\t.pages = pages,\n");
+-	fprintf(outfile, "\t},\n");
+ 	if (alt_sec) {
+ 		fprintf(outfile, "\t.alt = %lu,\n",
+ 			(unsigned long)GET_LE(&alt_sec->sh_offset));
 diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index b8f69e264ac4..80b021067bd6 100644
+index 80b021067bd6..eb50d7c1f161 100644
 --- a/arch/x86/entry/vdso/vma.c
 +++ b/arch/x86/entry/vdso/vma.c
-@@ -121,6 +121,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+@@ -27,13 +27,7 @@ unsigned int __read_mostly vdso64_enabled = 1;
  
- 	text_start = addr - image->sym_vvar_start;
- 	current->mm->context.vdso = (void __user *)text_start;
-+	current->mm->context.vdso_image = image;
+ void __init init_vdso_image(const struct vdso_image *image)
+ {
+-	int i;
+-	int npages = (image->size) / PAGE_SIZE;
+-
+ 	BUG_ON(image->size % PAGE_SIZE != 0);
+-	for (i = 0; i < npages; i++)
+-		image->text_mapping.pages[i] =
+-			virt_to_page(image->data + i*PAGE_SIZE);
  
- 	/*
- 	 * MAYWRITE to allow gdb to COW and set breakpoints
-diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
-index 55234d5e7160..1ea0baef1175 100644
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -19,7 +19,8 @@ typedef struct {
+ 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
+ 			   (struct alt_instr *)(image->data + image->alt +
+@@ -90,6 +84,24 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
  #endif
+ }
  
- 	struct mutex lock;
--	void __user *vdso;
-+	void __user *vdso;			/* vdso base address */
-+	const struct vdso_image *vdso_image;	/* vdso image in use */
++static int vdso_fault(const struct vm_special_mapping *sm,
++		      struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
++
++	if (!image || (vmf->pgoff << PAGE_SHIFT) >= image->size)
++		return VM_FAULT_SIGBUS;
++
++	vmf->page = virt_to_page(image->data + (vmf->pgoff << PAGE_SHIFT));
++	get_page(vmf->page);
++	return 0;
++}
++
++static const struct vm_special_mapping text_mapping = {
++	.name = "[vdso]",
++	.fault = vdso_fault,
++};
++
+ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ {
+ 	struct mm_struct *mm = current->mm;
+@@ -131,7 +143,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 				       image->size,
+ 				       VM_READ|VM_EXEC|
+ 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+-				       &image->text_mapping);
++				       &text_mapping);
  
- 	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
- } mm_context_t;
+ 	if (IS_ERR(vma)) {
+ 		ret = PTR_ERR(vma);
+diff --git a/arch/x86/include/asm/vdso.h b/arch/x86/include/asm/vdso.h
+index deabaf9759b6..43dc55be524e 100644
+--- a/arch/x86/include/asm/vdso.h
++++ b/arch/x86/include/asm/vdso.h
+@@ -13,9 +13,6 @@ struct vdso_image {
+ 	void *data;
+ 	unsigned long size;   /* Always a multiple of PAGE_SIZE */
+ 
+-	/* text_mapping.pages is big enough for data/size page pointers */
+-	struct vm_special_mapping text_mapping;
+-
+ 	unsigned long alt, alt_len;
+ 
+ 	long sym_vvar_start;  /* Negative offset to the vvar area */
 -- 
 2.5.0
 
