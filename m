@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 556156B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:06:30 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so117709155wmn.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:06:30 -0800 (PST)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id t200si8345175wmt.109.2015.12.14.04.06.24
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A6EA6B0255
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:11:11 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id n186so42585519wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:11:11 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id ch4si45529416wjb.109.2015.12.14.04.11.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 04:06:24 -0800 (PST)
-Received: by wmpp66 with SMTP id p66so57795514wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:06:24 -0800 (PST)
-Date: Mon, 14 Dec 2015 13:06:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: !PageLocked from shmem charge path hits VM_BUG_ON with 4.4-rc4
-Message-ID: <20151214120621.GA4339@dhcp22.suse.cz>
-References: <20151214100156.GA4540@dhcp22.suse.cz>
- <20151214110320.GB9544@dhcp22.suse.cz>
+        Mon, 14 Dec 2015 04:11:10 -0800 (PST)
+Received: by wmnn186 with SMTP id n186so117882522wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 04:11:10 -0800 (PST)
+Date: Mon, 14 Dec 2015 14:11:08 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC] mm: change find_vma() function
+Message-ID: <20151214121107.GB4201@node.shutemov.name>
+References: <1450090945-4020-1-git-send-email-yalin.wang2010@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151214110320.GB9544@dhcp22.suse.cz>
+In-Reply-To: <1450090945-4020-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Daniel Vetter <daniel.vetter@intel.com>, David Airlie <airlied@linux.ie>, Mika Westerber <mika.westerberg@intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, mhocko@suse.com, kwapulinski.piotr@gmail.com, aarcange@redhat.com, dcashman@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 14-12-15 12:03:20, Michal Hocko wrote:
-> JFYI: Andrey Ryabinin has noticed that this might be related to
-> http://lkml.kernel.org/r/CAPAsAGzrOQAABhOta_o-MzocnikjPtwJLfEKQJ3n5mbBm0T7Bw@mail.gmail.com
+On Mon, Dec 14, 2015 at 07:02:25PM +0800, yalin wang wrote:
+> change find_vma() to break ealier when found the adderss
+> is not in any vma, don't need loop to search all vma.
 > 
-> and indeed if somebody with pending signals would do wait_on_page_locked
-> then it could race AFAIU.
+> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> ---
+>  mm/mmap.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index b513f20..8294c9b 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2064,6 +2064,9 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+>  			vma = tmp;
+>  			if (tmp->vm_start <= addr)
+>  				break;
+> +			if (!tmp->vm_prev || tmp->vm_prev->vm_end <= addr)
+> +				break;
+> +
 
-No, a simple lock_page would fail to lock the page (thanks Andrey for
-the clarification in the parallel email thread). I have missed that
-__lock_page uses bit_wait_io and that would return EINTR when using
-signal_pending. The fix has changed that to singnal_pending_state so
-this will not happen anymore. I think the mystery is solved...
+This 'break' would return 'tmp' as found vma.
+
+Have you even tried to test the code?
+
+>  			rb_node = rb_node->rb_left;
+>  		} else
+>  			rb_node = rb_node->rb_right;
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
