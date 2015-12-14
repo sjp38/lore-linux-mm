@@ -1,116 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 672786B025D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:38:10 -0500 (EST)
-Received: by obcno2 with SMTP id no2so25860247obc.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:38:10 -0800 (PST)
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id CACDB6B025E
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 18:38:12 -0500 (EST)
+Received: by obcno2 with SMTP id no2so25861143obc.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:38:12 -0800 (PST)
 Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id cs7si1618004oeb.78.2015.12.14.15.38.09
+        by mx.google.com with ESMTPS id vg10si2180481obb.89.2015.12.14.15.38.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 15:38:09 -0800 (PST)
+        Mon, 14 Dec 2015 15:38:12 -0800 (PST)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 09/11] resource: Change walk_system_ram to use System RAM type
-Date: Mon, 14 Dec 2015 16:37:24 -0700
-Message-Id: <1450136246-17053-9-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH 10/11] arm/samsung: Change s3c_pm_run_res() to use System RAM type
+Date: Mon, 14 Dec 2015 16:37:25 -0700
+Message-Id: <1450136246-17053-10-git-send-email-toshi.kani@hpe.com>
 In-Reply-To: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kukjin Kim <kgene@kernel.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, linux-samsung-soc@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
 
-Change walk_system_ram_res() and walk_system_ram_range() to
-call find_next_iomem_res() by setting IORESOURCE_SYSTEM_RAM
-to @res->flags and NULL to @name.  With this change, they
-walk through the resource table without doing strcmp().
+Change s3c_pm_run_res() to check with IORESOURCE_SYSTEM_RAM,
+instead of strcmp() with "System RAM", in the resource table.
 
-No functional change is made to the interfaces.
+No functional change is made to the interface.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Kukjin Kim <kgene@kernel.org>
+Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-samsung-soc@vger.kernel.org
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 ---
- kernel/resource.c |   26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ arch/arm/plat-samsung/pm-check.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 56bed6d..c6f13d0 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -334,8 +334,8 @@ EXPORT_SYMBOL(release_resource);
+diff --git a/arch/arm/plat-samsung/pm-check.c b/arch/arm/plat-samsung/pm-check.c
+index 04aff2c..70f2f69 100644
+--- a/arch/arm/plat-samsung/pm-check.c
++++ b/arch/arm/plat-samsung/pm-check.c
+@@ -53,8 +53,8 @@ static void s3c_pm_run_res(struct resource *ptr, run_fn_t fn, u32 *arg)
+ 		if (ptr->child != NULL)
+ 			s3c_pm_run_res(ptr->child, fn, arg);
  
- /*
-  * Finds the lowest iomem reosurce exists with-in [res->start.res->end)
-- * the caller must specify res->start, res->end, res->flags and "name".
-- * If found, returns 0, res is overwritten, if not found, returns -1.
-+ * the caller must specify res->start, res->end, res->flags and optionally
-+ * "name".  If found, returns 0, res is overwritten, if not found, returns -1.
-  * This walks through whole tree and not just first level children
-  * until and unless first_level_children_only is true.
-  */
-@@ -415,9 +415,9 @@ int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
- }
- 
- /*
-- * This function calls callback against all memory range of "System RAM"
-- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
-- * Now, this function is only for "System RAM". This function deals with
-+ * This function calls callback against all memory range of System RAM
-+ * which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
-+ * Now, this function is only for System RAM. This function deals with
-  * full ranges and not pfn. If resources are not pfn aligned, dealing
-  * with pfn can truncate ranges.
-  */
-@@ -430,10 +430,10 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
- 
- 	res.start = start;
- 	res.end = end;
--	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
- 	orig_end = res.end;
- 	while ((res.start < res.end) &&
--		(!find_next_iomem_res(&res, "System RAM", true))) {
-+		(!find_next_iomem_res(&res, NULL, true))) {
- 		ret = (*func)(res.start, res.end, arg);
- 		if (ret)
- 			break;
-@@ -446,9 +446,9 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
- #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
- 
- /*
-- * This function calls callback against all memory range of "System RAM"
-- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
-- * Now, this function is only for "System RAM".
-+ * This function calls callback against all memory range of System RAM
-+ * which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
-+ * Now, this function is only for System RAM.
-  */
- int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 		void *arg, int (*func)(unsigned long, unsigned long, void *))
-@@ -460,10 +460,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 
- 	res.start = (u64) start_pfn << PAGE_SHIFT;
- 	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
--	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
- 	orig_end = res.end;
- 	while ((res.start < res.end) &&
--		(find_next_iomem_res(&res, "System RAM", true) >= 0)) {
-+		(find_next_iomem_res(&res, NULL, true) >= 0)) {
- 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
- 		if (end_pfn > pfn)
-@@ -484,7 +484,7 @@ static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
- }
- /*
-  * This generic page_is_ram() returns true if specified address is
-- * registered as "System RAM" in iomem_resource list.
-+ * registered as System RAM in iomem_resource list.
-  */
- int __weak page_is_ram(unsigned long pfn)
- {
+-		if ((ptr->flags & IORESOURCE_MEM) &&
+-		    strcmp(ptr->name, "System RAM") == 0) {
++		if ((ptr->flags & IORESOURCE_SYSTEM_RAM)
++				== IORESOURCE_SYSTEM_RAM) {
+ 			S3C_PMDBG("Found system RAM at %08lx..%08lx\n",
+ 				  (unsigned long)ptr->start,
+ 				  (unsigned long)ptr->end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
