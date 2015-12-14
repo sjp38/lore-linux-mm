@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 523406B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:54:50 -0500 (EST)
-Received: by iofo67 with SMTP id o67so51988883iof.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 09:54:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m81si3444779iom.134.2015.12.14.09.54.49
+	by kanga.kvack.org (Postfix) with ESMTP id 964C66B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:58:46 -0500 (EST)
+Received: by iow186 with SMTP id 186so34640696iow.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 09:58:46 -0800 (PST)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id z134si19141987iod.50.2015.12.14.09.58.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 09:54:49 -0800 (PST)
-Date: Mon, 14 Dec 2015 18:55:09 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC] mm: change find_vma() function
-Message-ID: <20151214175509.GA25681@redhat.com>
-References: <1450090945-4020-1-git-send-email-yalin.wang2010@gmail.com> <20151214121107.GB4201@node.shutemov.name>
+        Mon, 14 Dec 2015 09:58:46 -0800 (PST)
+Received: by igbxm8 with SMTP id xm8so89862756igb.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 09:58:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151214121107.GB4201@node.shutemov.name>
+In-Reply-To: <20151212101142.GA3867@pd.tnic>
+References: <cover.1449861203.git.tony.luck@intel.com>
+	<456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
+	<20151212101142.GA3867@pd.tnic>
+Date: Mon, 14 Dec 2015 10:58:45 -0700
+Message-ID: <CAOxpaSX5SH7T2AqvGoFDtEWKc9k_-77gbQXQd7FYQZ-Ep2kRhA@mail.gmail.com>
+Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
+From: Ross Zwisler <zwisler@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: yalin wang <yalin.wang2010@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, gang.chen.5i5j@gmail.com, mhocko@suse.com, kwapulinski.piotr@gmail.com, aarcange@redhat.com, dcashman@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tony Luck <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 12/14, Kirill A. Shutemov wrote:
+On Sat, Dec 12, 2015 at 3:11 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Thu, Dec 10, 2015 at 01:58:04PM -0800, Tony Luck wrote:
+<>
+>> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+>> +/* Given an address, look for it in the machine check exception tables. */
+>> +const struct exception_table_entry *search_mcexception_tables(
+>> +                                 unsigned long addr)
+>> +{
+>> +     const struct exception_table_entry *e;
+>> +
+>> +     e = search_extable(__start___mcex_table, __stop___mcex_table-1, addr);
+>> +     return e;
+>> +}
+>> +#endif
 >
-> On Mon, Dec 14, 2015 at 07:02:25PM +0800, yalin wang wrote:
-> > change find_vma() to break ealier when found the adderss
-> > is not in any vma, don't need loop to search all vma.
-> >
-> > Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
-> > ---
-> >  mm/mmap.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> >
-> > diff --git a/mm/mmap.c b/mm/mmap.c
-> > index b513f20..8294c9b 100644
-> > --- a/mm/mmap.c
-> > +++ b/mm/mmap.c
-> > @@ -2064,6 +2064,9 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
-> >  			vma = tmp;
-> >  			if (tmp->vm_start <= addr)
-> >  				break;
-> > +			if (!tmp->vm_prev || tmp->vm_prev->vm_end <= addr)
-> > +				break;
-> > +
+> You can make this one a bit more readable by doing:
 >
-> This 'break' would return 'tmp' as found vma.
+> /* Given an address, look for it in the machine check exception tables. */
+> const struct exception_table_entry *
+> search_mcexception_tables(unsigned long addr)
+> {
+> #ifdef CONFIG_MCE_KERNEL_RECOVERY
+>         return search_extable(__start___mcex_table,
+>                                __stop___mcex_table - 1, addr);
+> #endif
+> }
 
-But this would be right?
-
-Not that I think this optimization makes sense, I simply do not know,
-but to me this change looks technically correct at first glance...
-
-But the changelog is wrong or I missed something. This change can stop
-the main loop earlier; if "tmp" is the first vma, or if the previous one
-is below the address. Or perhaps I just misread that "not in any vma"
-note in the changelog.
-
-No?
-
-Oleg.
+With this code if CONFIG_MCE_KERNEL_RECOVERY isn't defined you'll get
+a compiler error that the function doesn't have a return statement,
+right?  I think we need an #else to return NULL, or to have the #ifdef
+encompass the whole function definition as it was in Tony's version.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
