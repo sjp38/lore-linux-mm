@@ -1,106 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BCBD6B0255
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:26:57 -0500 (EST)
-Received: by oian133 with SMTP id n133so15808857oia.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:26:57 -0800 (PST)
-Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
-        by mx.google.com with ESMTPS id mi9si7817295obc.25.2015.12.14.07.26.57
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C4B6B0255
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:17 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so125889087wmn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:31:17 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id hb7si46516508wjc.71.2015.12.14.07.30.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 07:26:57 -0800 (PST)
-Received: by obciw8 with SMTP id iw8so133662747obc.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:26:57 -0800 (PST)
+        Mon, 14 Dec 2015 07:30:48 -0800 (PST)
+Received: by mail-wm0-f42.google.com with SMTP id n186so123514926wmn.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:30:47 -0800 (PST)
+Date: Mon, 14 Dec 2015 16:30:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+Message-ID: <20151214153037.GB4339@dhcp22.suse.cz>
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <566E94C6.5080000@suse.cz>
-References: <1450069341-28875-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<566E94C6.5080000@suse.cz>
-Date: Tue, 15 Dec 2015 00:26:56 +0900
-Message-ID: <CAAmzW4MEAYJKkQs9ksq+2aOA02xqekmruqwEv5e4szK7i7BjPw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/compaction: fix invalid free_pfn and compact_cached_free_pfn
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2015-12-14 19:07 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 12/14/2015 06:02 AM, Joonsoo Kim wrote:
->>
->> free_pfn and compact_cached_free_pfn are the pointer that remember
->> restart position of freepage scanner. When they are reset or invalid,
->> we set them to zone_end_pfn because freepage scanner works in reverse
->> direction. But, because zone range is defined as [zone_start_pfn,
->> zone_end_pfn), zone_end_pfn is invalid to access. Therefore, we should
->> not store it to free_pfn and compact_cached_free_pfn. Instead, we need
->> to store zone_end_pfn - 1 to them. There is one more thing we should
->> consider. Freepage scanner scan reversely by pageblock unit. If free_pfn
->> and compact_cached_free_pfn are set to middle of pageblock, it regards
->> that sitiation as that it already scans front part of pageblock so we
->> lose opportunity to scan there. To fix-up, this patch do round_down()
->> to guarantee that reset position will be pageblock aligned.
->>
->> Note that thanks to the current pageblock_pfn_to_page() implementation,
->> actual access to zone_end_pfn doesn't happen until now. But, following
->> patch will change pageblock_pfn_to_page() so this patch is needed
->> from now on.
->>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
->
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->
-> Note that until now in compaction we've used basically an open-coded
-> round_down(), and ALIGN() for rounding up. You introduce a first use of
-> round_down(), and it would be nice to standardize on round_down() and
-> round_up() everywhere. I think it's more obvious than open-coding and
-> ALIGN() (which doesn't tell the reader if it's aligning up or down).
-> Hopefully they really do the same thing and there are no caveats...
+On Thu 10-12-15 14:39:14, Vladimir Davydov wrote:
+> In the legacy hierarchy we charge memsw, which is dubious, because:
+> 
+>  - memsw.limit must be >= memory.limit, so it is impossible to limit
+>    swap usage less than memory usage. Taking into account the fact that
+>    the primary limiting mechanism in the unified hierarchy is
+>    memory.high while memory.limit is either left unset or set to a very
+>    large value, moving memsw.limit knob to the unified hierarchy would
+>    effectively make it impossible to limit swap usage according to the
+>    user preference.
+> 
+>  - memsw.usage != memory.usage + swap.usage, because a page occupying
+>    both swap entry and a swap cache page is charged only once to memsw
+>    counter. As a result, it is possible to effectively eat up to
+>    memory.limit of memory pages *and* memsw.limit of swap entries, which
+>    looks unexpected.
+> 
+> That said, we should provide a different swap limiting mechanism for
+> cgroup2.
+> This patch adds mem_cgroup->swap counter, which charges the actual
+> number of swap entries used by a cgroup. It is only charged in the
+> unified hierarchy, while the legacy hierarchy memsw logic is left
+> intact.
 
-Okay. Will send another patch for this clean-up on next spin.
+I agree that the previous semantic was awkward. The problem I can see
+with this approach is that once the swap limit is reached the anon
+memory pressure might spill over to other and unrelated memcgs during
+the global memory pressure. I guess this is what Kame referred to as
+anon would become mlocked basically. This would be even more of an issue
+with resource delegation to sub-hierarchies because nobody will prevent
+setting the swap amount to a small value and use that as an anon memory
+protection.
 
-Thanks.
+I guess this was the reason why this approach hasn't been chosen before
+but I think we can come up with a way to stop the run away consumption
+even when the swap is accounted separately. All of them are quite nasty
+but let me try.
 
->
->> ---
->>   mm/compaction.c | 9 +++++----
->>   1 file changed, 5 insertions(+), 4 deletions(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 585de54..56fa321 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -200,7 +200,8 @@ static void reset_cached_positions(struct zone *zone)
->>   {
->>         zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
->>         zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
->> -       zone->compact_cached_free_pfn = zone_end_pfn(zone);
->> +       zone->compact_cached_free_pfn =
->> +                       round_down(zone_end_pfn(zone) - 1,
->> pageblock_nr_pages);
->>   }
->>
->>   /*
->> @@ -1371,11 +1372,11 @@ static int compact_zone(struct zone *zone, struct
->> compact_control *cc)
->>          */
->>         cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
->>         cc->free_pfn = zone->compact_cached_free_pfn;
->> -       if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
->> -               cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
->> +       if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
->> +               cc->free_pfn = round_down(end_pfn - 1,
->> pageblock_nr_pages);
->>                 zone->compact_cached_free_pfn = cc->free_pfn;
->>         }
->> -       if (cc->migrate_pfn < start_pfn || cc->migrate_pfn > end_pfn) {
->> +       if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
->>                 cc->migrate_pfn = start_pfn;
->>                 zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
->>                 zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
->>
->
+We could allow charges to fail even for the high limit if the excess is
+way above the amount of reclaimable memory in the given memcg/hierarchy.
+A runaway load would be stopped before it can cause a considerable
+damage outside of its hierarchy this way even when the swap limit
+is configured small.
+Now that goes against the high limit semantic which should only throttle
+the consumer and shouldn't cause any functional failures but maybe this
+is acceptable for the overall system stability. An alternative would
+be to throttle in the high limit reclaim context proportionally to
+the excess. This is normally done by the reclaim itself but with no
+reclaimable memory this wouldn't work that way.
+
+Another option would be to ignore the swap limit during the global
+reclaim. This wouldn't stop the runaway loads but they would at least
+see their fair share of the reclaim. The swap excess could be then used
+as a "handicap" for a more aggressive throttling during high limit reclaim
+or to trigger hard limit sooner.
+
+Or we could teach the global OOM killer to select abusive anon memory
+users with restricted swap. That would require to iterate through all
+memcgs and checks whether their anon consumption is in a large excess to
+their swap limit and fallback to the memcg OOM victim selection if that
+is the case. This adds more complexity to the OOM killer path so I am
+not sure this is generally acceptable, though.
+
+My question now is. Is the knob usable/useful even without additional
+heuristics? Do we want to protect swap space so rigidly that a swap
+limited memcg can cause bigger problems than without the swap limit
+globally?
+
+> The swap usage can be monitored using new memory.swap.current file and
+> limited using memory.swap.max.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> ---
+>  include/linux/memcontrol.h |   1 +
+>  include/linux/swap.h       |   5 ++
+>  mm/memcontrol.c            | 123 +++++++++++++++++++++++++++++++++++++++++----
+>  mm/shmem.c                 |   4 ++
+>  mm/swap_state.c            |   5 ++
+>  5 files changed, 129 insertions(+), 9 deletions(-)
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
