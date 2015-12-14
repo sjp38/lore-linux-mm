@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0386F6B0263
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:12 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so108025109pac.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:11 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id q75si18765369pfa.105.2015.12.14.11.06.08
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1476B0264
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:06:15 -0500 (EST)
+Received: by pfnn128 with SMTP id n128so109997789pfn.0
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:06:15 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id i13si12441728pat.171.2015.12.14.11.06.10
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 11:06:09 -0800 (PST)
-Subject: [PATCH 14/32] x86, pkeys: add functions to fetch PKRU
+        Mon, 14 Dec 2015 11:06:10 -0800 (PST)
+Subject: [PATCH 15/32] mm: factor out VMA fault permission checking
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 14 Dec 2015 11:06:07 -0800
+Date: Mon, 14 Dec 2015 11:06:09 -0800
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
 In-Reply-To: <20151214190542.39C4886D@viggo.jf.intel.com>
-Message-Id: <20151214190607.8D59DC37@viggo.jf.intel.com>
+Message-Id: <20151214190609.68AAF0B1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,68 +22,59 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This adds the raw instruction to access PKRU as well as some
-accessor functions that correctly handle when the CPU does not
-support the instruction.  We don't use it here, but we will use
-read_pkru() in the next patch.
+This code matches a fault condition up with the VMA and ensures
+that the VMA allows the fault to be handled instead of just
+erroring out.
+
+We will be extending this in a moment to comprehend protection
+keys.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/pgtable.h       |    8 ++++++++
- b/arch/x86/include/asm/special_insns.h |   22 ++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ b/mm/gup.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable.h~pkeys-10-kernel-pkru-instructions arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h~pkeys-10-kernel-pkru-instructions	2015-12-14 10:42:44.861895284 -0800
-+++ b/arch/x86/include/asm/pgtable.h	2015-12-14 10:42:44.866895508 -0800
-@@ -102,6 +102,14 @@ static inline int pte_dirty(pte_t pte)
- 	return pte_flags(pte) & _PAGE_DIRTY;
+diff -puN mm/gup.c~pkeys-10-pte-fault mm/gup.c
+--- a/mm/gup.c~pkeys-10-pte-fault	2015-12-14 10:42:45.287914375 -0800
++++ b/mm/gup.c	2015-12-14 10:42:45.291914555 -0800
+@@ -557,6 +557,18 @@ next_page:
  }
+ EXPORT_SYMBOL(__get_user_pages);
  
-+
-+static inline u32 read_pkru(void)
++bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
 +{
-+	if (boot_cpu_has(X86_FEATURE_OSPKE))
-+		return __read_pkru();
-+	return 0;
++	vm_flags_t vm_flags;
++
++	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
++
++	if (!(vm_flags & vma->vm_flags))
++		return false;
++
++	return true;
 +}
 +
- static inline int pte_young(pte_t pte)
+ /*
+  * fixup_user_fault() - manually resolve a user page fault
+  * @tsk:	the task_struct to use for page fault accounting, or
+@@ -588,15 +600,13 @@ int fixup_user_fault(struct task_struct
+ 		     unsigned long address, unsigned int fault_flags)
  {
- 	return pte_flags(pte) & _PAGE_ACCESSED;
-diff -puN arch/x86/include/asm/special_insns.h~pkeys-10-kernel-pkru-instructions arch/x86/include/asm/special_insns.h
---- a/arch/x86/include/asm/special_insns.h~pkeys-10-kernel-pkru-instructions	2015-12-14 10:42:44.863895373 -0800
-+++ b/arch/x86/include/asm/special_insns.h	2015-12-14 10:42:44.867895553 -0800
-@@ -98,6 +98,28 @@ static inline void native_write_cr8(unsi
- }
- #endif
+ 	struct vm_area_struct *vma;
+-	vm_flags_t vm_flags;
+ 	int ret;
  
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+static inline u32 __read_pkru(void)
-+{
-+	u32 ecx = 0;
-+	u32 edx, pkru;
-+
-+	/*
-+	 * "rdpkru" instruction.  Places PKRU contents in to EAX,
-+	 * clears EDX and requires that ecx=0.
-+	 */
-+	asm volatile(".byte 0x0f,0x01,0xee\n\t"
-+		     : "=a" (pkru), "=d" (edx)
-+		     : "c" (ecx));
-+	return pkru;
-+}
-+#else
-+static inline u32 __read_pkru(void)
-+{
-+	return 0;
-+}
-+#endif
-+
- static inline void native_wbinvd(void)
- {
- 	asm volatile("wbinvd": : :"memory");
+ 	vma = find_extend_vma(mm, address);
+ 	if (!vma || address < vma->vm_start)
+ 		return -EFAULT;
+ 
+-	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
+-	if (!(vm_flags & vma->vm_flags))
++	if (!vma_permits_fault(vma, fault_flags))
+ 		return -EFAULT;
+ 
+ 	ret = handle_mm_fault(mm, vma, address, fault_flags);
 _
 
 --
