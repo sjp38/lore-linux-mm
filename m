@@ -1,66 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0186B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:31:24 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so107574801pac.3
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:24 -0800 (PST)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC096B0254
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:31:26 -0500 (EST)
+Received: by padhk6 with SMTP id hk6so67660387pad.2
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:31:25 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id xr9si10411352pab.232.2015.12.14.10.31.23
+        by mx.google.com with ESMTP id mj8si10027604pab.50.2015.12.14.10.31.25
         for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 10:31:23 -0800 (PST)
+        Mon, 14 Dec 2015 10:31:25 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 0/6] mm, x86/vdso: Special IO mapping improvements
-Date: Mon, 14 Dec 2015 10:31:12 -0800
-Message-Id: <cover.1450117783.git.luto@kernel.org>
+Subject: [PATCH v2 1/6] mm: Add a vm_special_mapping .fault method
+Date: Mon, 14 Dec 2015 10:31:13 -0800
+Message-Id: <ef4d53a91e2691c2a96404441703cd7195f5d35b.1450117783.git.luto@kernel.org>
+In-Reply-To: <cover.1450117783.git.luto@kernel.org>
+References: <cover.1450117783.git.luto@kernel.org>
+In-Reply-To: <cover.1450117783.git.luto@kernel.org>
+References: <cover.1450117783.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>
 
-This applies on top of the earlier vdso pvclock series I sent out.
-Once that lands in -tip, this will apply to -tip.
+From: Andy Lutomirski <luto@amacapital.net>
 
-This series cleans up the hack that is our vvar mapping.  We currently
-initialize the vvar mapping as a special mapping vma backed by nothing
-whatsoever and then we abuse remap_pfn_range to populate it.
+Requiring special mappings to give a list of struct pages is
+inflexible: it prevents sane use of IO memory in a special mapping,
+it's inefficient (it requires arch code to initialize a list of
+struct pages, and it requires the mm core to walk the entire list
+just to figure out how long it is), and it prevents arch code from
+doing anything fancy when a special mapping fault occurs.
 
-This cheats the mm core, probably breaks under various evil madvise
-workloads, and prevents handling faults in more interesting ways.
+Add a .fault method as an alternative to filling in a .pages array.
 
-To clean it up, this series:
+Looks-OK-to: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+---
 
- - Adds a special mapping .fault operation
- - Adds a vm_insert_pfn_prot helper
- - Uses the new .fault infrastructure in x86's vdso and vvar mappings
- - Hardens the HPET mapping, mitigating an HW attack surface that bothers me
+Notes:
+    Chages from v1:
+     - Fixed "struct vm_special_mapping" code layout (akpm)
+     - s/is// (akpm)
 
-akpm, can you ack patck 1?
+ include/linux/mm_types.h | 22 +++++++++++++++++++---
+ mm/mmap.c                | 13 +++++++++----
+ 2 files changed, 28 insertions(+), 7 deletions(-)
 
-Changes from v1:
- - Lots of changelog clarification requested by akpm
- - Minor tweaks to style and comments in the first two patches
-
-Andy Lutomirski (6):
-  mm: Add a vm_special_mapping .fault method
-  mm: Add vm_insert_pfn_prot
-  x86/vdso: Track each mm's loaded vdso image as well as its base
-  x86,vdso: Use .fault for the vdso text mapping
-  x86,vdso: Use .fault instead of remap_pfn_range for the vvar mapping
-  x86/vdso: Disallow vvar access to vclock IO for never-used vclocks
-
- arch/x86/entry/vdso/vdso2c.h            |   7 --
- arch/x86/entry/vdso/vma.c               | 124 ++++++++++++++++++++------------
- arch/x86/entry/vsyscall/vsyscall_gtod.c |   9 ++-
- arch/x86/include/asm/clocksource.h      |   9 +--
- arch/x86/include/asm/mmu.h              |   3 +-
- arch/x86/include/asm/vdso.h             |   3 -
- arch/x86/include/asm/vgtod.h            |   6 ++
- include/linux/mm.h                      |   2 +
- include/linux/mm_types.h                |  22 +++++-
- mm/memory.c                             |  25 ++++++-
- mm/mmap.c                               |  13 ++--
- 11 files changed, 151 insertions(+), 72 deletions(-)
-
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index f8d1492a114f..c88e48a3c155 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -568,10 +568,26 @@ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+ }
+ #endif
+ 
+-struct vm_special_mapping
+-{
+-	const char *name;
++struct vm_fault;
++
++struct vm_special_mapping {
++	const char *name;	/* The name, e.g. "[vdso]". */
++
++	/*
++	 * If .fault is not provided, this points to a
++	 * NULL-terminated array of pages that back the special mapping.
++	 *
++	 * This must not be NULL unless .fault is provided.
++	 */
+ 	struct page **pages;
++
++	/*
++	 * If non-NULL, then this is called to resolve page faults
++	 * on the special mapping.  If used, .pages is not checked.
++	 */
++	int (*fault)(const struct vm_special_mapping *sm,
++		     struct vm_area_struct *vma,
++		     struct vm_fault *vmf);
+ };
+ 
+ enum tlb_flush_reason {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2ce04a649f6b..f717453b1a57 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3030,11 +3030,16 @@ static int special_mapping_fault(struct vm_area_struct *vma,
+ 	pgoff_t pgoff;
+ 	struct page **pages;
+ 
+-	if (vma->vm_ops == &legacy_special_mapping_vmops)
++	if (vma->vm_ops == &legacy_special_mapping_vmops) {
+ 		pages = vma->vm_private_data;
+-	else
+-		pages = ((struct vm_special_mapping *)vma->vm_private_data)->
+-			pages;
++	} else {
++		struct vm_special_mapping *sm = vma->vm_private_data;
++
++		if (sm->fault)
++			return sm->fault(sm, vma, vmf);
++
++		pages = sm->pages;
++	}
+ 
+ 	for (pgoff = vmf->pgoff; pgoff && *pages; ++pages)
+ 		pgoff--;
 -- 
 2.5.0
 
