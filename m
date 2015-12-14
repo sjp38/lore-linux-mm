@@ -1,90 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA636B0038
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 06:19:49 -0500 (EST)
-Received: by pabur14 with SMTP id ur14so102879537pab.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:19:49 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id rr8si7888358pab.51.2015.12.14.03.19.48
-        for <linux-mm@kvack.org>;
-        Mon, 14 Dec 2015 03:19:48 -0800 (PST)
-Date: Mon, 14 Dec 2015 11:19:49 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v6 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
-Message-ID: <20151214111949.GD6992@arm.com>
-References: <1449856338-30984-1-git-send-email-dcashman@android.com>
- <1449856338-30984-2-git-send-email-dcashman@android.com>
- <1449856338-30984-3-git-send-email-dcashman@android.com>
- <1449856338-30984-4-git-send-email-dcashman@android.com>
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B49566B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 06:54:11 -0500 (EST)
+Received: by wmpp66 with SMTP id p66so57351692wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 03:54:11 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t7si22284699wmg.5.2015.12.14.03.54.10
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 14 Dec 2015 03:54:10 -0800 (PST)
+Date: Mon, 14 Dec 2015 12:54:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mm related crash
+Message-ID: <20151214115408.GC9544@dhcp22.suse.cz>
+References: <20151210154801.GA12007@lahna.fi.intel.com>
+ <20151214092433.GA90449@black.fi.intel.com>
+ <20151214100556.GB4540@dhcp22.suse.cz>
+ <CAPAsAGzrOQAABhOta_o-MzocnikjPtwJLfEKQJ3n5mbBm0T7Bw@mail.gmail.com>
+ <20151214105719.GA9544@dhcp22.suse.cz>
+ <CAPAsAGxkYf0b_ZzhyuvxyNcWWvAyXHehGJbeGUAgu2Zb2u=31Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1449856338-30984-4-git-send-email-dcashman@android.com>
+In-Reply-To: <CAPAsAGxkYf0b_ZzhyuvxyNcWWvAyXHehGJbeGUAgu2Zb2u=31Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de, jonathanh@nvidia.com
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mika Westerberg <mika.westerberg@intel.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Daniel,
-
-On Fri, Dec 11, 2015 at 09:52:17AM -0800, Daniel Cashman wrote:
-> From: dcashman <dcashman@google.com>
+On Mon 14-12-15 14:14:41, Andrey Ryabinin wrote:
+> 2015-12-14 13:57 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
+> > On Mon 14-12-15 13:13:22, Andrey Ryabinin wrote:
+> >> 2015-12-14 13:05 GMT+03:00 Michal Hocko <mhocko@suse.cz>:
+> >> > On Mon 14-12-15 11:24:33, Kirill A. Shutemov wrote:
+> >> >> On Thu, Dec 10, 2015 at 05:48:01PM +0200, Mika Westerberg wrote:
+> >> >> > Hi Kirill,
+> >> >> >
+> >> >> > I got following crash on my desktop machine while building swift. It
+> >> >> > reproduces pretty easily on 4.4-rc4.
+> >> >> >
+> >> >> > Before it happens the ld process is killed by OOM killer. I attached the
+> >> >> > whole dmesg.
+> >> >> >
+> >> >> > [  254.740603] page:ffffea00111c31c0 count:2 mapcount:0 mapping:          (null) index:0x0
+> >> >> > [  254.740636] flags: 0x5fff8000048028(uptodate|lru|swapcache|swapbacked)
+> >> >> > [  254.740655] page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
+> >> >> > [  254.740679] ------------[ cut here ]------------
+> >> >> > [  254.740690] kernel BUG at mm/memcontrol.c:5270!
+> >> >>
+> >> >>
+> >> >> Hm. I don't see how this can happen.
+> >> >
+> >> > What a coincidence. I have just posted a similar report:
+> >> > http://lkml.kernel.org/r/20151214100156.GA4540@dhcp22.suse.cz except I
+> >> > have hit the VM_BUG_ON from a different path. My suspicion is that
+> >> > somebody unlocks the page while we are waiting on the writeback.
+> >> > I am trying to reproduce this now.
+> >>
+> >> Guys, this is fixed in rc5 - dfd01f026058a ("sched/wait: Fix the
+> >> signal handling fix").
+> >> http://lkml.kernel.org/r/<20151212162342.GF11257@ret.masoncoding.com>
+> >
+> > Hmm, so you think that some callpath was doing wait_on_page_locked and
+> > the above bug would allow a race and then unlock the page under our
+> > feet?
 > 
-> arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
-> random offset for the mmap base address.  This value represents a
-> compromise between increased ASLR effectiveness and avoiding
-> address-space fragmentation. Replace it with a Kconfig option, which
-> is sensibly bounded, so that platform developers may choose where to
-> place this compromise. Keep default values as new minimums.
-> 
-> Signed-off-by: Daniel Cashman <dcashman@android.com>
-> ---
->  arch/arm64/Kconfig   | 33 +++++++++++++++++++++++++++++++++
->  arch/arm64/mm/mmap.c |  8 ++++++--
->  2 files changed, 39 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 871f217..0cc9c24 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -51,6 +51,8 @@ config ARM64
->  	select HAVE_ARCH_JUMP_LABEL
->  	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
->  	select HAVE_ARCH_KGDB
-> +	select HAVE_ARCH_MMAP_RND_BITS
-> +	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
->  	select HAVE_ARCH_SECCOMP_FILTER
->  	select HAVE_ARCH_TRACEHOOK
->  	select HAVE_BPF_JIT
-> @@ -104,6 +106,37 @@ config ARCH_PHYS_ADDR_T_64BIT
->  config MMU
->  	def_bool y
->  
-> +config ARCH_MMAP_RND_BITS_MIN
-> +       default 14 if ARM64_64K_PAGES
-> +       default 16 if ARM64_16K_PAGES
-> +       default 18
-> +
-> +# max bits determined by the following formula:
-> +#  VA_BITS - PAGE_SHIFT - 3
+> It rather more simple, read report carefully from the link I gave.
+>  __wait_on_bit_lock() in __lock_page() could just return  -EINTR and
+> leave the page unlocked.
+> So in rc4 lock_page() simply didn't work (sometimes).
 
-Now that we have this comment, I think we can drop the unsupported
-combinations from the list below. That means we just end up with:
-
-> +config ARCH_MMAP_RND_BITS_MAX
-> +       default 19 if ARM64_VA_BITS=36
-> +       default 24 if ARM64_VA_BITS=39
-> +       default 27 if ARM64_VA_BITS=42
-> +       default 30 if ARM64_VA_BITS=47
-> +       default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
-> +       default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
-> +       default 33 if ARM64_VA_BITS=48
-
-With that:
-
-  Acked-by: Will Deacon <will.deacon@arm.com>
-
-Will
+Ohhh, right you are! Thanks for the clarification.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
