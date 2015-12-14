@@ -1,68 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3606B0254
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:19:30 -0500 (EST)
-Received: by lbpu9 with SMTP id u9so107320538lbp.2
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:19:30 -0800 (PST)
-Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
-        by mx.google.com with ESMTPS id b66si17884565lfe.249.2015.12.14.12.19.29
+Received: from mail-vk0-f46.google.com (mail-vk0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 83E4A6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 15:42:26 -0500 (EST)
+Received: by vkgj66 with SMTP id j66so65709163vkg.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:42:26 -0800 (PST)
+Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
+        by mx.google.com with ESMTPS id m78si25468015vke.187.2015.12.14.12.42.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 12:19:29 -0800 (PST)
-Received: by lbbkw15 with SMTP id kw15so114014820lbb.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 12:19:29 -0800 (PST)
+        Mon, 14 Dec 2015 12:42:25 -0800 (PST)
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: [PATCH v2] hugetlb: make mm and fs code explicitly non-modular
+Date: Mon, 14 Dec 2015 15:41:48 -0500
+Message-ID: <1450125708-6977-1-git-send-email-paul.gortmaker@windriver.com>
+In-Reply-To: <20151214161403.GA1067@windriver.com>
+References: <20151214161403.GA1067@windriver.com>
 MIME-Version: 1.0
-From: Martin Tippmann <martin.tippmann@gmail.com>
-Date: Mon, 14 Dec 2015 21:19:09 +0100
-Message-ID: <CABL_Pd8xJny4h01TZ05Cd0qeWHfeAz1Eaqoz2ceWCbr2wFTdUA@mail.gmail.com>
-Subject: Bug Report: BUG: Bad rss-counter state mm:ffff88101705f800 idx:1
- val:512 / application segfaults / thp
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: ying.huang@linux.intel.com, Paul Gortmaker <paul.gortmaker@windriver.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hi,
+The Kconfig currently controlling compilation of this code is:
 
-I'm seeing random application crashes (SIGSEV) and after a few minutes
-this appears in the logfiles:
+config HUGETLBFS
+        bool "HugeTLB file system support"
 
-[133933.729199]
-/build/linux-lts-wily-4x6IId/linux-lts-wily-4.2.0/mm/pgtable-generic.c:33:
-bad pmd ffff880fd06d6200(000000018da009e2)
-[133933.763015] BUG: Bad rss-counter state mm:ffff88101705f800 idx:1 val:512
-[133933.763039] BUG: non-zero nr_ptes on freeing mm: 1
+...meaning that it currently is not being built as a module by anyone.
 
-I'm quite certain that it's not a hardware error. The problems appears
-regularly on random machines of a 100+ machine cluster of Dell
-PowerEdge R720 servers with 2xXeon E5 (NUMA) and 64GB ECC Memory.
+Lets remove the modular code that is essentially orphaned, so that
+when reading the driver there is no doubt it is builtin-only.
 
-The workload is mostly Hadoop YARN with MapReduce and Spark, the JVM
-(mostly from the DataNodes) crashes randomly under load with SIGSEV.
+Since module_init translates to device_initcall in the non-modular
+case, the init ordering gets moved to earlier levels when we use the
+more appropriate initcalls here.
 
-The problems appears with Kernel 4.3.0 and 4.2.7 from Ubuntu Kernel
-Mainline PPA[1] and with the current 4.2 Ubuntu Wily Kernel - all of
-these kernels already have a related patch[2].
+Originally I had the fs part and the mm part as separate commits,
+just by happenstance of the nature of how I detected these
+non-modular use cases.  But that can possibly introduce regressions
+if the patch merge ordering puts the fs part 1st -- as the 0-day
+testing reported a splat at mount time.
 
-However I'm still seeing the problem. The bug disappears when I
-disable transparent hugepages and reboot the machines!
+Investigating with "initcall_debug" showed that the delta was
+init_hugetlbfs_fs being called _before_ hugetlb_init instead of
+after.  So both the fs change and the mm change are here together.
 
-Before disabling transparent hugepages completely I ran this config:
+In addition, it worked before due to luck of link order, since they
+were both in the same initcall category.  So we now have the fs
+part using fs_initcall, and the mm part using subsys_initcall,
+which puts it one bucket earlier.  It now passes the basic sanity
+test that failed in earlier 0-day testing.
 
-   echo always > /sys/kernel/mm/transparent_hugepage/enabled
-   echo never > /sys/kernel/mm/transparent_hugepage/defrag
+We delete the MODULE_LICENSE tag and capture that information at the
+top of the file alongside author comments, etc.
 
-Unfortunately I can't provide any more data at the moment. Maybe I'm
-able to compile a kernel with debug options turned on over the
-holidays - if you have any hints where I can help to pin this down
-please tell me. On IRC
-CONFIG_DEBUG_VM was recommend.
+We don't replace module.h with init.h since the file already has that.
+Also note that MODULE_ALIAS is a no-op for non-modular code.
 
-regards and thanks
-Martin
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org
+Reported-by: kernel test robot <ying.huang@linux.intel.com>
+Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+---
 
-1: http://kernel.ubuntu.com/~kernel-ppa/mainline/?C=M;O=D
-2: https://kernel.googlesource.com/pub/scm/linux/kernel/git/stable/linux-stable.git/+/47aee4d8e314384807e98b67ade07f6da476aa75
+[v2: combine the mm patch into the fs patch; bump the mm part to use
+ subsys_initcall so we are guaranteed proper ordering; retest after
+ reproducing the 0-day fail locally; update log to reflect all this.]
+
+ fs/hugetlbfs/inode.c | 27 ++-------------------------
+ mm/hugetlb.c         | 39 +--------------------------------------
+ 2 files changed, 3 insertions(+), 63 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index a1cb8fd2289b..47789292a582 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -4,11 +4,11 @@
+  * Nadia Yvette Chambers, 2002
+  *
+  * Copyright (C) 2002 Linus Torvalds.
++ * License: GPL
+  */
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <linux/module.h>
+ #include <linux/thread_info.h>
+ #include <asm/current.h>
+ #include <linux/sched.h>		/* remove ASAP */
+@@ -1202,7 +1202,6 @@ static struct file_system_type hugetlbfs_fs_type = {
+ 	.mount		= hugetlbfs_mount,
+ 	.kill_sb	= kill_litter_super,
+ };
+-MODULE_ALIAS_FS("hugetlbfs");
+ 
+ static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
+ 
+@@ -1356,26 +1355,4 @@ static int __init init_hugetlbfs_fs(void)
+  out2:
+ 	return error;
+ }
+-
+-static void __exit exit_hugetlbfs_fs(void)
+-{
+-	struct hstate *h;
+-	int i;
+-
+-
+-	/*
+-	 * Make sure all delayed rcu free inodes are flushed before we
+-	 * destroy cache.
+-	 */
+-	rcu_barrier();
+-	kmem_cache_destroy(hugetlbfs_inode_cachep);
+-	i = 0;
+-	for_each_hstate(h)
+-		kern_unmount(hugetlbfs_vfsmount[i++]);
+-	unregister_filesystem(&hugetlbfs_fs_type);
+-}
+-
+-module_init(init_hugetlbfs_fs)
+-module_exit(exit_hugetlbfs_fs)
+-
+-MODULE_LICENSE("GPL");
++fs_initcall(init_hugetlbfs_fs)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index cc4c8789b394..12908dcf5831 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4,7 +4,6 @@
+  */
+ #include <linux/list.h>
+ #include <linux/init.h>
+-#include <linux/module.h>
+ #include <linux/mm.h>
+ #include <linux/seq_file.h>
+ #include <linux/sysctl.h>
+@@ -2549,25 +2548,6 @@ static void hugetlb_unregister_node(struct node *node)
+ 	nhs->hugepages_kobj = NULL;
+ }
+ 
+-/*
+- * hugetlb module exit:  unregister hstate attributes from node devices
+- * that have them.
+- */
+-static void hugetlb_unregister_all_nodes(void)
+-{
+-	int nid;
+-
+-	/*
+-	 * disable node device registrations.
+-	 */
+-	register_hugetlbfs_with_node(NULL, NULL);
+-
+-	/*
+-	 * remove hstate attributes from any nodes that have them.
+-	 */
+-	for (nid = 0; nid < nr_node_ids; nid++)
+-		hugetlb_unregister_node(node_devices[nid]);
+-}
+ 
+ /*
+  * Register hstate attributes for a single node device.
+@@ -2632,27 +2612,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
+ 	return NULL;
+ }
+ 
+-static void hugetlb_unregister_all_nodes(void) { }
+-
+ static void hugetlb_register_all_nodes(void) { }
+ 
+ #endif
+ 
+-static void __exit hugetlb_exit(void)
+-{
+-	struct hstate *h;
+-
+-	hugetlb_unregister_all_nodes();
+-
+-	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[hstate_index(h)]);
+-	}
+-
+-	kobject_put(hugepages_kobj);
+-	kfree(hugetlb_fault_mutex_table);
+-}
+-module_exit(hugetlb_exit);
+-
+ static int __init hugetlb_init(void)
+ {
+ 	int i;
+@@ -2690,7 +2653,7 @@ static int __init hugetlb_init(void)
+ 		mutex_init(&hugetlb_fault_mutex_table[i]);
+ 	return 0;
+ }
+-module_init(hugetlb_init);
++subsys_initcall(hugetlb_init);
+ 
+ /* Should be called on processing a hugepagesz=... option */
+ void __init hugetlb_add_hstate(unsigned int order)
+-- 
+2.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
