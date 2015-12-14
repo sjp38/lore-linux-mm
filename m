@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 35A286B0257
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 13:57:51 -0500 (EST)
-Received: by pacwq6 with SMTP id wq6so107920404pac.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:57:51 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ra6si10160256pab.90.2015.12.14.10.57.50
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A786B0038
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 14:01:09 -0500 (EST)
+Received: by pfbo64 with SMTP id o64so31236344pfb.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 11:01:09 -0800 (PST)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id k80si10090872pfb.144.2015.12.14.11.01.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 10:57:50 -0800 (PST)
-Date: Mon, 14 Dec 2015 21:57:39 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: fix possible memcg leak due to
- interrupted reclaim
-Message-ID: <20151214185739.GG28521@esperanza>
-References: <1449927242-9608-1-git-send-email-vdavydov@virtuozzo.com>
- <20151212164540.GA7107@cmpxchg.org>
- <20151212191855.GE28521@esperanza>
- <20151214151901.GA13289@cmpxchg.org>
+        Mon, 14 Dec 2015 11:01:08 -0800 (PST)
+Subject: Re: [PATCH v6 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
+References: <1449856338-30984-1-git-send-email-dcashman@android.com>
+ <1449856338-30984-2-git-send-email-dcashman@android.com>
+ <1449856338-30984-3-git-send-email-dcashman@android.com>
+ <1449856338-30984-4-git-send-email-dcashman@android.com>
+ <1449856338-30984-5-git-send-email-dcashman@android.com>
+From: "H. Peter Anvin" <hpa@zytor.com>
+Message-ID: <566F1154.7030703@zytor.com>
+Date: Mon, 14 Dec 2015 10:58:28 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151214151901.GA13289@cmpxchg.org>
+In-Reply-To: <1449856338-30984-5-git-send-email-dcashman@android.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Cashman <dcashman@android.com>, linux-kernel@vger.kernel.org
+Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, arnd@arndb.de, jonathanh@nvidia.com
 
-On Mon, Dec 14, 2015 at 10:19:01AM -0500, Johannes Weiner wrote:
-...
-> > @@ -859,14 +859,12 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >  		if (prev && reclaim->generation != iter->generation)
-> >  			goto out_unlock;
-> >  
-> > -		do {
-> > +		while (1) {
-> >  			pos = READ_ONCE(iter->position);
-> > -			/*
-> > -			 * A racing update may change the position and
-> > -			 * put the last reference, hence css_tryget(),
-> > -			 * or retry to see the updated position.
-> > -			 */
-> > -		} while (pos && !css_tryget(&pos->css));
-> > +			if (!pos || css_tryget(&pos->css))
-> > +				break;
-> > +			cmpxchg(&iter->position, pos, NULL);
-> > +		}
+On 12/11/15 09:52, Daniel Cashman wrote:
+> From: dcashman <dcashman@google.com>
 > 
-> This cmpxchg() looks a little strange. Once tryget fails, the iterator
-> should be clear soon enough, no? If not, a comment would be good here.
-
-If we are running on an unpreemptible UP system, busy-waiting might
-block the ->css_free work, which is supposed to clear iter->position,
-resulting in a dead lock. I guess it might happen on SMP if RT scheduler
-is used. Will add a comment here.
-
+> x86: arch_mmap_rnd() uses hard-coded values, 8 for 32-bit and 28 for
+> 64-bit, to generate the random offset for the mmap base address.
+> This value represents a compromise between increased ASLR
+> effectiveness and avoiding address-space fragmentation. Replace it
+> with a Kconfig option, which is sensibly bounded, so that platform
+> developers may choose where to place this compromise. Keep default
+> values as new minimums.
 > 
-> > @@ -912,12 +910,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >  	}
-> >  
-> >  	if (reclaim) {
-> > -		if (cmpxchg(&iter->position, pos, memcg) == pos) {
-> > -			if (memcg)
-> > -				css_get(&memcg->css);
-> > -			if (pos)
-> > -				css_put(&pos->css);
-> > -		}
-> > +		cmpxchg(&iter->position, pos, memcg);
-> 
-> This looks correct. The next iteration or break will put the memcg,
-> potentially free it, which will clear it from the iterator and then
-> rcu-free the css. Anybody who sees a pointer set under the RCU lock
-> can safely run css_tryget() against it. Awesome!
-> 
-> Care to resend this with changelog?
+> Signed-off-by: Daniel Cashman <dcashman@android.com>
 
-Will do.
+OK, this is around the time when I make a lecture about the danger of
+expecting the compiler to make certain transformations:
 
-Thanks,
-Vladimir
+> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+> index 844b06d..647fecf 100644
+> --- a/arch/x86/mm/mmap.c
+> +++ b/arch/x86/mm/mmap.c
+> @@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
+>  {
+>  	unsigned long rnd;
+>  
+> -	/*
+> -	 *  8 bits of randomness in 32bit mmaps, 20 address space bits
+> -	 * 28 bits of randomness in 64bit mmaps, 40 address space bits
+> -	 */
+>  	if (mmap_is_ia32())
+> -		rnd = (unsigned long)get_random_int() % (1<<8);
+> +#ifdef CONFIG_COMPAT
+> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
+> +#else
+> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+> +#endif
+>  	else
+> -		rnd = (unsigned long)get_random_int() % (1<<28);
+> +		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
+>  
+>  	return rnd << PAGE_SHIFT;
+>  }
+> 
+
+Now, you and I know that both variants can be implemented with a simple
+AND, but I have a strong suspicion that once this is turned into a
+variable, this will in fact be changed from an AND to a divide.
+
+So I'd prefer to use the
+"get_random_int() & ((1UL << mmap_rnd_bits) - 1)" construct instead.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
