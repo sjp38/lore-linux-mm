@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 832CA6B0258
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:43:17 -0500 (EST)
-Received: by lbbcs9 with SMTP id cs9so108476385lbb.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:43:17 -0800 (PST)
-Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
-        by mx.google.com with ESMTPS id 7si17321050lff.184.2015.12.14.07.43.16
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F5776B0259
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 10:48:49 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id p66so68327723wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:48:49 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id o204si26089727wma.118.2015.12.14.07.48.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Dec 2015 07:43:16 -0800 (PST)
-Received: by lfcy184 with SMTP id y184so49857642lfc.1
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 07:43:16 -0800 (PST)
-Date: Mon, 14 Dec 2015 18:43:13 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [RFC 1/2] [RFC] mm: Account anon mappings as RLIMIT_DATA
-Message-ID: <20151214154313.GF14045@uranus>
-References: <20151213201646.839778758@gmail.com>
- <20151214145126.GC3604@chrystal.uk.oracle.com>
- <20151214151116.GE14045@uranus>
- <20151214153234.GE3604@chrystal.uk.oracle.com>
+        Mon, 14 Dec 2015 07:48:48 -0800 (PST)
+Date: Mon, 14 Dec 2015 10:48:36 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+Message-ID: <20151214154836.GA14103@cmpxchg.org>
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+ <20151214153037.GB4339@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151214153234.GE3604@chrystal.uk.oracle.com>
+In-Reply-To: <20151214153037.GB4339@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Quentin Casasnovas <quentin.casasnovas@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vegard Nossum <vegard.nossum@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 14, 2015 at 04:32:34PM +0100, Quentin Casasnovas wrote:
+On Mon, Dec 14, 2015 at 04:30:37PM +0100, Michal Hocko wrote:
+> On Thu 10-12-15 14:39:14, Vladimir Davydov wrote:
+> > In the legacy hierarchy we charge memsw, which is dubious, because:
 > > 
-> > growsup/down stand for stack usage iirc, so it was intentionally
-> > not accounted here.
-> >
-> 
-> Right, but in the same vein of Linus saying RLIMIT_DATA is/was useless
-> because everyone could use mmap() instead of brk() to get anonymous memory,
-> what's the point of restricting "almost-all" anonymous memory if one can
-> just use MAP_GROWSDOWN/UP and cause repeated page faults to extend that
-> mapping, circumventing your checks?  That makes the new restriction as
-> useless as what RLIMIT_DATA used to be, doesn't it?
-
-Not as it were before, but true, using growsdown/up will give a way
-to allocate memory not limited byt rlimit-data. (Also I just noted
-that I modified mm.h as well, where anon_accountable_mapping
-was implemented but forgot to add it into quilt, so this patch
-on its own won't compile, don't apply it).
-
-> > > 
-> > > I only had a quick look so apologies if this is handled and I missed it :)
+> >  - memsw.limit must be >= memory.limit, so it is impossible to limit
+> >    swap usage less than memory usage. Taking into account the fact that
+> >    the primary limiting mechanism in the unified hierarchy is
+> >    memory.high while memory.limit is either left unset or set to a very
+> >    large value, moving memsw.limit knob to the unified hierarchy would
+> >    effectively make it impossible to limit swap usage according to the
+> >    user preference.
 > > 
-> > thanks for feedback! also take a look on Kostya's patch, I think it's
-> > even better approach (and I like it more than mine).
+> >  - memsw.usage != memory.usage + swap.usage, because a page occupying
+> >    both swap entry and a swap cache page is charged only once to memsw
+> >    counter. As a result, it is possible to effectively eat up to
+> >    memory.limit of memory pages *and* memsw.limit of swap entries, which
+> >    looks unexpected.
+> > 
+> > That said, we should provide a different swap limiting mechanism for
+> > cgroup2.
+> > This patch adds mem_cgroup->swap counter, which charges the actual
+> > number of swap entries used by a cgroup. It is only charged in the
+> > unified hierarchy, while the legacy hierarchy memsw logic is left
+> > intact.
 > 
-> Ha I'm not subscribed to LKML so I missed those, I suppose you can ignore
-> my comments then! :)
+> I agree that the previous semantic was awkward. The problem I can see
+> with this approach is that once the swap limit is reached the anon
+> memory pressure might spill over to other and unrelated memcgs during
+> the global memory pressure. I guess this is what Kame referred to as
+> anon would become mlocked basically. This would be even more of an issue
+> with resource delegation to sub-hierarchies because nobody will prevent
+> setting the swap amount to a small value and use that as an anon memory
+> protection.
 
-https://lkml.org/lkml/2015/12/14/72
+Overcommitting untrusted workloads is already problematic because
+reclaim is based on heuristics and references, and a malicious
+workload can already interfere with it and create pressure on the
+system or its neighboring groups. This patch doesn't make it better,
+but it's not a new problem.
 
-Take a look.
+If you don't trust subhierarchies, don't give them more memory than
+you can handle them taking. And then giving them swap is a resource
+for them to use on top of that memory, not for you at the toplevel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
