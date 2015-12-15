@@ -1,50 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A9176B0254
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 12:53:34 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id n128so8429769pfn.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 09:53:34 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 69si3089209pfc.197.2015.12.15.09.53.33
-        for <linux-mm@kvack.org>;
-        Tue, 15 Dec 2015 09:53:33 -0800 (PST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
- from machine checks
-Date: Tue, 15 Dec 2015 17:53:31 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
-References: <cover.1449861203.git.tony.luck@intel.com>
-	<23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
-	<20151215131135.GE25973@pd.tnic>
- <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
-In-Reply-To: <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BAD76B0253
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 13:06:02 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id mv3so108496885igc.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 10:06:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id pi9si21082121igb.76.2015.12.15.10.06.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Dec 2015 10:06:01 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: [PATCH RFC] memory-hotplug: add automatic onlining policy for the newly added memory
+Date: Tue, 15 Dec 2015 19:05:53 +0100
+Message-Id: <1450202753-5556-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>
 
-Pj4gLi4uIGFuZCB0aGUgbm9uLXRlbXBvcmFsIHZlcnNpb24gaXMgdGhlIG9wdGltYWwgb25lIGV2
-ZW4gdGhvdWdoIHdlJ3JlDQo+PiBkZWZhdWx0aW5nIHRvIGNvcHlfdXNlcl9lbmhhbmNlZF9mYXN0
-X3N0cmluZyBmb3IgbWVtY3B5IG9uIG1vZGVybiBJbnRlbA0KPj4gQ1BVcy4uLj8NCg0KTXkgY3Vy
-cmVudCBnZW5lcmF0aW9uIGNwdSBoYXMgYSBiaXQgb2YgYW4gaXNzdWUgd2l0aCByZWNvdmVyaW5n
-IGZyb20gYQ0KbWFjaGluZSBjaGVjayBpbiBhICJyZXAgbW92IiAuLi4gc28gSSdtIHdvcmtpbmcg
-d2l0aCBhIHZlcnNpb24gb2YgbWVtY3B5DQp0aGF0IHVucm9sbHMgaW50byBpbmRpdmlkdWFsIG1v
-diBpbnN0cnVjdGlvbnMgZm9yIG5vdy4NCg0KPiBBdCBsZWFzdCB0aGUgcG1lbSBkcml2ZXIgdXNl
-IGNhc2UgZG9lcyBub3Qgd2FudCBjYWNoaW5nIG9mIHRoZQ0KPiBzb3VyY2UtYnVmZmVyIHNpbmNl
-IHRoYXQgaXMgdGhlIHJhdyAiZGlzayIgbWVkaWEuICBJLmUuIGluDQo+IHBtZW1fZG9fYnZlYygp
-IHdlJ2QgdXNlIHRoaXMgdG8gaW1wbGVtZW50IG1lbWNweV9mcm9tX3BtZW0oKS4NCj4gSG93ZXZl
-ciwgY2FjaGluZyB0aGUgZGVzdGluYXRpb24tYnVmZmVyIG1heSBwcm92ZSBiZW5lZmljaWFsIHNp
-bmNlDQo+IHRoYXQgZGF0YSBpcyBsaWtlbHkgdG8gYmUgY29uc3VtZWQgaW1tZWRpYXRlbHkgYnkg
-dGhlIHRocmVhZCB0aGF0DQo+IHN1Ym1pdHRlZCB0aGUgaS9vLg0KDQpJIGNhbiBkcm9wIHRoZSAi
-bnRpIiBmcm9tIHRoZSBkZXN0aW5hdGlvbiBtb3Zlcy4gIERvZXMgIm50aSIgd29yaw0Kb24gdGhl
-IGxvYWQgZnJvbSBzb3VyY2UgYWRkcmVzcyBzaWRlIHRvIGF2b2lkIGNhY2hlIGFsbG9jYXRpb24/
-DQoNCk9uIGFub3RoZXIgdG9waWMgcmFpc2VkIGJ5IEJvcmlzIC4uLiBpcyB0aGVyZSBzb21lIENP
-TkZJR19QTUVNKg0KdGhhdCBJIHNob3VsZCB1c2UgYXMgYSBkZXBlbmRlbmN5IHRvIGVuYWJsZSBh
-bGwgdGhpcz8NCg0KLVRvbnkNCg==
+Currently, all newly added memory blocks remain in 'offline' state unless
+someone onlines them, some linux distributions carry special udev rules
+like:
+
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+
+to make this happen automatically. This is not a great solution for virtual
+machines where memory hotplug is being used to address high memory pressure
+situations as such onlining is slow and a userspace process doing this
+(udev) has a chance of being killed by the OOM killer as it will probably
+require to allocate some memory.
+
+Introduce default policy for the newly added memory blocks in
+/sys/devices/system/memory/hotplug_autoonline file with two possible
+values: "offline" (the default) which preserves the current behavior and
+"online" which causes all newly added memory blocks to go online as
+soon as they're added.
+
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Daniel Kiper <daniel.kiper@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: David Vrabel <david.vrabel@citrix.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+---
+- I was able to find previous attempts to fix the issue, e.g.:
+  http://marc.info/?l=linux-kernel&m=137425951924598&w=2
+  http://marc.info/?l=linux-acpi&m=127186488905382
+  but I'm not completely sure why it didn't work out and the solution
+  I suggest is not 'smart enough', thus 'RFC'.
+---
+ Documentation/memory-hotplug.txt | 21 +++++++++++++++++----
+ drivers/base/memory.c            | 35 +++++++++++++++++++++++++++++++++++
+ include/linux/memory_hotplug.h   |  2 ++
+ mm/memory_hotplug.c              |  8 ++++++++
+ 4 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index ce2cfcf..fe576d9 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -254,12 +254,25 @@ If the memory block is online, you'll read "online".
+ If the memory block is offline, you'll read "offline".
+ 
+ 
+-5.2. How to online memory
++5.2. Memory onlining
+ ------------
+-Even if the memory is hot-added, it is not at ready-to-use state.
+-For using newly added memory, you have to "online" the memory block.
++When the memory is hot-added, the kernel decides whether or not to "online"
++it according to the policy which can be read from "hotplug_autoonline" file:
+ 
+-For onlining, you have to write "online" to the memory block's state file as:
++% cat /sys/devices/system/memory/hotplug_autoonline
++
++The default is "offline" which means the newly added memory will not be at
++ready-to-use state and you have to "online" the newly added memory blocks
++manually.
++
++Automatic onlining can be requested by writing "online" to "hotplug_autoonline"
++file:
++
++% echo online > /sys/devices/system/memory/hotplug_autoonline
++
++If the automatic onlining wasn't requested or some memory block was offlined
++it is possible to change the individual block's state by writing to the "state"
++file:
+ 
+ % echo online > /sys/devices/system/memory/memoryXXX/state
+ 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 25425d3..001fefe 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -438,6 +438,40 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+ 
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+ 
++
++/*
++ * Memory auto online policy.
++ */
++
++static ssize_t
++show_memhp_autoonline(struct device *dev, struct device_attribute *attr,
++		      char *buf)
++{
++	if (memhp_autoonline == MMOP_ONLINE_KEEP)
++		return sprintf(buf, "online\n");
++	else if (memhp_autoonline == MMOP_OFFLINE)
++		return sprintf(buf, "offline\n");
++	else
++		return sprintf(buf, "unknown\n");
++}
++
++static ssize_t
++store_memhp_autoonline(struct device *dev, struct device_attribute *attr,
++		       const char *buf, size_t count)
++{
++	if (sysfs_streq(buf, "online"))
++		memhp_autoonline = MMOP_ONLINE_KEEP;
++	else if (sysfs_streq(buf, "offline"))
++		memhp_autoonline = MMOP_OFFLINE;
++	else
++		return -EINVAL;
++
++	return count;
++}
++
++static DEVICE_ATTR(hotplug_autoonline, 0644, show_memhp_autoonline,
++		   store_memhp_autoonline);
++
+ /*
+  * Some architectures will have custom drivers to do this, and
+  * will not need to do it from userspace.  The fake hot-add code
+@@ -737,6 +771,7 @@ static struct attribute *memory_root_attrs[] = {
+ #endif
+ 
+ 	&dev_attr_block_size_bytes.attr,
++	&dev_attr_hotplug_autoonline.attr,
+ 	NULL
+ };
+ 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 2ea574f..fb64eea 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -99,6 +99,8 @@ extern void __online_page_free(struct page *page);
+ 
+ extern int try_online_node(int nid);
+ 
++extern int memhp_autoonline;
++
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
+ extern int arch_remove_memory(u64 start, u64 size);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 67d488a..37a190e 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -76,6 +76,9 @@ static struct {
+ #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+ #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+ 
++int memhp_autoonline = MMOP_OFFLINE;
++EXPORT_SYMBOL_GPL(memhp_autoonline);
++
+ void get_online_mems(void)
+ {
+ 	might_sleep();
+@@ -1292,6 +1295,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
+ 
++	/* online the region if it is requested by current policy */
++	if (memhp_autoonline != MMOP_OFFLINE)
++		online_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT,
++			     memhp_autoonline);
++
+ 	goto out;
+ 
+ error:
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
