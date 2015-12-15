@@ -1,108 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E6696B0253
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 14:20:54 -0500 (EST)
-Received: by mail-oi0-f51.google.com with SMTP id y66so11119844oig.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:20:54 -0800 (PST)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id m8si1303345obq.22.2015.12.15.11.20.53
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABCB6B025A
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 14:22:55 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id o64so9525516pfb.1
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:22:55 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id g16si3503031pfg.219.2015.12.15.11.22.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 11:20:53 -0800 (PST)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
- from machine checks
-Date: Tue, 15 Dec 2015 19:19:58 +0000
-Message-ID: <94D0CD8314A33A4D9D801C0FE68B40295BE9F290@G4W3202.americas.hpqcorp.net>
-References: <cover.1449861203.git.tony.luck@intel.com>
- <23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
- <20151215131135.GE25973@pd.tnic>
- <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
- <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
- <CAPcyv4icSmdnvQhsdzfP3uZYXJ2vsjrZxMQjSghNOt19u++o7g@mail.gmail.com>
- <CAPcyv4gMku=rAczAz2b4PaW6qwm9LAVU8BG3hcT_A4QMAkZfbA@mail.gmail.com>
- <20151215183924.GJ25973@pd.tnic>
-In-Reply-To: <20151215183924.GJ25973@pd.tnic>
-Content-Language: en-US
-Content-Type: text/plain; charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 15 Dec 2015 11:22:54 -0800 (PST)
+Date: Tue, 15 Dec 2015 20:22:45 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
+Message-ID: <20151215192245.GK6357@twins.programming.kicks-ass.net>
+References: <20150913185940.GA25369@htj.duckdns.org>
+ <55FEC685.5010404@oracle.com>
+ <20150921200141.GH13263@mtj.duckdns.org>
+ <20151125144354.GB17308@twins.programming.kicks-ass.net>
+ <20151125150207.GM11639@twins.programming.kicks-ass.net>
+ <CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
+ <20151125174449.GD17308@twins.programming.kicks-ass.net>
+ <20151211162554.GS30240@mtj.duckdns.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151211162554.GS30240@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Dan Williams <dan.j.williams@intel.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mhocko@kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, vdavydov@parallels.com, kernel-team@fb.com, Dmitry Vyukov <dvyukov@google.com>
 
+On Fri, Dec 11, 2015 at 11:25:54AM -0500, Tejun Heo wrote:
+> Hello, Peter, Ingo.
+> 
+> On Wed, Nov 25, 2015 at 06:44:49PM +0100, Peter Zijlstra wrote:
+> > On Wed, Nov 25, 2015 at 06:31:41PM +0300, Andrey Ryabinin wrote:
+> > > > +       /* scheduler bits, serialized by scheduler locks */
+> > > >         unsigned sched_reset_on_fork:1;
+> > > >         unsigned sched_contributes_to_load:1;
+> > > >         unsigned sched_migrated:1;
+> > > > +       unsigned __padding_sched:29;
+> > > 
+> > > AFAIK the order of bit fields is implementation defined, so GCC could
+> > > sort all these bits as it wants.
+> > 
+> > We're relying on it doing DTRT in other places, so I'm fairly confident
+> > this'll work, otoh
+> > 
+> > > You could use unnamed zero-widht bit-field to force padding:
+> > > 
+> > >          unsigned :0; //force aligment to the next boundary.
+> > 
+> > That's a nice trick I was not aware of, thanks!
+> 
+> Has this been fixed yet?  While I'm not completely sure and I don't
+> think there's a way to be certain after the fact, we have a single
+> report of a machine which is showing ~4G as loadavg and one plausible
+> explanation could be that one of the ->nr_uninterruptible counters
+> underflowed from sched_contributes_to_load getting corrupted, so it'd
+> be great to get this one fixed soon.
 
-
-> -----Original Message-----
-> From: Linux-nvdimm [mailto:linux-nvdimm-bounces@lists.01.org] On Behalf
-> Of Borislav Petkov
-> Sent: Tuesday, December 15, 2015 12:39 PM
-> To: Dan Williams <dan.j.williams@intel.com>
-> Cc: Luck, Tony <tony.luck@intel.com>; linux-nvdimm <linux-
-> nvdimm@ml01.01.org>; X86 ML <x86@kernel.org>; linux-
-> kernel@vger.kernel.org; Linux MM <linux-mm@kvack.org>; Andy Lutomirski
-> <luto@kernel.org>; Andrew Morton <akpm@linux-foundation.org>; Ingo Molnar
-> <mingo@kernel.org>
-> Subject: Re: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to
-> recover from machine checks
->=20
-> On Tue, Dec 15, 2015 at 10:35:49AM -0800, Dan Williams wrote:
-> > Correction we have MOVNTDQA, but that requires saving the fpu state
-> > and marking the memory as WC, i.e. probably not worth it.
->=20
-> Not really. Last time I tried an SSE3 memcpy in the kernel like glibc
-> does, it wasn't worth it. The enhanced REP; MOVSB is hands down faster.
-
-Reading from NVDIMM, rep movsb is efficient, but it=20
-fills the CPU caches with the NVDIMM addresses. For
-large data moves (not uncommon for storage) this
-will crowd out more important cacheable data.
-
-For normal block device reads made through the pmem
-block device driver, this CPU cache consumption is
-wasteful, since it is unlikely the application will
-ask pmem to read the same addresses anytime soon.
-Due to the historic long latency of storage devices,
-applications don't re-read from storage again; they
-save the results.  So, the streaming-load
-instructions are beneficial:
-* movntdqa (16-byte xmm registers)=20
-* vmovntdqa (32-byte ymm registers)
-* vmovntdqa (64-byte zmm registers)
-
-Dan Williams wrote:
-> Correction we have MOVNTDQA, but that requires
-> saving the fpu state and marking the memory as WC
-> i.e. probably not worth it.
-
-Although the WC memory type is described in the SDM
-in the most detail:
-    "An implementation may also make use of the
-    non-temporal hint associated with this instruction
-    if the memory source is WB (write back) memory
-    type. ... may optimize cache reads generated by=20
-    (V)MOVNTDQA on WB memory type to reduce cache=20
-    evictions."
-
-For applications doing loads from mmap() DAX memory,=20
-the CPU cache usage could be worthwhile, because
-applications expect mmap() regions to consist of
-traditional writeback-cached memory and might do
-lots of loads/stores.
-
-Writing to the NVDIMM requires either:
-* non-temporal stores; or
-* normal stores + cache flushes + fences
-
-movnti is OK for small transfers, but these are
-better for bulk moves:
-* movntdq (16-byte xmm registers)
-* vmovntdq (32-byte ymm registers)
-* vmovntdq (64-byte zmm registers)
-
----
-Robert Elliott, HPE Persistent Memory
+Nope, lemme write a Changelog and queue it. Thanks for the reminder.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
