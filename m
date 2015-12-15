@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 839636B0254
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 03:31:42 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id n186so82599656wmn.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 00:31:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e9si2762403wma.115.2015.12.15.00.31.41
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AA4026B0255
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 03:52:36 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id p66so99040174wmp.1
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 00:52:36 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id xs2si425382wjc.225.2015.12.15.00.52.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 15 Dec 2015 00:31:41 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm/compaction: fix invalid free_pfn and
- compact_cached_free_pfn
-References: <1450069341-28875-1-git-send-email-iamjoonsoo.kim@lge.com>
- <566E94C6.5080000@suse.cz>
- <CAAmzW4MEAYJKkQs9ksq+2aOA02xqekmruqwEv5e4szK7i7BjPw@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <566FCFEB.1020305@suse.cz>
-Date: Tue, 15 Dec 2015 09:31:39 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Dec 2015 00:52:35 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id n186so83356532wmn.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 00:52:35 -0800 (PST)
+Date: Tue, 15 Dec 2015 09:52:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: isolate_lru_page on !head pages
+Message-ID: <20151215085232.GB14350@dhcp22.suse.cz>
+References: <20151209130204.GD30907@dhcp22.suse.cz>
+ <20151214120456.GA4201@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4MEAYJKkQs9ksq+2aOA02xqekmruqwEv5e4szK7i7BjPw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151214120456.GA4201@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 12/14/2015 04:26 PM, Joonsoo Kim wrote:
-> 2015-12-14 19:07 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->> On 12/14/2015 06:02 AM, Joonsoo Kim wrote:
->>>
->>
->> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>
->> Note that until now in compaction we've used basically an open-coded
->> round_down(), and ALIGN() for rounding up. You introduce a first use of
->> round_down(), and it would be nice to standardize on round_down() and
->> round_up() everywhere. I think it's more obvious than open-coding and
->> ALIGN() (which doesn't tell the reader if it's aligning up or down).
->> Hopefully they really do the same thing and there are no caveats...
->
-> Okay. Will send another patch for this clean-up on next spin.
+On Mon 14-12-15 14:04:56, Kirill A. Shutemov wrote:
+> On Wed, Dec 09, 2015 at 02:02:05PM +0100, Michal Hocko wrote:
+> > Hi Kirill,
+> 
+> [ sorry for late reply, just back from vacation. ]
+> 
+> > while looking at the issue reported by Minchan [1] I have noticed that
+> > there is nothing to prevent from "isolating" a tail page from LRU because
+> > isolate_lru_page checks PageLRU which is
+> > PAGEFLAG(LRU, lru, PF_HEAD)
+> > so it is checked on the head page rather than the given page directly
+> > but the rest of the operation is done on the given (tail) page.
+> 
+> Looks like most (all?) callers already exclude PTE-mapped THP already one
+> way or another.
 
-Great, I didn't mean that the cleanup is needed right now, but whether 
-we agree on an idiom to use whenever doing any changes from now on.
-Maybe it would be best to add some defines in the top of compaction.c 
-that would also hide away the repeated pageblock_nr_pages everywhere? 
-Something like:
+I can see e.g. do_move_page_to_node_array not doing a similar thing. It
+isolates and then migrates potentially a tail page. I haven't looked
+closer whether there is other hand break on the way though. The
+point I was trying to make is that this is really _subtle_. We are
+changing something else than we operate later on.
 
-#define pageblock_start(pfn) round_down(pfn, pageblock_nr_pages)
-#define pageblock_end(pfn) round_up((pfn)+1, pageblock_nr_pages)
+> Probably, VM_BUG_ON_PAGE(PageTail(page), page) in isolate_lru_page() would
+> be appropriate.
+> 
+> > This is really subtle because this expects that every caller of this
+> > function checks for the tail page otherwise we would clobber statistics
+> > and who knows what else (I haven't checked that in detail) as the page
+> > cannot be on the LRU list and the operation makes sense only on the head
+> > page.
+> > 
+> > Would it make more sense to make PageLRU PF_ANY? That would return
+> > false for PageLRU on any tail page and so it would be ignored by
+> > isolate_lru_page.
+> 
+> I don't think this is right way to go. What we put on LRU is compound
+> page, not 4k subpages. PageLRU() should return true if the compound page
+> is on LRU regardless if you ask for head or tail page.
+
+Hmm, but then we should operate on the head page because that is what
+PageLRU operated on, no?
+
+ 
+> False-negatives PageLRU() can be as bad as bug Minchan reported, but
+> perhaps more silent.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
