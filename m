@@ -1,94 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0F46B0259
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:41:11 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ur14so13150562pab.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:41:11 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p18si780249pfi.243.2015.12.15.15.41.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 15:41:10 -0800 (PST)
-Date: Tue, 15 Dec 2015 15:41:09 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm PATCH v2 19/25] list: introduce list_del_poison()
-Message-Id: <20151215154109.54f3cb025944ac7166bf6f64@linux-foundation.org>
-In-Reply-To: <20151210023855.30368.37457.stgit@dwillia2-desk3.jf.intel.com>
-References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
-	<20151210023855.30368.37457.stgit@dwillia2-desk3.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E506B6B025B
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:46:05 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id e66so1858442pfe.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:46:05 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id 86si806614pfs.88.2015.12.15.15.46.05
+        for <linux-mm@kvack.org>;
+        Tue, 15 Dec 2015 15:46:05 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCHV2 2/3] x86, ras: Extend machine check recovery code to
+ annotated ring0 areas
+Date: Tue, 15 Dec 2015 23:46:03 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F85DBE@ORSMSX114.amr.corp.intel.com>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <e8029c58c7d4b5094ec274c78dee01d390317d4d.1449861203.git.tony.luck@intel.com>
+ <20151215114314.GD25973@pd.tnic>
+In-Reply-To: <20151215114314.GD25973@pd.tnic>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-mm@kvack.org, linux-nvdimm@ml01.01.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Wed, 09 Dec 2015 18:38:55 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
-
-> ZONE_DEVICE pages always have an elevated count and will never be on an
-> lru reclaim list.  That space in 'struct page' can be redirected for
-> other uses, but for safety introduce a poison value that will always
-> trip __list_add() to assert.  This allows half of the struct list_head
-> storage to be reclaimed with some assurance to back up the assumption
-> that the page count never goes to zero and a list_add() is never
-> attempted.
-> 
-> ...
->
-> --- a/include/linux/list.h
-> +++ b/include/linux/list.h
-> @@ -108,9 +108,26 @@ static inline void list_del(struct list_head *entry)
->  	entry->next = LIST_POISON1;
->  	entry->prev = LIST_POISON2;
->  }
-> +
-> +#define list_del_poison list_del
->  #else
->  extern void __list_del_entry(struct list_head *entry);
->  extern void list_del(struct list_head *entry);
-> +extern struct list_head list_force_poison;
-> +
-> +/**
-> + * list_del_poison - poison an entry to always assert on list_add
-> + * @entry: the element to delete and poison
-> + *
-> + * Note: the assertion on list_add() only occurs when CONFIG_DEBUG_LIST=y,
-> + * otherwise this is identical to list_del()
-> + */
-> +static inline void list_del_poison(struct list_head *entry)
-> +{
-> +	__list_del(entry->prev, entry->next);
-> +	entry->next = &list_force_poison;
-> +	entry->prev = &list_force_poison;
-> +}
->  #endif
-
-list_del() already poisons the list_head.  Does this really add anything?
-
->  /**
-> diff --git a/lib/list_debug.c b/lib/list_debug.c
-> index 3859bf63561c..d730c064a4df 100644
-> --- a/lib/list_debug.c
-> +++ b/lib/list_debug.c
-> @@ -12,6 +12,8 @@
->  #include <linux/kernel.h>
->  #include <linux/rculist.h>
->  
-> +struct list_head list_force_poison;
-> +
->  /*
->   * Insert a new entry between two known consecutive entries.
->   *
-> @@ -23,6 +25,8 @@ void __list_add(struct list_head *new,
->  			      struct list_head *prev,
->  			      struct list_head *next)
->  {
-> +	WARN(new->next == &list_force_poison || new->prev == &list_force_poison,
-> +		"list_add attempted on force-poisoned entry\n");
-
-I suppose that list_replace() should poison as well, and perhaps other
-places were missed.
+Pj4gKwkvKiBGYXVsdCB3YXMgaW4gcmVjb3ZlcmFibGUgYXJlYSBvZiB0aGUga2VybmVsICovDQo+
+PiArCWlmICgobS5jcyAmIDMpICE9IDMgJiYgd29yc3QgPT0gTUNFX0FSX1NFVkVSSVRZKQ0KPj4g
+KwkJaWYgKCFmaXh1cF9tY2V4Y2VwdGlvbihyZWdzLCBtLmFkZHIpKQ0KPj4gKwkJCW1jZV9wYW5p
+YygiRmFpbGVkIGtlcm5lbCBtb2RlIHJlY292ZXJ5IiwgJm0sIE5VTEwpOw0KPgkJCQkgICBeXl5e
+Xl5eXl5eXl5eXl5eXl5eXl5eXl5eXl4NCj4NCj4gRG9lcyB0aGF0IGFsd2F5cyBpbXBseSBhIGZh
+aWxlZCBrZXJuZWwgbW9kZSByZWNvdmVyeT8gSSBkb24ndCBzZWUNCj4NCj4JKG0uY3MgPT0gMCBh
+bmQgTUNFX0FSX1NFVkVSSVRZKQ0KPg0KPiBNQ0VzIGFsd2F5cyBtZWFuaW5nIHRoYXQgYSByZWNv
+dmVyeSBzaG91bGQgYmUgYXR0ZW1wdGVkIHRoZXJlLiBJIHRoaW5rDQo+IHRoaXMgc2hvdWxkIHNp
+bXBseSBzYXkNCj4NCj4JbWNlX3BhbmljKCJGYXRhbCBtYWNoaW5lIGNoZWNrIG9uIGN1cnJlbnQg
+Q1BVIiwgJm0sIG1zZyk7DQoNCkkgZG9uJ3QgdGhpbmsgdGhpcyBjYW4gZXZlciBoYXBwZW4uIElm
+IHdlIHdlcmUgaW4ga2VybmVsIG1vZGUgYW5kIGRlY2lkZWQNCnRoYXQgdGhlIHNldmVyaXR5IHdh
+cyBBUl9TRVZFUklUWSAuLi4gdGhlbiBzZWFyY2hfbWNleGNlcHRpb25fdGFibGUoKQ0KZm91bmQg
+YW4gZW50cnkgZm9yIHRoZSBJUCB3aGVyZSB0aGUgbWFjaGluZSBjaGVjayBoYXBwZW5lZC4NCg0K
+VGhlIG9ubHkgd2F5IGZvciBmaXh1cF9leGNlcHRpb24gdG8gZmFpbCBpcyBpZiBzZWFyY2hfbWNl
+eGNlcHRpb25fdGFibGUoKQ0Kbm93IHN1ZGRlbmx5IGRvZXNuJ3QgZmluZCB0aGUgZW50cnkgaXQg
+Zm91bmQgZWFybGllci4NCg0KQnV0IGlmIHRoaXMgImNhbid0IGhhcHBlbiIgdGhpbmcgYWN0dWFs
+bHkgZG9lcyBoYXBwZW4gLi4uIEknZCBsaWtlIHRoZSBwYW5pYw0KbWVzc2FnZSB0byBiZSBkaWZm
+ZXJlbnQgZnJvbSBvdGhlciBtY2VfcGFuaWMoKSBzbyB5b3UnbGwga25vdyB0byBibGFtZQ0KbWUu
+DQoNCkFwcGxpZWQgYWxsIHRoZSBvdGhlciBzdWdnZXN0aW9ucy4NCg0KLVRvbnkNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
