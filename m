@@ -1,74 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id ECF7D6B0253
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:22:56 -0500 (EST)
-Received: by mail-lf0-f44.google.com with SMTP id z124so10364422lfa.3
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 12:22:56 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id mw9si1717596lbb.131.2015.12.15.12.22.54
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 701926B0253
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:26:34 -0500 (EST)
+Received: by mail-oi0-f48.google.com with SMTP id i186so12321424oia.2
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 12:26:34 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id i9si3231311oia.94.2015.12.15.12.26.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 12:22:55 -0800 (PST)
-Date: Tue, 15 Dec 2015 15:22:35 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
-Message-ID: <20151215202235.GB15672@cmpxchg.org>
-References: <cover.1449742560.git.vdavydov@virtuozzo.com>
- <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
- <20151214153037.GB4339@dhcp22.suse.cz>
- <20151214194258.GH28521@esperanza>
- <20151215172127.GC27880@dhcp22.suse.cz>
+        Tue, 15 Dec 2015 12:26:33 -0800 (PST)
+From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Subject: RE: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
+ from machine checks
+Date: Tue, 15 Dec 2015 20:25:37 +0000
+Message-ID: <94D0CD8314A33A4D9D801C0FE68B40295BE9F3D5@G4W3202.americas.hpqcorp.net>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
+ <20151215131135.GE25973@pd.tnic>
+ <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
+ <CAPcyv4icSmdnvQhsdzfP3uZYXJ2vsjrZxMQjSghNOt19u++o7g@mail.gmail.com>
+ <CAPcyv4gMku=rAczAz2b4PaW6qwm9LAVU8BG3hcT_A4QMAkZfbA@mail.gmail.com>
+ <20151215183924.GJ25973@pd.tnic>
+ <94D0CD8314A33A4D9D801C0FE68B40295BE9F290@G4W3202.americas.hpqcorp.net>
+ <20151215192837.GL25973@pd.tnic>
+In-Reply-To: <20151215192837.GL25973@pd.tnic>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151215172127.GC27880@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy
+ Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
 
-On Tue, Dec 15, 2015 at 06:21:28PM +0100, Michal Hocko wrote:
-> > AFAICS such anon memory protection has a side-effect: real-life
-> > workloads need page cache to run smoothly (at least for mapping
-> > executables). Disabling swapping would switch pressure to page caches,
-> > resulting in performance degradation. So, I don't think per memcg swap
-> > limit can be abused to boost your workload on an overcommitted system.
-> 
-> Well, you can trash on the page cache which could slow down the workload
-> but the executable pages get an additional protection so this might be
-> not sufficient and still trigger a massive disruption on the global level.
-
-No, this is a real consequence. If you fill your available memory with
-mostly unreclaimable memory and your executables start thrashing you
-might not make forward progress for hours. We don't have a swap token
-for page cache.
-
-> Just to make it clear. I am not against the new way of the swap
-> accounting. It is much more clear then the previous one. I am just
-> worried it allows for an easy misconfiguration and we do not have any
-> measures to help the global system healthiness. I am OK with the patch
-> if we document the risk for now. I still think we will end up doing some
-> heuristic to throttle for a large unreclaimable high limit excess in the
-> future but I agree this shouldn't be the prerequisite.
-
-It's unclear to me how the previous memory+swap counters did anything
-tangible for global system health with malicious/buggy workloads. If
-anything, the previous model seems to encourage blatant overcommit of
-workloads on the flawed assumption that global pressure could always
-claw back memory, including anonymous pages of untrusted workloads,
-which does not actually work in practice. So I'm not sure what new
-risk you are referring to here.
-
-As far as the high limit goes, its job is to contain cache growth and
-throttle applications during somewhat higher-than-expected consumption
-peaks; not to contain "large unreclaimable high limit excess" from
-buggy or malicious applications, that's what the hard limit is for.
-
-All in all, it seems to me we should leave this discussion to actual
-problems arising in the real world. There is a lot of unfocussed
-speculation in this thread about things that might go wrong, without
-much thought put into whether these scenarios are even meaningful or
-real or whether they are new problems that come with the swap limit.
+DQoNCi0tLQ0KUm9iZXJ0IEVsbGlvdHQsIEhQRSBQZXJzaXN0ZW50IE1lbW9yeQ0KDQoNCj4gLS0t
+LS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogQm9yaXNsYXYgUGV0a292IFttYWlsdG86
+YnBAYWxpZW44LmRlXQ0KPiBTZW50OiBUdWVzZGF5LCBEZWNlbWJlciAxNSwgMjAxNSAxOjI5IFBN
+DQo+IFRvOiBFbGxpb3R0LCBSb2JlcnQgKFBlcnNpc3RlbnQgTWVtb3J5KSA8ZWxsaW90dEBocGUu
+Y29tPg0KPiBDYzogRGFuIFdpbGxpYW1zIDxkYW4uai53aWxsaWFtc0BpbnRlbC5jb20+OyBMdWNr
+LCBUb255DQo+IDx0b255Lmx1Y2tAaW50ZWwuY29tPjsgbGludXgtbnZkaW1tIDxsaW51eC1udmRp
+bW1AbWwwMS4wMS5vcmc+OyBYODYgTUwNCj4gPHg4NkBrZXJuZWwub3JnPjsgbGludXgta2VybmVs
+QHZnZXIua2VybmVsLm9yZzsgTGludXggTU0gPGxpbnV4LQ0KPiBtbUBrdmFjay5vcmc+OyBBbmR5
+IEx1dG9taXJza2kgPGx1dG9Aa2VybmVsLm9yZz47IEFuZHJldyBNb3J0b24NCj4gPGFrcG1AbGlu
+dXgtZm91bmRhdGlvbi5vcmc+OyBJbmdvIE1vbG5hciA8bWluZ29Aa2VybmVsLm9yZz4NCj4gU3Vi
+amVjdDogUmU6IFtQQVRDSFYyIDMvM10geDg2LCByYXM6IEFkZCBtY3NhZmVfbWVtY3B5KCkgZnVu
+Y3Rpb24gdG8NCj4gcmVjb3ZlciBmcm9tIG1hY2hpbmUgY2hlY2tzDQo+IA0KPiBPbiBUdWUsIERl
+YyAxNSwgMjAxNSBhdCAwNzoxOTo1OFBNICswMDAwLCBFbGxpb3R0LCBSb2JlcnQgKFBlcnNpc3Rl
+bnQNCj4gTWVtb3J5KSB3cm90ZToNCj4gDQo+IC4uLg0KPiANCj4gPiBEdWUgdG8gdGhlIGhpc3Rv
+cmljIGxvbmcgbGF0ZW5jeSBvZiBzdG9yYWdlIGRldmljZXMsDQo+ID4gYXBwbGljYXRpb25zIGRv
+bid0IHJlLXJlYWQgZnJvbSBzdG9yYWdlIGFnYWluOyB0aGV5DQo+ID4gc2F2ZSB0aGUgcmVzdWx0
+cy4NCj4gPiBTbywgdGhlIHN0cmVhbWluZy1sb2FkIGluc3RydWN0aW9ucyBhcmUgYmVuZWZpY2lh
+bDoNCj4gDQo+IFRoYXQncyB0aGUgdGhlb3J5Li4uDQo+IA0KPiBEbyB5b3UgYWxzbyBoYXZlIHNv
+bWUgYWN0dWFsIHBlcmZvcm1hbmNlIG51bWJlcnMgd2hlcmUgbm9uLXRlbXBvcmFsDQo+IG9wZXJh
+dGlvbnMgYXJlIGJldHRlciB0aGFuIHRoZSBSRVA7IE1PVlNCIGFuZCAqYWN0dWFsbHkqIHNob3cN
+Cj4gaW1wcm92ZW1lbnRzPyBBbmQgbm8gbWljcm9iZW5jaG1hcmtzIHBsZWFzZS4NCj4gDQo+IFRo
+YW5rcy4NCj4gDQoNClRoaXMgaXNuJ3QgZXhhY3RseSB3aGF0IHlvdSdyZSBsb29raW5nIGZvciwg
+YnV0IGhlcmUgaXMgDQphbiBleGFtcGxlIG9mIGZpbyBkb2luZyByZWFkcyBmcm9tIHBtZW0gZGV2
+aWNlcyAocmVhZGluZw0KZnJvbSBOVkRJTU1zLCB3cml0aW5nIHRvIERJTU1zKSB3aXRoIHZhcmlv
+dXMgdHJhbnNmZXINCnNpemVzLg0KDQpBdCAyNTYgS2lCLCBhbGwgdGhlIG1haW4gbWVtb3J5IGJ1
+ZmZlcnMgZml0IGluIHRoZSBDUFUNCmNhY2hlcywgc28gbm8gd3JpdGUgdHJhZmZpYyBhcHBlYXJz
+IG9uIEREUiAoanVzdCB0aGUgcmVhZHMNCmZyb20gdGhlIE5WRElNTXMpLiAgQXQgMSBNaUIsIHRo
+ZSBkYXRhIHNwaWxscyBvdXQgb2YgdGhlDQpjYWNoZXMsIGFuZCB3cml0ZXMgdG8gdGhlIERJTU1z
+IGVuZCB1cCBvbiBERFIuDQoNCkFsdGhvdWdoIEREUiBpcyBidXNpZXIsIGZpbyBnZXRzIGEgbG90
+IGxlc3Mgd29yayBkb25lOg0KKiAyNTYgS2lCOiA5MCBHaUIvcyBieSBmaW8NCiogICAxIE1pQjog
+NDkgR2lCL3MgYnkgZmlvDQoNCldlIGNvdWxkIHRyeSBtb2RpZnlpbmcgcG1lbSB0byB1c2UgaXRz
+IG93biBub24tdGVtcG9yYWwNCm1lbWNweSBmdW5jdGlvbnMgKEkndmUgcG9zdGVkIGV4cGVyaW1l
+bnRhbCBwYXRjaGVzDQpiZWZvcmUgdGhhdCBkaWQgdGhpcykgdG8gc2VlIGlmIHRoYXQgdHJhbnNp
+dGlvbiBwb2ludA0Kc2hpZnRzLiAgV2UgY2FuIGFsc28gd2F0Y2ggdGhlIENQVSBjYWNoZSBzdGF0
+aXN0aWNzDQp3aGlsZSBydW5uaW5nLg0KDQpIZXJlIGFyZSBzdGF0aXN0aWNzIGZyb20gSW50ZWwn
+cyBwY20tbWVtb3J5LnggDQoocGFyZG9uIHRoZSB3aWRlIGZvcm1hdHRpbmcpOg0KDQoyNTYgS2lC
+DQo9PT09PT09DQpwbWVtMDogKGdyb3VwaWQ9MCwgam9icz00MCk6IGVycj0gMDogcGlkPTIwODY3
+OiBUdWUgTm92IDI0IDE4OjIwOjA4IDIwMTUNCiAgcmVhZCA6IGlvPTUyMTkuMUdCLCBidz04OTA3
+OU1CL3MsIGlvcHM9MzU2MzE0LCBydW50PSA2MDAwNm1zZWMNCiAgY3B1ICAgICAgICAgIDogdXNy
+PTEuNzQlLCBzeXM9OTYuMTYlLCBjdHg9NDk1NzYsIG1hamY9MCwgbWluZj0yMTk5Nw0KDQpSdW4g
+c3RhdHVzIGdyb3VwIDAgKGFsbCBqb2JzKToNCiAgIFJFQUQ6IGlvPTUyMTkuMUdCLCBhZ2dyYj04
+OTA3OU1CL3MsIG1pbmI9ODkwNzlNQi9zLCBtYXhiPTg5MDc5TUIvcywgbWludD02MDAwNm1zZWMs
+IG1heHQ9NjAwMDZtc2VjDQoNCnwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS18fC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLXwNCnwtLSAgICAgICAg
+ICAgICBTb2NrZXQgIDAgICAgICAgICAgICAgLS18fC0tICAgICAgICAgICAgIFNvY2tldCAgMSAg
+ICAgICAgICAgICAtLXwNCnwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18
+fC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLXwNCnwtLSAgICAgTWVtb3J5
+IENoYW5uZWwgTW9uaXRvcmluZyAgICAgLS18fC0tICAgICBNZW1vcnkgQ2hhbm5lbCBNb25pdG9y
+aW5nICAgICAtLXwNCnwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18fC0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLXwNCnwtLSBNZW0gQ2ggIDA6IFJl
+YWRzIChNQi9zKTogMTE3NzguMTEgLS18fC0tIE1lbSBDaCAgMDogUmVhZHMgKE1CL3MpOiAxMTc0
+My45OSAtLXwNCnwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogICAgNTEuODMgLS18fC0tICAg
+ICAgICAgICAgV3JpdGVzKE1CL3MpOiAgICA0My4yNSAtLXwNCnwtLSBNZW0gQ2ggIDE6IFJlYWRz
+IChNQi9zKTogMTE3NzkuOTAgLS18fC0tIE1lbSBDaCAgMTogUmVhZHMgKE1CL3MpOiAxMTczNi4w
+NiAtLXwNCnwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogICAgNDguNzMgLS18fC0tICAgICAg
+ICAgICAgV3JpdGVzKE1CL3MpOiAgICAzNy44NiAtLXwNCnwtLSBNZW0gQ2ggIDQ6IFJlYWRzIChN
+Qi9zKTogMTE3ODQuNzkgLS18fC0tIE1lbSBDaCAgNDogUmVhZHMgKE1CL3MpOiAxMTc0Ni45NCAt
+LXwNCnwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogICAgNTIuOTAgLS18fC0tICAgICAgICAg
+ICAgV3JpdGVzKE1CL3MpOiAgICA0My43MyAtLXwNCnwtLSBNZW0gQ2ggIDU6IFJlYWRzIChNQi9z
+KTogMTE3NzguNDggLS18fC0tIE1lbSBDaCAgNTogUmVhZHMgKE1CL3MpOiAxMTc0MS41NSAtLXwN
+CnwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogICAgNDcuNjIgLS18fC0tICAgICAgICAgICAg
+V3JpdGVzKE1CL3MpOiAgICAzNy44MCAtLXwNCnwtLSBOT0RFIDAgTWVtIFJlYWQgKE1CL3MpIDog
+NDcxMjEuMjcgLS18fC0tIE5PREUgMSBNZW0gUmVhZCAoTUIvcykgOiA0Njk2OC41MyAtLXwNCnwt
+LSBOT0RFIDAgTWVtIFdyaXRlKE1CL3MpIDogICAyMDEuMDggLS18fC0tIE5PREUgMSBNZW0gV3Jp
+dGUoTUIvcykgOiAgIDE2Mi42NSAtLXwNCnwtLSBOT0RFIDAgUC4gV3JpdGUgKFQvcyk6ICAgICAx
+OTA5MjcgLS18fC0tIE5PREUgMSBQLiBXcml0ZSAoVC9zKTogICAgIDE4Mjk2MSAtLXwNCnwtLSBO
+T0RFIDAgTWVtb3J5IChNQi9zKTogICAgNDczMjIuMzYgLS18fC0tIE5PREUgMSBNZW1vcnkgKE1C
+L3MpOiAgICA0NzEzMS4xNyAtLXwNCnwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS18fC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLXwNCnwtLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18fC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLXwNCnwtLSAgICAgICAgICAgICAgICAgICBTeXN0ZW0gUmVhZCBUaHJv
+dWdocHV0KE1CL3MpOiAgOTQwODkuODAgICAgICAgICAgICAgICAgICAtLXwNCnwtLSAgICAgICAg
+ICAgICAgICAgIFN5c3RlbSBXcml0ZSBUaHJvdWdocHV0KE1CL3MpOiAgICAzNjMuNzMgICAgICAg
+ICAgICAgICAgICAtLXwNCnwtLSAgICAgICAgICAgICAgICAgU3lzdGVtIE1lbW9yeSBUaHJvdWdo
+cHV0KE1CL3MpOiAgOTQ0NTMuNTIgICAgICAgICAgICAgICAgICAtLXwNCnwtLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18fC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLXwNCg0KMSBNaUINCj09PT09DQp8LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tfHwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18DQp8
+LS0gICAgICAgICAgICAgU29ja2V0ICAwICAgICAgICAgICAgIC0tfHwtLSAgICAgICAgICAgICBT
+b2NrZXQgIDEgICAgICAgICAgICAgLS18DQp8LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tfHwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18DQp8LS0g
+ICAgIE1lbW9yeSBDaGFubmVsIE1vbml0b3JpbmcgICAgIC0tfHwtLSAgICAgTWVtb3J5IENoYW5u
+ZWwgTW9uaXRvcmluZyAgICAgLS18DQp8LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tfHwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18DQp8LS0gTWVt
+IENoICAwOiBSZWFkcyAoTUIvcyk6ICA3MjI3LjgzIC0tfHwtLSBNZW0gQ2ggIDA6IFJlYWRzIChN
+Qi9zKTogIDcwNDcuNDUgLS18DQp8LS0gICAgICAgICAgICBXcml0ZXMoTUIvcyk6ICA1ODk0LjQ3
+IC0tfHwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogIDYwMTAuNjYgLS18DQp8LS0gTWVtIENo
+ICAxOiBSZWFkcyAoTUIvcyk6ICA3MjI5LjMyIC0tfHwtLSBNZW0gQ2ggIDE6IFJlYWRzIChNQi9z
+KTogIDcwNDEuNzkgLS18DQp8LS0gICAgICAgICAgICBXcml0ZXMoTUIvcyk6ICA1ODkxLjM4IC0t
+fHwtLSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogIDYwMDMuMTkgLS18DQp8LS0gTWVtIENoICA0
+OiBSZWFkcyAoTUIvcyk6ICA3MjMwLjcwIC0tfHwtLSBNZW0gQ2ggIDQ6IFJlYWRzIChNQi9zKTog
+IDcwNTIuNDQgLS18DQp8LS0gICAgICAgICAgICBXcml0ZXMoTUIvcyk6ICA1ODg4LjYzIC0tfHwt
+LSAgICAgICAgICAgIFdyaXRlcyhNQi9zKTogIDYwMTIuNDkgLS18DQp8LS0gTWVtIENoICA1OiBS
+ZWFkcyAoTUIvcyk6ICA3MjI5LjE2IC0tfHwtLSBNZW0gQ2ggIDU6IFJlYWRzIChNQi9zKTogIDcw
+NDcuMTkgLS18DQp8LS0gICAgICAgICAgICBXcml0ZXMoTUIvcyk6ICA1ODgyLjQ1IC0tfHwtLSAg
+ICAgICAgICAgIFdyaXRlcyhNQi9zKTogIDYwMDguMTEgLS18DQp8LS0gTk9ERSAwIE1lbSBSZWFk
+IChNQi9zKSA6IDI4OTE3LjAxIC0tfHwtLSBOT0RFIDEgTWVtIFJlYWQgKE1CL3MpIDogMjgxODgu
+ODcgLS18DQp8LS0gTk9ERSAwIE1lbSBXcml0ZShNQi9zKSA6IDIzNTU2LjkzIC0tfHwtLSBOT0RF
+IDEgTWVtIFdyaXRlKE1CL3MpIDogMjQwMzQuNDYgLS18DQp8LS0gTk9ERSAwIFAuIFdyaXRlIChU
+L3MpOiAgICAgMjM4NzEzIC0tfHwtLSBOT0RFIDEgUC4gV3JpdGUgKFQvcyk6ICAgICAyMjgwNDAg
+LS18DQp8LS0gTk9ERSAwIE1lbW9yeSAoTUIvcyk6ICAgIDUyNDczLjk0IC0tfHwtLSBOT0RFIDEg
+TWVtb3J5IChNQi9zKTogICAgNTIyMjMuMzMgLS18DQp8LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tfHwtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18
+DQp8LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tfHwtLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS18DQp8LS0gICAgICAgICAgICAgICAgICAgU3lzdGVt
+IFJlYWQgVGhyb3VnaHB1dChNQi9zKTogIDU3MTA1Ljg3ICAgICAgICAgICAgICAgICAgLS18DQp8
+LS0gICAgICAgICAgICAgICAgICBTeXN0ZW0gV3JpdGUgVGhyb3VnaHB1dChNQi9zKTogIDQ3NTkx
+LjM5ICAgICAgICAgICAgICAgICAgLS18DQp8LS0gICAgICAgICAgICAgICAgIFN5c3RlbSBNZW1v
+cnkgVGhyb3VnaHB1dChNQi9zKTogMTA0Njk3LjI3ICAgICAgICAgICAgICAgICAgLS18DQp8LS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tfHwtLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS18DQoNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
