@@ -1,91 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 99E286B0258
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 07:03:21 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id n186so90837177wmn.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 04:03:21 -0800 (PST)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id lm2si1439984wjc.94.2015.12.15.04.03.20
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CAA516B0254
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 07:31:50 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id n128so4226780pfn.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 04:31:50 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id g16si1651151pfg.219.2015.12.15.04.31.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 04:03:20 -0800 (PST)
-Received: by mail-wm0-x230.google.com with SMTP id n186so161489706wmn.1
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 04:03:20 -0800 (PST)
-Date: Tue, 15 Dec 2015 14:03:18 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: isolate_lru_page on !head pages
-Message-ID: <20151215120318.GA11497@node.shutemov.name>
-References: <20151209130204.GD30907@dhcp22.suse.cz>
- <20151214120456.GA4201@node.shutemov.name>
- <20151215085232.GB14350@dhcp22.suse.cz>
+        Tue, 15 Dec 2015 04:31:49 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH v2] mm: memcontrol: fix possible memcg leak due to interrupted reclaim
+Date: Tue, 15 Dec 2015 15:31:37 +0300
+Message-ID: <1450182697-11049-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151215085232.GB14350@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, stable@vger.kernel.org, Michal
+ Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 15, 2015 at 09:52:33AM +0100, Michal Hocko wrote:
-> On Mon 14-12-15 14:04:56, Kirill A. Shutemov wrote:
-> > On Wed, Dec 09, 2015 at 02:02:05PM +0100, Michal Hocko wrote:
-> > > Hi Kirill,
-> > 
-> > [ sorry for late reply, just back from vacation. ]
-> > 
-> > > while looking at the issue reported by Minchan [1] I have noticed that
-> > > there is nothing to prevent from "isolating" a tail page from LRU because
-> > > isolate_lru_page checks PageLRU which is
-> > > PAGEFLAG(LRU, lru, PF_HEAD)
-> > > so it is checked on the head page rather than the given page directly
-> > > but the rest of the operation is done on the given (tail) page.
-> > 
-> > Looks like most (all?) callers already exclude PTE-mapped THP already one
-> > way or another.
-> 
-> I can see e.g. do_move_page_to_node_array not doing a similar thing. It
-> isolates and then migrates potentially a tail page.
+Memory cgroup reclaim can be interrupted with mem_cgroup_iter_break()
+once enough pages have been reclaimed, in which case, in contrast to a
+full round-trip over a cgroup sub-tree, the current position stored in
+mem_cgroup_reclaim_iter of the target cgroup does not get invalidated
+and so is left holding the reference to the last scanned cgroup. If the
+target cgroup does not get scanned again (we might have just reclaimed
+the last page or all processes might exit and free their memory
+voluntary), we will leak it, because there is nobody to put the
+reference held by the iterator.
 
-No, it doesn't. follow_page(FOLL_SPLIT) would split THP pages.
+The problem is easy to reproduce by running the following command
+sequence in a loop:
 
-> I haven't looked closer whether there is other hand break on the way
-> though. The point I was trying to make is that this is really _subtle_.
-> We are changing something else than we operate later on.
-> 
-> > Probably, VM_BUG_ON_PAGE(PageTail(page), page) in isolate_lru_page() would
-> > be appropriate.
-> > 
-> > > This is really subtle because this expects that every caller of this
-> > > function checks for the tail page otherwise we would clobber statistics
-> > > and who knows what else (I haven't checked that in detail) as the page
-> > > cannot be on the LRU list and the operation makes sense only on the head
-> > > page.
-> > > 
-> > > Would it make more sense to make PageLRU PF_ANY? That would return
-> > > false for PageLRU on any tail page and so it would be ignored by
-> > > isolate_lru_page.
-> > 
-> > I don't think this is right way to go. What we put on LRU is compound
-> > page, not 4k subpages. PageLRU() should return true if the compound page
-> > is on LRU regardless if you ask for head or tail page.
-> 
-> Hmm, but then we should operate on the head page because that is what
-> PageLRU operated on, no?
+    mkdir /sys/fs/cgroup/memory/test
+    echo 100M > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+    echo $$ > /sys/fs/cgroup/memory/test/cgroup.procs
+    memhog 150M
+    echo $$ > /sys/fs/cgroup/memory/cgroup.procs
+    rmdir test
 
-head page is what linked into LRU, but not nessesary the way we obtain the
-page to check. If we check PageLRU(pte_page(*pte)) it should produce the
-right result.
+The cgroups generated by it will never get freed.
 
-> > False-negatives PageLRU() can be as bad as bug Minchan reported, but
-> > perhaps more silent.
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+This patch fixes this issue by making mem_cgroup_iter avoid taking
+reference to the current position. In order not to hit use-after-free
+bug while running reclaim in parallel with cgroup deletion, we make use
+of ->css_released cgroup callback to clear references to the dying
+cgroup in all reclaim iterators that might refer to it. This callback is
+called right before scheduling rcu work which will free css, so if we
+access iter->position from rcu read section, we might be sure it won't
+go away under us.
 
+Fixes: 5ac8fb31ad2e ("mm: memcontrol: convert reclaim iterator to simple css refcounting")
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Acked-by: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: <stable@vger.kernel.org> # 3.19+
+---
+Changes in v2:
+
+As pointed out by Johannes, clearing iter->position when interrupting
+memcg reclaim, as it was done in v1, would result in unfairly high
+pressure exerted on a parent cgroup in comparison to its children. So in
+v2, we go another way - instead of pinning cgroup in iterator we clear
+references to dying cgroup in all iterators that might refer to it right
+before it is scheduled to be freed.
+
+ mm/memcontrol.c | 53 ++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 42 insertions(+), 11 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 87af26a24491..f42352369cbc 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -859,14 +859,20 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		if (prev && reclaim->generation != iter->generation)
+ 			goto out_unlock;
+ 
+-		do {
++		while (1) {
+ 			pos = READ_ONCE(iter->position);
++			if (!pos || css_tryget(&pos->css))
++				break;
+ 			/*
+-			 * A racing update may change the position and
+-			 * put the last reference, hence css_tryget(),
+-			 * or retry to see the updated position.
++			 * css reference reached zero, so iter->position will
++			 * be cleared by ->css_released. However, we should not
++			 * rely on this happening soon, because ->css_released
++			 * is called from a work queue, and by busy-waiting we
++			 * might block it. So we clear iter->position right
++			 * away.
+ 			 */
+-		} while (pos && !css_tryget(&pos->css));
++			cmpxchg(&iter->position, pos, NULL);
++		}
+ 	}
+ 
+ 	if (pos)
+@@ -912,12 +918,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 	}
+ 
+ 	if (reclaim) {
+-		if (cmpxchg(&iter->position, pos, memcg) == pos) {
+-			if (memcg)
+-				css_get(&memcg->css);
+-			if (pos)
+-				css_put(&pos->css);
+-		}
++		cmpxchg(&iter->position, pos, memcg);
+ 
+ 		/*
+ 		 * pairs with css_tryget when dereferencing iter->position
+@@ -955,6 +956,28 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
+ 		css_put(&prev->css);
+ }
+ 
++static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
++{
++	struct mem_cgroup *memcg = dead_memcg;
++	struct mem_cgroup_reclaim_iter *iter;
++	struct mem_cgroup_per_zone *mz;
++	int nid, zid;
++	int i;
++
++	while ((memcg = parent_mem_cgroup(memcg))) {
++		for_each_node(nid) {
++			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
++				mz = &memcg->nodeinfo[nid]->zoneinfo[zid];
++				for (i = 0; i <= DEF_PRIORITY; i++) {
++					iter = &mz->iter[i];
++					cmpxchg(&iter->position,
++						dead_memcg, NULL);
++				}
++			}
++		}
++	}
++}
++
+ /*
+  * Iteration constructs for visiting all cgroups (under a tree).  If
+  * loops are exited prematurely (break), mem_cgroup_iter_break() must
+@@ -4375,6 +4398,13 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	wb_memcg_offline(memcg);
+ }
+ 
++static void mem_cgroup_css_released(struct cgroup_subsys_state *css)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++
++	invalidate_reclaim_iterators(memcg);
++}
++
+ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+@@ -5229,6 +5259,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
+ 	.css_alloc = mem_cgroup_css_alloc,
+ 	.css_online = mem_cgroup_css_online,
+ 	.css_offline = mem_cgroup_css_offline,
++	.css_released = mem_cgroup_css_released,
+ 	.css_free = mem_cgroup_css_free,
+ 	.css_reset = mem_cgroup_css_reset,
+ 	.can_attach = mem_cgroup_can_attach,
 -- 
- Kirill A. Shutemov
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
