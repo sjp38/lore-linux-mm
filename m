@@ -1,72 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F85A6B0253
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:50:21 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id v16so11977447qge.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 08:50:21 -0800 (PST)
-Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
-        by mx.google.com with ESMTPS id y198si1879074qhb.28.2015.12.15.08.50.19
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 95EFC6B0253
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:56:31 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id xm8so18596382igb.1
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 08:56:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id pg2si5928107igb.58.2015.12.15.08.56.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 08:50:19 -0800 (PST)
-Received: by mail-qk0-x22d.google.com with SMTP id t125so22131889qkh.3
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 08:50:19 -0800 (PST)
+        Tue, 15 Dec 2015 08:56:30 -0800 (PST)
+Date: Tue, 15 Dec 2015 17:56:50 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [BISECTED] rcu_sched self-detected stall since 3.17
+Message-ID: <20151215165650.GA13604@redhat.com>
+References: <564F3DCA.1080907@arm.com> <20151201130404.GL3816@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20151210023812.30368.84734.stgit@dwillia2-desk3.jf.intel.com>
-References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
-	<20151210023812.30368.84734.stgit@dwillia2-desk3.jf.intel.com>
-Date: Tue, 15 Dec 2015 08:50:19 -0800
-Message-ID: <CAPcyv4i17AyddcC4gn2u9G3mZ8SXrpZJmbLgJ1H_eE2FLu3LDA@mail.gmail.com>
-Subject: Re: [-mm PATCH v2 11/25] x86, mm: introduce vmem_altmap to augment vmemmap_populate()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151201130404.GL3816@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, kbuild test robot <lkp@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Vladimir Murzin <vladimir.murzin@arm.com>, linux-kernel@vger.kernel.org, neilb@suse.de, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On Wed, Dec 9, 2015 at 6:38 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> In support of providing struct page for large persistent memory
-> capacities, use struct vmem_altmap to change the default policy for
-> allocating memory for the memmap array.  The default vmemmap_populate()
-> allocates page table storage area from the page allocator.  Given
-> persistent memory capacities relative to DRAM it may not be feasible to
-> store the memmap in 'System Memory'.  Instead vmem_altmap represents
-> pre-allocated "device pages" to satisfy vmemmap_alloc_block_buf()
-> requests.
+Sorry again for the huge delay.
+
+And all I can say is that I am all confused.
+
+On 12/01, Peter Zijlstra wrote:
 >
-> Cc: x86@kernel.org
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Reported-by: kbuild test robot <lkp@intel.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/m68k/include/asm/page_mm.h |    1
->  arch/m68k/include/asm/page_no.h |    1
->  arch/mn10300/include/asm/page.h |    1
->  arch/x86/mm/init_64.c           |   32 +++++++++++---
->  drivers/nvdimm/pmem.c           |    6 ++-
->  include/linux/memory_hotplug.h  |    3 +
->  include/linux/mm.h              |   92 +++++++++++++++++++++++++++++++++++++--
->  kernel/memremap.c               |   61 +++++++++++++++++++++++++-
->  mm/memory_hotplug.c             |   66 ++++++++++++++++++++--------
->  mm/page_alloc.c                 |   10 ++++
->  mm/sparse-vmemmap.c             |   37 +++++++++++++++-
->  mm/sparse.c                     |    8 ++-
->  12 files changed, 277 insertions(+), 41 deletions(-)
+> On Fri, Nov 20, 2015 at 03:35:38PM +0000, Vladimir Murzin wrote:
+> > commit 743162013d40ca612b4cb53d3a200dff2d9ab26e
+> > Author: NeilBrown <neilb@suse.de>
+> > Date:   Mon Jul 7 15:16:04 2014 +1000
 
-Ingo, since you've shown interest in the nvdimm enabling in the past,
-may I ask to look over the x86 touches in this set?  I believe Andrew
-is waiting on Acked-by's to move this forward.
+That patch still looks correct to me.
 
-These patches:
-[-mm PATCH v2 11/25] x86, mm: introduce vmem_altmap to augment
-vmemmap_populate()
-[-mm PATCH v2 16/25] x86, mm: introduce _PAGE_DEVMAP
-[-mm PATCH v2 23/25] mm, x86: get_user_pages() for dax mappings
+> > and if I apply following diff I don't see stalls anymore.
+> >
+> > diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
+> > index a104879..2d68cdb 100644
+> > --- a/kernel/sched/wait.c
+> > +++ b/kernel/sched/wait.c
+> > @@ -514,9 +514,10 @@ EXPORT_SYMBOL(bit_wait);
+> >
+> >  __sched int bit_wait_io(void *word)
+> >  {
+> > +       io_schedule();
+> > +
+> >         if (signal_pending_state(current->state, current))
+> >                 return 1;
+> > -       io_schedule();
+> >         return 0;
+> >  }
+> >  EXPORT_SYMBOL(bit_wait_io);
+
+I can't understand why this change helps. But note that it actually removes
+the signal_pending_state() check from bit_wait_io(), current->state is always
+TASK_RUNNING after return from schedule(), signal_pending_state() will always
+return zero.
+
+This means that after this change wait_on_page_bit_killable() will spin in a
+busy-wait loop if the caller is killed.
+
+> The reason this is broken is that schedule() will no-op when there is a
+> pending signal, while raising a signal will also issue a wakeup.
+
+But why this is wrong? We should notice signal_pending_state() on the next
+iteration.
+
+> Thus the right thing to do is check for the signal state after,
+
+I think this check should work on both sides. The only difference is that
+you obviously can't use current->state after schedule().
+
+I still can't understand the problem.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
