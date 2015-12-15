@@ -1,131 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CDDED6B0259
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 13:20:14 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id n186so177498336wmn.1
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 10:20:14 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id v195si6070829wmv.20.2015.12.15.10.20.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 10:20:10 -0800 (PST)
-Received: by mail-wm0-f52.google.com with SMTP id n186so177495863wmn.1
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 10:20:10 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/3] mm: use watermak checks for __GFP_REPEAT high order allocations
-Date: Tue, 15 Dec 2015 19:19:46 +0100
-Message-Id: <1450203586-10959-4-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE7A6B025D
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 13:21:09 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l126so6246962wml.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 10:21:09 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id fq10si3557401wjc.228.2015.12.15.10.21.07
+        for <linux-mm@kvack.org>;
+        Tue, 15 Dec 2015 10:21:08 -0800 (PST)
+Date: Tue, 15 Dec 2015 19:21:00 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
+ from machine checks
+Message-ID: <20151215182059.GH25973@pd.tnic>
+References: <cover.1449861203.git.tony.luck@intel.com>
+ <23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
+ <20151215131135.GE25973@pd.tnic>
+ <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Dec 15, 2015 at 05:53:31PM +0000, Luck, Tony wrote:
+> My current generation cpu has a bit of an issue with recovering from a
+> machine check in a "rep mov" ... so I'm working with a version of memcpy
+> that unrolls into individual mov instructions for now.
 
-__alloc_pages_slowpath retries costly allocations until at least
-order worth of pages were reclaimed or the watermark check for at least
-one zone would succeed after all reclaiming all pages if the reclaim
-hasn't made any progress.
+Ah.
 
-The first condition was added by a41f24ea9fd6 ("page allocator: smarter
-retry of costly-order allocations) and it assumed that lumpy reclaim
-could have created a page of the sufficient order. Lumpy reclaim,
-has been removed quite some time ago so the assumption doesn't hold
-anymore. It would be more appropriate to check the compaction progress
-instead but this patch simply removes the check and relies solely
-on the watermark check.
+> I can drop the "nti" from the destination moves.  Does "nti" work
+> on the load from source address side to avoid cache allocation?
 
-To prevent from too many retries the no_progress_loops is not reseted after
-a reclaim which made progress because we cannot assume it helped high
-order situation. Only costly allocation requests depended on
-pages_reclaimed so we can drop it.
+I don't think so:
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 34 +++++++++++++++-------------------
- 1 file changed, 15 insertions(+), 19 deletions(-)
++1:     movq (%rsi),%r8
++2:     movq 1*8(%rsi),%r9
++3:     movq 2*8(%rsi),%r10
++4:     movq 3*8(%rsi),%r11
+...
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b2de8c8761ad..268de1654128 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2994,17 +2994,17 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
-  * Checks whether it makes sense to retry the reclaim to make a forward progress
-  * for the given allocation request.
-  * The reclaim feedback represented by did_some_progress (any progress during
-- * the last reclaim round), pages_reclaimed (cumulative number of reclaimed
-- * pages) and no_progress_loops (number of reclaim rounds without any progress
-- * in a row) is considered as well as the reclaimable pages on the applicable
-- * zone list (with a backoff mechanism which is a function of no_progress_loops).
-+ * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-+ * any progress in a row) is considered as well as the reclaimable pages on the
-+ * applicable zone list (with a backoff mechanism which is a function of
-+ * no_progress_loops).
-  *
-  * Returns true if a retry is viable or false to enter the oom path.
-  */
- static inline bool
- should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		     struct alloc_context *ac, int alloc_flags,
--		     bool did_some_progress, unsigned long pages_reclaimed,
-+		     bool did_some_progress,
- 		     int no_progress_loops)
- {
- 	struct zone *zone;
-@@ -3018,13 +3018,8 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		return false;
- 
- 	/* Do not retry high order allocations unless they are __GFP_REPEAT */
--	if (order > PAGE_ALLOC_COSTLY_ORDER) {
--		if (!(gfp_mask & __GFP_REPEAT) || pages_reclaimed >= (1<<order))
--			return false;
--
--		if (did_some_progress)
--			return true;
--	}
-+	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
-+		return false;
- 
- 	/*
- 	 * Keep reclaiming pages while there is a chance this will lead somewhere.
-@@ -3090,7 +3085,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
- 	struct page *page = NULL;
- 	int alloc_flags;
--	unsigned long pages_reclaimed = 0;
- 	unsigned long did_some_progress;
- 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	bool deferred_compaction = false;
-@@ -3255,16 +3249,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (gfp_mask & __GFP_NORETRY)
- 		goto noretry;
- 
--	if (did_some_progress) {
-+	/*
-+	 * Costly allocations might have made a progress but this doesn't mean
-+	 * their order will become available due to high fragmentation so do
-+	 * not reset the no progress counter for them
-+	 */
-+	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
- 		no_progress_loops = 0;
--		pages_reclaimed += did_some_progress;
--	} else {
-+	else
- 		no_progress_loops++;
--	}
- 
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
--				 did_some_progress > 0, pages_reclaimed,
--				 no_progress_loops))
-+				 did_some_progress > 0, no_progress_loops))
- 		goto retry;
- 
- 	/* Reclaim has failed us, start killing things */
+You need to load the data into registers first because MOVNTI needs them
+there as it does reg -> mem movement. That first load from memory into
+registers with a normal MOV will pull the data into the cache.
+
+Perhaps the first thing to try would be to see what slowdown normal MOVs
+bring and if not really noticeable, use those instead.
+
+> On another topic raised by Boris ... is there some CONFIG_PMEM*
+> that I should use as a dependency to enable all this?
+
+I found CONFIG_LIBNVDIMM only today:
+
+drivers/nvdimm/Kconfig:1:menuconfig LIBNVDIMM
+drivers/nvdimm/Kconfig:2:       tristate "NVDIMM (Non-Volatile Memory Device) Support"
+
 -- 
-2.6.2
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
