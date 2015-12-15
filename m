@@ -1,50 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E506B6B025B
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:46:05 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id e66so1858442pfe.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:46:05 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 86si806614pfs.88.2015.12.15.15.46.05
-        for <linux-mm@kvack.org>;
-        Tue, 15 Dec 2015 15:46:05 -0800 (PST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCHV2 2/3] x86, ras: Extend machine check recovery code to
- annotated ring0 areas
-Date: Tue, 15 Dec 2015 23:46:03 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F85DBE@ORSMSX114.amr.corp.intel.com>
-References: <cover.1449861203.git.tony.luck@intel.com>
- <e8029c58c7d4b5094ec274c78dee01d390317d4d.1449861203.git.tony.luck@intel.com>
- <20151215114314.GD25973@pd.tnic>
-In-Reply-To: <20151215114314.GD25973@pd.tnic>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E3B6B025D
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:46:59 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id wq6so13156938pac.1
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 15:46:59 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 62si3486pfp.195.2015.12.15.15.46.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Dec 2015 15:46:59 -0800 (PST)
+Date: Tue, 15 Dec 2015 15:46:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [-mm PATCH v2 21/25] mm, dax, pmem: introduce
+ {get|put}_dev_pagemap() for dax-gup
+Message-Id: <20151215154658.993c1b63977332027792aed7@linux-foundation.org>
+In-Reply-To: <20151210023905.30368.32787.stgit@dwillia2-desk3.jf.intel.com>
+References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
+	<20151210023905.30368.32787.stgit@dwillia2-desk3.jf.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "x86@kernel.org" <x86@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Logan Gunthorpe <logang@deltatee.com>
 
-Pj4gKwkvKiBGYXVsdCB3YXMgaW4gcmVjb3ZlcmFibGUgYXJlYSBvZiB0aGUga2VybmVsICovDQo+
-PiArCWlmICgobS5jcyAmIDMpICE9IDMgJiYgd29yc3QgPT0gTUNFX0FSX1NFVkVSSVRZKQ0KPj4g
-KwkJaWYgKCFmaXh1cF9tY2V4Y2VwdGlvbihyZWdzLCBtLmFkZHIpKQ0KPj4gKwkJCW1jZV9wYW5p
-YygiRmFpbGVkIGtlcm5lbCBtb2RlIHJlY292ZXJ5IiwgJm0sIE5VTEwpOw0KPgkJCQkgICBeXl5e
-Xl5eXl5eXl5eXl5eXl5eXl5eXl5eXl4NCj4NCj4gRG9lcyB0aGF0IGFsd2F5cyBpbXBseSBhIGZh
-aWxlZCBrZXJuZWwgbW9kZSByZWNvdmVyeT8gSSBkb24ndCBzZWUNCj4NCj4JKG0uY3MgPT0gMCBh
-bmQgTUNFX0FSX1NFVkVSSVRZKQ0KPg0KPiBNQ0VzIGFsd2F5cyBtZWFuaW5nIHRoYXQgYSByZWNv
-dmVyeSBzaG91bGQgYmUgYXR0ZW1wdGVkIHRoZXJlLiBJIHRoaW5rDQo+IHRoaXMgc2hvdWxkIHNp
-bXBseSBzYXkNCj4NCj4JbWNlX3BhbmljKCJGYXRhbCBtYWNoaW5lIGNoZWNrIG9uIGN1cnJlbnQg
-Q1BVIiwgJm0sIG1zZyk7DQoNCkkgZG9uJ3QgdGhpbmsgdGhpcyBjYW4gZXZlciBoYXBwZW4uIElm
-IHdlIHdlcmUgaW4ga2VybmVsIG1vZGUgYW5kIGRlY2lkZWQNCnRoYXQgdGhlIHNldmVyaXR5IHdh
-cyBBUl9TRVZFUklUWSAuLi4gdGhlbiBzZWFyY2hfbWNleGNlcHRpb25fdGFibGUoKQ0KZm91bmQg
-YW4gZW50cnkgZm9yIHRoZSBJUCB3aGVyZSB0aGUgbWFjaGluZSBjaGVjayBoYXBwZW5lZC4NCg0K
-VGhlIG9ubHkgd2F5IGZvciBmaXh1cF9leGNlcHRpb24gdG8gZmFpbCBpcyBpZiBzZWFyY2hfbWNl
-eGNlcHRpb25fdGFibGUoKQ0Kbm93IHN1ZGRlbmx5IGRvZXNuJ3QgZmluZCB0aGUgZW50cnkgaXQg
-Zm91bmQgZWFybGllci4NCg0KQnV0IGlmIHRoaXMgImNhbid0IGhhcHBlbiIgdGhpbmcgYWN0dWFs
-bHkgZG9lcyBoYXBwZW4gLi4uIEknZCBsaWtlIHRoZSBwYW5pYw0KbWVzc2FnZSB0byBiZSBkaWZm
-ZXJlbnQgZnJvbSBvdGhlciBtY2VfcGFuaWMoKSBzbyB5b3UnbGwga25vdyB0byBibGFtZQ0KbWUu
-DQoNCkFwcGxpZWQgYWxsIHRoZSBvdGhlciBzdWdnZXN0aW9ucy4NCg0KLVRvbnkNCg0K
+On Wed, 09 Dec 2015 18:39:06 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+
+> get_dev_page() enables paths like get_user_pages() to pin a dynamically
+> mapped pfn-range (devm_memremap_pages()) while the resulting struct page
+> objects are in use.  Unlike get_page() it may fail if the device is, or
+> is in the process of being, disabled.  While the initial lookup of the
+> range may be an expensive list walk, the result is cached to speed up
+> subsequent lookups which are likely to be in the same mapped range.
+> 
+> devm_memremap_pages() now requires a reference counter to be specified
+> at init time.  For pmem this means moving request_queue allocation into
+> pmem_alloc() so the existing queue usage counter can track "device
+> pages".
+> 
+> Cc: Dave Hansen <dave@sr71.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matthew Wilcox <willy@linux.intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Tested-by: Logan Gunthorpe <logang@deltatee.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  drivers/nvdimm/pmem.c    |    6 +++--
+>  include/linux/mm.h       |   49 +++++++++++++++++++++++++++++++++++++++++--
+>  include/linux/mm_types.h |    5 ++++
+>  kernel/memremap.c        |   53 +++++++++++++++++++++++++++++++++++++++++++---
+>  4 files changed, 105 insertions(+), 8 deletions(-)
+> 
+> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+> index 9060a64628ae..11e483a3fbc9 100644
+> --- a/drivers/nvdimm/pmem.c
+> +++ b/drivers/nvdimm/pmem.c
+> @@ -149,7 +149,7 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+>  	pmem->pfn_flags = PFN_DEV;
+>  	if (pmem_should_map_pages(dev)) {
+>  		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res,
+> -				NULL);
+> +				&q->q_usage_counter, NULL);
+>  		pmem->pfn_flags |= PFN_MAP;
+>  	} else
+>  		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+> @@ -323,6 +323,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+>  	struct vmem_altmap *altmap;
+>  	struct nd_pfn_sb *pfn_sb;
+>  	struct pmem_device *pmem;
+> +	struct request_queue *q;
+>  	phys_addr_t offset;
+>  	int rc;
+>  	struct vmem_altmap __altmap = {
+> @@ -374,9 +375,10 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+>  
+>  	/* establish pfn range for lookup, and switch to direct map */
+>  	pmem = dev_get_drvdata(dev);
+> +	q = pmem->pmem_queue;
+>  	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+>  	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res,
+> -			altmap);
+> +			&q->q_usage_counter, altmap);
+>  	pmem->pfn_flags |= PFN_MAP;
+>  	if (IS_ERR(pmem->virt_addr)) {
+>  		rc = PTR_ERR(pmem->virt_addr);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e8130b798da8..c74e7eca24c0 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -15,12 +15,14 @@
+>  #include <linux/debug_locks.h>
+>  #include <linux/mm_types.h>
+>  #include <linux/range.h>
+> +#include <linux/percpu-refcount.h>
+>  #include <linux/pfn.h>
+>  #include <linux/bit_spinlock.h>
+>  #include <linux/shrinker.h>
+>  #include <linux/resource.h>
+>  #include <linux/page_ext.h>
+>  #include <linux/err.h>
+> +#include <linux/ioport.h>
+
+Oh geeze, poor old mm.h.
+
+>
+> ...
+>
+> @@ -785,6 +791,45 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+>  }
+>  #endif
+>  
+> +/**
+> + * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
+> + * @pfn: page frame number to lookup page_map
+> + * @pgmap: optional known pgmap that already has a reference
+> + *
+> + * @pgmap allows the overhead of a lookup to be bypassed when @pfn lands in the
+> + * same mapping.
+> + */
+> +static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+> +		struct dev_pagemap *pgmap)
+> +{
+> +	const struct resource *res = pgmap ? pgmap->res : NULL;
+> +	resource_size_t phys = __pfn_to_phys(pfn);
+> +
+> +	/*
+> +	 * In the cached case we're already holding a live reference so
+> +	 * we can simply do a blind increment
+> +	 */
+> +	if (res && phys >= res->start && phys <= res->end) {
+> +		percpu_ref_get(pgmap->ref);
+> +		return pgmap;
+> +	}
+> +
+> +	/* fall back to slow path lookup */
+> +	rcu_read_lock();
+> +	pgmap = find_dev_pagemap(phys);
+> +	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
+> +		pgmap = NULL;
+> +	rcu_read_unlock();
+> +
+> +	return pgmap;
+> +}
+
+Big.  Does it need to be inlined?
+
+> +static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
+> +{
+> +	if (pgmap)
+> +		percpu_ref_put(pgmap->ref);
+> +}
+> +
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
