@@ -1,58 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 988AF6B0254
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 14:28:46 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l126so8655228wml.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:28:46 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id js6si3980438wjb.211.2015.12.15.11.28.45
-        for <linux-mm@kvack.org>;
-        Tue, 15 Dec 2015 11:28:45 -0800 (PST)
-Date: Tue, 15 Dec 2015 20:28:37 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV2 3/3] x86, ras: Add mcsafe_memcpy() function to recover
- from machine checks
-Message-ID: <20151215192837.GL25973@pd.tnic>
-References: <cover.1449861203.git.tony.luck@intel.com>
- <23b2515da9d06b198044ad83ca0a15ba38c24e6e.1449861203.git.tony.luck@intel.com>
- <20151215131135.GE25973@pd.tnic>
- <CAPcyv4gMr6LcZqjxt6fAoEiaa0AzcgMxnp2+V=TWJ1eHb6nC3A@mail.gmail.com>
- <3908561D78D1C84285E8C5FCA982C28F39F8566E@ORSMSX114.amr.corp.intel.com>
- <CAPcyv4icSmdnvQhsdzfP3uZYXJ2vsjrZxMQjSghNOt19u++o7g@mail.gmail.com>
- <CAPcyv4gMku=rAczAz2b4PaW6qwm9LAVU8BG3hcT_A4QMAkZfbA@mail.gmail.com>
- <20151215183924.GJ25973@pd.tnic>
- <94D0CD8314A33A4D9D801C0FE68B40295BE9F290@G4W3202.americas.hpqcorp.net>
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 755576B0254
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 14:39:21 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id l126so9024390wml.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 11:39:21 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id db10si4042204wjc.200.2015.12.15.11.39.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Dec 2015 11:39:20 -0800 (PST)
+Date: Tue, 15 Dec 2015 14:38:58 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 4/4] mm: memcontrol: clean up alloc, online, offline,
+ free functions
+Message-ID: <20151215193858.GA15265@cmpxchg.org>
+References: <1449863653-6546-1-git-send-email-hannes@cmpxchg.org>
+ <1449863653-6546-4-git-send-email-hannes@cmpxchg.org>
+ <20151214171455.GF28521@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <94D0CD8314A33A4D9D801C0FE68B40295BE9F290@G4W3202.americas.hpqcorp.net>
+In-Reply-To: <20151214171455.GF28521@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, Dec 15, 2015 at 07:19:58PM +0000, Elliott, Robert (Persistent Memory) wrote:
+Hi Vladimir,
 
-...
+On Mon, Dec 14, 2015 at 08:14:55PM +0300, Vladimir Davydov wrote:
+> On Fri, Dec 11, 2015 at 02:54:13PM -0500, Johannes Weiner wrote:
+> ...
+> > -static int
+> > -mem_cgroup_css_online(struct cgroup_subsys_state *css)
+> > +static struct cgroup_subsys_state * __ref
+> > +mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+> >  {
+> > -	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> > -	struct mem_cgroup *parent = mem_cgroup_from_css(css->parent);
+> > -	int ret;
+> > -
+> > -	if (css->id > MEM_CGROUP_ID_MAX)
+> > -		return -ENOSPC;
+> > +	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
+> > +	struct mem_cgroup *memcg;
+> > +	long error = -ENOMEM;
+> >  
+> > -	if (!parent)
+> > -		return 0;
+> > +	memcg = mem_cgroup_alloc();
+> > +	if (!memcg)
+> > +		return ERR_PTR(error);
+> >  
+> >  	mutex_lock(&memcg_create_mutex);
+> 
+> It is pointless to take memcg_create_mutex in ->css_alloc. It won't
+> prevent setting use_hierarchy for parent after a new child was
+> allocated, but before it was added to the list of children (see
+> create_css()). Taking the mutex in ->css_online renders this race
+> impossible. That is, your cleanup breaks use_hierarchy consistency
+> check.
+> 
+> Can we drop this use_hierarchy consistency check at all and allow
+> children of a cgroup with use_hierarchy=1 have use_hierarchy=0? Yeah,
+> that might result in some strangeness if cgroups are created in parallel
+> with use_hierarchy flipped, but is it a valid use case? I surmise, one
+> just sets use_hierarchy for a cgroup once and for good before starting
+> to create sub-cgroups.
 
-> Due to the historic long latency of storage devices,
-> applications don't re-read from storage again; they
-> save the results.
-> So, the streaming-load instructions are beneficial:
+I don't think we have to support airtight exclusion between somebody
+changing the parent attribute and creating new children that inherit
+these attributes. Everything will still work if this race happens.
 
-That's the theory...
+Does that mean we have to remove the restriction altogether? I'm not
+convinced. We can just keep it for historical purposes so that we do
+not *encourage* this weird setting.
 
-Do you also have some actual performance numbers where non-temporal
-operations are better than the REP; MOVSB and *actually* show
-improvements? And no microbenchmarks please.
+I think that's good enough. Let's just remove the memcg_create_mutex.
 
-Thanks.
+> > -	memcg->use_hierarchy = parent->use_hierarchy;
+> > -	memcg->oom_kill_disable = parent->oom_kill_disable;
+> > -	memcg->swappiness = mem_cgroup_swappiness(parent);
+> > -
+> > -	if (parent->use_hierarchy) {
+> > +	memcg->high = PAGE_COUNTER_MAX;
+> > +	memcg->soft_limit = PAGE_COUNTER_MAX;
+> > +	if (parent)
+> > +		memcg->swappiness = mem_cgroup_swappiness(parent);
+> > +	if (parent && parent->use_hierarchy) {
+> > +		memcg->use_hierarchy = true;
+> > +		memcg->oom_kill_disable = parent->oom_kill_disable;
+> 
+> oom_kill_disable was propagated to child cgroup despite use_hierarchy
+> configuration. I don't see any reason to change this.
 
--- 
-Regards/Gruss,
-    Boris.
+Just a weird quirk of !use_hierarchy, I guess. Technically, if you're
+not in hierarchy mode then your parent is the root, not whatever is in
+the css tree above you. And root can't disable OOM killing. So I don't
+really care either way. Restored to previous behavior.
 
-ECO tip #101: Trim your mails when you reply.
+> > @@ -4296,19 +4211,30 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+> >  	}
+> >  	mutex_unlock(&memcg_create_mutex);
+> >  
+> > -	ret = memcg_propagate_kmem(memcg);
+> > -	if (ret)
+> > -		return ret;
+> > +	/* The following stuff does not apply to the root */
+> > +	if (!parent) {
+> > +		root_mem_cgroup = memcg;
+> > +		return &memcg->css;
+> > +	}
+> > +
+> > +	error = memcg_propagate_kmem(parent, memcg);
+> 
+> I don't think ->css_alloc is the right place for this function: if
+> create_css() fails after ->css_alloc and before ->css_online, it'll call
+> ->css_free, which won't cleanup kmem properly.
+
+Hm, on the other hand, the static branch maintenance is done from
+css_free. If online doesn't run we'll have an underflow there.
+
+I think the easiest way to deal with this is to have memcg_free_kmem()
+check if offlining has happened, and if not call memcg_offline_kmem().
+
+> > +	if (error)
+> > +		goto fail;
+> >  
+> >  	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+> >  		static_branch_inc(&memcg_sockets_enabled_key);
+> 
+> Frankly, I don't get why this should live here either. This has nothing
+> to do with memcg allocation and looks rather like a preparation for
+> online.
+
+It matches css_free() as per above. Unless we need synchronization
+with showing up as a child in the parent, there is no need to use
+online and fragment the initialization. So I'd rather consolidate.
+
+> > @@ -4347,9 +4270,11 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+> >  	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && memcg->tcpmem_active)
+> >  		static_branch_dec(&memcg_sockets_enabled_key);
+> >  
+> > +	vmpressure_cleanup(&memcg->vmpressure);
+> 
+> vmpressure->work can be scheduled after offline, so ->css_free is
+> definitely the right place for vmpressure_cleanup. Looks like you've
+> just fixed a potential use-after-free bug.
+
+Yay! Since nobody reported this problem, it should be okay to keep it
+in this patch.
+
+So, how about the following fixlets on top to address your comments?
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index af8714a..124a802 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -250,13 +250,6 @@ enum res_type {
+ /* Used for OOM nofiier */
+ #define OOM_CONTROL		(0)
+ 
+-/*
+- * The memcg_create_mutex will be held whenever a new cgroup is created.
+- * As a consequence, any change that needs to protect against new child cgroups
+- * appearing has to hold it as well.
+- */
+-static DEFINE_MUTEX(memcg_create_mutex);
+-
+ /* Some nice accessors for the vmpressure. */
+ struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
+ {
+@@ -2660,14 +2653,6 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+ {
+ 	bool ret;
+ 
+-	/*
+-	 * The lock does not prevent addition or deletion of children, but
+-	 * it prevents a new child from being initialized based on this
+-	 * parent in css_online(), so it's enough to decide whether
+-	 * hierarchically inherited attributes can still be changed or not.
+-	 */
+-	lockdep_assert_held(&memcg_create_mutex);
+-
+ 	rcu_read_lock();
+ 	ret = css_next_child(NULL, &memcg->css);
+ 	rcu_read_unlock();
+@@ -2730,10 +2715,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 	struct mem_cgroup *parent_memcg = mem_cgroup_from_css(memcg->css.parent);
+ 
+-	mutex_lock(&memcg_create_mutex);
+-
+ 	if (memcg->use_hierarchy == val)
+-		goto out;
++		return 0;
+ 
+ 	/*
+ 	 * If parent's use_hierarchy is set, we can't make any modifications
+@@ -2752,9 +2735,6 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
+ 	} else
+ 		retval = -EINVAL;
+ 
+-out:
+-	mutex_unlock(&memcg_create_mutex);
+-
+ 	return retval;
+ }
+ 
+@@ -2929,6 +2909,10 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 
+ static void memcg_free_kmem(struct mem_cgroup *memcg)
+ {
++	/* css_alloc() failed, offlining didn't happen */
++	if (unlikely(memcg->kmem_state == KMEM_ONLINE))
++		memcg_offline_kmem(memcg);
++
+ 	if (memcg->kmem_state == KMEM_ALLOCATED) {
+ 		memcg_destroy_kmem_caches(memcg);
+ 		static_branch_dec(&memcg_kmem_enabled_key);
+@@ -2956,11 +2940,9 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
+ 	mutex_lock(&memcg_limit_mutex);
+ 	/* Top-level cgroup doesn't propagate from root */
+ 	if (!memcg_kmem_online(memcg)) {
+-		mutex_lock(&memcg_create_mutex);
+ 		if (cgroup_is_populated(memcg->css.cgroup) ||
+ 		    (memcg->use_hierarchy && memcg_has_children(memcg)))
+ 			ret = -EBUSY;
+-		mutex_unlock(&memcg_create_mutex);
+ 		if (ret)
+ 			goto out;
+ 		ret = memcg_online_kmem(memcg);
+@@ -4184,14 +4166,14 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 	if (!memcg)
+ 		return ERR_PTR(error);
+ 
+-	mutex_lock(&memcg_create_mutex);
+ 	memcg->high = PAGE_COUNTER_MAX;
+ 	memcg->soft_limit = PAGE_COUNTER_MAX;
+-	if (parent)
++	if (parent) {
+ 		memcg->swappiness = mem_cgroup_swappiness(parent);
++		memcg->oom_kill_disable = parent->oom_kill_disable;
++	}
+ 	if (parent && parent->use_hierarchy) {
+ 		memcg->use_hierarchy = true;
+-		memcg->oom_kill_disable = parent->oom_kill_disable;
+ 		page_counter_init(&memcg->memory, &parent->memory);
+ 		page_counter_init(&memcg->memsw, &parent->memsw);
+ 		page_counter_init(&memcg->kmem, &parent->kmem);
+@@ -4209,7 +4191,6 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 		if (parent != root_mem_cgroup)
+ 			memory_cgrp_subsys.broken_hierarchy = true;
+ 	}
+-	mutex_unlock(&memcg_create_mutex);
+ 
+ 	/* The following stuff does not apply to the root */
+ 	if (!parent) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
