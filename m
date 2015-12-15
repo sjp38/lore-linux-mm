@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF136B0254
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 19:20:06 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id to4so18366949igc.0
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 16:20:06 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id s9si500488igg.47.2015.12.14.16.20.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 14 Dec 2015 16:20:06 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NZD00AG1I9E7U90@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Dec 2015 00:20:02 +0000 (GMT)
-Subject: Re: [PATCH 10/11] arm/samsung: Change s3c_pm_run_res() to use System
- RAM type
-References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
- <1450136246-17053-10-git-send-email-toshi.kani@hpe.com>
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Message-id: <566F5CAE.5020004@samsung.com>
-Date: Tue, 15 Dec 2015 09:19:58 +0900
-MIME-version: 1.0
-In-reply-to: <1450136246-17053-10-git-send-email-toshi.kani@hpe.com>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E6A046B0254
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2015 19:26:45 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so112140575pac.3
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2015 16:26:45 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id pz7si14464643pab.216.2015.12.14.16.26.45
+        for <linux-mm@kvack.org>;
+        Mon, 14 Dec 2015 16:26:45 -0800 (PST)
+Subject: Re: [PATCH 31/32] x86, pkeys: execute-only support
+References: <20151214190542.39C4886D@viggo.jf.intel.com>
+ <20151214190632.6A741188@viggo.jf.intel.com>
+ <CAGXu5jJ5oHy11Uy4N2m1aa2A9ar9-oH_kez9jq=gM8CVSj734Q@mail.gmail.com>
+ <566F52CE.6080501@sr71.net>
+ <CALCETrWZbBD9vOrGn+=Qr-mKVzSKkoUbo6u7u5rpG5S0RB6v+Q@mail.gmail.com>
+ <566F5444.7000302@sr71.net>
+ <CALCETrXhNXx_csPnXcSaPvgY52NN8kadvd8XG8FQ3dcMfvftOg@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <566F5E42.9000009@sr71.net>
+Date: Mon, 14 Dec 2015 16:26:42 -0800
+MIME-Version: 1.0
+In-Reply-To: <CALCETrXhNXx_csPnXcSaPvgY52NN8kadvd8XG8FQ3dcMfvftOg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>, akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kukjin Kim <kgene@kernel.org>, linux-samsung-soc@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Kees Cook <keescook@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On 15.12.2015 08:37, Toshi Kani wrote:
-> Change s3c_pm_run_res() to check with IORESOURCE_SYSTEM_RAM,
-> instead of strcmp() with "System RAM", in the resource table.
+On 12/14/2015 03:47 PM, Andy Lutomirski wrote:
+> On Mon, Dec 14, 2015 at 3:44 PM, Dave Hansen <dave@sr71.net> wrote:
+>> On 12/14/2015 03:39 PM, Andy Lutomirski wrote:
+>>>>> Nope.  My linker-fu is weak.
+>>>>>
+>>>>> Can we even depend on the linker by itself?  Even if the sections were
+>>>>> marked --x, we can't actually use them with those permissions unless we
+>>>>> have protection keys.
+>>>>>
+>>>>> Do we need some special tag on the section to tell the linker to map it
+>>>>> as --x under some conditions and r-x for others?
+>>>>>
+>>> Why?  Wouldn't --x just end up acting like r-x if PKRU is absent?
+>>
+>> An app doing --x would expect it to be unreadable.  I don't think we can
+>> just silently turn it in to r-x.
 > 
-> No functional change is made to the interface.
-> 
-> Cc: Kukjin Kim <kgene@kernel.org>
-> Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-> Cc: linux-samsung-soc@vger.kernel.org
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> ---
->  arch/arm/plat-samsung/pm-check.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+> I don't see why.  After all, an app doing --x right now gets rx.  An
+> app doing r-- still gets r-x on some systems.
 
-Reviewed-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+... and you're right.  I'd managed to convince myself otherwise, somehow.
 
-Best regards,
-Krzysztof
+Let me go see if I can get the execve() code to make one of these
+mappings if I hand it properly-aligned sections.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
