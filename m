@@ -1,44 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EE56B0254
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 05:44:10 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id n186so158543280wmn.1
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 02:44:10 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id w2si1009577wjf.153.2015.12.15.02.44.08
-        for <linux-mm@kvack.org>;
-        Tue, 15 Dec 2015 02:44:08 -0800 (PST)
-Date: Tue, 15 Dec 2015 11:44:02 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV2 1/3] x86, ras: Add new infrastructure for machine check
- fixup tables
-Message-ID: <20151215104402.GC25973@pd.tnic>
-References: <cover.1449861203.git.tony.luck@intel.com>
- <456153d09e85f2f139020a051caed3ca8f8fca73.1449861203.git.tony.luck@intel.com>
- <20151212101142.GA3867@pd.tnic>
- <20151215010059.GA17353@agluck-desk.sc.intel.com>
- <20151215094653.GA25973@pd.tnic>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7515F6B0257
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 06:02:34 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ur14so3192020pab.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 03:02:34 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id dx9si1212777pab.202.2015.12.15.03.02.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Dec 2015 03:02:33 -0800 (PST)
+Date: Tue, 15 Dec 2015 14:02:19 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+Message-ID: <20151215110219.GJ28521@esperanza>
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+ <20151214153037.GB4339@dhcp22.suse.cz>
+ <20151214194258.GH28521@esperanza>
+ <566F8781.80108@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151215094653.GA25973@pd.tnic>
+In-Reply-To: <566F8781.80108@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 15, 2015 at 10:46:53AM +0100, Borislav Petkov wrote:
-> I think what is more important is that this should be in the
-> x86-specific linker script, not in the generic one.
+On Tue, Dec 15, 2015 at 12:22:41PM +0900, Kamezawa Hiroyuki wrote:
+> On 2015/12/15 4:42, Vladimir Davydov wrote:
+> >On Mon, Dec 14, 2015 at 04:30:37PM +0100, Michal Hocko wrote:
+> >>On Thu 10-12-15 14:39:14, Vladimir Davydov wrote:
+> >>>In the legacy hierarchy we charge memsw, which is dubious, because:
+> >>>
+> >>>  - memsw.limit must be >= memory.limit, so it is impossible to limit
+> >>>    swap usage less than memory usage. Taking into account the fact that
+> >>>    the primary limiting mechanism in the unified hierarchy is
+> >>>    memory.high while memory.limit is either left unset or set to a very
+> >>>    large value, moving memsw.limit knob to the unified hierarchy would
+> >>>    effectively make it impossible to limit swap usage according to the
+> >>>    user preference.
+> >>>
+> >>>  - memsw.usage != memory.usage + swap.usage, because a page occupying
+> >>>    both swap entry and a swap cache page is charged only once to memsw
+> >>>    counter. As a result, it is possible to effectively eat up to
+> >>>    memory.limit of memory pages *and* memsw.limit of swap entries, which
+> >>>    looks unexpected.
+> >>>
+> >>>That said, we should provide a different swap limiting mechanism for
+> >>>cgroup2.
+> >>>This patch adds mem_cgroup->swap counter, which charges the actual
+> >>>number of swap entries used by a cgroup. It is only charged in the
+> >>>unified hierarchy, while the legacy hierarchy memsw logic is left
+> >>>intact.
+> >>
+> >>I agree that the previous semantic was awkward. The problem I can see
+> >>with this approach is that once the swap limit is reached the anon
+> >>memory pressure might spill over to other and unrelated memcgs during
+> >>the global memory pressure. I guess this is what Kame referred to as
+> >>anon would become mlocked basically. This would be even more of an issue
+> >>with resource delegation to sub-hierarchies because nobody will prevent
+> >>setting the swap amount to a small value and use that as an anon memory
+> >>protection.
+> >
+> >AFAICS such anon memory protection has a side-effect: real-life
+> >workloads need page cache to run smoothly (at least for mapping
+> >executables). Disabling swapping would switch pressure to page caches,
+> >resulting in performance degradation. So, I don't think per memcg swap
+> >limit can be abused to boost your workload on an overcommitted system.
+> >
+> >If you mean malicious users, well, they already have plenty ways to eat
+> >all available memory up to the hard limit by creating unreclaimable
+> >kernel objects.
+> >
+> "protect anon" user's malicious degree is far lower than such cracker like users.
 
-And related to that, I think all those additions to kernel/extable.c
-should be somewhere in arch/x86/ and not in generic code.
+What do you mean by "malicious degree"? What is such a user trying to
+achieve? Killing the system? Well, there are much more effective ways to
+do so. Or does it want to exploit a system specific feature to get
+benefit for itself? If so, it will hardly win by mlocking all anonymous
+memory, because this will result in higher pressure exerted upon its
+page cache and dcache, which normal workloads just can't get along
+without.
 
--- 
-Regards/Gruss,
-    Boris.
+> 
+> >Anyway, if you don't trust a container you'd better set the hard memory
+> >limit so that it can't hurt others no matter what it runs and how it
+> >tweaks its sub-tree knobs.
+> >
+> 
+> Limiting swap can easily cause "OOM-Killer even while there are
+> available swap" with easy mistake.
 
-ECO tip #101: Trim your mails when you reply.
+What do you mean by "easy mistake"? Misconfiguration? If so, it's a lame
+excuse IMO. Admin should take system configuration seriously. If the
+host is not overcommitted, it's trivial. Otherwise, there's always a
+chance that things will go south, so it's not going to be easy. It's up
+to admin to analyze risks and set limits accordingly. Exporting knobs
+with clear meaning is the best we can do here. swap.max is one such knob
+It defines maximal usage of swap resource. Allowing to breach it just
+does not add up.
+
+> Can't you add "swap excess" switch to sysctl to allow global memory
+> reclaim can ignore swap limitation ?
+
+I'd be opposed to it, because this would obscure the user API. OTOH, a
+kind of swap soft limit (swap.high?) might be considered. I'm not sure
+if it's really necessary though, because all arguments for it do not
+look convincing to me for now. So, personally, I would refrain from
+implementing it until it is really called for by users of cgroup v2.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
