@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 217546B0038
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 18:35:15 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id v86so19806462pfa.2
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 15:35:15 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCBE6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 18:58:46 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id ur14so31520362pab.0
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 15:58:46 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v17si8063868pfi.244.2015.12.16.15.35.14
+        by mx.google.com with ESMTPS id l85si8175494pfi.176.2015.12.16.15.58.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Dec 2015 15:35:14 -0800 (PST)
-Date: Wed, 16 Dec 2015 15:35:13 -0800
+        Wed, 16 Dec 2015 15:58:45 -0800 (PST)
+Date: Wed, 16 Dec 2015 15:58:44 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-Id: <20151216153513.e432dc70e035e5d07984710c@linux-foundation.org>
+Message-Id: <20151216155844.d1c3a5f35bc98072a80f939e@linux-foundation.org>
 In-Reply-To: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
 References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
 Mime-Version: 1.0
@@ -25,47 +25,85 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 On Tue, 15 Dec 2015 19:19:43 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-> This is an attempt to make the OOM detection more deterministic and
-> easier to follow because each reclaimer basically tracks its own
-> progress which is implemented at the page allocator layer rather spread
-> out between the allocator and the reclaim. The more on the implementation
-> is described in the first patch.
+> 
+> ...
+>
+> * base kernel
+> $ grep "Killed process" base-oom-run1.log | tail -n1
+> [  211.824379] Killed process 3086 (mem_eater) total-vm:85852kB, anon-rss:81996kB, file-rss:332kB, shmem-rss:0kB
+> $ grep "Killed process" base-oom-run2.log | tail -n1
+> [  157.188326] Killed process 3094 (mem_eater) total-vm:85852kB, anon-rss:81996kB, file-rss:368kB, shmem-rss:0kB
+> 
+> $ grep "invoked oom-killer" base-oom-run1.log | wc -l
+> 78
+> $ grep "invoked oom-killer" base-oom-run2.log | wc -l
+> 76
+> 
+> The number of OOM invocations is consistent with my last measurements
+> but the runtime is way too different (it took 800+s).
 
-We've been futzing with this stuff for many years and it still isn't
-working well.  This makes me expect that the new implementation will
-take a long time to settle in.
+I'm seeing 211 seconds vs 157 seconds?  If so, that's not toooo bad.  I
+assume the 800+s is sum-across-multiple-CPUs?  Given that all the CPUs
+are pounding away at the same data and the same disk, that doesn't
+sound like very interesting info - the overall elapsed time is the
+thing to look at in this case.
 
-To aid and accelerate this process I suggest we lard this code up with
-lots of debug info, so when someone reports an issue we have the best
-possible chance of understanding what went wrong.
+> One thing that
+> could have skewed results was that I was tail -f the serial log on the
+> host system to see the progress. I have stopped doing that. The results
+> are more consistent now but still too different from the last time.
+> This is really weird so I've retested with the last 4.2 mmotm again and
+> I am getting consistent ~220s which is really close to the above. If I
+> apply the WQ vmstat patch on top I am getting close to 160s so the stale
+> vmstat counters made a difference which is to be expected. I have a new
+> SSD in my laptop which migh have made a difference but I wouldn't expect
+> it to be that large.
+> 
+> $ grep "DMA32.*all_unreclaimable? no" base-oom-run1.log | wc -l
+> 4
+> $ grep "DMA32.*all_unreclaimable? no" base-oom-run2.log | wc -l
+> 1
+> 
+> * patched kernel
+> $ grep "Killed process" patched-oom-run1.log | tail -n1
+> [  341.164930] Killed process 3099 (mem_eater) total-vm:85852kB, anon-rss:82000kB, file-rss:336kB, shmem-rss:0kB
+> $ grep "Killed process" patched-oom-run2.log | tail -n1
+> [  349.111539] Killed process 3082 (mem_eater) total-vm:85852kB, anon-rss:81996kB, file-rss:4kB, shmem-rss:0kB
 
-This is easy in the case of oom-too-early - it's all slowpath code and
-we can just do printk(everything).  It's not so easy in the case of
-oom-too-late-or-never.  The reporter's machine just hangs or it
-twiddles thumbs for five minutes then goes oom.  But there are things
-we can do here as well, such as:
+Even better.
 
-- add an automatic "nearly oom" detection which detects when things
-  start going wrong and turns on diagnostics (this would need an enable
-  knob, possibly in debugfs).
+> $ grep "invoked oom-killer" patched-oom-run1.log | wc -l
+> 78
+> $ grep "invoked oom-killer" patched-oom-run2.log | wc -l
+> 77
+> 
+> $ grep "DMA32.*all_unreclaimable? no" patched-oom-run1.log | wc -l
+> 1
+> $ grep "DMA32.*all_unreclaimable? no" patched-oom-run2.log | wc -l
+> 0
+> 
+> So the number of OOM killer invocation is the same but the overall
+> runtime of the test was much longer with the patched kernel. This can be
+> attributed to more retries in general. The results from the base kernel
+> are quite inconsitent and I think that consistency is better here.
 
-- forget about an autodetector and simply add a debugfs knob to turn on
-  the diagnostics.
+It's hard to say how long declaration of oom should take.  Correctness
+comes first.  But what is "correct"?  oom isn't a binary condition -
+there's a chance that if we keep churning away for another 5 minutes
+we'll be able to satisfy this allocation (but probably not the next
+one).  There are tradeoffs between promptness-of-declaring-oom and
+exhaustiveness-in-avoiding-it.
 
-- sprinkle tracepoints everywhere and provide a set of
-  instructions/scripts so that people who know nothing about kernel
-  internals or tracing can easily gather the info we need to understand
-  issues.
+> 
+> 2) 2 writers again with 10s of run and then 10 mem_eaters to consume as much
+>    memory as possible without triggering the OOM killer. This required a lot
+>    of tuning but I've considered 3 consecutive runs without OOM as a success.
 
-- add a sysrq key to turn on diagnostics.  Pretty essential when the
-  machine is comatose and doesn't respond to keystrokes.
+"a lot of tuning" sounds bad.  It means that the tuning settings you
+have now for a particular workload on a particular machine will be
+wrong for other workloads and machines.  uh-oh.
 
-- something else
-
-So...  please have a think about it?  What can we add in here to make it
-as easy as possible for us (ie: you ;)) to get this code working well? 
-At this time, too much developer support code will be better than too
-little.  We can take it out later on.
+> ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
