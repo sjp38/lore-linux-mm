@@ -1,67 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id DEBEA6B0257
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 01:45:14 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id to4so51832710igc.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 22:45:14 -0800 (PST)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id e63si10450951iod.102.2015.12.15.22.45.14
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3346B0258
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 04:17:38 -0500 (EST)
+Received: by mail-qk0-f175.google.com with SMTP id t125so54341375qkh.3
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 01:17:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s105si5785711qgs.72.2015.12.16.01.17.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 22:45:14 -0800 (PST)
-Received: by mail-ig0-x22b.google.com with SMTP id xm8so35849380igb.1
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 22:45:14 -0800 (PST)
-From: Jiading Gai <jiading.gai@gmail.com>
-Subject: [PATCH] mm: memcontrol: fixed three spelling errors.
-Date: Wed, 16 Dec 2015 01:45:05 -0500
-Message-Id: <1450248305-7971-1-git-send-email-jiading.gai@gmail.com>
+        Wed, 16 Dec 2015 01:17:37 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH RFC] memory-hotplug: add automatic onlining policy for the newly added memory
+References: <1450202753-5556-1-git-send-email-vkuznets@redhat.com>
+	<5670D83E.9040407@huawei.com>
+Date: Wed, 16 Dec 2015 10:17:28 +0100
+In-Reply-To: <5670D83E.9040407@huawei.com> (Xishi Qiu's message of "Wed, 16
+	Dec 2015 11:19:26 +0800")
+Message-ID: <87k2oevjkn.fsf@vitty.brq.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Jiading Gai <paul.paul.mit@gmail.com>, Jiading Gai <jiading.gai@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, yanxiaofeng <yanxiaofeng@inspur.com>, Changsheng Liu <liuchangsheng@inspur.com>, Kay Sievers <kay@vrfy.org>
 
-From: Jiading Gai <paul.paul.mit@gmail.com>
+Xishi Qiu <qiuxishi@huawei.com> writes:
 
-Fixed three spelling errors.
+> On 2015/12/16 2:05, Vitaly Kuznetsov wrote:
+>
+>> Currently, all newly added memory blocks remain in 'offline' state unless
+>> someone onlines them, some linux distributions carry special udev rules
+>> like:
+>> 
+>> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+>> 
+>> to make this happen automatically. This is not a great solution for virtual
+>> machines where memory hotplug is being used to address high memory pressure
+>> situations as such onlining is slow and a userspace process doing this
+>> (udev) has a chance of being killed by the OOM killer as it will probably
+>> require to allocate some memory.
+>> 
+>> Introduce default policy for the newly added memory blocks in
+>> /sys/devices/system/memory/hotplug_autoonline file with two possible
+>> values: "offline" (the default) which preserves the current behavior and
+>> "online" which causes all newly added memory blocks to go online as
+>> soon as they're added.
+>> 
+>> Cc: Jonathan Corbet <corbet@lwn.net>
+>> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>> Cc: Daniel Kiper <daniel.kiper@oracle.com>
+>> Cc: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>> Cc: David Vrabel <david.vrabel@citrix.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
+>> Cc: Xishi Qiu <qiuxishi@huawei.com>
+>> Cc: Mel Gorman <mgorman@techsingularity.net>
+>> Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+>> Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+>> ---
+>> - I was able to find previous attempts to fix the issue, e.g.:
+>>   http://marc.info/?l=linux-kernel&m=137425951924598&w=2
+>>   http://marc.info/?l=linux-acpi&m=127186488905382
+>>   but I'm not completely sure why it didn't work out and the solution
+>>   I suggest is not 'smart enough', thus 'RFC'.
+>
+> + CC: 
+> yanxiaofeng@inspur.com
+> liuchangsheng@inspur.com
+>
+> Hi Vitaly,
+>
+> Why not use udev rule? I think it can online pages automatically.
+>
 
-Signed-off-by: Jiading Gai <jiading.gai@gmail.com>
----
- mm/memcontrol.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Two main reasons:
+1) I remember someone saying "You never need a mouse in order to add
+another mouse to the kernel" -- but we  we need memory to add more
+memory. Udev has a chance of being killed by the OOM killer as
+performing an action will probably require to allocate some
+memory. Other than that udev actions are generally slow compared to what
+we can do in kernel.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e234c21..4e424fc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1744,7 +1744,7 @@ bool mem_cgroup_oom_synchronize(bool handle)
- 		/*
- 		 * There is no guarantee that an OOM-lock contender
- 		 * sees the wakeups triggered by the OOM kill
--		 * uncharges.  Wake any sleepers explicitely.
-+		 * uncharges.  Wake any sleepers explicitly.
- 		 */
- 		memcg_oom_recover(memcg);
- 	}
-@@ -4277,7 +4277,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 		page_counter_init(&memcg->memsw, NULL);
- 		page_counter_init(&memcg->kmem, NULL);
- 		/*
--		 * Deeper hierachy with use_hierarchy == false doesn't make
-+		 * Deeper hierarchy with use_hierarchy == false doesn't make
- 		 * much sense so let cgroup subsystem know about this
- 		 * unfortunate state in our controller.
- 		 */
-@@ -4809,7 +4809,7 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
- 		return 0;
- 
- 	/*
--	 * We are now commited to this value whatever it is. Changes in this
-+	 * We are now committed to this value whatever it is. Changes in this
- 	 * tunable will only affect upcoming migrations, not the current one.
- 	 * So we need to save it, and keep it going.
- 	 */
+2) I agree with Kay that '... unconditional hotplug loop through
+userspace is absolutely pointless' (https://lkml.org/lkml/2013/7/25/354). 
+(... and I should had add him to CC, adding now). Udev maintainers
+refused to add a rule for unconditional memory onlining to udev and now
+linux distros have to carry such custom rules.
+
 -- 
-1.9.1
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
