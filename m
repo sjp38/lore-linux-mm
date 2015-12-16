@@ -1,64 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BF656B0038
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 11:36:15 -0500 (EST)
-Received: by mail-qk0-f172.google.com with SMTP id p187so72199150qkd.1
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 08:36:15 -0800 (PST)
-Received: from g4t3428.houston.hp.com (g4t3428.houston.hp.com. [15.201.208.56])
-        by mx.google.com with ESMTPS id n10si5030599ywb.310.2015.12.16.08.36.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Dec 2015 08:36:14 -0800 (PST)
-Message-ID: <1450283759.20148.11.camel@hpe.com>
-Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Wed, 16 Dec 2015 09:35:59 -0700
-In-Reply-To: <20151216154916.GF29775@pd.tnic>
-References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
-	 <20151216122642.GE29775@pd.tnic> <1450280642.29051.76.camel@hpe.com>
-	 <20151216154916.GF29775@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id DCD186B0038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 12:20:58 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id o64so15132291pfb.3
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 09:20:58 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id l13si6383588pfi.59.2015.12.16.09.20.57
+        for <linux-mm@kvack.org>;
+        Wed, 16 Dec 2015 09:20:58 -0800 (PST)
+Message-Id: <cover.1450283985.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Wed, 16 Dec 2015 08:39:45 -0800
+Subject: [PATCHV3 0/3] Machine check recovery when kernel accesses poison
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: akpm@linux-foundation.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Elliott@kvack.org, "Robert (Persistent Memory)" <elliott@hpe.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Wed, 2015-12-16 at 16:49 +0100, Borislav Petkov wrote:
-> On Wed, Dec 16, 2015 at 08:44:02AM -0700, Toshi Kani wrote:
-> > Besides "System RAM", which is commonly searched by multiple callers,
-> > we
-> > only have a few other uncommon cases:
-> >  - crash.c searches for "GART", "ACPI Tables", and "ACPI Non-volatile
-> > Storage".
-> >  - kexec_file.c searches for "Crash kernel".
-> >  - einj.c will search for "Persistent Memory".
-> 
-> Right, about those other types: your patchset improves the situation
-> but doesn't really get rid of the strcmp() and the strings. And using
-> strings to find resource types still looks yucky to me, even a week
-> later. :)
-> 
-> So how hard is it to do:
-> 
-> 	region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM);
-> 	region_intersects(base_addr, size, IORESOURCE_MEM,
-> RES_TYPE_PERSISTENT);
-> 	walk_iomem_res(RES_TYPE_GART, IORESOURCE_MEM, 0, -1, ced,
-> get_gart_ranges_callback);
-> 	...
-> 
-> and so on instead of using those silly strings?
+This series is initially targeted at the folks doing filesystems
+on top of NVDIMMs. They really want to be able to return -EIO
+when there is a h/w error (just like spinning rust, and SSD does).
 
-We do not have enough bits left to cover any potential future use-cases
-with other strings if we are going to get rid of strcmp() completely. 
- Since the searches from crash and kexec are one-time thing, and einj is a
-R&D tool, I think we can leave the strcmp() check for these special cases,
-and keep the interface flexible with any strings.
+I plan to use the same infrastructure in parts 1&2 to write a
+machine check aware "copy_from_user()" that will SIGBUS the
+calling application when a syscall touches poison in user space
+(just like we do when the application touches the poison itself).
 
-Thanks,
--Toshi
+Changes V2-V3:
+
+Andy:	Don't hack "regs->ax = BIT(63) | addr;" in the machine check
+	handler.  Now have better fixup code that computes the number
+	of remaining bytes (just like page-fault fixup).
+Andy:	#define for BIT(63). Done, plus couple of extra macros using it.
+Boris:	Don't clutter up generic code (like mm/extable.c) with this.
+	I moved everything under arch/x86 (the asm-generic change is
+	a more generic #define).
+Boris:	Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
+	I made it a real menu item with default "n". Dan Williams
+	will use "select MCE_KERNEL_RECOVERY" from his persistent
+	filesystem code.
+Boris:	Simplify conditionals in mce.c by moving tolerant/kill_it
+	checks earlier, with a skip to end if they aren't set.
+Boris:	Miscellaneous grammar/punctuation. Fixed.
+Boris:	Don't leak spurious __start_mcextable symbols into kernels
+	that didn't configure MCE_KERNEL_RECOVERY. Done.
+Tony:	New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
+	to new .S/.h files
+Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
+	or vmovntdqa on source addresses. I didn't fix this yet. Think
+	of the current mcsafe_memcpy() as the first of several functions.
+	This one is useful for small copies (meta-data) where the overhead
+	of saving SSE/AVX state isn't justified.
+
+Changes V1->V2:
+
+0-day:	Reported build errors and warnings on 32-bit systems. Fixed
+0-day:	Reported bloat to tinyconfig. Fixed
+Boris:	Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
+Boris:	Re-write "tolerant==3" check to reduce indentation level. See below.
+Andy:	Check IP is valid before searching kernel exception tables. Done.
+Andy:	Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
+Andy:	Untangle mess of code in tail of do_machine_check() to make it
+	clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
+	if we were called from user code, not from kernel!). Done.
+
+Tony Luck (3):
+  x86, ras: Add new infrastructure for machine check fixup tables
+  x86, ras: Extend machine check recovery code to annotated ring0 areas
+  x86, ras: Add mcsafe_memcpy() function to recover from machine checks
+
+ arch/x86/Kconfig                          |  10 +++
+ arch/x86/include/asm/asm.h                |  10 ++-
+ arch/x86/include/asm/mce.h                |  14 +++
+ arch/x86/include/asm/mcsafe_copy.h        |  11 +++
+ arch/x86/kernel/cpu/mcheck/mce-severity.c |  21 ++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          |  86 +++++++++++-------
+ arch/x86/kernel/vmlinux.lds.S             |   6 +-
+ arch/x86/kernel/x8664_ksyms_64.c          |   5 ++
+ arch/x86/lib/Makefile                     |   1 +
+ arch/x86/lib/mcsafe_copy.S                | 142 ++++++++++++++++++++++++++++++
+ arch/x86/mm/extable.c                     |  19 ++++
+ include/asm-generic/vmlinux.lds.h         |  12 +--
+ 12 files changed, 293 insertions(+), 44 deletions(-)
+ create mode 100644 arch/x86/include/asm/mcsafe_copy.h
+ create mode 100644 arch/x86/lib/mcsafe_copy.S
+
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
