@@ -1,203 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2976B0038
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 21:18:21 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id v16so24021294qge.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:18:21 -0800 (PST)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id n83si4193611qhn.97.2015.12.15.18.18.20
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 00F4D6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 21:44:38 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id ph11so123989420igc.1
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:44:37 -0800 (PST)
+Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
+        by mx.google.com with ESMTPS id ys2si9112578igb.0.2015.12.15.18.44.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 18:18:20 -0800 (PST)
-Received: by mail-qk0-x234.google.com with SMTP id k189so44148299qkc.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 18:18:20 -0800 (PST)
+        Tue, 15 Dec 2015 18:44:37 -0800 (PST)
+Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
+	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 8B18EAC0273
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 11:44:32 +0900 (JST)
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+ <20151214153037.GB4339@dhcp22.suse.cz> <20151214194258.GH28521@esperanza>
+ <566F8781.80108@jp.fujitsu.com> <20151215110219.GJ28521@esperanza>
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <5670CFFA.3060309@jp.fujitsu.com>
+Date: Wed, 16 Dec 2015 11:44:10 +0900
 MIME-Version: 1.0
-In-Reply-To: <20151215161438.e971fc9b98814513bbacb3ed@linux-foundation.org>
-References: <20151210023708.30368.92962.stgit@dwillia2-desk3.jf.intel.com>
-	<20151210023916.30368.94401.stgit@dwillia2-desk3.jf.intel.com>
-	<20151215161438.e971fc9b98814513bbacb3ed@linux-foundation.org>
-Date: Tue, 15 Dec 2015 18:18:20 -0800
-Message-ID: <CAPcyv4hRmMJBBWr6dTjX05KFUE8sv6WQa0Co9h-ukHn=_8p6Ag@mail.gmail.com>
-Subject: Re: [-mm PATCH v2 23/25] mm, x86: get_user_pages() for dax mappings
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20151215110219.GJ28521@esperanza>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@sr71.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Peter Zijlstra <peterz@infradead.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Logan Gunthorpe <logang@deltatee.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 15, 2015 at 4:14 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 09 Dec 2015 18:39:16 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+On 2015/12/15 20:02, Vladimir Davydov wrote:
+> On Tue, Dec 15, 2015 at 12:22:41PM +0900, Kamezawa Hiroyuki wrote:
+>> On 2015/12/15 4:42, Vladimir Davydov wrote:
+>>> On Mon, Dec 14, 2015 at 04:30:37PM +0100, Michal Hocko wrote:
+>>>> On Thu 10-12-15 14:39:14, Vladimir Davydov wrote:
+>>>>> In the legacy hierarchy we charge memsw, which is dubious, because:
+>>>>>
+>>>>>   - memsw.limit must be >= memory.limit, so it is impossible to limit
+>>>>>     swap usage less than memory usage. Taking into account the fact that
+>>>>>     the primary limiting mechanism in the unified hierarchy is
+>>>>>     memory.high while memory.limit is either left unset or set to a very
+>>>>>     large value, moving memsw.limit knob to the unified hierarchy would
+>>>>>     effectively make it impossible to limit swap usage according to the
+>>>>>     user preference.
+>>>>>
+>>>>>   - memsw.usage != memory.usage + swap.usage, because a page occupying
+>>>>>     both swap entry and a swap cache page is charged only once to memsw
+>>>>>     counter. As a result, it is possible to effectively eat up to
+>>>>>     memory.limit of memory pages *and* memsw.limit of swap entries, which
+>>>>>     looks unexpected.
+>>>>>
+>>>>> That said, we should provide a different swap limiting mechanism for
+>>>>> cgroup2.
+>>>>> This patch adds mem_cgroup->swap counter, which charges the actual
+>>>>> number of swap entries used by a cgroup. It is only charged in the
+>>>>> unified hierarchy, while the legacy hierarchy memsw logic is left
+>>>>> intact.
+>>>>
+>>>> I agree that the previous semantic was awkward. The problem I can see
+>>>> with this approach is that once the swap limit is reached the anon
+>>>> memory pressure might spill over to other and unrelated memcgs during
+>>>> the global memory pressure. I guess this is what Kame referred to as
+>>>> anon would become mlocked basically. This would be even more of an issue
+>>>> with resource delegation to sub-hierarchies because nobody will prevent
+>>>> setting the swap amount to a small value and use that as an anon memory
+>>>> protection.
+>>>
+>>> AFAICS such anon memory protection has a side-effect: real-life
+>>> workloads need page cache to run smoothly (at least for mapping
+>>> executables). Disabling swapping would switch pressure to page caches,
+>>> resulting in performance degradation. So, I don't think per memcg swap
+>>> limit can be abused to boost your workload on an overcommitted system.
+>>>
+>>> If you mean malicious users, well, they already have plenty ways to eat
+>>> all available memory up to the hard limit by creating unreclaimable
+>>> kernel objects.
+>>>
+>> "protect anon" user's malicious degree is far lower than such cracker like users.
 >
->> A dax mapping establishes a pte with _PAGE_DEVMAP set when the driver
->> has established a devm_memremap_pages() mapping, i.e. when the pfn_t
->> return from ->direct_access() has PFN_DEV and PFN_MAP set.  Later, when
->> encountering _PAGE_DEVMAP during a page table walk we lookup and pin a
->> struct dev_pagemap instance to keep the result of pfn_to_page() valid
->> until put_page().
+> What do you mean by "malicious degree"? What is such a user trying to
+> achieve? Killing the system? Well, there are much more effective ways to
+> do so. Or does it want to exploit a system specific feature to get
+> benefit for itself? If so, it will hardly win by mlocking all anonymous
+> memory, because this will result in higher pressure exerted upon its
+> page cache and dcache, which normal workloads just can't get along
+> without.
 >
-> This patch adds a whole bunch of code and cycles to everyone's kernels,
-> but few of those kernels will ever use it.  What are our options for
-> reducing that overhead, presumably via Kconfig?
 
-It's does compile out when CONFIG_ZONE_DEVICE=n.
-
->> --- a/arch/x86/mm/gup.c
->> +++ b/arch/x86/mm/gup.c
->> @@ -63,6 +63,16 @@ retry:
->>  #endif
->>  }
+I wanted to say almost all application developers want to set swap.limit=0 if allowed.
+So, it's a usual people who can kill the system if swap imbalance is allowed.
+  
 >>
->> +static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
->> +{
->> +     while ((*nr) - nr_start) {
->> +             struct page *page = pages[--(*nr)];
->> +
->> +             ClearPageReferenced(page);
->> +             put_page(page);
->> +     }
->> +}
->
-> PG_referenced is doing something magical in this code.  Could we have a
-> nice comment explaining its meaning in this context?  Unless it's
-> already there and I missed it..
-
-In this case I'm just duplicating what gup_pte_range() already does
-with normal memory pages, no special meaning for zone_device pages.
-
->
+>>> Anyway, if you don't trust a container you'd better set the hard memory
+>>> limit so that it can't hurt others no matter what it runs and how it
+>>> tweaks its sub-tree knobs.
+>>>
 >>
->> ...
->>
->> @@ -830,6 +831,20 @@ static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
->>               percpu_ref_put(pgmap->ref);
->>  }
->>
->> +static inline void get_page(struct page *page)
->> +{
->> +     if (is_zone_device_page(page))
->> +             percpu_ref_get(page->pgmap->ref);
->> +
->> +     page = compound_head(page);
+>> Limiting swap can easily cause "OOM-Killer even while there are
+>> available swap" with easy mistake.
 >
-> So we're assuming that is_zone_device_page() against a tail page works
-> OK.  That's presently true, fingers crossed for the future...
+> What do you mean by "easy mistake"? Misconfiguration? If so, it's a lame
+> excuse IMO. Admin should take system configuration seriously. If the
+> host is not overcommitted, it's trivial. Otherwise, there's always a
+> chance that things will go south, so it's not going to be easy. It's up
+> to admin to analyze risks and set limits accordingly. Exporting knobs
+> with clear meaning is the best we can do here. swap.max is one such knob
+> It defines maximal usage of swap resource. Allowing to breach it just
+> does not add up.
 >
-> And we're also assuming that device pages are never compound.  How safe
-> is that assumption?
-
-These pages are never on a slab lru or touched by the mm outside of
-get_user_pages() and the I/O path for dma mapping.  It's a bug if a
-zone_device page is anything but a standalone vanilla page.
-
->> +     /*
->> +      * Getting a normal page or the head of a compound page
->> +      * requires to already have an elevated page->_count.
->> +      */
->> +     VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
->> +     atomic_inc(&page->_count);
->> +}
+>> Can't you add "swap excess" switch to sysctl to allow global memory
+>> reclaim can ignore swap limitation ?
 >
-> The core pagecache lookup bypasses get_page() by using
-> page_cache_get_speculative(), but get_page() might be a hotpath for
-> some workloads.  Here we're adding quite a bit of text and math and a
-> branch.  I'm counting 157 callsites.
+> I'd be opposed to it, because this would obscure the user API. OTOH, a
+> kind of swap soft limit (swap.high?) might be considered. I'm not sure
+> if it's really necessary though, because all arguments for it do not
+> look convincing to me for now. So, personally, I would refrain from
+> implementing it until it is really called for by users of cgroup v2.
 >
-> So this is a rather unwelcome change.  Why do we need to alter such a
-> generic function as get_page() anyway?  Is there some way to avoid
-> altering it?
 
-The minimum requirement is to pin down the driver while the pages it
-allocated might be in active use for dma or other i/o. We could meet
-this requirement by simply pinning the driver while any dax vma is
-open.
+Considering my customers, running OOM-Killer while there are free swap space is
+system's error rather than their misconfiguration.
 
-The downside of this is that it blocks device driver unbind
-indefinitely while a dax vma is established rather than only
-temporarily blocking unbind/remove for the lifetime of an O_DIRECT I/O
-operation.
+BTW, mlock() requires CAP_IPC_LOCK.
+please set default unlimited and check capability at setting swap limit, at least.
 
-This goes back to a recurring debate about whether pmem is "memory" or
-a "storage-device / disk".
+Thanks,
+-Kame
 
-pmem as memory => pin it active while any vma is established
 
-pmem as storage device => pin it active only while i/o is in flight
-and forcibly revoke mappings on an unbind/remove event.
-
->> +static void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +             pmd_t *pmd)
->> +{
->> +     pmd_t _pmd;
->> +
->> +     /*
->> +      * We should set the dirty bit only for FOLL_WRITE but for now
->> +      * the dirty bit in the pmd is meaningless.  And if the dirty
->> +      * bit will become meaningful and we'll only set it with
->> +      * FOLL_WRITE, an atomic set_bit will be required on the pmd to
->> +      * set the young bit, instead of the current set_pmd_at.
->> +      */
->> +     _pmd = pmd_mkyoung(pmd_mkdirty(*pmd));
->> +     if (pmdp_set_access_flags(vma, addr & HPAGE_PMD_MASK,
->> +                             pmd, _pmd,  1))
->> +             update_mmu_cache_pmd(vma, addr, pmd);
->> +}
->> +
->> +struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +             pmd_t *pmd, int flags)
->> +{
->> +     unsigned long pfn = pmd_pfn(*pmd);
->> +     struct mm_struct *mm = vma->vm_mm;
->> +     struct dev_pagemap *pgmap;
->> +     struct page *page;
->> +
->> +     assert_spin_locked(pmd_lockptr(mm, pmd));
->> +
->> +     if (flags & FOLL_WRITE && !pmd_write(*pmd))
->> +             return NULL;
->> +
->> +     if (pmd_present(*pmd) && pmd_devmap(*pmd))
->> +             /* pass */;
->> +     else
->> +             return NULL;
->> +
->> +     if (flags & FOLL_TOUCH)
->> +             touch_pmd(vma, addr, pmd);
->> +
->> +     /*
->> +      * device mapped pages can only be returned if the
->> +      * caller will manage the page reference count.
->> +      */
->> +     if (!(flags & FOLL_GET))
->> +             return ERR_PTR(-EEXIST);
->> +
->> +     pfn += (addr & ~PMD_MASK) >> PAGE_SHIFT;
->> +     pgmap = get_dev_pagemap(pfn, NULL);
->> +     if (!pgmap)
->> +             return ERR_PTR(-EFAULT);
->> +     page = pfn_to_page(pfn);
->> +     get_page(page);
->> +     put_dev_pagemap(pgmap);
->> +
->> +     return page;
->> +}
+> Thanks,
+> Vladimir
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 >
-> hm, so device pages can be huge.  How does this play with get_page()'s
-> assumption that the pages cannot be compound?
 
-We don't need to track the pages as a compound unit because they'll
-never hit mm paths that care about the distinction.  They are
-effectively never "onlined".
-
-> And again, this is bloating up the kernel for not-widely-used stuff.
-
-I suspect the ability to compile it out is little comfort since we're
-looking to get CONFIG_ZONE_DEVICE enabled by default in major distros.
-If that's the case I'm wiling to entertain the coarse pinning route.
-We can always circle back for the finer grained option if a problem
-arises, but let me know if CONFIG_ZONE_DEVICE=n was all you were
-looking for...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
