@@ -1,69 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f47.google.com (mail-lf0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2208A6B0255
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 14:23:14 -0500 (EST)
-Received: by mail-lf0-f47.google.com with SMTP id l133so36428857lfd.2
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 11:23:14 -0800 (PST)
-Received: from mail02.iobjects.de (static.68.134.40.188.clients.your-server.de. [188.40.134.68])
-        by mx.google.com with ESMTPS id i3si4967769lbj.10.2015.12.16.11.23.12
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 020CA6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 16:52:56 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id ph11so163443555igc.1
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 13:52:55 -0800 (PST)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id c19si2805449ioj.142.2015.12.16.13.52.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Dec 2015 11:23:12 -0800 (PST)
-Subject: Re: WARNING in shmem_evict_inode
-References: <CACT4Y+btGx7QKUjQdniRpczMof28V243Yo=Haj_G3acj0=smrg@mail.gmail.com>
- <CACT4Y+ZeOE7QNRTW1sN3_Op9c_ALohMG+fD=UUh5-KJN2PjQ3w@mail.gmail.com>
- <alpine.LSU.2.11.1512020118310.32078@eggly.anvils>
-From: =?UTF-8?Q?Holger_Hoffst=c3=a4tte?= <holger.hoffstaette@googlemail.com>
-Message-ID: <5671BA1F.7070201@googlemail.com>
-Date: Wed, 16 Dec 2015 20:23:11 +0100
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1512020118310.32078@eggly.anvils>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Dec 2015 13:52:55 -0800 (PST)
+Message-ID: <1450302758.20148.75.camel@hpe.com>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Wed, 16 Dec 2015 14:52:38 -0700
+In-Reply-To: <20151216181712.GJ29775@pd.tnic>
+References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
+	 <20151216122642.GE29775@pd.tnic> <1450280642.29051.76.camel@hpe.com>
+	 <20151216154916.GF29775@pd.tnic> <1450283759.20148.11.camel@hpe.com>
+	 <20151216174523.GH29775@pd.tnic>
+	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
+	 <20151216181712.GJ29775@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Eric Dumazet <edumazet@google.com>, Greg Thelen <gthelen@google.com>
+To: Borislav Petkov <bp@alien8.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-On 12/02/15 10:29, Hugh Dickins wrote:
-> On Mon, 23 Nov 2015, Dmitry Vyukov wrote:
->> On Mon, Nov 9, 2015 at 9:55 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-[snip]
->>> triggers WARNING in shmem_evict_inode:
->>>
->>> ------------[ cut here ]------------
->>> WARNING: CPU: 0 PID: 10442 at mm/shmem.c:625 shmem_evict_inode+0x335/0x480()
->>> Modules linked in:
->>> CPU: 1 PID: 8944 Comm: executor Not tainted 4.3.0+ #39
->>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->>>  00000000ffffffff ffff88006c6afab8 ffffffff81aad406 0000000000000000
->>>  ffff88006e39ac80 ffffffff83091660 ffff88006c6afaf8 ffffffff81100829
->>>  ffffffff814192e5 ffffffff83091660 0000000000000271 ffff88003d075aa8
->>> Call Trace:
->>>  [<ffffffff81100a59>] warn_slowpath_null+0x29/0x30 kernel/panic.c:480
->>>  [<ffffffff814192e5>] shmem_evict_inode+0x335/0x480 mm/shmem.c:625
->>>  [<ffffffff8151560e>] evict+0x26e/0x580 fs/inode.c:542
->>>  [<     inline     >] iput_final fs/inode.c:1477
-[snip]
-> It was more interesting than I expected, thanks.
-> I believe you will find that this fixes it.
+On Wed, 2015-12-16 at 19:17 +0100, Borislav Petkov wrote:
+> On Wed, Dec 16, 2015 at 09:52:37AM -0800, Dan Williams wrote:
+> > It's possible that as far as the resource table is concerned the
+> > resource type might just be "reserved".  It may not be until after a
+> > driver loads that we discover the memory range type.  The identifying
+> > string is driver specific at that point.
 > 
-> [PATCH] tmpfs: fix shmem_evict_inode warnings on i_blocks
+> So how many types are we talking about here? Because I don't find a whole
+> lot:
+> 
+> $ git grep -E "(walk_iomem_res|find_next_iomem_res|region_intersects)" --
+> *.c | grep -Eo '\".*\"'
+> "GART"
+> "ACPI Tables"
+> "ACPI Non-volatile Storage"
+> "Crash kernel"
+> "System RAM"
+> "System RAM"
+> "System RAM"
+> 
+> An int type could contain 2^32 different types.
 
-Since I just saw this in Linus' tree, here's another retrospective bug
-report and Thank You for fixing it. :-)
+In this approach, as I understand, we add a new field to 'struct resource',
+i.e. 'type' in this example.
 
-The problem is quite real, even though I'm probably the only other person
-to ever report it, see: http://www.spinics.net/lists/linux-fsdevel/msg83567.html
+ struct resource crashk_res = {
+        .name  = "Crash kernel",
+        .start = 0,
+        .end   = 0,
+        .flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
++ 	.type  = RES_TYPE_CRASH_KERNEL,
+ };
 
-> Cc stable?  I don't think that's necessary, but might be proved wrong:
-> along with the warning, the bug does allow one page beyond the limit
-> to be allocated from a size-limited tmpfs mount.
+And we change the callers, such as "kernel/kexec_file.c" to search with
+this RES_TYPE.
 
-It applies and works fine, so it probably wouldn't hurt. I'm using it in my
-4.1++ tree as we speak, no problems.
+ ret = walk_iomem_res(RES_TYPE_CRASH_KERNEL,
+		IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY, ...);
 
--h
+We only change the resource entries that support the search interfaces to:
+ - Assign RES_TYPE_XXX.
+ - Initialize 'type' in its 'struct resource' with the type.
+
+This avoids changing all drivers.  When we have a new search for "foo", we
+will then need to:
+ - Define RES_TYPE_FOO.
+ - Add '.type = RES_TYPE_FOO' to the code where it initializes the "foo"
+entry.
+
+This scheme may have a problem, though.  For instance, when someone writes
+a loadable module that searches for "foo", but the "foo" entry may be
+initialized in a distro kernel/driver that cannot be modified.  Since this
+search is only necessary to obtain a range initialized by other module,
+this scenario is likely to happen.  We no longer have ability to search for
+a new entry unless we modify the code that initializes the entry first.
+
+> > All this to say that with strcmp we can search for any custom type .
+> > Otherwise I think we're looking at updating the request_region()
+> > interface to take a type parameter.  That makes strcmp capability more
+> > attractive compared to updating a potentially large number of
+> > request_region() call sites.
+> 
+> Right, but I don't think that @name param to request_region() was ever
+> meant to be mis-used as a matching attribute when iterating over the
+> resource types.
+
+Even if we avoid strcmp() with @name in the kernel, user applications will
+continue to use @name since that is the only type available in /proc/iomem.
+ For instance, kexec has its own search function with a string name.
+
+ https://github.com/Tasssadar/kexec-tools/blob/master/kexec/kexec-iomem.c
+
+> Now, imagine you have to do this pretty often. Which is faster: a
+> strcmp() or an int comparison...?
+> 
+> Even if this cannot be changed easily/in one go, maybe we should at
+> least think about starting doing it right so that the strcmp() "fun" is
+> phased out gradually...
+
+When a new commonly-used search name comes up, we can define it as a new
+extended I/O resource type similar to IORESOURCE_SYSTEM_RAM.  For the
+current remaining cases, i.e. crash, kexec, and einj, they have no impact
+to performance.  Leaving these special cases aside will keep the ability to
+search for any entry without changing the kernel, and save some memory
+space from adding the new 'type'.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
