@@ -1,217 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E0AE76B0267
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 07:17:49 -0500 (EST)
-Received: by mail-lb0-f179.google.com with SMTP id kw15so24329200lbb.0
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 04:17:49 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id p5si3512038lfb.119.2015.12.16.04.17.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Dec 2015 04:17:48 -0800 (PST)
-Date: Wed, 16 Dec 2015 15:17:27 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 4/4] mm: memcontrol: clean up alloc, online, offline,
- free functions
-Message-ID: <20151216121727.GL28521@esperanza>
-References: <1449863653-6546-1-git-send-email-hannes@cmpxchg.org>
- <1449863653-6546-4-git-send-email-hannes@cmpxchg.org>
- <20151214171455.GF28521@esperanza>
- <20151215193858.GA15265@cmpxchg.org>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EBAAA6B0269
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 07:26:52 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id u9so24293440lbp.2
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 04:26:52 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id k185si3543571lfd.28.2015.12.16.04.26.51
+        for <linux-mm@kvack.org>;
+        Wed, 16 Dec 2015 04:26:51 -0800 (PST)
+Date: Wed, 16 Dec 2015 13:26:42 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+Message-ID: <20151216122642.GE29775@pd.tnic>
+References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20151215193858.GA15265@cmpxchg.org>
+In-Reply-To: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: akpm@linux-foundation.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Tue, Dec 15, 2015 at 02:38:58PM -0500, Johannes Weiner wrote:
-> On Mon, Dec 14, 2015 at 08:14:55PM +0300, Vladimir Davydov wrote:
-> > On Fri, Dec 11, 2015 at 02:54:13PM -0500, Johannes Weiner wrote:
-> > ...
-> > > -static int
-> > > -mem_cgroup_css_online(struct cgroup_subsys_state *css)
-> > > +static struct cgroup_subsys_state * __ref
-> > > +mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
-> > >  {
-> > > -	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-> > > -	struct mem_cgroup *parent = mem_cgroup_from_css(css->parent);
-> > > -	int ret;
-> > > -
-> > > -	if (css->id > MEM_CGROUP_ID_MAX)
-> > > -		return -ENOSPC;
-> > > +	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
-> > > +	struct mem_cgroup *memcg;
-> > > +	long error = -ENOMEM;
-> > >  
-> > > -	if (!parent)
-> > > -		return 0;
-> > > +	memcg = mem_cgroup_alloc();
-> > > +	if (!memcg)
-> > > +		return ERR_PTR(error);
-> > >  
-> > >  	mutex_lock(&memcg_create_mutex);
-> > 
-> > It is pointless to take memcg_create_mutex in ->css_alloc. It won't
-> > prevent setting use_hierarchy for parent after a new child was
-> > allocated, but before it was added to the list of children (see
-> > create_css()). Taking the mutex in ->css_online renders this race
-> > impossible. That is, your cleanup breaks use_hierarchy consistency
-> > check.
-> > 
-> > Can we drop this use_hierarchy consistency check at all and allow
-> > children of a cgroup with use_hierarchy=1 have use_hierarchy=0? Yeah,
-> > that might result in some strangeness if cgroups are created in parallel
-> > with use_hierarchy flipped, but is it a valid use case? I surmise, one
-> > just sets use_hierarchy for a cgroup once and for good before starting
-> > to create sub-cgroups.
+On Mon, Dec 14, 2015 at 04:37:16PM -0700, Toshi Kani wrote:
+> I/O resource type, IORESOURCE_MEM, is used for all types of
+> memory-mapped ranges, ex. System RAM, System ROM, Video RAM,
+> Persistent Memory, PCI Bus, PCI MMCONFIG, ACPI Tables, IOAPIC,
+> reserved, and so on.  This requires walk_system_ram_range(),
+> walk_system_ram_res(), and region_intersects() to use strcmp()
+> against string "System RAM" to search System RAM ranges in the
+> iomem table, which is inefficient.  __ioremap_caller() and
+> reserve_memtype() on x86, for instance, call walk_system_ram_range()
+> for every request to check if a given range is in System RAM ranges.
 > 
-> I don't think we have to support airtight exclusion between somebody
-> changing the parent attribute and creating new children that inherit
-> these attributes. Everything will still work if this race happens.
+> However, adding a new I/O resource type for System RAM is not
+> a viable option [1].
+
+I think you should explain here why it isn't a viable option instead of
+quoting some flaky reference which might or might not be there in the
+future.
+
+> Instead, this patch adds a new modifier
+> flag IORESOURCE_SYSRAM to IORESOURCE_MEM, which introduces an
+> extended I/O resource type, IORESOURCE_SYSTEM_RAM [2].
 > 
-> Does that mean we have to remove the restriction altogether? I'm not
-> convinced. We can just keep it for historical purposes so that we do
-> not *encourage* this weird setting.
-
-Well, legacy hierarchy is scheduled to die, so it's too late to
-encourage or discourage any setting regarding it.
-
-Besides, hierarchy mode must be enabled for 99% setups, because this is
-what systemd does at startup. So I don't think we would hurt anybody by
-dropping this check altogether - IMO it'd be fairer than having a check
-that might sometimes fail.
-
-It's not something I really care about though, so I don't insist.
-
+> To keep the code 'if (resource_type(r) == IORESOURCE_MEM)' to
+> work continuously for System RAM, resource_ext_type() is added
+> for extracting extended type bit(s).
 > 
-> I think that's good enough. Let's just remove the memcg_create_mutex.
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Reference[1]: https://lkml.org/lkml/2015/12/3/540
+> Reference[2]: https://lkml.org/lkml/2015/12/3/582
 
-I'm fine with it, but I think this deserves a comment in the commit
-message.
+References should look something like this:
 
-...
-> So, how about the following fixlets on top to address your comments?
+Link: http://lkml.kernel.org/r/<Message-ID>
+
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> ---
+>  include/linux/ioport.h |   11 +++++++++++
+>  1 file changed, 11 insertions(+)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index af8714a..124a802 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -250,13 +250,6 @@ enum res_type {
->  /* Used for OOM nofiier */
->  #define OOM_CONTROL		(0)
+> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> index 24bea08..4b65d94 100644
+> --- a/include/linux/ioport.h
+> +++ b/include/linux/ioport.h
+> @@ -49,12 +49,19 @@ struct resource {
+>  #define IORESOURCE_WINDOW	0x00200000	/* forwarded by bridge */
+>  #define IORESOURCE_MUXED	0x00400000	/* Resource is software muxed */
 >  
-> -/*
-> - * The memcg_create_mutex will be held whenever a new cgroup is created.
-> - * As a consequence, any change that needs to protect against new child cgroups
-> - * appearing has to hold it as well.
-> - */
-> -static DEFINE_MUTEX(memcg_create_mutex);
-> -
->  /* Some nice accessors for the vmpressure. */
->  struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
->  {
-> @@ -2660,14 +2653,6 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
->  {
->  	bool ret;
->  
-> -	/*
-> -	 * The lock does not prevent addition or deletion of children, but
-> -	 * it prevents a new child from being initialized based on this
-> -	 * parent in css_online(), so it's enough to decide whether
-> -	 * hierarchically inherited attributes can still be changed or not.
-> -	 */
-> -	lockdep_assert_held(&memcg_create_mutex);
-> -
->  	rcu_read_lock();
->  	ret = css_next_child(NULL, &memcg->css);
->  	rcu_read_unlock();
-> @@ -2730,10 +2715,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->  	struct mem_cgroup *parent_memcg = mem_cgroup_from_css(memcg->css.parent);
->  
-> -	mutex_lock(&memcg_create_mutex);
-> -
->  	if (memcg->use_hierarchy == val)
-> -		goto out;
-> +		return 0;
->  
->  	/*
->  	 * If parent's use_hierarchy is set, we can't make any modifications
-> @@ -2752,9 +2735,6 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
->  	} else
->  		retval = -EINVAL;
->  
-> -out:
-> -	mutex_unlock(&memcg_create_mutex);
-> -
->  	return retval;
->  }
->  
-> @@ -2929,6 +2909,10 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
->  
->  static void memcg_free_kmem(struct mem_cgroup *memcg)
->  {
-> +	/* css_alloc() failed, offlining didn't happen */
-> +	if (unlikely(memcg->kmem_state == KMEM_ONLINE))
+> +#define IORESOURCE_EXT_TYPE_BITS 0x01000000	/* Resource extended types */
 
-It's not a hot-path, so there's no need in using 'unlikely' here apart
-from improving readability, but the comment should be enough.
+Should this be 0x07000000 so that we make all there bits belong to the
+extended types? Are we going to need so many?
 
-> +		memcg_offline_kmem(memcg);
-> +
+-- 
+Regards/Gruss,
+    Boris.
 
-Calling 'offline' from css_free looks a little bit awkward, but let it
-be.
-
-Anyway, it's a really nice cleanup, thanks!
-
-Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-
->  	if (memcg->kmem_state == KMEM_ALLOCATED) {
->  		memcg_destroy_kmem_caches(memcg);
->  		static_branch_dec(&memcg_kmem_enabled_key);
-> @@ -2956,11 +2940,9 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
->  	mutex_lock(&memcg_limit_mutex);
->  	/* Top-level cgroup doesn't propagate from root */
->  	if (!memcg_kmem_online(memcg)) {
-> -		mutex_lock(&memcg_create_mutex);
->  		if (cgroup_is_populated(memcg->css.cgroup) ||
->  		    (memcg->use_hierarchy && memcg_has_children(memcg)))
->  			ret = -EBUSY;
-> -		mutex_unlock(&memcg_create_mutex);
->  		if (ret)
->  			goto out;
->  		ret = memcg_online_kmem(memcg);
-> @@ -4184,14 +4166,14 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
->  	if (!memcg)
->  		return ERR_PTR(error);
->  
-> -	mutex_lock(&memcg_create_mutex);
->  	memcg->high = PAGE_COUNTER_MAX;
->  	memcg->soft_limit = PAGE_COUNTER_MAX;
-> -	if (parent)
-> +	if (parent) {
->  		memcg->swappiness = mem_cgroup_swappiness(parent);
-> +		memcg->oom_kill_disable = parent->oom_kill_disable;
-> +	}
->  	if (parent && parent->use_hierarchy) {
->  		memcg->use_hierarchy = true;
-> -		memcg->oom_kill_disable = parent->oom_kill_disable;
->  		page_counter_init(&memcg->memory, &parent->memory);
->  		page_counter_init(&memcg->memsw, &parent->memsw);
->  		page_counter_init(&memcg->kmem, &parent->kmem);
-> @@ -4209,7 +4191,6 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
->  		if (parent != root_mem_cgroup)
->  			memory_cgrp_subsys.broken_hierarchy = true;
->  	}
-> -	mutex_unlock(&memcg_create_mutex);
->  
->  	/* The following stuff does not apply to the root */
->  	if (!parent) {
-> 
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
