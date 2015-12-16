@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DF16E6B0038
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 22:19:07 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id mv3so117757452igc.0
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 19:19:07 -0800 (PST)
-Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
-        by mx.google.com with ESMTPS id z36si9243289ioi.192.2015.12.15.19.19.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Dec 2015 19:19:07 -0800 (PST)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id A1850AC0131
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 12:18:58 +0900 (JST)
-Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
-References: <cover.1449742560.git.vdavydov@virtuozzo.com>
- <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
- <20151214153037.GB4339@dhcp22.suse.cz> <20151214194258.GH28521@esperanza>
- <566F8781.80108@jp.fujitsu.com> <20151215145011.GA20355@cmpxchg.org>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <5670D806.60408@jp.fujitsu.com>
-Date: Wed, 16 Dec 2015 12:18:30 +0900
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 58DA46B0038
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2015 22:20:29 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id e66so4686341pfe.0
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2015 19:20:29 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id e1si6019594pas.161.2015.12.15.19.20.28
+        for <linux-mm@kvack.org>;
+        Tue, 15 Dec 2015 19:20:28 -0800 (PST)
+Message-ID: <5670D85C.60106@intel.com>
+Date: Wed, 16 Dec 2015 11:19:56 +0800
+From: Zhi Wang <zhi.a.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20151215145011.GA20355@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH] mm: mempool: Factor out mempool_refill()
+References: <1449978390-10931-1-git-send-email-zhi.a.wang@intel.com> <F3B0350DF4CB6849A642218320DE483D4B866043@SHSMSX101.ccr.corp.intel.com> <20151215212638.GA17162@cmpxchg.org>
+In-Reply-To: <20151215212638.GA17162@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
 
-On 2015/12/15 23:50, Johannes Weiner wrote:
-> On Tue, Dec 15, 2015 at 12:22:41PM +0900, Kamezawa Hiroyuki wrote:
->> On 2015/12/15 4:42, Vladimir Davydov wrote:
->>> Anyway, if you don't trust a container you'd better set the hard memory
->>> limit so that it can't hurt others no matter what it runs and how it
->>> tweaks its sub-tree knobs.
+Hi Johannes:
+     Thanks for the reply. In the end of the mempool_resize(), it will 
+call the mempool_refill() to do the rest of the work. So this is not one 
+of the "no-caller" case. If you insist this is a "no-caller" case, 
+perhaps I should change it to a "static" function without exposing a new 
+interface?
+
+Personally I think mempool_refill() should be one of the typical 
+interfaces in an implementation of a mempool. Currently the mempool will 
+not grow only if pool->min_nr > new_min_nr.
+
+So when user wants to refill the mempool immediately, not resize a 
+mempool, in the current implementation, it has to do 2x 
+mempool_resize(). First one is mempool_resize(pool->min_nr - 1), second 
+one is mempool_resize(new_min_nr). So the refill action would truly 
+happen. This is ugly and not convenient.
+
+On 12/16/15 05:26, Johannes Weiner wrote:
+> On Mon, Dec 14, 2015 at 11:09:43AM +0000, Wang, Zhi A wrote:
+>> This patch factors out mempool_refill() from mempool_resize(). It's reasonable
+>> that the mempool user wants to refill the pool immdiately when it has chance
+>> e.g. inside a sleepible context, so that next time in the IRQ context the pool
+>> would have much more available elements to allocate.
 >>
->> Limiting swap can easily cause "OOM-Killer even while there are available swap"
->> with easy mistake. Can't you add "swap excess" switch to sysctl to allow global
->> memory reclaim can ignore swap limitation ?
+>> After the refactor, mempool_refill() can also executes with mempool_resize()
+>> /mempool_alloc/mempool_free() or another mempool_refill().
+>>
+>> Signed-off-by: Zhi Wang <zhi.a.wang@intel.com>
 >
-> That never worked with a combined memory+swap limit, either. How could
-> it? The parent might swap you out under pressure, but simply touching
-> a few of your anon pages causes them to get swapped back in, thrashing
-> with whatever the parent was trying to do. Your ability to swap it out
-> is simply no protection against a group touching its pages.
+> Who is going to call that function? Adding a new interace usually
+> comes with a user, or as part of a series that adds users.
 >
-> Allowing the parent to exceed swap with separate counters makes even
-> less sense, because every page swapped out frees up a page of memory
-> that the child can reuse. For every swap page that exceeds the limit,
-> the child gets a free memory page! The child doesn't even have to
-> cause swapin, it can just steal whatever the parent tried to free up,
-> and meanwhile its combined memory & swap footprint explodes.
->
-Sure.
-
-> The answer is and always should have been: don't overcommit untrusted
-> cgroups. Think of swap as a resource you distribute, not as breathing
-> room for the parents to rely on. Because it can't and could never.
->
-ok, don't overcommmit.
-
-> And the new separate swap counter makes this explicit.
->
-Hmm, my requests are
-  - set the same capabilities as mlock() to set swap.limit=0
-  - swap-full notification via vmpressure or something mechanism.
-  - OOM-Killer's available memory calculation may be corrupted, please check.
-  - force swap-in at reducing swap.limit
-
-Thanks,
--Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
