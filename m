@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E47C6B0038
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 12:52:38 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id 21so40455566qgx.1
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 09:52:38 -0800 (PST)
-Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
-        by mx.google.com with ESMTPS id e33si7455157qga.24.2015.12.16.09.52.37
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B36E36B0038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 12:55:31 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id 18so38319063obc.2
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 09:55:31 -0800 (PST)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id e198si7846215oih.37.2015.12.16.09.55.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Dec 2015 09:52:37 -0800 (PST)
-Received: by mail-qk0-x233.google.com with SMTP id p187so76238062qkd.1
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 09:52:37 -0800 (PST)
+        Wed, 16 Dec 2015 09:55:31 -0800 (PST)
+Received: by mail-oi0-x236.google.com with SMTP id y66so28771826oig.0
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 09:55:31 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20151216174523.GH29775@pd.tnic>
-References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
-	<20151216122642.GE29775@pd.tnic>
-	<1450280642.29051.76.camel@hpe.com>
-	<20151216154916.GF29775@pd.tnic>
-	<1450283759.20148.11.camel@hpe.com>
-	<20151216174523.GH29775@pd.tnic>
-Date: Wed, 16 Dec 2015 09:52:37 -0800
-Message-ID: <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
-Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
-From: Dan Williams <dan.j.williams@intel.com>
+In-Reply-To: <2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
+References: <cover.1450283985.git.tony.luck@intel.com> <2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 16 Dec 2015 09:55:11 -0800
+Message-ID: <CALCETrVHqi9ixUQbeN82T14CVom1N6QegSNR+r=jtjRgcfC0kg@mail.gmail.com>
+Subject: Re: [PATCHV3 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+To: Tony Luck <tony.luck@intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-On Wed, Dec 16, 2015 at 9:45 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Wed, Dec 16, 2015 at 09:35:59AM -0700, Toshi Kani wrote:
->> We do not have enough bits left to cover any potential future use-cases
->> with other strings if we are going to get rid of strcmp() completely.
+On Tue, Dec 15, 2015 at 5:29 PM, Tony Luck <tony.luck@intel.com> wrote:
+> Copy the existing page fault fixup mechanisms to create a new table
+> to be used when fixing machine checks. Note:
+> 1) At this time we only provide a macro to annotate assembly code
+> 2) We assume all fixups will in code builtin to the kernel.
+> 3) Only for x86_64
+> 4) New code under CONFIG_MCE_KERNEL_RECOVERY (default 'n')
 >
-> Look at the examples I gave. I'm talking about having an additional
-> identifier which can be a number and not a bit.
->
->>  Since the searches from crash and kexec are one-time thing, and einj
->> is a R&D tool, I think we can leave the strcmp() check for these
->> special cases, and keep the interface flexible with any strings.
->
-> I don't think using strings is anywhere close to flexible. If at all, it
-> is an odd use case which shouldnt've been allowed in in the first place.
->
+> Signed-off-by: Tony Luck <tony.luck@intel.com>
 
-It's possible that as far as the resource table is concerned the
-resource type might just be "reserved".  It may not be until after a
-driver loads that we discover the memory range type.  The identifying
-string is driver specific at that point.
+Looks generally good.
 
-All this to say that with strcmp we can search for any custom type .
-Otherwise I think we're looking at updating the request_region()
-interface to take a type parameter.  That makes strcmp capability more
-attractive compared to updating a potentially large number of
-request_region() call sites.
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
+
+with trivial caveats:
+
+
+>  int __init mcheck_init(void)
+>  {
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +       if (__stop___mcex_table > __start___mcex_table)
+> +               sort_extable(__start___mcex_table, __stop___mcex_table);
+> +#endif
+
+This doesn't matter unless we sprout a lot of these, but it could be
+worthwhile to update sortextable.h as well.
+
+> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+> +int fixup_mcexception(struct pt_regs *regs)
+> +{
+> +       const struct exception_table_entry *fixup;
+> +       unsigned long new_ip;
+> +
+> +       fixup = search_mcexception_tables(regs->ip);
+> +       if (fixup) {
+> +               new_ip = ex_fixup_addr(fixup);
+> +
+> +               regs->ip = new_ip;
+
+You could very easily save a line of code here :)
+
+> +               return 1;
+> +       }
+> +
+> +       return 0;
+> +}
+> +#endif
+> +
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
