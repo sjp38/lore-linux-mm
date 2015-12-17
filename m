@@ -1,107 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D0E6B0255
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 21:56:47 -0500 (EST)
-Received: by mail-io0-f172.google.com with SMTP id q126so41207747iof.2
-        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 18:56:47 -0800 (PST)
-Received: from szxga03-in.huawei.com ([119.145.14.66])
-        by mx.google.com with ESMTPS id jg6si366342igb.70.2015.12.16.18.56.45
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3AD6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2015 22:32:20 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l126so2867241wml.1
+        for <linux-mm@kvack.org>; Wed, 16 Dec 2015 19:32:20 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id w124si585541wmd.90.2015.12.16.19.32.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 Dec 2015 18:56:46 -0800 (PST)
-Message-ID: <56722258.6030800@huawei.com>
-Date: Thu, 17 Dec 2015 10:47:52 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Dec 2015 19:32:19 -0800 (PST)
+Date: Wed, 16 Dec 2015 22:32:04 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/7] mm: memcontrol: charge swap to cgroup2
+Message-ID: <20151217033204.GA29735@cmpxchg.org>
+References: <cover.1449742560.git.vdavydov@virtuozzo.com>
+ <265d8fe623ed2773d69a26d302eb31e335377c77.1449742560.git.vdavydov@virtuozzo.com>
+ <20151214153037.GB4339@dhcp22.suse.cz>
+ <20151214194258.GH28521@esperanza>
+ <566F8781.80108@jp.fujitsu.com>
+ <20151215145011.GA20355@cmpxchg.org>
+ <5670D806.60408@jp.fujitsu.com>
+ <20151216110912.GA29816@cmpxchg.org>
+ <56722203.5030604@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com> <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com> <56679FDC.1080800@huawei.com> <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com> <5668D1FA.4050108@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01> <56691819.3040105@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01> <566A9AE1.7020001@huawei.com> <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
-In-Reply-To: <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56722203.5030604@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen,
- Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/12/17 9:38, Izumi, Taku wrote:
+On Thu, Dec 17, 2015 at 11:46:27AM +0900, Kamezawa Hiroyuki wrote:
+> On 2015/12/16 20:09, Johannes Weiner wrote:
+> >On Wed, Dec 16, 2015 at 12:18:30PM +0900, Kamezawa Hiroyuki wrote:
+> >>  - swap-full notification via vmpressure or something mechanism.
+> >
+> >Why?
+> >
+> 
+> I think it's a sign of unhealthy condition, starting file cache drop rate to rise.
+> But I forgot that there are resource threshold notifier already. Does the notifier work
+> for swap.usage ?
 
-> Dear Xishi,
-> 
->  Sorry for late.
-> 
->> -----Original Message-----
->> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
->> Sent: Friday, December 11, 2015 6:44 PM
->> To: Izumi, Taku/泉 拓
->> Cc: Luck, Tony; linux-kernel@vger.kernel.org; linux-mm@kvack.org; akpm@linux-foundation.org; Kamezawa, Hiroyuki/亀澤 寛
->> 之; mel@csn.ul.ie; Hansen, Dave; matt@codeblueprint.co.uk
->> Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
->>
->> On 2015/12/11 13:53, Izumi, Taku wrote:
->>
->>> Dear Xishi,
->>>
->>>> Hi Taku,
->>>>
->>>> Whether it is possible that we rewrite the fallback function in buddy system
->>>> when zone_movable and mirrored_kernelcore are both enabled?
->>>
->>>   What does "when zone_movable and mirrored_kernelcore are both enabled?" mean ?
->>>
->>>   My patchset just provides a new way to create ZONE_MOVABLE.
->>>
->>
->> Hi Taku,
->>
+That will be reflected in vmpressure or other distress mechanisms. I'm
+not convinced "ran out of swap space" needs special casing in any way.
 
-Hi Taku,
+> >>  - force swap-in at reducing swap.limit
+> >
+> >Why?
+> >
+> If full, swap.limit cannot be reduced even if there are available memory in a cgroup.
+> Another cgroup cannot make use of the swap resource while it's occupied by other cgroup.
+> The job scheduler should have a chance to fix the situation.
 
-We can NOT specify kernelcore= "nn[KMG]" and "mirror" at the same time.
-So when we use "mirror", in fact, the movable zone is a new zone. I think it is
-more appropriate with this name "mirrored zone", and also we can rewrite the
-fallback function in buddy system in this case.
+I don't see why swap space allowance would need to be as dynamically
+adjustable as the memory allowance. There is usually no need to be as
+tight with swap space as with memory, and the performance penalty of
+swapping, even with flash drives, is high enough that swap space acts
+as an overflow vessel rather than be part of the regularly backing of
+the anonymous/shmem working set. It really is NOT obvious that swap
+space would need to be adjusted on the fly, and that it's important
+that reducing the limit will be reflected in consumption right away.
 
-Thanks,
-Xishi Qiu
+We shouldn't be adding hundreds of lines of likely terrible heuristics
+code* on speculation that somebody MIGHT find this useful in real life.
+We should wait until we are presented with a real usecase that applies
+to a whole class of users, and then see what the true requirements are.
 
->> I mean when zone_movable is from kernelcore=mirror, not kernelcore=nn[KMG].
-> 
->   I'm not quite sure what you are saying, but if you want to screen user memory
->   so that one is allocated from mirrored zone and another is from non-mirrored zone,
->   I think it is possible to reuse my patchset.
-> 
->   Sincerely,
->   Taku Izumi
-> 
->> Thanks,
->> Xishi Qiu
->>
->>>   Sincerely,
->>>   Taku Izumi
->>>>
->>>> It seems something like that we add a new zone but the name is zone_movable,
->>>> not zone_mirror. And the prerequisite is that we won't enable these two
->>>> features(movable memory and mirrored memory) at the same time. Thus we can
->>>> reuse the code of movable zone.
->>>>
->>>
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>> Please read the FAQ at  http://www.tux.org/lkml/
->>>
->>> .
->>>
->>
->>
-> 
-> 
-> .
-> 
-
-
+* If a group has 200M swapped out and the swap limit is reduced by 10M
+below the current consumption, which pages would you swap in? There is
+no LRU list for swap space.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
