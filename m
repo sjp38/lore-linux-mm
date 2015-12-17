@@ -1,108 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CDE054402ED
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 13:16:13 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id o64so34737536pfb.3
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 10:16:13 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id z12si17834228pas.77.2015.12.17.10.16.12
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7214402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 13:43:24 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id n128so16875758pfn.0
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 10:43:24 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id z12si17962451pas.77.2015.12.17.10.43.22
         for <linux-mm@kvack.org>;
-        Thu, 17 Dec 2015 10:16:12 -0800 (PST)
-From: Dave Gordon <david.s.gordon@intel.com>
-Subject: [PATCH v3] mm: Export {__}get_nr_swap_pages()
-Date: Thu, 17 Dec 2015 18:15:44 +0000
-Message-Id: <1450376144-32792-1-git-send-email-david.s.gordon@intel.com>
-References: <1449244734-25733-1-git-send-email-chris@chris-wilson.co.uk>
-References: <20151208112225.GB25800@dhcp22.suse.cz>
+        Thu, 17 Dec 2015 10:43:23 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
+Date: Thu, 17 Dec 2015 18:43:20 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
+References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <56679FDC.1080800@huawei.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
+ <5668D1FA.4050108@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
+ <56691819.3040105@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
+ <566A9AE1.7020001@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
+ <56722258.6030800@huawei.com> <567223A7.9090407@jp.fujitsu.com>
+ <56723E8B.8050201@huawei.com> <567241BE.5030806@jp.fujitsu.com>
+In-Reply-To: <567241BE.5030806@jp.fujitsu.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Dave Gordon <david.s.gordon@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, "Goel, Akash" <akash.goel@intel.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-Some modules, like i915.ko, use swappable objects and may try to swap
-them out under memory pressure (via the shrinker). Before doing so,
-they want to check using get_nr_swap_pages() to see if any swap space
-is available as otherwise they will waste time purging the object from
-the device without recovering any memory for the system. This requires
-the kernel function get_nr_swap_pages() to be exported to the modules.
+>>> As Tony requested, we may need a knob to stop a fallback in "movable->n=
+ormal", later.
+>>>
+>>=20
+>> If the mirrored memory is small and the other is large,
+>> I think we can both enable "non-mirrored -> normal" and "normal -> non-m=
+irrored".
+>
+> Size of mirrored memory can be configured by software(EFI var).
+> So, having both is just overkill and normal->non-mirroed fallback is mean=
+ingless considering
+> what the feature want to guarantee.
 
-The current implementation of this function is as a static inline
-inside the header file swap.h>; this doesn't work when compiled in
-a module, as the necessary global data is not visible. The original
-proposed solution was to export the kernel global variable to modules,
-but this was considered poor practice as it exposed more than necessary,
-and in an uncontrolled fashion. Another idea was to turn it into a real
-(non-inline) function; however this was considered to unnecessarily add
-overhead for users within the base kernel.
+In the original removable usage we wanted to guarantee that Linux did not a=
+llocate any
+kernel objects in removable memory - because that would prevent later remov=
+al of that
+memory.
 
-Therefore, to avoid both objections, this patch leaves the base kernel
-implementation unchanged, but adds a separate (read-only) functional
-interface for callers in loadable kernel modules (LKMs). Which definition
-is visible to code depends on the compile-time symbol MODULE, defined
-by the Kbuild system when building an LKM.
+Mirror case is the same - we don't want to allocate kernel structures in no=
+n-mirrored memory
+because an uncorrectable error in one of them would crash the system.
 
-Signed-off-by: Dave Gordon <david.s.gordon@intel.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: "Goel, Akash" <akash.goel@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
-Cc: intel-gfx@lists.freedesktop.org
----
- include/linux/swap.h | 12 ++++++++++++
- mm/swapfile.c        |  7 +++++++
- 2 files changed, 19 insertions(+)
+But I think some users might like some flexibility here.  If the system doe=
+sn't have enough
+memory for the kernel (non-movable or mirrored), then it seems odd to end u=
+p crashing
+the system at the point of memory exhaustion (a likely result ... the kerne=
+l can try to reclaim
+some pages from SLAB, but that might only return a few pages, if the shorta=
+ge continues
+the system will perform poorly and eventually fail).
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7ba7dcc..7dac1fe 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -413,6 +413,10 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
- 			struct vm_area_struct *vma, unsigned long addr);
- 
- /* linux/mm/swapfile.c */
-+
-+#ifndef	MODULE
-+
-+/* Inside the base kernel, code can see these variables */
- extern atomic_long_t nr_swap_pages;
- extern long total_swap_pages;
- 
-@@ -427,6 +431,14 @@ static inline long get_nr_swap_pages(void)
- 	return atomic_long_read(&nr_swap_pages);
- }
- 
-+#else	/* MODULE */
-+
-+/* Only this read-only interface is available to modules */
-+extern long __get_nr_swap_pages(void);
-+#define	get_nr_swap_pages	__get_nr_swap_pages
-+
-+#endif	/* MODULE */
-+
- extern void si_swapinfo(struct sysinfo *);
- extern swp_entry_t get_swap_page(void);
- extern swp_entry_t get_swap_page_of_type(int);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 5887731..9309d6e 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2754,6 +2754,13 @@ pgoff_t __page_file_index(struct page *page)
- }
- EXPORT_SYMBOL_GPL(__page_file_index);
- 
-+/* Trivial accessor exported to kernel modules */
-+long __get_nr_swap_pages(void)
-+{
-+	return get_nr_swap_pages();
-+}
-+EXPORT_SYMBOL_GPL(__get_nr_swap_pages);
-+
- /*
-  * add_swap_count_continuation - called when a swap count is duplicated
-  * beyond SWAP_MAP_MAX, it allocates a new page and links that to the entry's
--- 
-1.9.1
+The whole point of removable memory or mirrored memory is to provide better=
+ availability.
+
+I'd vote for a mode where running out of memory for kernel results in a
+
+   warn_on_once("Ran out of mirrored/non-removable memory for kernel - now =
+allocating from all zones\n")
+
+because I think most people would like the system to stay up rather than wo=
+rry about some future problem that may never happen.
+
+-Tony
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
