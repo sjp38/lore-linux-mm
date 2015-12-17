@@ -1,63 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 188046B0038
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 03:39:54 -0500 (EST)
-Received: by mail-lb0-f179.google.com with SMTP id cs9so40652376lbb.1
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 00:39:54 -0800 (PST)
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 815444402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 07:30:17 -0500 (EST)
+Received: by mail-lb0-f171.google.com with SMTP id yq9so25118956lbb.3
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 04:30:17 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id y9si6890529lbf.18.2015.12.17.00.39.52
+        by mx.google.com with ESMTPS id a3si7560513lbi.203.2015.12.17.04.30.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 00:39:52 -0800 (PST)
-Date: Thu, 17 Dec 2015 11:39:31 +0300
+        Thu, 17 Dec 2015 04:30:15 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: clean up alloc, online, offline, free
- functions fix
-Message-ID: <20151217083931.GM28521@esperanza>
-References: <1450312460-27582-1-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH v2 0/7] Add swap accounting to cgroup2
+Date: Thu, 17 Dec 2015 15:29:53 +0300
+Message-ID: <cover.1450352791.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1450312460-27582-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 16, 2015 at 07:34:20PM -0500, Johannes Weiner wrote:
-> Fixlets based on review feedback from Vladimir:
-> 
-> 1. The memcg_create_mutex is to stabilize a cgroup's hereditary
->    settings that are not allowed to change once the cgroup has
->    children: kmem accounting and hierarchy mode. However, the cleanup
->    patch moves inheritance of these settings from onlining time to
->    allocation time, before the new child will show up in the parent's
->    list of children, and this opens a race window where the parent can
->    change a setting that has been passed on to a new child already.
-> 
->    That being said, this rule for kmem and hierarchy mode is somewhat
->    gratuitous: there is no strong reason why these configurations
->    shouldn't exist, and the outcome of a race is not harmful. It's
->    also unlikely that somebody will even trigger this race because we
->    don't expect anybody to flip-flop either settings while creating
->    child groups. So instead of readding complexity to close an
->    unlikely race window that doesn't do any harm, simply remove the
->    now pointless mutex as a follow-up cleanup.
-> 
-> 2. Kmem initialization consists of several steps that are undone in
->    both css_offline() and css_free(). However, if css allocation fails
->    later on then css_offline() is never called and we don't properly
->    free the kmem state. Let css_free() detect this and call kmem
->    offlining itself.
-> 
-> 3. Children in !use_hierarchy mode would inherit the OOM killer
->    setting from their physical parent rather than the logical parent,
->    rootmemcg.  This is silly, but no reason to change the semantics as
->    part of this cleanup patch, so restore it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Hi,
 
-Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+This is v2 of the patch set introducing swap accounting to cgroup2. For
+a detailed description and rationale please see patches 1 and 7.
+
+v1 can be found here: https://lwn.net/Articles/667472/
+
+v2 mostly addresses comments by Johannes. For the detailed changelog,
+see individual patches.
+
+Thanks,
+
+Vladimir Davydov (7):
+  mm: memcontrol: charge swap to cgroup2
+  mm: vmscan: pass memcg to get_scan_count()
+  mm: memcontrol: replace mem_cgroup_lruvec_online with
+    mem_cgroup_online
+  swap.h: move memcg related stuff to the end of the file
+  mm: vmscan: do not scan anon pages if memcg swap limit is hit
+  mm: free swap cache aggressively if memcg swap is full
+  Documentation: cgroup: add memory.swap.{current,max} description
+
+ Documentation/cgroup.txt   |  33 ++++++++++
+ include/linux/memcontrol.h |  28 ++++-----
+ include/linux/swap.h       |  76 ++++++++++++++--------
+ mm/memcontrol.c            | 154 ++++++++++++++++++++++++++++++++++++++++++---
+ mm/memory.c                |   3 +-
+ mm/shmem.c                 |   4 ++
+ mm/swap_state.c            |   5 ++
+ mm/swapfile.c              |   6 +-
+ mm/vmscan.c                |  26 ++++----
+ 9 files changed, 265 insertions(+), 70 deletions(-)
+
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
