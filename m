@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f47.google.com (mail-lf0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 862614402ED
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 07:30:31 -0500 (EST)
-Received: by mail-lf0-f47.google.com with SMTP id p203so51252597lfa.0
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 04:30:31 -0800 (PST)
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3311D4402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 07:30:37 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id kw15so44461198lbb.0
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 04:30:37 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id mw9si7573007lbb.131.2015.12.17.04.30.29
+        by mx.google.com with ESMTPS id ta3si7584953lbb.48.2015.12.17.04.30.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 04:30:30 -0800 (PST)
+        Thu, 17 Dec 2015 04:30:35 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH v2 3/7] mm: memcontrol: replace mem_cgroup_lruvec_online with mem_cgroup_online
-Date: Thu, 17 Dec 2015 15:29:56 +0300
-Message-ID: <d8fc0b5bb025b8b8ab2630aaf3a5cd6dc89a693c.1450352792.git.vdavydov@virtuozzo.com>
+Subject: [PATCH v2 4/7] swap.h: move memcg related stuff to the end of the file
+Date: Thu, 17 Dec 2015 15:29:57 +0300
+Message-ID: <77dd7375cd8360829093b4c347db2e557334da21.1450352792.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1450352791.git.vdavydov@virtuozzo.com>
 References: <cover.1450352791.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,87 +22,105 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-mem_cgroup_lruvec_online() takes lruvec, but it only needs memcg. Since
-get_scan_count(), which is the only user of this function, now possesses
-pointer to memcg, let's pass memcg directly to mem_cgroup_online()
-instead of picking it out of lruvec and rename the function accordingly.
+The following patches will add more functions to the memcg section of
+include/linux/swap.h. Some of them will need values defined below the
+current location of the section. So let's move the section to the end of
+the file. No functional changes intended.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h | 27 ++++++++++-----------------
- mm/vmscan.c                |  2 +-
- 2 files changed, 11 insertions(+), 18 deletions(-)
+ include/linux/swap.h | 70 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 38 insertions(+), 32 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6e0126230878..166661708410 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -355,6 +355,13 @@ static inline bool mem_cgroup_disabled(void)
- 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 478e7dd038c7..f8fb4e06c4bd 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -350,39 +350,7 @@ extern void check_move_unevictable_pages(struct page **, int nr_pages);
+ 
+ extern int kswapd_run(int nid);
+ extern void kswapd_stop(int nid);
+-#ifdef CONFIG_MEMCG
+-static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+-{
+-	/* root ? */
+-	if (mem_cgroup_disabled() || !memcg->css.parent)
+-		return vm_swappiness;
+-
+-	return memcg->swappiness;
+-}
+ 
+-#else
+-static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+-{
+-	return vm_swappiness;
+-}
+-#endif
+-#ifdef CONFIG_MEMCG_SWAP
+-extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+-extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
+-extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
+-#else
+-static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+-{
+-}
+-static inline int mem_cgroup_try_charge_swap(struct page *page,
+-					     swp_entry_t entry)
+-{
+-	return 0;
+-}
+-static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
+-{
+-}
+-#endif
+ #ifdef CONFIG_SWAP
+ /* linux/mm/page_io.c */
+ extern int swap_readpage(struct page *);
+@@ -561,5 +529,43 @@ static inline swp_entry_t get_swap_page(void)
  }
  
-+static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
+ #endif /* CONFIG_SWAP */
++
++#ifdef CONFIG_MEMCG
++static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 +{
-+	if (mem_cgroup_disabled())
-+		return true;
-+	return !!(memcg->css.flags & CSS_ONLINE);
++	/* root ? */
++	if (mem_cgroup_disabled() || !memcg->css.parent)
++		return vm_swappiness;
++
++	return memcg->swappiness;
 +}
 +
- /*
-  * For memory reclaim.
-  */
-@@ -363,20 +370,6 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
- 		int nr_pages);
- 
--static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
--{
--	struct mem_cgroup_per_zone *mz;
--	struct mem_cgroup *memcg;
--
--	if (mem_cgroup_disabled())
--		return true;
--
--	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
--	memcg = mz->memcg;
--
--	return !!(memcg->css.flags & CSS_ONLINE);
--}
--
- static inline
- unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- {
-@@ -589,13 +582,13 @@ static inline bool mem_cgroup_disabled(void)
- 	return true;
- }
- 
--static inline bool
--mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
-+static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
- {
- 	return true;
- }
- 
--static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
-+static inline bool
-+mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- {
- 	return true;
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index acc6bff84e26..b220e6cda25d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1988,7 +1988,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	if (current_is_kswapd()) {
- 		if (!zone_reclaimable(zone))
- 			force_scan = true;
--		if (!mem_cgroup_lruvec_online(lruvec))
-+		if (!mem_cgroup_online(memcg))
- 			force_scan = true;
- 	}
- 	if (!global_reclaim(sc))
++#else
++static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
++{
++	return vm_swappiness;
++}
++#endif
++
++#ifdef CONFIG_MEMCG_SWAP
++extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
++extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
++extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
++#else
++static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
++{
++}
++
++static inline int mem_cgroup_try_charge_swap(struct page *page,
++					     swp_entry_t entry)
++{
++	return 0;
++}
++
++static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
++{
++}
++#endif
++
+ #endif /* __KERNEL__*/
+ #endif /* _LINUX_SWAP_H */
 -- 
 2.1.4
 
