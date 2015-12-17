@@ -1,208 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 968094402ED
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 14:11:31 -0500 (EST)
-Received: by mail-qk0-f175.google.com with SMTP id t125so102598017qkh.3
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 11:11:31 -0800 (PST)
-Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
-        by mx.google.com with ESMTPS id y188si12518384qhc.72.2015.12.17.11.11.29
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 37EAC4402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 14:11:36 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id mv3so19253016igc.0
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 11:11:36 -0800 (PST)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id op7si5432676igb.73.2015.12.17.11.11.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 11:11:30 -0800 (PST)
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 17 Dec 2015 11:11:35 -0800 (PST)
 From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH 1/8] hugetlb: make mm and fs code explicitly non-modular
-Date: Thu, 17 Dec 2015 14:10:59 -0500
-Message-ID: <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
-In-Reply-To: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
-References: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
+Subject: [PATCH v2 0/8] fs: don't use module helpers in non-modular code
+Date: Thu, 17 Dec 2015 14:10:58 -0500
+Message-ID: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Paul Gortmaker <paul.gortmaker@windriver.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Paul Gortmaker <paul.gortmaker@windriver.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Eric Paris <eparis@parisplace.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@poochiereds.net>, Josh Triplett <josh@joshtriplett.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Peter Hurley <peter@hurleysoftware.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-The Kconfig currently controlling compilation of this code is:
+This series of commits is a slice of a larger project to ensure
+people don't needlessly use modular support functions in non-modular
+code.  Overall there was roughly 5k lines of unused _exit code and
+".remove" functions in the kernel due to this.  So far we've fixed
+several areas, like tty, x86, net, etc. and we continue here in fs/
 
-config HUGETLBFS
-        bool "HugeTLB file system support"
+There are several reasons to not use module helpers for code that can
+never be built as a module, but the big ones are:
 
-...meaning that it currently is not being built as a module by anyone.
+ (1) it is easy to accidentally code up an unused module_exit function
+ (2) it can be misleading when reading the source, thinking it can be
+      modular when the Makefile and/or Kconfig prohibit it
+ (3) it requires the include of the module.h header file which in turn
+     includes nearly everything else, thus increasing CPP overhead.
 
-Lets remove the modular code that is essentially orphaned, so that
-when reading the driver there is no doubt it is builtin-only.
+Fortunately the code here is core fs code and not strictly a driver
+in the sense that a UART or GPIO driver is.  So we don't have a lot
+of unused code to remove, and mainly gain in avoiding #2 and #3 above.
 
-Since module_init translates to device_initcall in the non-modular
-case, the init ordering gets moved to earlier levels when we use the
-more appropriate initcalls here.
+Here we convert some module_init() calls into fs_initcall().  In doing
+so we must note that this changes the init ordering slightly, since
+module_init() becomes device_initcall() in the non-modular case, and
+that comes after fs_initcall().
 
-Originally I had the fs part and the mm part as separate commits,
-just by happenstance of the nature of how I detected these
-non-modular use cases.  But that can possibly introduce regressions
-if the patch merge ordering puts the fs part 1st -- as the 0-day
-testing reported a splat at mount time.
+We could have used device_initcall here to strictly preserve the old
+ordering, and that largely makes sense for drivers/* dirs.  But using
+device_initcall in the fs/ dir just seems wrong when we have the staged
+initcall system and a fs_initcall bucket in that tiered system.
 
-Investigating with "initcall_debug" showed that the delta was
-init_hugetlbfs_fs being called _before_ hugetlb_init instead of
-after.  So both the fs change and the mm change are here together.
+The hugetlb patch warrants special mention.  It has code in both the
+fs dir and the mm dir, with initcalls in each.  There is an implicit
+requirement that the mm one be executed prior to the fs one, else
+the runtime will splat.  Currently we achieve that only by luck of the
+link order.  With the changes made here, we use our existing initcall
+buckets properly to guarantee that ordering.
 
-In addition, it worked before due to luck of link order, since they
-were both in the same initcall category.  So we now have the fs
-part using fs_initcall, and the mm part using subsys_initcall,
-which puts it one bucket earlier.  It now passes the basic sanity
-test that failed in earlier 0-day testing.
+Since I have a large queue, I'm hoping to get as many of these as
+possible in via maintainers, so that I'm not left someday asking
+Linus to pull a giant series.
 
-We delete the MODULE_LICENSE tag and capture that information at the
-top of the file alongside author comments, etc.
+[v1 --> v2: drop 2 patches merged elsewhere, combine mm & fs chunks
+ of hugetlb patch into one & update log accordingly.]
 
-We don't replace module.h with init.h since the file already has that.
-Also note that MODULE_ALIAS is a no-op for non-modular code.
-
-Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org
-Reported-by: kernel test robot <ying.huang@linux.intel.com>
-Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
 ---
- fs/hugetlbfs/inode.c | 27 ++-------------------------
- mm/hugetlb.c         | 39 +--------------------------------------
- 2 files changed, 3 insertions(+), 63 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index de4bdfac0cec..dd04c2ad23b3 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -4,11 +4,11 @@
-  * Nadia Yvette Chambers, 2002
-  *
-  * Copyright (C) 2002 Linus Torvalds.
-+ * License: GPL
-  */
- 
- #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
- 
--#include <linux/module.h>
- #include <linux/thread_info.h>
- #include <asm/current.h>
- #include <linux/sched.h>		/* remove ASAP */
-@@ -1201,7 +1201,6 @@ static struct file_system_type hugetlbfs_fs_type = {
- 	.mount		= hugetlbfs_mount,
- 	.kill_sb	= kill_litter_super,
- };
--MODULE_ALIAS_FS("hugetlbfs");
- 
- static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
- 
-@@ -1355,26 +1354,4 @@ static int __init init_hugetlbfs_fs(void)
-  out2:
- 	return error;
- }
--
--static void __exit exit_hugetlbfs_fs(void)
--{
--	struct hstate *h;
--	int i;
--
--
--	/*
--	 * Make sure all delayed rcu free inodes are flushed before we
--	 * destroy cache.
--	 */
--	rcu_barrier();
--	kmem_cache_destroy(hugetlbfs_inode_cachep);
--	i = 0;
--	for_each_hstate(h)
--		kern_unmount(hugetlbfs_vfsmount[i++]);
--	unregister_filesystem(&hugetlbfs_fs_type);
--}
--
--module_init(init_hugetlbfs_fs)
--module_exit(exit_hugetlbfs_fs)
--
--MODULE_LICENSE("GPL");
-+fs_initcall(init_hugetlbfs_fs)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ef6963b577fd..be934df69b85 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4,7 +4,6 @@
-  */
- #include <linux/list.h>
- #include <linux/init.h>
--#include <linux/module.h>
- #include <linux/mm.h>
- #include <linux/seq_file.h>
- #include <linux/sysctl.h>
-@@ -2549,25 +2548,6 @@ static void hugetlb_unregister_node(struct node *node)
- 	nhs->hugepages_kobj = NULL;
- }
- 
--/*
-- * hugetlb module exit:  unregister hstate attributes from node devices
-- * that have them.
-- */
--static void hugetlb_unregister_all_nodes(void)
--{
--	int nid;
--
--	/*
--	 * disable node device registrations.
--	 */
--	register_hugetlbfs_with_node(NULL, NULL);
--
--	/*
--	 * remove hstate attributes from any nodes that have them.
--	 */
--	for (nid = 0; nid < nr_node_ids; nid++)
--		hugetlb_unregister_node(node_devices[nid]);
--}
- 
- /*
-  * Register hstate attributes for a single node device.
-@@ -2632,27 +2612,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
- 	return NULL;
- }
- 
--static void hugetlb_unregister_all_nodes(void) { }
--
- static void hugetlb_register_all_nodes(void) { }
- 
- #endif
- 
--static void __exit hugetlb_exit(void)
--{
--	struct hstate *h;
--
--	hugetlb_unregister_all_nodes();
--
--	for_each_hstate(h) {
--		kobject_put(hstate_kobjs[hstate_index(h)]);
--	}
--
--	kobject_put(hugepages_kobj);
--	kfree(hugetlb_fault_mutex_table);
--}
--module_exit(hugetlb_exit);
--
- static int __init hugetlb_init(void)
- {
- 	int i;
-@@ -2690,7 +2653,7 @@ static int __init hugetlb_init(void)
- 		mutex_init(&hugetlb_fault_mutex_table[i]);
- 	return 0;
- }
--module_init(hugetlb_init);
-+subsys_initcall(hugetlb_init);
- 
- /* Should be called on processing a hugepagesz=... option */
- void __init hugetlb_add_hstate(unsigned int order)
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Howells <dhowells@redhat.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Eric Paris <eparis@parisplace.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>
+Cc: Jeff Layton <jlayton@poochiereds.net>
+Cc: Josh Triplett <josh@joshtriplett.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Peter Hurley <peter@hurleysoftware.com>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org
+
+The following changes since commit 9f9499ae8e6415cefc4fe0a96ad0e27864353c89:
+
+  Linux 4.4-rc5 (2015-12-13 17:42:58 -0800)
+
+are available in the git repository at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/paulg/linux.git fs_initcall
+
+for you to fetch changes up to 7763d3b42ca62dc967cc56218df8007401e63cd0:
+
+  fs: make binfmt_elf.c explicitly non-modular (2015-12-17 12:11:19 -0500)
+
+----------------------------------------------------------------
+
+Paul Gortmaker (8):
+  hugetlb: make mm and fs code explicitly non-modular
+  fs: make notify dnotify.c explicitly non-modular
+  fs: make fcntl.c explicitly non-modular
+  fs: make filesystems.c explicitly non-modular
+  fs: make locks.c explicitly non-modular
+  fs: make direct-io.c explicitly non-modular
+  fs: make devpts/inode.c explicitly non-modular
+  fs: make binfmt_elf.c explicitly non-modular
+
+ fs/binfmt_elf.c             | 11 +----------
+ fs/devpts/inode.c           |  3 +--
+ fs/direct-io.c              |  4 ++--
+ fs/fcntl.c                  |  4 +---
+ fs/filesystems.c            |  2 +-
+ fs/hugetlbfs/inode.c        | 27 ++-------------------------
+ fs/locks.c                  |  3 +--
+ fs/notify/dnotify/dnotify.c |  4 +---
+ mm/hugetlb.c                | 39 +--------------------------------------
+ 9 files changed, 11 insertions(+), 86 deletions(-)
+
 -- 
 2.6.1
 
