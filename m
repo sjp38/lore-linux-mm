@@ -1,86 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7214402ED
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 13:43:24 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id n128so16875758pfn.0
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 10:43:24 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id z12si17962451pas.77.2015.12.17.10.43.22
-        for <linux-mm@kvack.org>;
-        Thu, 17 Dec 2015 10:43:23 -0800 (PST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-Date: Thu, 17 Dec 2015 18:43:20 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <56679FDC.1080800@huawei.com>
- <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
- <5668D1FA.4050108@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
- <56691819.3040105@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
- <566A9AE1.7020001@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
- <56722258.6030800@huawei.com> <567223A7.9090407@jp.fujitsu.com>
- <56723E8B.8050201@huawei.com> <567241BE.5030806@jp.fujitsu.com>
-In-Reply-To: <567241BE.5030806@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 968094402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 14:11:31 -0500 (EST)
+Received: by mail-qk0-f175.google.com with SMTP id t125so102598017qkh.3
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 11:11:31 -0800 (PST)
+Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
+        by mx.google.com with ESMTPS id y188si12518384qhc.72.2015.12.17.11.11.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Dec 2015 11:11:30 -0800 (PST)
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: [PATCH 1/8] hugetlb: make mm and fs code explicitly non-modular
+Date: Thu, 17 Dec 2015 14:10:59 -0500
+Message-ID: <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
+In-Reply-To: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
+References: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: linux-kernel@vger.kernel.org
+Cc: Paul Gortmaker <paul.gortmaker@windriver.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
->>> As Tony requested, we may need a knob to stop a fallback in "movable->n=
-ormal", later.
->>>
->>=20
->> If the mirrored memory is small and the other is large,
->> I think we can both enable "non-mirrored -> normal" and "normal -> non-m=
-irrored".
->
-> Size of mirrored memory can be configured by software(EFI var).
-> So, having both is just overkill and normal->non-mirroed fallback is mean=
-ingless considering
-> what the feature want to guarantee.
+The Kconfig currently controlling compilation of this code is:
 
-In the original removable usage we wanted to guarantee that Linux did not a=
-llocate any
-kernel objects in removable memory - because that would prevent later remov=
-al of that
-memory.
+config HUGETLBFS
+        bool "HugeTLB file system support"
 
-Mirror case is the same - we don't want to allocate kernel structures in no=
-n-mirrored memory
-because an uncorrectable error in one of them would crash the system.
+...meaning that it currently is not being built as a module by anyone.
 
-But I think some users might like some flexibility here.  If the system doe=
-sn't have enough
-memory for the kernel (non-movable or mirrored), then it seems odd to end u=
-p crashing
-the system at the point of memory exhaustion (a likely result ... the kerne=
-l can try to reclaim
-some pages from SLAB, but that might only return a few pages, if the shorta=
-ge continues
-the system will perform poorly and eventually fail).
+Lets remove the modular code that is essentially orphaned, so that
+when reading the driver there is no doubt it is builtin-only.
 
-The whole point of removable memory or mirrored memory is to provide better=
- availability.
+Since module_init translates to device_initcall in the non-modular
+case, the init ordering gets moved to earlier levels when we use the
+more appropriate initcalls here.
 
-I'd vote for a mode where running out of memory for kernel results in a
+Originally I had the fs part and the mm part as separate commits,
+just by happenstance of the nature of how I detected these
+non-modular use cases.  But that can possibly introduce regressions
+if the patch merge ordering puts the fs part 1st -- as the 0-day
+testing reported a splat at mount time.
 
-   warn_on_once("Ran out of mirrored/non-removable memory for kernel - now =
-allocating from all zones\n")
+Investigating with "initcall_debug" showed that the delta was
+init_hugetlbfs_fs being called _before_ hugetlb_init instead of
+after.  So both the fs change and the mm change are here together.
 
-because I think most people would like the system to stay up rather than wo=
-rry about some future problem that may never happen.
+In addition, it worked before due to luck of link order, since they
+were both in the same initcall category.  So we now have the fs
+part using fs_initcall, and the mm part using subsys_initcall,
+which puts it one bucket earlier.  It now passes the basic sanity
+test that failed in earlier 0-day testing.
 
--Tony
+We delete the MODULE_LICENSE tag and capture that information at the
+top of the file alongside author comments, etc.
 
+We don't replace module.h with init.h since the file already has that.
+Also note that MODULE_ALIAS is a no-op for non-modular code.
 
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org
+Reported-by: kernel test robot <ying.huang@linux.intel.com>
+Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+---
+ fs/hugetlbfs/inode.c | 27 ++-------------------------
+ mm/hugetlb.c         | 39 +--------------------------------------
+ 2 files changed, 3 insertions(+), 63 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index de4bdfac0cec..dd04c2ad23b3 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -4,11 +4,11 @@
+  * Nadia Yvette Chambers, 2002
+  *
+  * Copyright (C) 2002 Linus Torvalds.
++ * License: GPL
+  */
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <linux/module.h>
+ #include <linux/thread_info.h>
+ #include <asm/current.h>
+ #include <linux/sched.h>		/* remove ASAP */
+@@ -1201,7 +1201,6 @@ static struct file_system_type hugetlbfs_fs_type = {
+ 	.mount		= hugetlbfs_mount,
+ 	.kill_sb	= kill_litter_super,
+ };
+-MODULE_ALIAS_FS("hugetlbfs");
+ 
+ static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
+ 
+@@ -1355,26 +1354,4 @@ static int __init init_hugetlbfs_fs(void)
+  out2:
+ 	return error;
+ }
+-
+-static void __exit exit_hugetlbfs_fs(void)
+-{
+-	struct hstate *h;
+-	int i;
+-
+-
+-	/*
+-	 * Make sure all delayed rcu free inodes are flushed before we
+-	 * destroy cache.
+-	 */
+-	rcu_barrier();
+-	kmem_cache_destroy(hugetlbfs_inode_cachep);
+-	i = 0;
+-	for_each_hstate(h)
+-		kern_unmount(hugetlbfs_vfsmount[i++]);
+-	unregister_filesystem(&hugetlbfs_fs_type);
+-}
+-
+-module_init(init_hugetlbfs_fs)
+-module_exit(exit_hugetlbfs_fs)
+-
+-MODULE_LICENSE("GPL");
++fs_initcall(init_hugetlbfs_fs)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ef6963b577fd..be934df69b85 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4,7 +4,6 @@
+  */
+ #include <linux/list.h>
+ #include <linux/init.h>
+-#include <linux/module.h>
+ #include <linux/mm.h>
+ #include <linux/seq_file.h>
+ #include <linux/sysctl.h>
+@@ -2549,25 +2548,6 @@ static void hugetlb_unregister_node(struct node *node)
+ 	nhs->hugepages_kobj = NULL;
+ }
+ 
+-/*
+- * hugetlb module exit:  unregister hstate attributes from node devices
+- * that have them.
+- */
+-static void hugetlb_unregister_all_nodes(void)
+-{
+-	int nid;
+-
+-	/*
+-	 * disable node device registrations.
+-	 */
+-	register_hugetlbfs_with_node(NULL, NULL);
+-
+-	/*
+-	 * remove hstate attributes from any nodes that have them.
+-	 */
+-	for (nid = 0; nid < nr_node_ids; nid++)
+-		hugetlb_unregister_node(node_devices[nid]);
+-}
+ 
+ /*
+  * Register hstate attributes for a single node device.
+@@ -2632,27 +2612,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
+ 	return NULL;
+ }
+ 
+-static void hugetlb_unregister_all_nodes(void) { }
+-
+ static void hugetlb_register_all_nodes(void) { }
+ 
+ #endif
+ 
+-static void __exit hugetlb_exit(void)
+-{
+-	struct hstate *h;
+-
+-	hugetlb_unregister_all_nodes();
+-
+-	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[hstate_index(h)]);
+-	}
+-
+-	kobject_put(hugepages_kobj);
+-	kfree(hugetlb_fault_mutex_table);
+-}
+-module_exit(hugetlb_exit);
+-
+ static int __init hugetlb_init(void)
+ {
+ 	int i;
+@@ -2690,7 +2653,7 @@ static int __init hugetlb_init(void)
+ 		mutex_init(&hugetlb_fault_mutex_table[i]);
+ 	return 0;
+ }
+-module_init(hugetlb_init);
++subsys_initcall(hugetlb_init);
+ 
+ /* Should be called on processing a hugepagesz=... option */
+ void __init hugetlb_add_hstate(unsigned int order)
+-- 
+2.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
