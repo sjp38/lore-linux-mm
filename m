@@ -1,84 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF1C4402ED
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 08:02:27 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id l126so20576071wml.1
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 05:02:27 -0800 (PST)
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id d13si3822942wma.91.2015.12.17.05.02.26
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 34DAD4402ED
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 11:08:48 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id m11so15786633igk.1
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 08:08:48 -0800 (PST)
+Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
+        by mx.google.com with ESMTPS id q16si4552413igr.96.2015.12.17.08.08.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 05:02:26 -0800 (PST)
-Received: by mail-wm0-f44.google.com with SMTP id l126so20359121wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 05:02:26 -0800 (PST)
-Date: Thu, 17 Dec 2015 14:02:24 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-ID: <20151217130223.GE18625@dhcp22.suse.cz>
-References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
- <20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
+        Thu, 17 Dec 2015 08:08:46 -0800 (PST)
+Received: by mail-io0-x236.google.com with SMTP id e126so59863071ioa.1
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 08:08:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
+In-Reply-To: <1442222687-9758-2-git-send-email-schwidefsky@de.ibm.com>
+References: <1442222687-9758-1-git-send-email-schwidefsky@de.ibm.com>
+	<1442222687-9758-2-git-send-email-schwidefsky@de.ibm.com>
+Date: Thu, 17 Dec 2015 19:08:46 +0300
+Message-ID: <CAM5jBj5vOTjbt1f3Z6P=qQymX5-_W6bLGVQ1Q9FERx6tpKbthQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/swapfile: mm/swapfile: fix swapoff vs. software dirty bits
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed 16-12-15 16:50:35, Andrew Morton wrote:
-> On Tue, 15 Dec 2015 19:36:15 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-[...]
-> > +static void oom_reap_vmas(struct mm_struct *mm)
-> > +{
-> > +	int attempts = 0;
-> > +
-> > +	while (attempts++ < 10 && !__oom_reap_vmas(mm))
-> > +		schedule_timeout(HZ/10);
-> 
-> schedule_timeout() in state TASK_RUNNING doesn't do anything.  Use
-> msleep() or msleep_interruptible().  I can't decide which is more
-> appropriate - it only affects the load average display.
+On Mon, Sep 14, 2015 at 12:24 PM, Martin Schwidefsky
+<schwidefsky@de.ibm.com> wrote:
+> Fixes a regression introduced with commit 179ef71cbc085252
+> "mm: save soft-dirty bits on swapped pages"
+>
+> The maybe_same_pte() function is used to match a swap pte independent
+> of the swap software dirty bit set with pte_swp_mksoft_dirty().
+>
+> For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
+> software dirty bit may be set but maybe_same_pte() will not recognize
+> a software dirty swap pte. Due to this a 'swapoff -a' will hang.
+>
+> The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
+> with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
+>
+> Cc: linux-mm@kvack.org
+> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Reported-by: Sebastian Ott <sebott@linux.vnet.ibm.com>
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Ups. You are right. I will go with msleep_interruptible(100).
- 
-> Which prompts the obvious question: as the no-operativeness of this
-> call wasn't noticed in testing, why do we have it there...
-
-Well, the idea was that an interfering mmap_sem operation which holds
-it for write might block us for a short time period - e.g. when not
-depending on an allocation or accessing the memory reserves helps
-to progress the allocation. If the holder of the semaphore is stuck
-then the retry is pointless. On the other hand the retry shouldn't be
-harmful. All in all this is just a heuristic and we do not depend on
-it. I guess we can drop it and nobody would actually notice. Let me know
-if you prefer that and I will respin the patch.
-
-
-> I guess it means that the __oom_reap_vmas() success rate is nice anud
-> high ;)
-
-I had a debugging trace_printks around this and there were no reties
-during my testing so I was probably lucky to not trigger the mmap_sem
-contention.
----
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 48025a21f8c4..f53f87cfd899 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -469,7 +469,7 @@ static void oom_reap_vmas(struct mm_struct *mm)
- 	int attempts = 0;
- 
- 	while (attempts++ < 10 && !__oom_reap_vmas(mm))
--		schedule_timeout(HZ/10);
-+		msleep_interruptible(100);
- 
- 	/* Drop a reference taken by wake_oom_reaper */
- 	mmdrop(mm);
-
--- 
-Michal Hocko
-SUSE Labs
+We've been discussing this already
+http://comments.gmane.org/gmane.linux.kernel.mm/138664
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
