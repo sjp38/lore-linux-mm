@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F606B0007
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:41 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id p187so54389514wmp.1
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:41 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7FB666B0008
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:43 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l126so55807210wml.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:43 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 2si10702754wmf.17.2015.12.18.01.03.37
+        by mx.google.com with ESMTPS id 195si10660727wmv.122.2015.12.18.01.03.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 18 Dec 2015 01:03:37 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 06/14] mm, debug: replace dump_flags() with the new printk formats
-Date: Fri, 18 Dec 2015 10:03:18 +0100
-Message-Id: <1450429406-7081-7-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 01/14] tracepoints: move trace_print_flags definitions to tracepoint-defs.h
+Date: Fri, 18 Dec 2015 10:03:13 +0100
+Message-Id: <1450429406-7081-2-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +20,10 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-With the new printk format strings for flags, we can get rid of dump_flags()
-in mm/debug.c.
-
-This also fixes dump_vma() which used dump_flags() for printing vma flags.
-However dump_flags() did a page-flags specific filtering of bits higher than
-NR_PAGEFLAGS in order to remove the zone id part. For dump_vma() this resulted
-in removing several VM_* flags from the symbolic translation.
+The following patch will need to declare array of struct trace_print_flags
+in a header. To prevent this header from pulling in all of RCU through
+trace_events.h, move the struct trace_print_flags{_64} definitions to the new
+lightweight tracepoint-defs.h header.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Steven Rostedt <rostedt@goodmis.org>
@@ -41,114 +38,61 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.cz>
 ---
- mm/debug.c | 60 ++++++++++++++----------------------------------------------
- 1 file changed, 14 insertions(+), 46 deletions(-)
+ include/linux/trace_events.h    | 10 ----------
+ include/linux/tracepoint-defs.h | 14 ++++++++++++--
+ 2 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/mm/debug.c b/mm/debug.c
-index 79621a5ce46f..5ea57bc49ef6 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -28,36 +28,6 @@ const struct trace_print_flags vmaflag_names[] = {
- 	{0, NULL}
- };
+diff --git a/include/linux/trace_events.h b/include/linux/trace_events.h
+index 429fdfc3baf5..d91404f89ff2 100644
+--- a/include/linux/trace_events.h
++++ b/include/linux/trace_events.h
+@@ -15,16 +15,6 @@ struct tracer;
+ struct dentry;
+ struct bpf_prog;
  
--static void dump_flags(unsigned long flags,
--			const struct trace_print_flags *names, int count)
--{
--	const char *delim = "";
--	unsigned long mask;
--	int i;
+-struct trace_print_flags {
+-	unsigned long		mask;
+-	const char		*name;
+-};
 -
--	pr_emerg("flags: %#lx(", flags);
+-struct trace_print_flags_u64 {
+-	unsigned long long	mask;
+-	const char		*name;
+-};
 -
--	/* remove zone id */
--	flags &= (1UL << NR_PAGEFLAGS) - 1;
--
--	for (i = 0; i < count && flags; i++) {
--
--		mask = names[i].mask;
--		if ((flags & mask) != mask)
--			continue;
--
--		flags &= ~mask;
--		pr_cont("%s%s", delim, names[i].name);
--		delim = "|";
--	}
--
--	/* check for left over flags */
--	if (flags)
--		pr_cont("%s%#lx", delim, flags);
--
--	pr_cont(")\n");
--}
--
- void dump_page_badflags(struct page *page, const char *reason,
- 		unsigned long badflags)
- {
-@@ -68,15 +38,15 @@ void dump_page_badflags(struct page *page, const char *reason,
- 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
- 	pr_cont("\n");
- 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
--	dump_flags(page->flags, pageflag_names,
--					ARRAY_SIZE(pageflag_names) - 1);
-+	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
+ const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
+ 				  unsigned long flags,
+ 				  const struct trace_print_flags *flag_array);
+diff --git a/include/linux/tracepoint-defs.h b/include/linux/tracepoint-defs.h
+index e1ee97c713bf..4ac89acb6136 100644
+--- a/include/linux/tracepoint-defs.h
++++ b/include/linux/tracepoint-defs.h
+@@ -3,13 +3,23 @@
+ 
+ /*
+  * File can be included directly by headers who only want to access
+- * tracepoint->key to guard out of line trace calls. Otherwise
+- * linux/tracepoint.h should be used.
++ * tracepoint->key to guard out of line trace calls, or the definition of
++ * trace_print_flags{_u64}. Otherwise linux/tracepoint.h should be used.
+  */
+ 
+ #include <linux/atomic.h>
+ #include <linux/static_key.h>
+ 
++struct trace_print_flags {
++	unsigned long		mask;
++	const char		*name;
++};
 +
- 	if (reason)
- 		pr_alert("page dumped because: %s\n", reason);
--	if (page->flags & badflags) {
--		pr_alert("bad because of flags:\n");
--		dump_flags(page->flags & badflags, pageflag_names,
--					ARRAY_SIZE(pageflag_names) - 1);
--	}
++struct trace_print_flags_u64 {
++	unsigned long long	mask;
++	const char		*name;
++};
 +
-+	badflags &= page->flags;
-+	if (badflags)
-+		pr_alert("bad because of flags: %#lx(%pgp)\n", badflags,
-+								&badflags);
- #ifdef CONFIG_MEMCG
- 	if (page->mem_cgroup)
- 		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
-@@ -96,13 +66,14 @@ void dump_vma(const struct vm_area_struct *vma)
- 	pr_emerg("vma %p start %p end %p\n"
- 		"next %p prev %p mm %p\n"
- 		"prot %lx anon_vma %p vm_ops %p\n"
--		"pgoff %lx file %p private_data %p\n",
-+		"pgoff %lx file %p private_data %p\n"
-+		"flags: %#lx(%pgv)\n",
- 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
- 		vma->vm_prev, vma->vm_mm,
- 		(unsigned long)pgprot_val(vma->vm_page_prot),
- 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
--		vma->vm_file, vma->vm_private_data);
--	dump_flags(vma->vm_flags, vmaflag_names, ARRAY_SIZE(vmaflag_names) - 1);
-+		vma->vm_file, vma->vm_private_data,
-+		vma->vm_flags, &vma->vm_flags);
- }
- EXPORT_SYMBOL(dump_vma);
- 
-@@ -136,7 +107,7 @@ void dump_mm(const struct mm_struct *mm)
- #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
- 		"tlb_flush_pending %d\n"
- #endif
--		"%s",	/* This is here to hold the comma */
-+		"def_flags: %#lx(%pgv)\n",
- 
- 		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
- #ifdef CONFIG_MMU
-@@ -170,11 +141,8 @@ void dump_mm(const struct mm_struct *mm)
- #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
- 		mm->tlb_flush_pending,
- #endif
--		""		/* This is here to not have a comma! */
--		);
--
--		dump_flags(mm->def_flags, vmaflag_names,
--				ARRAY_SIZE(vmaflag_names) - 1);
-+		mm->def_flags, &mm->def_flags
-+	);
- }
- 
- #endif		/* CONFIG_DEBUG_VM */
+ struct tracepoint_func {
+ 	void *func;
+ 	void *data;
 -- 
 2.6.3
 
