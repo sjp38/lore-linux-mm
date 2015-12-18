@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EA426B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:08:50 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id l126so55154817wml.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:08:50 -0800 (PST)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2A76B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:10:07 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l126so55199087wml.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:10:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y63si10664841wmc.28.2015.12.18.01.03.38
+        by mx.google.com with ESMTPS id s3si10679659wmb.30.2015.12.18.01.03.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 18 Dec 2015 01:03:38 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 12/14] mm, page_owner: track and print last migrate reason
-Date: Fri, 18 Dec 2015 10:03:24 +0100
-Message-Id: <1450429406-7081-13-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 14/14] mm, debug: move bad flags printing to bad_page()
+Date: Fri, 18 Dec 2015 10:03:26 +0100
+Message-Id: <1450429406-7081-15-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-During migration, page_owner info is now copied with the rest of the page, so
-the stacktrace leading to free page allocation during migration is overwritten.
-For debugging purposes, it might be however useful to know that the page has
-been migrated since its initial allocation. This might happen many times during
-the lifetime for different reasons and fully tracking this, especially with
-stacktraces would incur extra memory costs. As a compromise, store and print
-the migrate_reason of the last migration that occurred to the page. This is
-enough to distinguish compaction, numa balancing etc.
+Since bad_page() is the only user of the badflags parameter of
+dump_page_badflags(), we can move the code to bad_page() and simplify a bit.
 
-Example page_owner entry after the patch:
+The dump_page_badflags() function is renamed to __dump_page() and can still be
+called separately from dump_page() for temporary debug prints where page_owner
+info is not desired.
 
-Page allocated via order 0, mask 0x24213ca(GFP_HIGHUSER_MOVABLE|GFP_COLD|GFP_NOWARN|GFP_NORETRY)
-PFN 674308 type Movable Block 1317 type Movable Flags 0x1fffff80010068(uptodate|lru|active|mappedtodisk)
- [<ffffffff81164e9a>] __alloc_pages_nodemask+0x15a/0xa30
- [<ffffffff811ab938>] alloc_pages_current+0x88/0x120
- [<ffffffff8115bc46>] __page_cache_alloc+0xe6/0x120
- [<ffffffff81168b9b>] __do_page_cache_readahead+0xdb/0x200
- [<ffffffff81168df5>] ondemand_readahead+0x135/0x260
- [<ffffffff81168f8c>] page_cache_async_readahead+0x6c/0x70
- [<ffffffff8115d5f8>] generic_file_read_iter+0x378/0x590
- [<ffffffff811d12a7>] __vfs_read+0xa7/0xd0
-Page has been migrated, last migrate reason: compaction
+The only user-visible change is that page->mem_cgroup is printed before the bad
+flags.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
@@ -50,201 +37,95 @@ Cc: Sasha Levin <sasha.levin@oracle.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
 ---
- include/linux/migrate.h    |  6 +++++-
- include/linux/page_ext.h   |  1 +
- include/linux/page_owner.h |  9 +++++++++
- mm/debug.c                 | 11 +++++++++++
- mm/migrate.c               | 10 +++++++---
- mm/page_owner.c            | 17 +++++++++++++++++
- 6 files changed, 50 insertions(+), 4 deletions(-)
+ include/linux/mmdebug.h |  3 +--
+ mm/debug.c              | 10 +++-------
+ mm/page_alloc.c         | 10 +++++++---
+ 3 files changed, 11 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index cac1c0904d5f..9b50325e4ddf 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -23,9 +23,13 @@ enum migrate_reason {
- 	MR_SYSCALL,		/* also applies to cpusets */
- 	MR_MEMPOLICY_MBIND,
- 	MR_NUMA_MISPLACED,
--	MR_CMA
-+	MR_CMA,
-+	MR_TYPES
- };
+diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+index 2c8286cf162e..9b0dc2161f7a 100644
+--- a/include/linux/mmdebug.h
++++ b/include/linux/mmdebug.h
+@@ -14,8 +14,7 @@ extern const struct trace_print_flags vmaflag_names[];
+ extern const struct trace_print_flags gfpflag_names[];
  
-+/* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
-+extern char *migrate_reason_names[MR_TYPES];
-+
- #ifdef CONFIG_MIGRATION
+ extern void dump_page(struct page *page, const char *reason);
+-extern void dump_page_badflags(struct page *page, const char *reason,
+-			       unsigned long badflags);
++extern void __dump_page(struct page *page, const char *reason);
+ void dump_vma(const struct vm_area_struct *vma);
+ void dump_mm(const struct mm_struct *mm);
  
- extern void putback_movable_pages(struct list_head *l);
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 17f118a82854..e1fe7cf5bddf 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -45,6 +45,7 @@ struct page_ext {
- 	unsigned int order;
- 	gfp_t gfp_mask;
- 	unsigned int nr_entries;
-+	int last_migrate_reason;
- 	unsigned long trace_entries[8];
- #endif
- };
-diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index 6440daab4ef8..555893bf13d7 100644
---- a/include/linux/page_owner.h
-+++ b/include/linux/page_owner.h
-@@ -12,6 +12,7 @@ extern void __set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask);
- extern gfp_t __get_page_owner_gfp(struct page *page);
- extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
-+extern void __set_page_owner_migrate_reason(struct page *page, int reason);
- 
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -38,6 +39,11 @@ static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- 	if (static_branch_unlikely(&page_owner_inited))
- 		__copy_page_owner(oldpage, newpage);
- }
-+static inline void set_page_owner_migrate_reason(struct page *page, int reason)
-+{
-+	if (static_branch_unlikely(&page_owner_inited))
-+		__set_page_owner_migrate_reason(page, reason);
-+}
- #else
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -53,5 +59,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
- static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- {
- }
-+static inline void set_page_owner_migrate_reason(struct page *page, int reason)
-+{
-+}
- #endif /* CONFIG_PAGE_OWNER */
- #endif /* __LINUX_PAGE_OWNER_H */
 diff --git a/mm/debug.c b/mm/debug.c
-index 5ea57bc49ef6..f13778ae84a2 100644
+index 7260644d8cc1..4c03b6d07c82 100644
 --- a/mm/debug.c
 +++ b/mm/debug.c
-@@ -10,9 +10,20 @@
- #include <linux/trace_events.h>
- #include <linux/memcontrol.h>
- #include <trace/events/mmflags.h>
-+#include <linux/migrate.h>
- 
- #include "internal.h"
- 
-+char *migrate_reason_names[MR_TYPES] = {
-+	"compaction",
-+	"memory_failure",
-+	"memory_hotplug",
-+	"syscall_or_cpuset",
-+	"mempolicy_mbind",
-+	"numa_misplaced",
-+	"cma",
-+};
-+
- const struct trace_print_flags pageflag_names[] = {
- 	__def_pageflag_names,
+@@ -40,8 +40,7 @@ const struct trace_print_flags vmaflag_names[] = {
  	{0, NULL}
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 863a0f1fe23f..1c11b73cd834 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -955,8 +955,10 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 	}
+ };
  
- 	rc = __unmap_and_move(page, newpage, force, mode);
--	if (rc == MIGRATEPAGE_SUCCESS)
-+	if (rc == MIGRATEPAGE_SUCCESS) {
- 		put_new_page = NULL;
-+		set_page_owner_migrate_reason(newpage, reason);
-+	}
- 
- out:
- 	if (rc != -EAGAIN) {
-@@ -1021,7 +1023,7 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- static int unmap_and_move_huge_page(new_page_t get_new_page,
- 				free_page_t put_new_page, unsigned long private,
- 				struct page *hpage, int force,
--				enum migrate_mode mode)
-+				enum migrate_mode mode, int reason)
+-void dump_page_badflags(struct page *page, const char *reason,
+-		unsigned long badflags)
++void __dump_page(struct page *page, const char *reason)
  {
- 	int rc = -EAGAIN;
- 	int *result = NULL;
-@@ -1079,6 +1081,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 	if (rc == MIGRATEPAGE_SUCCESS) {
- 		hugetlb_cgroup_migrate(hpage, new_hpage);
- 		put_new_page = NULL;
-+		set_page_owner_migrate_reason(new_hpage, reason);
- 	}
+ 	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
+ 		  page, atomic_read(&page->_count), page_mapcount(page),
+@@ -50,15 +49,12 @@ void dump_page_badflags(struct page *page, const char *reason,
+ 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
+ 	pr_cont("\n");
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
++
+ 	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
  
- 	unlock_page(hpage);
-@@ -1151,7 +1154,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
- 			if (PageHuge(page))
- 				rc = unmap_and_move_huge_page(get_new_page,
- 						put_new_page, private, page,
--						pass > 2, mode);
-+						pass > 2, mode, reason);
- 			else
- 				rc = unmap_and_move(get_new_page, put_new_page,
- 						private, page, pass > 2, mode,
-@@ -1842,6 +1845,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	set_page_memcg(new_page, page_memcg(page));
- 	set_page_memcg(page, NULL);
- 	page_remove_rmap(page, true);
-+	set_page_owner_migrate_reason(new_page, MR_NUMA_MISPLACED);
+ 	if (reason)
+ 		pr_alert("page dumped because: %s\n", reason);
  
- 	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index a390d2665df2..58ce2816e2c2 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -6,6 +6,7 @@
- #include <linux/stacktrace.h>
- #include <linux/page_owner.h>
- #include <linux/jump_label.h>
-+#include <linux/migrate.h>
- #include "internal.h"
+-	badflags &= page->flags;
+-	if (badflags)
+-		pr_alert("bad because of flags: %#lx(%pgp)\n", badflags,
+-								&badflags);
+ #ifdef CONFIG_MEMCG
+ 	if (page->mem_cgroup)
+ 		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
+@@ -67,7 +63,7 @@ void dump_page_badflags(struct page *page, const char *reason,
  
- static bool page_owner_disabled = true;
-@@ -73,10 +74,18 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
- 	page_ext->order = order;
- 	page_ext->gfp_mask = gfp_mask;
- 	page_ext->nr_entries = trace.nr_entries;
-+	page_ext->last_migrate_reason = -1;
- 
- 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+ void dump_page(struct page *page, const char *reason)
+ {
+-	dump_page_badflags(page, reason, 0);
++	__dump_page(page, reason);
+ 	dump_page_owner(page);
  }
+ EXPORT_SYMBOL(dump_page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7718ee40726a..bac8842d4fcf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -428,7 +428,7 @@ static void bad_page(struct page *page, const char *reason,
+ 			goto out;
+ 		}
+ 		if (nr_unshown) {
+-			printk(KERN_ALERT
++			pr_alert(
+ 			      "BUG: Bad page state: %lu messages suppressed\n",
+ 				nr_unshown);
+ 			nr_unshown = 0;
+@@ -438,9 +438,13 @@ static void bad_page(struct page *page, const char *reason,
+ 	if (nr_shown++ == 0)
+ 		resume = jiffies + 60 * HZ;
  
-+void __set_page_owner_migrate_reason(struct page *page, int reason)
-+{
-+	struct page_ext *page_ext = lookup_page_ext(page);
-+
-+	page_ext->last_migrate_reason = reason;
-+}
-+
- gfp_t __get_page_owner_gfp(struct page *page)
- {
- 	struct page_ext *page_ext = lookup_page_ext(page);
-@@ -151,6 +160,14 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	if (ret >= count)
- 		goto err;
+-	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
++	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
+ 		current->comm, page_to_pfn(page));
+-	dump_page_badflags(page, reason, bad_flags);
++	__dump_page(page, reason);
++	bad_flags &= page->flags;
++	if (bad_flags)
++		pr_alert("bad because of flags: %#lx(%pgp)\n",
++						bad_flags, &bad_flags);
+ 	dump_page_owner(page);
  
-+	if (page_ext->last_migrate_reason != -1) {
-+		ret += snprintf(kbuf + ret, count - ret,
-+			"Page has been migrated, last migrate reason: %s\n",
-+			migrate_reason_names[page_ext->last_migrate_reason]);
-+		if (ret >= count)
-+			goto err;
-+	}
-+
- 	ret += snprintf(kbuf + ret, count - ret, "\n");
- 	if (ret >= count)
- 		goto err;
+ 	print_modules();
 -- 
 2.6.3
 
