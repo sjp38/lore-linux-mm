@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F79E6B0010
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:55 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l126so56545526wml.1
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:55 -0800 (PST)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F906B0011
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:57 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id p187so54399291wmp.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e8si19416704wjx.113.2015.12.18.01.03.37
+        by mx.google.com with ESMTPS id cb2si24147601wjc.79.2015.12.18.01.03.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 18 Dec 2015 01:03:37 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 04/14] mm, tracing: unify mm flags handling in tracepoints and printk
-Date: Fri, 18 Dec 2015 10:03:16 +0100
-Message-Id: <1450429406-7081-5-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 09/14] mm, page_owner: print migratetype of page and pageblock, symbolic flags
+Date: Fri, 18 Dec 2015 10:03:21 +0100
+Message-Id: <1450429406-7081-10-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-In tracepoints, it's possible to print gfp flags in a human-friendly format
-through a macro show_gfp_flags(), which defines a translation array and passes
-is to __print_flags(). Since the following patch will introduce support for
-gfp flags printing in printk(), it would be nice to reuse the array. This is
-not straightforward, since __print_flags() can't simply reference an array
-defined in a .c file such as mm/debug.c - it has to be a macro to allow the
-macro magic to communicate the format to userspace tools such as trace-cmd.
+The information in /sys/kernel/debug/page_owner includes the migratetype of
+the pageblock the page belongs to. This is also checked against the page's
+migratetype (as declared by gfp_flags during its allocation), and the page is
+reported as Fallback if its migratetype differs from the pageblock's one.
+t
+This is somewhat misleading because in fact fallback allocation is not the only
+reason why these two can differ. It also doesn't direcly provide the page's
+migratetype, although it's possible to derive that from the gfp_flags.
 
-The solution is to create a macro __def_gfpflag_names which is used both in
-show_gfp_flags(), and to define the gfpflag_names[] array in mm/debug.c.
+It's arguably better to print both page and pageblock's migratetype and leave
+the interpretation to the consumer than to suggest fallback allocation as the
+only possible reason. While at it, we can print the migratetypes as string
+the same way as /proc/pagetypeinfo does, as some of the numeric values depend
+on kernel configuration. For that, this patch moves the migratetype_names
+array from #ifdef CONFIG_PROC_FS part of mm/vmstat.c to mm/page_alloc.c and
+exports it.
 
-On the other hand, mm/debug.c also defines translation tables for page
-flags and vma flags, and desire was expressed (but not implemented in this
-series) to use these also from tracepoints. Thus, this patch also renames the
-events/gfpflags.h file to events/mmflags.h and moves the table definitions
-there, using the same macro approach as for gfpflags. This allows translating
-all three kinds of mm-specific flags both in tracepoints and printk.
+With the new format strings for flags, we can now also provide symbolic page
+and gfp flags in the /sys/kernel/debug/page_owner file. This replaces the
+positional printing of page flags as single letters, which might have looked
+nicer, but was limited to a subset of flags, and required the user to remember
+the letters.
+
+Example page_owner entry after the patch:
+
+Page allocated via order 0, mask 0x24213ca(GFP_HIGHUSER_MOVABLE|GFP_COLD|GFP_NOWARN|GFP_NORETRY)
+PFN 674308 type Movable Block 1317 type Movable Flags 0x1fffff80010068(uptodate|lru|active|mappedtodisk)
+ [<ffffffff81164e9a>] __alloc_pages_nodemask+0x15a/0xa30
+ [<ffffffff811ab938>] alloc_pages_current+0x88/0x120
+ [<ffffffff8115bc46>] __page_cache_alloc+0xe6/0x120
+ [<ffffffff81168b9b>] __do_page_cache_readahead+0xdb/0x200
+ [<ffffffff81168df5>] ondemand_readahead+0x135/0x260
+ [<ffffffff81168f8c>] page_cache_async_readahead+0x6c/0x70
+ [<ffffffff8115d5f8>] generic_file_read_iter+0x378/0x590
+ [<ffffffff811d12a7>] __vfs_read+0xa7/0xd0
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>
@@ -51,454 +64,118 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/gfp.h                |   2 +-
- include/trace/events/btrfs.h       |   2 +-
- include/trace/events/compaction.h  |   2 +-
- include/trace/events/gfpflags.h    |  48 -----------
- include/trace/events/huge_memory.h |   2 -
- include/trace/events/kmem.h        |   2 +-
- include/trace/events/mmflags.h     | 161 +++++++++++++++++++++++++++++++++++++
- include/trace/events/vmscan.h      |   2 +-
- mm/debug.c                         |  88 +++-----------------
- tools/perf/builtin-kmem.c          |   2 +-
- 10 files changed, 178 insertions(+), 133 deletions(-)
- delete mode 100644 include/trace/events/gfpflags.h
- create mode 100644 include/trace/events/mmflags.h
+ include/linux/mmzone.h |  3 +++
+ mm/page_alloc.c        | 13 +++++++++++++
+ mm/page_owner.c        | 24 +++++++-----------------
+ mm/vmstat.c            | 13 -------------
+ 4 files changed, 23 insertions(+), 30 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index eed323f58547..f6a5e2ba7152 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -11,7 +11,7 @@ struct vm_area_struct;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 33bb1b19273e..68cc063bf0b7 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -63,6 +63,9 @@ enum {
+ 	MIGRATE_TYPES
+ };
  
- /*
-  * In case of changes, please don't forget to update
-- * include/trace/events/gfpflags.h and tools/perf/builtin-kmem.c
-+ * include/trace/events/mmflags.h and tools/perf/builtin-kmem.c
-  */
- 
- /* Plain integer GFP bitmasks. Do not use this directly. */
-diff --git a/include/trace/events/btrfs.h b/include/trace/events/btrfs.h
-index b4473dab39d6..27843f5eccde 100644
---- a/include/trace/events/btrfs.h
-+++ b/include/trace/events/btrfs.h
-@@ -6,7 +6,7 @@
- 
- #include <linux/writeback.h>
- #include <linux/tracepoint.h>
--#include <trace/events/gfpflags.h>
-+#include <trace/events/mmflags.h>
- 
- struct btrfs_root;
- struct btrfs_fs_info;
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index c92d1e1cbad9..111e5666e5eb 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -7,7 +7,7 @@
- #include <linux/types.h>
- #include <linux/list.h>
- #include <linux/tracepoint.h>
--#include <trace/events/gfpflags.h>
-+#include <trace/events/mmflags.h>
- 
- #define COMPACTION_STATUS					\
- 	EM( COMPACT_DEFERRED,		"deferred")		\
-diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-deleted file mode 100644
-index 8395798d97b0..000000000000
---- a/include/trace/events/gfpflags.h
-+++ /dev/null
-@@ -1,48 +0,0 @@
--/*
-- * The order of these masks is important. Matching masks will be seen
-- * first and the left over flags will end up showing by themselves.
-- *
-- * For example, if we have GFP_KERNEL before GFP_USER we wil get:
-- *
-- *  GFP_KERNEL|GFP_HARDWALL
-- *
-- * Thus most bits set go first.
-- */
--#define show_gfp_flags(flags)						\
--	(flags) ? __print_flags(flags, "|",				\
--	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
--	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
--	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
--	{(unsigned long)GFP_USER,		"GFP_USER"},		\
--	{(unsigned long)GFP_TEMPORARY,		"GFP_TEMPORARY"},	\
--	{(unsigned long)GFP_KERNEL,		"GFP_KERNEL"},		\
--	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
--	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
--	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
--	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
--	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
--	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
--	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
--	{(unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
--	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
--	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
--	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
--	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
--	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
--	{(unsigned long)__GFP_NOFAIL,		"GFP_NOFAIL"},		\
--	{(unsigned long)__GFP_NORETRY,		"GFP_NORETRY"},		\
--	{(unsigned long)__GFP_COMP,		"GFP_COMP"},		\
--	{(unsigned long)__GFP_ZERO,		"GFP_ZERO"},		\
--	{(unsigned long)__GFP_NOMEMALLOC,	"GFP_NOMEMALLOC"},	\
--	{(unsigned long)__GFP_MEMALLOC,		"GFP_MEMALLOC"},	\
--	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
--	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
--	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
--	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
--	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
--	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
--	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
--	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
--	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
--	) : "none"
--
-diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-index bfcf4a16aa94..8c62d1cac3b6 100644
---- a/include/trace/events/huge_memory.h
-+++ b/include/trace/events/huge_memory.h
-@@ -6,8 +6,6 @@
- 
- #include  <linux/tracepoint.h>
- 
--#include <trace/events/gfpflags.h>
--
- #define SCAN_STATUS							\
- 	EM( SCAN_FAIL,			"failed")			\
- 	EM( SCAN_SUCCEED,		"succeeded")			\
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index f7554fd7fc62..ca7217389067 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -6,7 +6,7 @@
- 
- #include <linux/types.h>
- #include <linux/tracepoint.h>
--#include <trace/events/gfpflags.h>
-+#include <trace/events/mmflags.h>
- 
- DECLARE_EVENT_CLASS(kmem_alloc,
- 
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-new file mode 100644
-index 000000000000..1cabf464cd8f
---- /dev/null
-+++ b/include/trace/events/mmflags.h
-@@ -0,0 +1,161 @@
-+/*
-+ * The order of these masks is important. Matching masks will be seen
-+ * first and the left over flags will end up showing by themselves.
-+ *
-+ * For example, if we have GFP_KERNEL before GFP_USER we wil get:
-+ *
-+ *  GFP_KERNEL|GFP_HARDWALL
-+ *
-+ * Thus most bits set go first.
-+ */
++/* In mm/page_alloc.c; keep in sync also with show_migration_types() there */
++extern char * const migratetype_names[MIGRATE_TYPES];
 +
-+#define __def_gfpflag_names						\
-+	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
-+	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
-+	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
-+	{(unsigned long)GFP_USER,		"GFP_USER"},		\
-+	{(unsigned long)GFP_TEMPORARY,		"GFP_TEMPORARY"},	\
-+	{(unsigned long)GFP_KERNEL,		"GFP_KERNEL"},		\
-+	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
-+	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
-+	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
-+	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
-+	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
-+	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
-+	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
-+	{(unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
-+	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
-+	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
-+	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
-+	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
-+	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
-+	{(unsigned long)__GFP_NOFAIL,		"GFP_NOFAIL"},		\
-+	{(unsigned long)__GFP_NORETRY,		"GFP_NORETRY"},		\
-+	{(unsigned long)__GFP_COMP,		"GFP_COMP"},		\
-+	{(unsigned long)__GFP_ZERO,		"GFP_ZERO"},		\
-+	{(unsigned long)__GFP_NOMEMALLOC,	"GFP_NOMEMALLOC"},	\
-+	{(unsigned long)__GFP_MEMALLOC,		"GFP_MEMALLOC"},	\
-+	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
-+	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
-+	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
-+	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
-+	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
-+	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
-+	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
-+	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
-+	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
-+
-+#define show_gfp_flags(flags)						\
-+	(flags) ? __print_flags(flags, "|",				\
-+	__def_gfpflag_names						\
-+	) : "none"
-+
-+#ifdef CONFIG_MMU
-+#define IF_HAVE_PG_MLOCK(flag,string) ,{1UL << flag, string}
-+#else
-+#define IF_HAVE_PG_MLOCK(flag,string)
+ #ifdef CONFIG_CMA
+ #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+ #else
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 08e514721a57..67538b58e478 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -222,6 +222,19 @@ static char * const zone_names[MAX_NR_ZONES] = {
+ #endif
+ };
+ 
++char * const migratetype_names[MIGRATE_TYPES] = {
++	"Unmovable",
++	"Movable",
++	"Reclaimable",
++	"HighAtomic",
++#ifdef CONFIG_CMA
++	"CMA",
 +#endif
-+
-+#ifdef CONFIG_ARCH_USES_PG_UNCACHED
-+#define IF_HAVE_PG_UNCACHED(flag,string) ,{1UL << flag, string}
-+#else
-+#define IF_HAVE_PG_UNCACHED(flag,string)
++#ifdef CONFIG_MEMORY_ISOLATION
++	"Isolate",
 +#endif
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+#define IF_HAVE_PG_HWPOISON(flag,string) ,{1UL << flag, string}
-+#else
-+#define IF_HAVE_PG_HWPOISON(flag,string)
-+#endif
-+
-+#if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
-+#define IF_HAVE_PG_IDLE(flag,string) ,{1UL << flag, string}
-+#else
-+#define IF_HAVE_PG_IDLE(flag,string)
-+#endif
-+
-+#define __def_pageflag_names						\
-+	{1UL << PG_locked,		"locked"	},		\
-+	{1UL << PG_error,		"error"		},		\
-+	{1UL << PG_referenced,		"referenced"	},		\
-+	{1UL << PG_uptodate,		"uptodate"	},		\
-+	{1UL << PG_dirty,		"dirty"		},		\
-+	{1UL << PG_lru,			"lru"		},		\
-+	{1UL << PG_active,		"active"	},		\
-+	{1UL << PG_slab,		"slab"		},		\
-+	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
-+	{1UL << PG_arch_1,		"arch_1"	},		\
-+	{1UL << PG_reserved,		"reserved"	},		\
-+	{1UL << PG_private,		"private"	},		\
-+	{1UL << PG_private_2,		"private_2"	},		\
-+	{1UL << PG_writeback,		"writeback"	},		\
-+	{1UL << PG_head,		"head"		},		\
-+	{1UL << PG_swapcache,		"swapcache"	},		\
-+	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
-+	{1UL << PG_reclaim,		"reclaim"	},		\
-+	{1UL << PG_swapbacked,		"swapbacked"	},		\
-+	{1UL << PG_unevictable,		"unevictable"	}		\
-+IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
-+IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
-+IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
-+IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
-+IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
-+
-+#define show_page_flags(flags)						\
-+	(flags) ? __print_flags(flags, "|",				\
-+	__def_pageflag_names						\
-+	) : "none"
-+
-+#if defined(CONFIG_X86)
-+#define __VM_ARCH_SPECIFIC {VM_PAT,     "pat"           }
-+#elif defined(CONFIG_PPC)
-+#define __VM_ARCH_SPECIFIC {VM_SAO,     "sao"           }
-+#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
-+#define __VM_ARCH_SPECIFIC {VM_GROWSUP,	"growsup"	}
-+#elif !defined(CONFIG_MMU)
-+#define __VM_ARCH_SPECIFIC {VM_MAPPED_COPY,"mappedcopy"	}
-+#else
-+#define __VM_ARCH_SPECIFIC {VM_ARCH_1,	"arch_1"	}
-+#endif
-+
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+#define IF_HAVE_VM_SOFTDIRTY(flag,name) {flag, name },
-+#else
-+#define IF_HAVE_VM_SOFTDIRTY(flag,name)
-+#endif
-+
-+#define __def_vmaflag_names						\
-+	{VM_READ,			"read"		},		\
-+	{VM_WRITE,			"write"		},		\
-+	{VM_EXEC,			"exec"		},		\
-+	{VM_SHARED,			"shared"	},		\
-+	{VM_MAYREAD,			"mayread"	},		\
-+	{VM_MAYWRITE,			"maywrite"	},		\
-+	{VM_MAYEXEC,			"mayexec"	},		\
-+	{VM_MAYSHARE,			"mayshare"	},		\
-+	{VM_GROWSDOWN,			"growsdown"	},		\
-+	{VM_PFNMAP,			"pfnmap"	},		\
-+	{VM_DENYWRITE,			"denywrite"	},		\
-+	{VM_LOCKONFAULT,		"lockonfault"	},		\
-+	{VM_LOCKED,			"locked"	},		\
-+	{VM_IO,				"io"		},		\
-+	{VM_SEQ_READ,			"seqread"	},		\
-+	{VM_RAND_READ,			"randread"	},		\
-+	{VM_DONTCOPY,			"dontcopy"	},		\
-+	{VM_DONTEXPAND,			"dontexpand"	},		\
-+	{VM_ACCOUNT,			"account"	},		\
-+	{VM_NORESERVE,			"noreserve"	},		\
-+	{VM_HUGETLB,			"hugetlb"	},		\
-+	__VM_ARCH_SPECIFIC				,		\
-+	{VM_DONTDUMP,			"dontdump"	},		\
-+IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
-+	{VM_MIXEDMAP,			"mixedmap"	},		\
-+	{VM_HUGEPAGE,			"hugepage"	},		\
-+	{VM_NOHUGEPAGE,			"nohugepage"	},		\
-+	{VM_MERGEABLE,			"mergeable"	}		\
-+
-+#define show_vma_flags(flags)						\
-+	(flags) ? __print_flags(flags, "|",				\
-+	__def_vmaflag_names						\
-+	) : "none"
-+
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 31763dd8db1c..0101ef37f1ee 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -8,7 +8,7 @@
- #include <linux/tracepoint.h>
- #include <linux/mm.h>
- #include <linux/memcontrol.h>
--#include <trace/events/gfpflags.h>
-+#include <trace/events/mmflags.h>
- 
- #define RECLAIM_WB_ANON		0x0001u
- #define RECLAIM_WB_FILE		0x0002u
-diff --git a/mm/debug.c b/mm/debug.c
-index 836276586185..85f71e4ce59f 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -9,41 +9,14 @@
- #include <linux/mm.h>
- #include <linux/trace_events.h>
- #include <linux/memcontrol.h>
-+#include <trace/events/mmflags.h>
- 
- static const struct trace_print_flags pageflag_names[] = {
--	{1UL << PG_locked,		"locked"	},
--	{1UL << PG_error,		"error"		},
--	{1UL << PG_referenced,		"referenced"	},
--	{1UL << PG_uptodate,		"uptodate"	},
--	{1UL << PG_dirty,		"dirty"		},
--	{1UL << PG_lru,			"lru"		},
--	{1UL << PG_active,		"active"	},
--	{1UL << PG_slab,		"slab"		},
--	{1UL << PG_owner_priv_1,	"owner_priv_1"	},
--	{1UL << PG_arch_1,		"arch_1"	},
--	{1UL << PG_reserved,		"reserved"	},
--	{1UL << PG_private,		"private"	},
--	{1UL << PG_private_2,		"private_2"	},
--	{1UL << PG_writeback,		"writeback"	},
--	{1UL << PG_head,		"head"		},
--	{1UL << PG_swapcache,		"swapcache"	},
--	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
--	{1UL << PG_reclaim,		"reclaim"	},
--	{1UL << PG_swapbacked,		"swapbacked"	},
--	{1UL << PG_unevictable,		"unevictable"	},
--#ifdef CONFIG_MMU
--	{1UL << PG_mlocked,		"mlocked"	},
--#endif
--#ifdef CONFIG_ARCH_USES_PG_UNCACHED
--	{1UL << PG_uncached,		"uncached"	},
--#endif
--#ifdef CONFIG_MEMORY_FAILURE
--	{1UL << PG_hwpoison,		"hwpoison"	},
--#endif
--#if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
--	{1UL << PG_young,		"young"		},
--	{1UL << PG_idle,		"idle"		},
--#endif
-+	__def_pageflag_names
 +};
 +
-+static const struct trace_print_flags gfpflag_names[] = {
-+	__def_gfpflag_names
- };
+ compound_page_dtor * const compound_page_dtors[] = {
+ 	NULL,
+ 	free_compound_page,
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 983c3a10fa07..5392195fca61 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -100,8 +100,9 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		return -ENOMEM;
  
- static void dump_flags(unsigned long flags,
-@@ -108,47 +81,8 @@ EXPORT_SYMBOL(dump_page);
+ 	ret = snprintf(kbuf, count,
+-			"Page allocated via order %u, mask 0x%x\n",
+-			page_ext->order, page_ext->gfp_mask);
++			"Page allocated via order %u, mask %#x(%pgg)\n",
++			page_ext->order, page_ext->gfp_mask,
++			&page_ext->gfp_mask);
  
- #ifdef CONFIG_DEBUG_VM
+ 	if (ret >= count)
+ 		goto err;
+@@ -110,23 +111,12 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 	pageblock_mt = get_pfnblock_migratetype(page, pfn);
+ 	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
+ 	ret += snprintf(kbuf + ret, count - ret,
+-			"PFN %lu Block %lu type %d %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
++			"PFN %lu type %s Block %lu type %s Flags %#lx(%pgp)\n",
+ 			pfn,
++			migratetype_names[page_mt],
+ 			pfn >> pageblock_order,
+-			pageblock_mt,
+-			pageblock_mt != page_mt ? "Fallback" : "        ",
+-			PageLocked(page)	? "K" : " ",
+-			PageError(page)		? "E" : " ",
+-			PageReferenced(page)	? "R" : " ",
+-			PageUptodate(page)	? "U" : " ",
+-			PageDirty(page)		? "D" : " ",
+-			PageLRU(page)		? "L" : " ",
+-			PageActive(page)	? "A" : " ",
+-			PageSlab(page)		? "S" : " ",
+-			PageWriteback(page)	? "W" : " ",
+-			PageCompound(page)	? "C" : " ",
+-			PageSwapCache(page)	? "B" : " ",
+-			PageMappedToDisk(page)	? "M" : " ");
++			migratetype_names[pageblock_mt],
++			page->flags, &page->flags);
  
--static const struct trace_print_flags vmaflags_names[] = {
--	{VM_READ,			"read"		},
--	{VM_WRITE,			"write"		},
--	{VM_EXEC,			"exec"		},
--	{VM_SHARED,			"shared"	},
--	{VM_MAYREAD,			"mayread"	},
--	{VM_MAYWRITE,			"maywrite"	},
--	{VM_MAYEXEC,			"mayexec"	},
--	{VM_MAYSHARE,			"mayshare"	},
--	{VM_GROWSDOWN,			"growsdown"	},
--	{VM_PFNMAP,			"pfnmap"	},
--	{VM_DENYWRITE,			"denywrite"	},
--	{VM_LOCKONFAULT,		"lockonfault"	},
--	{VM_LOCKED,			"locked"	},
--	{VM_IO,				"io"		},
--	{VM_SEQ_READ,			"seqread"	},
--	{VM_RAND_READ,			"randread"	},
--	{VM_DONTCOPY,			"dontcopy"	},
--	{VM_DONTEXPAND,			"dontexpand"	},
--	{VM_ACCOUNT,			"account"	},
--	{VM_NORESERVE,			"noreserve"	},
--	{VM_HUGETLB,			"hugetlb"	},
--#if defined(CONFIG_X86)
--	{VM_PAT,			"pat"		},
--#elif defined(CONFIG_PPC)
--	{VM_SAO,			"sao"		},
--#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
--	{VM_GROWSUP,			"growsup"	},
--#elif !defined(CONFIG_MMU)
--	{VM_MAPPED_COPY,		"mappedcopy"	},
--#else
--	{VM_ARCH_1,			"arch_1"	},
+ 	if (ret >= count)
+ 		goto err;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index dfe7315f2db6..475d154411f0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -924,19 +924,6 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ #endif
+ 
+ #ifdef CONFIG_PROC_FS
+-static char * const migratetype_names[MIGRATE_TYPES] = {
+-	"Unmovable",
+-	"Movable",
+-	"Reclaimable",
+-	"HighAtomic",
+-#ifdef CONFIG_CMA
+-	"CMA",
 -#endif
--	{VM_DONTDUMP,			"dontdump"	},
--#ifdef CONFIG_MEM_SOFT_DIRTY
--	{VM_SOFTDIRTY,			"softdirty"	},
+-#ifdef CONFIG_MEMORY_ISOLATION
+-	"Isolate",
 -#endif
--	{VM_MIXEDMAP,			"mixedmap"	},
--	{VM_HUGEPAGE,			"hugepage"	},
--	{VM_NOHUGEPAGE,			"nohugepage"	},
--	{VM_MERGEABLE,			"mergeable"	},
-+static const struct trace_print_flags vmaflag_names[] = {
-+	__def_vmaflag_names
- };
- 
- void dump_vma(const struct vm_area_struct *vma)
-@@ -162,7 +96,7 @@ void dump_vma(const struct vm_area_struct *vma)
- 		(unsigned long)pgprot_val(vma->vm_page_prot),
- 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
- 		vma->vm_file, vma->vm_private_data);
--	dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
-+	dump_flags(vma->vm_flags, vmaflag_names, ARRAY_SIZE(vmaflag_names));
- }
- EXPORT_SYMBOL(dump_vma);
- 
-@@ -233,8 +167,8 @@ void dump_mm(const struct mm_struct *mm)
- 		""		/* This is here to not have a comma! */
- 		);
- 
--		dump_flags(mm->def_flags, vmaflags_names,
--				ARRAY_SIZE(vmaflags_names));
-+		dump_flags(mm->def_flags, vmaflag_names,
-+				ARRAY_SIZE(vmaflag_names));
- }
- 
- #endif		/* CONFIG_DEBUG_VM */
-diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index acb0d011803a..d99083170315 100644
---- a/tools/perf/builtin-kmem.c
-+++ b/tools/perf/builtin-kmem.c
-@@ -602,7 +602,7 @@ static int gfpcmp(const void *a, const void *b)
- 	return fa->flags - fb->flags;
- }
- 
--/* see include/trace/events/gfpflags.h */
-+/* see include/trace/events/mmflags.h */
- static const struct {
- 	const char *original;
- 	const char *compact;
+-};
+-
+ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 						struct zone *zone)
+ {
 -- 
 2.6.3
 
