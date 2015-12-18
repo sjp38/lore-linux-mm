@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E51EB6B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 08:17:38 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id jx14so31778190pad.2
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 05:17:38 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id u79si10683715pfa.233.2015.12.18.05.17.37
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CE2B06B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 08:31:21 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id n128so31552084pfn.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 05:31:21 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id u81si20066310pfa.50.2015.12.18.05.31.20
         for <linux-mm@kvack.org>;
-        Fri, 18 Dec 2015 05:17:37 -0800 (PST)
-Date: Fri, 18 Dec 2015 21:16:55 +0800
+        Fri, 18 Dec 2015 05:31:20 -0800 (PST)
+Date: Fri, 18 Dec 2015 21:30:15 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [linux-next:master 7192/7206] mm/memcontrol.c:3017:9: error:
- implicit declaration of function 'memcg_online_kmem'
-Message-ID: <201512182150.Ai69BCxz%fengguang.wu@intel.com>
+Subject: [linux-next:master 7194/7206] mm/memcontrol.c:4243:10: error: too
+ many arguments to function 'memcg_propagate_kmem'
+Message-ID: <201512182111.lVMlmpFk%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="LQksG6bCIzRHxTLp"
+Content-Type: multipart/mixed; boundary="lrZ03NoBR/3+SXJZ"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,60 +22,57 @@ To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---LQksG6bCIzRHxTLp
+--lrZ03NoBR/3+SXJZ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
 head:   f7ac28a6971b43a2ee8bb47c0ef931b38f7888cf
-commit: 7292b6db051d2fd307eeca4a1985868735927b0c [7192/7206] mm: memcontrol: reign in the CONFIG space madness
+commit: a5ed904c50398922239b05e7f97c02c47cd9ae35 [7194/7206] mm: memcontrol: clean up alloc, online, offline, free functions
 config: i386-randconfig-r0-201550 (attached as .config)
 reproduce:
-        git checkout 7292b6db051d2fd307eeca4a1985868735927b0c
+        git checkout a5ed904c50398922239b05e7f97c02c47cd9ae35
         # save the attached .config to linux build tree
         make ARCH=i386 
 
 All errors (new ones prefixed by >>):
 
    mm/memcontrol.c: In function 'memcg_update_kmem_limit':
->> mm/memcontrol.c:3017:9: error: implicit declaration of function 'memcg_online_kmem' [-Werror=implicit-function-declaration]
+   mm/memcontrol.c:2989:9: error: implicit declaration of function 'memcg_online_kmem' [-Werror=implicit-function-declaration]
       ret = memcg_online_kmem(memcg);
             ^
-   mm/memcontrol.c: In function 'mem_cgroup_can_attach':
-   mm/memcontrol.c:4880:9: warning: 'memcg' may be used uninitialized in this function [-Wmaybe-uninitialized]
-      mc.to = memcg;
-            ^
+   mm/memcontrol.c: In function 'mem_cgroup_css_alloc':
+>> mm/memcontrol.c:4243:10: error: too many arguments to function 'memcg_propagate_kmem'
+     error = memcg_propagate_kmem(parent, memcg);
+             ^
+   mm/memcontrol.c:2962:12: note: declared here
+    static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+               ^
    cc1: some warnings being treated as errors
 
-vim +/memcg_online_kmem +3017 mm/memcontrol.c
+vim +/memcg_propagate_kmem +4243 mm/memcontrol.c
 
-d6441637 Vladimir Davydov 2014-01-23  3011  {
-b2878698 Johannes Weiner  2015-12-18  3012  	int ret;
-b2878698 Johannes Weiner  2015-12-18  3013  
-b2878698 Johannes Weiner  2015-12-18  3014  	mutex_lock(&memcg_limit_mutex);
-b2878698 Johannes Weiner  2015-12-18  3015  	/* Top-level cgroup doesn't propagate from root */
-b2878698 Johannes Weiner  2015-12-18  3016  	if (!memcg_kmem_online(memcg)) {
-b2878698 Johannes Weiner  2015-12-18 @3017  		ret = memcg_online_kmem(memcg);
-b2878698 Johannes Weiner  2015-12-18  3018  		if (ret)
-b2878698 Johannes Weiner  2015-12-18  3019  			goto out;
-d6441637 Vladimir Davydov 2014-01-23  3020  	}
-
-:::::: The code at line 3017 was first introduced by commit
-:::::: b28786989bd0894d5e6e9fa0a8916973510666e8 mm: memcontrol: move kmem accounting code to CONFIG_MEMCG
-
-:::::: TO: Johannes Weiner <hannes@cmpxchg.org>
-:::::: CC: Stephen Rothwell <sfr@canb.auug.org.au>
+  4237		/* The following stuff does not apply to the root */
+  4238		if (!parent) {
+  4239			root_mem_cgroup = memcg;
+  4240			return &memcg->css;
+  4241		}
+  4242	
+> 4243		error = memcg_propagate_kmem(parent, memcg);
+  4244		if (error)
+  4245			goto fail;
+  4246	
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---LQksG6bCIzRHxTLp
+--lrZ03NoBR/3+SXJZ
 Content-Type: application/octet-stream
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICMcGdFYAAy5jb25maWcAjFxJc+Q4rr7Pr8ioeYeZQ3eVl/LUixc+UBSVyU5JVJFU2umL
+H4sICPoJdFYAAy5jb25maWcAjFxJc+Q4rr7Pr8ioeYeZQ3eVl/LUixc+UBSVyU5JVJFU2umL
 wu3K6na0lx4vM93//gGkFpKCcqYuZQHgDgIfQDL/+pe/rtj72/Pj7dv93e3Dw5+rXw5Ph5fb
 t8O31ff7h8P/rXK1qpVdiVzaH0G4vH96/+Pj/dmXi9X5j+c/fvrh5e7zant4eTo8rPjz0/f7
 X96h9P3z01/+CtJc1YVcdxfnmbSr+9fV0/Pb6vXw9peefv3lojs7vfwz+J4+ZG2sbrmVqu5y
@@ -600,7 +597,7 @@ BmQcwGTsoycNwjOSwWE+FLrjOkaTpseLuXibnyIBuB3Z9GDV2fWkVxb/rQr3XvvEzaYDWloK
 GV1gww+wlqrqB+8qd1LcYiZ7C1Cr1N2vacq5fssmd5Rg+JGlzplwi6FxBct0pj4DDXlgmM+h
 pwzoCAuQ/wc+rUhfX6wBAA==
 
---LQksG6bCIzRHxTLp--
+--lrZ03NoBR/3+SXJZ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
