@@ -1,93 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5026B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 16:14:02 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id o64so54614834pfb.3
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 13:14:02 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A60EA6B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 17:40:08 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id jx14so38065426pad.2
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 14:40:08 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d10si26170873pap.237.2015.12.18.13.14.01
+        by mx.google.com with ESMTPS id m70si15838135pfi.74.2015.12.18.14.40.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Dec 2015 13:14:01 -0800 (PST)
-Date: Fri, 18 Dec 2015 13:14:00 -0800
+        Fri, 18 Dec 2015 14:40:07 -0800 (PST)
+Date: Fri, 18 Dec 2015 14:40:04 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-Id: <20151218131400.751bc4d582a947c9833c09eb@linux-foundation.org>
-In-Reply-To: <20151218115454.GE28443@dhcp22.suse.cz>
-References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
-	<20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
-	<20151217130223.GE18625@dhcp22.suse.cz>
-	<CA+55aFxkzeqtxDY8KyR_FA+WKNkQXEHVA_zO8XhW6rqRr778Zw@mail.gmail.com>
-	<20151217120004.b5f849e1613a3a367482b379@linux-foundation.org>
-	<20151218115454.GE28443@dhcp22.suse.cz>
+Subject: Re: [PATCH v2] mm: memcontrol: fix possible memcg leak due to
+ interrupted reclaim
+Message-Id: <20151218144004.6ec6189817b64e04d9405001@linux-foundation.org>
+In-Reply-To: <20151218162405.GU28521@esperanza>
+References: <1450182697-11049-1-git-send-email-vdavydov@virtuozzo.com>
+	<20151217150217.a02c264ce9b5335b02bae888@linux-foundation.org>
+	<20151218153202.GS28521@esperanza>
+	<20151218160041.GA4201@cmpxchg.org>
+	<20151218162405.GU28521@esperanza>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, stable@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 18 Dec 2015 12:54:55 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Fri, 18 Dec 2015 19:24:05 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 
->  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> -	while (attempts++ < 10 && !__oom_reap_vmas(mm))
-> -		msleep_interruptible(100);
-> +	while (attempts++ < 10 && !__oom_reap_vmas(mm)) {
-> +		__set_task_state(current, TASK_IDLE);
-> +		schedule_timeout(HZ/10);
-> +	}
+> 
+> OK, got it, thanks. Here goes the incremental patch (it should also fix
+> the warning regarding unused cmpxchg returned value):
+> ---
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index fc25dc211eaf..908c075e04eb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -864,7 +864,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  			 * might block it. So we clear iter->position right
+>  			 * away.
+>  			 */
+> -			cmpxchg(&iter->position, pos, NULL);
+> +			(void)cmpxchg(&iter->position, pos, NULL);
 
-If you won't, I shall ;)
+No, this doesn't actually squish the __must_check warning.
 
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: sched: add schedule_timeout_idle()
+Can anyone think of anything smarter than this?
 
-This will be needed in the patch "mm, oom: introduce oom reaper".
-
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/sched.h |    1 +
- kernel/time/timer.c   |   11 +++++++++++
- 2 files changed, 12 insertions(+)
-
-diff -puN kernel/time/timer.c~sched-add-schedule_timeout_idle kernel/time/timer.c
---- a/kernel/time/timer.c~sched-add-schedule_timeout_idle
-+++ a/kernel/time/timer.c
-@@ -1566,6 +1566,17 @@ signed long __sched schedule_timeout_uni
+--- a/mm/memcontrol.c~mm-memcontrol-fix-possible-memcg-leak-due-to-interrupted-reclaim-fix-fix
++++ a/mm/memcontrol.c
+@@ -851,6 +851,9 @@ static struct mem_cgroup *get_mem_cgroup
+ 	return memcg;
  }
- EXPORT_SYMBOL(schedule_timeout_uninterruptible);
  
-+/*
-+ * Like schedule_timeout_uninterruptible(), except this task will not contribute
-+ * to load average.
-+ */
-+signed long __sched schedule_timeout_idle(signed long timeout)
-+{
-+	__set_current_state(TASK_IDLE);
-+	return schedule_timeout(timeout);
-+}
-+EXPORT_SYMBOL(schedule_timeout_idle);
++/* Move this to compiler.h if it proves worthy */
++#define defeat_must_check(expr) do { if (expr) ; } while (0)
 +
- #ifdef CONFIG_HOTPLUG_CPU
- static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
- {
-diff -puN include/linux/sched.h~sched-add-schedule_timeout_idle include/linux/sched.h
---- a/include/linux/sched.h~sched-add-schedule_timeout_idle
-+++ a/include/linux/sched.h
-@@ -423,6 +423,7 @@ extern signed long schedule_timeout(sign
- extern signed long schedule_timeout_interruptible(signed long timeout);
- extern signed long schedule_timeout_killable(signed long timeout);
- extern signed long schedule_timeout_uninterruptible(signed long timeout);
-+extern signed long schedule_timeout_idle(signed long timeout);
- asmlinkage void schedule(void);
- extern void schedule_preempt_disabled(void);
+ /**
+  * mem_cgroup_iter - iterate over memory cgroup hierarchy
+  * @root: hierarchy root
+@@ -915,7 +918,7 @@ struct mem_cgroup *mem_cgroup_iter(struc
+ 			 * might block it. So we clear iter->position right
+ 			 * away.
+ 			 */
+-			(void)cmpxchg(&iter->position, pos, NULL);
++			defeat_must_check(cmpxchg(&iter->position, pos, NULL));
+ 		}
+ 	}
  
+@@ -967,7 +970,7 @@ struct mem_cgroup *mem_cgroup_iter(struc
+ 		 * thread, so check that the value hasn't changed since we read
+ 		 * it to avoid reclaiming from the same cgroup twice.
+ 		 */
+-		(void)cmpxchg(&iter->position, pos, memcg);
++		defeat_must_check(cmpxchg(&iter->position, pos, memcg));
+ 
+ 		/*
+ 		 * pairs with css_tryget when dereferencing iter->position
 _
 
 --
