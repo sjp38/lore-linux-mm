@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB666B0008
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:43 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l126so55807210wml.1
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:43 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BAA776B000A
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:45 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id p187so55178976wmp.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 195si10660727wmv.122.2015.12.18.01.03.37
+        by mx.google.com with ESMTPS id m2si24173537wje.1.2015.12.18.01.03.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 18 Dec 2015 01:03:37 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 01/14] tracepoints: move trace_print_flags definitions to tracepoint-defs.h
-Date: Fri, 18 Dec 2015 10:03:13 +0100
-Message-Id: <1450429406-7081-2-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 02/14] mm, tracing: make show_gfp_flags() up to date
+Date: Fri, 18 Dec 2015 10:03:14 +0100
+Message-Id: <1450429406-7081-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,10 +20,12 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-The following patch will need to declare array of struct trace_print_flags
-in a header. To prevent this header from pulling in all of RCU through
-trace_events.h, move the struct trace_print_flags{_64} definitions to the new
-lightweight tracepoint-defs.h header.
+The show_gfp_flags() macro provides human-friendly printing of gfp flags in
+tracepoints. However, it is somewhat out of date and missing several flags.
+This patches fills in the missing flags, and distinguishes properly between
+GFP_ATOMIC and __GFP_ATOMIC which were both translated to "GFP_ATOMIC".
+
+Also add a note in gfp.h so hopefully future changes will be synced better.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Steven Rostedt <rostedt@goodmis.org>
@@ -38,61 +40,56 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/trace_events.h    | 10 ----------
- include/linux/tracepoint-defs.h | 14 ++++++++++++--
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ include/linux/gfp.h             | 5 +++++
+ include/trace/events/gfpflags.h | 9 +++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/trace_events.h b/include/linux/trace_events.h
-index 429fdfc3baf5..d91404f89ff2 100644
---- a/include/linux/trace_events.h
-+++ b/include/linux/trace_events.h
-@@ -15,16 +15,6 @@ struct tracer;
- struct dentry;
- struct bpf_prog;
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 91f74e741aa2..6ffee7f93af7 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -9,6 +9,11 @@
  
--struct trace_print_flags {
--	unsigned long		mask;
--	const char		*name;
--};
--
--struct trace_print_flags_u64 {
--	unsigned long long	mask;
--	const char		*name;
--};
--
- const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
- 				  unsigned long flags,
- 				  const struct trace_print_flags *flag_array);
-diff --git a/include/linux/tracepoint-defs.h b/include/linux/tracepoint-defs.h
-index e1ee97c713bf..4ac89acb6136 100644
---- a/include/linux/tracepoint-defs.h
-+++ b/include/linux/tracepoint-defs.h
-@@ -3,13 +3,23 @@
+ struct vm_area_struct;
  
- /*
-  * File can be included directly by headers who only want to access
-- * tracepoint->key to guard out of line trace calls. Otherwise
-- * linux/tracepoint.h should be used.
-+ * tracepoint->key to guard out of line trace calls, or the definition of
-+ * trace_print_flags{_u64}. Otherwise linux/tracepoint.h should be used.
-  */
- 
- #include <linux/atomic.h>
- #include <linux/static_key.h>
- 
-+struct trace_print_flags {
-+	unsigned long		mask;
-+	const char		*name;
-+};
++/*
++ * In case of changes, please don't forget to update
++ * include/trace/events/gfpflags.h
++ */
 +
-+struct trace_print_flags_u64 {
-+	unsigned long long	mask;
-+	const char		*name;
-+};
-+
- struct tracepoint_func {
- 	void *func;
- 	void *data;
+ /* Plain integer GFP bitmasks. Do not use this directly. */
+ #define ___GFP_DMA		0x01u
+ #define ___GFP_HIGHMEM		0x02u
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index dde6bf092c8a..8395798d97b0 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -19,9 +19,13 @@
+ 	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
+ 	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
+ 	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
++	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
++	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
++	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
+ 	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
+-	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
++	{(unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
+ 	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
++	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
+ 	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
+ 	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
+ 	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
+@@ -36,8 +40,9 @@
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+ 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+ 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
++	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
+ 	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
+ 	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
+ 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+-	) : "GFP_NOWAIT"
++	) : "none"
+ 
 -- 
 2.6.3
 
