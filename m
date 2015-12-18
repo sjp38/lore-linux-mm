@@ -1,102 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C66B26B0003
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 21:51:50 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id o64so41071784pfb.3
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 18:51:50 -0800 (PST)
-Received: from mgwkm02.jp.fujitsu.com (mgwkm02.jp.fujitsu.com. [202.219.69.169])
-        by mx.google.com with ESMTPS id 3si16542084pfj.94.2015.12.17.18.51.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 18:51:50 -0800 (PST)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id E89E7AC0115
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 11:51:45 +0900 (JST)
-Subject: Re: [PATCH v2 7/7] Documentation: cgroup: add
- memory.swap.{current,max} description
-References: <cover.1450352791.git.vdavydov@virtuozzo.com>
- <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <567374AB.3010101@jp.fujitsu.com>
-Date: Fri, 18 Dec 2015 11:51:23 +0900
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C91726B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:59:10 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id q3so35683625pav.3
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 22:59:10 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 6si17969691pfh.141.2015.12.17.22.59.09
+        for <linux-mm@kvack.org>;
+        Thu, 17 Dec 2015 22:59:09 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
+Date: Fri, 18 Dec 2015 06:59:08 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F88DAC@ORSMSX114.amr.corp.intel.com>
+References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <56679FDC.1080800@huawei.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
+ <5668D1FA.4050108@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
+ <56691819.3040105@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
+ <566A9AE1.7020001@huawei.com>
+ <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
+ <56722258.6030800@huawei.com> <567223A7.9090407@jp.fujitsu.com>
+ <56723E8B.8050201@huawei.com> <567241BE.5030806@jp.fujitsu.com>
+ <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
+ <56736B7D.3040709@jp.fujitsu.com>
+In-Reply-To: <56736B7D.3040709@jp.fujitsu.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-On 2015/12/17 21:30, Vladimir Davydov wrote:
-> The rationale of separate swap counter is given by Johannes Weiner.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> ---
-> Changes in v2:
->   - Add rationale of separate swap counter provided by Johannes.
-> 
->   Documentation/cgroup.txt | 33 +++++++++++++++++++++++++++++++++
->   1 file changed, 33 insertions(+)
-> 
-> diff --git a/Documentation/cgroup.txt b/Documentation/cgroup.txt
-> index 31d1f7bf12a1..f441564023e1 100644
-> --- a/Documentation/cgroup.txt
-> +++ b/Documentation/cgroup.txt
-> @@ -819,6 +819,22 @@ PAGE_SIZE multiple when read back.
->   		the cgroup.  This may not exactly match the number of
->   		processes killed but should generally be close.
->   
-> +  memory.swap.current
-> +
-> +	A read-only single value file which exists on non-root
-> +	cgroups.
-> +
-> +	The total amount of swap currently being used by the cgroup
-> +	and its descendants.
-> +
-> +  memory.swap.max
-> +
-> +	A read-write single value file which exists on non-root
-> +	cgroups.  The default is "max".
-> +
-> +	Swap usage hard limit.  If a cgroup's swap usage reaches this
-> +	limit, anonymous meomry of the cgroup will not be swapped out.
-> +
->   
->   5-2-2. General Usage
->   
-> @@ -1291,3 +1307,20 @@ allocation from the slack available in other groups or the rest of the
->   system than killing the group.  Otherwise, memory.max is there to
->   limit this type of spillover and ultimately contain buggy or even
->   malicious applications.
-> +
-> +The combined memory+swap accounting and limiting is replaced by real
-> +control over swap space.
-> +
-> +The main argument for a combined memory+swap facility in the original
-> +cgroup design was that global or parental pressure would always be
-> +able to swap all anonymous memory of a child group, regardless of the
-> +child's own (possibly untrusted) configuration.  However, untrusted
-> +groups can sabotage swapping by other means - such as referencing its
-> +anonymous memory in a tight loop - and an admin can not assume full
-> +swappability when overcommitting untrusted jobs.
-> +
-> +For trusted jobs, on the other hand, a combined counter is not an
-> +intuitive userspace interface, and it flies in the face of the idea
-> +that cgroup controllers should account and limit specific physical
-> +resources.  Swap space is a resource like all others in the system,
-> +and that's why unified hierarchy allows distributing it separately.
-> 
-Could you give here a hint how to calculate amount of swapcache,
-counted both in memory.current and swap.current ?
+>Hmm...like this ?
+>       sysctl.vm.fallback_mirror_memory =3D 0  // never fallback  # defaul=
+t.
+>       sysctl.vm.fallback_mirror_memory =3D 1  // the user memory may be a=
+llocated from mirrored zone.
+>       sysctl.vm.fallback_mirror_memory =3D 2  // usually kernel allocates=
+ memory from mirrored zone before OOM.
+>       sysctl.vm.fallback_mirror_memory =3D 3  // 1+2
 
-Thanks,
--Kame
+Should option 2 say: // allow kernel to allocate from non-mirror zone to av=
+oid OOM
 
+> However I believe my customer's choice is always 0, above implementation =
+can be done in a clean way.
+> (adding a flag to zones (mirrored or not) and controlling fallback zoneli=
+st walk.)
 
+Modes allow us to make all of the people happy (I hope).
 
+> BTW, we need this Taku's patch to make a progress. I think other devs sho=
+uld be done in another
+> development cycle. What does he need to get your Acks ?
 
+The concept is great.   It's even "Tested-by: Tony Luck <tony.luck@intel.co=
+m>".
+I need to read the code more carefully before Acked-by.
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
