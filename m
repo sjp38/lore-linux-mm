@@ -1,80 +1,282 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B60A6B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 02:41:38 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p187so53469267wmp.0
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 23:41:38 -0800 (PST)
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com. [195.75.94.103])
-        by mx.google.com with ESMTPS id y125si37015wmd.48.2015.12.17.23.41.37
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1DC6B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:01:23 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id l126so55721231wml.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:01:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m2si24160566wje.1.2015.12.18.01.01.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Dec 2015 23:41:37 -0800 (PST)
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 18 Dec 2015 07:41:36 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2F8D31B08072
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 07:42:07 +0000 (GMT)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tBI7fXQD63700998
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 07:41:34 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tBI7fX28022737
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 00:41:33 -0700
-Date: Fri, 18 Dec 2015 08:41:32 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] mm/swapfile: mm/swapfile: fix swapoff vs. software
- dirty bits
-Message-ID: <20151218084132.7661051e@mschwide>
-In-Reply-To: <CAM5jBj5vOTjbt1f3Z6P=qQymX5-_W6bLGVQ1Q9FERx6tpKbthQ@mail.gmail.com>
-References: <1442222687-9758-1-git-send-email-schwidefsky@de.ibm.com>
-	<1442222687-9758-2-git-send-email-schwidefsky@de.ibm.com>
-	<CAM5jBj5vOTjbt1f3Z6P=qQymX5-_W6bLGVQ1Q9FERx6tpKbthQ@mail.gmail.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 18 Dec 2015 01:01:21 -0800 (PST)
+Date: Fri, 18 Dec 2015 10:01:10 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 2/7] dax: support dirty DAX entries in radix tree
+Message-ID: <20151218090110.GB4297@quack.suse.cz>
+References: <1449602325-20572-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1449602325-20572-3-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1449602325-20572-3-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Thu, 17 Dec 2015 19:08:46 +0300
-Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-
-> On Mon, Sep 14, 2015 at 12:24 PM, Martin Schwidefsky
-> <schwidefsky@de.ibm.com> wrote:
-> > Fixes a regression introduced with commit 179ef71cbc085252
-> > "mm: save soft-dirty bits on swapped pages"
-> >
-> > The maybe_same_pte() function is used to match a swap pte independent
-> > of the swap software dirty bit set with pte_swp_mksoft_dirty().
-> >
-> > For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
-> > software dirty bit may be set but maybe_same_pte() will not recognize
-> > a software dirty swap pte. Due to this a 'swapoff -a' will hang.
-> >
-> > The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
-> > with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
-> >
-> > Cc: linux-mm@kvack.org
-> > Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Reported-by: Sebastian Ott <sebott@linux.vnet.ibm.com>
-> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+On Tue 08-12-15 12:18:40, Ross Zwisler wrote:
+> Add support for tracking dirty DAX entries in the struct address_space
+> radix tree.  This tree is already used for dirty page writeback, and it
+> already supports the use of exceptional (non struct page*) entries.
 > 
-> We've been discussing this already
-> http://comments.gmane.org/gmane.linux.kernel.mm/138664
- 
-Yes indeed. I'm still trying to find out how this mail has been
-sent a second time. That was not intentional, sorry for the noise.
+> In order to properly track dirty DAX pages we will insert new exceptional
+> entries into the radix tree that represent dirty DAX PTE or PMD pages.
+> These exceptional entries will also contain the writeback addresses for the
+> PTE or PMD faults that we can use at fsync/msync time.
+> 
+> There are currently two types of exceptional entries (shmem and shadow)
+> that can be placed into the radix tree, and this adds a third.  There
+> shouldn't be any collisions between these various exceptional entries
+> because only one type of exceptional entry should be able to be found in a
+> radix tree at a time depending on how it is being used.
 
+I was thinking about this and I'm not sure the use of exceptional entries
+cannot collide. DAX uses page cache for read mapping of holes. When memory
+pressure happens, page can get evicted again and entry in the radix tree
+will get replaced with a shadow entry. So shadow entries *can* exist in DAX
+mappings. Thus at least your change to clear_exceptional_entry() looks
+wrong to me.
+
+Also when we'd like to insert DAX radix tree entry, we have to count with
+the fact that there can be shadow entry in place and we have to tear it
+down properly.
+
+								Honza
+
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  fs/block_dev.c             |  3 ++-
+>  fs/inode.c                 |  1 +
+>  include/linux/dax.h        |  5 ++++
+>  include/linux/fs.h         |  1 +
+>  include/linux/radix-tree.h |  9 +++++++
+>  mm/filemap.c               | 13 +++++++---
+>  mm/truncate.c              | 64 +++++++++++++++++++++++++++-------------------
+>  7 files changed, 65 insertions(+), 31 deletions(-)
+> 
+> diff --git a/fs/block_dev.c b/fs/block_dev.c
+> index c25639e..226dacc 100644
+> --- a/fs/block_dev.c
+> +++ b/fs/block_dev.c
+> @@ -75,7 +75,8 @@ void kill_bdev(struct block_device *bdev)
+>  {
+>  	struct address_space *mapping = bdev->bd_inode->i_mapping;
+>  
+> -	if (mapping->nrpages == 0 && mapping->nrshadows == 0)
+> +	if (mapping->nrpages == 0 && mapping->nrshadows == 0 &&
+> +			mapping->nrdax == 0)
+>  		return;
+>  
+>  	invalidate_bh_lrus();
+> diff --git a/fs/inode.c b/fs/inode.c
+> index 1be5f90..79d828f 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -496,6 +496,7 @@ void clear_inode(struct inode *inode)
+>  	spin_lock_irq(&inode->i_data.tree_lock);
+>  	BUG_ON(inode->i_data.nrpages);
+>  	BUG_ON(inode->i_data.nrshadows);
+> +	BUG_ON(inode->i_data.nrdax);
+>  	spin_unlock_irq(&inode->i_data.tree_lock);
+>  	BUG_ON(!list_empty(&inode->i_data.private_list));
+>  	BUG_ON(!(inode->i_state & I_FREEING));
+> diff --git a/include/linux/dax.h b/include/linux/dax.h
+> index b415e52..e9d57f68 100644
+> --- a/include/linux/dax.h
+> +++ b/include/linux/dax.h
+> @@ -36,4 +36,9 @@ static inline bool vma_is_dax(struct vm_area_struct *vma)
+>  {
+>  	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
+>  }
+> +
+> +static inline bool dax_mapping(struct address_space *mapping)
+> +{
+> +	return mapping->host && IS_DAX(mapping->host);
+> +}
+>  #endif
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 3aa5142..b9ac534 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -433,6 +433,7 @@ struct address_space {
+>  	/* Protected by tree_lock together with the radix tree */
+>  	unsigned long		nrpages;	/* number of total pages */
+>  	unsigned long		nrshadows;	/* number of shadow entries */
+> +	unsigned long		nrdax;	        /* number of DAX entries */
+>  	pgoff_t			writeback_index;/* writeback starts here */
+>  	const struct address_space_operations *a_ops;	/* methods */
+>  	unsigned long		flags;		/* error bits/gfp mask */
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index 33170db..f793c99 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -51,6 +51,15 @@
+>  #define RADIX_TREE_EXCEPTIONAL_ENTRY	2
+>  #define RADIX_TREE_EXCEPTIONAL_SHIFT	2
+>  
+> +#define RADIX_DAX_MASK	0xf
+> +#define RADIX_DAX_PTE  (0x4 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +#define RADIX_DAX_PMD  (0x8 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +#define RADIX_DAX_TYPE(entry) ((__force unsigned long)entry & RADIX_DAX_MASK)
+> +#define RADIX_DAX_ADDR(entry) ((void __pmem *)((unsigned long)entry & \
+> +			~RADIX_DAX_MASK))
+> +#define RADIX_DAX_ENTRY(addr, pmd) ((void *)((__force unsigned long)addr | \
+> +			(pmd ? RADIX_DAX_PMD : RADIX_DAX_PTE)))
+> +
+>  static inline int radix_tree_is_indirect_ptr(void *ptr)
+>  {
+>  	return (int)((unsigned long)ptr & RADIX_TREE_INDIRECT_PTR);
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 1bb0076..167a4d9 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -11,6 +11,7 @@
+>   */
+>  #include <linux/export.h>
+>  #include <linux/compiler.h>
+> +#include <linux/dax.h>
+>  #include <linux/fs.h>
+>  #include <linux/uaccess.h>
+>  #include <linux/capability.h>
+> @@ -579,6 +580,12 @@ static int page_cache_tree_insert(struct address_space *mapping,
+>  		p = radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
+>  		if (!radix_tree_exceptional_entry(p))
+>  			return -EEXIST;
+> +
+> +		if (dax_mapping(mapping)) {
+> +			WARN_ON(1);
+> +			return -EINVAL;
+> +		}
+> +
+>  		if (shadowp)
+>  			*shadowp = p;
+>  		mapping->nrshadows--;
+> @@ -1242,9 +1249,9 @@ repeat:
+>  			if (radix_tree_deref_retry(page))
+>  				goto restart;
+>  			/*
+> -			 * A shadow entry of a recently evicted page,
+> -			 * or a swap entry from shmem/tmpfs.  Return
+> -			 * it without attempting to raise page count.
+> +			 * A shadow entry of a recently evicted page, a swap
+> +			 * entry from shmem/tmpfs or a DAX entry.  Return it
+> +			 * without attempting to raise page count.
+>  			 */
+>  			goto export;
+>  		}
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index 76e35ad..1dc9f29 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -9,6 +9,7 @@
+>  
+>  #include <linux/kernel.h>
+>  #include <linux/backing-dev.h>
+> +#include <linux/dax.h>
+>  #include <linux/gfp.h>
+>  #include <linux/mm.h>
+>  #include <linux/swap.h>
+> @@ -34,31 +35,39 @@ static void clear_exceptional_entry(struct address_space *mapping,
+>  		return;
+>  
+>  	spin_lock_irq(&mapping->tree_lock);
+> -	/*
+> -	 * Regular page slots are stabilized by the page lock even
+> -	 * without the tree itself locked.  These unlocked entries
+> -	 * need verification under the tree lock.
+> -	 */
+> -	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
+> -		goto unlock;
+> -	if (*slot != entry)
+> -		goto unlock;
+> -	radix_tree_replace_slot(slot, NULL);
+> -	mapping->nrshadows--;
+> -	if (!node)
+> -		goto unlock;
+> -	workingset_node_shadows_dec(node);
+> -	/*
+> -	 * Don't track node without shadow entries.
+> -	 *
+> -	 * Avoid acquiring the list_lru lock if already untracked.
+> -	 * The list_empty() test is safe as node->private_list is
+> -	 * protected by mapping->tree_lock.
+> -	 */
+> -	if (!workingset_node_shadows(node) &&
+> -	    !list_empty(&node->private_list))
+> -		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+> -	__radix_tree_delete_node(&mapping->page_tree, node);
+> +
+> +	if (dax_mapping(mapping)) {
+> +		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
+> +			mapping->nrdax--;
+> +	} else {
+> +		/*
+> +		 * Regular page slots are stabilized by the page lock even
+> +		 * without the tree itself locked.  These unlocked entries
+> +		 * need verification under the tree lock.
+> +		 */
+> +		if (!__radix_tree_lookup(&mapping->page_tree, index, &node,
+> +					&slot))
+> +			goto unlock;
+> +		if (*slot != entry)
+> +			goto unlock;
+> +		radix_tree_replace_slot(slot, NULL);
+> +		mapping->nrshadows--;
+> +		if (!node)
+> +			goto unlock;
+> +		workingset_node_shadows_dec(node);
+> +		/*
+> +		 * Don't track node without shadow entries.
+> +		 *
+> +		 * Avoid acquiring the list_lru lock if already untracked.
+> +		 * The list_empty() test is safe as node->private_list is
+> +		 * protected by mapping->tree_lock.
+> +		 */
+> +		if (!workingset_node_shadows(node) &&
+> +		    !list_empty(&node->private_list))
+> +			list_lru_del(&workingset_shadow_nodes,
+> +					&node->private_list);
+> +		__radix_tree_delete_node(&mapping->page_tree, node);
+> +	}
+>  unlock:
+>  	spin_unlock_irq(&mapping->tree_lock);
+>  }
+> @@ -228,7 +237,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
+>  	int		i;
+>  
+>  	cleancache_invalidate_inode(mapping);
+> -	if (mapping->nrpages == 0 && mapping->nrshadows == 0)
+> +	if (mapping->nrpages == 0 && mapping->nrshadows == 0 &&
+> +			mapping->nrdax == 0)
+>  		return;
+>  
+>  	/* Offsets within partial pages */
+> @@ -423,7 +433,7 @@ void truncate_inode_pages_final(struct address_space *mapping)
+>  	smp_rmb();
+>  	nrshadows = mapping->nrshadows;
+>  
+> -	if (nrpages || nrshadows) {
+> +	if (nrpages || nrshadows || mapping->nrdax) {
+>  		/*
+>  		 * As truncation uses a lockless tree lookup, cycle
+>  		 * the tree lock to make sure any ongoing tree
+> -- 
+> 2.5.0
+> 
+> 
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
