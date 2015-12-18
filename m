@@ -1,92 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F31946B0003
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 21:12:49 -0500 (EST)
-Received: by mail-io0-f176.google.com with SMTP id e126so75551342ioa.1
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 18:12:49 -0800 (PST)
-Received: from mgwkm01.jp.fujitsu.com (mgwkm01.jp.fujitsu.com. [202.219.69.168])
-        by mx.google.com with ESMTPS id qm5si7256664igb.59.2015.12.17.18.12.48
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 725136B0003
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 21:47:09 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p187so46553060wmp.0
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 18:47:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hb7si22163898wjc.71.2015.12.17.18.47.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Dec 2015 18:12:49 -0800 (PST)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 42E6CAC0177
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 11:12:39 +0900 (JST)
-Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <56679FDC.1080800@huawei.com>
- <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
- <5668D1FA.4050108@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
- <56691819.3040105@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
- <566A9AE1.7020001@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
- <56722258.6030800@huawei.com> <567223A7.9090407@jp.fujitsu.com>
- <56723E8B.8050201@huawei.com> <567241BE.5030806@jp.fujitsu.com>
- <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <56736B7D.3040709@jp.fujitsu.com>
-Date: Fri, 18 Dec 2015 11:12:13 +0900
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 17 Dec 2015 18:47:07 -0800 (PST)
+Date: Thu, 17 Dec 2015 18:46:44 -0800
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH 1/8] hugetlb: make mm and fs code explicitly non-modular
+Message-ID: <20151218024644.GA17386@linux-uzut.site>
+References: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
+ <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: linux-kernel@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 2015/12/18 3:43, Luck, Tony wrote:
->>>> As Tony requested, we may need a knob to stop a fallback in "movable->normal", later.
->>>>
->>>
->>> If the mirrored memory is small and the other is large,
->>> I think we can both enable "non-mirrored -> normal" and "normal -> non-mirrored".
->>
->> Size of mirrored memory can be configured by software(EFI var).
->> So, having both is just overkill and normal->non-mirroed fallback is meaningless considering
->> what the feature want to guarantee.
+On Thu, 17 Dec 2015, Paul Gortmaker wrote:
+
+>The Kconfig currently controlling compilation of this code is:
 >
-> In the original removable usage we wanted to guarantee that Linux did not allocate any
-> kernel objects in removable memory - because that would prevent later removal of that
-> memory.
+>config HUGETLBFS
+>        bool "HugeTLB file system support"
 >
-> Mirror case is the same - we don't want to allocate kernel structures in non-mirrored memory
-> because an uncorrectable error in one of them would crash the system.
+>...meaning that it currently is not being built as a module by anyone.
 >
-> But I think some users might like some flexibility here.  If the system doesn't have enough
-> memory for the kernel (non-movable or mirrored), then it seems odd to end up crashing
-> the system at the point of memory exhaustion (a likely result ... the kernel can try to reclaim
-> some pages from SLAB, but that might only return a few pages, if the shortage continues
-> the system will perform poorly and eventually fail).
+>Lets remove the modular code that is essentially orphaned, so that
+>when reading the driver there is no doubt it is builtin-only.
 >
-> The whole point of removable memory or mirrored memory is to provide better availability.
+>Since module_init translates to device_initcall in the non-modular
+>case, the init ordering gets moved to earlier levels when we use the
+>more appropriate initcalls here.
 >
-> I'd vote for a mode where running out of memory for kernel results in a
+>Originally I had the fs part and the mm part as separate commits,
+>just by happenstance of the nature of how I detected these
+>non-modular use cases.  But that can possibly introduce regressions
+>if the patch merge ordering puts the fs part 1st -- as the 0-day
+>testing reported a splat at mount time.
 >
->     warn_on_once("Ran out of mirrored/non-removable memory for kernel - now allocating from all zones\n")
+>Investigating with "initcall_debug" showed that the delta was
+>init_hugetlbfs_fs being called _before_ hugetlb_init instead of
+>after.  So both the fs change and the mm change are here together.
 >
-> because I think most people would like the system to stay up rather than worry about some future problem that may never happen.
+>In addition, it worked before due to luck of link order, since they
+>were both in the same initcall category.  So we now have the fs
+>part using fs_initcall, and the mm part using subsys_initcall,
+>which puts it one bucket earlier.  It now passes the basic sanity
+>test that failed in earlier 0-day testing.
+>
+>We delete the MODULE_LICENSE tag and capture that information at the
+>top of the file alongside author comments, etc.
+>
+>We don't replace module.h with init.h since the file already has that.
+>Also note that MODULE_ALIAS is a no-op for non-modular code.
+>
+>Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+>Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+>Cc: Andrew Morton <akpm@linux-foundation.org>
+>Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>Cc: Mike Kravetz <mike.kravetz@oracle.com>
+>Cc: David Rientjes <rientjes@google.com>
+>Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+>Cc: Davidlohr Bueso <dave@stgolabs.net>
+>Cc: linux-mm@kvack.org
+>Cc: linux-fsdevel@vger.kernel.org
+>Reported-by: kernel test robot <ying.huang@linux.intel.com>
+>Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
 
-Hmm...like this ?
-       sysctl.vm.fallback_mirror_memory = 0  // never fallback  # default.
-       sysctl.vm.fallback_mirror_memory = 1  // the user memory may be allocated from mirrored zone.
-       sysctl.vm.fallback_mirror_memory = 2  // usually kernel allocates memory from mirrored zone before OOM.
-       sysctl.vm.fallback_mirror_memory = 3  // 1+2
-
-However I believe my customer's choice is always 0, above implementation can be done in a clean way.
-(adding a flag to zones (mirrored or not) and controlling fallback zonelist walk.)
-
-BTW, we need this Taku's patch to make a progress. I think other devs should be done in another
-development cycle. What does he need to get your Acks ?
-
-Thanks,
--Kame
-
-
-
+Acked-by: Davidlohr Bueso <dave@stgolabs.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
