@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A75256B0005
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 11:36:10 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id p187so71872626wmp.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 08:36:10 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D34596B0005
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 11:42:22 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id l126so72998094wml.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 08:42:22 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f187si13302208wmd.4.2015.12.18.08.36.09
+        by mx.google.com with ESMTPS id om6si26797113wjc.34.2015.12.18.08.42.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Dec 2015 08:36:09 -0800 (PST)
-Date: Fri, 18 Dec 2015 11:35:53 -0500
+        Fri, 18 Dec 2015 08:42:21 -0800 (PST)
+Date: Fri, 18 Dec 2015 11:42:09 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20151218163553.GC4201@cmpxchg.org>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20151216155844.d1c3a5f35bc98072a80f939e@linux-foundation.org>
- <20151218131509.GH28443@dhcp22.suse.cz>
+Subject: Re: [PATCH] memcg: fix SLOB build regression
+Message-ID: <20151218164209.GD4201@cmpxchg.org>
+References: <13705081.IYJlPWfILN@wuerfel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151218131509.GH28443@dhcp22.suse.cz>
+In-Reply-To: <13705081.IYJlPWfILN@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On Fri, Dec 18, 2015 at 02:15:09PM +0100, Michal Hocko wrote:
-> On Wed 16-12-15 15:58:44, Andrew Morton wrote:
-> > It's hard to say how long declaration of oom should take.  Correctness
-> > comes first.  But what is "correct"?  oom isn't a binary condition -
-> > there's a chance that if we keep churning away for another 5 minutes
-> > we'll be able to satisfy this allocation (but probably not the next
-> > one).  There are tradeoffs between promptness-of-declaring-oom and
-> > exhaustiveness-in-avoiding-it.
+On Fri, Dec 18, 2015 at 03:35:06PM +0100, Arnd Bergmann wrote:
+> A recent cleanup broke the build when CONFIG_SLOB is used:
 > 
-> Yes, this is really hard to tell. What I wanted to achieve here is a
-> determinism - the same load should give comparable results. It seems
-> that there is an improvement in this regards. The time to settle is 
-> much more consistent than with the original implementation.
+> mm/memcontrol.c: In function 'memcg_update_kmem_limit':
+> mm/memcontrol.c:2974:9: error: implicit declaration of function 'memcg_online_kmem' [-Werror=implicit-function-declaration]
+> mm/memcontrol.c: In function 'mem_cgroup_css_alloc':
+> mm/memcontrol.c:4229:10: error: too many arguments to function 'memcg_propagate_kmem'
+> mm/memcontrol.c:2949:12: note: declared here
+> 
+> This fixes the memcg_propagate_kmem prototype to match the normal
+> implementation and adds the respective memcg_online_kmem helper
+> function that was needed.
+> 
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: a5ed904c5039 ("mm: memcontrol: clean up alloc, online, offline, free functions")
 
-+1
+I am slob.
 
-Before that we couldn't even really make a meaningful statement about
-how long we are going to try - "as long as reclaim thinks it can maybe
-do some more, depending on heuristics". I think the best thing we can
-strive for with OOM is to make the rules simple and predictable.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
