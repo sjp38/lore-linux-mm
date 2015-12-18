@@ -1,316 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A7AF6B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:43:43 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l126so56370839wml.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:43:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e196si10829401wmd.100.2015.12.18.01.43.41
+	by kanga.kvack.org (Postfix) with ESMTP id C45B26B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 06:48:36 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id p187so61545631wmp.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:48:36 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id i7si25001532wjw.174.2015.12.18.03.48.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 18 Dec 2015 01:43:41 -0800 (PST)
-Date: Fri, 18 Dec 2015 10:43:38 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 4/7] dax: add support for fsync/sync
-Message-ID: <20151218094338.GD4297@quack.suse.cz>
-References: <1450135903-20313-1-git-send-email-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Dec 2015 03:48:35 -0800 (PST)
+Received: by mail-wm0-f51.google.com with SMTP id l126so60761298wml.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:48:35 -0800 (PST)
+Date: Fri, 18 Dec 2015 12:48:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
+Message-ID: <20151218114832.GD28443@dhcp22.suse.cz>
+References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
+ <20151217161521.57fb536085aca377cb93fe1e@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1450135903-20313-1-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20151217161521.57fb536085aca377cb93fe1e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Jeff Moyer <jmoyer@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 14-12-15 16:31:43, Ross Zwisler wrote:
-> To properly handle fsync/msync in an efficient way DAX needs to track dirty
-> pages so it is able to flush them durably to media on demand.
+On Thu 17-12-15 16:15:21, Andrew Morton wrote:
+> On Tue, 15 Dec 2015 19:36:15 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> The tracking of dirty pages is done via the radix tree in struct
-> address_space.  This radix tree is already used by the page writeback
-> infrastructure for tracking dirty pages associated with an open file, and
-> it already has support for exceptional (non struct page*) entries.  We
-> build upon these features to add exceptional entries to the radix tree for
-> DAX dirty PMD or PTE pages at fault time.
+> > This patch reduces the probability of such a lockup by introducing a
+> > specialized kernel thread (oom_reaper) 
+> 
+> CONFIG_MMU=n:
+> 
+> slub.c:(.text+0x4184): undefined reference to `tlb_gather_mmu'
+> slub.c:(.text+0x41bc): undefined reference to `unmap_page_range'
+> slub.c:(.text+0x41d8): undefined reference to `tlb_finish_mmu'
+> 
+> I did the below so I can get an mmotm out the door, but hopefully
+> there's a cleaner way.
 
-In principle this looks good to me but I can finally judge only once we
-resolve the possible issue with conflicting exceptional entries I have
-pointed out in patch 2/7.
-
-									Honza
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
-> 
-> For v4 I'm just sending out this one changed patch in an effort to not spam
-> everyone.
-> 
-> Changes since v3:
-> 
-> - Rebased on top of ext4/master which provides the patches from Jan which I'm
->   building upon.  The rebased tree can be found here: 
-> 
-> https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=fsync_v4
-> 
-> - Removed a WARN_ONCE() and added a comment for the case where we can get a
->   dax_pfn_mkwrite() call that has lost a race with a hole punch operation.  
-> 
-> ---
->  fs/dax.c            | 159 ++++++++++++++++++++++++++++++++++++++++++++++++++--
->  include/linux/dax.h |   2 +
->  mm/filemap.c        |   3 +
->  3 files changed, 158 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 43671b6..19347cf 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -24,6 +24,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/mm.h>
->  #include <linux/mutex.h>
-> +#include <linux/pagevec.h>
->  #include <linux/pmem.h>
->  #include <linux/sched.h>
->  #include <linux/uio.h>
-> @@ -289,6 +290,143 @@ static int copy_user_bh(struct page *to, struct buffer_head *bh,
->  	return 0;
->  }
->  
-> +static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
-> +		void __pmem *addr, bool pmd_entry, bool dirty)
-> +{
-> +	struct radix_tree_root *page_tree = &mapping->page_tree;
-> +	int error = 0;
-> +	void *entry;
-> +
-> +	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	entry = radix_tree_lookup(page_tree, index);
-> +
-> +	if (entry) {
-> +		if (!pmd_entry || RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-> +			goto dirty;
-> +		radix_tree_delete(&mapping->page_tree, index);
-> +		mapping->nrdax--;
-> +	}
-> +
-> +	if (!addr) {
-> +		/*
-> +		 * This can happen during correct operation if our pfn_mkwrite
-> +		 * fault raced against a hole punch operation.  If this
-> +		 * happens the pte that was hole punched will have been
-> +		 * unmapped and the radix tree entry will have been removed by
-> +		 * the time we are called, but the call will still happen.  We
-> +		 * will return all the way up to wp_pfn_shared(), where the
-> +		 * pte_same() check will fail, eventually causing page fault
-> +		 * to be retried by the CPU.
-> +		 */
-> +		goto unlock;
-> +	} else if (RADIX_DAX_TYPE(addr)) {
-> +		WARN_ONCE(1, "%s: invalid address %p\n", __func__, addr);
-> +		goto unlock;
-> +	}
-> +
-> +	error = radix_tree_insert(page_tree, index,
-> +			RADIX_DAX_ENTRY(addr, pmd_entry));
-> +	if (error)
-> +		goto unlock;
-> +
-> +	mapping->nrdax++;
-> + dirty:
-> +	if (dirty)
-> +		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);
-> + unlock:
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +	return error;
-> +}
-> +
-> +static void dax_writeback_one(struct address_space *mapping, pgoff_t index,
-> +		void *entry)
-> +{
-> +	struct radix_tree_root *page_tree = &mapping->page_tree;
-> +	int type = RADIX_DAX_TYPE(entry);
-> +	struct radix_tree_node *node;
-> +	void **slot;
-> +
-> +	if (type != RADIX_DAX_PTE && type != RADIX_DAX_PMD) {
-> +		WARN_ON_ONCE(1);
-> +		return;
-> +	}
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	/*
-> +	 * Regular page slots are stabilized by the page lock even
-> +	 * without the tree itself locked.  These unlocked entries
-> +	 * need verification under the tree lock.
-> +	 */
-> +	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
-> +		goto unlock;
-> +	if (*slot != entry)
-> +		goto unlock;
-> +
-> +	/* another fsync thread may have already written back this entry */
-> +	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-> +		goto unlock;
-> +
-> +	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-> +
-> +	if (type == RADIX_DAX_PMD)
-> +		wb_cache_pmem(RADIX_DAX_ADDR(entry), PMD_SIZE);
-> +	else
-> +		wb_cache_pmem(RADIX_DAX_ADDR(entry), PAGE_SIZE);
-> + unlock:
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +}
-> +
-> +/*
-> + * Flush the mapping to the persistent domain within the byte range of [start,
-> + * end]. This is required by data integrity operations to ensure file data is
-> + * on persistent storage prior to completion of the operation.
-> + */
-> +void dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
-> +		loff_t end)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	pgoff_t indices[PAGEVEC_SIZE];
-> +	pgoff_t start_page, end_page;
-> +	struct pagevec pvec;
-> +	void *entry;
-> +	int i;
-> +
-> +	if (inode->i_blkbits != PAGE_SHIFT) {
-> +		WARN_ON_ONCE(1);
-> +		return;
-> +	}
-> +
-> +	rcu_read_lock();
-> +	entry = radix_tree_lookup(&mapping->page_tree, start & PMD_MASK);
-> +	rcu_read_unlock();
-> +
-> +	/* see if the start of our range is covered by a PMD entry */
-> +	if (entry && RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-> +		start &= PMD_MASK;
-> +
-> +	start_page = start >> PAGE_CACHE_SHIFT;
-> +	end_page = end >> PAGE_CACHE_SHIFT;
-> +
-> +	tag_pages_for_writeback(mapping, start_page, end_page);
-> +
-> +	pagevec_init(&pvec, 0);
-> +	while (1) {
-> +		pvec.nr = find_get_entries_tag(mapping, start_page,
-> +				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,
-> +				pvec.pages, indices);
-> +
-> +		if (pvec.nr == 0)
-> +			break;
-> +
-> +		for (i = 0; i < pvec.nr; i++)
-> +			dax_writeback_one(mapping, indices[i], pvec.pages[i]);
-> +	}
-> +	wmb_pmem();
-> +}
-> +EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
-> +
->  static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
->  			struct vm_area_struct *vma, struct vm_fault *vmf)
->  {
-> @@ -329,7 +467,11 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
->  	}
->  
->  	error = vm_insert_mixed(vma, vaddr, pfn);
-> +	if (error)
-> +		goto out;
->  
-> +	error = dax_radix_entry(mapping, vmf->pgoff, addr, false,
-> +			vmf->flags & FAULT_FLAG_WRITE);
->   out:
->  	i_mmap_unlock_read(mapping);
->  
-> @@ -452,6 +594,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  		delete_from_page_cache(page);
->  		unlock_page(page);
->  		page_cache_release(page);
-> +		page = NULL;
->  	}
->  
->  	/*
-> @@ -539,7 +682,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  	pgoff_t size, pgoff;
->  	sector_t block, sector;
->  	unsigned long pfn;
-> -	int result = 0;
-> +	int error, result = 0;
->  
->  	/* dax pmd mappings are broken wrt gup and fork */
->  	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
-> @@ -651,6 +794,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  		}
->  
->  		result |= vmf_insert_pfn_pmd(vma, address, pmd, pfn, write);
-> +
-> +		if (write) {
-> +			error = dax_radix_entry(mapping, pgoff, kaddr, true,
-> +					true);
-> +			if (error)
-> +				goto fallback;
-> +		}
->  	}
->  
->   out:
-> @@ -702,15 +852,12 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
->   * dax_pfn_mkwrite - handle first write to DAX page
->   * @vma: The virtual memory area where the fault occurred
->   * @vmf: The description of the fault
-> - *
->   */
->  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  {
-> -	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-> +	struct file *file = vma->vm_file;
->  
-> -	sb_start_pagefault(sb);
-> -	file_update_time(vma->vm_file);
-> -	sb_end_pagefault(sb);
-> +	dax_radix_entry(file->f_mapping, vmf->pgoff, NULL, false, true);
->  	return VM_FAULT_NOPAGE;
->  }
->  EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
-> diff --git a/include/linux/dax.h b/include/linux/dax.h
-> index e9d57f68..11eb183 100644
-> --- a/include/linux/dax.h
-> +++ b/include/linux/dax.h
-> @@ -41,4 +41,6 @@ static inline bool dax_mapping(struct address_space *mapping)
->  {
->  	return mapping->host && IS_DAX(mapping->host);
->  }
-> +void dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
-> +		loff_t end);
->  #endif
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 99dfbc9..9577783 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -482,6 +482,9 @@ int filemap_write_and_wait_range(struct address_space *mapping,
->  {
->  	int err = 0;
->  
-> +	if (dax_mapping(mapping) && mapping->nrdax)
-> +		dax_writeback_mapping_range(mapping, lstart, lend);
-> +
->  	if (mapping->nrpages) {
->  		err = __filemap_fdatawrite_range(mapping, lstart, lend,
->  						 WB_SYNC_ALL);
-> -- 
-> 2.5.0
-> 
-> 
+Sorry about that and thanks for your fixup! I am not very familiar with
+!MMU world and haven't heard about issues with the OOM deadlocks yet. So
+I guess making this MMU only makes some sense. I would just get rid of
+ifdefs in oom_kill_process and provide an empty wake_oom_reaper for
+!CONFIG_MMU.  The following on top of yours:
+---
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4b0a5d8b92e1..56ff1ff18c0e 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -537,6 +537,10 @@ static int __init oom_init(void)
+ 	return 0;
+ }
+ module_init(oom_init)
++#else
++static void wake_oom_reaper(struct mm_struct *mm)
++{
++}
+ #endif
+ 
+ /**
+@@ -648,9 +652,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+-#ifdef CONFIG_MMU
+ 	bool can_oom_reap = true;
+-#endif
+ 
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -743,7 +745,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			continue;
+ 		if (is_global_init(p))
+ 			continue;
+-#ifdef CONFIG_MMU
+ 		if (unlikely(p->flags & PF_KTHREAD) ||
+ 		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+ 			/*
+@@ -754,15 +755,12 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			can_oom_reap = false;
+ 			continue;
+ 		}
+-#endif
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 	}
+ 	rcu_read_unlock();
+ 
+-#ifdef CONFIG_MMU
+ 	if (can_oom_reap)
+ 		wake_oom_reaper(mm);
+-#endif
+ 
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
