@@ -1,81 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 725136B0003
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 21:47:09 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id p187so46553060wmp.0
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 18:47:09 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hb7si22163898wjc.71.2015.12.17.18.47.07
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C66B26B0003
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2015 21:51:50 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id o64so41071784pfb.3
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 18:51:50 -0800 (PST)
+Received: from mgwkm02.jp.fujitsu.com (mgwkm02.jp.fujitsu.com. [202.219.69.169])
+        by mx.google.com with ESMTPS id 3si16542084pfj.94.2015.12.17.18.51.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 17 Dec 2015 18:47:07 -0800 (PST)
-Date: Thu, 17 Dec 2015 18:46:44 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH 1/8] hugetlb: make mm and fs code explicitly non-modular
-Message-ID: <20151218024644.GA17386@linux-uzut.site>
-References: <1450379466-23115-1-git-send-email-paul.gortmaker@windriver.com>
- <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Dec 2015 18:51:50 -0800 (PST)
+Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id E89E7AC0115
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 11:51:45 +0900 (JST)
+Subject: Re: [PATCH v2 7/7] Documentation: cgroup: add
+ memory.swap.{current,max} description
+References: <cover.1450352791.git.vdavydov@virtuozzo.com>
+ <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <567374AB.3010101@jp.fujitsu.com>
+Date: Fri, 18 Dec 2015 11:51:23 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <1450379466-23115-2-git-send-email-paul.gortmaker@windriver.com>
+In-Reply-To: <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: linux-kernel@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 17 Dec 2015, Paul Gortmaker wrote:
+On 2015/12/17 21:30, Vladimir Davydov wrote:
+> The rationale of separate swap counter is given by Johannes Weiner.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> ---
+> Changes in v2:
+>   - Add rationale of separate swap counter provided by Johannes.
+> 
+>   Documentation/cgroup.txt | 33 +++++++++++++++++++++++++++++++++
+>   1 file changed, 33 insertions(+)
+> 
+> diff --git a/Documentation/cgroup.txt b/Documentation/cgroup.txt
+> index 31d1f7bf12a1..f441564023e1 100644
+> --- a/Documentation/cgroup.txt
+> +++ b/Documentation/cgroup.txt
+> @@ -819,6 +819,22 @@ PAGE_SIZE multiple when read back.
+>   		the cgroup.  This may not exactly match the number of
+>   		processes killed but should generally be close.
+>   
+> +  memory.swap.current
+> +
+> +	A read-only single value file which exists on non-root
+> +	cgroups.
+> +
+> +	The total amount of swap currently being used by the cgroup
+> +	and its descendants.
+> +
+> +  memory.swap.max
+> +
+> +	A read-write single value file which exists on non-root
+> +	cgroups.  The default is "max".
+> +
+> +	Swap usage hard limit.  If a cgroup's swap usage reaches this
+> +	limit, anonymous meomry of the cgroup will not be swapped out.
+> +
+>   
+>   5-2-2. General Usage
+>   
+> @@ -1291,3 +1307,20 @@ allocation from the slack available in other groups or the rest of the
+>   system than killing the group.  Otherwise, memory.max is there to
+>   limit this type of spillover and ultimately contain buggy or even
+>   malicious applications.
+> +
+> +The combined memory+swap accounting and limiting is replaced by real
+> +control over swap space.
+> +
+> +The main argument for a combined memory+swap facility in the original
+> +cgroup design was that global or parental pressure would always be
+> +able to swap all anonymous memory of a child group, regardless of the
+> +child's own (possibly untrusted) configuration.  However, untrusted
+> +groups can sabotage swapping by other means - such as referencing its
+> +anonymous memory in a tight loop - and an admin can not assume full
+> +swappability when overcommitting untrusted jobs.
+> +
+> +For trusted jobs, on the other hand, a combined counter is not an
+> +intuitive userspace interface, and it flies in the face of the idea
+> +that cgroup controllers should account and limit specific physical
+> +resources.  Swap space is a resource like all others in the system,
+> +and that's why unified hierarchy allows distributing it separately.
+> 
+Could you give here a hint how to calculate amount of swapcache,
+counted both in memory.current and swap.current ?
 
->The Kconfig currently controlling compilation of this code is:
->
->config HUGETLBFS
->        bool "HugeTLB file system support"
->
->...meaning that it currently is not being built as a module by anyone.
->
->Lets remove the modular code that is essentially orphaned, so that
->when reading the driver there is no doubt it is builtin-only.
->
->Since module_init translates to device_initcall in the non-modular
->case, the init ordering gets moved to earlier levels when we use the
->more appropriate initcalls here.
->
->Originally I had the fs part and the mm part as separate commits,
->just by happenstance of the nature of how I detected these
->non-modular use cases.  But that can possibly introduce regressions
->if the patch merge ordering puts the fs part 1st -- as the 0-day
->testing reported a splat at mount time.
->
->Investigating with "initcall_debug" showed that the delta was
->init_hugetlbfs_fs being called _before_ hugetlb_init instead of
->after.  So both the fs change and the mm change are here together.
->
->In addition, it worked before due to luck of link order, since they
->were both in the same initcall category.  So we now have the fs
->part using fs_initcall, and the mm part using subsys_initcall,
->which puts it one bucket earlier.  It now passes the basic sanity
->test that failed in earlier 0-day testing.
->
->We delete the MODULE_LICENSE tag and capture that information at the
->top of the file alongside author comments, etc.
->
->We don't replace module.h with init.h since the file already has that.
->Also note that MODULE_ALIAS is a no-op for non-modular code.
->
->Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
->Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->Cc: Mike Kravetz <mike.kravetz@oracle.com>
->Cc: David Rientjes <rientjes@google.com>
->Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
->Cc: Davidlohr Bueso <dave@stgolabs.net>
->Cc: linux-mm@kvack.org
->Cc: linux-fsdevel@vger.kernel.org
->Reported-by: kernel test robot <ying.huang@linux.intel.com>
->Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+Thanks,
+-Kame
 
-Acked-by: Davidlohr Bueso <dave@stgolabs.net>
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
