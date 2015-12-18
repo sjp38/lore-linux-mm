@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F78A6B000D
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:50 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id p187so55181703wmp.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:50 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C1DF46B000E
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 04:03:52 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id l126so54981399wml.0
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:03:52 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h76si10697906wmd.76.2015.12.18.01.03.37
+        by mx.google.com with ESMTPS id 80si10697667wmb.43.2015.12.18.01.03.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 18 Dec 2015 01:03:37 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 00/14] mm flags in printk, page_owner improvements for debugging
-Date: Fri, 18 Dec 2015 10:03:12 +0100
-Message-Id: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 08/14] mm, oom: print symbolic gfp_flags in oom warning
+Date: Fri, 18 Dec 2015 10:03:20 +0100
+Message-Id: <1450429406-7081-9-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
+References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Sasha Levin <sasha.levin@oracle.com>, Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
 
-After v2 [1] of the page_owner series, I've moved mm-specific flags printing
-into printk() and posted it on top of the series. But it makes more sense and
-results in less code churn to do the printk() changes first. So this series
-is two-part. Patches 1-6 are related to the flags handling in printk() and
-tracepoints, and Cc the printk, ftrace and perf maintainers. The rest is
-the original page_owner series, CCing only mm people.
+It would be useful to translate gfp_flags into string representation when
+printing in case of an OOM, especially as the flags have been undergoing some
+changes recently and the script ./scripts/gfp-translate needs a matching source
+version to be accurate.
 
-The patches are intended to fully replace the v2 in -mm tree, so they can't
-simply apply to -next. Furthermore, the first patch needs "tracepoints: Move
-struct tracepoint to new tracepoint-defs.h header" from tip. I'm not sure how
-the maintainer merging should work here, suggestions welcome.
+Example output:
 
-To apply for testing/review, prepare a tree like this:
-git checkout next-20151217
-git revert --no-edit 75d89138243d1062acbd20fe2c13fed4889f4438..fcf95d5cb1cbb5c3ae18ae88f8073a8e0e2e57bf
+a.out invoked oom-killer: order=0, gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|GFP_ZERO), om_score_adj=0
 
-Adapted description of v2:
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/oom_kill.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-For page_owner, the main changes are
-o Use static key to further reduce overhead when compiled in but not enabled.
-o Improve output wrt. page and pageblock migratetypes
-o Transfer the info on page migrations and track last migration reason.
-o Dump the info as part of dump_page() to hopefully help debugging.
-
-For the last point, Kirill requested a human readable printing of gfp_mask and
-migratetype after v1. At that point it probably makes a lot of sense to do the
-same for page alloc failure and OOM warnings. The flags have been undergoing
-revisions recently, and we might be getting reports from various kernel
-versions that differ. The ./scripts/gfp-translate tool needs to be pointed at
-the corresponding sources to be accurate.  The downside is potentially breaking
-scripts that grep these warnings, but it's not a first change done there over
-the years.
-
-Other changes since v1:
-o Change placement of page owner migration calls to cover missing cases (Hugh)
-o Move dump_page_owner() call up from dump_page_badflags(), so the latter can
-  be used for adding debugging prints without page owner info (Kirill)
-
-[1] https://lkml.org/lkml/2015/11/24/342
-
-Vlastimil Babka (14):
-  tracepoints: move trace_print_flags definitions to tracepoint-defs.h
-  mm, tracing: make show_gfp_flags() up to date
-  tools, perf: make gfp_compact_table up to date
-  mm, tracing: unify mm flags handling in tracepoints and printk
-  mm, printk: introduce new format string for flags
-  mm, debug: replace dump_flags() with the new printk formats
-  mm, page_alloc: print symbolic gfp_flags on allocation failure
-  mm, oom: print symbolic gfp_flags in oom warning
-  mm, page_owner: print migratetype of page and pageblock, symbolic
-    flags
-  mm, page_owner: convert page_owner_inited to static key
-  mm, page_owner: copy page owner info during migration
-  mm, page_owner: track and print last migrate reason
-  mm, page_owner: dump page owner info from dump_page()
-  mm, debug: move bad flags printing to bad_page()
-
- Documentation/printk-formats.txt   |  18 ++++
- Documentation/vm/page_owner.txt    |   9 +-
- include/linux/gfp.h                |   5 ++
- include/linux/migrate.h            |   6 +-
- include/linux/mmdebug.h            |   9 +-
- include/linux/mmzone.h             |   3 +
- include/linux/page_ext.h           |   1 +
- include/linux/page_owner.h         |  50 ++++++++---
- include/linux/trace_events.h       |  10 ---
- include/linux/tracepoint-defs.h    |  14 +++-
- include/trace/events/btrfs.h       |   2 +-
- include/trace/events/compaction.h  |   2 +-
- include/trace/events/gfpflags.h    |  43 ----------
- include/trace/events/huge_memory.h |   2 -
- include/trace/events/kmem.h        |   2 +-
- include/trace/events/mmflags.h     | 161 ++++++++++++++++++++++++++++++++++++
- include/trace/events/vmscan.h      |   2 +-
- lib/test_printf.c                  |  53 ++++++++++++
- lib/vsprintf.c                     |  75 +++++++++++++++++
- mm/debug.c                         | 165 +++++++++----------------------------
- mm/internal.h                      |   6 ++
- mm/migrate.c                       |  13 ++-
- mm/oom_kill.c                      |   7 +-
- mm/page_alloc.c                    |  29 +++++--
- mm/page_owner.c                    | 100 +++++++++++++++++-----
- mm/vmstat.c                        |  15 +---
- tools/perf/builtin-kmem.c          |  13 ++-
- 27 files changed, 559 insertions(+), 256 deletions(-)
- delete mode 100644 include/trace/events/gfpflags.h
- create mode 100644 include/trace/events/mmflags.h
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dc490c06941b..f92b75750fc5 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -386,10 +386,11 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ static void dump_header(struct oom_control *oc, struct task_struct *p,
+ 			struct mem_cgroup *memcg)
+ {
+-	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
+-		"oom_score_adj=%hd\n",
+-		current->comm, oc->gfp_mask, oc->order,
++	pr_warn("%s invoked oom-killer: order=%d, gfp_mask=%#x(%pgg), "
++			"oom_score_adj=%hd\n",
++		current->comm, oc->order, oc->gfp_mask, &oc->gfp_mask,
+ 		current->signal->oom_score_adj);
++
+ 	cpuset_print_current_mems_allowed();
+ 	dump_stack();
+ 	if (memcg)
 -- 
 2.6.3
 
