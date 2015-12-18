@@ -1,87 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CC0D06B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 15:57:01 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id ur14so65721494pab.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 12:57:01 -0800 (PST)
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5026B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 16:14:02 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id o64so54614834pfb.3
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 13:14:02 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k18si22087119pfj.164.2015.12.18.12.57.00
+        by mx.google.com with ESMTPS id d10si26170873pap.237.2015.12.18.13.14.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Dec 2015 12:57:00 -0800 (PST)
-Date: Fri, 18 Dec 2015 12:56:59 -0800
+        Fri, 18 Dec 2015 13:14:01 -0800 (PST)
+Date: Fri, 18 Dec 2015 13:14:00 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 7056/7206] kernel/time/timekeeping.c:1096:
- undefined reference to `stop_machine'
-Message-Id: <20151218125659.c110d5259f0593b117d499d6@linux-foundation.org>
-In-Reply-To: <201512182219.koK0zCrI%fengguang.wu@intel.com>
-References: <201512182219.koK0zCrI%fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
+Message-Id: <20151218131400.751bc4d582a947c9833c09eb@linux-foundation.org>
+In-Reply-To: <20151218115454.GE28443@dhcp22.suse.cz>
+References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
+	<20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
+	<20151217130223.GE18625@dhcp22.suse.cz>
+	<CA+55aFxkzeqtxDY8KyR_FA+WKNkQXEHVA_zO8XhW6rqRr778Zw@mail.gmail.com>
+	<20151217120004.b5f849e1613a3a367482b379@linux-foundation.org>
+	<20151218115454.GE28443@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 18 Dec 2015 22:39:22 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Fri, 18 Dec 2015 12:54:55 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   f7ac28a6971b43a2ee8bb47c0ef931b38f7888cf
-> commit: 64dab25b058c12f935794cb239089303bda7dbc1 [7056/7206] kernel/stop_machine.c: remove CONFIG_SMP dependencies
-> config: m32r-usrv_defconfig (attached as .config)
-> reproduce:
->         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 64dab25b058c12f935794cb239089303bda7dbc1
->         # save the attached .config to linux build tree
->         make.cross ARCH=m32r 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    kernel/built-in.o: In function `timekeeping_notify':
-> >> kernel/time/timekeeping.c:1096: undefined reference to `stop_machine'
->    kernel/time/timekeeping.c:1096:(.text+0x51498): relocation truncated to fit: R_M32R_26_PCREL_RELA against undefined symbol `stop_machine'
->    mm/built-in.o: In function `build_all_zonelists':
-> >> mm/page_alloc.c:4508: undefined reference to `stop_machine'
->    mm/page_alloc.c:4508:(.ref.text+0x1f4): relocation truncated to fit: R_M32R_26_PCREL_RELA against undefined symbol `stop_machine'
-> 
+>  	/* Retry the down_read_trylock(mmap_sem) a few times */
+> -	while (attempts++ < 10 && !__oom_reap_vmas(mm))
+> -		msleep_interruptible(100);
+> +	while (attempts++ < 10 && !__oom_reap_vmas(mm)) {
+> +		__set_task_state(current, TASK_IDLE);
+> +		schedule_timeout(HZ/10);
+> +	}
 
-doh.
+If you won't, I shall ;)
+
 
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: kernel-stop_machinec-remove-config_smp-dependencies-fix
+Subject: sched: add schedule_timeout_idle()
 
-stop_machine.o is only built if CONFIG_SMP=y, so this ifdef always
-evaluates to true.
+This will be needed in the patch "mm, oom: introduce oom reaper".
 
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Valentin Rothberg <valentinrothberg@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- kernel/stop_machine.c |    4 ----
- 1 file changed, 4 deletions(-)
+ include/linux/sched.h |    1 +
+ kernel/time/timer.c   |   11 +++++++++++
+ 2 files changed, 12 insertions(+)
 
-diff -puN kernel/stop_machine.c~kernel-stop_machinec-remove-config_smp-dependencies-fix kernel/stop_machine.c
---- a/kernel/stop_machine.c~kernel-stop_machinec-remove-config_smp-dependencies-fix
-+++ a/kernel/stop_machine.c
-@@ -531,8 +531,6 @@ static int __init cpu_stop_init(void)
+diff -puN kernel/time/timer.c~sched-add-schedule_timeout_idle kernel/time/timer.c
+--- a/kernel/time/timer.c~sched-add-schedule_timeout_idle
++++ a/kernel/time/timer.c
+@@ -1566,6 +1566,17 @@ signed long __sched schedule_timeout_uni
  }
- early_initcall(cpu_stop_init);
+ EXPORT_SYMBOL(schedule_timeout_uninterruptible);
  
--#ifdef CONFIG_HOTPLUG_CPU
--
- static int __stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
++/*
++ * Like schedule_timeout_uninterruptible(), except this task will not contribute
++ * to load average.
++ */
++signed long __sched schedule_timeout_idle(signed long timeout)
++{
++	__set_current_state(TASK_IDLE);
++	return schedule_timeout(timeout);
++}
++EXPORT_SYMBOL(schedule_timeout_idle);
++
+ #ifdef CONFIG_HOTPLUG_CPU
+ static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
  {
- 	struct multi_stop_data msdata = {
-@@ -630,5 +628,3 @@ int stop_machine_from_inactive_cpu(cpu_s
- 	mutex_unlock(&stop_cpus_mutex);
- 	return ret ?: done.ret;
- }
--
--#endif	/* CONFIG_HOTPLUG_CPU */
+diff -puN include/linux/sched.h~sched-add-schedule_timeout_idle include/linux/sched.h
+--- a/include/linux/sched.h~sched-add-schedule_timeout_idle
++++ a/include/linux/sched.h
+@@ -423,6 +423,7 @@ extern signed long schedule_timeout(sign
+ extern signed long schedule_timeout_interruptible(signed long timeout);
+ extern signed long schedule_timeout_killable(signed long timeout);
+ extern signed long schedule_timeout_uninterruptible(signed long timeout);
++extern signed long schedule_timeout_idle(signed long timeout);
+ asmlinkage void schedule(void);
+ extern void schedule_preempt_disabled(void);
+ 
 _
 
 --
