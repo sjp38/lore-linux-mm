@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A60EA6B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 17:40:08 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id jx14so38065426pad.2
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 14:40:08 -0800 (PST)
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 132796B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 17:50:24 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id u7so9029251pfb.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 14:50:24 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m70si15838135pfi.74.2015.12.18.14.40.05
+        by mx.google.com with ESMTPS id x73si22695839pfa.193.2015.12.18.14.50.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Dec 2015 14:40:07 -0800 (PST)
-Date: Fri, 18 Dec 2015 14:40:04 -0800
+        Fri, 18 Dec 2015 14:50:23 -0800 (PST)
+Date: Fri, 18 Dec 2015 14:50:22 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: memcontrol: fix possible memcg leak due to
- interrupted reclaim
-Message-Id: <20151218144004.6ec6189817b64e04d9405001@linux-foundation.org>
-In-Reply-To: <20151218162405.GU28521@esperanza>
-References: <1450182697-11049-1-git-send-email-vdavydov@virtuozzo.com>
-	<20151217150217.a02c264ce9b5335b02bae888@linux-foundation.org>
-	<20151218153202.GS28521@esperanza>
-	<20151218160041.GA4201@cmpxchg.org>
-	<20151218162405.GU28521@esperanza>
+Subject: Re: [PATCH] memory-hotplug: don't BUG() in
+ register_memory_resource()
+Message-Id: <20151218145022.eae1e368c82f090900582fcc@linux-foundation.org>
+In-Reply-To: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+References: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, stable@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Sheng Yong <shengyong1@huawei.com>, David Rientjes <rientjes@google.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>
 
-On Fri, 18 Dec 2015 19:24:05 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+On Fri, 18 Dec 2015 15:50:24 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
 
+> Out of memory condition is not a bug and while we can't add new memory in
+> such case crashing the system seems wrong. Propagating the return value
+> from register_memory_resource() requires interface change.
 > 
-> OK, got it, thanks. Here goes the incremental patch (it should also fix
-> the warning regarding unused cmpxchg returned value):
-> ---
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index fc25dc211eaf..908c075e04eb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -864,7 +864,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  			 * might block it. So we clear iter->position right
->  			 * away.
->  			 */
-> -			cmpxchg(&iter->position, pos, NULL);
-> +			(void)cmpxchg(&iter->position, pos, NULL);
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> +static int register_memory_resource(u64 start, u64 size,
+> +				    struct resource **resource)
+>  {
+>  	struct resource *res;
+>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> -	BUG_ON(!res);
+> +	if (!res)
+> +		return -ENOMEM;
+>  
+>  	res->name = "System RAM";
+>  	res->start = start;
+> @@ -140,9 +142,10 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+>  	if (request_resource(&iomem_resource, res) < 0) {
+>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>  		kfree(res);
+> -		res = NULL;
+> +		return -EEXIST;
+>  	}
+> -	return res;
+> +	*resource = res;
+> +	return 0;
+>  }
 
-No, this doesn't actually squish the __must_check warning.
+Was there a reason for overwriting the request_resource() return value?
+Ordinarily it should be propagated back to callers.
 
+Please review.
 
-Can anyone think of anything smarter than this?
-
---- a/mm/memcontrol.c~mm-memcontrol-fix-possible-memcg-leak-due-to-interrupted-reclaim-fix-fix
-+++ a/mm/memcontrol.c
-@@ -851,6 +851,9 @@ static struct mem_cgroup *get_mem_cgroup
- 	return memcg;
+--- a/mm/memory_hotplug.c~memory-hotplug-dont-bug-in-register_memory_resource-fix
++++ a/mm/memory_hotplug.c
+@@ -131,7 +131,9 @@ static int register_memory_resource(u64
+ 				    struct resource **resource)
+ {
+ 	struct resource *res;
++	int ret = 0;
+ 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
++
+ 	if (!res)
+ 		return -ENOMEM;
+ 
+@@ -139,13 +141,14 @@ static int register_memory_resource(u64
+ 	res->start = start;
+ 	res->end = start + size - 1;
+ 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+-	if (request_resource(&iomem_resource, res) < 0) {
++	ret = request_resource(&iomem_resource, res);
++	if (ret < 0) {
+ 		pr_debug("System RAM resource %pR cannot be added\n", res);
+ 		kfree(res);
+-		return -EEXIST;
++	} else {
++		*resource = res;
+ 	}
+-	*resource = res;
+-	return 0;
++	return ret;
  }
  
-+/* Move this to compiler.h if it proves worthy */
-+#define defeat_must_check(expr) do { if (expr) ; } while (0)
-+
- /**
-  * mem_cgroup_iter - iterate over memory cgroup hierarchy
-  * @root: hierarchy root
-@@ -915,7 +918,7 @@ struct mem_cgroup *mem_cgroup_iter(struc
- 			 * might block it. So we clear iter->position right
- 			 * away.
- 			 */
--			(void)cmpxchg(&iter->position, pos, NULL);
-+			defeat_must_check(cmpxchg(&iter->position, pos, NULL));
- 		}
- 	}
- 
-@@ -967,7 +970,7 @@ struct mem_cgroup *mem_cgroup_iter(struc
- 		 * thread, so check that the value hasn't changed since we read
- 		 * it to avoid reclaiming from the same cgroup twice.
- 		 */
--		(void)cmpxchg(&iter->position, pos, memcg);
-+		defeat_must_check(cmpxchg(&iter->position, pos, memcg));
- 
- 		/*
- 		 * pairs with css_tryget when dereferencing iter->position
+ static void release_memory_resource(struct resource *res)
 _
 
 --
