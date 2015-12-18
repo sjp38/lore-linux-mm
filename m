@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C91726B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 01:59:10 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id q3so35683625pav.3
-        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 22:59:10 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id 6si17969691pfh.141.2015.12.17.22.59.09
-        for <linux-mm@kvack.org>;
-        Thu, 17 Dec 2015 22:59:09 -0800 (PST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
-Date: Fri, 18 Dec 2015 06:59:08 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F39F88DAC@ORSMSX114.amr.corp.intel.com>
-References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <56679FDC.1080800@huawei.com>
- <3908561D78D1C84285E8C5FCA982C28F39F7F4CD@ORSMSX114.amr.corp.intel.com>
- <5668D1FA.4050108@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299720@G01JPEXMBYT01>
- <56691819.3040105@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A54299AA4@G01JPEXMBYT01>
- <566A9AE1.7020001@huawei.com>
- <E86EADE93E2D054CBCD4E708C38D364A5429B2DE@G01JPEXMBYT01>
- <56722258.6030800@huawei.com> <567223A7.9090407@jp.fujitsu.com>
- <56723E8B.8050201@huawei.com> <567241BE.5030806@jp.fujitsu.com>
- <3908561D78D1C84285E8C5FCA982C28F39F882E8@ORSMSX114.amr.corp.intel.com>
- <56736B7D.3040709@jp.fujitsu.com>
-In-Reply-To: <56736B7D.3040709@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B60A6B0003
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 02:41:38 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id p187so53469267wmp.0
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2015 23:41:38 -0800 (PST)
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com. [195.75.94.103])
+        by mx.google.com with ESMTPS id y125si37015wmd.48.2015.12.17.23.41.37
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 Dec 2015 23:41:37 -0800 (PST)
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Fri, 18 Dec 2015 07:41:36 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2F8D31B08072
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 07:42:07 +0000 (GMT)
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tBI7fXQD63700998
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 07:41:34 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tBI7fX28022737
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 00:41:33 -0700
+Date: Fri, 18 Dec 2015 08:41:32 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] mm/swapfile: mm/swapfile: fix swapoff vs. software
+ dirty bits
+Message-ID: <20151218084132.7661051e@mschwide>
+In-Reply-To: <CAM5jBj5vOTjbt1f3Z6P=qQymX5-_W6bLGVQ1Q9FERx6tpKbthQ@mail.gmail.com>
+References: <1442222687-9758-1-git-send-email-schwidefsky@de.ibm.com>
+	<1442222687-9758-2-git-send-email-schwidefsky@de.ibm.com>
+	<CAM5jBj5vOTjbt1f3Z6P=qQymX5-_W6bLGVQ1Q9FERx6tpKbthQ@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>
 
->Hmm...like this ?
->       sysctl.vm.fallback_mirror_memory =3D 0  // never fallback  # defaul=
-t.
->       sysctl.vm.fallback_mirror_memory =3D 1  // the user memory may be a=
-llocated from mirrored zone.
->       sysctl.vm.fallback_mirror_memory =3D 2  // usually kernel allocates=
- memory from mirrored zone before OOM.
->       sysctl.vm.fallback_mirror_memory =3D 3  // 1+2
+On Thu, 17 Dec 2015 19:08:46 +0300
+Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 
-Should option 2 say: // allow kernel to allocate from non-mirror zone to av=
-oid OOM
+> On Mon, Sep 14, 2015 at 12:24 PM, Martin Schwidefsky
+> <schwidefsky@de.ibm.com> wrote:
+> > Fixes a regression introduced with commit 179ef71cbc085252
+> > "mm: save soft-dirty bits on swapped pages"
+> >
+> > The maybe_same_pte() function is used to match a swap pte independent
+> > of the swap software dirty bit set with pte_swp_mksoft_dirty().
+> >
+> > For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
+> > software dirty bit may be set but maybe_same_pte() will not recognize
+> > a software dirty swap pte. Due to this a 'swapoff -a' will hang.
+> >
+> > The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
+> > with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
+> >
+> > Cc: linux-mm@kvack.org
+> > Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Michal Hocko <mhocko@suse.cz>
+> > Reported-by: Sebastian Ott <sebott@linux.vnet.ibm.com>
+> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> 
+> We've been discussing this already
+> http://comments.gmane.org/gmane.linux.kernel.mm/138664
+ 
+Yes indeed. I'm still trying to find out how this mail has been
+sent a second time. That was not intentional, sorry for the noise.
 
-> However I believe my customer's choice is always 0, above implementation =
-can be done in a clean way.
-> (adding a flag to zones (mirrored or not) and controlling fallback zoneli=
-st walk.)
+-- 
+blue skies,
+   Martin.
 
-Modes allow us to make all of the people happy (I hope).
-
-> BTW, we need this Taku's patch to make a progress. I think other devs sho=
-uld be done in another
-> development cycle. What does he need to get your Acks ?
-
-The concept is great.   It's even "Tested-by: Tony Luck <tony.luck@intel.co=
-m>".
-I need to read the code more carefully before Acked-by.
-
--Tony
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
