@@ -1,101 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C45B26B0003
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 06:48:36 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id p187so61545631wmp.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:48:36 -0800 (PST)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id i7si25001532wjw.174.2015.12.18.03.48.35
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 56C196B0006
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2015 06:54:58 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l126so61912511wml.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:54:58 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id h76si11632482wmd.76.2015.12.18.03.54.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Dec 2015 03:48:35 -0800 (PST)
-Received: by mail-wm0-f51.google.com with SMTP id l126so60761298wml.0
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:48:35 -0800 (PST)
-Date: Fri, 18 Dec 2015 12:48:33 +0100
+        Fri, 18 Dec 2015 03:54:57 -0800 (PST)
+Received: by mail-wm0-f43.google.com with SMTP id p187so60346730wmp.1
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2015 03:54:56 -0800 (PST)
+Date: Fri, 18 Dec 2015 12:54:55 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-ID: <20151218114832.GD28443@dhcp22.suse.cz>
+Message-ID: <20151218115454.GE28443@dhcp22.suse.cz>
 References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
- <20151217161521.57fb536085aca377cb93fe1e@linux-foundation.org>
+ <20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
+ <20151217130223.GE18625@dhcp22.suse.cz>
+ <CA+55aFxkzeqtxDY8KyR_FA+WKNkQXEHVA_zO8XhW6rqRr778Zw@mail.gmail.com>
+ <20151217120004.b5f849e1613a3a367482b379@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151217161521.57fb536085aca377cb93fe1e@linux-foundation.org>
+In-Reply-To: <20151217120004.b5f849e1613a3a367482b379@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 17-12-15 16:15:21, Andrew Morton wrote:
-> On Tue, 15 Dec 2015 19:36:15 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Thu 17-12-15 12:00:04, Andrew Morton wrote:
+> On Thu, 17 Dec 2015 11:55:11 -0800 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 > 
-> > This patch reduces the probability of such a lockup by introducing a
-> > specialized kernel thread (oom_reaper) 
+> > On Thu, Dec 17, 2015 at 5:02 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > Ups. You are right. I will go with msleep_interruptible(100).
+> > 
+> > I don't think that's right.
+> > 
+> > If a signal happens, that loop is now (again) just busy-looping.
 > 
-> CONFIG_MMU=n:
-> 
-> slub.c:(.text+0x4184): undefined reference to `tlb_gather_mmu'
-> slub.c:(.text+0x41bc): undefined reference to `unmap_page_range'
-> slub.c:(.text+0x41d8): undefined reference to `tlb_finish_mmu'
-> 
-> I did the below so I can get an mmotm out the door, but hopefully
-> there's a cleaner way.
+> It's called only by a kernel thread so no signal_pending().
 
-Sorry about that and thanks for your fixup! I am not very familiar with
-!MMU world and haven't heard about issues with the OOM deadlocks yet. So
-I guess making this MMU only makes some sense. I would just get rid of
-ifdefs in oom_kill_process and provide an empty wake_oom_reaper for
-!CONFIG_MMU.  The following on top of yours:
+Yes that was the thinking.
+
+> This relationship is a bit unobvious and fragile, but we do it in
+> quite a few places.
+
+I guess Linus is right and __set_task_state(current, TASK_IDLE) would be
+better and easier to read.
 ---
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4b0a5d8b92e1..56ff1ff18c0e 100644
+index 4b0a5d8b92e1..eed99506b891 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -537,6 +537,10 @@ static int __init oom_init(void)
- 	return 0;
- }
- module_init(oom_init)
-+#else
-+static void wake_oom_reaper(struct mm_struct *mm)
-+{
-+}
- #endif
+@@ -472,8 +472,10 @@ static void oom_reap_vmas(struct mm_struct *mm)
+ 	int attempts = 0;
  
- /**
-@@ -648,9 +652,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	unsigned int victim_points = 0;
- 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
- 					      DEFAULT_RATELIMIT_BURST);
--#ifdef CONFIG_MMU
- 	bool can_oom_reap = true;
--#endif
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+-	while (attempts++ < 10 && !__oom_reap_vmas(mm))
+-		msleep_interruptible(100);
++	while (attempts++ < 10 && !__oom_reap_vmas(mm)) {
++		__set_task_state(current, TASK_IDLE);
++		schedule_timeout(HZ/10);
++	}
  
- 	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
-@@ -743,7 +745,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			continue;
- 		if (is_global_init(p))
- 			continue;
--#ifdef CONFIG_MMU
- 		if (unlikely(p->flags & PF_KTHREAD) ||
- 		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
- 			/*
-@@ -754,15 +755,12 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			can_oom_reap = false;
- 			continue;
- 		}
--#endif
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
- 	}
- 	rcu_read_unlock();
- 
--#ifdef CONFIG_MMU
- 	if (can_oom_reap)
- 		wake_oom_reaper(mm);
--#endif
- 
+ 	/* Drop a reference taken by wake_oom_reaper */
  	mmdrop(mm);
- 	put_task_struct(victim);
 -- 
 Michal Hocko
 SUSE Labs
