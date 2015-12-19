@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC3C4402ED
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2015 04:10:03 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id ba1so3425267obb.3
-        for <linux-mm@kvack.org>; Sat, 19 Dec 2015 01:10:03 -0800 (PST)
-Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
-        by mx.google.com with ESMTP id b202si620052oig.100.2015.12.19.01.09.11
-        for <linux-mm@kvack.org>;
-        Sat, 19 Dec 2015 01:10:03 -0800 (PST)
-From: Geliang Tang <geliangtang@163.com>
-Subject: [PATCH] mm: move lru_to_page to mm_inline.h
-Date: Sat, 19 Dec 2015 17:08:27 +0800
-Message-Id: <db243314728321f435fb82dc2b5d99d98af409e2.1450515627.git.geliangtang@163.com>
-In-Reply-To: <56744194.80809@suse.cz>
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 941114402ED
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2015 08:41:07 -0500 (EST)
+Received: by mail-yk0-f182.google.com with SMTP id x184so89187557yka.3
+        for <linux-mm@kvack.org>; Sat, 19 Dec 2015 05:41:07 -0800 (PST)
+Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
+        by mx.google.com with ESMTPS id x126si1359400ywb.290.2015.12.19.05.41.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 19 Dec 2015 05:41:06 -0800 (PST)
+Received: by mail-yk0-x233.google.com with SMTP id 140so88588489ykp.0
+        for <linux-mm@kvack.org>; Sat, 19 Dec 2015 05:41:06 -0800 (PST)
+MIME-Version: 1.0
+From: Sumit Gupta <sumit.g.007@gmail.com>
+Date: Sat, 19 Dec 2015 19:10:26 +0530
+Message-ID: <CANDtUregqtqLLa+kFSR+Hqz4dsi5jSQS1=nzUeTaXRE-wTQiyA@mail.gmail.com>
+Subject: Query about merging memblock and bootmem into one new alloc
+Content-Type: multipart/alternative; boundary=001a1146411e64e2310527406866
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>
-Cc: Geliang Tang <geliangtang@163.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, linux-arch@vger.kernel.org
 
-Move lru_to_page() from internal.h to mm_inline.h.
+--001a1146411e64e2310527406866
+Content-Type: text/plain; charset=UTF-8
 
-Signed-off-by: Geliang Tang <geliangtang@163.com>
----
- include/linux/mm_inline.h | 2 ++
- mm/internal.h             | 2 --
- mm/readahead.c            | 1 +
- 3 files changed, 3 insertions(+), 2 deletions(-)
+Hi All,
 
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index cf55945..712e8c3 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -100,4 +100,6 @@ static __always_inline enum lru_list page_lru(struct page *page)
- 	return lru;
- }
- 
-+#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
-+
- #endif
-diff --git a/mm/internal.h b/mm/internal.h
-index ca49922..5d8ec89 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -87,8 +87,6 @@ extern int isolate_lru_page(struct page *page);
- extern void putback_lru_page(struct page *page);
- extern bool zone_reclaimable(struct zone *zone);
- 
--#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
--
- /*
-  * in mm/rmap.c:
-  */
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 0aff760..20e58e8 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -17,6 +17,7 @@
- #include <linux/pagemap.h>
- #include <linux/syscalls.h>
- #include <linux/file.h>
-+#include <linux/mm_inline.h>
- 
- #include "internal.h"
- 
+For ARM Linux, during booting first memblock reserves memory regions then
+bootmem allocator create node, mem_map, page bitmap data and then hands
+over to buddy.
+I have been thinking from some time about why we need two different
+allocators for this.
+Can we merge both into one(memblock into bootmem) or create a new allocator
+which can speed up the same thing which is easy to enhance in future.
+I am not sure about this and whether it's good idea or will it be fruitful.
+
+Please suggest and share your opinion.
+
+Thank you in advance for your help.
+
+
 -- 
-2.5.0
+Thanks & Regards,
+Sumit Gupta
+Mob: +91-9717222038
 
+--001a1146411e64e2310527406866
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi All,</div><div><br></div><div>For ARM Linux, durin=
+g booting first memblock reserves memory regions then bootmem allocator cre=
+ate node, mem_map, page bitmap data and then hands over to buddy.</div><div=
+>I have been thinking from some time about why we need two different alloca=
+tors for this.</div><div>Can we merge both into one(memblock into bootmem) =
+or create a new allocator which can speed up the same thing which is easy t=
+o enhance in future.</div><div>I am not sure about this and whether it&#39;=
+s good idea or will it be fruitful.</div><div><br></div><div>Please suggest=
+ and share your opinion.</div><div><br></div><div>Thank you in advance for =
+your help.</div><div><br></div><div><br></div>-- <br><div class=3D"gmail_si=
+gnature">Thanks &amp; Regards,<br>Sumit Gupta<br>Mob: +91-9717222038</div>
+</div>
+
+--001a1146411e64e2310527406866--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
