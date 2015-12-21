@@ -1,73 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C1A56B0007
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 16:45:47 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id jx14so77476116pad.2
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 13:45:47 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A116B0005
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 17:07:06 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id cy9so23676309pac.0
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 14:07:06 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f2si14102638pfj.33.2015.12.21.13.45.46
+        by mx.google.com with ESMTPS id yu1si11505508pac.9.2015.12.21.14.07.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 13:45:46 -0800 (PST)
-Date: Mon, 21 Dec 2015 13:45:45 -0800
+        Mon, 21 Dec 2015 14:07:05 -0800 (PST)
+Date: Mon, 21 Dec 2015 14:07:04 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] kernel/hung_task.c: use timeout diff when timeout is
- updated
-Message-Id: <20151221134545.cb0558878932913e348656e9@linux-foundation.org>
-In-Reply-To: <201512212045.HHC00516.SQOJVHLFFtMOOF@I-love.SAKURA.ne.jp>
-References: <201512172123.DFJ69220.SFFOLOJtVHOQMF@I-love.SAKURA.ne.jp>
-	<20151217141805.f418cf9b137da08656504001@linux-foundation.org>
-	<201512212045.HHC00516.SQOJVHLFFtMOOF@I-love.SAKURA.ne.jp>
+Subject: Re: arch/x86/xen/suspend.c:70:9: error: implicit declaration of
+ function 'xen_pv_domain'
+Message-Id: <20151221140704.e376871cd786498eb5e71352@linux-foundation.org>
+In-Reply-To: <201512210015.cGubDgTR%fengguang.wu@intel.com>
+References: <201512210015.cGubDgTR%fengguang.wu@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: oleg@redhat.com, atomlin@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, kbuild-all@01.org, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, 21 Dec 2015 20:45:23 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> > 
-> > And it would be helpful to add a comment to hung_timeout_jiffies()
-> > which describes the behaviour and explains the reasons for it.
-> 
-> But before doing it, I'd like to confirm hung task maintainer's will.
-> 
-> The reason I proposed this patch is that I want to add a watchdog task
-> which emits warning messages when memory allocations are stalling.
-> http://lkml.kernel.org/r/201512130033.ABH90650.FtFOMOFLVOJHQS@I-love.SAKURA.ne.jp
-> 
-> But concurrently emitting multiple backtraces is problematic. Concurrent
-> emitting by hung task watchdog and memory allocation stall watchdog is very
-> likely to occur, for it is likely that other task is also stuck in
-> uninterruptible sleep when one task got stuck at memory allocation.
-> 
-> Therefore, I started trying to use same thread for both watchdogs.
-> A draft patch is at
-> http://lkml.kernel.org/r/201512170011.IAC73451.FLtFMSJHOQFVOO@I-love.SAKURA.ne.jp .
-> 
-> If you prefer current hang task behavior, I'll try to preseve current
-> behavior. Instead, I might use two threads and try to mutex both watchdogs
-> using console_lock() or something like that.
-> 
-> So, may I ask what your preference is?
+On Mon, 21 Dec 2015 00:43:17 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-I've added linux-mm to Cc.  Please never forget that.
+> First bad commit (maybe != root cause):
+> 
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   69c37a92ddbf79d9672230f21a04580d7ac2f4c3
+> commit: 71458cfc782eafe4b27656e078d379a34e472adf kernel: add support for gcc 5
+> date:   1 year, 2 months ago
+> config: x86_64-randconfig-x006-201551 (attached as .config)
+> reproduce:
+>         git checkout 71458cfc782eafe4b27656e078d379a34e472adf
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    arch/x86/xen/suspend.c: In function 'xen_arch_pre_suspend':
+> >> arch/x86/xen/suspend.c:70:9: error: implicit declaration of function 'xen_pv_domain' [-Werror=implicit-function-declaration]
+>         if (xen_pv_domain())
+>             ^
 
-The general topic here is "add more diagnostics around an out-of-memory
-event".  Clearly we need this, but Michal is working on the same thing
-as part of his "OOM detection rework v4" work, so can we please do the
-appropriate coordination and review there?
+hm, tricky!
 
-Preventing watchdog-triggered backtraces from messing each other up is
-of course a good idea.  Your malloc watchdog patch adds a surprising
-amount of code and adding yet another kernel thread is painful but
-perhaps it's all worth it.  It's a matter of people reviewing, testing
-and using the code in realistic situations and that process has hardly
-begun, alas.
-
-Sorry, that was waffly but I don't feel able to be more definite at
-this time.
+--- a/arch/x86/xen/suspend.c~arch-x86-xen-suspendc-include-xen-xenh
++++ a/arch/x86/xen/suspend.c
+@@ -1,6 +1,7 @@
+ #include <linux/types.h>
+ #include <linux/tick.h>
+ 
++#include <xen/xen.h>
+ #include <xen/interface/xen.h>
+ #include <xen/grant_table.h>
+ #include <xen/events.h>
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
