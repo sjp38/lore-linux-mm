@@ -1,101 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D80126B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 07:09:40 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id o124so90713411oia.1
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 04:09:40 -0800 (PST)
-Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com. [2607:f8b0:4003:c01::22f])
-        by mx.google.com with ESMTPS id w2si21465042oia.30.2015.12.21.04.09.40
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B7CC46B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 07:18:22 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id p187so66908357wmp.0
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 04:18:22 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w124si3557990wmw.53.2015.12.21.04.18.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 04:09:40 -0800 (PST)
-Received: by mail-ob0-x22f.google.com with SMTP id bx1so4373574obb.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 04:09:40 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 Dec 2015 04:18:21 -0800 (PST)
+Subject: Re: [PATCH 1/3] tree wide: get rid of __GFP_REPEAT for order-0
+ allocations part I
+References: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
+ <1446740160-29094-2-git-send-email-mhocko@kernel.org>
+ <5641185F.9020104@suse.cz> <20151110125101.GA8440@dhcp22.suse.cz>
+ <564C8801.2090202@suse.cz> <20151127093807.GD2493@dhcp22.suse.cz>
+ <565C8129.80302@suse.cz> <20151201162718.GA4662@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5677EE0B.7090606@suse.cz>
+Date: Mon, 21 Dec 2015 13:18:19 +0100
 MIME-Version: 1.0
-In-Reply-To: <5677B1B9.2080707@cn.fujitsu.com>
-References: <20151221031501.GA32524@js1304-P5Q-DELUXE>
-	<5677A378.6010703@cn.fujitsu.com>
-	<20151221071747.GA4396@js1304-P5Q-DELUXE>
-	<5677B1B9.2080707@cn.fujitsu.com>
-Date: Mon, 21 Dec 2015 21:09:39 +0900
-Message-ID: <CAAmzW4NRWacyNZNcYJ55zsw5wWnGQ13ghveU+EEEUzNBBH+MHw@mail.gmail.com>
-Subject: Re: [RFC] theoretical race between memory hotplug and pfn iterator
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20151201162718.GA4662@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Toshi Kani <toshi.kani@hpe.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-2015-12-21 17:00 GMT+09:00 Zhu Guihua <zhugh.fnst@cn.fujitsu.com>:
+On 12/01/2015 05:27 PM, Michal Hocko wrote:
+> On Mon 30-11-15 18:02:33, Vlastimil Babka wrote:
+> [...]
+>> So the issue I see with simply renaming __GFP_REPEAT to __GFP_BEST_AFFORD
+>> and making it possible to fail for low orders, is that it will conflate the
+>> new failure possibility with the existing "try harder to reclaim before
+>> oom". As I mentioned before, "trying harder" could be also extended to mean
+>> something for compaction, but that would further muddle the meaning of the
+>> flag. Maybe the cleanest solution would be to have separate flags for
+>> "possible to fail" (let's say __GFP_MAYFAIL for now) and "try harder" (e.g.
+>> __GFP_TRY_HARDER)? And introduce two new higher-level "flags" of a GFP_*
+>> kind, that callers would use instead of GFP_KERNEL, where one would mean
+>> GFP_KERNEL|__GFP_MAYFAIL and the other
+>> GFP_KERNEL|__GFP_TRY_HARDER|__GFP_MAYFAIL.
 >
-> On 12/21/2015 03:17 PM, Joonsoo Kim wrote:
->>
->> On Mon, Dec 21, 2015 at 03:00:08PM +0800, Zhu Guihua wrote:
->>>
->>> On 12/21/2015 11:15 AM, Joonsoo Kim wrote:
->>>>
->>>> Hello, memory-hotplug folks.
->>>>
->>>> I found theoretical problems between memory hotplug and pfn iterator.
->>>> For example, pfn iterator works something like below.
->>>>
->>>> for (pfn = zone_start_pfn; pfn < zone_end_pfn; pfn++) {
->>>>          if (!pfn_valid(pfn))
->>>>                  continue;
->>>>
->>>>          page = pfn_to_page(pfn);
->>>>          /* Do whatever we want */
->>>> }
->>>>
->>>> Sequence of hotplug is something like below.
->>>>
->>>> 1) add memmap (after then, pfn_valid will return valid)
->>>> 2) memmap_init_zone()
->>>>
->>>> So, if pfn iterator runs between 1) and 2), it could access
->>>> uninitialized page information.
->>>>
->>>> This problem could be solved by re-ordering initialization steps.
->>>>
->>>> Hot-remove also has a problem. If memory is hot-removed after
->>>> pfn_valid() succeed in pfn iterator, access to page would cause NULL
->>>> deference because hot-remove frees corresponding memmap. There is no
->>>> guard against free in any pfn iterators.
->>>>
->>>> This problem can be solved by inserting get_online_mems() in all pfn
->>>> iterators but this looks error-prone for future usage. Another idea is
->>>> that delaying free corresponding memmap until synchronization point such
->>>> as system suspend. It will guarantee that there is no running pfn
->>>> iterator. Do any have a better idea?
->>>>
->>>> Btw, I tried to memory-hotremove with QEMU 2.5.5 but it didn't work. I
->>>> followed sequences in doc/memory-hotplug. Do you have any comment on
->>>> this?
->>>
->>> I tried memory hot remove with qemu 2.5.5 and RHEL 7, it works well.
->>> Maybe you can provide more details, such as guest version, err log.
->>
->> I'm testing with qemu 2.5.5 and linux-next-20151209 with reverting
->> following two patches.
->>
->> "mm/memblock.c: use memblock_insert_region() for the empty array"
->>
->> "mm-memblock-use-memblock_insert_region-for-the-empty-array-checkpatch-fixes"
->>
->> When I type "device_del dimm1" in qemu monitor, there is no err log in
->> kernel and it looks like command has no effect. I inserted log to
->> acpi_memory_device_remove() but there is no message, too. Is there
->> another way to check that device_del event is actually transmitted to
->> kernel?
->
->
-> You can use udev to monitor memory device remove event. (udevadm monitor)
->
+> I will think about that but this sounds quite confusing to me. All the
+> allocations on behalf of a user process are MAYFAIL basically (e.g. the
+> oom victim failure case) unless they are explicitly __GFP_NOFAIL. It
+> also sounds that ~__GFP_NOFAIL should imply MAYFAIL automatically.
+> __GFP_BEST_EFFORT on the other hand clearly states that the allocator
+> should try its best but it can fail. The way how it achieves that is
+> an implementation detail and users do not have to care. In your above
+> hierarchy of QoS we have:
+> - no reclaim ~__GFP_DIRECT_RECLAIM - optimistic allocation with a
+>    fallback (e.g. smaller allocation request)
+> - no destructive reclaim __GFP_NORETRY - allocation with a more
+>    expensive fallback (e.g. vmalloc)
 
-I have tried it but there is no message when I type hot-remove command.
+Maybe it would be less confusing / more consistent if __GFP_NORETRY was 
+renamed to __GFP_LOW_EFFORT ?
 
-Thanks.
+> - all reclaim types but only fail if there is no good hope for success
+>    __GFP_BEST_EFFORT (fail rather than invoke the OOM killer second time)
+>    user allocations
+> - no failure allowed __GFP_NOFAIL - failure mode is not acceptable
+>
+> we can keep the current implicit "low order imply __GFP_NOFAIL" behavior
+> of the GFP_KERNEL and still offer users to use __GFP_BEST_EFFORT as a
+> way to override it.
+>
+>> The second thing to consider, is __GFP_NORETRY useful? The latency savings
+>> are quite vague. Maybe we could just remove this flag to make space for
+>> __GFP_MAYFAIL?
+>
+> There are users who would like to see some reclaim but rather fail then
+> see the OOM killer. I assume there are also users who can handle the
+> failure but the OOM killer is not a big deal for them. I think that
+> GFP_USER is an example of the later.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
