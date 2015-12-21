@@ -1,109 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E986B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 10:58:33 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id l126so75933078wml.1
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 07:58:32 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b130si36566823wmf.119.2015.12.21.07.58.31
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 21 Dec 2015 07:58:31 -0800 (PST)
-Subject: Re: [PATCH/RFC] mm/swapfile: reduce kswapd overhead by not filling up
- disks
-References: <1449846574-35511-1-git-send-email-borntraeger@de.ibm.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <567821A5.7050201@suse.cz>
-Date: Mon, 21 Dec 2015 16:58:29 +0100
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 16BA06B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 12:06:15 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id q3so81946118pav.3
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 09:06:15 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id v80si11172753pfa.245.2015.12.21.09.06.13
+        for <linux-mm@kvack.org>;
+        Mon, 21 Dec 2015 09:06:14 -0800 (PST)
+Date: Mon, 21 Dec 2015 10:05:45 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v5 4/7] dax: add support for fsync/sync
+Message-ID: <20151221170545.GA13494@linux.intel.com>
+References: <1450502540-8744-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1450502540-8744-5-git-send-email-ross.zwisler@linux.intel.com>
+ <CAPcyv4irspQEPVdYfLK+QfW4t-1_y1gFFVuBm00=i03PFQwEYw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1449846574-35511-1-git-send-email-borntraeger@de.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4irspQEPVdYfLK+QfW4t-1_y1gFFVuBm00=i03PFQwEYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On 12/11/2015 04:09 PM, Christian Borntraeger wrote:
-> if a user has more than one swap disk with different priorities, the
-> swap code will fill up the hight prio disk until the last block is
-> used.
-> The swap code will continue to scan the first disk also when its
-> already filling the 2nd or 3rd disk.
-> We have seen kswapd running at 100% CPU, with the majority of hits
-> in the scanning code of scan_swap_map, even for non-rotational disks
-> when this happens.
-> For example with 3 disks
-> disk1 99.9%
-> disk2 10%
-> disk3 0%
-> it will scan the bitmap of disk1 (and as the disk is full the
-> cluster optimization does not trigger) for every page that will
-> likely go to disk2 anyway.
->
-> By doing a first scan that only uses up to 98%, we force the swap
-> code to use the 2nd disk slightly earlier, but it reduces kswapd
-> cpu usage significantly. The 2nd scan will then allow to fill
-> the remaining 2%, again starting with the highest prio disk.
->
-> The code does not affect cases with all the same swap priorities,
-> unless all disks are about 98% full.
-> There is one issue with mythis approach: If there is a mix between
-> same and different priorities, the code will loop too often due
-> to the requeue, so and idea for a better fix is welcome.
->
-> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+On Sat, Dec 19, 2015 at 10:37:46AM -0800, Dan Williams wrote:
+> On Fri, Dec 18, 2015 at 9:22 PM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+> > To properly handle fsync/msync in an efficient way DAX needs to track dirty
+> > pages so it is able to flush them durably to media on demand.
+> >
+> > The tracking of dirty pages is done via the radix tree in struct
+> > address_space.  This radix tree is already used by the page writeback
+> > infrastructure for tracking dirty pages associated with an open file, and
+> > it already has support for exceptional (non struct page*) entries.  We
+> > build upon these features to add exceptional entries to the radix tree for
+> > DAX dirty PMD or PTE pages at fault time.
+> >
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> [..]
+> > +static void dax_writeback_one(struct address_space *mapping, pgoff_t index,
+> > +               void *entry)
+> > +{
+> > +       struct radix_tree_root *page_tree = &mapping->page_tree;
+> > +       int type = RADIX_DAX_TYPE(entry);
+> > +       struct radix_tree_node *node;
+> > +       void **slot;
+> > +
+> > +       if (type != RADIX_DAX_PTE && type != RADIX_DAX_PMD) {
+> > +               WARN_ON_ONCE(1);
+> > +               return;
+> > +       }
+> > +
+> > +       spin_lock_irq(&mapping->tree_lock);
+> > +       /*
+> > +        * Regular page slots are stabilized by the page lock even
+> > +        * without the tree itself locked.  These unlocked entries
+> > +        * need verification under the tree lock.
+> > +        */
+> > +       if (!__radix_tree_lookup(page_tree, index, &node, &slot))
+> > +               goto unlock;
+> > +       if (*slot != entry)
+> > +               goto unlock;
+> > +
+> > +       /* another fsync thread may have already written back this entry */
+> > +       if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+> > +               goto unlock;
+> > +
+> > +       radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
+> > +
+> > +       if (type == RADIX_DAX_PMD)
+> > +               wb_cache_pmem(RADIX_DAX_ADDR(entry), PMD_SIZE);
+> > +       else
+> > +               wb_cache_pmem(RADIX_DAX_ADDR(entry), PAGE_SIZE);
+> 
+> Hi Ross, I should have realized this sooner, but what guarantees that
+> the address returned by RADIX_DAX_ADDR(entry) is still valid at this
+> point?  I think we need to store the sector in the radix tree and then
+> perform a new dax_map_atomic() operation to either lookup a valid
+> address or fail the sync request.  Otherwise, if the device is gone
+> we'll crash, or write into some other random vmalloc address space.
 
-IMHO you should resend with CCing the relevant people directly (e.g. via 
-./scripts/get_maintainers.pl) or this might simply get lost in 
-high-volume mailing lists.
+Ah, good point, thank you.  v4 of this series is based on a version of
+DAX where we aren't properly dealing with PMEM device removal.  I've got an
+updated version that merges with your dax_map_atomic() changes, and I'll add
+this change into v5 which I will send out today.  Thank you for the
+suggestion.
 
-Note that I'm not familiar with this code. But my first thought would be 
-to put a cache with batch-refill/free before the bitmap. During the 
-"first" round only consider si's with enough free to satisfy the whole 
-batch-refill.
+One clarification, with the code as it is in v4 we are only doing
+clflush/clflushopt/clwb instructions on the kaddr we've stored in the radix
+tree, so I don't think that there is actually a risk of us doing a "write into
+some other random vmalloc address space"?  I think at worse we will end up
+clflushing an address that either isn't mapped or has been remapped by someone
+else.  Or are you worried that the clflush would trigger a cache writeback to
+a memory address where writes have side effects, thus triggering the side
+effect?
 
-> ---
->   mm/swapfile.c | 11 +++++++++++
->   1 file changed, 11 insertions(+)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 5887731..d3817cf 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -640,6 +640,7 @@ swp_entry_t get_swap_page(void)
->   {
->   	struct swap_info_struct *si, *next;
->   	pgoff_t offset;
-> +	bool first = true;
->
->   	if (atomic_long_read(&nr_swap_pages) <= 0)
->   		goto noswap;
-> @@ -653,6 +654,12 @@ start_over:
->   		plist_requeue(&si->avail_list, &swap_avail_head);
->   		spin_unlock(&swap_avail_lock);
->   		spin_lock(&si->lock);
-> +		/* at 98% usage lets try the other swaps */
-> +		if (first && si->inuse_pages / 98 * 100 > si->pages) {
-> +			spin_lock(&swap_avail_lock);
-> +			spin_unlock(&si->lock);
-> +			goto nextsi;
-> +		}
->   		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
->   			spin_lock(&swap_avail_lock);
->   			if (plist_node_empty(&si->avail_list)) {
-> @@ -692,6 +699,10 @@ nextsi:
->   		if (plist_node_empty(&next->avail_list))
->   			goto start_over;
->   	}
-> +	if (first) {
-> +		first = false;
-> +		goto start_over;
-> +	}
->
->   	spin_unlock(&swap_avail_lock);
->
->
+I definitely think it needs to be fixed, I'm just trying to make sure I
+understood your comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
