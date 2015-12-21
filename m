@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ED136B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:14:57 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id p187so61383254wmp.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 02:14:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id da7si48192608wjb.185.2015.12.21.02.14.55
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B076B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:22:54 -0500 (EST)
+Received: by mail-qg0-f51.google.com with SMTP id c96so80983755qgd.3
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 02:22:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a97si28860882qkh.49.2015.12.21.02.22.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 21 Dec 2015 02:14:55 -0800 (PST)
-Subject: Re: [PATCH] mm: move lru_to_page to mm_inline.h
-References: <db243314728321f435fb82dc2b5d99d98af409e2.1450515627.git.geliangtang@163.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5677D11D.9030203@suse.cz>
-Date: Mon, 21 Dec 2015 11:14:53 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Dec 2015 02:22:53 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH] memory-hotplug: add automatic onlining policy for the newly added memory
+References: <1450457155-31234-1-git-send-email-vkuznets@redhat.com>
+	<56743A00.4020503@citrix.com>
+Date: Mon, 21 Dec 2015 11:22:46 +0100
+In-Reply-To: <56743A00.4020503@citrix.com> (David Vrabel's message of "Fri, 18
+	Dec 2015 16:53:20 +0000")
+Message-ID: <87y4corthl.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <db243314728321f435fb82dc2b5d99d98af409e2.1450515627.git.geliangtang@163.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@163.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>
 
-On 12/19/2015 10:08 AM, Geliang Tang wrote:
-> Move lru_to_page() from internal.h to mm_inline.h.
+David Vrabel <david.vrabel@citrix.com> writes:
 
-The file already contains functionality related to lru.
+> On 18/12/15 16:45, Vitaly Kuznetsov wrote:
+>> Currently, all newly added memory blocks remain in 'offline' state unless
+>> someone onlines them, some linux distributions carry special udev rules
+>> like:
+>> 
+>> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+>> 
+>> to make this happen automatically. This is not a great solution for virtual
+>> machines where memory hotplug is being used to address high memory pressure
+>> situations as such onlining is slow and a userspace process doing this
+>> (udev) has a chance of being killed by the OOM killer as it will probably
+>> require to allocate some memory.
+>> 
+>> Introduce default policy for the newly added memory blocks in
+>> /sys/devices/system/memory/hotplug_autoonline file with two possible
+>> values: "offline" which preserves the current behavior and "online" which
+>> causes all newly added memory blocks to go online as soon as they're added.
+>> The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
+>> is selected.
+>
+> FWIW, I'd prefer it if the caller of add_memory_resource() could specify
+> that it wants the new memory automatically onlined.
+>
 
-> Signed-off-by: Geliang Tang <geliangtang@163.com>
+Oh, I missed the fact that add_memory_resource() is also called directly
+from Xen balloon driver. I can change the interface and move the policy
+check to add_memory() then.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> I'm not sure just having one knob is appropriate -- there are different
+> sorts of memory that can be added.  e,g., in the Xen balloon driver we
+> use the memory add infrastructure to add empty pages (pages with no
+> machine pages backing them) for mapping things into, as well as adding
+> regular pages.
 
-> ---
->   include/linux/mm_inline.h | 2 ++
->   mm/internal.h             | 2 --
->   mm/readahead.c            | 1 +
->   3 files changed, 3 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-> index cf55945..712e8c3 100644
-> --- a/include/linux/mm_inline.h
-> +++ b/include/linux/mm_inline.h
-> @@ -100,4 +100,6 @@ static __always_inline enum lru_list page_lru(struct page *page)
->   	return lru;
->   }
->
-> +#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
-> +
->   #endif
-> diff --git a/mm/internal.h b/mm/internal.h
-> index ca49922..5d8ec89 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -87,8 +87,6 @@ extern int isolate_lru_page(struct page *page);
->   extern void putback_lru_page(struct page *page);
->   extern bool zone_reclaimable(struct zone *zone);
->
-> -#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> -
->   /*
->    * in mm/rmap.c:
->    */
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index 0aff760..20e58e8 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -17,6 +17,7 @@
->   #include <linux/pagemap.h>
->   #include <linux/syscalls.h>
->   #include <linux/file.h>
-> +#include <linux/mm_inline.h>
->
->   #include "internal.h"
->
->
+But all this memory still appears in /sys/devices/system/memory/* and
+someone (e.g. - a udev rule) can still try to online it, right? Actually
+Hyper-V driver does something similar when adding partially populated
+memory blocks and it registers a special callback (hv_online_page()) to
+prevent non-populated pages from onlining.
+
+-- 
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
