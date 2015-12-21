@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 65F086B0006
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 12:49:02 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id 18so127879443obc.2
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 09:49:02 -0800 (PST)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id p1si7543141oeq.53.2015.12.21.09.49.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 09:49:01 -0800 (PST)
-Received: by mail-oi0-x22d.google.com with SMTP id l9so66975998oia.2
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 09:49:01 -0800 (PST)
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 552676B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 13:19:12 -0500 (EST)
+Received: by mail-lb0-f176.google.com with SMTP id bc4so19562290lbc.2
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 10:19:12 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id n5si9389878lfi.20.2015.12.21.10.19.10
+        for <linux-mm@kvack.org>;
+        Mon, 21 Dec 2015 10:19:10 -0800 (PST)
+Date: Mon, 21 Dec 2015 19:18:54 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCHV3 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
+Message-ID: <20151221181854.GF21582@pd.tnic>
+References: <cover.1450283985.git.tony.luck@intel.com>
+ <2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20151221170545.GA13494@linux.intel.com>
-References: <1450502540-8744-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1450502540-8744-5-git-send-email-ross.zwisler@linux.intel.com>
-	<CAPcyv4irspQEPVdYfLK+QfW4t-1_y1gFFVuBm00=i03PFQwEYw@mail.gmail.com>
-	<20151221170545.GA13494@linux.intel.com>
-Date: Mon, 21 Dec 2015 09:49:01 -0800
-Message-ID: <CAPcyv4g-ibFU02chKZchkbZtZHPE=r_DKkfwHAY3pkCFTon2SQ@mail.gmail.com>
-Subject: Re: [PATCH v5 4/7] dax: add support for fsync/sync
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Tony Luck <tony.luck@intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Elliott@pd.tnic, Robert <elliott@hpe.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Mon, Dec 21, 2015 at 9:05 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Sat, Dec 19, 2015 at 10:37:46AM -0800, Dan Williams wrote:
->> On Fri, Dec 18, 2015 at 9:22 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
-[..]
->> Hi Ross, I should have realized this sooner, but what guarantees that
->> the address returned by RADIX_DAX_ADDR(entry) is still valid at this
->> point?  I think we need to store the sector in the radix tree and then
->> perform a new dax_map_atomic() operation to either lookup a valid
->> address or fail the sync request.  Otherwise, if the device is gone
->> we'll crash, or write into some other random vmalloc address space.
->
-> Ah, good point, thank you.  v4 of this series is based on a version of
-> DAX where we aren't properly dealing with PMEM device removal.  I've got an
-> updated version that merges with your dax_map_atomic() changes, and I'll add
-> this change into v5 which I will send out today.  Thank you for the
-> suggestion.
->
-> One clarification, with the code as it is in v4 we are only doing
-> clflush/clflushopt/clwb instructions on the kaddr we've stored in the radix
-> tree, so I don't think that there is actually a risk of us doing a "write into
-> some other random vmalloc address space"?  I think at worse we will end up
-> clflushing an address that either isn't mapped or has been remapped by someone
-> else.  Or are you worried that the clflush would trigger a cache writeback to
-> a memory address where writes have side effects, thus triggering the side
-> effect?
->
-> I definitely think it needs to be fixed, I'm just trying to make sure I
-> understood your comment.
+On Tue, Dec 15, 2015 at 05:29:30PM -0800, Tony Luck wrote:
+> Copy the existing page fault fixup mechanisms to create a new table
+> to be used when fixing machine checks. Note:
+> 1) At this time we only provide a macro to annotate assembly code
+> 2) We assume all fixups will in code builtin to the kernel.
+> 3) Only for x86_64
+> 4) New code under CONFIG_MCE_KERNEL_RECOVERY (default 'n')
+> 
+> Signed-off-by: Tony Luck <tony.luck@intel.com>
+> ---
+>  arch/x86/Kconfig                  | 10 ++++++++++
+>  arch/x86/include/asm/asm.h        | 10 ++++++++--
+>  arch/x86/include/asm/mce.h        | 14 ++++++++++++++
+>  arch/x86/kernel/cpu/mcheck/mce.c  | 16 ++++++++++++++++
+>  arch/x86/kernel/vmlinux.lds.S     |  6 +++++-
+>  arch/x86/mm/extable.c             | 19 +++++++++++++++++++
+>  include/asm-generic/vmlinux.lds.h | 12 +++++++-----
+>  7 files changed, 79 insertions(+), 8 deletions(-)
+> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 96d058a87100..42d26b4d1ec4 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1001,6 +1001,16 @@ config X86_MCE_INJECT
+>  	  If you don't know what a machine check is and you don't do kernel
+>  	  QA it is safe to say n.
+>  
+> +config MCE_KERNEL_RECOVERY
+> +	bool "Recovery from machine checks in special kernel memory copy functions"
+> +	default n
+> +	depends on X86_MCE && X86_64
 
-True, this would be flushing an address that was dirtied while valid.
-Should be ok in practice for now since dax is effectively limited to
-x86, but we should not be leaning on x86 details in an architecture
-generic implementation like this.
+Still no dependency on CONFIG_LIBNVDIMM.
+
+> +	---help---
+> +	  This option provides a new memory copy function mcsafe_memcpy()
+> +	  that is annotated to allow the machine check handler to return
+> +	  to an alternate code path to return an error to the caller instead
+> +	  of crashing the system. Say yes if you have a driver that uses this.
+> +
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
