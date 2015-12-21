@@ -1,38 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B408F6B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 07:47:27 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l126so67800315wml.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 04:47:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jt3si29241900wjb.150.2015.12.21.04.47.26
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C88D6B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 08:08:51 -0500 (EST)
+Received: by mail-io0-f178.google.com with SMTP id e126so153600061ioa.1
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:08:51 -0800 (PST)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id o62si13740666ioi.143.2015.12.21.05.08.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 21 Dec 2015 04:47:26 -0800 (PST)
-Subject: Re: [PATCH] mm: page_alloc: Remove unnecessary parameter from
- __rmqueue
-References: <20151202150858.GD2015@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5677F4DC.6040003@suse.cz>
-Date: Mon, 21 Dec 2015 13:47:24 +0100
-MIME-Version: 1.0
-In-Reply-To: <20151202150858.GD2015@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Dec 2015 05:08:50 -0800 (PST)
+Date: Mon, 21 Dec 2015 07:08:49 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
+In-Reply-To: <5674A5C3.1050504@oracle.com>
+Message-ID: <alpine.DEB.2.20.1512210656120.7119@east.gentwo.org>
+References: <5674A5C3.1050504@oracle.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 12/02/2015 04:08 PM, Mel Gorman wrote:
-> Commit 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for high-order
-> atomic allocations on demand") added an unnecessary and unused parameter
-> to __rmqueue. It was a parameter that was used in an earlier version of
-> the patch and then left behind. This patch cleans it up.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On Fri, 18 Dec 2015, Sasha Levin wrote:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> [  531.164630] RIP vmstat_update (mm/vmstat.c:1408)
+
+Hmmm.. Yes we need to fold the diffs first before disabling the timer
+otherwise the shepherd task may intervene.
+
+Does this patch fix it?
+
+
+Subject: quiet_vmstat: Avoid race with shepherd by folding counters first
+
+We need to fold the counters first otherwise the shepherd task may
+remotely reactivate the vmstat worker.
+
+This also avoids the strange loop. Nothing can really increase the
+counters at that point since we are in the cpu idle loop. So
+folding the counters once is enough. Cancelling work that does
+not exist is fine too so just avoid the branches completely.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -1419,11 +1419,9 @@ void quiet_vmstat(void)
+ 	if (system_state != SYSTEM_RUNNING)
+ 		return;
+
+-	do {
+-		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
+-			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
+-
+-	} while (refresh_cpu_vm_stats(false));
++	refresh_cpu_vm_stats(false);
++	cancel_delayed_work(this_cpu_ptr(&vmstat_work));
++	cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
+ }
+
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
