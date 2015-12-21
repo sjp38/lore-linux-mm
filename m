@@ -1,78 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 722106B0007
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 17:24:40 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id u7so48569670pfb.1
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 14:24:40 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AF026B0005
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 18:06:51 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id jx14so78369189pad.2
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 15:06:51 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w28si7096896pfi.123.2015.12.21.14.24.39
+        by mx.google.com with ESMTPS id 68si11791159pfk.194.2015.12.21.15.06.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 14:24:39 -0800 (PST)
-Date: Mon, 21 Dec 2015 14:24:38 -0800
+        Mon, 21 Dec 2015 15:06:50 -0800 (PST)
+Date: Mon, 21 Dec 2015 15:06:49 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, oom: initiallize all new zap_details fields before
- use
-Message-Id: <20151221142438.cbd34f0e663a795e649cdfbc@linux-foundation.org>
-In-Reply-To: <5675D423.6020806@oracle.com>
-References: <1450487091-7822-1-git-send-email-sasha.levin@oracle.com>
-	<20151219195237.GA31380@node.shutemov.name>
-	<5675D423.6020806@oracle.com>
+Subject: Re: [PATCH] memory-hotplug: don't BUG() in
+ register_memory_resource()
+Message-Id: <20151221150649.f385889426082059bfc09495@linux-foundation.org>
+In-Reply-To: <8737uwt8hw.fsf@vitty.brq.redhat.com>
+References: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+	<20151218145022.eae1e368c82f090900582fcc@linux-foundation.org>
+	<8737uwt8hw.fsf@vitty.brq.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, mhocko@suse.com, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Sheng Yong <shengyong1@huawei.com>, David Rientjes <rientjes@google.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>
 
-On Sat, 19 Dec 2015 17:03:15 -0500 Sasha Levin <sasha.levin@oracle.com> wrote:
+On Mon, 21 Dec 2015 11:13:15 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
 
-> On 12/19/2015 02:52 PM, Kirill A. Shutemov wrote:
-> > On Fri, Dec 18, 2015 at 08:04:51PM -0500, Sasha Levin wrote:
-> >> > Commit "mm, oom: introduce oom reaper" forgot to initialize the two new fields
-> >> > of struct zap_details in unmap_mapping_range(). This caused using stack garbage
-> >> > on the call to unmap_mapping_range_tree().
-> >> > 
-> >> > Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
-> >> > ---
-> >> >  mm/memory.c |    1 +
-> >> >  1 file changed, 1 insertion(+)
-> >> > 
-> >> > diff --git a/mm/memory.c b/mm/memory.c
-> >> > index 206c8cd..0e32993 100644
-> >> > --- a/mm/memory.c
-> >> > +++ b/mm/memory.c
-> >> > @@ -2431,6 +2431,7 @@ void unmap_mapping_range(struct address_space *mapping,
-> >> >  	details.last_index = hba + hlen - 1;
-> >> >  	if (details.last_index < details.first_index)
-> >> >  		details.last_index = ULONG_MAX;
-> >> > +	details.check_swap_entries = details.ignore_dirty = false;
-> > Should we use c99 initializer instead to make it future-proof?
+> Andrew Morton <akpm@linux-foundation.org> writes:
 > 
-> I didn't do that to make these sort of failures obvious. In this case, if we would have
-> used an initializer and it would default to the "wrong" values it would be much harder
-> to find this bug.
+> > On Fri, 18 Dec 2015 15:50:24 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+> >
+> >> Out of memory condition is not a bug and while we can't add new memory in
+> >> such case crashing the system seems wrong. Propagating the return value
+> >> from register_memory_resource() requires interface change.
+> >> 
+> >> --- a/mm/memory_hotplug.c
+> >> +++ b/mm/memory_hotplug.c
+> >> +static int register_memory_resource(u64 start, u64 size,
+> >> +				    struct resource **resource)
+> >>  {
+> >>  	struct resource *res;
+> >>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> >> -	BUG_ON(!res);
+> >> +	if (!res)
+> >> +		return -ENOMEM;
+> >>  
+> >>  	res->name = "System RAM";
+> >>  	res->start = start;
+> >> @@ -140,9 +142,10 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+> >>  	if (request_resource(&iomem_resource, res) < 0) {
+> >>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+> >>  		kfree(res);
+> >> -		res = NULL;
+> >> +		return -EEXIST;
+> >>  	}
+> >> -	return res;
+> >> +	*resource = res;
+> >> +	return 0;
+> >>  }
+> >
+> > Was there a reason for overwriting the request_resource() return
+> > value?
+> > Ordinarily it should be propagated back to callers.
+> >
+> > Please review.
+> >
 > 
+> This is a nice-to-have addition but it will break at least ACPI
+> memhotplug: request_resource() has the following:
+> 
+> conflict = request_resource_conflict(root, new);
+> return conflict ? -EBUSY : 0;
+> 
+> so we'll end up returning -EBUSY from register_memory_resource() and
+> add_memory(), at the same time acpi_memory_enable_device() counts on
+> -EEXIST:
+> 
+> result = add_memory(node, info->start_addr, info->length);
+> 
+> /*
+> * If the memory block has been used by the kernel, add_memory()
+> * returns -EEXIST. If add_memory() returns the other error, it
+> * means that this memory block is not used by the kernel.
+> */
+> if (result && result != -EEXIST)
+> continue;
+> 
+> So I see 3 options here:
+> 1) Keep the overwrite
+> 2) Change the request_resource() return value to -EEXIST
+> 3) Adapt all add_memory() call sites to -EBUSY.
+> 
+> Please let me know your preference.
 
-If we're to make that approach useful and debuggable we should poison
-the structure at the outset with some well-known and crazy pattern.  Or
-use kasan.
+urgh, what a mess.  We should standardize on EBUSY or EEXIST, I don't
+see that it matter much which is chosen.  And for robustness the
+callers should be checking for (err < 0) unless there's a very good
+reason otherwise.
 
-But I don't think we need any special treatment here so yes, the
-conventional way of zapping everything is best, IMO.
-
---- a/mm/memory.c~mm-oom-introduce-oom-reaper-fix-5-fix
-+++ a/mm/memory.c
-@@ -2414,7 +2414,7 @@ static inline void unmap_mapping_range_t
- void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows)
- {
--	struct zap_details details;
-+	struct zap_details details = { };
- 	pgoff_t hba = holebegin >> PAGE_SHIFT;
- 	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 
+But it doesn't seem terribly important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
