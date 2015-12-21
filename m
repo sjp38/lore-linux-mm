@@ -1,107 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 39CE66B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 03:38:17 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l126so58950147wml.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:38:17 -0800 (PST)
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id g139si34414179wmd.85.2015.12.21.00.38.16
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F1B1D6B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:13:21 -0500 (EST)
+Received: by mail-qg0-f50.google.com with SMTP id 74so33437745qgh.1
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 02:13:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 98si28855890qgc.23.2015.12.21.02.13.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 00:38:16 -0800 (PST)
-Received: by mail-wm0-f44.google.com with SMTP id p187so58986603wmp.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:38:16 -0800 (PST)
-Date: Mon, 21 Dec 2015 09:38:14 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-ID: <20151221083812.GB11089@dhcp22.suse.cz>
-References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
- <20151216165035.38a4d9b84600d6348a3cf4bf@linux-foundation.org>
- <20151217130223.GE18625@dhcp22.suse.cz>
- <CA+55aFxkzeqtxDY8KyR_FA+WKNkQXEHVA_zO8XhW6rqRr778Zw@mail.gmail.com>
- <20151217120004.b5f849e1613a3a367482b379@linux-foundation.org>
- <20151218115454.GE28443@dhcp22.suse.cz>
- <20151218131400.751bc4d582a947c9833c09eb@linux-foundation.org>
+        Mon, 21 Dec 2015 02:13:21 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH] memory-hotplug: don't BUG() in register_memory_resource()
+References: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+	<20151218145022.eae1e368c82f090900582fcc@linux-foundation.org>
+Date: Mon, 21 Dec 2015 11:13:15 +0100
+In-Reply-To: <20151218145022.eae1e368c82f090900582fcc@linux-foundation.org>
+	(Andrew Morton's message of "Fri, 18 Dec 2015 14:50:22 -0800")
+Message-ID: <8737uwt8hw.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151218131400.751bc4d582a947c9833c09eb@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Sheng Yong <shengyong1@huawei.com>, David Rientjes <rientjes@google.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>
 
-On Fri 18-12-15 13:14:00, Andrew Morton wrote:
-> On Fri, 18 Dec 2015 12:54:55 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> >  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> > -	while (attempts++ < 10 && !__oom_reap_vmas(mm))
-> > -		msleep_interruptible(100);
-> > +	while (attempts++ < 10 && !__oom_reap_vmas(mm)) {
-> > +		__set_task_state(current, TASK_IDLE);
-> > +		schedule_timeout(HZ/10);
-> > +	}
-> 
-> If you won't, I shall ;)
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: sched: add schedule_timeout_idle()
-> 
-> This will be needed in the patch "mm, oom: introduce oom reaper".
-> 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Ingo Molnar <mingo@elte.hu>
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Thanks! This makes more sense.
+> On Fri, 18 Dec 2015 15:50:24 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+>
+>> Out of memory condition is not a bug and while we can't add new memory in
+>> such case crashing the system seems wrong. Propagating the return value
+>> from register_memory_resource() requires interface change.
+>> 
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> +static int register_memory_resource(u64 start, u64 size,
+>> +				    struct resource **resource)
+>>  {
+>>  	struct resource *res;
+>>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+>> -	BUG_ON(!res);
+>> +	if (!res)
+>> +		return -ENOMEM;
+>>  
+>>  	res->name = "System RAM";
+>>  	res->start = start;
+>> @@ -140,9 +142,10 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+>>  	if (request_resource(&iomem_resource, res) < 0) {
+>>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>>  		kfree(res);
+>> -		res = NULL;
+>> +		return -EEXIST;
+>>  	}
+>> -	return res;
+>> +	*resource = res;
+>> +	return 0;
+>>  }
+>
+> Was there a reason for overwriting the request_resource() return
+> value?
+> Ordinarily it should be propagated back to callers.
+>
+> Please review.
+>
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+This is a nice-to-have addition but it will break at least ACPI
+memhotplug: request_resource() has the following:
 
-> ---
-> 
->  include/linux/sched.h |    1 +
->  kernel/time/timer.c   |   11 +++++++++++
->  2 files changed, 12 insertions(+)
-> 
-> diff -puN kernel/time/timer.c~sched-add-schedule_timeout_idle kernel/time/timer.c
-> --- a/kernel/time/timer.c~sched-add-schedule_timeout_idle
-> +++ a/kernel/time/timer.c
-> @@ -1566,6 +1566,17 @@ signed long __sched schedule_timeout_uni
->  }
->  EXPORT_SYMBOL(schedule_timeout_uninterruptible);
->  
-> +/*
-> + * Like schedule_timeout_uninterruptible(), except this task will not contribute
-> + * to load average.
-> + */
-> +signed long __sched schedule_timeout_idle(signed long timeout)
-> +{
-> +	__set_current_state(TASK_IDLE);
-> +	return schedule_timeout(timeout);
-> +}
-> +EXPORT_SYMBOL(schedule_timeout_idle);
-> +
->  #ifdef CONFIG_HOTPLUG_CPU
->  static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
+conflict = request_resource_conflict(root, new);
+return conflict ? -EBUSY : 0;
+
+so we'll end up returning -EBUSY from register_memory_resource() and
+add_memory(), at the same time acpi_memory_enable_device() counts on
+-EEXIST:
+
+result = add_memory(node, info->start_addr, info->length);
+
+/*
+* If the memory block has been used by the kernel, add_memory()
+* returns -EEXIST. If add_memory() returns the other error, it
+* means that this memory block is not used by the kernel.
+*/
+if (result && result != -EEXIST)
+continue;
+
+So I see 3 options here:
+1) Keep the overwrite
+2) Change the request_resource() return value to -EEXIST
+3) Adapt all add_memory() call sites to -EBUSY.
+
+Please let me know your preference.
+
+> --- a/mm/memory_hotplug.c~memory-hotplug-dont-bug-in-register_memory_resource-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -131,7 +131,9 @@ static int register_memory_resource(u64
+>  				    struct resource **resource)
 >  {
-> diff -puN include/linux/sched.h~sched-add-schedule_timeout_idle include/linux/sched.h
-> --- a/include/linux/sched.h~sched-add-schedule_timeout_idle
-> +++ a/include/linux/sched.h
-> @@ -423,6 +423,7 @@ extern signed long schedule_timeout(sign
->  extern signed long schedule_timeout_interruptible(signed long timeout);
->  extern signed long schedule_timeout_killable(signed long timeout);
->  extern signed long schedule_timeout_uninterruptible(signed long timeout);
-> +extern signed long schedule_timeout_idle(signed long timeout);
->  asmlinkage void schedule(void);
->  extern void schedule_preempt_disabled(void);
->  
+>  	struct resource *res;
+> +	int ret = 0;
+>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> +
+>  	if (!res)
+>  		return -ENOMEM;
+>
+> @@ -139,13 +141,14 @@ static int register_memory_resource(u64
+>  	res->start = start;
+>  	res->end = start + size - 1;
+>  	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+> -	if (request_resource(&iomem_resource, res) < 0) {
+> +	ret = request_resource(&iomem_resource, res);
+> +	if (ret < 0) {
+>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>  		kfree(res);
+> -		return -EEXIST;
+> +	} else {
+> +		*resource = res;
+>  	}
+> -	*resource = res;
+> -	return 0;
+> +	return ret;
+>  }
+>
+>  static void release_memory_resource(struct resource *res)
 > _
 
 -- 
-Michal Hocko
-SUSE Labs
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
