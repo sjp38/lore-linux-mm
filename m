@@ -1,527 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id AC5EB6B0008
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 02:10:36 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id 186so147858029iow.0
-        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 23:10:36 -0800 (PST)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id m189si28673974ioe.53.2015.12.20.23.10.35
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AB286B0008
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 02:15:50 -0500 (EST)
+Received: by mail-io0-f172.google.com with SMTP id q126so145844213iof.2
+        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 23:15:50 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id cq10si24882359igb.41.2015.12.20.23.15.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Dec 2015 23:10:35 -0800 (PST)
-Received: by mail-io0-x233.google.com with SMTP id o67so145730096iof.3
-        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 23:10:35 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 20 Dec 2015 23:15:50 -0800 (PST)
+Date: Mon, 21 Dec 2015 16:17:47 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC] theoretical race between memory hotplug and pfn iterator
+Message-ID: <20151221071747.GA4396@js1304-P5Q-DELUXE>
+References: <20151221031501.GA32524@js1304-P5Q-DELUXE>
+ <5677A378.6010703@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1450380686-20911-1-git-send-email-dwoods@ezchip.com>
-References: <1450380686-20911-1-git-send-email-dwoods@ezchip.com>
-Date: Mon, 21 Dec 2015 07:10:35 +0000
-Message-ID: <CAPvkgC1yS8fViQus-S6yU+mwp8-FTFiAKLVLy=k=j0q-v0TMow@mail.gmail.com>
-Subject: Re: [PATCH v5] arm64: Add support for PTE contiguous bit.
-From: Steve Capper <steve.capper@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5677A378.6010703@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woods <dwoods@ezchip.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jeremy Linton <jeremy.linton@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chris Metcalf <cmetcalf@ezchip.com>
+To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Toshi Kani <toshi.kani@hpe.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
 
-On 17 December 2015 at 19:31, David Woods <dwoods@ezchip.com> wrote:
-> The arm64 MMU supports a Contiguous bit which is a hint that the TTE
-> is one of a set of contiguous entries which can be cached in a single
-> TLB entry.  Supporting this bit adds new intermediate huge page sizes.
->
-> The set of huge page sizes available depends on the base page size.
-> Without using contiguous pages the huge page sizes are as follows.
->
->  4KB:   2MB  1GB
-> 64KB: 512MB
->
-> With a 4KB granule, the contiguous bit groups together sets of 16 pages
-> and with a 64KB granule it groups sets of 32 pages.  This enables two new
-> huge page sizes in each case, so that the full set of available sizes
-> is as follows.
->
->  4KB:  64KB   2MB  32MB  1GB
-> 64KB:   2MB 512MB  16GB
->
-> If a 16KB granule is used then the contiguous bit groups 128 pages
-> at the PTE level and 32 pages at the PMD level.
->
-> If the base page size is set to 64KB then 2MB pages are enabled by
-> default.  It is possible in the future to make 2MB the default huge
-> page size for both 4KB and 64KB granules.
->
-> Signed-off-by: David Woods <dwoods@ezchip.com>
-> Reviewed-by: Chris Metcalf <cmetcalf@ezchip.com>
+On Mon, Dec 21, 2015 at 03:00:08PM +0800, Zhu Guihua wrote:
+> 
+> On 12/21/2015 11:15 AM, Joonsoo Kim wrote:
+> >Hello, memory-hotplug folks.
+> >
+> >I found theoretical problems between memory hotplug and pfn iterator.
+> >For example, pfn iterator works something like below.
+> >
+> >for (pfn = zone_start_pfn; pfn < zone_end_pfn; pfn++) {
+> >         if (!pfn_valid(pfn))
+> >                 continue;
+> >
+> >         page = pfn_to_page(pfn);
+> >         /* Do whatever we want */
+> >}
+> >
+> >Sequence of hotplug is something like below.
+> >
+> >1) add memmap (after then, pfn_valid will return valid)
+> >2) memmap_init_zone()
+> >
+> >So, if pfn iterator runs between 1) and 2), it could access
+> >uninitialized page information.
+> >
+> >This problem could be solved by re-ordering initialization steps.
+> >
+> >Hot-remove also has a problem. If memory is hot-removed after
+> >pfn_valid() succeed in pfn iterator, access to page would cause NULL
+> >deference because hot-remove frees corresponding memmap. There is no
+> >guard against free in any pfn iterators.
+> >
+> >This problem can be solved by inserting get_online_mems() in all pfn
+> >iterators but this looks error-prone for future usage. Another idea is
+> >that delaying free corresponding memmap until synchronization point such
+> >as system suspend. It will guarantee that there is no running pfn
+> >iterator. Do any have a better idea?
+> >
+> >Btw, I tried to memory-hotremove with QEMU 2.5.5 but it didn't work. I
+> >followed sequences in doc/memory-hotplug. Do you have any comment on this?
+> 
+> I tried memory hot remove with qemu 2.5.5 and RHEL 7, it works well.
+> Maybe you can provide more details, such as guest version, err log.
 
-Thanks for this David, this looks great to me. Please add:
-Reviewed-by: Steve Capper <steve.capper@linaro.org>
+I'm testing with qemu 2.5.5 and linux-next-20151209 with reverting
+following two patches.
 
-...and have a great Christmas break.
+"mm/memblock.c: use memblock_insert_region() for the empty array"
+"mm-memblock-use-memblock_insert_region-for-the-empty-array-checkpatch-fixes"
 
-> ---
->
-> Version 5 cleans up issues building with STRICT_MM_TYPECHECKS defined
-> pointed out by Steve Capper.
->
->  arch/arm64/Kconfig                     |   3 -
->  arch/arm64/include/asm/hugetlb.h       |  44 ++----
->  arch/arm64/include/asm/pgtable-hwdef.h |  18 ++-
->  arch/arm64/include/asm/pgtable.h       |  10 +-
->  arch/arm64/mm/hugetlbpage.c            | 274 ++++++++++++++++++++++++++++++++-
->  include/linux/hugetlb.h                |   2 -
->  6 files changed, 313 insertions(+), 38 deletions(-)
->
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 4876459..ffa3c54 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -530,9 +530,6 @@ config HW_PERF_EVENTS
->  config SYS_SUPPORTS_HUGETLBFS
->         def_bool y
->
-> -config ARCH_WANT_GENERAL_HUGETLB
-> -       def_bool y
-> -
->  config ARCH_WANT_HUGE_PMD_SHARE
->         def_bool y if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36)
->
-> diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-> index bb4052e..bbc1e35 100644
-> --- a/arch/arm64/include/asm/hugetlb.h
-> +++ b/arch/arm64/include/asm/hugetlb.h
-> @@ -26,36 +26,7 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
->         return *ptep;
->  }
->
-> -static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> -                                  pte_t *ptep, pte_t pte)
-> -{
-> -       set_pte_at(mm, addr, ptep, pte);
-> -}
-> -
-> -static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
-> -                                        unsigned long addr, pte_t *ptep)
-> -{
-> -       ptep_clear_flush(vma, addr, ptep);
-> -}
-> -
-> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> -                                          unsigned long addr, pte_t *ptep)
-> -{
-> -       ptep_set_wrprotect(mm, addr, ptep);
-> -}
->
-> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-> -                                           unsigned long addr, pte_t *ptep)
-> -{
-> -       return ptep_get_and_clear(mm, addr, ptep);
-> -}
-> -
-> -static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> -                                            unsigned long addr, pte_t *ptep,
-> -                                            pte_t pte, int dirty)
-> -{
-> -       return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
-> -}
->
->  static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
->                                           unsigned long addr, unsigned long end,
-> @@ -97,4 +68,19 @@ static inline void arch_clear_hugepage_flags(struct page *page)
->         clear_bit(PG_dcache_clean, &page->flags);
->  }
->
-> +extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-> +                               struct page *page, int writable);
-> +#define arch_make_huge_pte arch_make_huge_pte
-> +extern void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> +                           pte_t *ptep, pte_t pte);
-> +extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> +                                     unsigned long addr, pte_t *ptep,
-> +                                     pte_t pte, int dirty);
-> +extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-> +                                    unsigned long addr, pte_t *ptep);
-> +extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> +                                   unsigned long addr, pte_t *ptep);
-> +extern void huge_ptep_clear_flush(struct vm_area_struct *vma,
-> +                                 unsigned long addr, pte_t *ptep);
-> +
->  #endif /* __ASM_HUGETLB_H */
-> diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
-> index d6739e8..5c25b83 100644
-> --- a/arch/arm64/include/asm/pgtable-hwdef.h
-> +++ b/arch/arm64/include/asm/pgtable-hwdef.h
-> @@ -90,7 +90,23 @@
->  /*
->   * Contiguous page definitions.
->   */
-> -#define CONT_PTES              (_AC(1, UL) << CONT_SHIFT)
-> +#ifdef CONFIG_ARM64_64K_PAGES
-> +#define CONT_PTE_SHIFT         5
-> +#define CONT_PMD_SHIFT         5
-> +#elif defined(CONFIG_ARM64_16K_PAGES)
-> +#define CONT_PTE_SHIFT         7
-> +#define CONT_PMD_SHIFT         5
-> +#else
-> +#define CONT_PTE_SHIFT         4
-> +#define CONT_PMD_SHIFT         4
-> +#endif
-> +
-> +#define CONT_PTES              (1 << CONT_PTE_SHIFT)
-> +#define CONT_PTE_SIZE          (CONT_PTES * PAGE_SIZE)
-> +#define CONT_PTE_MASK          (~(CONT_PTE_SIZE - 1))
-> +#define CONT_PMDS              (1 << CONT_PMD_SHIFT)
-> +#define CONT_PMD_SIZE          (CONT_PMDS * PMD_SIZE)
-> +#define CONT_PMD_MASK          (~(CONT_PMD_SIZE - 1))
->  /* the the numerical offset of the PTE within a range of CONT_PTES */
->  #define CONT_RANGE_OFFSET(addr) (((addr)>>PAGE_SHIFT)&(CONT_PTES-1))
->
-> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-> index 450b355..35a318c 100644
-> --- a/arch/arm64/include/asm/pgtable.h
-> +++ b/arch/arm64/include/asm/pgtable.h
-> @@ -227,7 +227,8 @@ static inline pte_t pte_mkspecial(pte_t pte)
->
->  static inline pte_t pte_mkcont(pte_t pte)
->  {
-> -       return set_pte_bit(pte, __pgprot(PTE_CONT));
-> +       pte = set_pte_bit(pte, __pgprot(PTE_CONT));
-> +       return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
->  }
->
->  static inline pte_t pte_mknoncont(pte_t pte)
-> @@ -235,6 +236,11 @@ static inline pte_t pte_mknoncont(pte_t pte)
->         return clear_pte_bit(pte, __pgprot(PTE_CONT));
->  }
->
-> +static inline pmd_t pmd_mkcont(pmd_t pmd)
-> +{
-> +       return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
-> +}
-> +
->  static inline void set_pte(pte_t *ptep, pte_t pte)
->  {
->         *ptep = pte;
-> @@ -304,7 +310,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
->  /*
->   * Hugetlb definitions.
->   */
-> -#define HUGE_MAX_HSTATE                2
-> +#define HUGE_MAX_HSTATE                4
->  #define HPAGE_SHIFT            PMD_SHIFT
->  #define HPAGE_SIZE             (_AC(1, UL) << HPAGE_SHIFT)
->  #define HPAGE_MASK             (~(HPAGE_SIZE - 1))
-> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-> index 383b03f..82d607c 100644
-> --- a/arch/arm64/mm/hugetlbpage.c
-> +++ b/arch/arm64/mm/hugetlbpage.c
-> @@ -41,17 +41,289 @@ int pud_huge(pud_t pud)
->  #endif
->  }
->
-> +static int find_num_contig(struct mm_struct *mm, unsigned long addr,
-> +                          pte_t *ptep, pte_t pte, size_t *pgsize)
-> +{
-> +       pgd_t *pgd = pgd_offset(mm, addr);
-> +       pud_t *pud;
-> +       pmd_t *pmd;
-> +
-> +       *pgsize = PAGE_SIZE;
-> +       if (!pte_cont(pte))
-> +               return 1;
-> +       if (!pgd_present(*pgd)) {
-> +               VM_BUG_ON(!pgd_present(*pgd));
-> +               return 1;
-> +       }
-> +       pud = pud_offset(pgd, addr);
-> +       if (!pud_present(*pud)) {
-> +               VM_BUG_ON(!pud_present(*pud));
-> +               return 1;
-> +       }
-> +       pmd = pmd_offset(pud, addr);
-> +       if (!pmd_present(*pmd)) {
-> +               VM_BUG_ON(!pmd_present(*pmd));
-> +               return 1;
-> +       }
-> +       if ((pte_t *)pmd == ptep) {
-> +               *pgsize = PMD_SIZE;
-> +               return CONT_PMDS;
-> +       }
-> +       return CONT_PTES;
-> +}
-> +
-> +void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> +                           pte_t *ptep, pte_t pte)
-> +{
-> +       size_t pgsize;
-> +       int i;
-> +       int ncontig = find_num_contig(mm, addr, ptep, pte, &pgsize);
-> +       unsigned long pfn;
-> +       pgprot_t hugeprot;
-> +
-> +       if (ncontig == 1) {
-> +               set_pte_at(mm, addr, ptep, pte);
-> +               return;
-> +       }
-> +
-> +       pfn = pte_pfn(pte);
-> +       hugeprot = __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
-> +       for (i = 0; i < ncontig; i++) {
-> +               pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
-> +                        pte_val(pfn_pte(pfn, hugeprot)));
-> +               set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
-> +               ptep++;
-> +               pfn += pgsize >> PAGE_SHIFT;
-> +               addr += pgsize;
-> +       }
-> +}
-> +
-> +pte_t *huge_pte_alloc(struct mm_struct *mm,
-> +                     unsigned long addr, unsigned long sz)
-> +{
-> +       pgd_t *pgd;
-> +       pud_t *pud;
-> +       pte_t *pte = NULL;
-> +
-> +       pr_debug("%s: addr:0x%lx sz:0x%lx\n", __func__, addr, sz);
-> +       pgd = pgd_offset(mm, addr);
-> +       pud = pud_alloc(mm, pgd, addr);
-> +       if (!pud)
-> +               return NULL;
-> +
-> +       if (sz == PUD_SIZE) {
-> +               pte = (pte_t *)pud;
-> +       } else if (sz == (PAGE_SIZE * CONT_PTES)) {
-> +               pmd_t *pmd = pmd_alloc(mm, pud, addr);
-> +
-> +               WARN_ON(addr & (sz - 1));
-> +               /*
-> +                * Note that if this code were ever ported to the
-> +                * 32-bit arm platform then it will cause trouble in
-> +                * the case where CONFIG_HIGHPTE is set, since there
-> +                * will be no pte_unmap() to correspond with this
-> +                * pte_alloc_map().
-> +                */
-> +               pte = pte_alloc_map(mm, NULL, pmd, addr);
-> +       } else if (sz == PMD_SIZE) {
-> +               if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-> +                   pud_none(*pud))
-> +                       pte = huge_pmd_share(mm, addr, pud);
-> +               else
-> +                       pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> +       } else if (sz == (PMD_SIZE * CONT_PMDS)) {
-> +               pmd_t *pmd;
-> +
-> +               pmd = pmd_alloc(mm, pud, addr);
-> +               WARN_ON(addr & (sz - 1));
-> +               return (pte_t *)pmd;
-> +       }
-> +
-> +       pr_debug("%s: addr:0x%lx sz:0x%lx ret pte=%p/0x%llx\n", __func__, addr,
-> +              sz, pte, pte_val(*pte));
-> +       return pte;
-> +}
-> +
-> +pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-> +{
-> +       pgd_t *pgd;
-> +       pud_t *pud;
-> +       pmd_t *pmd = NULL;
-> +       pte_t *pte = NULL;
-> +
-> +       pgd = pgd_offset(mm, addr);
-> +       pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
-> +       if (!pgd_present(*pgd))
-> +               return NULL;
-> +       pud = pud_offset(pgd, addr);
-> +       if (!pud_present(*pud))
-> +               return NULL;
-> +
-> +       if (pud_huge(*pud))
-> +               return (pte_t *)pud;
-> +       pmd = pmd_offset(pud, addr);
-> +       if (!pmd_present(*pmd))
-> +               return NULL;
-> +
-> +       if (pte_cont(pmd_pte(*pmd))) {
-> +               pmd = pmd_offset(
-> +                       pud, (addr & CONT_PMD_MASK));
-> +               return (pte_t *)pmd;
-> +       }
-> +       if (pmd_huge(*pmd))
-> +               return (pte_t *)pmd;
-> +       pte = pte_offset_kernel(pmd, addr);
-> +       if (pte_present(*pte) && pte_cont(*pte)) {
-> +               pte = pte_offset_kernel(
-> +                       pmd, (addr & CONT_PTE_MASK));
-> +               return pte;
-> +       }
-> +       return NULL;
-> +}
-> +
-> +pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-> +                        struct page *page, int writable)
-> +{
-> +       size_t pagesize = huge_page_size(hstate_vma(vma));
-> +
-> +       if (pagesize == CONT_PTE_SIZE) {
-> +               entry = pte_mkcont(entry);
-> +       } else if (pagesize == CONT_PMD_SIZE) {
-> +               entry = pmd_pte(pmd_mkcont(pte_pmd(entry)));
-> +       } else if (pagesize != PUD_SIZE && pagesize != PMD_SIZE) {
-> +               pr_warn("%s: unrecognized huge page size 0x%lx\n",
-> +                       __func__, pagesize);
-> +       }
-> +       return entry;
-> +}
-> +
-> +pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-> +                             unsigned long addr, pte_t *ptep)
-> +{
-> +       pte_t pte;
-> +
-> +       if (pte_cont(*ptep)) {
-> +               int ncontig, i;
-> +               size_t pgsize;
-> +               pte_t *cpte;
-> +               bool is_dirty = false;
-> +
-> +               cpte = huge_pte_offset(mm, addr);
-> +               ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
-> +               /* save the 1st pte to return */
-> +               pte = ptep_get_and_clear(mm, addr, cpte);
-> +               for (i = 1; i < ncontig; ++i) {
-> +                       /*
-> +                        * If HW_AFDBM is enabled, then the HW could
-> +                        * turn on the dirty bit for any of the page
-> +                        * in the set, so check them all.
-> +                        */
-> +                       ++cpte;
-> +                       if (pte_dirty(ptep_get_and_clear(mm, addr, cpte)))
-> +                               is_dirty = true;
-> +               }
-> +               if (is_dirty)
-> +                       return pte_mkdirty(pte);
-> +               else
-> +                       return pte;
-> +       } else {
-> +               return ptep_get_and_clear(mm, addr, ptep);
-> +       }
-> +}
-> +
-> +int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> +                              unsigned long addr, pte_t *ptep,
-> +                              pte_t pte, int dirty)
-> +{
-> +       pte_t *cpte;
-> +
-> +       if (pte_cont(pte)) {
-> +               int ncontig, i, changed = 0;
-> +               size_t pgsize = 0;
-> +               unsigned long pfn = pte_pfn(pte);
-> +               /* Select all bits except the pfn */
-> +               pgprot_t hugeprot =
-> +                       __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^
-> +                                pte_val(pte));
-> +
-> +               cpte = huge_pte_offset(vma->vm_mm, addr);
-> +               pfn = pte_pfn(*cpte);
-> +               ncontig = find_num_contig(vma->vm_mm, addr, cpte,
-> +                                         *cpte, &pgsize);
-> +               for (i = 0; i < ncontig; ++i, ++cpte) {
-> +                       changed = ptep_set_access_flags(vma, addr, cpte,
-> +                                                       pfn_pte(pfn,
-> +                                                               hugeprot),
-> +                                                       dirty);
-> +                       pfn += pgsize >> PAGE_SHIFT;
-> +               }
-> +               return changed;
-> +       } else {
-> +               return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
-> +       }
-> +}
-> +
-> +void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> +                            unsigned long addr, pte_t *ptep)
-> +{
-> +       if (pte_cont(*ptep)) {
-> +               int ncontig, i;
-> +               pte_t *cpte;
-> +               size_t pgsize = 0;
-> +
-> +               cpte = huge_pte_offset(mm, addr);
-> +               ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
-> +               for (i = 0; i < ncontig; ++i, ++cpte)
-> +                       ptep_set_wrprotect(mm, addr, cpte);
-> +       } else {
-> +               ptep_set_wrprotect(mm, addr, ptep);
-> +       }
-> +}
-> +
-> +void huge_ptep_clear_flush(struct vm_area_struct *vma,
-> +                          unsigned long addr, pte_t *ptep)
-> +{
-> +       if (pte_cont(*ptep)) {
-> +               int ncontig, i;
-> +               pte_t *cpte;
-> +               size_t pgsize = 0;
-> +
-> +               cpte = huge_pte_offset(vma->vm_mm, addr);
-> +               ncontig = find_num_contig(vma->vm_mm, addr, cpte,
-> +                                         *cpte, &pgsize);
-> +               for (i = 0; i < ncontig; ++i, ++cpte)
-> +                       ptep_clear_flush(vma, addr, cpte);
-> +       } else {
-> +               ptep_clear_flush(vma, addr, ptep);
-> +       }
-> +}
-> +
->  static __init int setup_hugepagesz(char *opt)
->  {
->         unsigned long ps = memparse(opt, &opt);
-> +
->         if (ps == PMD_SIZE) {
->                 hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
->         } else if (ps == PUD_SIZE) {
->                 hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
-> +       } else if (ps == (PAGE_SIZE * CONT_PTES)) {
-> +               hugetlb_add_hstate(CONT_PTE_SHIFT);
-> +       } else if (ps == (PMD_SIZE * CONT_PMDS)) {
-> +               hugetlb_add_hstate((PMD_SHIFT + CONT_PMD_SHIFT) - PAGE_SHIFT);
->         } else {
-> -               pr_err("hugepagesz: Unsupported page size %lu M\n", ps >> 20);
-> +               pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
->                 return 0;
->         }
->         return 1;
->  }
->  __setup("hugepagesz=", setup_hugepagesz);
-> +
-> +#ifdef CONFIG_ARM64_64K_PAGES
-> +static __init int add_default_hugepagesz(void)
-> +{
-> +       if (size_to_hstate(CONT_PTES * PAGE_SIZE) == NULL)
-> +               hugetlb_add_hstate(CONT_PMD_SHIFT);
-> +       return 0;
-> +}
-> +arch_initcall(add_default_hugepagesz);
-> +#endif
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 685c262..b0eb064 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -96,9 +96,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->                                 struct address_space *mapping,
->                                 pgoff_t idx, unsigned long address);
->
-> -#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
->  pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
-> -#endif
->
->  extern int hugepages_treat_as_movable;
->  extern int sysctl_hugetlb_shm_group;
-> --
-> 2.1.2
->
+When I type "device_del dimm1" in qemu monitor, there is no err log in
+kernel and it looks like command has no effect. I inserted log to
+acpi_memory_device_remove() but there is no message, too. Is there
+another way to check that device_del event is actually transmitted to kernel?
+
+I launch the qemu with following command.
+./qemu-system-x86_64-recent -enable-kvm -smp 8 -m 4096,slots=16,maxmem=8G ...
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
