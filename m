@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 620F082F64
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:45:49 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id q3so73369660pav.3
-        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 21:45:49 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 92DBD82F64
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:45:54 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id jx14so65431336pad.2
+        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 21:45:54 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id p79si99655pfa.201.2015.12.20.21.45.48
+        by mx.google.com with ESMTP id c62si18899624pfj.132.2015.12.20.21.45.53
         for <linux-mm@kvack.org>;
-        Sun, 20 Dec 2015 21:45:48 -0800 (PST)
-Subject: [-mm PATCH v4 14/18] mm, dax,
- pmem: introduce {get|put}_dev_pagemap() for dax-gup
+        Sun, 20 Dec 2015 21:45:53 -0800 (PST)
+Subject: [-mm PATCH v4 15/18] mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 20 Dec 2015 21:45:21 -0800
-Message-ID: <20151221054521.34542.62283.stgit@dwillia2-desk3.jf.intel.com>
+Date: Sun, 20 Dec 2015 21:45:26 -0800
+Message-ID: <20151221054526.34542.25205.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -21,337 +20,253 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Logan Gunthorpe <logang@deltatee.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-get_dev_page() enables paths like get_user_pages() to pin a dynamically
-mapped pfn-range (devm_memremap_pages()) while the resulting struct page
-objects are in use.  Unlike get_page() it may fail if the device is, or
-is in the process of being, disabled.  While the initial lookup of the
-range may be an expensive list walk, the result is cached to speed up
-subsequent lookups which are likely to be in the same mapped range.
+A dax-huge-page mapping while it uses some thp helpers is ultimately not a
+transparent huge page.  The distinction is especially important in the
+get_user_pages() path.  pmd_devmap() is used to distinguish dax-pmds from
+pmd_huge() and pmd_trans_huge() which have slightly different semantics.
 
-devm_memremap_pages() now requires a reference counter to be specified
-at init time.  For pmem this means moving request_queue allocation into
-pmem_alloc() so the existing queue usage counter can track "device
-pages".
-
-ZONE_DEVICE pages always have an elevated count and will never be on an
-lru reclaim list.  That space in 'struct page' can be redirected for
-other uses, but for safety introduce a poison value that will always
-trip __list_add() to assert.  This allows half of the struct list_head
-storage to be reclaimed with some assurance to back up the assumption
-that the page count never goes to zero and a list_add() is never
-attempted.
+Explicitly mark the pmd_trans_huge() helpers that dax needs by adding
+pmd_devmap() checks.
 
 Cc: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Matthew Wilcox <willy@linux.intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Tested-by: Logan Gunthorpe <logang@deltatee.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/nvdimm/pmem.c    |    6 +++--
- include/linux/list.h     |   12 ++++++++++
- include/linux/memremap.h |   49 +++++++++++++++++++++++++++++++++++++++++--
- include/linux/mm_types.h |    5 ++++
- kernel/memremap.c        |   53 +++++++++++++++++++++++++++++++++++++++++++---
- lib/list_debug.c         |    9 ++++++++
- 6 files changed, 126 insertions(+), 8 deletions(-)
+ arch/x86/include/asm/pgtable.h |    9 ++++++++-
+ include/linux/huge_mm.h        |    3 ++-
+ include/linux/mm.h             |    7 +++++++
+ mm/huge_memory.c               |   33 +++++++++++++++++++--------------
+ mm/memory.c                    |    8 ++++----
+ mm/mprotect.c                  |    5 +++--
+ mm/pgtable-generic.c           |    2 +-
+ 7 files changed, 44 insertions(+), 23 deletions(-)
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 2c6096ab2ce6..37ebf42c0415 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -150,7 +150,7 @@ static struct pmem_device *pmem_alloc(struct device *dev,
- 	pmem->pfn_flags = PFN_DEV;
- 	if (pmem_should_map_pages(dev)) {
- 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res,
--				NULL);
-+				&q->q_usage_counter, NULL);
- 		pmem->pfn_flags |= PFN_MAP;
- 	} else
- 		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
-@@ -324,6 +324,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 	struct vmem_altmap *altmap;
- 	struct nd_pfn_sb *pfn_sb;
- 	struct pmem_device *pmem;
-+	struct request_queue *q;
- 	phys_addr_t offset;
- 	int rc;
- 	struct vmem_altmap __altmap = {
-@@ -375,9 +376,10 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index dc962ae41597..993ce3c84ff4 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -167,13 +167,20 @@ static inline int pmd_large(pmd_t pte)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline int pmd_trans_huge(pmd_t pmd)
+ {
+-	return pmd_val(pmd) & _PAGE_PSE;
++	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
+ }
  
- 	/* establish pfn range for lookup, and switch to direct map */
- 	pmem = dev_get_drvdata(dev);
-+	q = pmem->pmem_queue;
- 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
- 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res,
--			altmap);
-+			&q->q_usage_counter, altmap);
- 	pmem->pfn_flags |= PFN_MAP;
- 	if (IS_ERR(pmem->virt_addr)) {
- 		rc = PTR_ERR(pmem->virt_addr);
-diff --git a/include/linux/list.h b/include/linux/list.h
-index 993395a2e55c..d870ba3315f8 100644
---- a/include/linux/list.h
-+++ b/include/linux/list.h
-@@ -113,6 +113,18 @@ extern void __list_del_entry(struct list_head *entry);
- extern void list_del(struct list_head *entry);
+ static inline int has_transparent_hugepage(void)
+ {
+ 	return cpu_has_pse;
+ }
++
++#ifdef __HAVE_ARCH_PTE_DEVMAP
++static inline int pmd_devmap(pmd_t pmd)
++{
++	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
++}
++#endif
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 8ca35a131904..40c4db60c9e0 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -104,7 +104,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ #define split_huge_pmd(__vma, __pmd, __address)				\
+ 	do {								\
+ 		pmd_t *____pmd = (__pmd);				\
+-		if (pmd_trans_huge(*____pmd))				\
++		if (pmd_trans_huge(*____pmd)				\
++					|| pmd_devmap(*____pmd))	\
+ 			__split_huge_pmd(__vma, __pmd, __address);	\
+ 	}  while (0)
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 957afd1b10a5..96f396bbcc9f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1471,6 +1471,13 @@ static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
+ int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
  #endif
  
-+#ifdef CONFIG_DEBUG_LIST
-+/*
-+ * See devm_memremap_pages() which wants DEBUG_LIST=y to assert if one
-+ * of the pages it allocates is ever passed to list_add()
-+ */
-+extern void list_force_poison(struct list_head *entry);
-+#else
-+static inline void list_force_poison(struct list_head *entry)
++#if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
++static inline int pmd_devmap(pmd_t pmd)
 +{
++	return 0;
 +}
 +#endif
 +
- /**
-  * list_replace - replace old entry by new one
-  * @old : the element to be replaced
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index aa3e82a80d7b..bcaa634139a9 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -1,6 +1,8 @@
- #ifndef _LINUX_MEMREMAP_H_
- #define _LINUX_MEMREMAP_H_
- #include <linux/mm.h>
-+#include <linux/ioport.h>
-+#include <linux/percpu-refcount.h>
+ #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
+ static inline int __pmd_alloc(struct mm_struct *mm, pud_t *pud,
+ 						unsigned long address)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7356857d7356..0c114fa08349 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1024,7 +1024,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
  
- struct resource;
- struct device;
-@@ -36,21 +38,25 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
- /**
-  * struct dev_pagemap - metadata for ZONE_DEVICE mappings
-  * @altmap: pre-allocated/reserved memory for vmemmap allocations
-+ * @res: physical address range covered by @ref
-+ * @ref: reference count that pins the devm_memremap_pages() mapping
-  * @dev: host device of the mapping for debug
-  */
- struct dev_pagemap {
- 	struct vmem_altmap *altmap;
- 	const struct resource *res;
-+	struct percpu_ref *ref;
- 	struct device *dev;
- };
+ 	ret = -EAGAIN;
+ 	pmd = *src_pmd;
+-	if (unlikely(!pmd_trans_huge(pmd))) {
++	if (unlikely(!pmd_trans_huge(pmd) && !pmd_devmap(pmd))) {
+ 		pte_free(dst_mm, pgtable);
+ 		goto out_unlock;
+ 	}
+@@ -1047,17 +1047,20 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		goto out_unlock;
+ 	}
  
- #ifdef CONFIG_ZONE_DEVICE
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct vmem_altmap *altmap);
-+		struct percpu_ref *ref, struct vmem_altmap *altmap);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
- #else
- static inline void *devm_memremap_pages(struct device *dev,
--		struct resource *res, struct vmem_altmap *altmap)
-+		struct resource *res, struct percpu_ref *ref,
-+		struct vmem_altmap *altmap)
+-	src_page = pmd_page(pmd);
+-	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+-	get_page(src_page);
+-	page_dup_rmap(src_page, true);
+-	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++	if (pmd_trans_huge(pmd)) {
++		/* thp accounting separate from pmd_devmap accounting */
++		src_page = pmd_page(pmd);
++		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
++		get_page(src_page);
++		page_dup_rmap(src_page, true);
++		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++		atomic_long_inc(&dst_mm->nr_ptes);
++		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
++	}
+ 
+ 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
+ 	pmd = pmd_mkold(pmd_wrprotect(pmd));
+-	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+ 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+-	atomic_long_inc(&dst_mm->nr_ptes);
+ 
+ 	ret = 0;
+ out_unlock:
+@@ -1745,7 +1748,7 @@ bool __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
+ 		spinlock_t **ptl)
  {
+ 	*ptl = pmd_lock(vma->vm_mm, pmd);
+-	if (likely(pmd_trans_huge(*pmd)))
++	if (likely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
+ 		return true;
+ 	spin_unlock(*ptl);
+ 	return false;
+@@ -2862,7 +2865,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
+ 	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
+-	VM_BUG_ON(!pmd_trans_huge(*pmd));
++	VM_BUG_ON(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd));
+ 
+ 	count_vm_event(THP_SPLIT_PMD);
+ 
+@@ -2975,11 +2978,13 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ 	ptl = pmd_lock(mm, pmd);
+-	if (unlikely(!pmd_trans_huge(*pmd)))
++	if (unlikely(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
+ 		goto out;
+-	page = pmd_page(*pmd);
+ 	__split_huge_pmd_locked(vma, pmd, haddr, false);
+-	if (PageMlocked(page))
++
++	if (pmd_trans_huge(*pmd))
++		page = pmd_page(*pmd);
++	if (page && PageMlocked(page))
+ 		get_page(page);
+ 	else
+ 		page = NULL;
+@@ -3012,7 +3017,7 @@ static void split_huge_pmd_address(struct vm_area_struct *vma,
+ 		return;
+ 
+ 	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd) || !pmd_trans_huge(*pmd))
++	if (!pmd_present(*pmd) || (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
+ 		return;
  	/*
- 	 * Fail attempts to call devm_memremap_pages() without
-@@ -66,4 +72,43 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- 	return NULL;
- }
- #endif
-+
-+/**
-+ * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
-+ * @pfn: page frame number to lookup page_map
-+ * @pgmap: optional known pgmap that already has a reference
-+ *
-+ * @pgmap allows the overhead of a lookup to be bypassed when @pfn lands in the
-+ * same mapping.
-+ */
-+static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-+		struct dev_pagemap *pgmap)
-+{
-+	const struct resource *res = pgmap ? pgmap->res : NULL;
-+	resource_size_t phys = PFN_PHYS(pfn);
-+
-+	/*
-+	 * In the cached case we're already holding a live reference so
-+	 * we can simply do a blind increment
-+	 */
-+	if (res && phys >= res->start && phys <= res->end) {
-+		percpu_ref_get(pgmap->ref);
-+		return pgmap;
-+	}
-+
-+	/* fall back to slow path lookup */
-+	rcu_read_lock();
-+	pgmap = find_dev_pagemap(phys);
-+	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
-+		pgmap = NULL;
-+	rcu_read_unlock();
-+
-+	return pgmap;
-+}
-+
-+static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
-+{
-+	if (pgmap)
-+		percpu_ref_put(pgmap->ref);
-+}
- #endif /* _LINUX_MEMREMAP_H_ */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 22beb225e88f..c67ea476991e 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -116,6 +116,11 @@ struct page {
- 					 * Can be used as a generic list
- 					 * by the page owner.
- 					 */
-+		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
-+					    * lru or handled by a slab
-+					    * allocator, this points to the
-+					    * hosting device page map.
-+					    */
- 		struct {		/* slub per cpu partial pages */
- 			struct page *next;	/* Next partial slab */
- #ifdef CONFIG_64BIT
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 562f6471fe90..3eb8944265d5 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -179,6 +179,29 @@ static void pgmap_radix_release(struct resource *res)
- 	mutex_unlock(&pgmap_lock);
- }
+ 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
+diff --git a/mm/memory.c b/mm/memory.c
+index 9483d2b1dd3b..03b6fa406a28 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -950,7 +950,7 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
+ 	src_pmd = pmd_offset(src_pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_trans_huge(*src_pmd)) {
++		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
+ 			int err;
+ 			VM_BUG_ON(next-addr != HPAGE_PMD_SIZE);
+ 			err = copy_huge_pmd(dst_mm, src_mm,
+@@ -1177,7 +1177,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_trans_huge(*pmd)) {
++		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE) {
+ #ifdef CONFIG_DEBUG_VM
+ 				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+@@ -3375,7 +3375,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		int ret;
  
-+static unsigned long pfn_first(struct page_map *page_map)
-+{
-+	struct dev_pagemap *pgmap = &page_map->pgmap;
-+	const struct resource *res = &page_map->res;
-+	struct vmem_altmap *altmap = pgmap->altmap;
-+	unsigned long pfn;
-+
-+	pfn = res->start >> PAGE_SHIFT;
-+	if (altmap)
-+		pfn += vmem_altmap_offset(altmap);
-+	return pfn;
-+}
-+
-+static unsigned long pfn_end(struct page_map *page_map)
-+{
-+	const struct resource *res = &page_map->res;
-+
-+	return (res->start + resource_size(res)) >> PAGE_SHIFT;
-+}
-+
-+#define for_each_device_pfn(pfn, map) \
-+	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn++)
-+
- static void devm_memremap_pages_release(struct device *dev, void *data)
+ 		barrier();
+-		if (pmd_trans_huge(orig_pmd)) {
++		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+ 			unsigned int dirty = flags & FAULT_FLAG_WRITE;
+ 
+ 			if (pmd_protnone(orig_pmd))
+@@ -3404,7 +3404,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	    unlikely(__pte_alloc(mm, vma, pmd, address)))
+ 		return VM_FAULT_OOM;
+ 	/* if an huge pmd materialized from under us just retry later */
+-	if (unlikely(pmd_trans_huge(*pmd)))
++	if (unlikely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
+ 		return 0;
+ 	/*
+ 	 * A regular pmd is established and it can't morph into a huge pmd
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 9c1445dc8a4c..732e07baf76c 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -149,7 +149,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		unsigned long this_pages;
+ 
+ 		next = pmd_addr_end(addr, end);
+-		if (!pmd_trans_huge(*pmd) && pmd_none_or_clear_bad(pmd))
++		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
++				&& pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 
+ 		/* invoke the mmu notifier if the pmd is populated */
+@@ -158,7 +159,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 			mmu_notifier_invalidate_range_start(mm, mni_start, end);
+ 		}
+ 
+-		if (pmd_trans_huge(*pmd)) {
++		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE)
+ 				split_huge_pmd(vma, pmd, addr);
+ 			else {
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index c311a2ec6fea..9d4767698a1c 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -132,7 +132,7 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
  {
- 	struct page_map *page_map = data;
-@@ -186,6 +209,11 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
- 	resource_size_t align_start, align_size;
- 	struct dev_pagemap *pgmap = &page_map->pgmap;
- 
-+	if (percpu_ref_tryget_live(pgmap->ref)) {
-+		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-+		percpu_ref_put(pgmap->ref);
-+	}
-+
- 	pgmap_radix_release(res);
- 
- 	/* pages are dead and unused, undo the arch mapping */
-@@ -211,20 +239,26 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-  * devm_memremap_pages - remap and provide memmap backing for the given resource
-  * @dev: hosting device for @res
-  * @res: "host memory" address range
-+ * @ref: a live per-cpu reference count
-  * @altmap: optional descriptor for allocating the memmap from @res
-  *
-- * Note, the expectation is that @res is a host memory range that could
-- * feasibly be treated as a "System RAM" range, i.e. not a device mmio
-- * range, but this is not enforced.
-+ * Notes:
-+ * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
-+ *    (or devm release event).
-+ *
-+ * 2/ @res is expected to be a host memory range that could feasibly be
-+ *    treated as a "System RAM" range, i.e. not a device mmio range, but
-+ *    this is not enforced.
-  */
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct vmem_altmap *altmap)
-+		struct percpu_ref *ref, struct vmem_altmap *altmap)
- {
- 	int is_ram = region_intersects(res->start, resource_size(res),
- 			"System RAM");
- 	resource_size_t key, align_start, align_size;
- 	struct dev_pagemap *pgmap;
- 	struct page_map *page_map;
-+	unsigned long pfn;
- 	int error, nid;
- 
- 	if (is_ram == REGION_MIXED) {
-@@ -242,6 +276,9 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		return ERR_PTR(-ENXIO);
- 	}
- 
-+	if (!ref)
-+		return ERR_PTR(-EINVAL);
-+
- 	page_map = devres_alloc_node(devm_memremap_pages_release,
- 			sizeof(*page_map), GFP_KERNEL, dev_to_node(dev));
- 	if (!page_map)
-@@ -255,6 +292,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		memcpy(&page_map->altmap, altmap, sizeof(*altmap));
- 		pgmap->altmap = &page_map->altmap;
- 	}
-+	pgmap->ref = ref;
- 	pgmap->res = &page_map->res;
- 
- 	mutex_lock(&pgmap_lock);
-@@ -292,6 +330,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	if (error)
- 		goto err_add_memory;
- 
-+	for_each_device_pfn(pfn, page_map) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		/* ZONE_DEVICE pages must never appear on a slab lru */
-+		list_force_poison(&page->lru);
-+		page->pgmap = pgmap;
-+	}
- 	devres_add(dev, page_map);
- 	return __va(res->start);
- 
-diff --git a/lib/list_debug.c b/lib/list_debug.c
-index c24c2f7e296f..37fea7c0a7a4 100644
---- a/lib/list_debug.c
-+++ b/lib/list_debug.c
-@@ -12,6 +12,13 @@
- #include <linux/kernel.h>
- #include <linux/rculist.h>
- 
-+static struct list_head force_poison;
-+void list_force_poison(struct list_head *entry)
-+{
-+	entry->next = &force_poison;
-+	entry->prev = &force_poison;
-+}
-+
- /*
-  * Insert a new entry between two known consecutive entries.
-  *
-@@ -23,6 +30,8 @@ void __list_add(struct list_head *new,
- 			      struct list_head *prev,
- 			      struct list_head *next)
- {
-+	WARN(new->next == &force_poison || new->prev == &force_poison,
-+		"list_add attempted on force-poisoned entry\n");
- 	WARN(next->prev != prev,
- 		"list_add corruption. next->prev should be "
- 		"prev (%p), but was %p. (next=%p).\n",
+ 	pmd_t pmd;
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-	VM_BUG_ON(!pmd_trans_huge(*pmdp));
++	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+ 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+ 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	return pmd;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
