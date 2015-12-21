@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C88D6B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 08:08:51 -0500 (EST)
-Received: by mail-io0-f178.google.com with SMTP id e126so153600061ioa.1
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:08:51 -0800 (PST)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id o62si13740666ioi.143.2015.12.21.05.08.50
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E5056B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 08:15:13 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l126so69506501wml.1
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 05:15:13 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n188si3056454wmf.113.2015.12.21.05.15.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Dec 2015 05:08:50 -0800 (PST)
-Date: Mon, 21 Dec 2015 07:08:49 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-In-Reply-To: <5674A5C3.1050504@oracle.com>
-Message-ID: <alpine.DEB.2.20.1512210656120.7119@east.gentwo.org>
-References: <5674A5C3.1050504@oracle.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 Dec 2015 05:15:11 -0800 (PST)
+Subject: Re: [PATCH] mempolicy: convert the shared_policy lock to a rwlock
+References: <alpine.DEB.2.10.1511121301490.10324@chino.kir.corp.google.com>
+ <1447777078-135492-1-git-send-email-nzimmer@sgi.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5677FB5D.7010805@suse.cz>
+Date: Mon, 21 Dec 2015 14:15:09 +0100
+MIME-Version: 1.0
+In-Reply-To: <1447777078-135492-1-git-send-email-nzimmer@sgi.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 18 Dec 2015, Sasha Levin wrote:
+On 11/17/2015 05:17 PM, Nathan Zimmer wrote:
+> When running the SPECint_rate gcc on some very large boxes it was noticed
+> that the system was spending lots of time in mpol_shared_policy_lookup.
+> The gamess benchmark can also show it and is what I mostly used to chase
+> down the issue since the setup for that I found a easier.
+>
+> To be clear the binaries were on tmpfs because of disk I/O reqruirements.
+> We then used text replication to avoid icache misses and having all the
+> copies banging on the memory where the instruction code resides.
+> This results in us hitting a bottle neck in mpol_shared_policy_lookup
+> since lookup is serialised by the shared_policy lock.
+>
+> I have only reproduced this on very large (3k+ cores) boxes.  The problem
+> starts showing up at just a few hundred ranks getting worse until it
+> threatens to livelock once it gets large enough.
+> For example on the gamess benchmark at 128 ranks this area consumes only
+> ~1% of time, at 512 ranks it consumes nearly 13%, and at 2k ranks it is
+> over 90%.
+>
+> To alleviate the contention on this area I converted the spinslock to a
+> rwlock.  This allows the large number of lookups to happen simultaneously.
+> The results were quite good reducing this to consumtion at max ranks to
+> around 2%.
+>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-> [  531.164630] RIP vmstat_update (mm/vmstat.c:1408)
-
-Hmmm.. Yes we need to fold the diffs first before disabling the timer
-otherwise the shepherd task may intervene.
-
-Does this patch fix it?
-
-
-Subject: quiet_vmstat: Avoid race with shepherd by folding counters first
-
-We need to fold the counters first otherwise the shepherd task may
-remotely reactivate the vmstat worker.
-
-This also avoids the strange loop. Nothing can really increase the
-counters at that point since we are in the cpu idle loop. So
-folding the counters once is enough. Cancelling work that does
-not exist is fine too so just avoid the branches completely.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -1419,11 +1419,9 @@ void quiet_vmstat(void)
- 	if (system_state != SYSTEM_RUNNING)
- 		return;
-
--	do {
--		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
--			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
--
--	} while (refresh_cpu_vm_stats(false));
-+	refresh_cpu_vm_stats(false);
-+	cancel_delayed_work(this_cpu_ptr(&vmstat_work));
-+	cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
- }
-
- /*
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
