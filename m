@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C17D26B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 14:16:45 -0500 (EST)
-Received: by mail-yk0-f170.google.com with SMTP id v6so139815966ykc.2
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:16:45 -0800 (PST)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id y2si22288821ywe.350.2015.12.21.11.16.44
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AD86E6B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 14:27:36 -0500 (EST)
+Received: by mail-yk0-f173.google.com with SMTP id 140so140333175ykp.0
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:27:36 -0800 (PST)
+Received: from mail-yk0-x229.google.com (mail-yk0-x229.google.com. [2607:f8b0:4002:c07::229])
+        by mx.google.com with ESMTPS id l198si16792447ywb.298.2015.12.21.11.27.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 11:16:44 -0800 (PST)
-Received: by mail-yk0-x22d.google.com with SMTP id x184so141006787yka.3
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:16:44 -0800 (PST)
+        Mon, 21 Dec 2015 11:27:35 -0800 (PST)
+Received: by mail-yk0-x229.google.com with SMTP id x184so141353564yka.3
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:27:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20151221181854.GF21582@pd.tnic>
-References: <cover.1450283985.git.tony.luck@intel.com>
-	<2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
-	<20151221181854.GF21582@pd.tnic>
-Date: Mon, 21 Dec 2015 11:16:44 -0800
-Message-ID: <CAPcyv4gum9EHTa80vAcFck2RXrALDquMu2EgaTOOXBYMj2zeKQ@mail.gmail.com>
-Subject: Re: [PATCHV3 1/3] x86, ras: Add new infrastructure for machine check
- fixup tables
+In-Reply-To: <20151221170545.GA13494@linux.intel.com>
+References: <1450502540-8744-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1450502540-8744-5-git-send-email-ross.zwisler@linux.intel.com>
+	<CAPcyv4irspQEPVdYfLK+QfW4t-1_y1gFFVuBm00=i03PFQwEYw@mail.gmail.com>
+	<20151221170545.GA13494@linux.intel.com>
+Date: Mon, 21 Dec 2015 11:27:35 -0800
+Message-ID: <CAPcyv4jThXLT06z6Lw1EHiaD4JHOgdQ5TXzEjoHavtU+_BTzow@mail.gmail.com>
+Subject: Re: [PATCH v5 4/7] dax: add support for fsync/sync
 From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Elliott@pd.tnic, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Mon, Dec 21, 2015 at 10:18 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Tue, Dec 15, 2015 at 05:29:30PM -0800, Tony Luck wrote:
->> Copy the existing page fault fixup mechanisms to create a new table
->> to be used when fixing machine checks. Note:
->> 1) At this time we only provide a macro to annotate assembly code
->> 2) We assume all fixups will in code builtin to the kernel.
->> 3) Only for x86_64
->> 4) New code under CONFIG_MCE_KERNEL_RECOVERY (default 'n')
+On Mon, Dec 21, 2015 at 9:05 AM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> On Sat, Dec 19, 2015 at 10:37:46AM -0800, Dan Williams wrote:
+>> On Fri, Dec 18, 2015 at 9:22 PM, Ross Zwisler
+>> <ross.zwisler@linux.intel.com> wrote:
+>> > To properly handle fsync/msync in an efficient way DAX needs to track dirty
+>> > pages so it is able to flush them durably to media on demand.
+>> >
+>> > The tracking of dirty pages is done via the radix tree in struct
+>> > address_space.  This radix tree is already used by the page writeback
+>> > infrastructure for tracking dirty pages associated with an open file, and
+>> > it already has support for exceptional (non struct page*) entries.  We
+>> > build upon these features to add exceptional entries to the radix tree for
+>> > DAX dirty PMD or PTE pages at fault time.
+>> >
+>> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> [..]
+>> > +static void dax_writeback_one(struct address_space *mapping, pgoff_t index,
+>> > +               void *entry)
+>> > +{
+>> > +       struct radix_tree_root *page_tree = &mapping->page_tree;
+>> > +       int type = RADIX_DAX_TYPE(entry);
+>> > +       struct radix_tree_node *node;
+>> > +       void **slot;
+>> > +
+>> > +       if (type != RADIX_DAX_PTE && type != RADIX_DAX_PMD) {
+>> > +               WARN_ON_ONCE(1);
+>> > +               return;
+>> > +       }
+>> > +
+>> > +       spin_lock_irq(&mapping->tree_lock);
+>> > +       /*
+>> > +        * Regular page slots are stabilized by the page lock even
+>> > +        * without the tree itself locked.  These unlocked entries
+>> > +        * need verification under the tree lock.
+>> > +        */
+>> > +       if (!__radix_tree_lookup(page_tree, index, &node, &slot))
+>> > +               goto unlock;
+>> > +       if (*slot != entry)
+>> > +               goto unlock;
+>> > +
+>> > +       /* another fsync thread may have already written back this entry */
+>> > +       if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+>> > +               goto unlock;
+>> > +
+>> > +       radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
+>> > +
+>> > +       if (type == RADIX_DAX_PMD)
+>> > +               wb_cache_pmem(RADIX_DAX_ADDR(entry), PMD_SIZE);
+>> > +       else
+>> > +               wb_cache_pmem(RADIX_DAX_ADDR(entry), PAGE_SIZE);
 >>
->> Signed-off-by: Tony Luck <tony.luck@intel.com>
->> ---
->>  arch/x86/Kconfig                  | 10 ++++++++++
->>  arch/x86/include/asm/asm.h        | 10 ++++++++--
->>  arch/x86/include/asm/mce.h        | 14 ++++++++++++++
->>  arch/x86/kernel/cpu/mcheck/mce.c  | 16 ++++++++++++++++
->>  arch/x86/kernel/vmlinux.lds.S     |  6 +++++-
->>  arch/x86/mm/extable.c             | 19 +++++++++++++++++++
->>  include/asm-generic/vmlinux.lds.h | 12 +++++++-----
->>  7 files changed, 79 insertions(+), 8 deletions(-)
->>
->> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->> index 96d058a87100..42d26b4d1ec4 100644
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -1001,6 +1001,16 @@ config X86_MCE_INJECT
->>         If you don't know what a machine check is and you don't do kernel
->>         QA it is safe to say n.
->>
->> +config MCE_KERNEL_RECOVERY
->> +     bool "Recovery from machine checks in special kernel memory copy functions"
->> +     default n
->> +     depends on X86_MCE && X86_64
+>> Hi Ross, I should have realized this sooner, but what guarantees that
+>> the address returned by RADIX_DAX_ADDR(entry) is still valid at this
+>> point?  I think we need to store the sector in the radix tree and then
+>> perform a new dax_map_atomic() operation to either lookup a valid
+>> address or fail the sync request.  Otherwise, if the device is gone
+>> we'll crash, or write into some other random vmalloc address space.
 >
-> Still no dependency on CONFIG_LIBNVDIMM.
+> Ah, good point, thank you.  v4 of this series is based on a version of
+> DAX where we aren't properly dealing with PMEM device removal.  I've got an
+> updated version that merges with your dax_map_atomic() changes, and I'll add
+> this change into v5 which I will send out today.  Thank you for the
+> suggestion.
 
-I suggested we reverse the dependency and have the driver optionally
-"select MCE_KERNEL_RECOVERY".  There may be other drivers outside of
-LIBNVDIMM that want this functionality enabled.
+To make the merge simpler you could skip the rebase for now and just
+call blk_queue_enter() / blk_queue_exit() around the calls to
+wb_cache_pmem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
