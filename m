@@ -1,39 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A47C96B0005
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 16:14:20 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id to18so44511049igc.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 13:14:20 -0800 (PST)
-Received: from resqmta-po-07v.sys.comcast.net (resqmta-po-07v.sys.comcast.net. [2001:558:fe16:19:96:114:154:166])
-        by mx.google.com with ESMTPS id i2si18024894iof.127.2015.12.21.13.14.20
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C1A56B0007
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 16:45:47 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id jx14so77476116pad.2
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 13:45:47 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f2si14102638pfj.33.2015.12.21.13.45.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Dec 2015 13:14:20 -0800 (PST)
-Date: Mon, 21 Dec 2015 15:14:18 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-In-Reply-To: <56786A22.9030103@oracle.com>
-Message-ID: <alpine.DEB.2.20.1512211513360.27237@east.gentwo.org>
-References: <5674A5C3.1050504@oracle.com> <alpine.DEB.2.20.1512210656120.7119@east.gentwo.org> <567860EB.4000103@oracle.com> <56786A22.9030103@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Dec 2015 13:45:46 -0800 (PST)
+Date: Mon, 21 Dec 2015 13:45:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] kernel/hung_task.c: use timeout diff when timeout is
+ updated
+Message-Id: <20151221134545.cb0558878932913e348656e9@linux-foundation.org>
+In-Reply-To: <201512212045.HHC00516.SQOJVHLFFtMOOF@I-love.SAKURA.ne.jp>
+References: <201512172123.DFJ69220.SFFOLOJtVHOQMF@I-love.SAKURA.ne.jp>
+	<20151217141805.f418cf9b137da08656504001@linux-foundation.org>
+	<201512212045.HHC00516.SQOJVHLFFtMOOF@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: oleg@redhat.com, atomlin@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On Mon, 21 Dec 2015, Sasha Levin wrote:
+On Mon, 21 Dec 2015 20:45:23 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > 
+> > And it would be helpful to add a comment to hung_timeout_jiffies()
+> > which describes the behaviour and explains the reasons for it.
+> 
+> But before doing it, I'd like to confirm hung task maintainer's will.
+> 
+> The reason I proposed this patch is that I want to add a watchdog task
+> which emits warning messages when memory allocations are stalling.
+> http://lkml.kernel.org/r/201512130033.ABH90650.FtFOMOFLVOJHQS@I-love.SAKURA.ne.jp
+> 
+> But concurrently emitting multiple backtraces is problematic. Concurrent
+> emitting by hung task watchdog and memory allocation stall watchdog is very
+> likely to occur, for it is likely that other task is also stuck in
+> uninterruptible sleep when one task got stuck at memory allocation.
+> 
+> Therefore, I started trying to use same thread for both watchdogs.
+> A draft patch is at
+> http://lkml.kernel.org/r/201512170011.IAC73451.FLtFMSJHOQFVOO@I-love.SAKURA.ne.jp .
+> 
+> If you prefer current hang task behavior, I'll try to preseve current
+> behavior. Instead, I might use two threads and try to mutex both watchdogs
+> using console_lock() or something like that.
+> 
+> So, may I ask what your preference is?
 
-> I've also noticed a new warning from the workqueue code which my scripts
-> didn't pick up before:
->
-> [ 3462.380681] BUG: workqueue lockup - pool cpus=2 node=2 flags=0x4 nice=0 stuck for 54s!
-> [ 3462.522041] workqueue vmstat: flags=0xc
-> [ 3462.527795]   pwq 4: cpus=2 node=2 flags=0x0 nice=0 active=1/256
-> [ 3462.554836]     pending: vmstat_update
+I've added linux-mm to Cc.  Please never forget that.
 
-Does that mean that vmstat_update locks up or something that schedules it?
+The general topic here is "add more diagnostics around an out-of-memory
+event".  Clearly we need this, but Michal is working on the same thing
+as part of his "OOM detection rework v4" work, so can we please do the
+appropriate coordination and review there?
 
-Also what workload triggers the BUG()?
+Preventing watchdog-triggered backtraces from messing each other up is
+of course a good idea.  Your malloc watchdog patch adds a surprising
+amount of code and adding yet another kernel thread is painful but
+perhaps it's all worth it.  It's a matter of people reviewing, testing
+and using the code in realistic situations and that process has hardly
+begun, alas.
+
+Sorry, that was waffly but I don't feel able to be more definite at
+this time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
