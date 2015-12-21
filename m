@@ -1,109 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A216B0007
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:45:12 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id 78so9764171pfw.2
-        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 21:45:12 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id 86si2179290pfh.158.2015.12.20.21.45.10
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 437926B0007
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 00:45:14 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id wq6so93755412pac.1
+        for <linux-mm@kvack.org>; Sun, 20 Dec 2015 21:45:14 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id n81si1877168pfa.30.2015.12.20.21.45.10
         for <linux-mm@kvack.org>;
         Sun, 20 Dec 2015 21:45:10 -0800 (PST)
-Subject: [-mm PATCH v4 03/18] mm: skip memory block registration for
- ZONE_DEVICE
+Subject: [-mm PATCH v4 00/18] get_user_pages() for dax pte and pmd mappings
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 20 Dec 2015 21:44:23 -0800
-Message-ID: <20151221054423.34542.13407.stgit@dwillia2-desk3.jf.intel.com>
-In-Reply-To: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com>
-References: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com>
+Date: Sun, 20 Dec 2015 21:44:07 -0800
+Message-ID: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org
+Cc: Dave Hansen <dave@sr71.net>, David Airlie <airlied@linux.ie>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Christoph Hellwig <hch@lst.de>, Andrea Arcangeli <aarcange@redhat.com>, kbuild test robot <lkp@intel.com>, linux-nvdimm@lists.01.org, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Christoffer Dall <christoffer.dall@linaro.org>, Paolo Bonzini <pbonzini@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Prevent userspace from trying and failing to online ZONE_DEVICE pages
-which are meant to never be onlined.
+Changes since v3 [1]:
 
-For example on platforms with a udev rule like the following:
+1/ Minimize the impact of the modifications to get_page() by moving
+   zone_device manipulations out of line and marking them unlikely().  In
+   v3 a simple function like:
 
-  SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+		get_page(page);
+		do_something_with_page(page);
+		put_page(page);
 
-...will generate futile attempts to online the ZONE_DEVICE sections.
-Example kernel messages:
+   ...had a text size of 672 bytes.  That is now down to 289 bytes,
+   compared to the pre-patch baseline size of 267 bytes.  Disassembly shows
+   that aside from conditional branch on the page zone number, data which
+   should already be dcache hot, there is no icache impact in the typical
+   path.  (Andrew, Dave Hansen)
 
-    Built 1 zonelists in Node order, mobility grouping on.  Total pages: 1004747
-    Policy zone: Normal
-    online_pages [mem 0x248000000-0x24fffffff] failed
+2/ Minimize the impact to mm.h by moving ~200 lines of definitions to
+   pfn_t.h and memremap.h.  (Andrew)
 
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+3/ Move struct vmem_altmap helper routines to the only C file that
+   consumes them. (Andrew)
+
+4/ Clean up definitions of pfn_pte, pfn_pmd, pte_devmap, and pmd_devmap
+   to have proper dependencies on CONFIG_MMU and
+   CONFIG_TRANSPARENT_HUGEPAGE to avoid the need to touch arch headers
+   outside of x86.
+
+5/ Skip registering 'memory block' sysfs devices for zone_device ranges
+   since they are not normal memory and are not eligible to be 'onlined'.
+
+6/ Improve the diagnostic debug messages in fs/dax.c to include
+   buffer_head details.  (Willy)
+
+These replace the following 18 patches:
+
+    kvm-rename-pfn_t-to-kvm_pfn_t.patch..dax-re-enable-dax-pmd-mappings.patch
+
+...in the current -mm series, the other 7 patches from v3 are
+unmodified.  They have received a build success notification from the
+kbuild robot over 108 configs.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-December/003370.html
+
 ---
- drivers/base/memory.c |   13 +++++++++++++
- include/linux/mm.h    |   12 ++++++++++++
- 2 files changed, 25 insertions(+)
+Original summary:
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 6d7b14c2798e..3e96083c1a9d 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -651,6 +651,13 @@ static int add_memory_block(int base_section_nr)
- 	return 0;
- }
- 
-+static bool is_zone_device_section(struct mem_section *ms)
-+{
-+	struct page *page;
-+
-+	page = sparse_decode_mem_map(ms->section_mem_map, __section_nr(ms));
-+	return is_zone_device_page(page);
-+}
- 
- /*
-  * need an interface for the VM to add new memory regions,
-@@ -661,6 +668,9 @@ int register_new_memory(int nid, struct mem_section *section)
- 	int ret = 0;
- 	struct memory_block *mem;
- 
-+	if (is_zone_device_section(section))
-+		return 0;
-+
- 	mutex_lock(&mem_sysfs_mutex);
- 
- 	mem = find_memory_block(section);
-@@ -697,6 +707,9 @@ static int remove_memory_section(unsigned long node_id,
- {
- 	struct memory_block *mem;
- 
-+	if (is_zone_device_section(section))
-+		return 0;
-+
- 	mutex_lock(&mem_sysfs_mutex);
- 	mem = find_memory_block(section);
- 	unregister_mem_sect_under_nodes(mem, __section_nr(section));
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a8ae5f7e9e22..57e9546d40dc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -686,6 +686,18 @@ static inline enum zone_type page_zonenum(const struct page *page)
- 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
- 
-+#ifdef CONFIG_ZONE_DEVICE
-+static inline bool is_zone_device_page(const struct page *page)
-+{
-+	return page_zonenum(page) == ZONE_DEVICE;
-+}
-+#else
-+static inline bool is_zone_device_page(const struct page *page)
-+{
-+	return false;
-+}
-+#endif
-+
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
- #define SECTION_IN_PAGE_FLAGS
- #endif
+To date, we have implemented two I/O usage models for persistent memory,
+PMEM (a persistent "ram disk") and DAX (mmap persistent memory into
+userspace).  This series adds a third, DAX-GUP, that allows DAX mappings
+to be the target of direct-i/o.  It allows userspace to coordinate
+DMA/RDMA from/to persistent memory.
+
+The implementation leverages the ZONE_DEVICE mm-zone that went into
+4.3-rc1 (also discussed at kernel summit) to flag pages that are owned
+and dynamically mapped by a device driver.  The pmem driver, after
+mapping a persistent memory range into the system memmap via
+devm_memremap_pages(), arranges for DAX to distinguish pfn-only versus
+page-backed pmem-pfns via flags in the new pfn_t type.
+
+The DAX code, upon seeing a PFN_DEV+PFN_MAP flagged pfn, flags the
+resulting pte(s) inserted into the process page tables with a new
+_PAGE_DEVMAP flag.  Later, when get_user_pages() is walking ptes it keys
+off _PAGE_DEVMAP to pin the device hosting the page range active.
+Finally, get_page() and put_page() are modified to take references
+against the device driver established page mapping.
+
+Finally, this need for "struct page" for persistent memory requires
+memory capacity to store the memmap array.  Given the memmap array for a
+large pool of persistent may exhaust available DRAM introduce a
+mechanism to allocate the memmap from persistent memory.  The new
+"struct vmem_altmap *"  parameter to devm_memremap_pages() enables
+arch_add_memory() to use reserved pmem capacity rather than the page
+allocator.
+
+---
+
+Dan Williams (18):
+      kvm: rename pfn_t to kvm_pfn_t
+      mm, dax, pmem: introduce pfn_t
+      mm: skip memory block registration for ZONE_DEVICE
+      mm: introduce find_dev_pagemap()
+      x86, mm: introduce vmem_altmap to augment vmemmap_populate()
+      libnvdimm, pfn, pmem: allocate memmap array in persistent memory
+      avr32: convert to asm-generic/memory_model.h
+      hugetlb: fix compile error on tile
+      frv: fix compiler warning from definition of __pmd()
+      x86, mm: introduce _PAGE_DEVMAP
+      mm, dax, gpu: convert vm_insert_mixed to pfn_t
+      mm, dax: convert vmf_insert_pfn_pmd() to pfn_t
+      libnvdimm, pmem: move request_queue allocation earlier in probe
+      mm, dax, pmem: introduce {get|put}_dev_pagemap() for dax-gup
+      mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd
+      mm, x86: get_user_pages() for dax mappings
+      dax: provide diagnostics for pmd mapping failures
+      dax: re-enable dax pmd mappings
+
+
+ arch/arm/include/asm/kvm_mmu.h          |    5 -
+ arch/arm/kvm/mmu.c                      |   10 +
+ arch/arm64/include/asm/kvm_mmu.h        |    3 
+ arch/avr32/include/asm/page.h           |    8 +
+ arch/frv/include/asm/page.h             |    2 
+ arch/ia64/include/asm/page.h            |    1 
+ arch/mips/include/asm/kvm_host.h        |    6 -
+ arch/mips/kvm/emulate.c                 |    2 
+ arch/mips/kvm/tlb.c                     |   14 +-
+ arch/powerpc/include/asm/kvm_book3s.h   |    4 -
+ arch/powerpc/include/asm/kvm_ppc.h      |    2 
+ arch/powerpc/kvm/book3s.c               |    6 -
+ arch/powerpc/kvm/book3s_32_mmu_host.c   |    2 
+ arch/powerpc/kvm/book3s_64_mmu_host.c   |    2 
+ arch/powerpc/kvm/e500.h                 |    2 
+ arch/powerpc/kvm/e500_mmu_host.c        |    8 +
+ arch/powerpc/kvm/trace_pr.h             |    2 
+ arch/powerpc/sysdev/axonram.c           |    9 +
+ arch/x86/include/asm/pgtable.h          |   26 +++-
+ arch/x86/include/asm/pgtable_types.h    |    7 +
+ arch/x86/kvm/iommu.c                    |   11 +-
+ arch/x86/kvm/mmu.c                      |   37 +++--
+ arch/x86/kvm/mmu_audit.c                |    2 
+ arch/x86/kvm/paging_tmpl.h              |    6 -
+ arch/x86/kvm/vmx.c                      |    2 
+ arch/x86/kvm/x86.c                      |    2 
+ arch/x86/mm/gup.c                       |   57 +++++++-
+ arch/x86/mm/init_64.c                   |   33 ++++-
+ arch/x86/mm/pat.c                       |    5 -
+ drivers/base/memory.c                   |   13 ++
+ drivers/block/brd.c                     |    7 +
+ drivers/gpu/drm/exynos/exynos_drm_gem.c |    4 -
+ drivers/gpu/drm/gma500/framebuffer.c    |    4 -
+ drivers/gpu/drm/msm/msm_gem.c           |    4 -
+ drivers/gpu/drm/omapdrm/omap_gem.c      |    7 +
+ drivers/gpu/drm/ttm/ttm_bo_vm.c         |    4 -
+ drivers/nvdimm/pfn_devs.c               |    3 
+ drivers/nvdimm/pmem.c                   |   73 +++++++---
+ drivers/s390/block/dcssblk.c            |   11 +-
+ fs/Kconfig                              |    3 
+ fs/dax.c                                |   76 ++++++++--
+ include/asm-generic/pgtable.h           |    6 +
+ include/linux/blkdev.h                  |    5 -
+ include/linux/huge_mm.h                 |   15 ++
+ include/linux/hugetlb.h                 |    1 
+ include/linux/io.h                      |   15 --
+ include/linux/kvm_host.h                |   37 +++--
+ include/linux/kvm_types.h               |    2 
+ include/linux/list.h                    |   12 ++
+ include/linux/memory_hotplug.h          |    3 
+ include/linux/memremap.h                |  114 ++++++++++++++++
+ include/linux/mm.h                      |   72 ++++++++--
+ include/linux/mm_types.h                |    5 +
+ include/linux/pfn.h                     |    9 +
+ include/linux/pfn_t.h                   |  102 ++++++++++++++
+ kernel/memremap.c                       |  227 ++++++++++++++++++++++++++++++-
+ lib/list_debug.c                        |    9 +
+ mm/gup.c                                |   19 ++-
+ mm/huge_memory.c                        |  119 ++++++++++++----
+ mm/memory.c                             |   26 ++--
+ mm/memory_hotplug.c                     |   67 +++++++--
+ mm/mprotect.c                           |    5 -
+ mm/page_alloc.c                         |   11 +-
+ mm/pgtable-generic.c                    |    2 
+ mm/sparse-vmemmap.c                     |   76 ++++++++++
+ mm/sparse.c                             |    8 +
+ mm/swap.c                               |    3 
+ virt/kvm/kvm_main.c                     |   47 +++---
+ 68 files changed, 1204 insertions(+), 298 deletions(-)
+ create mode 100644 include/linux/memremap.h
+ create mode 100644 include/linux/pfn_t.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
