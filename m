@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D7AA6B0003
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 13:59:55 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id o11so37881257qge.2
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 10:59:55 -0800 (PST)
-Received: from mx6-phx2.redhat.com (mx6-phx2.redhat.com. [209.132.183.39])
-        by mx.google.com with ESMTPS id g35si30589421qgf.53.2015.12.21.10.59.54
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C17D26B0003
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 14:16:45 -0500 (EST)
+Received: by mail-yk0-f170.google.com with SMTP id v6so139815966ykc.2
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:16:45 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id y2si22288821ywe.350.2015.12.21.11.16.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 10:59:54 -0800 (PST)
-Date: Mon, 21 Dec 2015 13:07:59 -0500 (EST)
-From: Rodrigo Freire <rfreire@redhat.com>
-Message-ID: <1612313460.962272.1450721278983.JavaMail.zimbra@redhat.com>
-In-Reply-To: <5678187A.5070307@suse.cz>
-References: <1281769343.11551980.1447959500824.JavaMail.zimbra@redhat.com> <5678187A.5070307@suse.cz>
-Subject: [PATCH V2] Documentation: Describe the shared memory
- usage/accounting
+        Mon, 21 Dec 2015 11:16:44 -0800 (PST)
+Received: by mail-yk0-x22d.google.com with SMTP id x184so141006787yka.3
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 11:16:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20151221181854.GF21582@pd.tnic>
+References: <cover.1450283985.git.tony.luck@intel.com>
+	<2e91c18f23be90b33c2cbfff6cce6b6f50592a96.1450283985.git.tony.luck@intel.com>
+	<20151221181854.GF21582@pd.tnic>
+Date: Mon, 21 Dec 2015 11:16:44 -0800
+Message-ID: <CAPcyv4gum9EHTa80vAcFck2RXrALDquMu2EgaTOOXBYMj2zeKQ@mail.gmail.com>
+Subject: Re: [PATCHV3 1/3] x86, ras: Add new infrastructure for machine check
+ fixup tables
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Elliott@pd.tnic, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
+On Mon, Dec 21, 2015 at 10:18 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Tue, Dec 15, 2015 at 05:29:30PM -0800, Tony Luck wrote:
+>> Copy the existing page fault fixup mechanisms to create a new table
+>> to be used when fixing machine checks. Note:
+>> 1) At this time we only provide a macro to annotate assembly code
+>> 2) We assume all fixups will in code builtin to the kernel.
+>> 3) Only for x86_64
+>> 4) New code under CONFIG_MCE_KERNEL_RECOVERY (default 'n')
+>>
+>> Signed-off-by: Tony Luck <tony.luck@intel.com>
+>> ---
+>>  arch/x86/Kconfig                  | 10 ++++++++++
+>>  arch/x86/include/asm/asm.h        | 10 ++++++++--
+>>  arch/x86/include/asm/mce.h        | 14 ++++++++++++++
+>>  arch/x86/kernel/cpu/mcheck/mce.c  | 16 ++++++++++++++++
+>>  arch/x86/kernel/vmlinux.lds.S     |  6 +++++-
+>>  arch/x86/mm/extable.c             | 19 +++++++++++++++++++
+>>  include/asm-generic/vmlinux.lds.h | 12 +++++++-----
+>>  7 files changed, 79 insertions(+), 8 deletions(-)
+>>
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index 96d058a87100..42d26b4d1ec4 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -1001,6 +1001,16 @@ config X86_MCE_INJECT
+>>         If you don't know what a machine check is and you don't do kernel
+>>         QA it is safe to say n.
+>>
+>> +config MCE_KERNEL_RECOVERY
+>> +     bool "Recovery from machine checks in special kernel memory copy functions"
+>> +     default n
+>> +     depends on X86_MCE && X86_64
+>
+> Still no dependency on CONFIG_LIBNVDIMM.
 
-The Shared Memory accounting support is present in Kernel since
-commit 4b02108ac1b3 ("mm: oom analysis: add shmem vmstat") and in
-userland free(1) since 2014. This patch updates the Documentation to
-reflect this change.
-
-Signed-off-by: Rodrigo Freire <rfreire@redhat.com>
----
-V2: Better wording as per Vlastimil Babka's suggestions
----
- Documentation/filesystems/proc.txt  |    2 ++
- Documentation/filesystems/tmpfs.txt |    8 ++++----
- 2 files changed, 6 insertions(+), 4 deletions(-)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 402ab99..8ca61a0 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -842,6 +842,7 @@ Dirty:             968 kB
- Writeback:           0 kB
- AnonPages:      861800 kB
- Mapped:         280372 kB
-+Shmem:             644 kB
- Slab:           284364 kB
- SReclaimable:   159856 kB
- SUnreclaim:     124508 kB
-@@ -898,6 +899,7 @@ MemAvailable: An estimate of how much memory is available for starting new
-    AnonPages: Non-file backed pages mapped into userspace page tables
- AnonHugePages: Non-file backed huge pages mapped into userspace page tables
-       Mapped: files which have been mmaped, such as libraries
-+       Shmem: Total memory used by shared memory (shmem) and tmpfs
-         Slab: in-kernel data structures cache
- SReclaimable: Part of Slab, that might be reclaimed, such as caches
-   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
-diff --git a/Documentation/filesystems/tmpfs.txt b/Documentation/filesystems/tmpfs.txt
-index 98ef551..d1abf2d 100644
---- a/Documentation/filesystems/tmpfs.txt
-+++ b/Documentation/filesystems/tmpfs.txt
-@@ -17,10 +17,10 @@ RAM, where you have to create an ordinary filesystem on top. Ramdisks
- cannot swap and you do not have the possibility to resize them. 
- 
- Since tmpfs lives completely in the page cache and on swap, all tmpfs
--pages currently in memory will show up as cached. It will not show up
--as shared or something like that. Further on you can check the actual
--RAM+swap use of a tmpfs instance with df(1) and du(1).
--
-+pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
-+free(1). Notice that these counters also include shared memory
-+(shmem, see ipcs(1)). The most reliable way to get the count is
-+using df(1) and du(1).
- 
- tmpfs has the following uses:
- 
--- 
-1.7.1
+I suggested we reverse the dependency and have the driver optionally
+"select MCE_KERNEL_RECOVERY".  There may be other drivers outside of
+LIBNVDIMM that want this functionality enabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
