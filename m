@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E8D82F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:17:36 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id uo6so18237912pac.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:17:36 -0800 (PST)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id uo3si7037575pac.221.2015.12.22.14.17.35
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3AB82F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:26:06 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id cy9so40967412pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:26:06 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id e21si14429768pfb.51.2015.12.22.14.26.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 14:17:35 -0800 (PST)
-Received: by mail-pf0-x233.google.com with SMTP id o64so112383717pfb.3
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:17:35 -0800 (PST)
-Date: Tue, 22 Dec 2015 14:17:34 -0800 (PST)
+        Tue, 22 Dec 2015 14:26:06 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id q63so6570227pfb.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:26:06 -0800 (PST)
+Date: Tue, 22 Dec 2015 14:26:04 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm/compaction: speed up pageblock_pfn_to_page() when
- zone is contiguous
-In-Reply-To: <1450678432-16593-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1512221410380.5172@chino.kir.corp.google.com>
-References: <1450678432-16593-1-git-send-email-iamjoonsoo.kim@lge.com> <1450678432-16593-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for
+ the newly added memory
+In-Reply-To: <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1512221422480.5172@chino.kir.corp.google.com>
+References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com> <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Mon, 21 Dec 2015, Joonsoo Kim wrote:
+On Tue, 22 Dec 2015, Andrew Morton wrote:
 
-> There is a performance drop report due to hugepage allocation and in there
-> half of cpu time are spent on pageblock_pfn_to_page() in compaction [1].
-> In that workload, compaction is triggered to make hugepage but most of
-> pageblocks are un-available for compaction due to pageblock type and
-> skip bit so compaction usually fails. Most costly operations in this case
-> is to find valid pageblock while scanning whole zone range. To check
-> if pageblock is valid to compact, valid pfn within pageblock is required
-> and we can obtain it by calling pageblock_pfn_to_page(). This function
-> checks whether pageblock is in a single zone and return valid pfn
-> if possible. Problem is that we need to check it every time before
-> scanning pageblock even if we re-visit it and this turns out to
-> be very expensive in this workload.
+> On Tue, 22 Dec 2015 17:32:30 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
 > 
-> Although we have no way to skip this pageblock check in the system
-> where hole exists at arbitrary position, we can use cached value for
-> zone continuity and just do pfn_to_page() in the system where hole doesn't
-> exist. This optimization considerably speeds up in above workload.
+> > Currently, all newly added memory blocks remain in 'offline' state unless
+> > someone onlines them, some linux distributions carry special udev rules
+> > like:
+> > 
+> > SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+> > 
+> > to make this happen automatically. This is not a great solution for virtual
+> > machines where memory hotplug is being used to address high memory pressure
+> > situations as such onlining is slow and a userspace process doing this
+> > (udev) has a chance of being killed by the OOM killer as it will probably
+> > require to allocate some memory.
+> > 
+> > Introduce default policy for the newly added memory blocks in
+> > /sys/devices/system/memory/hotplug_autoonline file with two possible
+> > values: "offline" which preserves the current behavior and "online" which
+> > causes all newly added memory blocks to go online as soon as they're added.
+> > The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
+> > is selected.
 > 
-> Before vs After
-> Max: 1096 MB/s vs 1325 MB/s
-> Min: 635 MB/s 1015 MB/s
-> Avg: 899 MB/s 1194 MB/s
-> 
-> Avg is improved by roughly 30% [2].
+> I think the default should be "offline" so vendors can ship kernels
+> which have CONFIG_MEMORY_HOTPLUG_AUTOONLINE=y while being
+> back-compatible with previous kernels.
 > 
 
-Wow, ok!
+But isn't the premise of the changelog that this is currently being 
+handled by the distribution?  Perhaps I don't understand why this patch 
+can't end up just introducing a sysfs tunable that is always present and 
+can be set by initscripts of that distribution.
 
-I'm wondering if it would be better to maintain this as a characteristic 
-of each pageblock rather than each zone.  Have you tried to introduce a 
-couple new bits to pageblock_bits that would track (1) if a cached value 
-makes sense and (2) if the pageblock is contiguous?  On the first call to 
-pageblock_pfn_to_page(), set the first bit, PB_cached, and set the second 
-bit, PB_contiguous, iff it is contiguous.  On subsequent calls, if 
-PB_cached is true, then return PB_contiguous.  On memory hot-add or 
-remove (or init), clear PB_cached.
-
-What are the cases where pageblock_pfn_to_page() is used for a subset of 
-the pageblock and the result would be problematic for compaction?  I.e., 
-do we actually care to use pageblocks that are not contiguous at all?
+I'd also suggest that hotplug_autoonline be renamed to auto_online_block.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
