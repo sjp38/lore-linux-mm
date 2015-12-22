@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8419E6B002E
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 10:57:54 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id p187so114554691wmp.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 07:57:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 199si44078306wmu.115.2015.12.22.07.57.53
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BDC596B0030
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:08:15 -0500 (EST)
+Received: by mail-io0-f169.google.com with SMTP id q126so190723797iof.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 08:08:15 -0800 (PST)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id i17si34483005igt.52.2015.12.22.08.08.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Dec 2015 07:57:53 -0800 (PST)
-Subject: Re: [PATCH] mm: make sure isolate_lru_page() is never called for tail
- page
-References: <1450276170-140679-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151216144749.GB23092@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <567972FF.4090408@suse.cz>
-Date: Tue, 22 Dec 2015 16:57:51 +0100
-MIME-Version: 1.0
-In-Reply-To: <20151216144749.GB23092@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Dec 2015 08:08:15 -0800 (PST)
+Date: Tue, 22 Dec 2015 10:08:13 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
+In-Reply-To: <1450755641-7856-1-git-send-email-laura@labbott.name>
+Message-ID: <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
+References: <1450755641-7856-1-git-send-email-laura@labbott.name>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Laura Abbott <laura@labbott.name>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com
 
-On 12/16/2015 03:47 PM, Michal Hocko wrote:
-> On Wed 16-12-15 16:29:30, Kirill A. Shutemov wrote:
->> The VM_BUG_ON_PAGE() would catch such cases if any still exists.
->
-> Thanks, this better than a silent breakage.
->
->> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
+On Mon, 21 Dec 2015, Laura Abbott wrote:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> The biggest change from PAX_MEMORY_SANTIIZE is that this feature sanitizes
+> the SL[AOU]B allocators only. My plan is to work on the buddy allocator
+> santization after this series gets picked up. A side effect of this is
+> that allocations which go directly to the buddy allocator (i.e. large
+> allocations) aren't sanitized. I'd like feedback about whether it's worth
+> it to add sanitization on that path directly or just use the page
+> allocator sanitization when that comes in.
 
->
->> ---
->>   mm/vmscan.c | 1 +
->>   1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 964390906167..05dd182f04fd 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1436,6 +1436,7 @@ int isolate_lru_page(struct page *page)
->>   	int ret = -EBUSY;
->>
->>   	VM_BUG_ON_PAGE(!page_count(page), page);
->> +	VM_BUG_ON_PAGE(PageTail(page), page);
->>
->>   	if (PageLRU(page)) {
->>   		struct zone *zone = page_zone(page);
->> --
->> 2.6.2
->
+I am not sure what the point of this patchset is. We have a similar effect
+to sanitization already in the allocators through two mechanisms:
+
+1. Slab poisoning
+2. Allocation with GFP_ZERO
+
+I do not think we need a third one. You could accomplish your goals much
+easier without this code churn by either
+
+1. Improve the existing poisoning mechanism. Ensure that there are no
+   gaps. Security sensitive kernel slab caches can then be created with
+   the  POISONING flag set. Maybe add a Kconfig flag that enables
+   POISONING for each cache? What was the issue when you tried using
+   posining for sanitization?
+
+2. Add a mechanism that ensures that GFP_ZERO is set for each allocation.
+   That way every object you retrieve is zeroed and thus you have implied
+   sanitization. This also can be done in a rather simple way by changing
+   the  GFP_KERNEL etc constants to include __GFP_ZERO depending on a
+   Kconfig option. Or add some runtime setting of the gfp flags somewhere.
+
+Generally I would favor option #2 if you must have sanitization because
+that is the only option to really give you a deterministic content of
+object on each allocation. Any half way measures would not work I think.
+
+Note also that most allocations are already either allocations that zero
+the content or they are immediately initializing the content of the
+allocated object. After all the object is not really usable if the
+content is random. You may be able to avoid this whole endeavor by
+auditing the kernel for locations where the object is not initialized
+after allocation.
+
+Once one recognizes the above it seems that sanitization is pretty
+useless. Its just another pass of writing zeroes before the allocator or
+uer of the allocated object sets up deterministic content of the object or
+-- in most cases -- zeroes it again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
