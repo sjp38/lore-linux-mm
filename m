@@ -1,124 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E5B6B0259
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:38:51 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id o11so58308136qge.2
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 08:38:51 -0800 (PST)
-Received: from mail-qk0-x235.google.com (mail-qk0-x235.google.com. [2607:f8b0:400d:c09::235])
-        by mx.google.com with ESMTPS id 68si15835976qge.98.2015.12.22.08.38.50
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AB57D82F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 12:02:29 -0500 (EST)
+Received: by mail-io0-f171.google.com with SMTP id 186so195071902iow.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 09:02:29 -0800 (PST)
+Received: from g2t2355.austin.hp.com (g2t2355.austin.hp.com. [15.217.128.54])
+        by mx.google.com with ESMTPS id h2si26285731igi.83.2015.12.22.09.02.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 08:38:50 -0800 (PST)
-Received: by mail-qk0-x235.google.com with SMTP id t125so150961063qkh.3
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 08:38:50 -0800 (PST)
-Message-ID: <1450802317.15572.102.camel@gmail.com>
-Subject: Re: [kernel-hardening] Re: [RFC][PATCH 0/7] Sanitization of slabs
- based on grsecurity/PaX
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Tue, 22 Dec 2015 11:38:37 -0500
-In-Reply-To: <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
-	 <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-R9P+6EvZ3pLH2YzinrHb"
+        Tue, 22 Dec 2015 09:02:28 -0800 (PST)
+Message-ID: <1450803725.10450.31.camel@hpe.com>
+Subject: Re: [PATCH 1/2] x86/mm/pat: Change untrack_pfn() to handle unmapped
+ vma
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Tue, 22 Dec 2015 10:02:05 -0700
+In-Reply-To: <alpine.DEB.2.11.1512201007340.28591@nanos>
+References: <1449678368-31793-1-git-send-email-toshi.kani@hpe.com>
+	 <1449678368-31793-2-git-send-email-toshi.kani@hpe.com>
+	 <alpine.DEB.2.11.1512201007340.28591@nanos>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com, Laura Abbott <laura@labbott.name>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: mingo@redhat.com, hpa@zytor.com, bp@alien8.de, stsp@list.ru, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>
 
+On Sun, 2015-12-20 at 10:21 +0100, Thomas Gleixner wrote:
+> Toshi,
+> 
+> On Wed, 9 Dec 2015, Toshi Kani wrote:
+> > diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> > index 188e3e0..f3e391e 100644
+> > --- a/arch/x86/mm/pat.c
+> > +++ b/arch/x86/mm/pat.c
+> > @@ -966,8 +966,14 @@ int track_pfn_insert(struct vm_area_struct *vma,
+> > pgprot_t *prot,
+> >  
+> >  /*
+> >   * untrack_pfn is called while unmapping a pfnmap for a region.
+> > - * untrack can be called for a specific region indicated by pfn and
+> > size or
+> > - * can be for the entire vma (in which case pfn, size are zero).
+> > + * untrack_pfn can be called for a specific region indicated by pfn
+> > and
+> > + * size or can be for the entire vma (in which case pfn, size are
+> > zero).
+> > + *
+> > + * NOTE: mremap may move a virtual address of VM_PFNMAP, but keeps the
+> > + * pfn and cache type.  In this case, untrack_pfn() is called with the
+> > + * old vma after its translation has removed.  Hence, when
+> > follow_phys()
+> > + * fails, track_pfn() keeps the pfn tracked and clears VM_PAT from the
+> > + * old vma.
+> >   */
+> >  void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+> >  		 unsigned long size)
+> > @@ -981,14 +987,13 @@ void untrack_pfn(struct vm_area_struct *vma,
+> > unsigned long pfn,
+> >  	/* free the chunk starting from pfn or the whole chunk */
+> >  	paddr = (resource_size_t)pfn << PAGE_SHIFT;
+> >  	if (!paddr && !size) {
+> > -		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr))
+> > {
+> > -			WARN_ON_ONCE(1);
+> > -			return;
+> > -		}
+> > +		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr))
+> > +			goto out;
+> 
+> Shouldn't we have an explicit call in the mremap code which clears the
+> PAT flag on the mm instead of removing this sanity check?
+>   
+> Because that's what we end up with there. We just clear the PAT flag.
+> 
+> I rather prefer to do that explicitely, so the following call to
+> untrack_pfn() from move_vma()->do_munmap() ... will see the PAT flag
+> cleared. untrack_moved_pfn() or such.
 
---=-R9P+6EvZ3pLH2YzinrHb
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Agreed.  I will add untrack_pfn_moved(), which clears the PAT flag.
 
-> I am not sure what the point of this patchset is. We have a similar
-> effect
-> to sanitization already in the allocators through two mechanisms:
-
-The rationale was covered earlier. Are you responding to that or did you
-not see it?
-
-> 1. Slab poisoning
-> 2. Allocation with GFP_ZERO
->=20
-> I do not think we need a third one. You could accomplish your goals
-> much
-> easier without this code churn by either
->=20
-> 1. Improve the existing poisoning mechanism. Ensure that there are no
-> =C2=A0=C2=A0=C2=A0gaps. Security sensitive kernel slab caches can then be=
- created
-> with
-> =C2=A0=C2=A0=C2=A0the=C2=A0=C2=A0POISONING flag set. Maybe add a Kconfig =
-flag that enables
-> =C2=A0=C2=A0=C2=A0POISONING for each cache? What was the issue when you t=
-ried using
-> =C2=A0=C2=A0=C2=A0posining for sanitization?
->=20
-> 2. Add a mechanism that ensures that GFP_ZERO is set for each
-> allocation.
-> =C2=A0=C2=A0=C2=A0That way every object you retrieve is zeroed and thus y=
-ou have
-> implied
-> =C2=A0=C2=A0=C2=A0sanitization. This also can be done in a rather simple =
-way by
-> changing
-> =C2=A0=C2=A0=C2=A0the=C2=A0=C2=A0GFP_KERNEL etc constants to include __GF=
-P_ZERO depending on a
-> =C2=A0=C2=A0=C2=A0Kconfig option. Or add some runtime setting of the gfp =
-flags
-> somewhere.
->=20
-> Generally I would favor option #2 if you must have sanitization
-> because
-> that is the only option to really give you a deterministic content of
-> object on each allocation. Any half way measures would not work I
-> think.
->=20
-> Note also that most allocations are already either allocations that
-> zero
-> the content or they are immediately initializing the content of the
-> allocated object. After all the object is not really usable if the
-> content is random. You may be able to avoid this whole endeavor by
-> auditing the kernel for locations where the object is not initialized
-> after allocation.
->=20
-> Once one recognizes the above it seems that sanitization is pretty
-> useless. Its just another pass of writing zeroes before the allocator
-> or
-> uer of the allocated object sets up deterministic content of the
-> object or
-> -- in most cases -- zeroes it again.
-
-Sanitization isn't just to prevent leaks from usage of uninitialized
-data in later allocations. It's a mitigation for use-after-free (esp. if
-it's combined with some form of delayed freeing) and it reduces the
-lifetime of data.
---=-R9P+6EvZ3pLH2YzinrHb
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAABCAAGBQJWeXyNAAoJEPnnEuWa9fIqjrYQAJaEzoGOlaw3y0rN4YRJU6+x
-Ua7hjSxAY7iMM7zKYWqbz5XCjkqagdOCCcBgDhoo0q2NX6u9FPkfF2tBzggacLhk
-GXrAXJf15dSv5zqfWlozyEmTGiuJSHDaYTibbGLrFoegXK5xSgSoCHiGpr1w2kXP
-xA+Poc2F+S4+wkoF1gLb9I2w/4yRDDsWDtHIkVVBV1Tl85IYAA8cTSBJ3jO/VEe7
-DoB1H7XzRvqqc/qeJnU/vMHleR4DcW4bp5oCYDL9UfzgGSvkf8c0NUViPSY9lAfZ
-mYp6Y8tThRIoyONAHFPgUV9Rhe4ShBnRaoFCD1KO/LKRuFhOEfTGUQ6TRAYg7jgt
-2dQJivBhBddKwKkGvw58IsOIDVkpAiqobWezrCbzIwvZCtyLi+MifBqmF6S75jCH
-KYVjua1Ks7iWxNGqsCNUUbu7dMQ3z4xkB4j9O0GRJnWcIbTouGL1ReKyrXHIBJeS
-zsTk+ElCaJntJGl2Gok0J8pgIvyXc13Kfblk+U5T3PcB11K6Gp/m1Sp4wWfz5mO6
-+YP5WS1vZ/7g7FI5G/kUd8QPkcjkSDOlmRdV3QnYRSn7LYJThnF8P4buqi9iZ2e1
-htC7VNwQIsAn6obkYgGQZ/XY6v6XHqJ96tmrGiiJNYsB7Y80HGkYXAt9QYZEpsWG
-FNTuTLKN3YMErcOpwmsJ
-=pRVv
------END PGP SIGNATURE-----
-
---=-R9P+6EvZ3pLH2YzinrHb--
+Thanks!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
