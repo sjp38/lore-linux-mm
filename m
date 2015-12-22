@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDBD82F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 16:56:57 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id q63so6267683pfb.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:56:57 -0800 (PST)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id ti16si6944531pac.192.2015.12.22.13.56.56
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 84B8382F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:05:08 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id q3so102377161pav.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:05:08 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id qx6si6809406pab.241.2015.12.22.14.05.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 13:56:56 -0800 (PST)
-Received: by mail-pf0-x229.google.com with SMTP id o64so112168204pfb.3
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:56:56 -0800 (PST)
-Date: Tue, 22 Dec 2015 13:56:54 -0800 (PST)
+        Tue, 22 Dec 2015 14:05:07 -0800 (PST)
+Received: by mail-pa0-x22f.google.com with SMTP id jx14so95437334pad.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:05:07 -0800 (PST)
+Date: Tue, 22 Dec 2015 14:05:06 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memory-hotplug: don't BUG() in
- register_memory_resource()
-In-Reply-To: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
-Message-ID: <alpine.DEB.2.10.1512221353001.5172@chino.kir.corp.google.com>
-References: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+Subject: Re: [PATCH 1/2] mm/compaction: fix invalid free_pfn and
+ compact_cached_free_pfn
+In-Reply-To: <1450678432-16593-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.10.1512221404560.5172@chino.kir.corp.google.com>
+References: <1450678432-16593-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Sheng Yong <shengyong1@huawei.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, 18 Dec 2015, Vitaly Kuznetsov wrote:
+On Mon, 21 Dec 2015, Joonsoo Kim wrote:
 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 67d488a..9392f01 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -127,11 +127,13 @@ void mem_hotplug_done(void)
->  }
->  
->  /* add this memory to iomem resource */
-> -static struct resource *register_memory_resource(u64 start, u64 size)
-> +static int register_memory_resource(u64 start, u64 size,
-> +				    struct resource **resource)
->  {
->  	struct resource *res;
->  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-> -	BUG_ON(!res);
-> +	if (!res)
-> +		return -ENOMEM;
->  
->  	res->name = "System RAM";
->  	res->start = start;
-> @@ -140,9 +142,10 @@ static struct resource *register_memory_resource(u64 start, u64 size)
->  	if (request_resource(&iomem_resource, res) < 0) {
->  		pr_debug("System RAM resource %pR cannot be added\n", res);
->  		kfree(res);
-> -		res = NULL;
-> +		return -EEXIST;
->  	}
-> -	return res;
-> +	*resource = res;
-> +	return 0;
->  }
->  
->  static void release_memory_resource(struct resource *res)
-> @@ -1311,9 +1314,9 @@ int __ref add_memory(int nid, u64 start, u64 size)
->  	struct resource *res;
->  	int ret;
->  
-> -	res = register_memory_resource(start, size);
-> -	if (!res)
-> -		return -EEXIST;
-> +	ret = register_memory_resource(start, size, &res);
-> +	if (ret)
-> +		return ret;
->  
->  	ret = add_memory_resource(nid, res);
->  	if (ret < 0)
+> free_pfn and compact_cached_free_pfn are the pointer that remember
+> restart position of freepage scanner. When they are reset or invalid,
+> we set them to zone_end_pfn because freepage scanner works in reverse
+> direction. But, because zone range is defined as [zone_start_pfn,
+> zone_end_pfn), zone_end_pfn is invalid to access. Therefore, we should
+> not store it to free_pfn and compact_cached_free_pfn. Instead, we need
+> to store zone_end_pfn - 1 to them. There is one more thing we should
+> consider. Freepage scanner scan reversely by pageblock unit. If free_pfn
+> and compact_cached_free_pfn are set to middle of pageblock, it regards
+> that sitiation as that it already scans front part of pageblock so we
+> lose opportunity to scan there. To fix-up, this patch do round_down()
+> to guarantee that reset position will be pageblock aligned.
+> 
+> Note that thanks to the current pageblock_pfn_to_page() implementation,
+> actual access to zone_end_pfn doesn't happen until now. But, following
+> patch will change pageblock_pfn_to_page() so this patch is needed
+> from now on.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Wouldn't it be simpler and cleaner to keep the return type of 
-register_memory_resource() the same and return ERR_PTR(-ENOMEM) or 
-ERR_PTR(-EEXIST) on error?  add_memory() can check IS_ERR(res) and return 
-PTR_ERR(res).
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
