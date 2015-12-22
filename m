@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5446F82F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:15:40 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id q3so99994246pav.3
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 10:15:40 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id gl10si5503320pac.164.2015.12.22.10.15.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 10:15:39 -0800 (PST)
-Subject: Re: linux-next: Tree for Dec 22 (mm/memcontrol)
-References: <20151222162955.3f366781@canb.auug.org.au>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <56799349.9090300@infradead.org>
-Date: Tue, 22 Dec 2015 10:15:37 -0800
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0866B0266
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:19:41 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id 78so37222074pfw.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 10:19:41 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id h65si2275639pfd.162.2015.12.22.10.19.41
+        for <linux-mm@kvack.org>;
+        Tue, 22 Dec 2015 10:19:41 -0800 (PST)
+Subject: Re: [kernel-hardening] [RFC][PATCH 6/7] mm: Add Kconfig option for
+ slab sanitization
+References: <1450755641-7856-1-git-send-email-laura@labbott.name>
+ <1450755641-7856-7-git-send-email-laura@labbott.name>
+ <567964F3.2020402@intel.com>
+ <alpine.DEB.2.20.1512221023550.2748@east.gentwo.org>
+ <567986E7.50107@intel.com>
+ <alpine.DEB.2.20.1512221124230.14335@east.gentwo.org>
+ <56798851.60906@intel.com>
+ <alpine.DEB.2.20.1512221207230.14406@east.gentwo.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5679943C.1050604@intel.com>
+Date: Tue, 22 Dec 2015 10:19:40 -0800
 MIME-Version: 1.0
-In-Reply-To: <20151222162955.3f366781@canb.auug.org.au>
+In-Reply-To: <alpine.DEB.2.20.1512221207230.14406@east.gentwo.org>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <laura@labbott.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
 
-On 12/21/15 21:29, Stephen Rothwell wrote:
-> Hi all,
+On 12/22/2015 10:08 AM, Christoph Lameter wrote:
+> On Tue, 22 Dec 2015, Dave Hansen wrote:
+>>> Why would you use zeros? The point is just to clear the information right?
+>>> The regular poisoning does that.
+>>
+>> It then allows you to avoid the zeroing at allocation time.
 > 
-> Changes since 20151221:
-> 
+> Well much of the code is expecting a zeroed object from the allocator and
+> its zeroed at that time. Zeroing makes the object cache hot which is an
+> important performance aspect.
 
-on i386 or x86_64:
+Yes, modifying this behavior has a performance impact.  It absolutely
+needs to be evaluated, and I wouldn't want to speculate too much on how
+good or bad any of the choices are.
 
-when CONFIG_SLOB=y:
+Just to reiterate, I think we have 3 real choices here:
 
-../mm/memcontrol.c: In function 'memcg_update_kmem_limit':
-../mm/memcontrol.c:2974:3: error: implicit declaration of function 'memcg_online_kmem' [-Werror=implicit-function-declaration]
-   ret = memcg_online_kmem(memcg);
-   ^
-../mm/memcontrol.c: In function 'mem_cgroup_css_alloc':
-../mm/memcontrol.c:4229:2: error: too many arguments to function 'memcg_propagate_kmem'
-  error = memcg_propagate_kmem(parent, memcg);
-  ^
-../mm/memcontrol.c:2949:12: note: declared here
- static int memcg_propagate_kmem(struct mem_cgroup *memcg)
-            ^
+1. Zero at alloc, only when __GFP_ZERO
+   (behavior today)
+2. Poison at free, also Zero at alloc (when __GFP_ZERO)
+   (this patch's proposed behavior, also what current poisoning does,
+    doubles writes)
+3. Zero at free, *don't* Zero at alloc (when __GFP_ZERO)
+   (what I'm suggesting, possibly less perf impact vs. #2)
 
-
-
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
