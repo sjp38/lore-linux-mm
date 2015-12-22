@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A1682F74
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 15:47:58 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p187so122506507wmp.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 12:47:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o124si45917933wmg.25.2015.12.22.12.47.56
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 916756B0268
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 16:55:23 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id q3so102276311pav.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:55:23 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g65si14391556pfd.133.2015.12.22.13.55.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Dec 2015 12:47:56 -0800 (PST)
-Subject: Re: [RFC][PATCH 1/7] mm/slab_common.c: Add common support for slab
- saniziation
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
- <1450755641-7856-2-git-send-email-laura@labbott.name>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5679B701.9040802@suse.cz>
-Date: Tue, 22 Dec 2015 21:48:01 +0100
-MIME-Version: 1.0
-In-Reply-To: <1450755641-7856-2-git-send-email-laura@labbott.name>
-Content-Type: text/plain; charset=windows-1252
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Dec 2015 13:55:22 -0800 (PST)
+Date: Tue, 22 Dec 2015 13:55:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for
+ the newly added memory
+Message-Id: <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
+In-Reply-To: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
+References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <laura@labbott.name>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com, Mathias Krause <minipli@googlemail.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On 22.12.2015 4:40, Laura Abbott wrote:
-> Each of the different allocators (SLAB/SLUB/SLOB) handles
-> clearing of objects differently depending on configuration.
-> Add common infrastructure for selecting sanitization levels
-> (off, slow path only, partial, full) and marking caches as
-> appropriate.
+On Tue, 22 Dec 2015 17:32:30 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+
+> Currently, all newly added memory blocks remain in 'offline' state unless
+> someone onlines them, some linux distributions carry special udev rules
+> like:
 > 
-> All credit for the original work should be given to Brad Spengler and
-> the PaX Team.
+> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
 > 
-> Signed-off-by: Laura Abbott <laura@labbott.name>
+> to make this happen automatically. This is not a great solution for virtual
+> machines where memory hotplug is being used to address high memory pressure
+> situations as such onlining is slow and a userspace process doing this
+> (udev) has a chance of being killed by the OOM killer as it will probably
+> require to allocate some memory.
+> 
+> Introduce default policy for the newly added memory blocks in
+> /sys/devices/system/memory/hotplug_autoonline file with two possible
+> values: "offline" which preserves the current behavior and "online" which
+> causes all newly added memory blocks to go online as soon as they're added.
+> The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
+> is selected.
+
+I think the default should be "offline" so vendors can ship kernels
+which have CONFIG_MEMORY_HOTPLUG_AUTOONLINE=y while being
+back-compatible with previous kernels.
+
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -2537,6 +2537,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  			shutdown the other cpus.  Instead use the REBOOT_VECTOR
+>  			irq.
 >  
-> +#ifdef CONFIG_SLAB_MEMORY_SANITIZE
-> +#ifdef CONFIG_X86_64
-> +#define SLAB_MEMORY_SANITIZE_VALUE       '\xfe'
-> +#else
-> +#define SLAB_MEMORY_SANITIZE_VALUE       '\xff'
-> +#endif
-> +enum slab_sanitize_mode {
-> +	/* No sanitization */
-> +	SLAB_SANITIZE_OFF = 0,
+> +	nomemhp_autoonline	Don't automatically online newly added memory.
 > +
-> +	/* Partial sanitization happens only on the slow path */
-> +	SLAB_SANITIZE_PARTIAL_SLOWPATH = 1,
 
-Can you explain more about this variant? I wonder who might find it useful
-except someone getting a false sense of security, but cheaper.
-It sounds like wanting the cake and eat it too :)
-I would be surprised if such IMHO half-solution existed in the original
-PAX_MEMORY_SANITIZE too?
+This wasn't mentioned in the changelog.  Why do we need a boot
+parameter as well as the sysfs knob?
 
-Or is there something that guarantees that the objects freed on hotpath won't
-stay there for long so the danger of leak is low? (And what about
-use-after-free?) It depends on further slab activity, no? (I'm not that familiar
-with SLUB, but I would expect the hotpath there being similar to SLAB freeing
-the object on per-cpu array_cache. But, it seems the PARTIAL_SLOWPATH is not
-implemented for SLAB, so there might be some fundamental difference I'm missing.)
+> +config MEMORY_HOTPLUG_AUTOONLINE
+> +	bool "Automatically online hot-added memory"
+> +	depends on MEMORY_HOTPLUG_SPARSE
+> +	help
+> +	  When memory is hot-added, it is not at ready-to-use state, a special
 
+"When memory is hot-added it is not in a ready-to-use state.  A special"
+
+> +	  userspace action is required to online the newly added blocks. With
+> +	  this option enabled, the kernel will try to online all newly added
+> +	  memory automatically.
+> +
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
