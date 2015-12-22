@@ -1,49 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 774AE6B000E
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 06:14:05 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id sv6so22542149lbb.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 03:14:05 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 16D9E6B0011
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 06:34:26 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id l126so107678171wml.1
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 03:34:26 -0800 (PST)
 Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id oa4si20639587lbb.204.2015.12.22.03.14.03
+        by mx.google.com with ESMTP id a8si42814864wmf.107.2015.12.22.03.34.24
         for <linux-mm@kvack.org>;
-        Tue, 22 Dec 2015 03:14:03 -0800 (PST)
-Date: Tue, 22 Dec 2015 12:14:01 +0100
+        Tue, 22 Dec 2015 03:34:24 -0800 (PST)
+Date: Tue, 22 Dec 2015 12:34:23 +0100
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV3 2/3] x86, ras: Extend machine check recovery code to
- annotated ring0 areas
-Message-ID: <20151222111401.GD3728@pd.tnic>
-References: <cover.1450283985.git.tony.luck@intel.com>
- <e5547404ebab8f1f6c04c371bbb33109acc9534b.1450283985.git.tony.luck@intel.com>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+Message-ID: <20151222113422.GE3728@pd.tnic>
+References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
+ <20151216122642.GE29775@pd.tnic>
+ <1450280642.29051.76.camel@hpe.com>
+ <20151216154916.GF29775@pd.tnic>
+ <1450283759.20148.11.camel@hpe.com>
+ <20151216174523.GH29775@pd.tnic>
+ <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
+ <20151216181712.GJ29775@pd.tnic>
+ <1450302758.20148.75.camel@hpe.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <e5547404ebab8f1f6c04c371bbb33109acc9534b.1450283985.git.tony.luck@intel.com>
+In-Reply-To: <1450302758.20148.75.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Elliott@pd.tnic, Robert <elliott@hpe.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-On Tue, Dec 15, 2015 at 05:29:59PM -0800, Tony Luck wrote:
-> Extend the severity checking code to add a new context IN_KERN_RECOV
-> which is used to indicate that the machine check was triggered by code
-> in the kernel with a fixup entry.
-> 
-> Add code to check for this situation and respond by altering the return
-> IP to the fixup address.
-> 
-> Major re-work to the tail code in do_machine_check() to make all this
-> readable/maintainable. One functional change is that tolerant=3 no longer
-> stops recovery actions. Revert to only skipping sending SIGBUS to the
-> current process.
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> ---
->  arch/x86/kernel/cpu/mcheck/mce-severity.c | 21 +++++++++-
->  arch/x86/kernel/cpu/mcheck/mce.c          | 70 ++++++++++++++++---------------
->  2 files changed, 55 insertions(+), 36 deletions(-)
+On Wed, Dec 16, 2015 at 02:52:38PM -0700, Toshi Kani wrote:
+> This scheme may have a problem, though.  For instance, when someone writes
+> a loadable module that searches for "foo", but the "foo" entry may be
+> initialized in a distro kernel/driver that cannot be modified.  Since this
+> search is only necessary to obtain a range initialized by other module,
+> this scenario is likely to happen.  We no longer have ability to search for
+> a new entry unless we modify the code that initializes the entry first.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+Since when do we pay attention to out-of-tree modules which cannot be
+changed?
+
+Regardless, we don't necessarily need to change the callers - we could
+add new ones of the form walk_iomem_resource_by_type() or whatever its
+name is going to be which uses the ->type attribute of the resource and
+phase out the old ones slowly. New code will call the better interfaces,
+we should probably even add a checkpatch rule to check for that.
+
+> Even if we avoid strcmp() with @name in the kernel, user applications will
+> continue to use @name since that is the only type available in /proc/iomem.
+>  For instance, kexec has its own search function with a string name.
+
+See above.
+
+> When a new commonly-used search name comes up, we can define it as a new
+> extended I/O resource type similar to IORESOURCE_SYSTEM_RAM.  For the
+> current remaining cases, i.e. crash, kexec, and einj, they have no impact
+> to performance.  Leaving these special cases aside will keep the ability to
+> search for any entry without changing the kernel, and save some memory
+> space from adding the new 'type'.
+
+Again, we can leave the old interfaces at peace but going forward, we
+should make the searching for resources saner and stop using silly
+strings.
 
 -- 
 Regards/Gruss,
