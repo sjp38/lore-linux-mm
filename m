@@ -1,136 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B507E6B0005
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 04:33:31 -0500 (EST)
-Received: by mail-yk0-f171.google.com with SMTP id p130so158017215yka.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 01:33:31 -0800 (PST)
-Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
-        by mx.google.com with ESMTPS id s206si4608357yws.203.2015.12.22.01.33.30
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 72C3C6B0007
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 05:37:13 -0500 (EST)
+Received: by mail-io0-f175.google.com with SMTP id q126so182368048iof.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 02:37:13 -0800 (PST)
+Received: from mail-ig0-x243.google.com (mail-ig0-x243.google.com. [2607:f8b0:4001:c05::243])
+        by mx.google.com with ESMTPS id c9si32806555igl.56.2015.12.22.02.37.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 01:33:30 -0800 (PST)
-Received: by mail-yk0-x22a.google.com with SMTP id 140so158050172ykp.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 01:33:30 -0800 (PST)
+        Tue, 22 Dec 2015 02:37:12 -0800 (PST)
+Received: by mail-ig0-x243.google.com with SMTP id mv3so7323900igc.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 02:37:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1450755641-7856-7-git-send-email-laura@labbott.name>
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
-	<1450755641-7856-7-git-send-email-laura@labbott.name>
-Date: Tue, 22 Dec 2015 10:33:30 +0100
-Message-ID: <CA+rthh-X2jvGpptE72CCbOx2MdkukJSCu621+9ymMJ_pCQ9t+w@mail.gmail.com>
-Subject: Re: [kernel-hardening] [RFC][PATCH 6/7] mm: Add Kconfig option for
- slab sanitization
-From: Mathias Krause <minipli@googlemail.com>
+In-Reply-To: <20151202202725.GA794@www.outflux.net>
+References: <20151202202725.GA794@www.outflux.net>
+Date: Tue, 22 Dec 2015 11:37:12 +0100
+Message-ID: <CAMuHMdWiVv6fZjKo1ZjJdunnq+qDapUBCt24E+BtwEzgduMDFQ@mail.gmail.com>
+Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
+From: Geert Uytterhoeven <geert@linux-m68k.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <laura@labbott.name>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kees Cook <keescook@chromium.org>
+To: Kees Cook <keescook@chromium.org>, Russell King <linux@arm.linux.org.uk>
+Cc: Laura Abbott <labbott@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Arnd Bergmann <arnd@arndb.de>, kernel-hardening@lists.openwall.com, Linux-sh list <linux-sh@vger.kernel.org>
 
-On 22 December 2015 at 04:40, Laura Abbott <laura@labbott.name> wrote:
->
-> The SL[AOU]B allocators all behave differently w.r.t. to what happen
-> an object is freed. CONFIG_SLAB_SANITIZATION introduces a common
-> mechanism to control what happens on free. When this option is
-> enabled, objects may be poisoned according to a combination of
-> slab_sanitization command line option and whether SLAB_NO_SANITIZE
-> is set on a cache.
->
-> All credit for the original work should be given to Brad Spengler and
-> the PaX Team.
->
-> Signed-off-by: Laura Abbott <laura@labbott.name>
-> ---
->  init/Kconfig | 36 ++++++++++++++++++++++++++++++++++++
->  1 file changed, 36 insertions(+)
->
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 235c7a2..37857f3 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1755,6 +1755,42 @@ config SLUB_CPU_PARTIAL
->           which requires the taking of locks that may cause latency spikes.
->           Typically one would choose no for a realtime system.
->
-> +config SLAB_MEMORY_SANITIZE
-> +       bool "Sanitize all freed memory"
-> +       help
-> +         By saying Y here the kernel will erase slab objects as soon as they
-> +         are freed.  This in turn reduces the lifetime of data
-> +         stored in them, making it less likely that sensitive information such
-> +         as passwords, cryptographic secrets, etc stay in memory for too long.
-> +
+Hi Kees, Russell,
 
-> +         This is especially useful for programs whose runtime is short, long
-> +         lived processes and the kernel itself benefit from this as long as
-> +         they ensure timely freeing of memory that may hold sensitive
-> +         information.
+On Wed, Dec 2, 2015 at 9:27 PM, Kees Cook <keescook@chromium.org> wrote:
+> The use of CONFIG_DEBUG_RODATA is generally seen as an essential part of
+> kernel self-protection:
+> http://www.openwall.com/lists/kernel-hardening/2015/11/30/13
+> Additionally, its name has grown to mean things beyond just rodata. To
+> get ARM closer to this, we ought to rearrange the names of the configs
+> that control how the kernel protects its memory. What was called
+> CONFIG_ARM_KERNMEM_PERMS is really doing the work that other architectures
+> call CONFIG_DEBUG_RODATA.
 
-This part is not true. The code is handling SLAB objects only, so
-talking about processes in this context is misleading. Freeing memory
-in userland containing secrets cannot be covered by this feature as
-is. It needs a counter-part in the userland memory allocator as well
-as handling page sanitization in the buddy allocator.
+[...]
 
-I guess you've just copy+pasted that Kconfig description from the PaX
-feature PAX_MEMORY_SANITIZE that also covers the buddy allocator,
-therefore fits that description while this patch set does not. So
-please adapt the text or implement the fully featured version.
+This broke s2ram with shmobile_defconfig on r8a7791/koelsch:
 
-> +
-> +         A nice side effect of the sanitization of slab objects is the
-> +         reduction of possible info leaks caused by padding bytes within the
-> +         leaky structures.  Use-after-free bugs for structures containing
-> +         pointers can also be detected as dereferencing the sanitized pointer
-> +         will generate an access violation.
-> +
-> +         The tradeoff is performance impact. The noticible impact can vary
-> +         and you are advised to test this feature on your expected workload
-> +         before deploying it
-> +
+    Freezing user space processes ... (elapsed 0.002 seconds) done.
+    Freezing remaining freezable tasks ... (elapsed 0.003 seconds) done.
+    PM: suspend of devices complete after 112.157 msecs
+    PM: late suspend of devices complete after 1.605 msecs
+    PM: noirq suspend of devices complete after 13.098 msecs
+    Disabling non-boot CPUs ...
+    s---[ end Kernel panic - not syncing: Attempted to kill the idle task!
+    CPU0: stopping
+    CPU: 0 PID: 2412 Comm: s2ram Tainted: G      D
+4.4.0-rc6-00003-g1bb20571dcf0edfc #470
+    Hardware name: Generic R8A7791 (Flattened Device Tree)
+    Backtrace:
+    [<c010a92c>] (dump_backtrace) from [<c010aad4>] (show_stack+0x18/0x1c)
+     r6:00000000 r5:00000000 r4:00000000 r3:80404000
+    [<c010aabc>] (show_stack) from [<c02b9ff4>] (dump_stack+0x78/0x94)
+    [<c02b9f7c>] (dump_stack) from [<c010d4b4>] (handle_IPI+0xf4/0x19c)
+     r4:c09313f0 r3:c09091ec
+    [<c010d3c0>] (handle_IPI) from [<c0101430>] (gic_handle_irq+0x7c/0x98)
+     r7:c0910b80 r6:ee1d5c30 r5:c0902754 r4:f0802000
+    [<c01013b4>] (gic_handle_irq) from [<c010b654>] (__irq_svc+0x54/0x70)
+    Exception stack(0xee1d5c30 to 0xee1d5c78)
+    5c20:                                     c0955484 00000002
+00000000 60070013
+    5c40: c0942718 c093916c 00000005 0000000f 00000000 00000000
+c0943088 ee1d5cd4
+    5c60: ee1d5c08 ee1d5c80 c033fc20 c0158120 60070013 ffffffff
+     r8:00000000 r7:ee1d5c64 r6:ffffffff r5:60070013 r4:c0158120 r3:c033fc20
+    [<c0157ecc>] (console_unlock) from [<c0158724>] (vprintk_emit+0x448/0x4a4)
+     r10:c09450a6 r9:00000000 r8:0000000e r7:00000005 r6:00000006 r5:c0932758
+     r4:00000001
+    [<c01582dc>] (vprintk_emit) from [<c01588e0>] (vprintk_default+0x28/0x30)
+     r10:c09055e0 r9:00000001 r8:c09055e0 r7:00000010 r6:00000000 r5:00000000
+     r4:00000001
+    [<c01588b8>] (vprintk_default) from [<c018e538>] (printk+0x34/0x40)
+    [<c018e508>] (printk) from [<c010cfb8>] (__cpu_die+0x34/0x78)
+     r3:00000003 r2:c0906808 r1:00000001 r0:c0710af6
+    [<c010cf84>] (__cpu_die) from [<c011d7d0>] (_cpu_down+0x168/0x290)
+     r4:00000001 r3:00000005
+    [<c011d668>] (_cpu_down) from [<c011dd90>] (disable_nonboot_cpus+0x70/0xf0)
+     r10:00000051 r9:c0932734 r8:c0902528 r7:00000000 r6:c090245c r5:c0931b40
+     r4:00000001
+    [<c011dd20>] (disable_nonboot_cpus) from [<c0155fd8>]
+(suspend_devices_and_enter+0x290/0x3f8)
+     r8:c0714bb5 r7:eebac300 r6:00000003 r5:c0932734 r4:00000000 r3:00000000
+    [<c0155d48>] (suspend_devices_and_enter) from [<c01561f4>]
+(pm_suspend+0xb4/0x1c8)
+     r9:c093273c r8:c0714bb5 r7:eebac300 r6:00000003 r5:c09576fc r4:00000000
+    [<c0156140>] (pm_suspend) from [<c0155148>] (state_store+0xb0/0xc4)
+     r6:00000004 r5:00000003 r4:00000003 r3:0000006d
+    [<c0155098>] (state_store) from [<c02bbce8>] (kobj_attr_store+0x1c/0x28)
+     r9:000cdc08 r8:ee1d5f80 r7:eebacb0c r6:eebacb00 r5:eebac300 r4:eebac300
+    [<c02bbccc>] (kobj_attr_store) from [<c0222438>] (sysfs_kf_write+0x44/0x50)
+    [<c02223f4>] (sysfs_kf_write) from [<c0221ae0>]
+(kernfs_fop_write+0x13c/0x1a0)
+     r4:00000004 r3:c02223f4
+    [<c02219a4>] (kernfs_fop_write) from [<c01ca1b4>] (__vfs_write+0x34/0xdc)
+     r10:00000000 r9:ee1d4000 r8:c0106fa4 r7:00000004 r6:ee1d5f80 r5:c02219a4
+     r4:edf85d00
+    [<c01ca180>] (__vfs_write) from [<c01ca3dc>] (vfs_write+0xb8/0x140)
+     r7:ee1d5f80 r6:000cdc08 r5:edf85d00 r4:00000004
+    [<c01ca324>] (vfs_write) from [<c01ca544>] (SyS_write+0x50/0x90)
+     r9:ee1d4000 r8:c0106fa4 r7:000cdc08 r6:00000004 r5:edf85d00 r4:edf85d00
+    [<c01ca4f4>] (SyS_write) from [<c0106de0>] (ret_fast_syscall+0x0/0x3c)
 
-> +         The slab sanitization feature excludes a few slab caches per default
-> +         for performance reasons. The level of sanitization can be adjusted
-> +         with the sanitize_slab commandline option:
-> +               sanitize_slab=off: No sanitization will occur
-> +               santiize_slab=slow: Sanitization occurs only on the slow path
-> +               for all but the excluded slabs
-> +               (relevant for SLUB allocator only)
-> +               sanitize_slab=partial: Sanitization occurs on all path for all
-> +               but the excluded slabs
-> +               sanitize_slab=full: All slabs are sanitize
+Before commit 1bb20571dcf0edfc ("ARM: 8470/1: mm: flip priority of
+CONFIG_DEBUG_RODATA"):
 
-This should probably be moved to Documentation/kernel-parameters.txt,
-as can be found in the PaX patch[1]?
+    # CONFIG_ARM_KERNMEM_PERMS is not set
 
-> +
-> +         If unsure, say Y here.
+    Freezing user space processes ... (elapsed 0.001 seconds) done.
+    Freezing remaining freezable tasks ... (elapsed 0.003 seconds) done.
+    PM: suspend of devices complete after 112.163 msecs
+    PM: late suspend of devices complete after 1.610 msecs
+    PM: noirq suspend of devices complete after 13.109 msecs
+    Disabling non-boot CPUs ...
+    CPU1: shutdown
 
-Really? It has an unknown performance impact, depending on the
-workload, which might make "unsure users" preferably say No, if they
-don't care about info leaks.
+After the offending commit:
 
-Related to this, have you checked that the sanitization doesn't
-interfere with the various slab handling schemes, namely RCU related
-specialties? Not all caches are marked SLAB_DESTROY_BY_RCU, some use
-call_rcu() instead, implicitly relying on the semantics RCU'ed slabs
-permit, namely allowing a "use-after-free" access to be legitimate
-within the RCU grace period. Scrubbing the object during that period
-would break that assumption.
+    CONFIG_DEBUG_RODATA=y
+    CONFIG_DEBUG_ALIGN_RODATA=y
 
-Speaking of RCU, do you have a plan to support RCU'ed slabs as well?
+The "problem" is that DEBUG_RODATA now defaults to y on CPU_V7, so it gets
+enabled for shmobile_defconfig. If I manually disable DEBUG_RODATA again,
+s2ram does work.
 
-> +
->  config MMAP_ALLOW_UNINITIALIZED
->         bool "Allow mmapped anonymous memory to be uninitialized"
->         depends on EXPERT && !MMU
-> --
-> 2.5.0
->
+The real problem is something else, though. I can trigger the same panic
+without the offending commit by enabling:
 
-Regards,
-Mathias
+    CONFIG_ARM_KERNMEM_PERMS=y
+    CONFIG_DEBUG_RODATA=y
 
-[1] https://github.com/minipli/linux-grsec/blob/v4.3.3-pax/Documentation/kernel-parameters.txt#L2689-L2696
+I never enabled those options before, so I have no idea if this is a recent
+regression. I've just tried a few older versions: on v4.4-rc1 I see the same
+panic, on v4.3 (and v4.3.3) I don't see the panic, and the "CPU1: shutdown"
+line, but the system doesn't wake up.
+
+Thanks for your suggestions!
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
