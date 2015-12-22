@@ -1,87 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0C682F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:18:37 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id q63so4616586pfb.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:18:37 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id fi15si6211842pac.191.2015.12.22.11.18.36
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 81D8982F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:19:35 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id cy9so39070776pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:19:35 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id sm5si4258852pab.0.2015.12.22.11.19.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 11:18:36 -0800 (PST)
-Received: by mail-pa0-x234.google.com with SMTP id jx14so93681311pad.2
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:18:36 -0800 (PST)
-Subject: Re: [kernel-hardening] [RFC][PATCH 6/7] mm: Add Kconfig option for
- slab sanitization
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
- <1450755641-7856-7-git-send-email-laura@labbott.name>
- <CA+rthh-X2jvGpptE72CCbOx2MdkukJSCu621+9ymMJ_pCQ9t+w@mail.gmail.com>
- <56798D8F.9090402@labbott.name>
- <CA+rthh_agt=YmHGUvBo_+-psOg06DYySqyvkvNNuPmrCKiBC2w@mail.gmail.com>
-From: Laura Abbott <laura@labbott.name>
-Message-ID: <5679A20A.6060407@labbott.name>
-Date: Tue, 22 Dec 2015 11:18:34 -0800
-MIME-Version: 1.0
-In-Reply-To: <CA+rthh_agt=YmHGUvBo_+-psOg06DYySqyvkvNNuPmrCKiBC2w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Tue, 22 Dec 2015 11:19:34 -0800 (PST)
+Date: Tue, 22 Dec 2015 11:19:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: linux-next: Tree for Dec 22 (mm/memcontrol)
+Message-Id: <20151222111933.088b73264cb997c8f96ca362@linux-foundation.org>
+In-Reply-To: <56799349.9090300@infradead.org>
+References: <20151222162955.3f366781@canb.auug.org.au>
+	<56799349.9090300@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathias Krause <minipli@googlemail.com>
-Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kees Cook <keescook@chromium.org>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-On 12/22/15 10:37 AM, Mathias Krause wrote:
-> On 22 December 2015 at 18:51, Laura Abbott <laura@labbott.name> wrote:
->>> [snip]
->>>
->>> Related to this, have you checked that the sanitization doesn't
->>> interfere with the various slab handling schemes, namely RCU related
->>> specialties? Not all caches are marked SLAB_DESTROY_BY_RCU, some use
->>> call_rcu() instead, implicitly relying on the semantics RCU'ed slabs
->>> permit, namely allowing a "use-after-free" access to be legitimate
->>> within the RCU grace period. Scrubbing the object during that period
->>> would break that assumption.
->>
->>
->> I haven't looked into that. I was working off the assumption that
->> if the regular SLAB debug poisoning worked so would the sanitization.
->> The regular debug poisoning only checks for SLAB_DESTROY_BY_RCU so
->> how does that work then?
->
-> Maybe it doesn't? ;)
->
-> How many systems, do you think, are running with enabled DEBUG_SLAB /
-> SLUB_DEBUG in production? Not so many, I'd guess. And the ones running
-> into issues probably just disable DEBUG_SLAB / SLUB_DEBUG.
->
-> Btw, SLUB not only looks for SLAB_DESTROY_BY_RCU but also excludes
-> "call_rcu slabs" via other mechanisms. As SLUB is the default SLAB
-> allocator for quite some time now, even with enabled SLUB_DEBUG one
-> wouldn't be able to trigger RCU related sanitization issues.
->
+On Tue, 22 Dec 2015 10:15:37 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-I've seen SLUB_DEBUG used in stress testing situations but you're
-right about production and giving up if there are issues. I'll take
-a closer look at this.
-  
->>> Speaking of RCU, do you have a plan to support RCU'ed slabs as well?
->>>
->>
->> My only plan was to get the base support in. I didn't have a plan to
->> support RCU slabs but that's certainly something to be done in the
->> future.
->
-> "Base support", in my opinion, includes covering the buddy allocator
-> as well. Otherwise this feature is incomplete.
+> On 12/21/15 21:29, Stephen Rothwell wrote:
+> > Hi all,
+> > 
+> > Changes since 20151221:
+> > 
+> 
+> on i386 or x86_64:
+> 
+> when CONFIG_SLOB=y:
+> 
+> ../mm/memcontrol.c: In function 'memcg_update_kmem_limit':
+> ../mm/memcontrol.c:2974:3: error: implicit declaration of function 'memcg_online_kmem' [-Werror=implicit-function-declaration]
+>    ret = memcg_online_kmem(memcg);
+>    ^
+> ../mm/memcontrol.c: In function 'mem_cgroup_css_alloc':
+> ../mm/memcontrol.c:4229:2: error: too many arguments to function 'memcg_propagate_kmem'
+>   error = memcg_propagate_kmem(parent, memcg);
+>   ^
+> ../mm/memcontrol.c:2949:12: note: declared here
+>  static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+>             ^
 
-Point taken. I'll look at the buddy allocator post-holidays.
-
-It was also pointed out I should be giving you full credit for this
-feature originally. I apologize for not doing that. Thanks for
-doing the original work and taking the time to review this series.
-
-Thanks,
-Laura
+I can't reproduce this.  config, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
