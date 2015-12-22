@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 78A946B0007
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 22:41:01 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id cy9so27687526pac.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 19:41:01 -0800 (PST)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id di6si844486pad.172.2015.12.21.19.40.59
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E9C26B0008
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2015 22:41:03 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id o64so98881309pfb.3
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 19:41:03 -0800 (PST)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id ra6si8157027pab.90.2015.12.21.19.41.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Dec 2015 19:40:59 -0800 (PST)
-Received: by mail-pf0-x232.google.com with SMTP id n128so82303419pfn.0
-        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 19:40:59 -0800 (PST)
+        Mon, 21 Dec 2015 19:41:00 -0800 (PST)
+Received: by mail-pa0-x230.google.com with SMTP id jx14so81881530pad.2
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2015 19:41:00 -0800 (PST)
 From: Laura Abbott <laura@labbott.name>
-Subject: [RFC][PATCH 2/7] slub: Add support for sanitization
-Date: Mon, 21 Dec 2015 19:40:36 -0800
-Message-Id: <1450755641-7856-3-git-send-email-laura@labbott.name>
+Subject: [RFC][PATCH 3/7] slab: Add support for sanitization
+Date: Mon, 21 Dec 2015 19:40:37 -0800
+Message-Id: <1450755641-7856-4-git-send-email-laura@labbott.name>
 In-Reply-To: <1450755641-7856-1-git-send-email-laura@labbott.name>
 References: <1450755641-7856-1-git-send-email-laura@labbott.name>
 Sender: owner-linux-mm@kvack.org
@@ -23,177 +23,92 @@ To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 Cc: Laura Abbott <laura@labbott.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com
 
 
-Clearing of objects on free only happens when SLUB_DEBUG and poisoning
-is enabled for caches. This is a potential source of security leaks;
-sensitive information may remain around well after its normal life
-time. Add support for sanitizing objects independent of debug features.
-Sanitization can be configured on only the slow path or all paths.
+Clearing of objects on free only happens on debug paths. This is a
+security risk since sensative data may exist long past it's life
+span. Add unconditional clearing of objects on free.
 
 All credit for the original work should be given to Brad Spengler and
 the PaX Team.
 
 Signed-off-by: Laura Abbott <laura@labbott.name>
 ---
- mm/slub.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 89 insertions(+), 1 deletion(-)
+ mm/slab.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 4699751..a02e1e7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -220,6 +220,15 @@ static inline void stat(const struct kmem_cache *s, enum stat_item si)
+diff --git a/mm/slab.c b/mm/slab.c
+index 4765c97..0ca92d8 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -319,6 +319,8 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+ #define STATS_INC_ALLOCMISS(x)	atomic_inc(&(x)->allocmiss)
+ #define STATS_INC_FREEHIT(x)	atomic_inc(&(x)->freehit)
+ #define STATS_INC_FREEMISS(x)	atomic_inc(&(x)->freemiss)
++#define STATS_INC_SANITIZED(x)	atomic_inc(&(x)->sanitized)
++#define STATS_INC_NOT_SANITIZED(x) atomic_inc(&(x)->not_sanitized)
+ #else
+ #define	STATS_INC_ACTIVE(x)	do { } while (0)
+ #define	STATS_DEC_ACTIVE(x)	do { } while (0)
+@@ -335,6 +337,8 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+ #define STATS_INC_ALLOCMISS(x)	do { } while (0)
+ #define STATS_INC_FREEHIT(x)	do { } while (0)
+ #define STATS_INC_FREEMISS(x)	do { } while (0)
++#define STATS_INC_SANITIZED(x)  do { } while (0)
++#define STATS_INC_NOT_SANITIZED(x) do { } while (0)
  #endif
+ 
+ #if DEBUG
+@@ -3359,6 +3363,27 @@ free_done:
+ 	memmove(ac->entry, &(ac->entry[batchcount]), sizeof(void *)*ac->avail);
  }
  
-+static inline bool should_sanitize_slab(const struct kmem_cache *s)
-+{
 +#ifdef CONFIG_SLAB_MEMORY_SANITIZE
-+		return !(s->flags & SLAB_NO_SANITIZE);
-+#else
-+		return false;
-+#endif
-+}
-+
- /********************************************************************
-  * 			Core slab cache functions
-  *******************************************************************/
-@@ -286,6 +295,9 @@ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
- 
- static inline size_t slab_ksize(const struct kmem_cache *s)
- {
-+	if (should_sanitize_slab(s))
-+		return s->object_size;
-+
- #ifdef CONFIG_SLUB_DEBUG
- 	/*
- 	 * Debugging requires use of the padding between object
-@@ -1263,6 +1275,66 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
- 
- #endif /* CONFIG_SLUB_DEBUG */
- 
-+#ifdef CONFIG_SLAB_MEMORY_SANITIZE
-+static void __sanitize_object(struct kmem_cache *s, void *p)
++static void slab_sanitize(struct kmem_cache *cachep, void *objp)
 +{
-+	memset(p, SLAB_MEMORY_SANITIZE_VALUE, s->object_size);
-+	if (s->ctor)
-+		s->ctor(p);
-+}
++	if (cachep->flags & (SLAB_POISON | SLAB_NO_SANITIZE)) {
++		STATS_INC_NOT_SANITIZED(cachep);
++	} else {
++		memset(objp, SLAB_MEMORY_SANITIZE_VALUE, cachep->object_size);
 +
-+static void sanitize_objects(struct kmem_cache *s, void *head, void *tail,
-+				int cnt)
-+{
-+	int i = 1;
-+	void *p = head;
++		if (cachep->ctor)
++			cachep->ctor(objp);
 +
-+	do {
-+		if (i > cnt)
-+			BUG();
-+
-+		__sanitize_object(s, p);
-+		i++;
-+	} while (p != tail && (p = get_freepointer(s, p)));
-+}
-+
-+
-+static void sanitize_slow_path(struct kmem_cache *s, void *head, void *tail,
-+				int cnt)
-+{
-+	if (sanitize_slab != SLAB_SANITIZE_PARTIAL_SLOWPATH)
-+		return;
-+
-+	if (!should_sanitize_slab(s))
-+		return;
-+
-+	sanitize_objects(s, head, tail, cnt);
-+}
-+
-+static void sanitize_object(struct kmem_cache *s, void *p)
-+{
-+	if (sanitize_slab != SLAB_SANITIZE_FULL &&
-+	    sanitize_slab != SLAB_SANITIZE_PARTIAL)
-+		return;
-+
-+	if (!should_sanitize_slab(s))
-+		return;
-+
-+	__sanitize_object(s, p);
++		STATS_INC_SANITIZED(cachep);
++	}
 +}
 +#else
-+static void sanitize_slow_path(struct kmem_cache *s, void *head, void *tail,
-+				int cnt)
-+{
-+	return;
-+}
-+
-+static void sanitize_object(struct kmem_cache *s, void *p)
++static void slab_sanitize(struct kmem_cache *cachep, void *objp)
 +{
 +	return;
 +}
 +#endif
 +
  /*
-  * Hooks for other subsystems that check memory allocations. In a typical
-  * production configuration these hooks all should produce no code at all.
-@@ -1311,6 +1383,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+  * Release an obj back to its cache. If the obj has a constructed state, it must
+  * be in this state _before_ it is released.  Called with disabled ints.
+@@ -3369,6 +3394,8 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+ 	struct array_cache *ac = cpu_cache_get(cachep);
  
- static inline void slab_free_hook(struct kmem_cache *s, void *x)
- {
-+	sanitize_object(s, x);
- 	kmemleak_free_recursive(x, s->flags);
- 
- 	/*
-@@ -1345,7 +1418,8 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
- 	defined(CONFIG_LOCKDEP)	||		\
- 	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
- 	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
--	defined(CONFIG_KASAN)
-+	defined(CONFIG_KASAN) || \
-+	defined(CONFIG_SLAB_MEMORY_SANITIZE)
- 
- 	void *object = head;
- 	void *tail_obj = tail ? : head;
-@@ -2645,6 +2719,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 
- 	stat(s, FREE_SLOWPATH);
- 
-+	sanitize_slow_path(s, head, tail, cnt);
+ 	check_irq_off();
 +
- 	if (kmem_cache_debug(s) &&
- 	    !(n = free_debug_processing(s, page, head, tail, cnt,
- 					addr, &flags)))
-@@ -3262,6 +3338,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	s->inuse = size;
++	slab_sanitize(cachep, objp);
+ 	kmemleak_free_recursive(objp, cachep->flags);
+ 	objp = cache_free_debugcheck(cachep, objp, caller);
  
- 	if (((flags & (SLAB_DESTROY_BY_RCU | SLAB_POISON)) ||
-+		should_sanitize_slab(s) ||
- 		s->ctor)) {
- 		/*
- 		 * Relocate free pointer after the object if it is not
-@@ -4787,6 +4864,14 @@ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
- SLAB_ATTR_RO(cache_dma);
- #endif
- 
+@@ -4014,6 +4041,14 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
+ 		seq_printf(m, " : cpustat %6lu %6lu %6lu %6lu",
+ 			   allochit, allocmiss, freehit, freemiss);
+ 	}
 +#ifdef CONFIG_SLAB_MEMORY_SANITIZE
-+static ssize_t sanitize_show(struct kmem_cache *s, char *buf)
-+{
-+	return sprintf(buf, "%d\n", should_sanitize_slab(s));
-+}
-+SLAB_ATTR_RO(sanitize);
-+#endif
++	{
++		unsigned long sanitized = atomic_read(&cachep->sanitized);
++		unsigned long not_sanitized = atomic_read(&cachep->not_sanitized);
 +
- static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_DESTROY_BY_RCU));
-@@ -5129,6 +5214,9 @@ static struct attribute *slab_attrs[] = {
- #ifdef CONFIG_ZONE_DMA
- 	&cache_dma_attr.attr,
- #endif
-+#ifdef CONFIG_SLAB_MEMORY_SANITIZE
-+	&sanitize_attr.attr,
++		seq_printf(m, " : sanitized %6lu %6lu", sanitized, not_sanitized);
++	}
 +#endif
- #ifdef CONFIG_NUMA
- 	&remote_node_defrag_ratio_attr.attr,
  #endif
+ }
+ 
 -- 
 2.5.0
 
