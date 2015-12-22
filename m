@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3AB82F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:26:06 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id cy9so40967412pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:26:06 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id e21si14429768pfb.51.2015.12.22.14.26.06
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE5782F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:44:42 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id q3so102769860pav.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:44:42 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 11si27428538pfr.175.2015.12.22.14.44.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 14:26:06 -0800 (PST)
-Received: by mail-pf0-x22b.google.com with SMTP id q63so6570227pfb.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:26:06 -0800 (PST)
-Date: Tue, 22 Dec 2015 14:26:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for
- the newly added memory
-In-Reply-To: <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1512221422480.5172@chino.kir.corp.google.com>
-References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com> <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 22 Dec 2015 14:44:41 -0800 (PST)
+Date: Tue, 22 Dec 2015 14:44:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 1/7] pmem: add wb_cache_pmem() to the PMEM API
+Message-Id: <20151222144440.1ad9e076464f4751f3de6a1f@linux-foundation.org>
+In-Reply-To: <1450502540-8744-2-git-send-email-ross.zwisler@linux.intel.com>
+References: <1450502540-8744-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1450502540-8744-2-git-send-email-ross.zwisler@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Tue, 22 Dec 2015, Andrew Morton wrote:
+On Fri, 18 Dec 2015 22:22:14 -0700 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
 
-> On Tue, 22 Dec 2015 17:32:30 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+> The function __arch_wb_cache_pmem() was already an internal implementation
+> detail of the x86 PMEM API, but this functionality needs to be exported as
+> part of the general PMEM API to handle the fsync/msync case for DAX mmaps.
 > 
-> > Currently, all newly added memory blocks remain in 'offline' state unless
-> > someone onlines them, some linux distributions carry special udev rules
-> > like:
-> > 
-> > SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
-> > 
-> > to make this happen automatically. This is not a great solution for virtual
-> > machines where memory hotplug is being used to address high memory pressure
-> > situations as such onlining is slow and a userspace process doing this
-> > (udev) has a chance of being killed by the OOM killer as it will probably
-> > require to allocate some memory.
-> > 
-> > Introduce default policy for the newly added memory blocks in
-> > /sys/devices/system/memory/hotplug_autoonline file with two possible
-> > values: "offline" which preserves the current behavior and "online" which
-> > causes all newly added memory blocks to go online as soon as they're added.
-> > The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
-> > is selected.
+> One thing worth noting is that we really do want this to be part of the
+> PMEM API as opposed to a stand-alone function like clflush_cache_range()
+> because of ordering restrictions.  By having wb_cache_pmem() as part of the
+> PMEM API we can leave it unordered, call it multiple times to write back
+> large amounts of memory, and then order the multiple calls with a single
+> wmb_pmem().
 > 
-> I think the default should be "offline" so vendors can ship kernels
-> which have CONFIG_MEMORY_HOTPLUG_AUTOONLINE=y while being
-> back-compatible with previous kernels.
-> 
+> @@ -138,7 +139,7 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
+>  	else
+>  		memset(vaddr, 0, size);
+>  
+> -	__arch_wb_cache_pmem(vaddr, size);
+> +	arch_wb_cache_pmem(addr, size);
+>  }
+>  
 
-But isn't the premise of the changelog that this is currently being 
-handled by the distribution?  Perhaps I don't understand why this patch 
-can't end up just introducing a sysfs tunable that is always present and 
-can be set by initscripts of that distribution.
+reject.  I made this
 
-I'd also suggest that hotplug_autoonline be renamed to auto_online_block.
+	arch_wb_cache_pmem(vaddr, size);
+
+due to Dan's
+http://www.ozlabs.org/~akpm/mmots/broken-out/pmem-dax-clean-up-clear_pmem.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
