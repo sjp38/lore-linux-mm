@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E1682F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:13:19 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id u7so64122706pfb.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:13:19 -0800 (PST)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id f24si20421495pff.196.2015.12.22.11.13.18
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0C682F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:18:37 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id q63so4616586pfb.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:18:37 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id fi15si6211842pac.191.2015.12.22.11.18.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 11:13:18 -0800 (PST)
-Received: by mail-pf0-x230.google.com with SMTP id u7so64122539pfb.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:13:18 -0800 (PST)
+        Tue, 22 Dec 2015 11:18:36 -0800 (PST)
+Received: by mail-pa0-x234.google.com with SMTP id jx14so93681311pad.2
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 11:18:36 -0800 (PST)
 Subject: Re: [kernel-hardening] [RFC][PATCH 6/7] mm: Add Kconfig option for
  slab sanitization
 References: <1450755641-7856-1-git-send-email-laura@labbott.name>
  <1450755641-7856-7-git-send-email-laura@labbott.name>
- <567964F3.2020402@intel.com>
- <alpine.DEB.2.20.1512221023550.2748@east.gentwo.org>
- <567986E7.50107@intel.com>
- <alpine.DEB.2.20.1512221124230.14335@east.gentwo.org>
- <56798851.60906@intel.com>
- <alpine.DEB.2.20.1512221207230.14406@east.gentwo.org>
- <5679943C.1050604@intel.com>
+ <CA+rthh-X2jvGpptE72CCbOx2MdkukJSCu621+9ymMJ_pCQ9t+w@mail.gmail.com>
+ <56798D8F.9090402@labbott.name>
+ <CA+rthh_agt=YmHGUvBo_+-psOg06DYySqyvkvNNuPmrCKiBC2w@mail.gmail.com>
 From: Laura Abbott <laura@labbott.name>
-Message-ID: <5679A0CB.3060707@labbott.name>
-Date: Tue, 22 Dec 2015 11:13:15 -0800
+Message-ID: <5679A20A.6060407@labbott.name>
+Date: Tue, 22 Dec 2015 11:18:34 -0800
 MIME-Version: 1.0
-In-Reply-To: <5679943C.1050604@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <CA+rthh_agt=YmHGUvBo_+-psOg06DYySqyvkvNNuPmrCKiBC2w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Christoph Lameter <cl@linux.com>
-Cc: kernel-hardening@lists.openwall.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Mathias Krause <minipli@googlemail.com>
+Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kees Cook <keescook@chromium.org>
 
-On 12/22/15 10:19 AM, Dave Hansen wrote:
-> On 12/22/2015 10:08 AM, Christoph Lameter wrote:
->> On Tue, 22 Dec 2015, Dave Hansen wrote:
->>>> Why would you use zeros? The point is just to clear the information right?
->>>> The regular poisoning does that.
+On 12/22/15 10:37 AM, Mathias Krause wrote:
+> On 22 December 2015 at 18:51, Laura Abbott <laura@labbott.name> wrote:
+>>> [snip]
 >>>
->>> It then allows you to avoid the zeroing at allocation time.
+>>> Related to this, have you checked that the sanitization doesn't
+>>> interfere with the various slab handling schemes, namely RCU related
+>>> specialties? Not all caches are marked SLAB_DESTROY_BY_RCU, some use
+>>> call_rcu() instead, implicitly relying on the semantics RCU'ed slabs
+>>> permit, namely allowing a "use-after-free" access to be legitimate
+>>> within the RCU grace period. Scrubbing the object during that period
+>>> would break that assumption.
 >>
->> Well much of the code is expecting a zeroed object from the allocator and
->> its zeroed at that time. Zeroing makes the object cache hot which is an
->> important performance aspect.
+>>
+>> I haven't looked into that. I was working off the assumption that
+>> if the regular SLAB debug poisoning worked so would the sanitization.
+>> The regular debug poisoning only checks for SLAB_DESTROY_BY_RCU so
+>> how does that work then?
 >
-> Yes, modifying this behavior has a performance impact.  It absolutely
-> needs to be evaluated, and I wouldn't want to speculate too much on how
-> good or bad any of the choices are.
+> Maybe it doesn't? ;)
 >
-> Just to reiterate, I think we have 3 real choices here:
+> How many systems, do you think, are running with enabled DEBUG_SLAB /
+> SLUB_DEBUG in production? Not so many, I'd guess. And the ones running
+> into issues probably just disable DEBUG_SLAB / SLUB_DEBUG.
 >
-> 1. Zero at alloc, only when __GFP_ZERO
->     (behavior today)
-> 2. Poison at free, also Zero at alloc (when __GFP_ZERO)
->     (this patch's proposed behavior, also what current poisoning does,
->      doubles writes)
-> 3. Zero at free, *don't* Zero at alloc (when __GFP_ZERO)
->     (what I'm suggesting, possibly less perf impact vs. #2)
->
+> Btw, SLUB not only looks for SLAB_DESTROY_BY_RCU but also excludes
+> "call_rcu slabs" via other mechanisms. As SLUB is the default SLAB
+> allocator for quite some time now, even with enabled SLUB_DEBUG one
+> wouldn't be able to trigger RCU related sanitization issues.
 >
 
-poisoning with non-zero memory makes it easier to determine that the error
-came from accessing the sanitized memory vs. some other case. I don't think
-the feature would be as strong if the memory was only zeroed vs. some other
-data value.
+I've seen SLUB_DEBUG used in stress testing situations but you're
+right about production and giving up if there are issues. I'll take
+a closer look at this.
+  
+>>> Speaking of RCU, do you have a plan to support RCU'ed slabs as well?
+>>>
+>>
+>> My only plan was to get the base support in. I didn't have a plan to
+>> support RCU slabs but that's certainly something to be done in the
+>> future.
+>
+> "Base support", in my opinion, includes covering the buddy allocator
+> as well. Otherwise this feature is incomplete.
+
+Point taken. I'll look at the buddy allocator post-holidays.
+
+It was also pointed out I should be giving you full credit for this
+feature originally. I apologize for not doing that. Thanks for
+doing the original work and taking the time to review this series.
 
 Thanks,
 Laura
