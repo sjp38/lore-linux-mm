@@ -1,81 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 916756B0268
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 16:55:23 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id q3so102276311pav.3
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:55:23 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g65si14391556pfd.133.2015.12.22.13.55.22
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id ACDBD82F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 16:56:57 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id q63so6267683pfb.0
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:56:57 -0800 (PST)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id ti16si6944531pac.192.2015.12.22.13.56.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 13:55:22 -0800 (PST)
-Date: Tue, 22 Dec 2015 13:55:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for
- the newly added memory
-Message-Id: <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
-In-Reply-To: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
-References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 22 Dec 2015 13:56:56 -0800 (PST)
+Received: by mail-pf0-x229.google.com with SMTP id o64so112168204pfb.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 13:56:56 -0800 (PST)
+Date: Tue, 22 Dec 2015 13:56:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memory-hotplug: don't BUG() in
+ register_memory_resource()
+In-Reply-To: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+Message-ID: <alpine.DEB.2.10.1512221353001.5172@chino.kir.corp.google.com>
+References: <1450450224-18515-1-git-send-email-vkuznets@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Sheng Yong <shengyong1@huawei.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>
 
-On Tue, 22 Dec 2015 17:32:30 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+On Fri, 18 Dec 2015, Vitaly Kuznetsov wrote:
 
-> Currently, all newly added memory blocks remain in 'offline' state unless
-> someone onlines them, some linux distributions carry special udev rules
-> like:
-> 
-> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
-> 
-> to make this happen automatically. This is not a great solution for virtual
-> machines where memory hotplug is being used to address high memory pressure
-> situations as such onlining is slow and a userspace process doing this
-> (udev) has a chance of being killed by the OOM killer as it will probably
-> require to allocate some memory.
-> 
-> Introduce default policy for the newly added memory blocks in
-> /sys/devices/system/memory/hotplug_autoonline file with two possible
-> values: "offline" which preserves the current behavior and "online" which
-> causes all newly added memory blocks to go online as soon as they're added.
-> The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
-> is selected.
-
-I think the default should be "offline" so vendors can ship kernels
-which have CONFIG_MEMORY_HOTPLUG_AUTOONLINE=y while being
-back-compatible with previous kernels.
-
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -2537,6 +2537,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  			shutdown the other cpus.  Instead use the REBOOT_VECTOR
->  			irq.
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 67d488a..9392f01 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -127,11 +127,13 @@ void mem_hotplug_done(void)
+>  }
 >  
-> +	nomemhp_autoonline	Don't automatically online newly added memory.
-> +
+>  /* add this memory to iomem resource */
+> -static struct resource *register_memory_resource(u64 start, u64 size)
+> +static int register_memory_resource(u64 start, u64 size,
+> +				    struct resource **resource)
+>  {
+>  	struct resource *res;
+>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> -	BUG_ON(!res);
+> +	if (!res)
+> +		return -ENOMEM;
+>  
+>  	res->name = "System RAM";
+>  	res->start = start;
+> @@ -140,9 +142,10 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+>  	if (request_resource(&iomem_resource, res) < 0) {
+>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>  		kfree(res);
+> -		res = NULL;
+> +		return -EEXIST;
+>  	}
+> -	return res;
+> +	*resource = res;
+> +	return 0;
+>  }
+>  
+>  static void release_memory_resource(struct resource *res)
+> @@ -1311,9 +1314,9 @@ int __ref add_memory(int nid, u64 start, u64 size)
+>  	struct resource *res;
+>  	int ret;
+>  
+> -	res = register_memory_resource(start, size);
+> -	if (!res)
+> -		return -EEXIST;
+> +	ret = register_memory_resource(start, size, &res);
+> +	if (ret)
+> +		return ret;
+>  
+>  	ret = add_memory_resource(nid, res);
+>  	if (ret < 0)
 
-This wasn't mentioned in the changelog.  Why do we need a boot
-parameter as well as the sysfs knob?
-
-> +config MEMORY_HOTPLUG_AUTOONLINE
-> +	bool "Automatically online hot-added memory"
-> +	depends on MEMORY_HOTPLUG_SPARSE
-> +	help
-> +	  When memory is hot-added, it is not at ready-to-use state, a special
-
-"When memory is hot-added it is not in a ready-to-use state.  A special"
-
-> +	  userspace action is required to online the newly added blocks. With
-> +	  this option enabled, the kernel will try to online all newly added
-> +	  memory automatically.
-> +
->
-> ...
->
+Wouldn't it be simpler and cleaner to keep the return type of 
+register_memory_resource() the same and return ERR_PTR(-ENOMEM) or 
+ERR_PTR(-EEXIST) on error?  add_memory() can check IS_ERR(res) and return 
+PTR_ERR(res).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
