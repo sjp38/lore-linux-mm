@@ -1,89 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FDE682F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 15:04:54 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id jw2so65284736igc.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 12:04:54 -0800 (PST)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id in8si8519613igb.32.2015.12.22.12.04.53
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1648982F64
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 15:05:00 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id o64so111009289pfb.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 12:05:00 -0800 (PST)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id 21si13534010pfj.91.2015.12.22.12.04.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 12:04:53 -0800 (PST)
-Message-ID: <1450814672.10450.83.camel@hpe.com>
-Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Tue, 22 Dec 2015 13:04:32 -0700
-In-Reply-To: <20151222113422.GE3728@pd.tnic>
-References: <1450136246-17053-1-git-send-email-toshi.kani@hpe.com>
-	 <20151216122642.GE29775@pd.tnic> <1450280642.29051.76.camel@hpe.com>
-	 <20151216154916.GF29775@pd.tnic> <1450283759.20148.11.camel@hpe.com>
-	 <20151216174523.GH29775@pd.tnic>
-	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
-	 <20151216181712.GJ29775@pd.tnic> <1450302758.20148.75.camel@hpe.com>
-	 <20151222113422.GE3728@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Tue, 22 Dec 2015 12:04:59 -0800 (PST)
+Received: by mail-pa0-x229.google.com with SMTP id uo6so16900761pac.1
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 12:04:59 -0800 (PST)
+Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
+References: <1450755641-7856-1-git-send-email-laura@labbott.name>
+ <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
+From: Laura Abbott <laura@labbott.name>
+Message-ID: <5679ACE9.70701@labbott.name>
+Date: Tue, 22 Dec 2015 12:04:57 -0800
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com
 
-On Tue, 2015-12-22 at 12:34 +0100, Borislav Petkov wrote:
-> On Wed, Dec 16, 2015 at 02:52:38PM -0700, Toshi Kani wrote:
-> > This scheme may have a problem, though.  For instance, when someone 
-> > writes a loadable module that searches for "foo", but the "foo" entry 
-> > may be initialized in a distro kernel/driver that cannot be modified. 
-> >  Since this search is only necessary to obtain a range initialized by 
-> > other module, this scenario is likely to happen.  We no longer have 
-> > ability to search for a new entry unless we modify the code that
-> > initializes the entry first.
-> 
-> Since when do we pay attention to out-of-tree modules which cannot be
-> changed?
+On 12/22/15 8:08 AM, Christoph Lameter wrote:
+> On Mon, 21 Dec 2015, Laura Abbott wrote:
+>
+>> The biggest change from PAX_MEMORY_SANTIIZE is that this feature sanitizes
+>> the SL[AOU]B allocators only. My plan is to work on the buddy allocator
+>> santization after this series gets picked up. A side effect of this is
+>> that allocations which go directly to the buddy allocator (i.e. large
+>> allocations) aren't sanitized. I'd like feedback about whether it's worth
+>> it to add sanitization on that path directly or just use the page
+>> allocator sanitization when that comes in.
+>
+> I am not sure what the point of this patchset is. We have a similar effect
+> to sanitization already in the allocators through two mechanisms:
+>
+> 1. Slab poisoning
+> 2. Allocation with GFP_ZERO
+>
+> I do not think we need a third one. You could accomplish your goals much
+> easier without this code churn by either
+>
+> 1. Improve the existing poisoning mechanism. Ensure that there are no
+>     gaps. Security sensitive kernel slab caches can then be created with
+>     the  POISONING flag set. Maybe add a Kconfig flag that enables
+>     POISONING for each cache? What was the issue when you tried using
+>     posining for sanitization?
 
-The above example referred the case with distros, not with the upstream. 
- That is, one writes a new loadable module and makes it available in the
-upstream.  Then s/he makes it work on a distro used by the customers, but
-may or may not be able to change the distro kernel/drivers used by the
-customers.
+The existing poisoning does work for sanitization but it's still a debug
+feature. It seemed more appropriate to keep debug features and non-debug
+features separate hence the separate option and configuration.
 
-> Regardless, we don't necessarily need to change the callers - we could
-> add new ones of the form walk_iomem_resource_by_type() or whatever its
-> name is going to be which uses the ->type attribute of the resource and
-> phase out the old ones slowly. New code will call the better interfaces,
-> we should probably even add a checkpatch rule to check for that.
+>
+> 2. Add a mechanism that ensures that GFP_ZERO is set for each allocation.
+>     That way every object you retrieve is zeroed and thus you have implied
+>     sanitization. This also can be done in a rather simple way by changing
+>     the  GFP_KERNEL etc constants to include __GFP_ZERO depending on a
+>     Kconfig option. Or add some runtime setting of the gfp flags somewhere.
+>
 
-I agree that we can add new interfaces with the type check.  This 'type'
-may need some clarification since it is an assigned type, which is
-different from I/O resource type.  That is, "System RAM" is an I/O resource
-type (i.e. IORESOURCE_SYSTEM_RAM), but "Crash kernel" is an assigned type
-to a particular range of System RAM.  A range may be associated with
-multiple names, so as multiple assigned types.  For lack of a better idea,
-I may call it 'assign_type'.  I am open for a better name.
+That's good for allocation but sanitization is done on free. The goal
+is to reduce any leftover data that might be around while on an unallocated
+slab.
+  
+> Generally I would favor option #2 if you must have sanitization because
+> that is the only option to really give you a deterministic content of
+> object on each allocation. Any half way measures would not work I think.
+>
+> Note also that most allocations are already either allocations that zero
+> the content or they are immediately initializing the content of the
+> allocated object. After all the object is not really usable if the
+> content is random. You may be able to avoid this whole endeavor by
+> auditing the kernel for locations where the object is not initialized
+> after allocation.
+>
+> Once one recognizes the above it seems that sanitization is pretty
+> useless. Its just another pass of writing zeroes before the allocator or
+> uer of the allocated object sets up deterministic content of the object or
+> -- in most cases -- zeroes it again.
+>
 
-> > Even if we avoid strcmp() with @name in the kernel, user applications
-> > will continue to use @name since that is the only type available in
-> > /proc/iomem.  For instance, kexec has its own search function with a
-> > string name.
-> 
-> See above.
-> 
-> > When a new commonly-used search name comes up, we can define it as a 
-> > new extended I/O resource type similar to IORESOURCE_SYSTEM_RAM.  For 
-> > the current remaining cases, i.e. crash, kexec, and einj, they have no
-> > impact to performance.  Leaving these special cases aside will keep the
-> > ability to search for any entry without changing the kernel, and save 
-> > some memory space from adding the new 'type'.
-> 
-> Again, we can leave the old interfaces at peace but going forward, we
-> should make the searching for resources saner and stop using silly
-> strings.
-
-OK, I will try to convert the existing callers with the new interfaces.
+The sanitization is going towards kernel hardening which is designed to
+help keep the kernel secure even when programmers screwed up. Auditing
+still won't catch everything. sanitization is going towards the idea
+of kernel self-protection which is what Grsecurity is known for
+and Kees Cook is trying to promote for mainline
+(http://lwn.net/Articles/662219/)
 
 Thanks,
--Toshi
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
