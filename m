@@ -1,157 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B8CD882F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 17:46:27 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id u7so66368031pfb.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 14:46:27 -0800 (PST)
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B39482F7D
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 18:11:40 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id u7so66630943pfb.1
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 15:11:40 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y87si2360154pfi.250.2015.12.22.14.46.26
+        by mx.google.com with ESMTPS id f7si5359517pat.37.2015.12.22.15.11.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 14:46:27 -0800 (PST)
-Date: Tue, 22 Dec 2015 14:46:25 -0800
+        Tue, 22 Dec 2015 15:11:39 -0800 (PST)
+Date: Tue, 22 Dec 2015 15:11:38 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 4/7] dax: add support for fsync/sync
-Message-Id: <20151222144625.f400e12e362cf9b00f6ffb36@linux-foundation.org>
-In-Reply-To: <1450502540-8744-5-git-send-email-ross.zwisler@linux.intel.com>
-References: <1450502540-8744-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1450502540-8744-5-git-send-email-ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 2/4] mm: memcontrol: reign in the CONFIG space madness
+Message-Id: <20151222151138.0c35816e53b0f0ad940568bb@linux-foundation.org>
+In-Reply-To: <20151212172057.GA7997@cmpxchg.org>
+References: <1449863653-6546-1-git-send-email-hannes@cmpxchg.org>
+	<1449863653-6546-2-git-send-email-hannes@cmpxchg.org>
+	<20151212163332.GC28521@esperanza>
+	<20151212172057.GA7997@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, 18 Dec 2015 22:22:17 -0700 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+On Sat, 12 Dec 2015 12:20:57 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> To properly handle fsync/msync in an efficient way DAX needs to track dirty
-> pages so it is able to flush them durably to media on demand.
+> On Sat, Dec 12, 2015 at 07:33:32PM +0300, Vladimir Davydov wrote:
+> > On Fri, Dec 11, 2015 at 02:54:11PM -0500, Johannes Weiner wrote:
+> > > What CONFIG_INET and CONFIG_LEGACY_KMEM guard inside the memory
+> > > controller code is insignificant, having these conditionals is not
+> > > worth the complication and fragility that comes with them.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> > 
+> > > @@ -4374,17 +4342,11 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+> > >  {
+> > >  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> > >  
+> > > -#ifdef CONFIG_INET
+> > >  	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+> > >  		static_branch_dec(&memcg_sockets_enabled_key);
+> > > -#endif
+> > > -
+> > > -	memcg_free_kmem(memcg);
+> > 
+> > I wonder where the second call to memcg_free_kmem comes from. Luckily,
+> > it couldn't result in a breakage. And now it's removed.
 > 
-> The tracking of dirty pages is done via the radix tree in struct
-> address_space.  This radix tree is already used by the page writeback
-> infrastructure for tracking dirty pages associated with an open file, and
-> it already has support for exceptional (non struct page*) entries.  We
-> build upon these features to add exceptional entries to the radix tree for
-> DAX dirty PMD or PTE pages at fault time.
+> Lol, I had to double check my trees to see what's going on as I don't
+> remember this being part of the patch. But it looks like the double
+> free came from the "net: drop tcp_memcontrol.c" patch and I must have
+> removed it again during conflict resolution when rebasing this patch
+> on top of yours. I must have thought git's auto-merge added it.
+> 
+> However, this causes an underflow of the kmem static branch, so we
+> will have to fix this directly in "net: drop tcp_memcontrol.c".
+> 
+> Andrew, could you please pick this up? However, it's important to also
+> then remove the hunk above from THIS patch, the one that deletes the
+> excessive memcg_free_kmem(). We need exactly one memcg_free_kmem() in
+> mem_cgroup_css_free(). :-)
 
-I'm getting a few rejects here against other pending changes.  Things
-look OK to me but please do runtime test the end result as it resides
-in linux-next.  Which will be next year.
+So you want to retain
+mm-memcontrol-reign-in-the-config-space-madness.patch's removal of the
+ifdef CONFIG_INET?
 
->
-> ...
->
-> +static void dax_writeback_one(struct address_space *mapping, pgoff_t index,
-> +		void *entry)
-> +{
-> +	struct radix_tree_root *page_tree = &mapping->page_tree;
-> +	int type = RADIX_DAX_TYPE(entry);
-> +	struct radix_tree_node *node;
-> +	void **slot;
-> +
-> +	if (type != RADIX_DAX_PTE && type != RADIX_DAX_PMD) {
-> +		WARN_ON_ONCE(1);
-> +		return;
-> +	}
 
---- a/fs/dax.c~dax-add-support-for-fsync-sync-fix
-+++ a/fs/dax.c
-@@ -383,10 +383,8 @@ static void dax_writeback_one(struct add
- 	struct radix_tree_node *node;
- 	void **slot;
+What I have is
+
+Against net-drop-tcp_memcontrolc.patch:
+
+--- a/mm/memcontrol.c~net-drop-tcp_memcontrolc-fix
++++ a/mm/memcontrol.c
+@@ -4421,8 +4421,6 @@ static void mem_cgroup_css_free(struct c
+ 		static_branch_dec(&memcg_sockets_enabled_key);
+ #endif
  
--	if (type != RADIX_DAX_PTE && type != RADIX_DAX_PMD) {
--		WARN_ON_ONCE(1);
-+	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD))
- 		return;
--	}
+-	memcg_free_kmem(memcg);
+-
+ 	__mem_cgroup_free(memcg);
+ }
  
- 	spin_lock_irq(&mapping->tree_lock);
- 	/*
 
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	/*
-> +	 * Regular page slots are stabilized by the page lock even
-> +	 * without the tree itself locked.  These unlocked entries
-> +	 * need verification under the tree lock.
-> +	 */
-> +	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
-> +		goto unlock;
-> +	if (*slot != entry)
-> +		goto unlock;
-> +
-> +	/* another fsync thread may have already written back this entry */
-> +	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-> +		goto unlock;
-> +
-> +	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-> +
-> +	if (type == RADIX_DAX_PMD)
-> +		wb_cache_pmem(RADIX_DAX_ADDR(entry), PMD_SIZE);
-> +	else
-> +		wb_cache_pmem(RADIX_DAX_ADDR(entry), PAGE_SIZE);
-> + unlock:
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +}
-> +
-> +/*
-> + * Flush the mapping to the persistent domain within the byte range of [start,
-> + * end]. This is required by data integrity operations to ensure file data is
-> + * on persistent storage prior to completion of the operation.
-> + */
-> +void dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
-> +		loff_t end)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	pgoff_t indices[PAGEVEC_SIZE];
-> +	pgoff_t start_page, end_page;
-> +	struct pagevec pvec;
-> +	void *entry;
-> +	int i;
-> +
-> +	if (inode->i_blkbits != PAGE_SHIFT) {
-> +		WARN_ON_ONCE(1);
-> +		return;
-> +	}
+and against mm-memcontrol-reign-in-the-config-space-madness.patch:
 
-again
+--- a/mm/memcontrol.c~mm-memcontrol-reign-in-the-config-space-madness-fix
++++ a/mm/memcontrol.c
+@@ -4380,6 +4380,8 @@ static void mem_cgroup_css_free(struct c
+ 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+ 		static_branch_dec(&memcg_sockets_enabled_key);
+ 
++	memcg_free_kmem(memcg);
++
+ 	if (memcg->tcp_mem.active)
+ 		static_branch_dec(&memcg_sockets_enabled_key);
+ 
 
-> +	rcu_read_lock();
-> +	entry = radix_tree_lookup(&mapping->page_tree, start & PMD_MASK);
-> +	rcu_read_unlock();
+Producing
 
-What stabilizes the memory at *entry after rcu_read_unlock()?
+static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
-> +	/* see if the start of our range is covered by a PMD entry */
-> +	if (entry && RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-> +		start &= PMD_MASK;
-> +
-> +	start_page = start >> PAGE_CACHE_SHIFT;
-> +	end_page = end >> PAGE_CACHE_SHIFT;
-> +
-> +	tag_pages_for_writeback(mapping, start_page, end_page);
-> +
-> +	pagevec_init(&pvec, 0);
-> +	while (1) {
-> +		pvec.nr = find_get_entries_tag(mapping, start_page,
-> +				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,
-> +				pvec.pages, indices);
-> +
-> +		if (pvec.nr == 0)
-> +			break;
-> +
-> +		for (i = 0; i < pvec.nr; i++)
-> +			dax_writeback_one(mapping, indices[i], pvec.pages[i]);
-> +	}
-> +	wmb_pmem();
-> +}
-> +EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
-> +
->
-> ...
->
+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
+		static_branch_dec(&memcg_sockets_enabled_key);
+
+	memcg_free_kmem(memcg);
+
+	if (memcg->tcp_mem.active)
+		static_branch_dec(&memcg_sockets_enabled_key);
+
+	__mem_cgroup_free(memcg);
+}
+
+And I did s/reign/rein/;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
