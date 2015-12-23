@@ -1,117 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C347482F86
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 06:14:55 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id 74so82957645qgh.1
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 03:14:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j8si39496481qgf.73.2015.12.23.03.14.54
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3945482F86
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 06:15:06 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id 78so48715609pfw.2
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 03:15:06 -0800 (PST)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id rl12si392784pab.225.2015.12.23.03.15.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Dec 2015 03:14:54 -0800 (PST)
-Date: Wed, 23 Dec 2015 06:14:49 -0500
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: KVM: memory ballooning bug?
-Message-ID: <20151223111448.GA16626@t510.redhat.com>
-References: <20151223052228.GA31269@bbox>
+        Wed, 23 Dec 2015 03:15:05 -0800 (PST)
+Subject: Re: ARC AXS101 problems with linux next-20151221
+References: <56784531.1000007@synopsys.com>
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Message-ID: <567A8226.80308@synopsys.com>
+Date: Wed, 23 Dec 2015 16:44:46 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151223052228.GA31269@bbox>
+In-Reply-To: <56784531.1000007@synopsys.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Carlos Palminha <CARLOS.PALMINHA@synopsys.com>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexey Brodkin <Alexey.Brodkin@synopsys.com>, lkml <linux-kernel@vger.kernel.org>, Andrew
+ Morton <akpm@linux-foundation.org>
 
-On Wed, Dec 23, 2015 at 02:22:28PM +0900, Minchan Kim wrote:
-> During my compaction-related stuff, I encountered some problems with
-> ballooning.
-> 
-> Firstly, with repeated inflating and deflating cycle, guest memory(ie,
-> cat /proc/meminfo | grep MemTotal) decreased and couldn't recover.
-> 
-> When I review source code, balloon_lock should cover release_pages_balloon.
-> Otherwise, struct virtio_balloon fields could be overwritten by race
-> of fill_balloon(e,g, vb->*pfns could be critical).
-> Below patch fixed the problem.
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 7efc32945810..7d3e5d0e9aa4 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -209,8 +209,8 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->          */
->         if (vb->num_pfns != 0)
->                 tell_host(vb, vb->deflate_vq);
-> -       mutex_unlock(&vb->balloon_lock);
->         release_pages_balloon(vb);
-> +       mutex_unlock(&vb->balloon_lock);
->         return num_freed_pages;
->  }
->  
-> Secondly, in balloon_page_dequeue, pages_lock should cover
-> list_for_each_entry_safe loop. Otherwise, the cursor page
-> could be isolated by compaction and then list_del by isolation
-> could poison the page->lru so the loop could access wrong address
-> like this.
-> 
-> general protection fault: 0000 [#1] SMP 
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 2 PID: 82 Comm: vballoon Not tainted 4.4.0-rc5-mm1+ #1906
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff8800a7ff0000 ti: ffff8800a7fec000 task.ti: ffff8800a7fec000
-> RIP: 0010:[<ffffffff8115e754>]  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
-> RSP: 0018:ffff8800a7fefdc0  EFLAGS: 00010246
-> RAX: ffff88013fff9a70 RBX: ffffea000056fe00 RCX: 0000000000002b7d
-> RDX: ffff88013fff9a70 RSI: ffffea000056fe00 RDI: ffff88013fff9a68
-> RBP: ffff8800a7fefde8 R08: ffffea000056fda0 R09: 0000000000000000
-> R10: ffff8800a7fefd90 R11: 0000000000000001 R12: dead0000000000e0
-> R13: ffffea000056fe20 R14: ffff880138809070 R15: ffff880138809060
-> FS:  0000000000000000(0000) GS:ffff88013fc40000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 00007f229c10e000 CR3: 00000000b8b53000 CR4: 00000000000006a0
-> Stack:
->  0000000000000100 ffff880138809088 ffff880138809000 ffff880138809060
->  0000000000000046 ffff8800a7fefe28 ffffffff812c86d3 ffff880138809020
->  ffff880138809000 fffffffffff91900 0000000000000100 ffff880138809060
-> Call Trace:
->  [<ffffffff812c86d3>] leak_balloon+0x93/0x1a0
->  [<ffffffff812c8bc7>] balloon+0x217/0x2a0
->  [<ffffffff8143739e>] ? __schedule+0x31e/0x8b0
->  [<ffffffff81078160>] ? abort_exclusive_wait+0xb0/0xb0
->  [<ffffffff812c89b0>] ? update_balloon_stats+0xf0/0xf0
->  [<ffffffff8105b6e9>] kthread+0xc9/0xe0
->  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
->  [<ffffffff8143b4af>] ret_from_fork+0x3f/0x70
->  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
-> Code: 8d 60 e0 0f 84 af 00 00 00 48 8b 43 20 a8 01 75 3b 48 89 d8 f0 0f ba 28 00 72 10 48 8b 03 f6 c4 08 75 2f 48 89 df e8 8c 83 f9 ff <49> 8b 44 24 20 4d 8d 6c 24 20 48 83 e8 20 4d 39 f5 74 7a 4c 89 
-> RIP  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
->  RSP <ffff8800a7fefdc0>
-> ---[ end trace 43cf28060d708d5f ]---
-> Kernel panic - not syncing: Fatal exception
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Kernel Offset: disabled
-> 
-> We could fix it by protecting the entire loop by pages_lock but
-> problem is irq latency during walking the list.
-> But I doubt how often such worst scenario happens because
-> in normal situation, the loop would exit easily via succeeding
-> trylock_page.
-> 
-> Any comments?
+Hi Christoph, Andrew
 
-Nope, I think the simplest way to address both cases you stumbled
-across is by replacing the locking to extend those critical sections as
-you suggested.
+> On Tuesday 22 December 2015 12:00 AM, Carlos Palminha wrote:
+> Hi guys,
+> 
+> I just compiled the kernel for axs101_defconfig based on linux next tag 'next-20151221'.
+> I can't boot it due to the following errors causing strange stack traces after freeing unused kernel memory (check log below).
+> 
+> Any clue?
+> Do you more info to understand the issue?
 
-Merry Xmas!
--- Rafael
+....[snip]
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> dw_mmc e0015000.mmc: IDMAC supports 32-bit address mode.
+> dw_mmc e0015000.mmc: Using internal DMA controller.
+> dw_mmc e0015000.mmc: Version ID is 270a
+> dw_mmc e0015000.mmc: DW MMC controller at irq 34,32 bit host data width,16 deep fifo
+> dw_mmc e0015000.mmc: 1 slots initialized
+> sdhci-pltfm: SDHCI platform and OF driver helper
+> usbcore: registered new interface driver usbhid
+> usbhid: USB HID core driver
+> NET: Registered protocol family 17
+> NET: Registered protocol family 15
+> ttyS3 - failed to request DMA
+> Freeing unused kernel memory: 928K (80002000 - 800ea000)
+> INFO: rcu_preempt self-detected stall on CPU
+>         0-...: (2100 ticks this GP) idle=011/140000000000001/0 softirq=92/92 fqs=0
+>          (t=2100 jiffies g=-261 c=-262 q=60)
+> rcu_preempt kthread starved for 2100 jiffies! g4294967035 c4294967034 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1
+> rcu_preempt     S 8053879e     0     7      2 0x00000000
+> 
+> Stack Trace:
+>   __switch_to+0x0/0x94
+>   __schedule+0x1c2/0x724
+>   schedule+0x2a/0x74
+>   schedule_timeout+0x126/0x198
+>   rcu_gp_kthread+0x5fa/0xee8
+>   kthread+0xe2/0xf4
+>   ret_from_fork+0x18/0x1c
+> Task dump for CPU 0:
+> kworker/0:1     R running      0    19      2 0x00000008
+> Workqueue: events_freezable mmc_rescan
+
+[snip]
+
+It seems the dma ops rework for ARC makes kernel belly up.
+
+Patch below fixes it.
+
+------------->
