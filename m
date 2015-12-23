@@ -1,51 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 839DF6B02B4
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:46:22 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l126so161540421wml.0
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:46:22 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id v191si53320978wmd.52.2015.12.23.12.46.21
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B5C0B6B02B6
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 16:18:57 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l126so160464269wml.1
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 13:18:57 -0800 (PST)
+Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
+        by mx.google.com with ESMTPS id r66si53392122wmd.91.2015.12.23.13.18.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Dec 2015 12:46:21 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id p187so30305105wmp.2
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:46:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAPcyv4gXDHGgiqfve_fP1RLXBGfyWarjWgUU3QPMhnFn_BbshA@mail.gmail.com>
-References: <cover.1450283985.git.tony.luck@intel.com>
-	<d560d03663b6fd7a5bbeae9842934f329a7dcbdf.1450283985.git.tony.luck@intel.com>
-	<20151222111349.GB3728@pd.tnic>
-	<CA+8MBbJ+T0Bkea48rivWEZRn8_iPiSvrPm5p22RfbS7V0_KyEA@mail.gmail.com>
-	<20151223125853.GF30213@pd.tnic>
-	<CAPcyv4gXDHGgiqfve_fP1RLXBGfyWarjWgUU3QPMhnFn_BbshA@mail.gmail.com>
-Date: Wed, 23 Dec 2015 12:46:20 -0800
-Message-ID: <CA+8MBbJX+3SW7CxqWT1ghzzbdV9pgVxXNejg4XC1=sDFY3Xgpw@mail.gmail.com>
-Subject: Re: [PATCHV3 3/3] x86, ras: Add mcsafe_memcpy() function to recover
- from machine checks
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Wed, 23 Dec 2015 13:18:56 -0800 (PST)
+From: Julia Lawall <Julia.Lawall@lip6.fr>
+Subject: [PATCH] cleancache: constify cleancache_ops structure
+Date: Wed, 23 Dec 2015 22:06:24 +0100
+Message-Id: <1450904784-17139-1-git-send-email-Julia.Lawall@lip6.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Elliott@pd.tnic, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+To: linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org
 
-> I know, memcpy returns the ptr to @dest like a parrot
+The cleancache_ops structure is never modified, so declare it as const.
 
-Maybe I need to change the name to remove the
-"memcpy" substring to avoid this confusion. How
-about "mcsafe_copy()"? Perhaps with a "__" prefix
-to point out it is a building block that will get various
-wrappers around it??
+This also removes the __read_mostly declaration on the cleancache_ops
+variable declaration, since it seems redundant with const.
 
-Dan wants a copy_from_nvdimm() that either completes
-the copy, or indicates where a machine check occurred.
+Done with the help of Coccinelle.
 
-I'm going to want a copy_from_user() that has two fault
-options (user gave a bad address -> -EFAULT, or the
-source address had an uncorrected error -> SIGBUS).
+Signed-off-by: Julia Lawall <Julia.Lawall@lip6.fr>
 
--Tony
+---
+
+Not sure that the __read_mostly change is correct.  Does it apply to the
+variable, or to what the variable points to?
+
+ drivers/xen/tmem.c         |    2 +-
+ include/linux/cleancache.h |    2 +-
+ mm/cleancache.c            |    4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/cleancache.h b/include/linux/cleancache.h
+index bda5ec0b4..cb3e142 100644
+--- a/include/linux/cleancache.h
++++ b/include/linux/cleancache.h
+@@ -37,7 +37,7 @@ struct cleancache_ops {
+ 	void (*invalidate_fs)(int);
+ };
+ 
+-extern int cleancache_register_ops(struct cleancache_ops *ops);
++extern int cleancache_register_ops(const struct cleancache_ops *ops);
+ extern void __cleancache_init_fs(struct super_block *);
+ extern void __cleancache_init_shared_fs(struct super_block *);
+ extern int  __cleancache_get_page(struct page *);
+diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
+index 945fc43..4ac2ca8 100644
+--- a/drivers/xen/tmem.c
++++ b/drivers/xen/tmem.c
+@@ -242,7 +242,7 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
+ 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
+ }
+ 
+-static struct cleancache_ops tmem_cleancache_ops = {
++static const struct cleancache_ops tmem_cleancache_ops = {
+ 	.put_page = tmem_cleancache_put_page,
+ 	.get_page = tmem_cleancache_get_page,
+ 	.invalidate_page = tmem_cleancache_flush_page,
+diff --git a/mm/cleancache.c b/mm/cleancache.c
+index 8fc5081..c6356d6 100644
+--- a/mm/cleancache.c
++++ b/mm/cleancache.c
+@@ -22,7 +22,7 @@
+  * cleancache_ops is set by cleancache_register_ops to contain the pointers
+  * to the cleancache "backend" implementation functions.
+  */
+-static struct cleancache_ops *cleancache_ops __read_mostly;
++static const struct cleancache_ops *cleancache_ops;
+ 
+ /*
+  * Counters available via /sys/kernel/debug/cleancache (if debugfs is
+@@ -49,7 +49,7 @@ static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
+ /*
+  * Register operations for cleancache. Returns 0 on success.
+  */
+-int cleancache_register_ops(struct cleancache_ops *ops)
++int cleancache_register_ops(const struct cleancache_ops *ops)
+ {
+ 	if (cmpxchg(&cleancache_ops, NULL, ops))
+ 		return -EBUSY;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
