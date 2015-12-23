@@ -1,71 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 869A582F64
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:18:48 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id ba1so80576539obb.3
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:18:48 -0800 (PST)
-Received: from muru.com (muru.com. [72.249.23.125])
-        by mx.google.com with ESMTP id gb5si31263080obb.87.2015.12.23.12.18.47
-        for <linux-mm@kvack.org>;
-        Wed, 23 Dec 2015 12:18:47 -0800 (PST)
-Date: Wed, 23 Dec 2015 12:18:44 -0800
-From: Tony Lindgren <tony@atomide.com>
-Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
-Message-ID: <20151223201843.GQ2793@atomide.com>
-References: <20151202202725.GA794@www.outflux.net>
- <20151223195129.GP2793@atomide.com>
- <20151223200132.GW8644@n2100.arm.linux.org.uk>
+Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BDC96B02AE
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:31:28 -0500 (EST)
+Received: by mail-lf0-f53.google.com with SMTP id p203so154893664lfa.0
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:31:28 -0800 (PST)
+Received: from n26.netmark.pl (n26.netmark.pl. [94.124.9.61])
+        by mx.google.com with ESMTPS id o141si24556933lfe.74.2015.12.23.12.31.26
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Dec 2015 12:31:26 -0800 (PST)
+Date: Wed, 23 Dec 2015 21:31:18 +0100
+From: Marcin Szewczyk <Marcin.Szewczyk@wodny.org>
+Subject: Re: Exhausting memory makes the system unresponsive but doesn't
+ invoke OOM killer
+Message-ID: <20151223203118.GB3309@orkisz>
+References: <20151223143109.GC3519@orkisz>
+ <20151223163221.GA7520@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20151223200132.GW8644@n2100.arm.linux.org.uk>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20151223163221.GA7520@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Nicolas Pitre <nico@linaro.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com, linux-arm-kernel@lists.infradead.org, Laura Abbott <labbott@fedoraproject.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
 
-* Russell King - ARM Linux <linux@arm.linux.org.uk> [151223 12:01]:
-> On Wed, Dec 23, 2015 at 11:51:29AM -0800, Tony Lindgren wrote:
-> > Also all omap3 boards are now oopsing in Linux next if PM is enabled:
+On Wed, Dec 23, 2015 at 11:32:21AM -0500, Johannes Weiner wrote:
+> Hi Marcin,
+
+Hi,
+
+> On Wed, Dec 23, 2015 at 03:31:09PM +0100, Marcin Szewczyk wrote:
+> > In 2010 I noticed that viewing many GIFs in a row using gpicview renders 
+> > my Linux unresponsive. The problem still exists. There is very little 
+> > I can do in such a situation. Rarely after some minutes the OOM killer 
+> > kicks in and saves the day. Nevertheless, usually I end up using 
+> > Alt+SysRq+B.
 > 
-> I'm not sure that's entirely true.  My LDP3430 works fine with this
-> change in place, and that has CONFIG_PM=y.  See my nightly build/boot
-> results, which includes an attempt to enter hibernation.  Remember
-> that last night's results are from my tree plus arm-soc's for-next.
+> Have you tried kicking the OOM killer manually with sysrq+f?
 
-Right but you don't have any deeper idle states enabled for your
-old ldp, see the script below. It may not work properly on your ldp
-because of the old silicon revision of the SoC..
+I completely forgot about that option. It works both at TTY and under
+Xorg. Thank you very much.
 
-> Maybe there's some other change in linux-next which, when combined
-> with this change, is provoking it?
+> > The unresponsiveness goes with high CPU load and a lot of IO (read) 
+> > operations on the root file system and its block device.
+> 
+> There is a semi-known issue of heavily thrashing page cache. Your
+> crash program sucks up most memory and leaves very little for the
+> executables and libraries to be cached, which results in multiple
+> threads experiencing cache misses in their executable code, followed
+> by fighting over the few remaining page cache slots, which are not
+> enough to meet the demand at any given point in time. [...]
 
-Well it seems to be the new default Kconfig options selected by
-default as Geert is saying?
+Thank you for the explanation.
 
-And it seems to require off mode enabled for idle to hit it, retention
-idle does not seem to trigger it.
+> That being said, there is no real solution to thrashing page cache as
+> of this day. We have most infrastructure in place to detect it, but it
+> isn't hooked up to the OOM killer yet. The only answer until then is
+> try to keep free+buffer+cache at at least 10-15% of overall memory.
 
-Regards,
+OK. Is there a good source of information I could subscribe to so I
+don't miss the moment when the integration code enters the kernel? Do
+you think LWN would mention it or should I just follow "oom" messages on
+linux-kernel and linux-mm?
 
-Tony
+> Since you can reproduce it easily, is there any chance you could grab
+> backtraces (sysrq+t) of the tasks while the machine is in that state?
+> That should confirm that most tasks are either waiting for IO or are
+> inside page reclaim.
 
+I've updated the repository. I will later add this thread to the README.
 
-8< -------------------------
-#!/bin/bash
+Dump is available here:
+https://github.com/wodny/crasher/blob/master/logs/kern.log
+I didn't want to post 200kB to everybody so I didn't attach it to this
+email.
 
-uarts=$(find /sys/class/tty/tty[SO]*/device/power/ -type d)
-for uart in $uarts; do
-	echo 3000 > $uart/autosuspend_delay_ms 2>&1
-done
-
-uarts=$(find /sys/class/tty/tty[SO]*/power/ -type d 2>/dev/null)
-for uart in $uarts; do
-	echo enabled > $uart/wakeup 2>&1
-	echo auto > $uart/control 2>&1
-done
-
-echo 1 > /sys/kernel/debug/pm_debug/enable_off_mode
+-- 
+Marcin Szewczyk                       http://wodny.org
+mailto:Marcin.Szewczyk@wodny.borg  <- remove b / usuA? b
+xmpp:wodny@ubuntu.pl                  xmpp:wodny@jabster.pl
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
