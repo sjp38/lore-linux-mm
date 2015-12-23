@@ -1,86 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BDC96B02AE
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:31:28 -0500 (EST)
-Received: by mail-lf0-f53.google.com with SMTP id p203so154893664lfa.0
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:31:28 -0800 (PST)
-Received: from n26.netmark.pl (n26.netmark.pl. [94.124.9.61])
-        by mx.google.com with ESMTPS id o141si24556933lfe.74.2015.12.23.12.31.26
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4A76B02B0
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:31:44 -0500 (EST)
+Received: by mail-qg0-f51.google.com with SMTP id 6so7179406qgy.1
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:31:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t17si41378345qhb.14.2015.12.23.12.31.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Dec 2015 12:31:26 -0800 (PST)
-Date: Wed, 23 Dec 2015 21:31:18 +0100
-From: Marcin Szewczyk <Marcin.Szewczyk@wodny.org>
-Subject: Re: Exhausting memory makes the system unresponsive but doesn't
- invoke OOM killer
-Message-ID: <20151223203118.GB3309@orkisz>
-References: <20151223143109.GC3519@orkisz>
- <20151223163221.GA7520@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Dec 2015 12:31:43 -0800 (PST)
+Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
+References: <20151202202725.GA794@www.outflux.net>
+ <20151223195129.GP2793@atomide.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <567B04AB.6010906@redhat.com>
+Date: Wed, 23 Dec 2015 12:31:39 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20151223163221.GA7520@cmpxchg.org>
+In-Reply-To: <20151223195129.GP2793@atomide.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
+To: Tony Lindgren <tony@atomide.com>, Kees Cook <keescook@chromium.org>
+Cc: Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Nicolas Pitre <nico@linaro.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com, linux-arm-kernel@lists.infradead.org, Laura Abbott <labbott@fedoraproject.org>
 
-On Wed, Dec 23, 2015 at 11:32:21AM -0500, Johannes Weiner wrote:
-> Hi Marcin,
+On 12/23/2015 11:51 AM, Tony Lindgren wrote:
+> * Kees Cook <keescook@chromium.org> [151202 12:31]:
+>> The use of CONFIG_DEBUG_RODATA is generally seen as an essential part of
+>> kernel self-protection:
+>> http://www.openwall.com/lists/kernel-hardening/2015/11/30/13
+>> Additionally, its name has grown to mean things beyond just rodata. To
+>> get ARM closer to this, we ought to rearrange the names of the configs
+>> that control how the kernel protects its memory. What was called
+>> CONFIG_ARM_KERNMEM_PERMS is really doing the work that other architectures
+>> call CONFIG_DEBUG_RODATA.
+>>
+>> This redefines CONFIG_DEBUG_RODATA to actually do the bulk of the
+>> ROing (and NXing). In the place of the old CONFIG_DEBUG_RODATA, use
+>> CONFIG_DEBUG_ALIGN_RODATA, since that's what the option does: adds
+>> section alignment for making rodata explicitly NX, as arm does not split
+>> the page tables like arm64 does without _ALIGN_RODATA.
+>
+> Also all omap3 boards are now oopsing in Linux next if PM is enabled:
+>
+> [   18.549865] Unable to handle kernel paging request at virtual address c01237dc
+> [   18.557830] pgd = cf704000
+> [   18.560974] [c01237dc] *pgd=8000041e(bad)
+> [   18.565765] Internal error: Oops: 80d [#1] SMP ARM
+> [   18.571105] Modules linked in: ledtrig_default_on leds_gpio led_class rtc_twl twl4030_wdt
+> [   18.581024] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-rc6-00003-g1bb2057 #2973
+> [   18.589508] Hardware name: Generic OMAP36xx (Flattened Device Tree)
+> [   18.596466] task: c0c06638 ti: c0c00000 task.ti: c0c00000
+> [   18.602539] PC is at wait_dll_lock_timed+0x8/0x14
+> [   18.607849] LR is at save_context_wfi+0x24/0x28
+> [   18.612976] pc : [<c0123750>]    lr : [<c01236b0>]    psr: 600e0093
+> [   18.612976] sp : c0c01ea0  ip : c0c028d4  fp : 00000002
+> [   18.625549] r10: 00000000  r9 : ffffffff  r8 : 00000000
+> [   18.631378] r7 : c01237d8  r6 : 00000003  r5 : 0000000a  r4 : 00000001
+> [   18.638610] r3 : 00000004  r2 : 00000006  r1 : f03fe03a  r0 : 0a000023
+> [   18.645843] Flags: nZCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment none
+> [   18.653839] Control: 10c53879  Table: 8f704019  DAC: 00000051
+> [   18.660217] Process swapper/0 (pid: 0, stack limit = 0xc0c00218)
+> [   18.666900] Stack: (0xc0c01ea0 to 0xc0c02000)
+> [   18.671936] 1ea0: 00000030 c0c01efc 00000003 00000001 00000000 c0c0a0a0 c0c028d4 00000000
+> [   18.681060] 1ec0: c0122ef8 00000000 c010d210 8f0b0000 c0c01efc 80119dc0 00000000 00000000
+> [   18.690185] 1ee0: 00000000 00000051 80004019 10c5387d 000000e2 00f00000 00000000 c0c06638
+> [   18.699279] 1f00: cf6a4e00 00000003 00000001 00000000 c0c0a0a0 00000000 00000000 c010d3bc
+> [   18.708404] 1f20: c0cbd460 c0cbdd14 00000003 c012308c 00000003 c0c09f90 c0cbdd54 00000000
+> [   18.717529] 1f40: 00000001 c0124584 51b8dc60 00000004 c0cb8a9c c0c09fa0 cfb3ba58 c05a8e14
+> [   18.726654] 1f60: 008a43a0 00000000 51b8dc60 00000004 51b8dc60 00000004 c0c029ec c0c00000
+> [   18.735778] 1f80: c0c029ec 00000000 c0cb8a9c cfb3ba58 c0c09fa0 c0c0298c c0b6ea50 c017bbb4
+> [   18.744934] 1fa0: c0740760 c0b6a4e4 c0cbd000 ffffffff cfb473c0 c0b00c34 ffffffff ffffffff
+> [   18.754058] 1fc0: 00000000 c0b0066c 00000000 c0b4fa48 00000000 c0cbd214 c0c0296c c0b4fa44
+> [   18.763183] 1fe0: c0c08208 80004059 413fc082 00000000 00000000 8000807c 00000000 00000000
+> [   18.772308] [<c0123750>] (wait_dll_lock_timed) from [<c0c0a0a0>] (omap3_idle_driver+0x100/0x33c)
+> [   18.782043] Code: 1a000019 e28f708c e59f408c e2844001 (e5874004)
+>
+> Reverting the $subject patch fixes the issue.
+>
+> Regards,
+>
+> Tony
+>
 
-Hi,
+Looks like a case similar to Geert's
 
-> On Wed, Dec 23, 2015 at 03:31:09PM +0100, Marcin Szewczyk wrote:
-> > In 2010 I noticed that viewing many GIFs in a row using gpicview renders 
-> > my Linux unresponsive. The problem still exists. There is very little 
-> > I can do in such a situation. Rarely after some minutes the OOM killer 
-> > kicks in and saves the day. Nevertheless, usually I end up using 
-> > Alt+SysRq+B.
-> 
-> Have you tried kicking the OOM killer manually with sysrq+f?
+         adr     r7, kick_counter
+wait_dll_lock_timed:
+         ldr     r4, wait_dll_lock_counter
+         add     r4, r4, #1
+         str     r4, [r7, #wait_dll_lock_counter - kick_counter]
+         ldr     r4, sdrc_dlla_status
+         /* Wait 20uS for lock */
+         mov     r6, #8
 
-I completely forgot about that option. It works both at TTY and under
-Xorg. Thank you very much.
 
-> > The unresponsiveness goes with high CPU load and a lot of IO (read) 
-> > operations on the root file system and its block device.
-> 
-> There is a semi-known issue of heavily thrashing page cache. Your
-> crash program sucks up most memory and leaves very little for the
-> executables and libraries to be cached, which results in multiple
-> threads experiencing cache misses in their executable code, followed
-> by fighting over the few remaining page cache slots, which are not
-> enough to meet the demand at any given point in time. [...]
+kick_counter and wait_dll_lock_counter are in the text section which is marked read only.
+They need to be moved to the data section along with a few other variables from what I
+can tell (maybe those are read only?).
 
-Thank you for the explanation.
+I suspect this is going to be a common issue with suspend/resume code paths since those
+are hand written assembly.
 
-> That being said, there is no real solution to thrashing page cache as
-> of this day. We have most infrastructure in place to detect it, but it
-> isn't hooked up to the OOM killer yet. The only answer until then is
-> try to keep free+buffer+cache at at least 10-15% of overall memory.
-
-OK. Is there a good source of information I could subscribe to so I
-don't miss the moment when the integration code enters the kernel? Do
-you think LWN would mention it or should I just follow "oom" messages on
-linux-kernel and linux-mm?
-
-> Since you can reproduce it easily, is there any chance you could grab
-> backtraces (sysrq+t) of the tasks while the machine is in that state?
-> That should confirm that most tasks are either waiting for IO or are
-> inside page reclaim.
-
-I've updated the repository. I will later add this thread to the README.
-
-Dump is available here:
-https://github.com/wodny/crasher/blob/master/logs/kern.log
-I didn't want to post 200kB to everybody so I didn't attach it to this
-email.
-
--- 
-Marcin Szewczyk                       http://wodny.org
-mailto:Marcin.Szewczyk@wodny.borg  <- remove b / usuA? b
-xmpp:wodny@ubuntu.pl                  xmpp:wodny@jabster.pl
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
