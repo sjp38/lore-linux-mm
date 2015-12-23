@@ -1,61 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B1DC6B02AA
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:15:45 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l126so163049153wml.1
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:15:44 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id ia6si66632844wjb.29.2015.12.23.12.15.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Dec 2015 12:15:43 -0800 (PST)
-Date: Wed, 23 Dec 2015 20:15:29 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 869A582F64
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 15:18:48 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id ba1so80576539obb.3
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 12:18:48 -0800 (PST)
+Received: from muru.com (muru.com. [72.249.23.125])
+        by mx.google.com with ESMTP id gb5si31263080obb.87.2015.12.23.12.18.47
+        for <linux-mm@kvack.org>;
+        Wed, 23 Dec 2015 12:18:47 -0800 (PST)
+Date: Wed, 23 Dec 2015 12:18:44 -0800
+From: Tony Lindgren <tony@atomide.com>
 Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
-Message-ID: <20151223201529.GX8644@n2100.arm.linux.org.uk>
+Message-ID: <20151223201843.GQ2793@atomide.com>
 References: <20151202202725.GA794@www.outflux.net>
+ <20151223195129.GP2793@atomide.com>
+ <20151223200132.GW8644@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151202202725.GA794@www.outflux.net>
+In-Reply-To: <20151223200132.GW8644@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Laura Abbott <labbott@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Arnd Bergmann <arnd@arndb.de>, kernel-hardening@lists.openwall.com
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Nicolas Pitre <nico@linaro.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com, linux-arm-kernel@lists.infradead.org, Laura Abbott <labbott@fedoraproject.org>
 
-On Wed, Dec 02, 2015 at 12:27:25PM -0800, Kees Cook wrote:
-> The use of CONFIG_DEBUG_RODATA is generally seen as an essential part of
-> kernel self-protection:
-> http://www.openwall.com/lists/kernel-hardening/2015/11/30/13
-> Additionally, its name has grown to mean things beyond just rodata. To
-> get ARM closer to this, we ought to rearrange the names of the configs
-> that control how the kernel protects its memory. What was called
-> CONFIG_ARM_KERNMEM_PERMS is really doing the work that other architectures
-> call CONFIG_DEBUG_RODATA.
+* Russell King - ARM Linux <linux@arm.linux.org.uk> [151223 12:01]:
+> On Wed, Dec 23, 2015 at 11:51:29AM -0800, Tony Lindgren wrote:
+> > Also all omap3 boards are now oopsing in Linux next if PM is enabled:
+> 
+> I'm not sure that's entirely true.  My LDP3430 works fine with this
+> change in place, and that has CONFIG_PM=y.  See my nightly build/boot
+> results, which includes an attempt to enter hibernation.  Remember
+> that last night's results are from my tree plus arm-soc's for-next.
 
-Kees,
+Right but you don't have any deeper idle states enabled for your
+old ldp, see the script below. It may not work properly on your ldp
+because of the old silicon revision of the SoC..
 
-There is a subtle problem with the kernel memory permissions and the
-DMA debugging.
+> Maybe there's some other change in linux-next which, when combined
+> with this change, is provoking it?
 
-DMA debugging checks whether we're trying to do DMA from the kernel
-mappings (text, rodata, data etc).  It checks _text.._etext.  However,
-when RODATA is enabled, we have about one section between _text and
-_stext which are freed into the kernel's page pool, and then become
-available for allocation and use for DMA.
+Well it seems to be the new default Kconfig options selected by
+default as Geert is saying?
 
-This then causes the DMA debugging sanity check to fire.
+And it seems to require off mode enabled for idle to hit it, retention
+idle does not seem to trigger it.
 
-So, I think I'll revert this change for the time being as it seems to
-be causing many people problems, and having this enabled is creating
-extra warnings when kernel debug options are enabled along with it.
+Regards,
 
-Sorry.
+Tony
 
--- 
-RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+
+8< -------------------------
+#!/bin/bash
+
+uarts=$(find /sys/class/tty/tty[SO]*/device/power/ -type d)
+for uart in $uarts; do
+	echo 3000 > $uart/autosuspend_delay_ms 2>&1
+done
+
+uarts=$(find /sys/class/tty/tty[SO]*/power/ -type d 2>/dev/null)
+for uart in $uarts; do
+	echo enabled > $uart/wakeup 2>&1
+	echo auto > $uart/control 2>&1
+done
+
+echo 1 > /sys/kernel/debug/pm_debug/enable_off_mode
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
