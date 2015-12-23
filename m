@@ -1,137 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F27C82F64
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2015 19:54:52 -0500 (EST)
-Received: by mail-io0-f178.google.com with SMTP id 186so205565704iow.0
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 16:54:52 -0800 (PST)
-Received: from g2t2355.austin.hp.com (g2t2355.austin.hp.com. [15.217.128.54])
-        by mx.google.com with ESMTPS id h18si36930267igt.85.2015.12.22.16.54.50
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id F36436B028E
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 00:21:46 -0500 (EST)
+Received: by mail-io0-f176.google.com with SMTP id o67so206627897iof.3
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 21:21:46 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id z9si27476863ioi.192.2015.12.22.21.21.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Dec 2015 16:54:50 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 1/2] x86/mm/pat: Add untrack_pfn_moved for mremap
-Date: Tue, 22 Dec 2015 17:54:23 -0700
-Message-Id: <1450832064-10093-2-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1450832064-10093-1-git-send-email-toshi.kani@hpe.com>
-References: <1450832064-10093-1-git-send-email-toshi.kani@hpe.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 22 Dec 2015 21:21:45 -0800 (PST)
+Date: Wed, 23 Dec 2015 14:22:28 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: KVM: memory ballooning bug?
+Message-ID: <20151223052228.GA31269@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@alien8.de
-Cc: stsp@list.ru, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>, Toshi Kani <toshi.kani@hpe.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
 
-mremap() with MREMAP_FIXED on a VM_PFNMAP range causes the following
-WARN_ON_ONCE() message in untrack_pfn().
+During my compaction-related stuff, I encountered some problems with
+ballooning.
 
-  WARNING: CPU: 1 PID: 3493 at arch/x86/mm/pat.c:985 untrack_pfn+0xbd/0xd0()
-  Call Trace:
-  [<ffffffff817729ea>] dump_stack+0x45/0x57
-  [<ffffffff8109e4b6>] warn_slowpath_common+0x86/0xc0
-  [<ffffffff8109e5ea>] warn_slowpath_null+0x1a/0x20
-  [<ffffffff8106a88d>] untrack_pfn+0xbd/0xd0
-  [<ffffffff811d2d5e>] unmap_single_vma+0x80e/0x860
-  [<ffffffff811d3725>] unmap_vmas+0x55/0xb0
-  [<ffffffff811d916c>] unmap_region+0xac/0x120
-  [<ffffffff811db86a>] do_munmap+0x28a/0x460
-  [<ffffffff811dec33>] move_vma+0x1b3/0x2e0
-  [<ffffffff811df113>] SyS_mremap+0x3b3/0x510
-  [<ffffffff817793ee>] entry_SYSCALL_64_fastpath+0x12/0x71
+Firstly, with repeated inflating and deflating cycle, guest memory(ie,
+cat /proc/meminfo | grep MemTotal) decreased and couldn't recover.
 
-MREMAP_FIXED moves a pfnmap from old vma to new vma.  untrack_pfn() is
-called with the old vma after its pfnmap page table has been removed,
-which causes follow_phys() to fail.  The new vma has a new pfnmap to
-the same pfn & cache type with VM_PAT set.  Therefore, we only need to
-clear VM_PAT from the old vma in this case.
+When I review source code, balloon_lock should cover release_pages_balloon.
+Otherwise, struct virtio_balloon fields could be overwritten by race
+of fill_balloon(e,g, vb->*pfns could be critical).
+Below patch fixed the problem.
 
-Add untrack_pfn_moved(), which clears VM_PAT from a given old vma.
-move_vma() is changed to call this function with the old vma when
-VM_PFNMAP is set.  move_vma() then calls do_munmap(), and untrack_pfn()
-is a no-op since VM_PAT is cleared.
-
-Link: http://lkml.kernel.org/r/<1446072663.20657.150.camel@hpe.com>
-Reported-by: Stas Sergeev <stsp@list.ru>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Borislav Petkov <bp@suse.de>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
----
- arch/x86/mm/pat.c             |   10 ++++++++++
- include/asm-generic/pgtable.h |   10 +++++++++-
- mm/mremap.c                   |    4 ++++
- 3 files changed, 23 insertions(+), 1 deletion(-)
-
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 188e3e0..1aca073 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -992,6 +992,16 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 	vma->vm_flags &= ~VM_PAT;
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 7efc32945810..7d3e5d0e9aa4 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -209,8 +209,8 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+         */
+        if (vb->num_pfns != 0)
+                tell_host(vb, vb->deflate_vq);
+-       mutex_unlock(&vb->balloon_lock);
+        release_pages_balloon(vb);
++       mutex_unlock(&vb->balloon_lock);
+        return num_freed_pages;
  }
  
-+/*
-+ * untrack_pfn_moved is called, while mremapping a pfnmap for a new region,
-+ * with the old vma after its pfnmap page table has been removed.  The new
-+ * vma has a new pfnmap to the same pfn & cache type with VM_PAT set.
-+ */
-+void untrack_pfn_moved(struct vm_area_struct *vma)
-+{
-+	vma->vm_flags &= ~VM_PAT;
-+}
-+
- pgprot_t pgprot_writecombine(pgprot_t prot)
- {
- 	return __pgprot(pgprot_val(prot) |
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 14b0ff32..3a6803c 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -569,7 +569,7 @@ static inline int track_pfn_copy(struct vm_area_struct *vma)
- }
- 
- /*
-- * untrack_pfn_vma is called while unmapping a pfnmap for a region.
-+ * untrack_pfn is called while unmapping a pfnmap for a region.
-  * untrack can be called for a specific region indicated by pfn and size or
-  * can be for the entire vma (in which case pfn, size are zero).
-  */
-@@ -577,6 +577,13 @@ static inline void untrack_pfn(struct vm_area_struct *vma,
- 			       unsigned long pfn, unsigned long size)
- {
- }
-+
-+/*
-+ * untrack_pfn_moved is called while mremapping a pfnmap for a new region.
-+ */
-+static inline void untrack_pfn_moved(struct vm_area_struct *vma)
-+{
-+}
- #else
- extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
- 			   unsigned long pfn, unsigned long addr,
-@@ -586,6 +593,7 @@ extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
- extern int track_pfn_copy(struct vm_area_struct *vma);
- extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 			unsigned long size);
-+extern void untrack_pfn_moved(struct vm_area_struct *vma);
- #endif
- 
- #ifdef __HAVE_COLOR_ZERO_PAGE
-diff --git a/mm/mremap.c b/mm/mremap.c
-index c25bc62..de824e7 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -319,6 +319,10 @@ static unsigned long move_vma(struct vm_area_struct *vma,
- 	hiwater_vm = mm->hiwater_vm;
- 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
- 
-+	/* Tell pfnmap has moved from this vma */
-+	if (unlikely(vma->vm_flags & VM_PFNMAP))
-+		untrack_pfn_moved(vma);
-+
- 	if (do_munmap(mm, old_addr, old_len) < 0) {
- 		/* OOM: unable to split vma, just get accounts right */
- 		vm_unacct_memory(excess >> PAGE_SHIFT);
+Secondly, in balloon_page_dequeue, pages_lock should cover
+list_for_each_entry_safe loop. Otherwise, the cursor page
+could be isolated by compaction and then list_del by isolation
+could poison the page->lru so the loop could access wrong address
+like this.
+
+general protection fault: 0000 [#1] SMP 
+Dumping ftrace buffer:
+   (ftrace buffer empty)
+Modules linked in:
+CPU: 2 PID: 82 Comm: vballoon Not tainted 4.4.0-rc5-mm1+ #1906
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+task: ffff8800a7ff0000 ti: ffff8800a7fec000 task.ti: ffff8800a7fec000
+RIP: 0010:[<ffffffff8115e754>]  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+RSP: 0018:ffff8800a7fefdc0  EFLAGS: 00010246
+RAX: ffff88013fff9a70 RBX: ffffea000056fe00 RCX: 0000000000002b7d
+RDX: ffff88013fff9a70 RSI: ffffea000056fe00 RDI: ffff88013fff9a68
+RBP: ffff8800a7fefde8 R08: ffffea000056fda0 R09: 0000000000000000
+R10: ffff8800a7fefd90 R11: 0000000000000001 R12: dead0000000000e0
+R13: ffffea000056fe20 R14: ffff880138809070 R15: ffff880138809060
+FS:  0000000000000000(0000) GS:ffff88013fc40000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00007f229c10e000 CR3: 00000000b8b53000 CR4: 00000000000006a0
+Stack:
+ 0000000000000100 ffff880138809088 ffff880138809000 ffff880138809060
+ 0000000000000046 ffff8800a7fefe28 ffffffff812c86d3 ffff880138809020
+ ffff880138809000 fffffffffff91900 0000000000000100 ffff880138809060
+Call Trace:
+ [<ffffffff812c86d3>] leak_balloon+0x93/0x1a0
+ [<ffffffff812c8bc7>] balloon+0x217/0x2a0
+ [<ffffffff8143739e>] ? __schedule+0x31e/0x8b0
+ [<ffffffff81078160>] ? abort_exclusive_wait+0xb0/0xb0
+ [<ffffffff812c89b0>] ? update_balloon_stats+0xf0/0xf0
+ [<ffffffff8105b6e9>] kthread+0xc9/0xe0
+ [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+ [<ffffffff8143b4af>] ret_from_fork+0x3f/0x70
+ [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+Code: 8d 60 e0 0f 84 af 00 00 00 48 8b 43 20 a8 01 75 3b 48 89 d8 f0 0f ba 28 00 72 10 48 8b 03 f6 c4 08 75 2f 48 89 df e8 8c 83 f9 ff <49> 8b 44 24 20 4d 8d 6c 24 20 48 83 e8 20 4d 39 f5 74 7a 4c 89 
+RIP  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+ RSP <ffff8800a7fefdc0>
+---[ end trace 43cf28060d708d5f ]---
+Kernel panic - not syncing: Fatal exception
+Dumping ftrace buffer:
+   (ftrace buffer empty)
+Kernel Offset: disabled
+
+We could fix it by protecting the entire loop by pages_lock but
+problem is irq latency during walking the list.
+But I doubt how often such worst scenario happens because
+in normal situation, the loop would exit easily via succeeding
+trylock_page.
+
+Any comments?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
