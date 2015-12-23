@@ -1,90 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 82E7282F86
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 01:55:23 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id jw2so72885869igc.1
-        for <linux-mm@kvack.org>; Tue, 22 Dec 2015 22:55:23 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id c11si6462988igo.35.2015.12.22.22.55.22
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C347482F86
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 06:14:55 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id 74so82957645qgh.1
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 03:14:55 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j8si39496481qgf.73.2015.12.23.03.14.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Dec 2015 22:55:22 -0800 (PST)
-Date: Wed, 23 Dec 2015 15:57:27 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm/compaction: speed up pageblock_pfn_to_page() when
- zone is contiguous
-Message-ID: <20151223065727.GA9691@js1304-P5Q-DELUXE>
-References: <1450678432-16593-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1450678432-16593-2-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.10.1512221410380.5172@chino.kir.corp.google.com>
- <567A3BBD.80408@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Dec 2015 03:14:54 -0800 (PST)
+Date: Wed, 23 Dec 2015 06:14:49 -0500
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: KVM: memory ballooning bug?
+Message-ID: <20151223111448.GA16626@t510.redhat.com>
+References: <20151223052228.GA31269@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <567A3BBD.80408@suse.cz>
+In-Reply-To: <20151223052228.GA31269@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
 
-On Wed, Dec 23, 2015 at 07:14:21AM +0100, Vlastimil Babka wrote:
-> On 22.12.2015 23:17, David Rientjes wrote:
-> > On Mon, 21 Dec 2015, Joonsoo Kim wrote:
-> > 
-> >> Before vs After
-> >> Max: 1096 MB/s vs 1325 MB/s
-> >> Min: 635 MB/s 1015 MB/s
-> >> Avg: 899 MB/s 1194 MB/s
-> >>
-> >> Avg is improved by roughly 30% [2].
-> >>
-> > 
-> > Wow, ok!
-> > 
-> > I'm wondering if it would be better to maintain this as a characteristic 
-> > of each pageblock rather than each zone.  Have you tried to introduce a 
-> > couple new bits to pageblock_bits that would track (1) if a cached value 
-> > makes sense and (2) if the pageblock is contiguous?  On the first call to 
-> > pageblock_pfn_to_page(), set the first bit, PB_cached, and set the second 
-> > bit, PB_contiguous, iff it is contiguous.  On subsequent calls, if 
-> > PB_cached is true, then return PB_contiguous.  On memory hot-add or 
-> > remove (or init), clear PB_cached.
+On Wed, Dec 23, 2015 at 02:22:28PM +0900, Minchan Kim wrote:
+> During my compaction-related stuff, I encountered some problems with
+> ballooning.
 > 
-> I can imagine these bitmap operation to be as expensive as what
-> __pageblock_pfn_to_page() does (or close)? But if not, we could also just be a
-> bit smarter about PG_skip and check that before doing pfn_to_page.
-
-Although I don't think carefully, to get PB_xxx, we need to check pfn's zone
-and it requires pfn_valid() and pfn_to_page(). So, I guess that cost would be
-same or half compared to cost of __pageblock_pfn_to_page().
-
+> Firstly, with repeated inflating and deflating cycle, guest memory(ie,
+> cat /proc/meminfo | grep MemTotal) decreased and couldn't recover.
 > 
-> > What are the cases where pageblock_pfn_to_page() is used for a subset of 
-> > the pageblock and the result would be problematic for compaction?  I.e., 
-> > do we actually care to use pageblocks that are not contiguous at all?
+> When I review source code, balloon_lock should cover release_pages_balloon.
+> Otherwise, struct virtio_balloon fields could be overwritten by race
+> of fill_balloon(e,g, vb->*pfns could be critical).
+> Below patch fixed the problem.
 > 
-> The problematic pageblocks are those that have pages from more than one zone in
-> them, so we just skip them. Supposedly that can only happen by switching once
-> between two zones somewhere in the middle of the pageblock, so it's sufficient
-> to check first and last pfn and compare their zones. So using
-> pageblock_pfn_to_page() on a subset from compaction would be wrong. Holes (==no
-> pages) within pageblock is a different thing checked by pfn_valid_within()
-> (#defined out on archs where such holes cannot happen) when scanning the block.
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 7efc32945810..7d3e5d0e9aa4 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -209,8 +209,8 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+>          */
+>         if (vb->num_pfns != 0)
+>                 tell_host(vb, vb->deflate_vq);
+> -       mutex_unlock(&vb->balloon_lock);
+>         release_pages_balloon(vb);
+> +       mutex_unlock(&vb->balloon_lock);
+>         return num_freed_pages;
+>  }
+>  
+> Secondly, in balloon_page_dequeue, pages_lock should cover
+> list_for_each_entry_safe loop. Otherwise, the cursor page
+> could be isolated by compaction and then list_del by isolation
+> could poison the page->lru so the loop could access wrong address
+> like this.
 > 
-> That's why I'm not entirely happy with how the patch conflates both the
-> first/last pfn's zone checks and pfn_valid_within() checks. Yes, a fully
-> contiguous zone does *imply* that pageblock_pfn_to_page() doesn't have to check
-> first/last pfn for a matching zone. But it's not *equality*. And any (now just
-> *potential*) user of pageblock_pfn_to_page() with pfn's different than
-> first/last pfn of a pageblock is likely wrong.
+> general protection fault: 0000 [#1] SMP 
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 2 PID: 82 Comm: vballoon Not tainted 4.4.0-rc5-mm1+ #1906
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff8800a7ff0000 ti: ffff8800a7fec000 task.ti: ffff8800a7fec000
+> RIP: 0010:[<ffffffff8115e754>]  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+> RSP: 0018:ffff8800a7fefdc0  EFLAGS: 00010246
+> RAX: ffff88013fff9a70 RBX: ffffea000056fe00 RCX: 0000000000002b7d
+> RDX: ffff88013fff9a70 RSI: ffffea000056fe00 RDI: ffff88013fff9a68
+> RBP: ffff8800a7fefde8 R08: ffffea000056fda0 R09: 0000000000000000
+> R10: ffff8800a7fefd90 R11: 0000000000000001 R12: dead0000000000e0
+> R13: ffffea000056fe20 R14: ffff880138809070 R15: ffff880138809060
+> FS:  0000000000000000(0000) GS:ffff88013fc40000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00007f229c10e000 CR3: 00000000b8b53000 CR4: 00000000000006a0
+> Stack:
+>  0000000000000100 ffff880138809088 ffff880138809000 ffff880138809060
+>  0000000000000046 ffff8800a7fefe28 ffffffff812c86d3 ffff880138809020
+>  ffff880138809000 fffffffffff91900 0000000000000100 ffff880138809060
+> Call Trace:
+>  [<ffffffff812c86d3>] leak_balloon+0x93/0x1a0
+>  [<ffffffff812c8bc7>] balloon+0x217/0x2a0
+>  [<ffffffff8143739e>] ? __schedule+0x31e/0x8b0
+>  [<ffffffff81078160>] ? abort_exclusive_wait+0xb0/0xb0
+>  [<ffffffff812c89b0>] ? update_balloon_stats+0xf0/0xf0
+>  [<ffffffff8105b6e9>] kthread+0xc9/0xe0
+>  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+>  [<ffffffff8143b4af>] ret_from_fork+0x3f/0x70
+>  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+> Code: 8d 60 e0 0f 84 af 00 00 00 48 8b 43 20 a8 01 75 3b 48 89 d8 f0 0f ba 28 00 72 10 48 8b 03 f6 c4 08 75 2f 48 89 df e8 8c 83 f9 ff <49> 8b 44 24 20 4d 8d 6c 24 20 48 83 e8 20 4d 39 f5 74 7a 4c 89 
+> RIP  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+>  RSP <ffff8800a7fefdc0>
+> ---[ end trace 43cf28060d708d5f ]---
+> Kernel panic - not syncing: Fatal exception
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
+> 
+> We could fix it by protecting the entire loop by pages_lock but
+> problem is irq latency during walking the list.
+> But I doubt how often such worst scenario happens because
+> in normal situation, the loop would exit easily via succeeding
+> trylock_page.
+> 
+> Any comments?
 
-Now, I understand your concern. What makes me mislead is that
-3 of 4 callers to pageblock_pfn_to_page() in compaction.c could call it with
-non-pageblock boundary pfn. Maybe, they should be fixed first. Then, yes. I can
-separate first/last pfn's zone checks and pfn_valid_within() checks.
-If then, would you be entirely happy? :)
+Nope, I think the simplest way to address both cases you stumbled
+across is by replacing the locking to extend those critical sections as
+you suggested.
 
-Thanks.
+Merry Xmas!
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
