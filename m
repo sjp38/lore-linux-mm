@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B69F06B0264
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 11:32:27 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l126so152686200wml.1
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 08:32:27 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n129si52049106wmb.97.2015.12.23.08.32.26
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B01482F64
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 14:31:02 -0500 (EST)
+Received: by mail-oi0-f50.google.com with SMTP id l9so100136147oia.2
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 11:31:02 -0800 (PST)
+Received: from mail-ob0-x22c.google.com (mail-ob0-x22c.google.com. [2607:f8b0:4003:c01::22c])
+        by mx.google.com with ESMTPS id vw13si4270287oeb.82.2015.12.23.11.31.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Dec 2015 08:32:26 -0800 (PST)
-Date: Wed, 23 Dec 2015 11:32:21 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Exhausting memory makes the system unresponsive but doesn't
- invoke OOM killer
-Message-ID: <20151223163221.GA7520@cmpxchg.org>
-References: <20151223143109.GC3519@orkisz>
+        Wed, 23 Dec 2015 11:31:01 -0800 (PST)
+Received: by mail-ob0-x22c.google.com with SMTP id iw8so171057807obc.1
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 11:31:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151223143109.GC3519@orkisz>
+In-Reply-To: <20151223125853.GF30213@pd.tnic>
+References: <cover.1450283985.git.tony.luck@intel.com>
+	<d560d03663b6fd7a5bbeae9842934f329a7dcbdf.1450283985.git.tony.luck@intel.com>
+	<20151222111349.GB3728@pd.tnic>
+	<CA+8MBbJ+T0Bkea48rivWEZRn8_iPiSvrPm5p22RfbS7V0_KyEA@mail.gmail.com>
+	<20151223125853.GF30213@pd.tnic>
+Date: Wed, 23 Dec 2015 11:31:00 -0800
+Message-ID: <CAPcyv4gXDHGgiqfve_fP1RLXBGfyWarjWgUU3QPMhnFn_BbshA@mail.gmail.com>
+Subject: Re: [PATCHV3 3/3] x86, ras: Add mcsafe_memcpy() function to recover
+ from machine checks
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcin Szewczyk <Marcin.Szewczyk@wodny.org>
-Cc: linux-mm@kvack.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tony Luck <tony.luck@gmail.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Elliott@pd.tnic, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
 
-Hi Marcin,
+On Wed, Dec 23, 2015 at 4:58 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Tue, Dec 22, 2015 at 11:38:07AM -0800, Tony Luck wrote:
+>> I interpreted that comment as "stop playing with %rax in the fault
+>> handler ... just change the IP to point the the .fixup location" ...
+>> the target of the fixup being the "landing pad".
+>>
+>> Right now this function has only one set of fault fixups (for machine
+>> checks). When I tackle copy_from_user() it will sprout a second
+>> set for page faults, and then will look a bit more like Andy's dual
+>> landing pad example.
+>>
+>> I still need an indicator to the caller which type of fault happened
+>> since their actions will be different. So BIT(63) lives on ... but is
+>> now set in the .fixup section rather than in the machine check
+>> code.
+>
+> You mean this previous example of yours:
+>
+> int copy_from_user(void *to, void *from, unsigned long n)
+> {
+>         u64 ret = mcsafe_memcpy(to, from, n);
+>
+>         if (COPY_HAD_MCHECK(r)) {
+>                 if (memory_failure(COPY_MCHECK_PADDR(ret) >> PAGE_SIZE, ...))
+>                         force_sig(SIGBUS, current);
+>                 return something;
+>         } else
+>                 return ret;
+> }
+>
+> ?
+>
+> So what's wrong with mcsafe_memcpy() returning a proper retval which
+> says what type of fault happened?
+>
+> I know, memcpy returns the ptr to @dest like a parrot but your version
+> mcsafe_memcpy() will be different. It can even be called __mcsafe_memcpy
+> and have a wrapper around it which fiddles out the proper retvals and
+> returns @dest after all. It would still be cleaner this way IMHO.
 
-On Wed, Dec 23, 2015 at 03:31:09PM +0100, Marcin Szewczyk wrote:
-> Hi,
-> 
-> In 2010 I noticed that viewing many GIFs in a row using gpicview renders 
-> my Linux unresponsive. The problem still exists. There is very little 
-> I can do in such a situation. Rarely after some minutes the OOM killer 
-> kicks in and saves the day. Nevertheless, usually I end up using 
-> Alt+SysRq+B.
-
-Have you tried kicking the OOM killer manually with sysrq+f?
-
-> What happens is gpicview exhausting whole available memory in such 
-> a pattern that userspace becomes unresponsive. My application 
-> (`crash.c`) allocates memory in a very similar way using GDK to 
-> replicate the problem.
-> 
-> I keep the updated description of the problem and the source code here:
-> https://github.com/wodny/crasher
-> 
-> I've originally posted to linux-kernel:
-> http://marc.info/?t=145070009500007&r=1&w=2
-> but got no response.
-> 
-> I'm using:
-> 3.16.0-4-amd64 #1 SMP Debian 3.16.7-ckt11-1+deb8u6 (2015-11-09) x86_64 GNU/Linux
-> 
-> ## Symptoms
-> 
-> The unresponsiveness goes with high CPU load and a lot of IO (read) 
-> operations on the root file system and its block device.
-
-There is a semi-known issue of heavily thrashing page cache. Your
-crash program sucks up most memory and leaves very little for the
-executables and libraries to be cached, which results in multiple
-threads experiencing cache misses in their executable code, followed
-by fighting over the few remaining page cache slots, which are not
-enough to meet the demand at any given point in time. These threads
-than end up spending a lot of time a) searching for reusable cache
-slots and taking away slots that were only recently populated by
-another thread, possibly before that other thread has returned to
-userspace, and then b) waiting for disk to repopulate the cache slot
-which will be stolen by another thread soon, possibly before this
-thread had a chance to return to userspace as well.
-
-That being said, there is no real solution to thrashing page cache as
-of this day. We have most infrastructure in place to detect it, but it
-isn't hooked up to the OOM killer yet. The only answer until then is
-try to keep free+buffer+cache at at least 10-15% of overall memory.
-
-Since you can reproduce it easily, is there any chance you could grab
-backtraces (sysrq+t) of the tasks while the machine is in that state?
-That should confirm that most tasks are either waiting for IO or are
-inside page reclaim.
+We might leave this to the consumer.  It's already the case that
+mcsafe_memcpy() is arch specific so I'm having to wrap its return
+value into a generic value.  My current thinking is make
+memcpy_from_pmem() return a pmem_cookie_t, and then have an arch
+specific pmem_copy_error(pmem_cookit_t cookie) helper that interprets
+the value.  This is similar to the situation we have with
+dma_mapping_error().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
