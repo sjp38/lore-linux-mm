@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D09D282F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 06:52:01 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id q3so127329078pav.3
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 03:52:01 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 12si5455172pfm.98.2015.12.24.03.51.58
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B61E682F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 06:52:03 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id e65so15258131pfe.1
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 03:52:03 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id w22si26712649pfi.253.2015.12.24.03.51.58
         for <linux-mm@kvack.org>;
         Thu, 24 Dec 2015 03:51:59 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/4] THP updates
-Date: Thu, 24 Dec 2015 14:51:19 +0300
-Message-Id: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/4] thp: increase split_huge_page() success rate
+Date: Thu, 24 Dec 2015 14:51:23 +0300
+Message-Id: <1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Andrew,
+During freeze_page(), we remove the page from rmap. It munlocks the page
+if it was mlocked. clear_page_mlock() uses of lru cache, which temporary
+pins page.
 
-Patches below fixes two mlock-related bugs and increase rate of success
-for split_huge_page().
+Let's drain the lru cache before checking page's count vs. mapcount.
+The change makes mlocked page split on first attempt, if it was not
+pinned by somebody else.
 
-I also implemented debugfs handle to split all huge pages in the system.
-It's useful for debugging.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/huge_memory.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Kirill A. Shutemov (4):
-  thp: add debugfs handle to split all huge pages
-  thp: fix regression in handling mlocked pages in __split_huge_pmd()
-  mm: stop __munlock_pagevec_fill() if THP enounted
-  thp: increase split_huge_page() success rate
-
- mm/huge_memory.c | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
- mm/mlock.c       |  7 ++++++
- 2 files changed, 72 insertions(+), 5 deletions(-)
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1a988d9b86ef..4c1c292b7ddd 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3417,6 +3417,9 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	freeze_page(anon_vma, head);
+ 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
+ 
++	/* Make sure the page is not on per-CPU pagevec as it takes pin */
++	lru_add_drain();
++
+ 	/* Prevent deferred_split_scan() touching ->_count */
+ 	spin_lock(&split_queue_lock);
+ 	count = page_count(head);
 -- 
 2.6.4
 
