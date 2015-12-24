@@ -1,97 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 379FD82F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 13:51:44 -0500 (EST)
-Received: by mail-yk0-f181.google.com with SMTP id x184so230271185yka.3
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 10:51:44 -0800 (PST)
-Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
-        by mx.google.com with ESMTPS id g204si15031508ywa.284.2015.12.24.10.51.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Dec 2015 10:51:43 -0800 (PST)
-Received: by mail-yk0-x22a.google.com with SMTP id p130so228249282yka.1
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 10:51:43 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A5ADD82F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 14:58:44 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id l126so188174459wml.1
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 11:58:44 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id b133si41075710wmd.90.2015.12.24.11.58.43
+        for <linux-mm@kvack.org>;
+        Thu, 24 Dec 2015 11:58:43 -0800 (PST)
+Date: Thu, 24 Dec 2015 20:58:37 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+Message-ID: <20151224195837.GE4128@pd.tnic>
+References: <1450283759.20148.11.camel@hpe.com>
+ <20151216174523.GH29775@pd.tnic>
+ <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
+ <20151216181712.GJ29775@pd.tnic>
+ <1450302758.20148.75.camel@hpe.com>
+ <20151222113422.GE3728@pd.tnic>
+ <1450814672.10450.83.camel@hpe.com>
+ <20151223142349.GG30213@pd.tnic>
+ <1450923815.19330.4.camel@hpe.com>
+ <1450976937.19330.11.camel@hpe.com>
 MIME-Version: 1.0
-In-Reply-To: <1450957883-96356-3-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1450957883-96356-3-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Thu, 24 Dec 2015 10:51:43 -0800
-Message-ID: <CAPcyv4iRPEw7tPT7bCBX+0eYbrTU679moLZ+zff1RXUvoDmCoA@mail.gmail.com>
-Subject: Re: [PATCH 2/4] thp: fix regression in handling mlocked pages in __split_huge_pmd()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1450976937.19330.11.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Linux MM <linux-mm@kvack.org>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-On Thu, Dec 24, 2015 at 3:51 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> This patch fixes regression caused by patch
->  "mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd"
->
-> The patch makes pmd_trans_huge() check and "page = pmd_page(*pmd)" after
-> __split_huge_pmd_locked(). It can never succeed, since the pmd already
-> points to a page table. As result the page is never get munlocked.
->
-> It causes crashes like this:
->  http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> ---
->  mm/huge_memory.c | 8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 99f2a0ecb621..1a988d9b86ef 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -3024,14 +3024,12 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->         ptl = pmd_lock(mm, pmd);
->         if (unlikely(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
->                 goto out;
-> -       __split_huge_pmd_locked(vma, pmd, haddr, false);
-> -
-> -       if (pmd_trans_huge(*pmd))
-> -               page = pmd_page(*pmd);
-> -       if (page && PageMlocked(page))
-> +       page = pmd_page(*pmd);
-> +       if (PageMlocked(page))
->                 get_page(page);
->         else
->                 page = NULL;
-> +       __split_huge_pmd_locked(vma, pmd, haddr, false);
+On Thu, Dec 24, 2015 at 10:08:57AM -0700, Toshi Kani wrote:
+> As for checkpatch, I noticed that commit 9c0ece069b3 removed "feature
+> -removal.txt" file, and checkpatch removed this check in commit
+> 78e3f1f01d2.  checkpatch does not have such check since then.  So, I am
+> inclined not to add this check back to checkpatch.
 
-Since dax pmd mappings may not have a backing struct page I think this
-additionally needs the following:
+I didn't mean that.
 
-8<-----
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4eae97325e95..c4eccfa836f4 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3025,11 +3025,13 @@ void __split_huge_pmd(struct vm_area_struct
-*vma, pmd_t *pmd,
-       ptl = pmd_lock(mm, pmd);
-       if (unlikely(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
-               goto out;
--       page = pmd_page(*pmd);
--       if (PageMlocked(page))
--               get_page(page);
--       else
--               page = NULL;
-+       else if (pmd_trans_huge(*pmd)) {
-+               page = pmd_page(*pmd);
-+               if (PageMlocked(page))
-+                       get_page(page);
-+               else
-+                       page = NULL;
-+       }
-       __split_huge_pmd_locked(vma, pmd, haddr, false);
-out:
-       spin_unlock(ptl);
+Rather, something along the lines of, for example,
+the DEFINE_PCI_DEVICE_TABLE matching but match those
+resource matching functions using the strings, i.e.,
+"(walk_iomem_res|find_next_iomem_res|region_intersects)" or so and
+warn when new code uses them and that it should rather use the new
+desc-matching variants.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
