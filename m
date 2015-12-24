@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D059B82F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 11:20:45 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id 78so68218973pfw.2
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 08:20:45 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id se8si9718085pac.136.2015.12.24.08.20.44
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CAABE82F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 11:20:47 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id cy9so68147984pac.0
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 08:20:47 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id y21si26062305pfi.136.2015.12.24.08.20.44
         for <linux-mm@kvack.org>;
         Thu, 24 Dec 2015 08:20:44 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 0/8] Support for transparent PUD pages
-Date: Thu, 24 Dec 2015 11:20:29 -0500
-Message-Id: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 2/8] mincore: Add support for PUDs
+Date: Thu, 24 Dec 2015 11:20:31 -0500
+Message-Id: <1450974037-24775-3-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-We have customer demand to use 1GB pages to map DAX files.  Unlike the 2MB
-page support, the Linux MM does not currently support PUD pages, so I have
-attempted to add support for the necessary pieces for DAX huge PUD pages.
+We don't actually care about the contents of the PUD, just set the bits
+to indicate presence and return.
 
-Filesystem support is a bit sticky.  I have not been able to persuade ext4
-to give me more than 16MB of contiguous space, although it is aligned.
-XFS will give me 80MB short of 1GB, but it's not aligned.  I'm in no
-hurry to get patches 7 & 8 merged until the block allocation problem is
-solved in those filesystems.
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ mm/mincore.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
-This patch set is against something approximately current -mm.  At this
-point, I would be most grateful for MM developers to give feedback on
-the first three patches.  Review from X86 maintainers on patch 4 would
-also be welcome.  I'd like to thank Ross Zwisler for his helpful review
-during development.
-
-I've done some light testing using a program to mmap a block device
-with DAX enabled, calling mincore() and examining /proc/smaps and
-/proc/pagemap.
-
-Matthew Wilcox (8):
-  mm: Add optional support for PUD-sized transparent hugepages
-  mincore: Add support for PUDs
-  procfs: Add support for PUDs to smaps, clear_refs and pagemap
-  x86: Add support for PUD-sized transparent hugepages
-  dax: Support for transparent PUD pages
-  block_dev: Support PUD DAX mappings
-  xfs: Support for transparent PUD pages
-  ext4: Transparent support for PUD-sized transparent huge pages
-
- arch/Kconfig                          |   3 +
- arch/x86/Kconfig                      |   1 +
- arch/x86/include/asm/paravirt.h       |  11 ++
- arch/x86/include/asm/paravirt_types.h |   2 +
- arch/x86/include/asm/pgtable.h        |  95 ++++++++++++++
- arch/x86/include/asm/pgtable_64.h     |  13 ++
- arch/x86/kernel/paravirt.c            |   1 +
- arch/x86/mm/pgtable.c                 |  31 +++++
- fs/block_dev.c                        |   7 +
- fs/dax.c                              | 239 +++++++++++++++++++++++++++++++---
- fs/ext4/file.c                        |  37 ++++++
- fs/proc/task_mmu.c                    | 109 ++++++++++++++++
- fs/xfs/xfs_file.c                     |  33 +++++
- fs/xfs/xfs_trace.h                    |   1 +
- include/asm-generic/pgtable.h         |  62 ++++++++-
- include/asm-generic/tlb.h             |  14 ++
- include/linux/dax.h                   |  21 +++
- include/linux/huge_mm.h               |  52 +++++++-
- include/linux/mm.h                    |  30 +++++
- include/linux/mmu_notifier.h          |  13 ++
- mm/huge_memory.c                      | 151 +++++++++++++++++++++
- mm/memory.c                           |  67 ++++++++++
- mm/mincore.c                          |  13 ++
- mm/pagewalk.c                         |  19 ++-
- mm/pgtable-generic.c                  |  14 ++
- 25 files changed, 1016 insertions(+), 23 deletions(-)
-
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 2a565ed..8e6ce12 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -108,6 +108,18 @@ static int mincore_unmapped_range(unsigned long addr, unsigned long end,
+ 	return 0;
+ }
+ 
++static int mincore_pud_range(pud_t *pud, unsigned long addr, unsigned long end,
++			struct mm_walk *walk)
++{
++	unsigned char *vec = walk->private;
++	int nr = (end - addr) >> PAGE_SHIFT;
++
++	memset(vec, 1, nr);
++	walk->private += nr;
++
++	return 0;
++}
++
+ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			struct mm_walk *walk)
+ {
+@@ -176,6 +188,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+ 	unsigned long end;
+ 	int err;
+ 	struct mm_walk mincore_walk = {
++		.pud_entry = mincore_pud_range,
+ 		.pmd_entry = mincore_pte_range,
+ 		.pte_hole = mincore_unmapped_range,
+ 		.hugetlb_entry = mincore_hugetlb,
 -- 
 2.6.2
 
