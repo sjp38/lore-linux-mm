@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B127282F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 11:21:00 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id uo6so45510673pac.1
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 08:21:00 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id a11si7776383pfj.206.2015.12.24.08.20.45
-        for <linux-mm@kvack.org>;
-        Thu, 24 Dec 2015 08:20:46 -0800 (PST)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 7/8] xfs: Support for transparent PUD pages
-Date: Thu, 24 Dec 2015 11:20:36 -0500
-Message-Id: <1450974037-24775-8-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C819B82F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 12:09:22 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id 18so188735514obc.2
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 09:09:22 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id d14si34549812oic.111.2015.12.24.09.09.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Dec 2015 09:09:22 -0800 (PST)
+Message-ID: <1450976937.19330.11.camel@hpe.com>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Thu, 24 Dec 2015 10:08:57 -0700
+In-Reply-To: <1450923815.19330.4.camel@hpe.com>
+References: <20151216122642.GE29775@pd.tnic>
+	 <1450280642.29051.76.camel@hpe.com> <20151216154916.GF29775@pd.tnic>
+	 <1450283759.20148.11.camel@hpe.com> <20151216174523.GH29775@pd.tnic>
+	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
+	 <20151216181712.GJ29775@pd.tnic> <1450302758.20148.75.camel@hpe.com>
+	 <20151222113422.GE3728@pd.tnic> <1450814672.10450.83.camel@hpe.com>
+	 <20151223142349.GG30213@pd.tnic> <1450923815.19330.4.camel@hpe.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+On Wed, 2015-12-23 at 19:23 -0700, Toshi Kani wrote:
+> On Wed, 2015-12-23 at 15:23 +0100, Borislav Petkov wrote:
+> > On Tue, Dec 22, 2015 at 01:04:32PM -0700, Toshi Kani wrote:
+>  :
+> > > I agree that we can add new interfaces with the type check.  This
+> > > 'type'
+> > > may need some clarification since it is an assigned type, which is
+> > > different from I/O resource type.  That is, "System RAM" is an I/O 
+> > > resource type (i.e. IORESOURCE_SYSTEM_RAM), but "Crash kernel" is an 
+> > > assigned type to a particular range of System RAM.  A range may be 
+> > > associated with multiple names, so as multiple assigned types.  For 
+> > > lack of a better idea, I may call it 'assign_type'.  I am open for a
+> > > better name.
+> > 
+> > Or assigned_type or named_type or so...
+> > 
+> > I think we should avoid calling it "type" completely in order to avoid
+> > confusion with the IORESOURCE_* types and call it "desc" or so to mean
+> > description, sort, etc, because the name is also a description of the
+> > resource to a certain degree...
+> 
+> Agreed. I will use 'desc'.
+> 
+> > > OK, I will try to convert the existing callers with the new
+> > > interfaces.
+> > 
+> > Either that or add the new interfaces, use them in your use case, add
+> > big fat comments explaining that people should use those from now on
+> > when searching by name and add a check to checkpatch to catch future
+> > mis-uses...
+> 
+> Sounds good.  I will look into it.
 
-Call into DAX to provide support for PUD pages, just like the PMD cases.
+As for checkpatch, I noticed that commit 9c0ece069b3 removed "feature
+-removal.txt" file, and checkpatch removed this check in commit
+78e3f1f01d2.  checkpatch does not have such check since then.  So, I am
+inclined not to add this check back to checkpatch.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
----
- fs/xfs/xfs_file.c  | 33 +++++++++++++++++++++++++++++++++
- fs/xfs/xfs_trace.h |  1 +
- 2 files changed, 34 insertions(+)
-
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index f5392ab..a81b942 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1600,6 +1600,38 @@ xfs_filemap_pmd_fault(
- 	return ret;
- }
- 
-+STATIC int
-+xfs_filemap_pud_fault(
-+	struct vm_area_struct	*vma,
-+	unsigned long		addr,
-+	pud_t			*pud,
-+	unsigned int		flags)
-+{
-+	struct inode		*inode = file_inode(vma->vm_file);
-+	struct xfs_inode	*ip = XFS_I(inode);
-+	int			ret;
-+
-+	if (!IS_DAX(inode))
-+		return VM_FAULT_FALLBACK;
-+
-+	trace_xfs_filemap_pud_fault(ip);
-+
-+	if (flags & FAULT_FLAG_WRITE) {
-+		sb_start_pagefault(inode->i_sb);
-+		file_update_time(vma->vm_file);
-+	}
-+
-+	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-+	ret = __dax_pud_fault(vma, addr, pud, flags, xfs_get_blocks_dax_fault,
-+			      NULL);
-+	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-+
-+	if (flags & FAULT_FLAG_WRITE)
-+		sb_end_pagefault(inode->i_sb);
-+
-+	return ret;
-+}
-+
- /*
-  * pfn_mkwrite was originally inteneded to ensure we capture time stamp
-  * updates on write faults. In reality, it's need to serialise against
-@@ -1637,6 +1669,7 @@ xfs_filemap_pfn_mkwrite(
- static const struct vm_operations_struct xfs_file_vm_ops = {
- 	.fault		= xfs_filemap_fault,
- 	.pmd_fault	= xfs_filemap_pmd_fault,
-+	.pud_fault	= xfs_filemap_pud_fault,
- 	.map_pages	= filemap_map_pages,
- 	.page_mkwrite	= xfs_filemap_page_mkwrite,
- 	.pfn_mkwrite	= xfs_filemap_pfn_mkwrite,
-diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
-index 877079eb..16442bb 100644
---- a/fs/xfs/xfs_trace.h
-+++ b/fs/xfs/xfs_trace.h
-@@ -688,6 +688,7 @@ DEFINE_INODE_EVENT(xfs_inode_free_eofblocks_invalid);
- 
- DEFINE_INODE_EVENT(xfs_filemap_fault);
- DEFINE_INODE_EVENT(xfs_filemap_pmd_fault);
-+DEFINE_INODE_EVENT(xfs_filemap_pud_fault);
- DEFINE_INODE_EVENT(xfs_filemap_page_mkwrite);
- DEFINE_INODE_EVENT(xfs_filemap_pfn_mkwrite);
- 
--- 
-2.6.2
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
