@@ -1,57 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 16EC682F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 08:37:20 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l126so184942547wml.1
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 05:37:20 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id e2si18653396wmi.26.2015.12.24.05.37.18
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 527D882F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 11:20:45 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id 65so25783477pff.3
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 08:20:45 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id y21si26062305pfi.136.2015.12.24.08.20.44
         for <linux-mm@kvack.org>;
-        Thu, 24 Dec 2015 05:37:18 -0800 (PST)
-Date: Thu, 24 Dec 2015 14:37:13 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV3 3/3] x86, ras: Add mcsafe_memcpy() function to recover
- from machine checks
-Message-ID: <20151224133713.GC4128@pd.tnic>
-References: <cover.1450283985.git.tony.luck@intel.com>
- <d560d03663b6fd7a5bbeae9842934f329a7dcbdf.1450283985.git.tony.luck@intel.com>
- <20151222111349.GB3728@pd.tnic>
- <CA+8MBbJ+T0Bkea48rivWEZRn8_iPiSvrPm5p22RfbS7V0_KyEA@mail.gmail.com>
- <20151223125853.GF30213@pd.tnic>
- <CAPcyv4gXDHGgiqfve_fP1RLXBGfyWarjWgUU3QPMhnFn_BbshA@mail.gmail.com>
- <CA+8MBbJX+3SW7CxqWT1ghzzbdV9pgVxXNejg4XC1=sDFY3Xgpw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CA+8MBbJX+3SW7CxqWT1ghzzbdV9pgVxXNejg4XC1=sDFY3Xgpw@mail.gmail.com>
+        Thu, 24 Dec 2015 08:20:44 -0800 (PST)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH 3/8] procfs: Add support for PUDs to smaps, clear_refs and pagemap
+Date: Thu, 24 Dec 2015 11:20:32 -0500
+Message-Id: <1450974037-24775-4-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Elliott@pd.tnic, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Wed, Dec 23, 2015 at 12:46:20PM -0800, Tony Luck wrote:
-> > I know, memcpy returns the ptr to @dest like a parrot
-> 
-> Maybe I need to change the name to remove the
-> "memcpy" substring to avoid this confusion. How
-> about "mcsafe_copy()"? Perhaps with a "__" prefix
-> to point out it is a building block that will get various
-> wrappers around it??
-> 
-> Dan wants a copy_from_nvdimm() that either completes
-> the copy, or indicates where a machine check occurred.
-> 
-> I'm going to want a copy_from_user() that has two fault
-> options (user gave a bad address -> -EFAULT, or the
-> source address had an uncorrected error -> SIGBUS).
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Sounds like standard kernel design to me. :)
+Because there's no 'struct page' for DAX THPs, a lot of this code is
+simpler than the PMD code it mimics.  Extra code would need to be added
+to support PUDs of anonymous or page-cache THPs.
 
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ fs/proc/task_mmu.c | 109 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 67aaaad..6a9dad7 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -596,6 +596,33 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ }
+ #endif
+ 
++static int smaps_pud_range(pud_t *pud, unsigned long addr, unsigned long end,
++		struct mm_walk *walk)
++{
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++	struct vm_area_struct *vma = walk->vma;
++	struct mem_size_stats *mss = walk->private;
++
++	if (is_huge_zero_pud(*pud))
++		return 0;
++
++	mss->resident += HPAGE_PUD_SIZE;
++	if (vma->vm_flags & VM_SHARED) {
++		if (pud_dirty(*pud))
++			mss->shared_dirty += HPAGE_PUD_SIZE;
++		else
++			mss->shared_clean += HPAGE_PUD_SIZE;
++	} else {
++		if (pud_dirty(*pud))
++			mss->private_dirty += HPAGE_PUD_SIZE;
++		else
++			mss->private_clean += HPAGE_PUD_SIZE;
++	}
++#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
++
++	return 0;
++}
++
+ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			   struct mm_walk *walk)
+ {
+@@ -716,6 +743,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 	struct vm_area_struct *vma = v;
+ 	struct mem_size_stats mss;
+ 	struct mm_walk smaps_walk = {
++		.pud_entry = smaps_pud_range,
+ 		.pmd_entry = smaps_pte_range,
+ #ifdef CONFIG_HUGETLB_PAGE
+ 		.hugetlb_entry = smaps_hugetlb_range,
+@@ -901,13 +929,50 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ 
+ 	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
+ }
++static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
++		unsigned long addr, pud_t *pudp)
++{
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++	pud_t pud = pudp_huge_get_and_clear(vma->vm_mm, addr, pudp);
++
++	pud = pud_wrprotect(pud);
++	pud = pud_clear_soft_dirty(pud);
++
++	if (vma->vm_flags & VM_SOFTDIRTY)
++		vma->vm_flags &= ~VM_SOFTDIRTY;
++
++	set_pud_at(vma->vm_mm, addr, pudp, pud);
++#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
++}
+ #else
+ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ 		unsigned long addr, pmd_t *pmdp)
+ {
+ }
++static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
++		unsigned long addr, pud_t *pudp)
++{
++}
+ #endif
+ 
++static int clear_refs_pud_range(pud_t *pud, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
++{
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++	struct clear_refs_private *cp = walk->private;
++	struct vm_area_struct *vma = walk->vma;
++
++	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
++		clear_soft_dirty_pud(vma, addr, pud);
++	} else {
++		/* Clear accessed and referenced bits. */
++		pudp_test_and_clear_young(vma, addr, pud);
++	}
++#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
++
++	return 0;
++}
++
+ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
+ {
+@@ -1017,6 +1082,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 			.type = type,
+ 		};
+ 		struct mm_walk clear_refs_walk = {
++			.pud_entry = clear_refs_pud_range,
+ 			.pmd_entry = clear_refs_pte_range,
+ 			.test_walk = clear_refs_test_walk,
+ 			.mm = mm,
+@@ -1181,6 +1247,48 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
+ 	return make_pme(frame, flags);
+ }
+ 
++static int pagemap_pud_range(pud_t *pudp, unsigned long addr, unsigned long end,
++			     struct mm_walk *walk)
++{
++	int err = 0;
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++	struct vm_area_struct *vma = walk->vma;
++	struct pagemapread *pm = walk->private;
++	u64 flags = 0, frame = 0;
++	pud_t pud = *pudp;
++
++	if ((vma->vm_flags & VM_SOFTDIRTY) || pud_soft_dirty(pud))
++		flags |= PM_SOFT_DIRTY;
++
++	/*
++	 * Currently pud for thp is always present because thp
++	 * can not be swapped-out, migrated, or HWPOISONed
++	 * (split in such cases instead.)
++	 * This if-check is just to prepare for future implementation.
++	 */
++	if (pud_present(pud)) {
++		flags |= PM_PRESENT;
++		if (!(vma->vm_flags & VM_SHARED))
++			flags |= PM_MMAP_EXCLUSIVE;
++
++		if (pm->show_pfn)
++			frame = pud_pfn(pud) +
++					((addr & ~PUD_MASK) >> PAGE_SHIFT);
++
++		for (; addr != end; addr += PAGE_SIZE) {
++			pagemap_entry_t pme = make_pme(frame, flags);
++
++			err = add_to_pagemap(addr, &pme, pm);
++			if (err)
++				break;
++			if (pm->show_pfn && (flags & PM_PRESENT))
++				frame++;
++		}
++	}
++#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
++	return err;
++}
++
+ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			     struct mm_walk *walk)
+ {
+@@ -1359,6 +1467,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 	if (!pm.buffer)
+ 		goto out_mm;
+ 
++	pagemap_walk.pud_entry = pagemap_pud_range;
+ 	pagemap_walk.pmd_entry = pagemap_pmd_range;
+ 	pagemap_walk.pte_hole = pagemap_pte_hole;
+ #ifdef CONFIG_HUGETLB_PAGE
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
