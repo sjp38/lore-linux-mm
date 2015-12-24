@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3B182F99
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 21:23:59 -0500 (EST)
-Received: by mail-oi0-f41.google.com with SMTP id y66so132722276oig.0
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 18:23:59 -0800 (PST)
-Received: from g4t3428.houston.hp.com (g4t3428.houston.hp.com. [15.201.208.56])
-        by mx.google.com with ESMTPS id i4si24376077oes.15.2015.12.23.18.23.58
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E60282F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 01:27:06 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id p187so172514155wmp.0
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 22:27:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id df7si69611772wjc.222.2015.12.23.22.27.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Dec 2015 18:23:58 -0800 (PST)
-Message-ID: <1450923815.19330.4.camel@hpe.com>
-Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Wed, 23 Dec 2015 19:23:35 -0700
-In-Reply-To: <20151223142349.GG30213@pd.tnic>
-References: <20151216122642.GE29775@pd.tnic>
-	 <1450280642.29051.76.camel@hpe.com> <20151216154916.GF29775@pd.tnic>
-	 <1450283759.20148.11.camel@hpe.com> <20151216174523.GH29775@pd.tnic>
-	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
-	 <20151216181712.GJ29775@pd.tnic> <1450302758.20148.75.camel@hpe.com>
-	 <20151222113422.GE3728@pd.tnic> <1450814672.10450.83.camel@hpe.com>
-	 <20151223142349.GG30213@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 Dec 2015 22:27:04 -0800 (PST)
+Subject: Re: OOM killer kicks in after minutes or never
+References: <20151221123557.GE3060@orkisz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <567B9042.9010105@suse.cz>
+Date: Thu, 24 Dec 2015 07:27:14 +0100
+MIME-Version: 1.0
+In-Reply-To: <20151221123557.GE3060@orkisz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+To: Marcin Szewczyk <Marcin.Szewczyk@wodny.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>
 
-On Wed, 2015-12-23 at 15:23 +0100, Borislav Petkov wrote:
-> On Tue, Dec 22, 2015 at 01:04:32PM -0700, Toshi Kani wrote:
- :
-> > I agree that we can add new interfaces with the type check.  This
-> > 'type'
-> > may need some clarification since it is an assigned type, which is
-> > different from I/O resource type.  That is, "System RAM" is an I/O 
-> > resource type (i.e. IORESOURCE_SYSTEM_RAM), but "Crash kernel" is an 
-> > assigned type to a particular range of System RAM.  A range may be 
-> > associated with multiple names, so as multiple assigned types.  For 
-> > lack of a better idea, I may call it 'assign_type'.  I am open for a
-> > better name.
++CC so this doesn't get lost
+
+On 21.12.2015 13:35, Marcin Szewczyk wrote:
+> Hi,
 > 
-> Or assigned_type or named_type or so...
+> In 2010 I noticed that viewing many GIFs in a row using gpicview renders
+> my Linux unresponsive. There is very little I can do in such a
+> situation. Rarely after some minutes the OOM killer kicks in and saves
+> the day. Nevertheless, usually I end up using Alt+SysRq+B.
 > 
-> I think we should avoid calling it "type" completely in order to avoid
-> confusion with the IORESOURCE_* types and call it "desc" or so to mean
-> description, sort, etc, because the name is also a description of the
-> resource to a certain degree...
-
-Agreed. I will use 'desc'.
-
-> > OK, I will try to convert the existing callers with the new interfaces.
+> This is the second computer I can observe this problem on. First was
+> Asus EeePC 1000 with Atom N270 and now I have Lenovo S210 with Celeron
+> 1037U.
 > 
-> Either that or add the new interfaces, use them in your use case, add
-> big fat comments explaining that people should use those from now on
-> when searching by name and add a check to checkpatch to catch future
-> mis-uses...
-
-Sounds good.  I will look into it.
-
-Thanks,
--Toshi
+> What happens is gpicview exhausting whole available memory in such a
+> pattern that userspace becomes unresponsive. I cannot switch to another
+> terminal either. I have written a tool that allocates memory in a very
+> similar way using GDK -- https://github.com/wodny/crasher.
+> 
+> I have also uploaded some logs to the repository -- top, iostat (showing
+> a lot of reads during an episode), dmesg.
+> 
+> I suppose the OS starts to oscillate between freeing memory, cleaning
+> caches and buffers, and loading some new data (see iostat logs).
+> 
+> Currently I am using Debian Jessie with the following kernel:
+> 3.16.0-4-amd64 #1 SMP Debian 3.16.7-ckt11-1+deb8u6 (2015-11-09) x86_64 GNU/Linux
+> 
+> I can observe the most impressive effects on my physical machine
+> (logs/ph-*). On a VM (logs/vm-*) usually the OOM killer kills the
+> process after a short time (5-120 seconds).
+> 
+> Possible factors differentiating cases of recovering in seconds from
+> recoveries after minutes (or never):
+> - another memory-consuming process running (e.g. Firefox),
+> - physical machine or a VM (see dmesg logs),
+> - chipset and associated kernel functions (see dmesg logs).
+> 
+> Things that seem irrelevant (after testing):
+> - running the application in Xorg or a TTY,
+> - LUKS encryption of the root filesystem,
+> - vm.oom_kill_allocating_task setting.
+> 
+> What can I do to diagnose the problem further?
+> 
+> 
+> (Sorry if a duplicate appears)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
