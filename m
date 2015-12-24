@@ -1,128 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 43BCB82F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 15:44:04 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id o11so102849292qge.2
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 12:44:04 -0800 (PST)
-Received: from mail-qg0-x243.google.com (mail-qg0-x243.google.com. [2607:f8b0:400d:c04::243])
-        by mx.google.com with ESMTPS id o7si46562646qho.30.2015.12.24.12.44.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Dec 2015 12:44:03 -0800 (PST)
-Received: by mail-qg0-x243.google.com with SMTP id o11so1323564qge.0
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 12:44:03 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20151224094758.GA22760@dhcp22.suse.cz>
-References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
-	<CAOxpaSV38vy2ywCqQZggfydWsSfAOVo-q8cn7OcuN86ch=4mEA@mail.gmail.com>
-	<20151224094758.GA22760@dhcp22.suse.cz>
-Date: Thu, 24 Dec 2015 13:44:03 -0700
-Message-ID: <CAOxpaSXRxJGqL3Fxz5280KZy6xG0ZGwyrf-7i6LArSC0eJsv2A@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-From: Ross Zwisler <zwisler@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D7E2482F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 16:09:50 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id cy9so70400895pac.0
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 13:09:50 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id qd4si5788465pac.42.2015.12.24.13.09.49
+        for <linux-mm@kvack.org>;
+        Thu, 24 Dec 2015 13:09:50 -0800 (PST)
+Message-Id: <cover.1450990481.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Thu, 24 Dec 2015 12:54:41 -0800
+Subject: [PATCHV4 0/3] Machine check recovery when kernel accesses poison
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Thu, Dec 24, 2015 at 2:47 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 23-12-15 16:00:09, Ross Zwisler wrote:
-> [...]
->> While running xfstests on next-20151223 I hit a pair of kernel BUGs
->> that bisected to this commit:
->>
->> 1eb3a80d8239 ("mm, oom: introduce oom reaper")
->
-> Thank you for the report and the bisection.
->
->> Here is a BUG produced by generic/029 when run against XFS:
->>
->> [  235.751723] ------------[ cut here ]------------
->> [  235.752194] kernel BUG at mm/filemap.c:208!
->
-> This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach
-> the full kernel log? It all smells like a race when OOM reaper tears
-> down the mapping and there is a truncate still in progress. But hitting
-> the BUG_ON just because of that doesn't make much sense to me. OOM
-> reaper is essentially MADV_DONTNEED. I have to think about this some
-> more, though, but I am in a holiday mode until early next year so please
-> bear with me.
+Ingo: I think I have fixed up everything to make all the people who
+commented happy. Do you have any further suggestions, or is this ready
+to go into the tip tree?
 
-The two stack traces were gathered with next-20151223, so the line numbers
-may have moved around a bit when compared to the actual "mm, oom: introduce
-oom reaper" commit.
+This series is initially targeted at the folks doing filesystems
+on top of NVDIMMs. They really want to be able to return -EIO
+when there is a h/w error (just like spinning rust, and SSD does).
 
-> [...]
->> [  235.765638] Call Trace:
->> [  235.765903]  [<ffffffff811c8493>] delete_from_page_cache+0x63/0xd0
->> [  235.766513]  [<ffffffff811dc3e5>] truncate_inode_page+0xa5/0x120
->> [  235.767088]  [<ffffffff811dc648>] truncate_inode_pages_range+0x1a8/0x7f0
->> [  235.767725]  [<ffffffff81021459>] ? sched_clock+0x9/0x10
->> [  235.768239]  [<ffffffff810db37c>] ? local_clock+0x1c/0x20
->> [  235.768779]  [<ffffffff811feba4>] ? unmap_mapping_range+0x64/0x130
->> [  235.769385]  [<ffffffff811febb4>] ? unmap_mapping_range+0x74/0x130
->> [  235.770010]  [<ffffffff810f5c3f>] ? up_write+0x1f/0x40
->> [  235.770501]  [<ffffffff811febb4>] ? unmap_mapping_range+0x74/0x130
->> [  235.771092]  [<ffffffff811dcd58>] truncate_pagecache+0x48/0x70
->> [  235.771646]  [<ffffffff811dcdb2>] truncate_setsize+0x32/0x40
->> [  235.772276]  [<ffffffff8148e972>] xfs_setattr_size+0x232/0x470
->> [  235.772839]  [<ffffffff8148ec64>] xfs_vn_setattr+0xb4/0xc0
->> [  235.773369]  [<ffffffff8127af87>] notify_change+0x237/0x350
->> [  235.773945]  [<ffffffff81257c87>] do_truncate+0x77/0xc0
->> [  235.774446]  [<ffffffff8125800f>] do_sys_ftruncate.constprop.15+0xef/0x150
->> [  235.775156]  [<ffffffff812580ae>] SyS_ftruncate+0xe/0x10
->> [  235.775650]  [<ffffffff81a527b2>] entry_SYSCALL_64_fastpath+0x12/0x76
->> [  235.776257] Code: 5f 5d c3 48 8b 43 20 48 8d 78 ff a8 01 48 0f 44
->> fb 8b 47 48 85 c0 0f 88 2b 01 00 00 48 c7 c6 a8 57 f0 81 48 89 df e8
->> fa 1a 03 00 <0f> 0b 4c 89 ce 44 89 fa 4c 89 e7 4c 89 45 b0 4c 89 4d b8
->> e8 32
->> [  235.778695] RIP  [<ffffffff811c81f6>] __delete_from_page_cache+0x206/0x440
->> [  235.779350]  RSP <ffff8800bab83b60>
->> [  235.779694] ---[ end trace fac9dd65c4cdd828 ]---
->>
->> And a different BUG produced by generic/095, also with XFS:
->>
->> [  609.398897] ------------[ cut here ]------------
->> [  609.399843] kernel BUG at mm/truncate.c:629!
->
-> Hmm, I do not see any BUG_ON at this line. But there is
-> BUG_ON(page_mapped(page)) at line 620.
+I plan to use the same infrastructure in parts 1&2 to write a
+machine check aware "copy_from_user()" that will SIGBUS the
+calling application when a syscall touches poison in user space
+(just like we do when the application touches the poison itself).
 
-Ditto - check out next-20151223 for real line numbers.
+Changes V3-V4:
+Andy:	Simplify fixup_mcexception() by dropping used-once local variable
+Andy:	"Reviewed-by" tag added to part1
+Boris:	Moved new functions to memcpy_64.S and declaration to asm/string_64.h
+Boris:	Changed name s/mcsafe_memcpy/__mcsafe_copy/ to make it clear that this
+	is an internal function and that return value doesn't follow memcpy() semantics.
+Boris:	"Reviewed-by" tag added to parts 1&2
 
->> [  609.400666] invalid opcode: 0000 [#1] SMP
->> [  609.401512] Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm
->> [  609.402719] CPU: 4 PID: 26782 Comm: fio Tainted: G        W
->
-> There was a warning before this triggered. The full kernel log would be
-> helpful as well.
+Changes V2-V3:
 
-Sure, I can gather full kernel logs, but it'll probably after the new year.
+Andy:   Don't hack "regs->ax = BIT(63) | addr;" in the machine check
+        handler.  Now have better fixup code that computes the number
+        of remaining bytes (just like page-fault fixup).
+Andy:   #define for BIT(63). Done, plus couple of extra macros using it.
+Boris:  Don't clutter up generic code (like mm/extable.c) with this.
+        I moved everything under arch/x86 (the asm-generic change is
+        a more generic #define).
+Boris:  Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
+        I made it a real menu item with default "n". Dan Williams
+        will use "select MCE_KERNEL_RECOVERY" from his persistent
+        filesystem code.
+Boris:  Simplify conditionals in mce.c by moving tolerant/kill_it
+        checks earlier, with a skip to end if they aren't set.
+Boris:  Miscellaneous grammar/punctuation. Fixed.
+Boris:  Don't leak spurious __start_mcextable symbols into kernels
+        that didn't configure MCE_KERNEL_RECOVERY. Done.
+Tony:   New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
+        to new .S/.h files
+Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
+        or vmovntdqa on source addresses. I didn't fix this yet. Think
+        of the current mcsafe_memcpy() as the first of several functions.
+        This one is useful for small copies (meta-data) where the overhead
+        of saving SSE/AVX state isn't justified.
 
-> [...]
->> [  609.425325] Call Trace:
->> [  609.425797]  [<ffffffff811dc307>] invalidate_inode_pages2+0x17/0x20
->> [  609.426971]  [<ffffffff81482167>] xfs_file_read_iter+0x297/0x300
->> [  609.428097]  [<ffffffff81259ac9>] __vfs_read+0xc9/0x100
->> [  609.429073]  [<ffffffff8125a319>] vfs_read+0x89/0x130
->> [  609.430010]  [<ffffffff8125b418>] SyS_read+0x58/0xd0
->> [  609.430943]  [<ffffffff81a527b2>] entry_SYSCALL_64_fastpath+0x12/0x76
->> [  609.432139] Code: 85 d8 fe ff ff 01 00 00 00 f6 c4 40 0f 84 59 ff
->> ff ff 49 8b 47 20 48 8d 78 ff a8 01 49 0f 44 ff 8b 47 48 85 c0 0f 88
->> bd 01 00 00 <0f> 0b 4d 3b 67 08 0f 85 70 ff ff ff 49 f7 07 00 18 00 00
->> 74 15
-> [...]
->> My test setup is a qemu guest machine with a pair of 4 GiB PMEM
->> ramdisk test devices, one for the xfstest test disk and one for the
->> scratch disk.
->
-> Is this just a plain ramdisk device or it needs a special configuration?
+Changes V1->V2:
 
-Just a plain PMEM ram disk with DAX turned off.  Configuration instructions
-for PMEM can be found here:
+0-day:  Reported build errors and warnings on 32-bit systems. Fixed
+0-day:  Reported bloat to tinyconfig. Fixed
+Boris:  Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
+Boris:  Re-write "tolerant==3" check to reduce indentation level. See below.
+Andy:   Check IP is valid before searching kernel exception tables. Done.
+Andy:   Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
+Andy:   Untangle mess of code in tail of do_machine_check() to make it
+        clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
+        if we were called from user code, not from kernel!). Done.
 
-https://nvdimm.wiki.kernel.org/
+
+Tony Luck (3):
+  x86, ras: Add new infrastructure for machine check fixup tables
+  x86, ras: Extend machine check recovery code to annotated ring0 areas
+  x86, ras: Add __mcsafe_copy() function to recover from machine checks
+
+ arch/x86/Kconfig                          |  10 +++
+ arch/x86/include/asm/asm.h                |  10 ++-
+ arch/x86/include/asm/mce.h                |  14 ++++
+ arch/x86/include/asm/string_64.h          |   8 ++
+ arch/x86/kernel/cpu/mcheck/mce-severity.c |  21 ++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          |  86 +++++++++++--------
+ arch/x86/kernel/vmlinux.lds.S             |   6 +-
+ arch/x86/kernel/x8664_ksyms_64.c          |   4 +
+ arch/x86/lib/memcpy_64.S                  | 133 ++++++++++++++++++++++++++++++
+ arch/x86/mm/extable.c                     |  16 ++++
+ include/asm-generic/vmlinux.lds.h         |  12 +--
+ 11 files changed, 276 insertions(+), 44 deletions(-)
+
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
