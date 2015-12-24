@@ -1,58 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EF75382F99
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 16:37:23 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id l9so114383901oia.2
-        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 13:37:23 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id y127si22832828oig.49.2015.12.24.13.37.23
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 54DBE82F99
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2015 17:56:27 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id p187so193842160wmp.0
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 14:56:27 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id l6si74562943wje.171.2015.12.24.14.56.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Dec 2015 13:37:23 -0800 (PST)
-Message-ID: <1450993020.19330.15.camel@hpe.com>
-Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Thu, 24 Dec 2015 14:37:00 -0700
-In-Reply-To: <20151224195837.GE4128@pd.tnic>
-References: <1450283759.20148.11.camel@hpe.com>
-	 <20151216174523.GH29775@pd.tnic>
-	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
-	 <20151216181712.GJ29775@pd.tnic> <1450302758.20148.75.camel@hpe.com>
-	 <20151222113422.GE3728@pd.tnic> <1450814672.10450.83.camel@hpe.com>
-	 <20151223142349.GG30213@pd.tnic> <1450923815.19330.4.camel@hpe.com>
-	 <1450976937.19330.11.camel@hpe.com> <20151224195837.GE4128@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 24 Dec 2015 14:56:25 -0800 (PST)
+Received: by mail-wm0-x22f.google.com with SMTP id p187so190812058wmp.1
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2015 14:56:25 -0800 (PST)
+Date: Fri, 25 Dec 2015 00:56:23 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 2/4] thp: fix regression in handling mlocked pages in
+ __split_huge_pmd()
+Message-ID: <20151224225623.GA22707@node.shutemov.name>
+References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1450957883-96356-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAPcyv4iRPEw7tPT7bCBX+0eYbrTU679moLZ+zff1RXUvoDmCoA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4iRPEw7tPT7bCBX+0eYbrTU679moLZ+zff1RXUvoDmCoA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Linux MM <linux-mm@kvack.org>
 
-On Thu, 2015-12-24 at 20:58 +0100, Borislav Petkov wrote:
-> On Thu, Dec 24, 2015 at 10:08:57AM -0700, Toshi Kani wrote:
-> > As for checkpatch, I noticed that commit 9c0ece069b3 removed "feature
-> > -removal.txt" file, and checkpatch removed this check in commit
-> > 78e3f1f01d2.  checkpatch does not have such check since then.  So, I am
-> > inclined not to add this check back to checkpatch.
+On Thu, Dec 24, 2015 at 10:51:43AM -0800, Dan Williams wrote:
+> On Thu, Dec 24, 2015 at 3:51 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > This patch fixes regression caused by patch
+> >  "mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd"
+> >
+> > The patch makes pmd_trans_huge() check and "page = pmd_page(*pmd)" after
+> > __split_huge_pmd_locked(). It can never succeed, since the pmd already
+> > points to a page table. As result the page is never get munlocked.
+> >
+> > It causes crashes like this:
+> >  http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  mm/huge_memory.c | 8 +++-----
+> >  1 file changed, 3 insertions(+), 5 deletions(-)
+> >
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 99f2a0ecb621..1a988d9b86ef 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -3024,14 +3024,12 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> >         ptl = pmd_lock(mm, pmd);
+> >         if (unlikely(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
+> >                 goto out;
+> > -       __split_huge_pmd_locked(vma, pmd, haddr, false);
+> > -
+> > -       if (pmd_trans_huge(*pmd))
+> > -               page = pmd_page(*pmd);
+> > -       if (page && PageMlocked(page))
+> > +       page = pmd_page(*pmd);
+> > +       if (PageMlocked(page))
+> >                 get_page(page);
+> >         else
+> >                 page = NULL;
+> > +       __split_huge_pmd_locked(vma, pmd, haddr, false);
 > 
-> I didn't mean that.
+> Since dax pmd mappings may not have a backing struct page I think this
+> additionally needs the following:
 > 
-> Rather, something along the lines of, for example,
-> the DEFINE_PCI_DEVICE_TABLE matching but match those
-> resource matching functions using the strings, i.e.,
-> "(walk_iomem_res|find_next_iomem_res|region_intersects)" or so and
-> warn when new code uses them and that it should rather use the new
-> desc-matching variants.
+> 8<-----
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 4eae97325e95..c4eccfa836f4 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -3025,11 +3025,13 @@ void __split_huge_pmd(struct vm_area_struct
+> *vma, pmd_t *pmd,
+>        ptl = pmd_lock(mm, pmd);
+>        if (unlikely(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
+>                goto out;
+> -       page = pmd_page(*pmd);
+> -       if (PageMlocked(page))
+> -               get_page(page);
+> -       else
+> -               page = NULL;
+> +       else if (pmd_trans_huge(*pmd)) {
+> +               page = pmd_page(*pmd);
+> +               if (PageMlocked(page))
+> +                       get_page(page);
+> +               else
+> +                       page = NULL;
+> +       }
+>        __split_huge_pmd_locked(vma, pmd, haddr, false);
+> out:
+>        spin_unlock(ptl);
+> 
 
-OK, I will add a check to walk_iomem_res().  I will remove @name from
-region_intersects(), and find_next_iomem_res() is an internal function.
-
-Thanks,
--Toshi
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Right, I've missed that. Here's updated patch.
