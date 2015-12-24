@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1E382F99
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 19:34:54 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l126so166094993wml.0
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 16:34:54 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id bp8si68035173wjb.66.2015.12.23.16.34.52
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D3B182F99
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2015 21:23:59 -0500 (EST)
+Received: by mail-oi0-f41.google.com with SMTP id y66so132722276oig.0
+        for <linux-mm@kvack.org>; Wed, 23 Dec 2015 18:23:59 -0800 (PST)
+Received: from g4t3428.houston.hp.com (g4t3428.houston.hp.com. [15.201.208.56])
+        by mx.google.com with ESMTPS id i4si24376077oes.15.2015.12.23.18.23.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Dec 2015 16:34:53 -0800 (PST)
-Date: Thu, 24 Dec 2015 00:34:07 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH v2] ARM: mm: flip priority of CONFIG_DEBUG_RODATA
-Message-ID: <20151224003406.GA8644@n2100.arm.linux.org.uk>
-References: <20151202202725.GA794@www.outflux.net>
- <20151223195129.GP2793@atomide.com>
- <567B04AB.6010906@redhat.com>
- <20151223212911.GR2793@atomide.com>
- <alpine.LFD.2.20.1512231637110.3603@knanqh.ubzr>
- <20151224001121.GS2793@atomide.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151224001121.GS2793@atomide.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Dec 2015 18:23:58 -0800 (PST)
+Message-ID: <1450923815.19330.4.camel@hpe.com>
+Subject: Re: [PATCH 01/11] resource: Add System RAM resource type
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Wed, 23 Dec 2015 19:23:35 -0700
+In-Reply-To: <20151223142349.GG30213@pd.tnic>
+References: <20151216122642.GE29775@pd.tnic>
+	 <1450280642.29051.76.camel@hpe.com> <20151216154916.GF29775@pd.tnic>
+	 <1450283759.20148.11.camel@hpe.com> <20151216174523.GH29775@pd.tnic>
+	 <CAPcyv4h+n51Z2hskP2+PX44OB47OQwrKcqVr3nrvMzG++qjC+w@mail.gmail.com>
+	 <20151216181712.GJ29775@pd.tnic> <1450302758.20148.75.camel@hpe.com>
+	 <20151222113422.GE3728@pd.tnic> <1450814672.10450.83.camel@hpe.com>
+	 <20151223142349.GG30213@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Lindgren <tony@atomide.com>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com, linux-arm-kernel@lists.infradead.org, Laura Abbott <labbott@fedoraproject.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-On Wed, Dec 23, 2015 at 04:11:22PM -0800, Tony Lindgren wrote:
-> * Nicolas Pitre <nicolas.pitre@linaro.org> [151223 13:45]:
-> > We fixed a bunch of similar issues where code was located in the .data 
-> > section for ease of use from assembly code.  See commit b4e61537 and 
-> > d0776aff for example.
+On Wed, 2015-12-23 at 15:23 +0100, Borislav Petkov wrote:
+> On Tue, Dec 22, 2015 at 01:04:32PM -0700, Toshi Kani wrote:
+ :
+> > I agree that we can add new interfaces with the type check.  This
+> > 'type'
+> > may need some clarification since it is an assigned type, which is
+> > different from I/O resource type.  That is, "System RAM" is an I/O 
+> > resource type (i.e. IORESOURCE_SYSTEM_RAM), but "Crash kernel" is an 
+> > assigned type to a particular range of System RAM.  A range may be 
+> > associated with multiple names, so as multiple assigned types.  For 
+> > lack of a better idea, I may call it 'assign_type'.  I am open for a
+> > better name.
 > 
-> Thanks hey some assembly fun for the holidays :) I also need to check what
-> all gets relocated to SRAM here.
+> Or assigned_type or named_type or so...
 > 
-> In any case, seems like the $subject patch is too intrusive for v4.5 at
-> this point.
+> I think we should avoid calling it "type" completely in order to avoid
+> confusion with the IORESOURCE_* types and call it "desc" or so to mean
+> description, sort, etc, because the name is also a description of the
+> resource to a certain degree...
 
-Given Christmas and an unknown time between that and the merge window
-actually opening, I decided Tuesday would be the last day I take any
-patches into my tree - and today would be the day that I drop anything
-that causes problems.
+Agreed. I will use 'desc'.
 
-So, I've already dropped this, so tomorrow's linux-next should not have
-this change.
+> > OK, I will try to convert the existing callers with the new interfaces.
+> 
+> Either that or add the new interfaces, use them in your use case, add
+> big fat comments explaining that people should use those from now on
+> when searching by name and add a check to checkpatch to catch future
+> mis-uses...
 
-You'll still see breakage if people enable RODATA though, but that's no
-different from previous kernels.
+Sounds good.  I will look into it.
 
--- 
-RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
