@@ -1,93 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A0082FCB
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2015 17:10:00 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id iw8so202051585obc.1
-        for <linux-mm@kvack.org>; Fri, 25 Dec 2015 14:10:00 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id f64si39592948oia.65.2015.12.25.14.09.59
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F8382FCB
+	for <linux-mm@kvack.org>; Fri, 25 Dec 2015 17:10:05 -0500 (EST)
+Received: by mail-oi0-f49.google.com with SMTP id l9so123278982oia.2
+        for <linux-mm@kvack.org>; Fri, 25 Dec 2015 14:10:05 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id t63si39644209oie.59.2015.12.25.14.10.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Dec 2015 14:09:59 -0800 (PST)
+        Fri, 25 Dec 2015 14:10:04 -0800 (PST)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 01/16] resource: Add System RAM resource type
-Date: Fri, 25 Dec 2015 15:09:10 -0700
-Message-Id: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH v2 02/16] resource: make resource flags handled properly
+Date: Fri, 25 Dec 2015 15:09:11 -0700
+Message-Id: <1451081365-15190-2-git-send-email-toshi.kani@hpe.com>
+In-Reply-To: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Toshi Kani <toshi.kani@hpe.com>
 
-I/O resource type, IORESOURCE_MEM, is used for all types of
-memory-mapped ranges, ex. System RAM, System ROM, Video RAM,
-Persistent Memory, PCI Bus, PCI MMCONFIG, ACPI Tables, IOAPIC,
-reserved, and so on.  This requires walk_system_ram_range(),
-walk_system_ram_res(), and region_intersects() to use strcmp()
-against string "System RAM" to search for System RAM ranges in
-the iomem table, which is inefficient.  __ioremap_caller() and
-reserve_memtype() on x86, for instance, call walk_system_ram_range()
-for every request to check if a given range is in System RAM ranges.
+I/O resource flags consist of I/O resource types and modifier
+bits.  Therefore, checking an I/O resource type in 'flags' must
+be performed with a bitwise operation.
 
-However, adding a new I/O resource type for System RAM is not
-a viable option [1].  There are approx. 3800 references to
-IORESOURCE_MEM in the kernel/drivers, which make it very
-difficult to distinguish their usages between new type and
-IORESOURCE_MEM.  The I/O resource types are also used by the
-PNP subsystem.  Therefore, this patch introduces an extended
-I/O resource type, IORESOURCE_SYSTEM_RAM, which consists of
-IORESOURCE_MEM and a new modifier flag IORESOURCE_SYSRAM [2].
+Fix find_next_iomem_res() and region_intersects() that simply
+compare 'flags' against a given value.
 
-To keep the code 'if (resource_type(r) == IORESOURCE_MEM)' to
-work continuously for System RAM, resource_ext_type() is added
-for extracting extended type bit(s).
+Also change __request_region() to set 'res->flags' from
+resource_type() and resource_ext_type() of the parent, so that
+children nodes will inherit the extended I/O resource type.
 
-Link[1]: http://lkml.kernel.org/r/<1449168859.9855.54.camel@hpe.com>
-Link[2]: http://lkml.kernel.org/r/<CA+55aFy4WQrWexC4u2LxX9Mw2NVoznw7p3Yh=iF4Xtf7zKWnRw@mail.gmail.com>
+Link: http://lkml.kernel.org/r/<CA+55aFy4WQrWexC4u2LxX9Mw2NVoznw7p3Yh=iF4Xtf7zKWnRw@mail.gmail.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 ---
- include/linux/ioport.h |   11 +++++++++++
- 1 file changed, 11 insertions(+)
+ kernel/resource.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index 24bea08..4b65d94 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -49,12 +49,19 @@ struct resource {
- #define IORESOURCE_WINDOW	0x00200000	/* forwarded by bridge */
- #define IORESOURCE_MUXED	0x00400000	/* Resource is software muxed */
+diff --git a/kernel/resource.c b/kernel/resource.c
+index f150dbb..d30a175 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -358,7 +358,7 @@ static int find_next_iomem_res(struct resource *res, char *name,
+ 	read_lock(&resource_lock);
  
-+#define IORESOURCE_EXT_TYPE_BITS 0x01000000	/* Resource extended types */
-+#define IORESOURCE_SYSRAM	0x01000000	/* System RAM (modifier) */
-+
- #define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may not map this resource */
-+
- #define IORESOURCE_DISABLED	0x10000000
- #define IORESOURCE_UNSET	0x20000000	/* No address assigned yet */
- #define IORESOURCE_AUTO		0x40000000
- #define IORESOURCE_BUSY		0x80000000	/* Driver has marked this resource busy */
+ 	for (p = iomem_resource.child; p; p = next_resource(p, sibling_only)) {
+-		if (p->flags != res->flags)
++		if ((p->flags & res->flags) != res->flags)
+ 			continue;
+ 		if (name && strcmp(p->name, name))
+ 			continue;
+@@ -519,7 +519,8 @@ int region_intersects(resource_size_t start, size_t size, const char *name)
  
-+/* I/O resource extended types */
-+#define IORESOURCE_SYSTEM_RAM		(IORESOURCE_MEM|IORESOURCE_SYSRAM)
-+
- /* PnP IRQ specific bits (IORESOURCE_BITS) */
- #define IORESOURCE_IRQ_HIGHEDGE		(1<<0)
- #define IORESOURCE_IRQ_LOWEDGE		(1<<1)
-@@ -170,6 +177,10 @@ static inline unsigned long resource_type(const struct resource *res)
- {
- 	return res->flags & IORESOURCE_TYPE_BITS;
- }
-+static inline unsigned long resource_ext_type(const struct resource *res)
-+{
-+	return res->flags & IORESOURCE_EXT_TYPE_BITS;
-+}
- /* True iff r1 completely contains r2 */
- static inline bool resource_contains(struct resource *r1, struct resource *r2)
- {
+ 	read_lock(&resource_lock);
+ 	for (p = iomem_resource.child; p ; p = p->sibling) {
+-		bool is_type = strcmp(p->name, name) == 0 && p->flags == flags;
++		bool is_type = strcmp(p->name, name) == 0 &&
++				((p->flags & flags) == flags);
+ 
+ 		if (start >= p->start && start <= p->end)
+ 			is_type ? type++ : other++;
+@@ -1071,7 +1072,7 @@ struct resource * __request_region(struct resource *parent,
+ 	res->name = name;
+ 	res->start = start;
+ 	res->end = start + n - 1;
+-	res->flags = resource_type(parent);
++	res->flags = resource_type(parent) | resource_ext_type(parent);
+ 	res->flags |= IORESOURCE_BUSY | flags;
+ 
+ 	write_lock(&resource_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
