@@ -1,144 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 421FA82FCB
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2015 17:10:08 -0500 (EST)
-Received: by mail-oi0-f50.google.com with SMTP id o62so146467488oif.3
-        for <linux-mm@kvack.org>; Fri, 25 Dec 2015 14:10:08 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id l10si13835090oeu.78.2015.12.25.14.10.07
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A9B56680DC6
+	for <linux-mm@kvack.org>; Fri, 25 Dec 2015 17:10:10 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id 18so203622073obc.2
+        for <linux-mm@kvack.org>; Fri, 25 Dec 2015 14:10:10 -0800 (PST)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id uu6si9102784obc.50.2015.12.25.14.10.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Dec 2015 14:10:07 -0800 (PST)
+        Fri, 25 Dec 2015 14:10:10 -0800 (PST)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 03/16] resource: Add I/O resource descriptor
-Date: Fri, 25 Dec 2015 15:09:12 -0700
-Message-Id: <1451081365-15190-3-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH v2 04/16] x86/e820: Set System RAM type and descriptor
+Date: Fri, 25 Dec 2015 15:09:13 -0700
+Message-Id: <1451081365-15190-4-git-send-email-toshi.kani@hpe.com>
 In-Reply-To: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
 References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Toshi Kani <toshi.kani@hpe.com>
 
-walk_iomem_res() and region_intersects() still need to use
-strcmp() for searching a resource entry by @name in the
-iomem table.
+Change e820_reserve_resources() to set 'flags' and 'desc' from
+e820 types.
 
-This patch introduces I/O resource descriptor, 'desc' in
-struct resoruce, for the iomem search interfaces.  Drivers
-can assign their unique descritor to a range when they
-support the search interfaces.  Otherwise, 'desc' is set to
-IORES_DESC_NONE (0).  This avoids changing most of the drivers
-as they typically allocate resource entries statically, or
-by calling alloc_resource(), kzalloc(), or alloc_bootmem_low(),
-which set the field to zero by default.  A later patch will
-address some drivers that use kmalloc() without zero'ing
-the field.
+IORESOURCE_SYSTEM_RAM is set to 'flags' for System RAM, which
+are E820_RESERVED_KERN and E820_RAM.  IORESOURCE_SYSTEM_RAM is
+also set to "Kernel data", "Kernel code", and "Kernel bss",
+which are children nodes of System RAM.
 
-Also change release_mem_region_adjustable() to set 'desc'
-when its resource entry gets separated.  Other resource
-interfaces are also changed to initialize 'desc' explicitly
-although alloc_resource() sets it to 0.
+I/O resource descriptor is set to 'desc' for entries that are
+(and will be) target ranges of walk_iomem_res() and
+region_intersects().
 
-Link: http://lkml.kernel.org/r/<20151216181712.GJ29775@pd.tnic>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: x86@kernel.org
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 ---
- include/linux/ioport.h |   19 +++++++++++++++++++
- kernel/resource.c      |    5 +++++
- 2 files changed, 24 insertions(+)
+ arch/x86/kernel/e820.c  |   38 +++++++++++++++++++++++++++++++++++++-
+ arch/x86/kernel/setup.c |    6 +++---
+ 2 files changed, 40 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index 4b65d94..b7350c0 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -20,6 +20,7 @@ struct resource {
- 	resource_size_t end;
- 	const char *name;
- 	unsigned long flags;
-+	unsigned long desc;
- 	struct resource *parent, *sibling, *child;
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 569c1e4..837365f 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -925,6 +925,41 @@ static const char *e820_type_to_string(int e820_type)
+ 	}
+ }
+ 
++static unsigned long e820_type_to_iomem_type(int e820_type)
++{
++	switch (e820_type) {
++	case E820_RESERVED_KERN:
++	case E820_RAM:
++		return IORESOURCE_SYSTEM_RAM;
++	case E820_ACPI:
++	case E820_NVS:
++	case E820_UNUSABLE:
++	case E820_PRAM:
++	case E820_PMEM:
++	default:
++		return IORESOURCE_MEM;
++	}
++}
++
++static unsigned long e820_type_to_iores_desc(int e820_type)
++{
++	switch (e820_type) {
++	case E820_ACPI:
++		return IORES_DESC_ACPI_TABLES;
++	case E820_NVS:
++		return IORES_DESC_ACPI_NV_STORAGE;
++	case E820_PMEM:
++		return IORES_DESC_PERSISTENT_MEMORY;
++	case E820_PRAM:
++		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
++	case E820_RESERVED_KERN:
++	case E820_RAM:
++	case E820_UNUSABLE:
++	default:
++		return IORES_DESC_NONE;
++	}
++}
++
+ static bool do_mark_busy(u32 type, struct resource *res)
+ {
+ 	/* this is the legacy bios/dos rom-shadow + mmio region */
+@@ -967,7 +1002,8 @@ void __init e820_reserve_resources(void)
+ 		res->start = e820.map[i].addr;
+ 		res->end = end;
+ 
+-		res->flags = IORESOURCE_MEM;
++		res->flags = e820_type_to_iomem_type(e820.map[i].type);
++		res->desc = e820_type_to_iores_desc(e820.map[i].type);
+ 
+ 		/*
+ 		 * don't register the region that could be conflicted with
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index d2bbe34..a492c30 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -152,21 +152,21 @@ static struct resource data_resource = {
+ 	.name	= "Kernel data",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
  };
  
-@@ -112,6 +113,23 @@ struct resource {
- /* PCI control bits.  Shares IORESOURCE_BITS with above PCI ROM.  */
- #define IORESOURCE_PCI_FIXED		(1<<4)	/* Do not move resource */
+ static struct resource code_resource = {
+ 	.name	= "Kernel code",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
  
-+/*
-+ * I/O Resource Descriptors
-+ *
-+ * Descriptors are used by walk_iomem_res_desc() and region_intersects()
-+ * for searching a specific resource range in the iomem table.  Assign
-+ * a new descriptor when a resource range supports the search interfaces.
-+ * Otherwise, resource.desc must be set to IORES_DESC_NONE (0).
-+ */
-+enum {
-+	IORES_DESC_NONE				= 0,
-+	IORES_DESC_CRASH_KERNEL			= 1,
-+	IORES_DESC_ACPI_TABLES			= 2,
-+	IORES_DESC_ACPI_NV_STORAGE		= 3,
-+	IORES_DESC_GART				= 4,
-+	IORES_DESC_PERSISTENT_MEMORY		= 5,
-+	IORES_DESC_PERSISTENT_MEMORY_LEGACY	= 6,
-+};
+ static struct resource bss_resource = {
+ 	.name	= "Kernel bss",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
  
- /* helpers to define resources */
- #define DEFINE_RES_NAMED(_start, _size, _name, _flags)			\
-@@ -120,6 +138,7 @@ struct resource {
- 		.end = (_start) + (_size) - 1,				\
- 		.name = (_name),					\
- 		.flags = (_flags),					\
-+		.desc = IORES_DESC_NONE,				\
- 	}
  
- #define DEFINE_RES_IO_NAMED(_start, _size, _name)			\
-diff --git a/kernel/resource.c b/kernel/resource.c
-index d30a175..65eca4d 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -949,6 +949,7 @@ static void __init __reserve_region_with_split(struct resource *root,
- 	res->start = start;
- 	res->end = end;
- 	res->flags = IORESOURCE_BUSY;
-+	res->desc = IORES_DESC_NONE;
- 
- 	while (1) {
- 
-@@ -983,6 +984,7 @@ static void __init __reserve_region_with_split(struct resource *root,
- 				next_res->start = conflict->end + 1;
- 				next_res->end = end;
- 				next_res->flags = IORESOURCE_BUSY;
-+				next_res->desc = IORES_DESC_NONE;
- 			}
- 		} else {
- 			res->start = conflict->end + 1;
-@@ -1074,6 +1076,7 @@ struct resource * __request_region(struct resource *parent,
- 	res->end = start + n - 1;
- 	res->flags = resource_type(parent) | resource_ext_type(parent);
- 	res->flags |= IORESOURCE_BUSY | flags;
-+	res->desc = IORES_DESC_NONE;
- 
- 	write_lock(&resource_lock);
- 
-@@ -1238,6 +1241,7 @@ int release_mem_region_adjustable(struct resource *parent,
- 			new_res->start = end + 1;
- 			new_res->end = res->end;
- 			new_res->flags = res->flags;
-+			new_res->desc = res->desc;
- 			new_res->parent = res->parent;
- 			new_res->sibling = res->sibling;
- 			new_res->child = NULL;
-@@ -1413,6 +1417,7 @@ static int __init reserve_setup(char *str)
- 			res->start = io_start;
- 			res->end = io_start + io_num - 1;
- 			res->flags = IORESOURCE_BUSY;
-+			res->desc = IORES_DESC_NONE;
- 			res->child = NULL;
- 			if (request_resource(res->start >= 0x10000 ? &iomem_resource : &ioport_resource, res) == 0)
- 				reserved = x+1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
