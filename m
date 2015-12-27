@@ -1,62 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9240A6B02BC
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2015 18:36:17 -0500 (EST)
-Received: by mail-qg0-f44.google.com with SMTP id 6so60239069qgy.1
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 15:36:17 -0800 (PST)
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EC21C6B02BD
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2015 18:36:35 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id o11so138277477qge.2
+        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 15:36:35 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z139si62144521qka.98.2015.12.27.15.36.16
+        by mx.google.com with ESMTPS id f144si62008875qhc.96.2015.12.27.15.36.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Dec 2015 15:36:17 -0800 (PST)
-Date: Sun, 27 Dec 2015 18:36:11 -0500
+        Sun, 27 Dec 2015 15:36:35 -0800 (PST)
+Date: Sun, 27 Dec 2015 18:36:29 -0500
 From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 1/2] virtio_balloon: fix race by fill and leak
-Message-ID: <20151227233610.GB624@t510.redhat.com>
+Subject: Re: [PATCH 2/2] virtio_balloon: fix race between migration and
+ ballooning
+Message-ID: <20151227233629.GC624@t510.redhat.com>
 References: <1451259313-26353-1-git-send-email-minchan@kernel.org>
+ <1451259313-26353-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1451259313-26353-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1451259313-26353-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Konstantin Khlebnikov <koct9i@gmail.com>, stable@vger.kernel.org
 
-On Mon, Dec 28, 2015 at 08:35:12AM +0900, Minchan Kim wrote:
-> During my compaction-related stuff, I encountered a bug
-> with ballooning.
+On Mon, Dec 28, 2015 at 08:35:13AM +0900, Minchan Kim wrote:
+> In balloon_page_dequeue, pages_lock should cover the loop
+> (ie, list_for_each_entry_safe). Otherwise, the cursor page could
+> be isolated by compaction and then list_del by isolation could
+> poison the page->lru.{prev,next} so the loop finally could
+> access wrong address like this. This patch fixes the bug.
 > 
-> With repeated inflating and deflating cycle, guest memory(
-> ie, cat /proc/meminfo | grep MemTotal) is decreased and
-> couldn't be recovered.
-> 
-> The reason is balloon_lock doesn't cover release_pages_balloon
-> so struct virtio_balloon fields could be overwritten by race
-> of fill_balloon(e,g, vb->*pfns could be critical).
-> 
-> This patch fixes it in my test.
+> general protection fault: 0000 [#1] SMP
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 2 PID: 82 Comm: vballoon Not tainted 4.4.0-rc5-mm1-access_bit+ #1906
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff8800a7ff0000 ti: ffff8800a7fec000 task.ti: ffff8800a7fec000
+> RIP: 0010:[<ffffffff8115e754>]  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+> RSP: 0018:ffff8800a7fefdc0  EFLAGS: 00010246
+> RAX: ffff88013fff9a70 RBX: ffffea000056fe00 RCX: 0000000000002b7d
+> RDX: ffff88013fff9a70 RSI: ffffea000056fe00 RDI: ffff88013fff9a68
+> RBP: ffff8800a7fefde8 R08: ffffea000056fda0 R09: 0000000000000000
+> R10: ffff8800a7fefd90 R11: 0000000000000001 R12: dead0000000000e0
+> R13: ffffea000056fe20 R14: ffff880138809070 R15: ffff880138809060
+> FS:  0000000000000000(0000) GS:ffff88013fc40000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00007f229c10e000 CR3: 00000000b8b53000 CR4: 00000000000006a0
+> Stack:
+>  0000000000000100 ffff880138809088 ffff880138809000 ffff880138809060
+>  0000000000000046 ffff8800a7fefe28 ffffffff812c86d3 ffff880138809020
+>  ffff880138809000 fffffffffff91900 0000000000000100 ffff880138809060
+> Call Trace:
+>  [<ffffffff812c86d3>] leak_balloon+0x93/0x1a0
+>  [<ffffffff812c8bc7>] balloon+0x217/0x2a0
+>  [<ffffffff8143739e>] ? __schedule+0x31e/0x8b0
+>  [<ffffffff81078160>] ? abort_exclusive_wait+0xb0/0xb0
+>  [<ffffffff812c89b0>] ? update_balloon_stats+0xf0/0xf0
+>  [<ffffffff8105b6e9>] kthread+0xc9/0xe0
+>  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+>  [<ffffffff8143b4af>] ret_from_fork+0x3f/0x70
+>  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
+> Code: 8d 60 e0 0f 84 af 00 00 00 48 8b 43 20 a8 01 75 3b 48 89 d8 f0 0f ba 28 00 72 10 48 8b 03 f6 c4 08 75 2f 48 89 df e8 8c 83 f9 ff <49> 8b 44 24 20 4d 8d 6c 24 20 48 83 e8 20 4d 39 f5 74 7a 4c 89
+> RIP  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
+>  RSP <ffff8800a7fefdc0>
+> ---[ end trace 43cf28060d708d5f ]---
+> Kernel panic - not syncing: Fatal exception
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
 > 
 > Cc: <stable@vger.kernel.org>
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  drivers/virtio/virtio_balloon.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  mm/balloon_compaction.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 7efc32945810..7d3e5d0e9aa4 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -209,8 +209,8 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  	 */
->  	if (vb->num_pfns != 0)
->  		tell_host(vb, vb->deflate_vq);
-> -	mutex_unlock(&vb->balloon_lock);
->  	release_pages_balloon(vb);
-> +	mutex_unlock(&vb->balloon_lock);
->  	return num_freed_pages;
->  }
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index d3116be5a00f..300117f1a08f 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -61,6 +61,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  	bool dequeued_page;
 >  
+>  	dequeued_page = false;
+> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>  	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+>  		/*
+>  		 * Block others from accessing the 'page' while we get around
+> @@ -75,15 +76,14 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  				continue;
+>  			}
+>  #endif
+> -			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>  			balloon_page_delete(page);
+>  			__count_vm_event(BALLOON_DEFLATE);
+> -			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>  			unlock_page(page);
+>  			dequeued_page = true;
+>  			break;
+>  		}
+>  	}
+> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>  
+>  	if (!dequeued_page) {
+>  		/*
 > -- 
 > 1.9.1
 > 
