@@ -1,51 +1,49 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
- from machine checks
-Date: Sun, 27 Dec 2015 11:09:19 +0100
-Message-ID: <20151227100919.GA19398@nazgul.tnic>
-References: <20151224214632.GF4128@pd.tnic>
- <ce84932301823b991b9b439a4715be93f1912c05.1451002295.git.tony.luck@intel.com>
- <20151225114937.GA862@pd.tnic>
- <5FBC1CF1-095B-466D-85D6-832FBFA98364@intel.com>
- <20151226103252.GA21988@pd.tnic>
- <CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
- <CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
- <CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
- <CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
- <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
+From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
+Subject: Re: [PATCH v2 14/16] x86, nvdimm, kexec: Use walk_iomem_res_desc()
+ for iomem search
+Date: Sun, 27 Dec 2015 11:24:06 +0100
+Message-ID: <20151227102406.GB19398@nazgul.tnic>
+References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+ <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
+ <20151226103804.GB21988@pd.tnic> <567F315B.8080005@hpe.com>
+ <20151227021257.GA13560@dhcp-128-25.nay.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <kexec-bounces+glkk-kexec=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
 Content-Disposition: inline
-In-Reply-To: <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Tony Luck <tony.luck@gmail.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+In-Reply-To: <20151227021257.GA13560-0VdLhd/A9Pl6Yz8KYMO23x/sF2h8X+2i0E9HWUfgJXw@public.gmane.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/kexec>,
+ <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/kexec/>
+List-Post: <mailto:kexec-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+List-Help: <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/kexec>,
+ <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=subscribe>
+Sender: "kexec" <kexec-bounces-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+Errors-To: kexec-bounces+glkk-kexec=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org
+To: Minfei Huang <mhuang-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Toshi Kani <toshi.kani-ZPxbGqLxI0U@public.gmane.org>
+Cc: linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-nvdimm-y27Ovi1pjclAfugRpC6u6w@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, kexec-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, Dave Young <dyoung-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Dan Williams <dan.j.williams-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-On Sat, Dec 26, 2015 at 10:57:26PM -0800, Tony Luck wrote:
-> ... will get the right value.  Maybe this would still work out
-> if the fixup is a 31-bit value plus a flag, but the external
-> tool thinks it is a 32-bit value?  I'd have to ponder that.
+On Sun, Dec 27, 2015 at 10:12:57AM +0800, Minfei Huang wrote:
+> You can refer the below link that you may get a clue about GART. This is
+> the fisrt time kexec-tools tried to support to ignore GART region in 2nd
+> kernel.
+> 
+> http://lists.infradead.org/pipermail/kexec/2008-December/003096.html
 
-I still fail to see why do we need to make it so complicated and can't
-do something like:
+So theoretically we could export that IORES_DESC* enum in an uapi header and
+move kexec-tools to use that.
+
+However, I'm fuzzy on how exactly the whole compatibility thing is done
+with kexec-tools and the kernel. We probably would have to support
+newer kexec-tools on an older kernel and vice versa so I'd guess we
+should mark walk_iomem_res() deprecated so that people are encouraged to
+upgrade to newer kexec-tools...
 
 
-fixup_exception:
-	...
-
-#ifdef CONFIG_MCE_KERNEL_RECOVERY
-		if (regs->ip >= (unsigned long)__mcsafe_copy &&
-		    regs->ip <= (unsigned long)__mcsafe_copy_end)
-			run_special_handler();
-#endif
-
-and that special handler does all the stuff we want. And we pass
-X86_TRAP* etc through fixup_exception along with whatever else we
-need from the trap handler...
-
-Hmmm?
+Hmmm.
 
 -- 
 Regards/Gruss,
