@@ -1,41 +1,55 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v2 14/16] x86,nvdimm,kexec: Use walk_iomem_res_desc() for
- iomem search
-Date: Sat, 26 Dec 2015 11:38:04 +0100
-Message-ID: <20151226103804.GB21988@pd.tnic>
-References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
- <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
+Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
+ from machine checks
+Date: Sun, 27 Dec 2015 11:09:19 +0100
+Message-ID: <20151227100919.GA19398@nazgul.tnic>
+References: <20151224214632.GF4128@pd.tnic>
+ <ce84932301823b991b9b439a4715be93f1912c05.1451002295.git.tony.luck@intel.com>
+ <20151225114937.GA862@pd.tnic>
+ <5FBC1CF1-095B-466D-85D6-832FBFA98364@intel.com>
+ <20151226103252.GA21988@pd.tnic>
+ <CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
+ <CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
+ <CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
+ <CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
+ <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Return-path: <linux-arch-owner@vger.kernel.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
-Sender: linux-arch-owner@vger.kernel.org
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, x86@kernel.org, linux-nvdimm@lists.01.org
+In-Reply-To: <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Tony Luck <tony.luck@gmail.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-On Fri, Dec 25, 2015 at 03:09:23PM -0700, Toshi Kani wrote:
-> Change to call walk_iomem_res_desc() for searching resource entries
-> with the following names:
->  "ACPI Tables"
->  "ACPI Non-volatile Storage"
->  "Persistent Memory (legacy)"
->  "Crash kernel"
-> 
-> Note, the caller of walk_iomem_res() with "GART" is left unchanged
-> because this entry may be initialized by out-of-tree drivers, which
-> do not have 'desc' set to IORES_DESC_GART.
+On Sat, Dec 26, 2015 at 10:57:26PM -0800, Tony Luck wrote:
+> ... will get the right value.  Maybe this would still work out
+> if the fixup is a 31-bit value plus a flag, but the external
+> tool thinks it is a 32-bit value?  I'd have to ponder that.
 
-There's this out-of-tree bogus argument again. :\
+I still fail to see why do we need to make it so complicated and can't
+do something like:
 
-Why do we care about out-of-tree drivers?
 
-You can just as well fix the "GART" case too and kill walk_iomem_res()
-altogether...
+fixup_exception:
+	...
+
+#ifdef CONFIG_MCE_KERNEL_RECOVERY
+		if (regs->ip >= (unsigned long)__mcsafe_copy &&
+		    regs->ip <= (unsigned long)__mcsafe_copy_end)
+			run_special_handler();
+#endif
+
+and that special handler does all the stuff we want. And we pass
+X86_TRAP* etc through fixup_exception along with whatever else we
+need from the trap handler...
+
+Hmmm?
 
 -- 
 Regards/Gruss,
     Boris.
 
 ECO tip #101: Trim your mails when you reply.
+--
