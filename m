@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BA15382FCE
-	for <linux-mm@kvack.org>; Sat, 26 Dec 2015 19:39:09 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id l9so131816650oia.2
-        for <linux-mm@kvack.org>; Sat, 26 Dec 2015 16:39:09 -0800 (PST)
-Received: from g1t6216.austin.hp.com (g1t6216.austin.hp.com. [15.73.96.123])
-        by mx.google.com with ESMTPS id g5si20308575obe.30.2015.12.26.16.39.08
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5D782FCE
+	for <linux-mm@kvack.org>; Sat, 26 Dec 2015 19:52:10 -0500 (EST)
+Received: by mail-oi0-f52.google.com with SMTP id o124so160025303oia.1
+        for <linux-mm@kvack.org>; Sat, 26 Dec 2015 16:52:10 -0800 (PST)
+Received: from g1t6220.austin.hp.com (g1t6220.austin.hp.com. [15.73.96.84])
+        by mx.google.com with ESMTPS id i6si24984668obk.65.2015.12.26.16.52.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Dec 2015 16:39:09 -0800 (PST)
-Subject: Re: [PATCH v2 14/16] x86,nvdimm,kexec: Use walk_iomem_res_desc() for
- iomem search
+        Sat, 26 Dec 2015 16:52:10 -0800 (PST)
+Subject: Re: [PATCH v2 15/16] checkpatch: Add warning on deprecated
+ walk_iomem_res
 References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
- <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
- <20151226160522.GA28533@dhcp-128-25.nay.redhat.com>
+ <1451081365-15190-15-git-send-email-toshi.kani@hpe.com>
+ <1451088307.12498.3.camel@perches.com>
 From: Toshi Kani <toshi.kani@hpe.com>
-Message-ID: <567F3329.2030808@hpe.com>
-Date: Sat, 26 Dec 2015 17:39:05 -0700
+Message-ID: <567F3638.7050008@hpe.com>
+Date: Sat, 26 Dec 2015 17:52:08 -0700
 MIME-Version: 1.0
-In-Reply-To: <20151226160522.GA28533@dhcp-128-25.nay.redhat.com>
+In-Reply-To: <1451088307.12498.3.camel@perches.com>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minfei Huang <mhuang@redhat.com>
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, x86@kernel.org, linux-nvdimm@ml01.01.org, kexec@lists.infradead.org
+To: Joe Perches <joe@perches.com>, akpm@linux-foundation.org, bp@alien8.de
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@canonical.com>
 
-On 12/26/2015 9:05 AM, Minfei Huang wrote:
-> Ccing kexec maillist.
->
-> On 12/25/15 at 03:09pm, Toshi Kani wrote:
->> diff --git a/kernel/kexec_file.c b/kernel/kexec_file.c
->> index c245085..e2bd737 100644
->> --- a/kernel/kexec_file.c
->> +++ b/kernel/kexec_file.c
->> @@ -522,10 +522,10 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
+On 12/25/2015 5:05 PM, Joe Perches wrote:
+> On Fri, 2015-12-25 at 15:09 -0700, Toshi Kani wrote:
+>> Use of walk_iomem_res() is deprecated in new code.  Change
+>> checkpatch.pl to check new use of walk_iomem_res() and suggest
+>> to use walk_iomem_res_desc() instead.
+> []
+>> diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+> []
+>> @@ -3424,6 +3424,12 @@ sub process {
+>>   			}
+>>   		}
 >>
->>   	/* Walk the RAM ranges and allocate a suitable range for the buffer */
->>   	if (image->type == KEXEC_TYPE_CRASH)
->> -		ret = walk_iomem_res("Crash kernel",
->> -				     IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY,
->> -				     crashk_res.start, crashk_res.end, kbuf,
->> -				     locate_mem_hole_callback);
->> +		ret = walk_iomem_res_desc(IORES_DESC_CRASH_KERNEL,
+>> +# check for uses of walk_iomem_res()
+>> +		if ($line =~ /\bwalk_iomem_res\(/) {
+>> +			WARN("walk_iomem_res",
+>> +			     "Use of walk_iomem_res is deprecated, please use walk_iomem_res_desc instead\n" . $herecurr)
+>> +		}
+>> +
+>>   # check for new typedefs, only function parameters and sparse annotations
+>>   # make sense.
+>>   		if ($line =~ /\btypedef\s/ &&
 >
-> Since crashk_res's desc has been assigned to IORES_DESC_CRASH_KERNEL, it
-> is better to use crashk_res.desc, instead of using
-> IORES_DESC_CRASH_KERNEL directly.
+> There are 6 uses of this function in the entire kernel tree.
+> Why not just change them, remove the function and avoid this?
 
-Sounds good. I will change it to use crashk_res.desc.
+Sorry, I should have put some background in the description.  We have 
+discussed if we can remove walk_iomem_res() in the thread below.
+https://lkml.org/lkml/2015/12/23/248
+
+But this may depend on how we deal with the last remaining caller, 
+walk_iomem_res() with "GART", being discussed in the thread below.  I 
+will update according to the outcome.
+https://lkml.org/lkml/2015/12/26/144
 
 Thanks,
 -Toshi
