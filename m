@@ -1,79 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BB8A282FE2
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2015 08:40:34 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id bx1so101499750obb.0
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 05:40:34 -0800 (PST)
-Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
-        by mx.google.com with ESMTPS id u6si13861351obs.15.2015.12.27.05.40.34
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C504382FE2
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2015 08:58:27 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id p187so238811220wmp.1
+        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 05:58:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cv6si1472967wjb.68.2015.12.27.05.58.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Dec 2015 05:40:34 -0800 (PST)
-Received: by mail-ob0-x22a.google.com with SMTP id ba1so127084154obb.3
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 05:40:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20151227133330.GA20823@nazgul.tnic>
-References: <20151226103252.GA21988@pd.tnic> <CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
- <CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
- <CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
- <CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
- <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
- <20151227100919.GA19398@nazgul.tnic> <CALCETrUcSB8ix0HSPyTwXT46gMAE2iGVZ8V1kEbkQVxVqrQFiQ@mail.gmail.com>
- <6c0b3214-f120-47ee-b7fe-677b4f27f039@email.android.com> <CALCETrVY7407jf-o4n1ZjKu=QNfUv9fnbxDQwX8Sa=o4PY+aFA@mail.gmail.com>
- <20151227133330.GA20823@nazgul.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Sun, 27 Dec 2015 05:40:14 -0800
-Message-ID: <CALCETrUXhQH=n0_sG2Y2MxpSjQuJ5SFwMjh0f8_w7RSC+d5QTQ@mail.gmail.com>
-Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
- from machine checks
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 27 Dec 2015 05:58:26 -0800 (PST)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH trivial] lib+mm: fix few spelling mistakes
+Date: Sun, 27 Dec 2015 14:58:23 +0100
+Message-Id: <1451224703-22358-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@gmail.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: trivial@kernel.org
+Cc: linux-kernel@vger.kernel.org, Bogdan Sikora <bsikora@redhat.com>, linux-mm@kvack.org, Rafael Aquini <aquini@redhat.com>, Kent Overstreet <kmo@daterainc.com>, Jan Kara <jack@suse.cz>, Jiri Slaby <jslaby@suse.cz>
 
-On Sun, Dec 27, 2015 at 5:33 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Sun, Dec 27, 2015 at 05:25:45AM -0800, Andy Lutomirski wrote:
->> That could significantly bloat the kernel image.
->
-> Yeah, we probably should build an allyesconfig and see how big
-> __ex_table is and compute how much actually that bloat would be,
-> because...
->
->> Anyway, the bit 31 game isn't so bad IMO because it's localized to the
->> extable macros and the extable reader, whereas the bit 63 thing is all
->> tangled up with the __mcsafe_copy thing, and that's just the first
->> user of a more general mechanism.
->>
->> Did you see this:
->>
->> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/commit/?h=strict_uaccess_fixups/patch_v1&id=16644d9460fc6531456cf510d5efc57f89e5cd34
->
-> ... the problem this has is that you have 4 classes, AFAICT. And since
-> we're talking about a generic mechanism, the moment the 4 classes are
-> not enough, this new scheme fails.
->
-> I'm just saying...
->
-> 4 classes are probably more than enough but we don't know.
+From: Bogdan Sikora <bsikora@redhat.com>
 
-On whatever kernel I just built (defconfig-ish), __ex_table is about
-12kB, so the bloat would be 6 kB.
+All are in comments.
 
-In any case, I can think of a total of three useful classes:
+Signed-off-by: Bogdan Sikora <bsikora@redhat.com>
+Cc: <linux-mm@kvack.org>
+Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Kent Overstreet <kmo@daterainc.com>
+Cc: Jan Kara <jack@suse.cz>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ lib/flex_proportions.c  | 2 +-
+ lib/percpu-refcount.c   | 2 +-
+ mm/balloon_compaction.c | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-0: normal
-
-1: extended (indirect block with fanciness, as I proposed)
-
-2: uaccess (some day, not yet)
-
-For rare future things, we could shoehorn them into the extended
-version's indirect block.
-
-Or someone could think of a clever encoding that makes this work better.
-
---Andy
+diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
+index 8f25652f40d4..a71cf1bdd4c9 100644
+--- a/lib/flex_proportions.c
++++ b/lib/flex_proportions.c
+@@ -17,7 +17,7 @@
+  *
+  *   \Sum_{j} p_{j} = 1,
+  *
+- * This formula can be straightforwardly computed by maintaing denominator
++ * This formula can be straightforwardly computed by maintaining denominator
+  * (let's call it 'd') and for each event type its numerator (let's call it
+  * 'n_j'). When an event of type 'j' happens, we simply need to do:
+  *   n_j++; d++;
+diff --git a/lib/percpu-refcount.c b/lib/percpu-refcount.c
+index 6111bcb28376..2c1f256fdc84 100644
+--- a/lib/percpu-refcount.c
++++ b/lib/percpu-refcount.c
+@@ -12,7 +12,7 @@
+  * particular cpu can (and will) wrap - this is fine, when we go to shutdown the
+  * percpu counters will all sum to the correct value
+  *
+- * (More precisely: because moduler arithmatic is commutative the sum of all the
++ * (More precisely: because moduler arithmetic is commutative the sum of all the
+  * percpu_count vars will be equal to what it would have been if all the gets
+  * and puts were done to a single integer, even if some of the percpu integers
+  * overflow or underflow).
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index d3116be5a00f..59c2bc8a1efc 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -13,10 +13,10 @@
+ /*
+  * balloon_page_enqueue - allocates a new page and inserts it into the balloon
+  *			  page list.
+- * @b_dev_info: balloon device decriptor where we will insert a new page to
++ * @b_dev_info: balloon device descriptor where we will insert a new page to
+  *
+  * Driver must call it to properly allocate a new enlisted balloon page
+- * before definetively removing it from the guest system.
++ * before definitively removing it from the guest system.
+  * This function returns the page address for the recently enqueued page or
+  * NULL in the case we fail to allocate a new page this turn.
+  */
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
