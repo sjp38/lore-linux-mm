@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6555D6B0289
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 18:22:37 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id do7so3660822pab.2
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 15:22:37 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id F18686B027B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 18:30:27 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id cy9so115863715pac.0
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 15:30:27 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e7si21558106pas.227.2015.12.28.15.22.36
+        by mx.google.com with ESMTPS id y20si20845455pfi.247.2015.12.28.15.30.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Dec 2015 15:22:36 -0800 (PST)
-Date: Mon, 28 Dec 2015 15:22:35 -0800
+        Mon, 28 Dec 2015 15:30:27 -0800 (PST)
+Date: Mon, 28 Dec 2015 15:30:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/4] mm: stop __munlock_pagevec_fill() if THP enounted
-Message-Id: <20151228152235.e756a78f4553ce38ca0e0b4d@linux-foundation.org>
-In-Reply-To: <1450957883-96356-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 4/4] thp: increase split_huge_page() success rate
+Message-Id: <20151228153026.628d44126a848e14bcbbce68@linux-foundation.org>
+In-Reply-To: <1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1450957883-96356-4-git-send-email-kirill.shutemov@linux.intel.com>
+	<1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -24,34 +24,41 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
 
-On Thu, 24 Dec 2015 14:51:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Thu, 24 Dec 2015 14:51:23 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-> THP is properly handled in munlock_vma_pages_range().
+> During freeze_page(), we remove the page from rmap. It munlocks the page
+> if it was mlocked. clear_page_mlock() uses of lru cache, which temporary
+> pins page.
 > 
-> It fixes crashes like this:
->  http://lkml.kernel.org/r/565C5C38.3040705@oracle.com
+> Let's drain the lru cache before checking page's count vs. mapcount.
+> The change makes mlocked page split on first attempt, if it was not
+> pinned by somebody else.
 > 
-> ...
->
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -393,6 +393,13 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
->  		if (!page || page_zone_id(page) != zoneid)
->  			break;
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/huge_memory.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 1a988d9b86ef..4c1c292b7ddd 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -3417,6 +3417,9 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+>  	freeze_page(anon_vma, head);
+>  	VM_BUG_ON_PAGE(compound_mapcount(head), head);
 >  
-> +		/*
-> +		 * Do not use pagevec for PTE-mapped THP,
-> +		 * munlock_vma_pages_range() will handle them.
-> +		 */
-> +		if (PageTransCompound(page))
-> +			break;
+> +	/* Make sure the page is not on per-CPU pagevec as it takes pin */
+> +	lru_add_drain();
 > +
->  		get_page(page);
->  		/*
->  		 * Increase the address that will be returned *before* the
+>  	/* Prevent deferred_split_scan() touching ->_count */
+>  	spin_lock(&split_queue_lock);
+>  	count = page_count(head);
 
-I'm trying to work out approximately which patch this patch fixes, and
-it ain't easy.  Help?
+Fair enough.
+
+mlocked pages are rare and lru_add_drain() isn't free.  We could easily
+and cheaply make page_remove_rmap() return "bool was_mlocked" (or,
+better, "bool might_be_in_lru_cache") to skip this overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
