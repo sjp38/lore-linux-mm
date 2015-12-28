@@ -1,54 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5489A6B02BC
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2015 18:48:06 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id q63so68441798pfb.0
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2015 15:48:06 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id wu1si5583130pab.71.2015.12.27.15.48.04
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3A86B02A1
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 05:05:55 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id l126so263475434wml.1
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 02:05:55 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id w6si79844232wju.89.2015.12.28.02.05.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 27 Dec 2015 15:48:05 -0800 (PST)
-Date: Mon, 28 Dec 2015 08:49:10 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: KVM: memory ballooning bug?
-Message-ID: <20151227234910.GA26512@bbox>
-References: <20151223052228.GA31269@bbox>
- <CALYGNiPob33YpCJTUkpaPNEqZTzg=NuN=EqCks+FMwe+CTZw5A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Dec 2015 02:05:53 -0800 (PST)
+Received: by mail-wm0-x22a.google.com with SMTP id l65so1844597wmf.1
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 02:05:53 -0800 (PST)
+Date: Mon, 28 Dec 2015 12:05:51 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/8] mm: Add optional support for PUD-sized transparent
+ hugepages
+Message-ID: <20151228100551.GA4589@node.shutemov.name>
+References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1450974037-24775-2-git-send-email-matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CALYGNiPob33YpCJTUkpaPNEqZTzg=NuN=EqCks+FMwe+CTZw5A@mail.gmail.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1450974037-24775-2-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Rafael Aquini <aquini@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Sun, Dec 27, 2015 at 08:23:03PM +0300, Konstantin Khlebnikov wrote:
-> On Wed, Dec 23, 2015 at 8:22 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > During my compaction-related stuff, I encountered some problems with
-> > ballooning.
-> >
-> > Firstly, with repeated inflating and deflating cycle, guest memory(ie,
-> > cat /proc/meminfo | grep MemTotal) decreased and couldn't recover.
-> >
-> > When I review source code, balloon_lock should cover release_pages_balloon.
-> > Otherwise, struct virtio_balloon fields could be overwritten by race
-> > of fill_balloon(e,g, vb->*pfns could be critical).
-> 
-> I guess, in original design fill and leak could be called only from single
-> kernel thread which manages balloon. Seems like lock was added
-> only for migration. So, locking scheme should be revisited for sure.
-> Probably it's been broken by some of recent changes.
+On Thu, Dec 24, 2015 at 11:20:30AM -0500, Matthew Wilcox wrote:
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4bf3811..e14634f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1958,6 +1977,17 @@ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
+>  	return ptl;
+>  }
+>  
+> +/*
+> + * No scalability reason to split PUD locks yet, but follow the same pattern
+> + * as the PMD locks to make it easier if we have to.
+> + */
 
-When I read git log, it seems to be broken from introdcuing
-balloon_compaction.
-Anyway, ballooning is out of my interest. I just wanted to go ahead
-my test for a long time without any problem. ;-)
-If you guys want to redesign the locking scheme fully, please do.
-Until that, I can go with my test with my patches I just sent.
+I don't think it makes any good unless you convert all other places where
+we use page_table_lock to protect pud table (like __pud_alloc()) to the
+same API.
+I think this would deserve separate patch.
 
-Thanks.
+> +static inline spinlock_t *pud_lock(struct mm_struct *mm, pud_t *pud)
+> +{
+> +	spinlock_t *ptl = &mm->page_table_lock;
+> +	spin_lock(ptl);
+> +	return ptl;
+> +}
+> +
+>  extern void free_area_init(unsigned long * zones_size);
+>  extern void free_area_init_node(int nid, unsigned long * zones_size,
+>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+
+...
+
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 416b129..7328df0 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1220,9 +1220,27 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+>  	pud = pud_offset(pgd, addr);
+>  	do {
+>  		next = pud_addr_end(addr, end);
+> +		if (pud_trans_huge(*pud) || pud_devmap(*pud)) {
+> +			if (next - addr != HPAGE_PUD_SIZE) {
+> +#ifdef CONFIG_DEBUG_VM
+
+IS_ENABLED(CONFIG_DEBUG_VM) ?
+
+> +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+> +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
+> +						__func__, addr, end,
+> +						vma->vm_start,
+> +						vma->vm_end);
+
+dump_vma(), I guess.
+
+> +					BUG();
+> +				}
+> +#endif
+> +				split_huge_pud(vma, pud, addr);
+> +			} else if (zap_huge_pud(tlb, vma, pud, addr))
+> +				goto next;
+> +			/* fall through */
+> +		}
+>  		if (pud_none_or_clear_bad(pud))
+>  			continue;
+>  		next = zap_pmd_range(tlb, vma, pud, addr, next, details);
+> +next:
+> +		cond_resched();
+>  	} while (pud++, addr = next, addr != end);
+>  
+>  	return addr;
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
