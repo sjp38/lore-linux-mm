@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D046B02A8
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 07:58:08 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id l126so263260239wml.0
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 04:58:08 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id y7si29402799wmb.15.2015.12.28.04.58.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BF6016B029C
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 09:13:49 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id cy9so110696410pac.0
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 06:13:49 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id qn16si2567430pab.207.2015.12.28.06.13.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Dec 2015 04:58:07 -0800 (PST)
-Received: by mail-wm0-x233.google.com with SMTP id l126so268220787wml.1
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 04:58:06 -0800 (PST)
-Date: Mon, 28 Dec 2015 14:58:04 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/4] thp: fix regression in handling mlocked pages in
- __split_huge_pmd()
-Message-ID: <20151228125804.GA5284@node.shutemov.name>
-References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1450957883-96356-3-git-send-email-kirill.shutemov@linux.intel.com>
- <567C978E.3090007@oracle.com>
- <CAPcyv4gc-iGNvLHRQxP4NAGc1u41jbCVnZ=iwgpLSNN3Dw7=uw@mail.gmail.com>
- <567C991B.3000408@oracle.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Dec 2015 06:13:48 -0800 (PST)
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+	<201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
+	<201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
+Message-Id: <201512282313.DHE87075.OSLJOFOtMVQHFF@I-love.SAKURA.ne.jp>
+Date: Mon, 28 Dec 2015 23:13:31 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <567C991B.3000408@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 24, 2015 at 08:17:15PM -0500, Sasha Levin wrote:
-> On 12/24/2015 08:12 PM, Dan Williams wrote:
-> > On Thu, Dec 24, 2015 at 5:10 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> >> > On 12/24/2015 06:51 AM, Kirill A. Shutemov wrote:
-> >>> >> This patch fixes regression caused by patch
-> >>> >>  "mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd"
-> >>> >>
-> >>> >> The patch makes pmd_trans_huge() check and "page = pmd_page(*pmd)" after
-> >>> >> __split_huge_pmd_locked(). It can never succeed, since the pmd already
-> >>> >> points to a page table. As result the page is never get munlocked.
-> >>> >>
-> >>> >> It causes crashes like this:
-> >>> >>  http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
-> >> >
-> >> > So this patch didn't fix the issue for me. I've sent Kirill the trace
-> >> > off-list, but it's essentially the same thing.
-> > Can you send me the trace as well, and the reproducer?
-> 
-> I don't have a simple reproducer, it reproduces rather quickly when running
-> under trinity within a KVM guest running a kernel I've attached the config
-> for.
+Tetsuo Handa wrote:
+> Tetsuo Handa wrote:
+> > I got OOM killers while running heavy disk I/O (extracting kernel source,
+> > running lxr's genxref command). (Environ: 4 CPUs / 2048MB RAM / no swap / XFS)
+> > Do you think these OOM killers reasonable? Too weak against fragmentation?
+>
+> Since I cannot establish workload that caused December 24's natural OOM
+> killers, I used the following stressor for generating similar situation.
+>
 
-Is there a chance to get it reproduced with logs enabled in trinity?
-I failed to repoproduce it and code audit isn't fruitful so far.
+I came to feel that I am observing a different problem which is currently
+hidden behind the "too small to fail" memory-allocation rule. That is, tasks
+requesting order > 0 pages are continuously losing the competition when
+tasks requesting order = 0 pages dominate, for reclaimed pages are stolen
+by tasks requesting order = 0 pages before reclaimed pages are combined to
+order > 0 pages (or maybe order > 0 pages are immediately split into
+order = 0 pages due to tasks requesting order = 0 pages).
 
--- 
- Kirill A. Shutemov
+Currently, order <= PAGE_ALLOC_COSTLY_ORDER allocations implicitly retry
+unless chosen by the OOM killer. Therefore, even if tasks requesting
+order = 2 pages lost the competition when there are tasks requesting
+order = 0 pages, the order = 2 allocation request is implicitly retried
+and therefore the OOM killer is not invoked (though there is a problem that
+tasks requesting order > 0 allocation will stall as long as tasks requesting
+order = 0 pages dominate).
+
+But this patchset introduced a limit of 16 retries. Thus, if tasks requesting
+order = 2 pages lost the competition for 16 times due to tasks requesting
+order = 0 pages, tasks requesting order = 2 pages invoke the OOM killer.
+To avoid the OOM killer, we need to make sure that pages reclaimed for
+order > 0 allocations will not be stolen by tasks requesting order = 0
+allocations.
+
+Is my feeling plausible?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
