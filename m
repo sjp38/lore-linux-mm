@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0787382F66
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 16:37:38 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id to18so143963420igc.0
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 13:37:38 -0800 (PST)
-Received: from kirsty.vergenet.net (kirsty.vergenet.net. [202.4.237.240])
-        by mx.google.com with ESMTP id q80si19430813ioe.162.2015.12.28.13.37.36
-        for <linux-mm@kvack.org>;
-        Mon, 28 Dec 2015 13:37:36 -0800 (PST)
-Date: Tue, 29 Dec 2015 08:37:33 +1100
-From: Simon Horman <horms@verge.net.au>
-Subject: Re: [PATCH v2 09/16] drivers: Initialize resource entry to zero
-Message-ID: <20151228213733.GA16152@verge.net.au>
-References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
- <1451081365-15190-9-git-send-email-toshi.kani@hpe.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1451081365-15190-9-git-send-email-toshi.kani@hpe.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DB2E66B027F
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 17:21:10 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id uo6so93036955pac.1
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 14:21:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e65si10895581pfb.47.2015.12.28.14.21.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Dec 2015 14:21:10 -0800 (PST)
+Date: Mon, 28 Dec 2015 14:21:08 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 2/2] mm: Introduce kernelcore=mirror option
+Message-Id: <20151228142108.fa679ebf9d3a91ad14924977@linux-foundation.org>
+In-Reply-To: <1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
+References: <1449631109-14756-1-git-send-email-izumi.taku@jp.fujitsu.com>
+	<1449631177-14863-1-git-send-email-izumi.taku@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org
+To: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk
 
-On Fri, Dec 25, 2015 at 03:09:18PM -0700, Toshi Kani wrote:
-> I/O resource descriptor, 'desc' added to struct resource, needs
-> to be initialized to zero by default.  Some drivers call kmalloc()
-> to allocate a resource entry, but does not initialize it to zero
-> by memset().  Change these drivers to call kzalloc(), instead.
+On Wed,  9 Dec 2015 12:19:37 +0900 Taku Izumi <izumi.taku@jp.fujitsu.com> wrote:
+
+> This patch extends existing "kernelcore" option and
+> introduces kernelcore=mirror option. By specifying
+> "mirror" instead of specifying the amount of memory,
+> non-mirrored (non-reliable) region will be arranged
+> into ZONE_MOVABLE.
 > 
-> Cc: linux-acpi@vger.kernel.org
-> Cc: linux-parisc@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> ---
->  drivers/acpi/acpi_platform.c       |    2 +-
->  drivers/parisc/eisa_enumerator.c   |    4 ++--
->  drivers/rapidio/rio.c              |    8 ++++----
->  drivers/sh/superhyway/superhyway.c |    2 +-
->  4 files changed, 8 insertions(+), 8 deletions(-)
+> v1 -> v2:
+>  - Refine so that the following case also can be
+>    handled properly:
+> 
+>  Node X:  |MMMMMM------MMMMMM--------|
+>    (legend) M: mirrored  -: not mirrrored
+> 
+>  In this case, ZONE_NORMAL and ZONE_MOVABLE are
+>  arranged like bellow:
+> 
+>  Node X:  |MMMMMM------MMMMMM--------|
+>           |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
+>                 |ooooooxxxxxxoooooooo| ZONE_MOVABLE
+>    (legend) o: present  x: absent
+> 
+> v2 -> v3:
+>  - change the option name from kernelcore=reliable
+>    into kernelcore=mirror
+>  - documentation fix so that users can understand
+>    nn[KMS] and mirror are exclusive
 
-drivers/sh/ portion:
+My earlier concern with this approach is the assumption that *all* of
+the mirrored memory will be used to kernelcore.  The user might want to
+use half the machine's mirrored memory for kernelcore and half for
+regular memory but cannot do so.
 
-Acked-by: Simon Horman <horms+renesas@verge.net.au>
+However I think what I'm seeing from the discussion is that in this
+case, the user can alter the amount of mirrored memory via EFI to
+achieve the same effect.
+
+Is this correct?  If so, should we document this somewhere and provide
+our users with instructions on how to make the required EFI changes? 
+Or is this all so totally obvious to them that there is no need?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
