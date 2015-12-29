@@ -1,54 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C01DD6B027D
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 22:24:40 -0500 (EST)
-Received: by mail-yk0-f180.google.com with SMTP id v14so26533413ykd.3
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 19:24:40 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k123si43712604ywg.143.2015.12.28.19.24.39
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B573B6B027F
+	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 02:00:15 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id 78so123041393pfw.2
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 23:00:15 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id rw4si3058325pac.72.2015.12.28.23.00.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Dec 2015 19:24:39 -0800 (PST)
-Message-ID: <5681FCAE.4060208@oracle.com>
-Date: Tue, 29 Dec 2015 11:23:26 +0800
-From: Bob Liu <bob.liu@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [-mm PATCH v4 00/18] get_user_pages() for dax pte and pmd mappings
-References: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com> <CAA_GA1f44ADq7dw7LUM=rEex8m0vMXvGeOdW1YKkisbv51iuKw@mail.gmail.com> <CAPcyv4j5QRAy-pM=TcCVrY8tH8H7iOL36KojZOeHKuLdBOcwDg@mail.gmail.com>
-In-Reply-To: <CAPcyv4j5QRAy-pM=TcCVrY8tH8H7iOL36KojZOeHKuLdBOcwDg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Dec 2015 23:00:14 -0800 (PST)
+Subject: [PATCH] mm,oom: Use hold off timer after invoking the OOM killer.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201512291559.HGA46749.VFOFSOHLMtFJQO@I-love.SAKURA.ne.jp>
+Date: Tue, 29 Dec 2015 15:59:58 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, David Airlie <airlied@linux.ie>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Linux-MM <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Christoph Hellwig <hch@lst.de>, Andrea Arcangeli <aarcange@redhat.com>, kbuild test robot <lkp@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Christoffer Dall <christoffer.dall@linaro.org>, Paolo Bonzini <pbonzini@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+>From 749b861430cca1cb5a1cd7df9bd79a475b2515eb Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Tue, 29 Dec 2015 15:52:41 +0900
+Subject: [PATCH] mm,oom: Use hold off timer after invoking the OOM killer.
 
-On 12/28/2015 02:55 AM, Dan Williams wrote:
-> On Sun, Dec 27, 2015 at 12:33 AM, Bob Liu <lliubbo@gmail.com> wrote:
->> Hey Dan,
->>
-> [..]
->> What about space for page tables?
->> Page tables(mapping all memory in PMEM to virtual address space) may
->> also consume significantly DRAM space if  huge page is not enabled or
->> split.
->> Should we also consider to allocate pte page tables from PMEM in future?
-> 
-> On x86_64 these ranges are covered by gigabyte pages by default (see
-> init_memory_mapping()).  I don't see much incremental benefit from
-> allocating pte's from pmem.
-> 
+When many hundreds of tasks running on one CPU are trying to invoke the
+OOM killer, schedule_timeout_killable(1) after oom_kill_process() at
+out_of_memory() can sleep for many minutes. Since the oom_lock mutex is
+kept held during that period, nobody is able to call out_of_memory() again
+(effectively, the OOM killer is kept disabled) because everybody assume
+that the process which held the oom_lock mutex is making progress for us.
+We allow SIGKILL pending but !TIF_MEMDIE tasks (possibly tasks sharing OOM
+victim's mm) to use ALLOC_NO_WATERMARKS by calling mark_oom_victim(current)
+when they arrived at out_of_memory() (although this is not a safe behavior)
+after they held the oom_lock mutex. But they cannot call out_of_memory(),
+breaking "That thread will now get access to memory reserves since it has
+a pending fatal signal." used in oom_kill_process() (although this is not
+true if they are doing !__GFP_FS && !__GFP_NOFAIL allocations). Therefore,
+we should avoid sleeping with the oom_lock mutex held.
 
-Oh, that's the direct mapping. I mean ptes consumed in:
-__dax_fault > dax_insert_mapping > insert_pfn > __get_locked_pte
+On the other hand, even if only a few tasks are trying to invoke the OOM
+killer, we can observe collateral victim being OOM-killed immediately
+after the memory hog process is OOM-killed. This is caused by a race:
 
-In some bad situations e.g mmap a lot of large ext4 files exist in pmem but
-hugepage can't be used because of fragmentation, then the consumption of pte
-page tables may can't be ignored?
-Anyway, this is not a blocker of these patches.
-Thanks,
-Bob
+  (1) The process which called oom_kill_process() releases the oom_lock
+      mutex before the memory reclaimed by OOM-killing the memory hog
+      process becomes allocatable for others.
+
+  (2) Another process acquires the oom_lock mutex and checks for
+      get_page_from_freelist() before the memory reclaimed by OOM-killing
+      the memory hog process becomes allocatable for others.
+      get_page_from_freelist() fails and thus the process proceeds
+      calling out_of_memory().
+
+  (3) The memory hog process exits and clears TIF_MEMDIE flag.
+
+  (4) select_bad_process() in out_of_memory() fails to find a task with
+      TIF_MEMDIE pending. Thus the process proceeds choosing next OOM
+      victim.
+
+  (5) The memory reclaimed by OOM-killing the memory hog process becomes
+      allocatable for others. But get_page_from_freelist() is no longer
+      called by somebody which held the oom_lock mutex.
+
+  (6) oom_kill_process() is called although get_page_from_freelist()
+      could now succeed. If get_page_from_freelist() can succeed, this
+      is a collateral victim.
+
+We cannot completely avoid this race because we cannot predict when the
+memory reclaimed by OOM-killing the memory hog process becomes allocatable
+for others. But we can reduce possibility of hitting this race by keeping
+the OOM killer disabled for some administrator controlled period, instead
+of relying on a sleep with oom_lock mutex held.
+
+This patch introduces a hold off timer which keeps the OOM killer disabled
+for sysctl tunable period (between 1 ms to 5000 ms). Longer the period is,
+more unlikely to hit this race but more likely to suffer with traps when
+oom_kill_process() chose children of a memory hog process which consumed
+little memory.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ include/linux/oom.h |  1 +
+ kernel/sysctl.c     | 10 ++++++++++
+ mm/oom_kill.c       | 25 ++++++++++++++++++-------
+ 3 files changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 03e6257..ac202c3 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -117,4 +117,5 @@ static inline bool task_will_free_mem(struct task_struct *task)
+ extern int sysctl_oom_dump_tasks;
+ extern int sysctl_oom_kill_allocating_task;
+ extern int sysctl_panic_on_oom;
++extern unsigned int sysctl_oomkiller_holdoff_ms;
+ #endif /* _INCLUDE_LINUX_OOM_H */
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index aac2a20..3a989f4 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -124,6 +124,7 @@ static int zero;
+ static int __maybe_unused one = 1;
+ static int __maybe_unused two = 2;
+ static int __maybe_unused four = 4;
++static int five_thousand = 5000;
+ static unsigned long one_ul = 1;
+ static int one_hundred = 100;
+ #ifdef CONFIG_PRINTK
+@@ -1219,6 +1220,15 @@ static struct ctl_table vm_table[] = {
+ 		.proc_handler	= proc_dointvec,
+ 	},
+ 	{
++		.procname       = "oomkiller_holdoff_ms",
++		.data           = &sysctl_oomkiller_holdoff_ms,
++		.maxlen         = sizeof(sysctl_oomkiller_holdoff_ms),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++		.extra1         = &one,
++		.extra2         = &five_thousand,
++	},
++	{
+ 		.procname	= "overcommit_ratio",
+ 		.data		= &sysctl_overcommit_ratio,
+ 		.maxlen		= sizeof(sysctl_overcommit_ratio),
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4b0a5d8..f85d77f 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -48,6 +48,7 @@
+ int sysctl_panic_on_oom;
+ int sysctl_oom_kill_allocating_task;
+ int sysctl_oom_dump_tasks = 1;
++unsigned int sysctl_oomkiller_holdoff_ms = 1;
+ 
+ DEFINE_MUTEX(oom_lock);
+ 
+@@ -539,6 +540,11 @@ static int __init oom_init(void)
+ module_init(oom_init)
+ #endif
+ 
++static void oomkiller_reset(unsigned long arg)
++{
++}
++static DEFINE_TIMER(oomkiller_holdoff_timer, oomkiller_reset, 0, 0);
++
+ /**
+  * mark_oom_victim - mark the given task as OOM victim
+  * @tsk: task to mark
+@@ -552,6 +558,10 @@ void mark_oom_victim(struct task_struct *tsk)
+ 	/* OOM killer might race with memcg OOM */
+ 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
++	/* Start hold off timer. */
++	mod_timer(&oomkiller_holdoff_timer,
++		  jiffies + msecs_to_jiffies(sysctl_oomkiller_holdoff_ms));
++
+ 	/*
+ 	 * Make sure that the task is woken up from uninterruptible sleep
+ 	 * if it is frozen because OOM killer wouldn't be able to free
+@@ -848,6 +858,13 @@ bool out_of_memory(struct oom_control *oc)
+ 	}
+ 
+ 	/*
++	 * Give the TIF_MEMDIE process a good chance to exit before trying
++	 * to choose next OOM victim.
++	 */
++	if (timer_pending(&oomkiller_holdoff_timer))
++		return true;
++
++	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+ 	 */
+@@ -871,15 +888,9 @@ bool out_of_memory(struct oom_control *oc)
+ 		dump_header(oc, NULL, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (p && p != (void *)-1UL) {
++	if (p && p != (void *)-1UL)
+ 		oom_kill_process(oc, p, points, totalpages, NULL,
+ 				 "Out of memory");
+-		/*
+-		 * Give the killed process a good chance to exit before trying
+-		 * to allocate memory again.
+-		 */
+-		schedule_timeout_killable(1);
+-	}
+ 	return true;
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
