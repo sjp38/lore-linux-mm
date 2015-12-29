@@ -1,72 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 601E46B026C
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 15:24:23 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id f206so48248793wmf.0
-        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 12:24:23 -0800 (PST)
-Received: from fmailer.gwdg.de (fmailer.gwdg.de. [134.76.11.16])
-        by mx.google.com with ESMTPS id w2si55101520wma.29.2015.12.29.12.24.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Dec 2015 12:24:22 -0800 (PST)
-Date: Tue, 29 Dec 2015 21:24:20 +0100
-From: Martin Uecker <muecker@gwdg.de>
-Subject: reliably detect writes to a file: mmap, mtime, ...
-Message-ID: <20151229212420.004b315f@lemur>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF176B026C
+	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 15:47:32 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id e65so79316741pfe.1
+        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 12:47:32 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id zm10si8537586pac.26.2015.12.29.12.47.31
+        for <linux-mm@kvack.org>;
+        Tue, 29 Dec 2015 12:47:31 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/2] THP mlock fix
+Date: Tue, 29 Dec 2015 23:46:28 +0300
+Message-Id: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andy Lutomirski <luto@amacapital.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+Hi Andrew,
 
+There are two patches below. I believe either of the would fix the bug
+reported by Sasha, but it worth applying both.
 
-Hi all,
+Sasha, as I cannot trigger the bug, I would like to have your Tested-by.
 
-I want to reliably detect changes to a file even when 
-written to using mmap. Surprisingly, there seems to be
-no API which would make this possible. Or at least I 
-haven't found a way to do it... 
+Kirill A. Shutemov (2):
+  mm, oom: skip mlocked VMAs in __oom_reap_vmas()
+  mm, thp: clear PG_mlocked when last mapping gone
 
+ mm/oom_kill.c | 7 +++++++
+ mm/rmap.c     | 3 +++
+ 2 files changed, 10 insertions(+)
 
-I looked at:
-
-- mtime. What is missing here is an API which would
-force mtime to be updated if there are dirty PTEs
-in some mapping (which need to be cleared/transferred 
-to struct page at this point). This would allow to 
-reliably detect changes to the file. If I understand it 
-correctly, there was patch from Andy Lutomirski which
-made msync(ASYNC) do exactly this:
-
-http://oss.sgi.com/archives/xfs/2013-08/msg00748.html
-
-But it seems this never got in. The other problem with
-this is that mtime has limited granularity.
-(but maybe that could be worked around by having some
-kind of counter + API which tells how often mtime has
-been updated without changing its nominal value)
-
-
-
-- I also looked at soft-dirty bits, but this API seems
-to have several limitations:  1.) it tracks writes
-through a specific mapping 2.) it can only have
-a single user at the same time 3.) who has to have 
-special privileges 4.) and it seems impossible read
-and clear the soft-dirty bits at the same time (so you
-might miss writes).
-
-
-But maybe there are other ways... I am missing
-something?
-
-
-Martin
-
-
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
