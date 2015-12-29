@@ -1,192 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 52CBF6B0279
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 08:58:36 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id q63so91985589pfb.0
-        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 05:58:36 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 72si16277885pfr.210.2015.12.29.05.58.34
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4146B0278
+	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 11:27:58 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id l65so37167193wmf.1
+        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 08:27:58 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id a17si53101624wjx.30.2015.12.29.08.27.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Dec 2015 05:58:35 -0800 (PST)
-Subject: [PATCH] mm,oom: Exclude TIF_MEMDIE processes from candidates.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201512292258.ABF87505.OFOSJLHMFVOQFt@I-love.SAKURA.ne.jp>
-Date: Tue, 29 Dec 2015 22:58:22 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Dec 2015 08:27:56 -0800 (PST)
+Received: by mail-wm0-f42.google.com with SMTP id f206so47964395wmf.0
+        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 08:27:56 -0800 (PST)
+Date: Tue, 29 Dec 2015 17:27:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20151229162753.GC10321@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->From 8bb9e36891a803e82c589ef78077838026ce0f7d Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Tue, 29 Dec 2015 22:20:58 +0900
-Subject: [PATCH] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+On Thu 24-12-15 21:41:19, Tetsuo Handa wrote:
+> I got OOM killers while running heavy disk I/O (extracting kernel source,
+> running lxr's genxref command). (Environ: 4 CPUs / 2048MB RAM / no swap / XFS)
+> Do you think these OOM killers reasonable? Too weak against fragmentation?
 
-The OOM reaper kernel thread can reclaim OOM victim's memory before the victim
-terminates. But since oom_kill_process() tries to kill children of the memory
-hog process first, the OOM reaper can not reclaim enough memory for terminating
-the victim if the victim is consuming little memory. The result is OOM livelock
-as usual, for timeout based next OOM victim selection is not implemented.
+I will have a look at the oom report more closely early next week (I am
+still in holiday mode) but it would be good to compare how the same load
+behaves with the original implementation. It would be also interesting
+to see how stable are the results (is there any variability in multiple
+runs?).
 
-While SysRq-f (manual invocation of the OOM killer) can wake up the OOM killer,
-the OOM killer chooses the same OOM victim which already has TIF_MEMDIE. This
-is effectively disabling SysRq-f.
-
-This patch excludes TIF_MEMDIE processes from candidates so that the memory
-hog process itself will be killed when all children of the memory hog process
-got stuck with TIF_MEMDIE pending.
-
-----------
-[  120.078776] oom-write invoked oom-killer: order=0, oom_score_adj=0, gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|GFP_ZERO)
-[  120.088610] oom-write cpuset=/ mems_allowed=0
-[  120.095558] CPU: 0 PID: 9546 Comm: oom-write Not tainted 4.4.0-rc6-next-20151223 #260
-(...snipped...)
-[  120.194148] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-(...snipped...)
-[  120.260191] [ 9546]  1000  9546   541716   453473     896       6        0             0 oom-write
-[  120.262166] [ 9547]  1000  9547       40        1       3       2        0             0 write
-[  120.264071] [ 9548]  1000  9548       40        1       3       2        0             0 write
-[  120.265939] [ 9549]  1000  9549       40        1       4       2        0             0 write
-[  120.267794] [ 9550]  1000  9550       40        1       3       2        0             0 write
-[  120.269654] [ 9551]  1000  9551       40        1       3       2        0             0 write
-[  120.271447] [ 9552]  1000  9552       40        1       3       2        0             0 write
-[  120.273220] [ 9553]  1000  9553       40        1       3       2        0             0 write
-[  120.274975] [ 9554]  1000  9554       40        1       3       2        0             0 write
-[  120.276745] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  120.278516] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  120.280227] Out of memory: Kill process 9546 (oom-write) score 892 or sacrifice child
-[  120.282010] Killed process 9549 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-(...snipped...)
-[  122.506001] systemd-journal invoked oom-killer: order=0, oom_score_adj=0, gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|GFP_COLD)
-[  122.515041] systemd-journal cpuset=/ mems_allowed=0
-(...snipped...)
-[  122.697515] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  122.699492] [ 9551]  1000  9551       40        1       3       2        0             0 write
-[  122.701399] [ 9552]  1000  9552       40        1       3       2        0             0 write
-[  122.703282] [ 9553]  1000  9553       40        1       3       2        0             0 write
-[  122.705188] [ 9554]  1000  9554       40        1       3       2        0             0 write
-[  122.707017] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  122.708842] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  122.710675] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  122.712475] Killed process 9551 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-[  139.606508] sysrq: SysRq : Manual OOM execution
-[  139.612371] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-[  139.620210] kworker/0:2 cpuset=/ mems_allowed=0
-(...snipped...)
-[  139.795759] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  139.797649] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  139.799526] [ 9552]  1000  9552       40        1       3       2        0             0 write
-[  139.801368] [ 9553]  1000  9553       40        1       3       2        0             0 write
-[  139.803249] [ 9554]  1000  9554       40        1       3       2        0             0 write
-[  139.805020] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  139.806799] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  139.808524] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  139.810216] Killed process 9552 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-(...snipped...)
-[  142.571815] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  142.573840] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  142.575754] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  142.577633] [ 9553]  1000  9553       40        1       3       2        0             0 write
-[  142.579433] [ 9554]  1000  9554       40        1       3       2        0             0 write
-[  142.581250] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  142.583003] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  142.585055] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  142.586796] Killed process 9553 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-[  143.599058] sysrq: SysRq : Manual OOM execution
-[  143.604300] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-(...snipped...)
-[  143.783739] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  143.785691] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  143.787532] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  143.789377] [ 9553]  1000  9553       40        0       3       2        0             0 write
-[  143.791172] [ 9554]  1000  9554       40        1       3       2        0             0 write
-[  143.792985] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  143.794730] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  143.796723] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  143.798338] Killed process 9554 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-[  144.374525] sysrq: SysRq : Manual OOM execution
-[  144.379779] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-(...snipped...)
-[  144.560718] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  144.562657] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  144.564560] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  144.566369] [ 9553]  1000  9553       40        0       3       2        0             0 write
-[  144.568246] [ 9554]  1000  9554       40        0       3       2        0             0 write
-[  144.570001] [ 9555]  1000  9555       40        1       3       2        0             0 write
-[  144.571794] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  144.573502] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  144.575119] Killed process 9555 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-[  145.158485] sysrq: SysRq : Manual OOM execution
-[  145.163600] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-(...snipped...)
-[  145.346059] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  145.348012] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  145.349954] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  145.351817] [ 9553]  1000  9553       40        0       3       2        0             0 write
-[  145.353701] [ 9554]  1000  9554       40        0       3       2        0             0 write
-[  145.355568] [ 9555]  1000  9555       40        0       3       2        0             0 write
-[  145.357319] [ 9556]  1000  9556       40        1       3       2        0             0 write
-[  145.359114] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  145.360733] Killed process 9556 (write) total-vm:160kB, anon-rss:4kB, file-rss:0kB, shmem-rss:0kB
-[  169.158408] sysrq: SysRq : Manual OOM execution
-[  169.163612] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-(...snipped...)
-[  169.343115] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  169.345053] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  169.346884] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  169.348965] [ 9553]  1000  9553       40        0       3       2        0             0 write
-[  169.350893] [ 9554]  1000  9554       40        0       3       2        0             0 write
-[  169.352713] [ 9555]  1000  9555       40        0       3       2        0             0 write
-[  169.354551] [ 9556]  1000  9556       40        0       3       2        0             0 write
-[  169.356450] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  169.358105] Killed process 9551 (write) total-vm:160kB, anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-[  178.950315] sysrq: SysRq : Manual OOM execution
-[  178.955560] kworker/0:2 invoked oom-killer: order=-1, oom_score_adj=0, gfp_mask=0x24000c0(GFP_KERNEL)
-(...snipped...)
-[  179.140752] [ 9546]  1000  9546   541716   458687     906       6        0             0 oom-write
-[  179.142653] [ 9551]  1000  9551       40        0       3       2        0             0 write
-[  179.144997] [ 9552]  1000  9552       40        0       3       2        0             0 write
-[  179.146849] [ 9553]  1000  9553       40        0       3       2        0             0 write
-[  179.148654] [ 9554]  1000  9554       40        0       3       2        0             0 write
-[  179.150411] [ 9555]  1000  9555       40        0       3       2        0             0 write
-[  179.152291] [ 9556]  1000  9556       40        0       3       2        0             0 write
-[  179.154002] Out of memory: Kill process 9546 (oom-write) score 902 or sacrifice child
-[  179.155666] Killed process 9551 (write) total-vm:160kB, anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-----------
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4b0a5d8..a1a0f39 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -111,6 +111,18 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
- 
- 	rcu_read_lock();
- 
-+	/*
-+	 * Treat the whole process p as unkillable when one of subthreads has
-+	 * TIF_MEMDIE pending. Otherwise, we may end up setting TIF_MEMDIE on
-+	 * the same victim forever (e.g. making SysRq-f unusable).
-+	 */
-+	for_each_thread(p, t) {
-+		if (likely(!test_tsk_thread_flag(t, TIF_MEMDIE)))
-+			continue;
-+		t = NULL;
-+		goto found;
-+	}
-+
- 	for_each_thread(p, t) {
- 		task_lock(t);
- 		if (likely(t->mm))
+Thanks!
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
