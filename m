@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F18686B027B
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 18:30:27 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id cy9so115863715pac.0
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 15:30:27 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y20si20845455pfi.247.2015.12.28.15.30.27
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C01DD6B027D
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2015 22:24:40 -0500 (EST)
+Received: by mail-yk0-f180.google.com with SMTP id v14so26533413ykd.3
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2015 19:24:40 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id k123si43712604ywg.143.2015.12.28.19.24.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Dec 2015 15:30:27 -0800 (PST)
-Date: Mon, 28 Dec 2015 15:30:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] thp: increase split_huge_page() success rate
-Message-Id: <20151228153026.628d44126a848e14bcbbce68@linux-foundation.org>
-In-Reply-To: <1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 28 Dec 2015 19:24:39 -0800 (PST)
+Message-ID: <5681FCAE.4060208@oracle.com>
+Date: Tue, 29 Dec 2015 11:23:26 +0800
+From: Bob Liu <bob.liu@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [-mm PATCH v4 00/18] get_user_pages() for dax pte and pmd mappings
+References: <20151221054406.34542.64393.stgit@dwillia2-desk3.jf.intel.com> <CAA_GA1f44ADq7dw7LUM=rEex8m0vMXvGeOdW1YKkisbv51iuKw@mail.gmail.com> <CAPcyv4j5QRAy-pM=TcCVrY8tH8H7iOL36KojZOeHKuLdBOcwDg@mail.gmail.com>
+In-Reply-To: <CAPcyv4j5QRAy-pM=TcCVrY8tH8H7iOL36KojZOeHKuLdBOcwDg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, David Airlie <airlied@linux.ie>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Linux-MM <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Christoph Hellwig <hch@lst.de>, Andrea Arcangeli <aarcange@redhat.com>, kbuild test robot <lkp@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Christoffer Dall <christoffer.dall@linaro.org>, Paolo Bonzini <pbonzini@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, 24 Dec 2015 14:51:23 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-> During freeze_page(), we remove the page from rmap. It munlocks the page
-> if it was mlocked. clear_page_mlock() uses of lru cache, which temporary
-> pins page.
+On 12/28/2015 02:55 AM, Dan Williams wrote:
+> On Sun, Dec 27, 2015 at 12:33 AM, Bob Liu <lliubbo@gmail.com> wrote:
+>> Hey Dan,
+>>
+> [..]
+>> What about space for page tables?
+>> Page tables(mapping all memory in PMEM to virtual address space) may
+>> also consume significantly DRAM space if  huge page is not enabled or
+>> split.
+>> Should we also consider to allocate pte page tables from PMEM in future?
 > 
-> Let's drain the lru cache before checking page's count vs. mapcount.
-> The change makes mlocked page split on first attempt, if it was not
-> pinned by somebody else.
+> On x86_64 these ranges are covered by gigabyte pages by default (see
+> init_memory_mapping()).  I don't see much incremental benefit from
+> allocating pte's from pmem.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/huge_memory.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 1a988d9b86ef..4c1c292b7ddd 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -3417,6 +3417,9 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->  	freeze_page(anon_vma, head);
->  	VM_BUG_ON_PAGE(compound_mapcount(head), head);
->  
-> +	/* Make sure the page is not on per-CPU pagevec as it takes pin */
-> +	lru_add_drain();
-> +
->  	/* Prevent deferred_split_scan() touching ->_count */
->  	spin_lock(&split_queue_lock);
->  	count = page_count(head);
 
-Fair enough.
+Oh, that's the direct mapping. I mean ptes consumed in:
+__dax_fault > dax_insert_mapping > insert_pfn > __get_locked_pte
 
-mlocked pages are rare and lru_add_drain() isn't free.  We could easily
-and cheaply make page_remove_rmap() return "bool was_mlocked" (or,
-better, "bool might_be_in_lru_cache") to skip this overhead.
+In some bad situations e.g mmap a lot of large ext4 files exist in pmem but
+hugepage can't be used because of fragmentation, then the consumption of pte
+page tables may can't be ignored?
+Anyway, this is not a blocker of these patches.
+Thanks,
+Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
