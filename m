@@ -1,100 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DC15C6B0008
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 15:57:12 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id f206so20637116wmf.0
-        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 12:57:12 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id g67si72820985wmc.46.2015.12.29.12.57.11
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 746286B025C
+	for <linux-mm@kvack.org>; Tue, 29 Dec 2015 21:01:52 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id uo6so109690071pac.1
+        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 18:01:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r78si30347552pfi.202.2015.12.29.18.01.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Dec 2015 12:57:11 -0800 (PST)
-Received: by mail-wm0-x232.google.com with SMTP id u188so21834175wmu.1
-        for <linux-mm@kvack.org>; Tue, 29 Dec 2015 12:57:11 -0800 (PST)
-Date: Tue, 29 Dec 2015 22:57:09 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/4] thp: increase split_huge_page() success rate
-Message-ID: <20151229205709.GB6260@node.shutemov.name>
-References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1450957883-96356-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20151228153026.628d44126a848e14bcbbce68@linux-foundation.org>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Dec 2015 18:01:51 -0800 (PST)
+Subject: [PATCH] mm,oom: Always sleep before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201512301101.GJD12974.LOVFFtFMOHOJSQ@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Dec 2015 11:01:42 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151228153026.628d44126a848e14bcbbce68@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 28, 2015 at 03:30:26PM -0800, Andrew Morton wrote:
-> On Thu, 24 Dec 2015 14:51:23 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > During freeze_page(), we remove the page from rmap. It munlocks the page
-> > if it was mlocked. clear_page_mlock() uses of lru cache, which temporary
-> > pins page.
-> > 
-> > Let's drain the lru cache before checking page's count vs. mapcount.
-> > The change makes mlocked page split on first attempt, if it was not
-> > pinned by somebody else.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/huge_memory.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 1a988d9b86ef..4c1c292b7ddd 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -3417,6 +3417,9 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
-> >  	freeze_page(anon_vma, head);
-> >  	VM_BUG_ON_PAGE(compound_mapcount(head), head);
-> >  
-> > +	/* Make sure the page is not on per-CPU pagevec as it takes pin */
-> > +	lru_add_drain();
-> > +
-> >  	/* Prevent deferred_split_scan() touching ->_count */
-> >  	spin_lock(&split_queue_lock);
-> >  	count = page_count(head);
-> 
-> Fair enough.
-> 
-> mlocked pages are rare and lru_add_drain() isn't free.  We could easily
-> and cheaply make page_remove_rmap() return "bool was_mlocked" (or,
-> better, "bool might_be_in_lru_cache") to skip this overhead.
+>From c0b5820c594343e06239f15afb35d23b4b8ac0d0 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Dec 2015 10:55:59 +0900
+Subject: [PATCH] mm,oom: Always sleep before retrying.
 
-Propagating it back is painful. What about this instead:
+When we entered into "Reclaim has failed us, start killing things"
+state, sleep function is called only when mutex_trylock(&oom_lock)
+in __alloc_pages_may_oom() failed or immediately after returning from
+oom_kill_process() in out_of_memory(). This may be insufficient for
+giving other tasks a chance to run because mutex_trylock(&oom_lock)
+will not fail under non-preemptive UP kernel.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index ecb4ed1a821a..edfa53eda9ca 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3385,6 +3385,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	struct page *head = compound_head(page);
- 	struct anon_vma *anon_vma;
- 	int count, mapcount, ret;
-+	bool mlocked;
- 
- 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
- 	VM_BUG_ON_PAGE(!PageAnon(page), page);
-@@ -3415,11 +3416,13 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		goto out_unlock;
+If it is a !__GFP_FS && !__GFP_NOFAIL allocation request,
+__alloc_pages_may_oom() will return without sleeping, and
+__alloc_pages_slowpath() will retry without sleeping.
+As a result, other tasks will never acquire a chance to run.
+
+If it is a __GFP_FS || __GFP_NOFAIL allocation request, out_of_memory()
+will be called. But if the OOM victim failed to terminate before
+schedule_timeout_killable(1) returns, the victim will never acquire
+a chance to run again because the task which called out_of_memory()
+will not sleep again.
+
+We should not rely on mutex_trylock(&oom_lock) for a sleep. This patch
+makes sure everybody sleeps before __alloc_pages_slowpath() retries.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/page_alloc.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2565154..6f7f786 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2734,7 +2734,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	if (!mutex_trylock(&oom_lock)) {
+ 		*did_some_progress = 1;
+-		schedule_timeout_uninterruptible(1);
+ 		return NULL;
  	}
  
-+	mlocked = PageMlocked(page);
- 	freeze_page(anon_vma, head);
- 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
+@@ -3282,6 +3281,12 @@ retry:
+ 	/* Retry as long as the OOM killer is making progress */
+ 	if (did_some_progress) {
+ 		no_progress_loops = 0;
++		/*
++		 * Make sure that other tasks (e.g. OOM victims, workqueue
++		 * items) are given a chance to run.
++		 */
++		if (!test_thread_flag(TIF_MEMDIE))
++			schedule_timeout_uninterruptible(1);
+ 		goto retry;
+ 	}
  
- 	/* Make sure the page is not on per-CPU pagevec as it takes pin */
--	lru_add_drain();
-+	if (mlocked)
-+		lru_add_drain();
- 
- 	/* Prevent deferred_split_scan() touching ->_count */
- 	spin_lock(&split_queue_lock);
 -- 
- Kirill A. Shutemov
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
