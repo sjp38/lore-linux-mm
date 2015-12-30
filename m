@@ -1,125 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A1F0B6B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:26:17 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id e65so140591130pfe.1
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:26:17 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ff7si27876272pab.184.2016.01.03.17.26.16
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B92E6B0006
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:26:28 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id 78so195036948pfw.2
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:26:28 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id 90si31709306pfp.53.2016.01.03.17.26.27
         for <linux-mm@kvack.org>;
-        Sun, 03 Jan 2016 17:26:16 -0800 (PST)
-Message-Id: <cover.1451869360.git.tony.luck@intel.com>
-From: Tony Luck <tony.luck@intel.com>
-Date: Sun, 3 Jan 2016 17:02:40 -0800
-Subject: [PATCH v6 0/4] Machine check recovery when kernel accesses poison
+        Sun, 03 Jan 2016 17:26:27 -0800 (PST)
+Message-Id: <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
+In-Reply-To: <cover.1451869360.git.tony.luck@intel.com>
+References: <cover.1451869360.git.tony.luck@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 30 Dec 2015 09:59:29 -0800
+Subject: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a bit)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-This series is initially targeted at the folks doing filesystems
-on top of NVDIMMs. They really want to be able to return -EIO
-when there is a h/w error (just like spinning rust, and SSD does).
+This adds two bits of fixup class information to a fixup entry,
+generalizing the uaccess_err hack currently in place.
 
-I plan to use the same infrastructure to write a machine check aware
-"copy_from_user()" that will SIGBUS the calling application when a
-syscall touches poison in user space (just like we do when the application
-touches the poison itself).
+Forward-ported-from-3.9-by: Tony Luck <tony.luck@intel.com>
+Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+---
+ arch/x86/include/asm/asm.h | 70 ++++++++++++++++++++++++++++++----------------
+ arch/x86/mm/extable.c      | 21 ++++++++------
+ 2 files changed, 59 insertions(+), 32 deletions(-)
 
-Changes V5-V6
-Andy:	Provoked massive re-write by providing what is now part1 of this
-	patch series. This frees up two bits in the exception table
-	fixup field that can be used to tag exception table entries
-	as different "classes". This means we don't need my separate
-	exception table fro machine checks. Also avoids duplicating
-	fixup actions for #PF and #MC cases that were in version 5.
-Andy:	Use C99 array initializers to tie the various class fixup
-	functions back to the defintions of each class. Also give the
-	functions meanningful names (not fixup_class0() etc.).
-Boris:	Cleaned up my lousy assembly code removing many spurious 'l'
-	modifiers on instructions.
-Boris:	Provided some helper functions for the machine check severity
-	calculation that make the code more readable.
-Boris:	Have __mcsafe_copy() return a structure with the 'remaining bytes'
-	in a separate field from the fault indicator. Boris had suggested
-	Linux -EFAULT/-EINVAL ... but I thought it made more sense to return
-	the exception number (X86_TRAP_MC, etc.)  This finally kills off
-	BIT(63) which has been controversial throughout all the early versions
-	of this patch series.
-
-Changes V4-V5
-Tony:	Extended __mcsafe_copy() to have fixup entries for both machine
-	check and page fault.
-
-Changes V3-V4:
-Andy:   Simplify fixup_mcexception() by dropping used-once local variable
-Andy:   "Reviewed-by" tag added to part1
-Boris:  Moved new functions to memcpy_64.S and declaration to asm/string_64.h
-Boris:  Changed name s/mcsafe_memcpy/__mcsafe_copy/ to make it clear that this
-        is an internal function and that return value doesn't follow memcpy() semantics.
-Boris:  "Reviewed-by" tag added to parts 1&2
-
-Changes V2-V3:
-
-Andy:   Don't hack "regs->ax = BIT(63) | addr;" in the machine check
-        handler.  Now have better fixup code that computes the number
-        of remaining bytes (just like page-fault fixup).
-Andy:   #define for BIT(63). Done, plus couple of extra macros using it.
-Boris:  Don't clutter up generic code (like mm/extable.c) with this.
-        I moved everything under arch/x86 (the asm-generic change is
-        a more generic #define).
-Boris:  Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
-        I made it a real menu item with default "n". Dan Williams
-        will use "select MCE_KERNEL_RECOVERY" from his persistent
-        filesystem code.
-Boris:  Simplify conditionals in mce.c by moving tolerant/kill_it
-        checks earlier, with a skip to end if they aren't set.
-Boris:  Miscellaneous grammar/punctuation. Fixed.
-Boris:  Don't leak spurious __start_mcextable symbols into kernels
-        that didn't configure MCE_KERNEL_RECOVERY. Done.
-Tony:   New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
-        to new .S/.h files
-Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
-        or vmovntdqa on source addresses. I didn't fix this yet. Think
-        of the current mcsafe_memcpy() as the first of several functions.
-        This one is useful for small copies (meta-data) where the overhead
-        of saving SSE/AVX state isn't justified.
-
-Changes V1->V2:
-
-0-day:  Reported build errors and warnings on 32-bit systems. Fixed
-0-day:  Reported bloat to tinyconfig. Fixed
-Boris:  Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
-Boris:  Re-write "tolerant==3" check to reduce indentation level. See below.
-Andy:   Check IP is valid before searching kernel exception tables. Done.
-Andy:   Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
-Andy:   Untangle mess of code in tail of do_machine_check() to make it
-        clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
-        if we were called from user code, not from kernel!). Done.
-
-Andy Lutomirski (1):
-  x86: Clean up extable entry format (and free up a bit)
-
-Tony Luck (3):
-  x86: Cleanup and add a new exception class
-  x86, mce: Check for faults tagged in EXTABLE_CLASS_FAULT exception
-    table entries
-  x86, mce: Add __mcsafe_copy()
-
- arch/x86/Kconfig                          |  10 +++
- arch/x86/include/asm/asm.h                |  80 ++++++++++++------
- arch/x86/include/asm/string_64.h          |  10 +++
- arch/x86/include/asm/uaccess.h            |  17 +++-
- arch/x86/kernel/cpu/mcheck/mce-severity.c |  32 ++++++-
- arch/x86/kernel/cpu/mcheck/mce.c          |  71 ++++++++--------
- arch/x86/kernel/kprobes/core.c            |   2 +-
- arch/x86/kernel/traps.c                   |   6 +-
- arch/x86/kernel/x8664_ksyms_64.c          |   4 +
- arch/x86/lib/memcpy_64.S                  | 136 ++++++++++++++++++++++++++++++
- arch/x86/mm/extable.c                     |  66 ++++++++++-----
- arch/x86/mm/fault.c                       |   2 +-
- 12 files changed, 347 insertions(+), 89 deletions(-)
-
+diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
+index 189679aba703..b64121ffb2da 100644
+--- a/arch/x86/include/asm/asm.h
++++ b/arch/x86/include/asm/asm.h
+@@ -43,19 +43,47 @@
+ #define _ASM_DI		__ASM_REG(di)
+ 
+ /* Exception table entry */
+-#ifdef __ASSEMBLY__
+-# define _ASM_EXTABLE(from,to)					\
+-	.pushsection "__ex_table","a" ;				\
+-	.balign 8 ;						\
+-	.long (from) - . ;					\
+-	.long (to) - . ;					\
+-	.popsection
+ 
+-# define _ASM_EXTABLE_EX(from,to)				\
+-	.pushsection "__ex_table","a" ;				\
+-	.balign 8 ;						\
+-	.long (from) - . ;					\
+-	.long (to) - . + 0x7ffffff0 ;				\
++/*
++ * An exception table entry is 64 bits.  The first 32 bits are the offset
++ * from that entry to the potentially faulting instruction.  sortextable
++ * relies on that exact encoding.  The second 32 bits encode the fault
++ * handler address.
++ *
++ * We want to stick two extra bits of handler class into the fault handler
++ * address.  All of these are generated by relocations, so we can only
++ * rely on addition.  We therefore emit:
++ *
++ * (target - here) + (class) + 0x20000000
++ *
++ * This has the property that the two high bits are the class and the
++ * rest is easy to decode.
++ */
++
++/* There are two bits of extable entry class, added to a signed offset. */
++#define _EXTABLE_CLASS_DEFAULT	0		/* standard uaccess fixup */
++#define _EXTABLE_CLASS_EX	0x80000000	/* uaccess + set uaccess_err */
++
++/*
++ * The biases are the class constants + 0x20000000, as signed integers.
++ * This can't use ordinary arithmetic -- the assembler isn't that smart.
++ */
++#define _EXTABLE_BIAS_DEFAULT	0x20000000
++#define _EXTABLE_BIAS_EX	0x20000000 - 0x80000000
++
++#define _ASM_EXTABLE(from,to)						\
++	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_DEFAULT)
++
++#define _ASM_EXTABLE_EX(from,to)					\
++	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_EX)
++
++#ifdef __ASSEMBLY__
++# define _EXPAND_EXTABLE_BIAS(x) x
++# define _ASM_EXTABLE_CLASS(from,to,bias)				\
++	.pushsection "__ex_table","a" ;					\
++	.balign 8 ;							\
++	.long (from) - . ;						\
++	.long (to) - . + _EXPAND_EXTABLE_BIAS(bias) ;			\
+ 	.popsection
+ 
+ # define _ASM_NOKPROBE(entry)					\
+@@ -89,18 +117,12 @@
+ 	.endm
+ 
+ #else
+-# define _ASM_EXTABLE(from,to)					\
+-	" .pushsection \"__ex_table\",\"a\"\n"			\
+-	" .balign 8\n"						\
+-	" .long (" #from ") - .\n"				\
+-	" .long (" #to ") - .\n"				\
+-	" .popsection\n"
+-
+-# define _ASM_EXTABLE_EX(from,to)				\
+-	" .pushsection \"__ex_table\",\"a\"\n"			\
+-	" .balign 8\n"						\
+-	" .long (" #from ") - .\n"				\
+-	" .long (" #to ") - . + 0x7ffffff0\n"			\
++# define _EXPAND_EXTABLE_BIAS(x) #x
++# define _ASM_EXTABLE_CLASS(from,to,bias)				\
++	" .pushsection \"__ex_table\",\"a\"\n"				\
++	" .balign 8\n"							\
++	" .long (" #from ") - .\n"					\
++	" .long (" #to ") - . + " _EXPAND_EXTABLE_BIAS(bias) "\n"	\
+ 	" .popsection\n"
+ /* For C file, we already have NOKPROBE_SYMBOL macro */
+ #endif
+diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
+index 903ec1e9c326..95e2ede71206 100644
+--- a/arch/x86/mm/extable.c
++++ b/arch/x86/mm/extable.c
+@@ -8,16 +8,24 @@ ex_insn_addr(const struct exception_table_entry *x)
+ {
+ 	return (unsigned long)&x->insn + x->insn;
+ }
++static inline unsigned int
++ex_class(const struct exception_table_entry *x)
++{
++	return (unsigned int)x->fixup & 0xC0000000;
++}
++
+ static inline unsigned long
+ ex_fixup_addr(const struct exception_table_entry *x)
+ {
+-	return (unsigned long)&x->fixup + x->fixup;
++	long offset = (long)((u32)x->fixup & 0x3fffffff) - (long)0x20000000;
++	return (unsigned long)&x->fixup + offset;
+ }
+ 
+ int fixup_exception(struct pt_regs *regs)
+ {
+ 	const struct exception_table_entry *fixup;
+ 	unsigned long new_ip;
++	unsigned int class;
+ 
+ #ifdef CONFIG_PNPBIOS
+ 	if (unlikely(SEGMENT_IS_PNP_CODE(regs->cs))) {
+@@ -35,12 +43,12 @@ int fixup_exception(struct pt_regs *regs)
+ 
+ 	fixup = search_exception_tables(regs->ip);
+ 	if (fixup) {
++		class = ex_class(fixup);
+ 		new_ip = ex_fixup_addr(fixup);
+ 
+-		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
++		if (class == _EXTABLE_CLASS_EX) {
+ 			/* Special hack for uaccess_err */
+ 			current_thread_info()->uaccess_err = 1;
+-			new_ip -= 0x7ffffff0;
+ 		}
+ 		regs->ip = new_ip;
+ 		return 1;
+@@ -53,18 +61,15 @@ int fixup_exception(struct pt_regs *regs)
+ int __init early_fixup_exception(unsigned long *ip)
+ {
+ 	const struct exception_table_entry *fixup;
+-	unsigned long new_ip;
+ 
+ 	fixup = search_exception_tables(*ip);
+ 	if (fixup) {
+-		new_ip = ex_fixup_addr(fixup);
+-
+-		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
++		if (ex_class(fixup) == _EXTABLE_CLASS_EX) {
+ 			/* uaccess handling not supported during early boot */
+ 			return 0;
+ 		}
+ 
+-		*ip = new_ip;
++		*ip = ex_fixup_addr(fixup);
+ 		return 1;
+ 	}
+ 
 -- 
 2.1.4
 
