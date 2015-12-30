@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D036B025C
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 10:06:06 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id 78so143091408pfw.2
-        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 07:06:06 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 86si58994788pfs.88.2015.12.30.07.06.05
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 644D86B025D
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 15:10:13 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id to18so172208412igc.0
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 12:10:13 -0800 (PST)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id x1si43873200igl.76.2015.12.30.12.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Dec 2015 07:06:05 -0800 (PST)
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
-	<201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
-	<201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
-	<20151229163249.GD10321@dhcp22.suse.cz>
-In-Reply-To: <20151229163249.GD10321@dhcp22.suse.cz>
-Message-Id: <201512310005.DFJ21839.QOOSVFFHMLJOtF@I-love.SAKURA.ne.jp>
-Date: Thu, 31 Dec 2015 00:05:48 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Dec 2015 12:10:12 -0800 (PST)
+Received: by mail-ig0-x234.google.com with SMTP id to18so172208240igc.0
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 12:10:12 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151230092337.GD3873@htj.duckdns.org>
+References: <20150913185940.GA25369@htj.duckdns.org>
+	<55FEC685.5010404@oracle.com>
+	<20150921200141.GH13263@mtj.duckdns.org>
+	<20151125144354.GB17308@twins.programming.kicks-ass.net>
+	<20151125150207.GM11639@twins.programming.kicks-ass.net>
+	<CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
+	<20151125174449.GD17308@twins.programming.kicks-ass.net>
+	<20151211162554.GS30240@mtj.duckdns.org>
+	<20151215192245.GK6357@twins.programming.kicks-ass.net>
+	<20151230092337.GD3873@htj.duckdns.org>
+Date: Wed, 30 Dec 2015 12:10:12 -0800
+Message-ID: <CA+55aFx0WxoUPrOPaq3HxM+YUQQ0DPV-c3f8kE1ec7agERb_Lg@mail.gmail.com>
+Subject: Re: [PATCH v4.4-rc7] sched: isolate task_struct bitfields according
+ to synchronization domains
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vladimir Davydov <vdavydov@parallels.com>, kernel-team <kernel-team@fb.com>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>
 
-Michal Hocko wrote:
-> On Mon 28-12-15 21:08:56, Tetsuo Handa wrote:
-> > Tetsuo Handa wrote:
-> > > I got OOM killers while running heavy disk I/O (extracting kernel source,
-> > > running lxr's genxref command). (Environ: 4 CPUs / 2048MB RAM / no swap / XFS)
-> > > Do you think these OOM killers reasonable? Too weak against fragmentation?
-> > 
-> > Well, current patch invokes OOM killers when more than 75% of memory is used
-> > for file cache (active_file: + inactive_file:). I think this is a surprising
-> > thing for administrators and we want to retry more harder (but not forever,
-> > please).
-> 
-> Here again, it would be good to see what is the comparision between
-> the original and the new behavior. 75% of a page cache is certainly
-> unexpected but those pages might be pinned for other reasons and so
-> unreclaimable and basically IO bound. This is hard to optimize for
-> without causing any undesirable side effects for other loads. I will
-> have a look at the oom reports later but having a comparision would be
-> a great start.
+On Wed, Dec 30, 2015 at 1:23 AM, Tejun Heo <tj@kernel.org> wrote:
+>
+> Peter, I took the patch and changed the bitfields to ulong.
 
-Prior to "mm, oom: rework oom detection" patch (the original), this stressor
-never invoked the OOM killer. After this patch (the new), this stressor easily
-invokes the OOM killer. Both the original and the new case, active_file: +
-inactive_file: occupies nearly 75%. I think we lost invisible retry logic for
-order > 0 allocation requests.
+I wouldn't expect the unsigned long part to matter, except for the
+forced split with
+
+   unsigned long :0;
+
+itself.
+
+Also, quite frankly, since this is basically very close to other
+fields that are *not* unsigned longs, I'd really prefer to not
+unnecessarily use a 64-bit field for three bits each.
+
+So why not just do it with plain unsigned "int", and then maybe just
+intersperse them with the other int-sized fields in that neighborhood.
+
+I'm also wondering if we shouldn't just put the scheduler bits in the
+"atomic_flags" thing instead?
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
