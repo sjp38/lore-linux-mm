@@ -1,103 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A756B0009
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 18:30:43 -0500 (EST)
-Received: by mail-io0-f179.google.com with SMTP id 77so52774679ioc.2
-        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 15:30:43 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id m5si50077645igx.20.2015.12.30.15.30.41
-        for <linux-mm@kvack.org>;
-        Wed, 30 Dec 2015 15:30:42 -0800 (PST)
-Date: Thu, 31 Dec 2015 10:30:27 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 7/8] xfs: Support for transparent PUD pages
-Message-ID: <20151230233007.GA6682@dastard>
-References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
- <1450974037-24775-8-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1565B6B0009
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 18:32:32 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id u188so52831067wmu.1
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 15:32:32 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id v20si114621132wjq.230.2015.12.30.15.32.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Dec 2015 15:32:31 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id l65so38531807wmf.3
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 15:32:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1450974037-24775-8-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <CALCETrV2g6vSQcpNUADWeLMj5O_HDEGgp6vvLw9KgJVTWxZ1+g@mail.gmail.com>
+References: <20151224214632.GF4128@pd.tnic>
+	<ce84932301823b991b9b439a4715be93f1912c05.1451002295.git.tony.luck@intel.com>
+	<20151225114937.GA862@pd.tnic>
+	<5FBC1CF1-095B-466D-85D6-832FBFA98364@intel.com>
+	<20151226103252.GA21988@pd.tnic>
+	<CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
+	<CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
+	<CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
+	<CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
+	<CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
+	<CALCETrV2g6vSQcpNUADWeLMj5O_HDEGgp6vvLw9KgJVTWxZ1+g@mail.gmail.com>
+Date: Wed, 30 Dec 2015 15:32:30 -0800
+Message-ID: <CA+8MBbK842Ov74ZSU_fmxoZNw_72J+3hg3KQ4C5aBjd_cDYfAA@mail.gmail.com>
+Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
+ from machine checks
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 24, 2015 at 11:20:36AM -0500, Matthew Wilcox wrote:
-> From: Matthew Wilcox <willy@linux.intel.com>
-> 
-> Call into DAX to provide support for PUD pages, just like the PMD cases.
-> 
-> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-> ---
->  fs/xfs/xfs_file.c  | 33 +++++++++++++++++++++++++++++++++
->  fs/xfs/xfs_trace.h |  1 +
->  2 files changed, 34 insertions(+)
-> 
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index f5392ab..a81b942 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -1600,6 +1600,38 @@ xfs_filemap_pmd_fault(
->  	return ret;
->  }
->  
-> +STATIC int
-> +xfs_filemap_pud_fault(
-> +	struct vm_area_struct	*vma,
-> +	unsigned long		addr,
-> +	pud_t			*pud,
-> +	unsigned int		flags)
-> +{
-> +	struct inode		*inode = file_inode(vma->vm_file);
-> +	struct xfs_inode	*ip = XFS_I(inode);
-> +	int			ret;
-> +
-> +	if (!IS_DAX(inode))
-> +		return VM_FAULT_FALLBACK;
-> +
-> +	trace_xfs_filemap_pud_fault(ip);
-> +
-> +	if (flags & FAULT_FLAG_WRITE) {
-> +		sb_start_pagefault(inode->i_sb);
-> +		file_update_time(vma->vm_file);
-> +	}
-> +
-> +	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> +	ret = __dax_pud_fault(vma, addr, pud, flags, xfs_get_blocks_dax_fault,
-> +			      NULL);
-> +	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> +
-> +	if (flags & FAULT_FLAG_WRITE)
-> +		sb_end_pagefault(inode->i_sb);
-> +
-> +	return ret;
-> +}
-> +
->  /*
->   * pfn_mkwrite was originally inteneded to ensure we capture time stamp
->   * updates on write faults. In reality, it's need to serialise against
-> @@ -1637,6 +1669,7 @@ xfs_filemap_pfn_mkwrite(
->  static const struct vm_operations_struct xfs_file_vm_ops = {
->  	.fault		= xfs_filemap_fault,
->  	.pmd_fault	= xfs_filemap_pmd_fault,
-> +	.pud_fault	= xfs_filemap_pud_fault,
+On Sun, Dec 27, 2015 at 4:18 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> I think I can save you some pondering.  This old patch gives two flag
+> bits.  Feel free to borrow the patch, but you'll probably want to
+> change the _EXTABLE_CLASS_XYZ macros:
+>
+> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/commit/?h=strict_uaccess_fixups/patch_v1&id=16644d9460fc6531456cf510d5efc57f89e5cd34
 
-This is getting silly - we now have 3 different page fault handlers
-that all do exactly the same thing. Please abstract this so that the
-page/pmd/pud is transparent and gets passed through to the generic
-handler code that then handles the differences between page/pmd/pud
-internally.
+Thanks!
 
-This, after all, is the original reason that the ->fault handler was
-introduced....
+I took that, and some of Boris's changes, and stirred it altogether at:
 
-Cheers,
+git://git.kernel.org/pub/scm/linux/kernel/git/ras/ras.git mcsafev6
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+First commit is just your patch from above (patch wouldn't apply it
+directly because of other nearby changes, but I think I didn't break
+it)
+
+Second commit pulls the core of fixup_exception() into separate
+functions for each class
+
+Third adds a new class that provides the fault number to the fixup
+code in regs->ax.
+
+Fourth is just a jumble of the rest .. needs to be split into two
+parts (one for machine check handler, second to add __mcsafe_copy())
+
+Fifth is just a hack because I clearly didn't understand what I was
+doing in parts 2&3 because my new class shows up as '3' not '1'!
+
+Andy: Can you explain the assembler/linker arithmetic for the class?
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
