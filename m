@@ -1,75 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B44546B025E
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 03:03:09 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id bx1so147890307obb.0
-        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 00:03:09 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a8si7590591obt.51.2015.12.30.00.03.08
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0FC6B025E
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2015 04:23:40 -0500 (EST)
+Received: by mail-yk0-f171.google.com with SMTP id v14so57406434ykd.3
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 01:23:40 -0800 (PST)
+Received: from mail-yk0-x22c.google.com (mail-yk0-x22c.google.com. [2607:f8b0:4002:c07::22c])
+        by mx.google.com with ESMTPS id t82si47448157ywa.142.2015.12.30.01.23.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Dec 2015 00:03:08 -0800 (PST)
-Message-ID: <56838FA3.5030909@oracle.com>
-Date: Wed, 30 Dec 2015 16:02:43 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        Wed, 30 Dec 2015 01:23:39 -0800 (PST)
+Received: by mail-yk0-x22c.google.com with SMTP id v14so57406192ykd.3
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2015 01:23:39 -0800 (PST)
+Date: Wed, 30 Dec 2015 04:23:37 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH v4.4-rc7] sched: isolate task_struct bitfields according to
+ synchronization domains
+Message-ID: <20151230092337.GD3873@htj.duckdns.org>
+References: <20150913185940.GA25369@htj.duckdns.org>
+ <55FEC685.5010404@oracle.com>
+ <20150921200141.GH13263@mtj.duckdns.org>
+ <20151125144354.GB17308@twins.programming.kicks-ass.net>
+ <20151125150207.GM11639@twins.programming.kicks-ass.net>
+ <CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
+ <20151125174449.GD17308@twins.programming.kicks-ass.net>
+ <20151211162554.GS30240@mtj.duckdns.org>
+ <20151215192245.GK6357@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 2/7] dax: support dirty DAX entries in radix tree
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com> <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151215192245.GK6357@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mhocko@kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, vdavydov@parallels.com, kernel-team@fb.com, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>
 
-Hi Ross,
+task_struct has a cluster of unsigned bitfields.  Some are updated
+under scheduler locks while others are updated only by the task
+itself.  Currently, the two classes of bitfields aren't distinguished
+and end up on the same word which can lead to clobbering when there
+are simultaneous read-modify-write attempts.  While difficult to prove
+definitely, it's likely that the resulting inconsistency led to low
+frqeuency failures such as wrong memcg_may_oom state or loadavg
+underflow due to clobbered sched_contributes_to_load.
 
-On 12/24/2015 03:39 AM, Ross Zwisler wrote:
-> Add support for tracking dirty DAX entries in the struct address_space
-> radix tree.  This tree is already used for dirty page writeback, and it
-> already supports the use of exceptional (non struct page*) entries.
-> 
-> In order to properly track dirty DAX pages we will insert new exceptional
-> entries into the radix tree that represent dirty DAX PTE or PMD pages.
+Fix it by putting the two classes of the bitfields into separate
+unsigned longs.
 
-I may get it wrong, but there is "struct page" for persistent memory after
-"[PATCH v4 00/18]get_user_pages() for dax pte and pmd mappings".
-So why not just add "struct page" to radix tree directly just like normal page cache?
+Original-patch-by: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Link: http://lkml.kernel.org/g/55FEC685.5010404@oracle.com
+Cc: stable@vger.kernel.org
+---
+Hello,
 
-Then we don't need to deal with any exceptional entries and special writeback.
+Peter, I took the patch and changed the bitfields to ulong.
 
-Thanks,
-Bob
+Thanks.
 
-> These exceptional entries will also contain the writeback sectors for the
-> PTE or PMD faults that we can use at fsync/msync time.
-> 
-> There are currently two types of exceptional entries (shmem and shadow)
-> that can be placed into the radix tree, and this adds a third.  We rely on
-> the fact that only one type of exceptional entry can be found in a given
-> radix tree based on its usage.  This happens for free with DAX vs shmem but
-> we explicitly prevent shadow entries from being added to radix trees for
-> DAX mappings.
-> 
-> The only shadow entries that would be generated for DAX radix trees would
-> be to track zero page mappings that were created for holes.  These pages
-> would receive minimal benefit from having shadow entries, and the choice
-> to have only one type of exceptional entry in a given radix tree makes the
-> logic simpler both in clear_exceptional_entry() and in the rest of DAX.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  fs/block_dev.c             |  2 +-
->  fs/inode.c                 |  2 +-
->  include/linux/dax.h        |  5 ++++
->  include/linux/fs.h         |  3 +-
->  include/linux/radix-tree.h |  9 ++++++
->  mm/filemap.c               | 17 ++++++++----
->  mm/truncate.c              | 69 ++++++++++++++++++++++++++--------------------
->  mm/vmscan.c                |  9 +++++-
->  mm/workingset.c            |  4 +--
->  9 files changed, 78 insertions(+), 42 deletions(-)
+ include/linux/sched.h |   25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index edad7a4..e51464d 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1455,22 +1455,25 @@ struct task_struct {
+ 	/* Used for emulating ABI behavior of previous Linux versions */
+ 	unsigned int personality;
+ 
+-	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
+-				 * execve */
+-	unsigned in_iowait:1;
+-
+-	/* Revert to default priority/policy when forking */
+-	unsigned sched_reset_on_fork:1;
+-	unsigned sched_contributes_to_load:1;
+-	unsigned sched_migrated:1;
++	/* scheduler bits, serialized by scheduler locks */
++	unsigned long sched_reset_on_fork:1;
++	unsigned long sched_contributes_to_load:1;
++	unsigned long sched_migrated:1;
++
++	/* force alignment to the next boundary */
++	unsigned long :0;
++
++	/* unserialized, strictly 'current' */
++	unsigned long in_execve:1; /* bit to tell LSMs we're in execve */
++	unsigned long in_iowait:1;
+ #ifdef CONFIG_MEMCG
+-	unsigned memcg_may_oom:1;
++	unsigned long memcg_may_oom:1;
+ #endif
+ #ifdef CONFIG_MEMCG_KMEM
+-	unsigned memcg_kmem_skip_account:1;
++	unsigned long memcg_kmem_skip_account:1;
+ #endif
+ #ifdef CONFIG_COMPAT_BRK
+-	unsigned brk_randomized:1;
++	unsigned long brk_randomized:1;
+ #endif
+ 
+ 	unsigned long atomic_flags; /* Flags needing atomic access. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
