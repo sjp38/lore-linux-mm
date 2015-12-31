@@ -1,362 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 25AEE6B0006
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 19:12:44 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id 78so212054800pfw.2
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 16:12:44 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id yk9si41842092pac.240.2016.01.04.16.12.42
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 084256B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 19:13:36 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id q63so173974399pfb.0
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 16:13:36 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id q29si61264746pfi.161.2016.01.04.16.13.35
         for <linux-mm@kvack.org>;
-        Mon, 04 Jan 2016 16:12:43 -0800 (PST)
-Message-Id: <b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
+        Mon, 04 Jan 2016 16:13:35 -0800 (PST)
+Message-Id: <14b7d5421bf67891d803810004e61430701c6e43.1451952351.git.tony.luck@intel.com>
 In-Reply-To: <cover.1451952351.git.tony.luck@intel.com>
 References: <cover.1451952351.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Date: Wed, 30 Dec 2015 09:59:29 -0800
-Subject: [PATCH v7 1/3] x86: Add classes to exception tables
+Date: Thu, 31 Dec 2015 11:40:27 -0800
+Subject: [PATCH v7 2/3] x86, mce: Check for faults tagged in
+ EXTABLE_CLASS_FAULT exception table entries
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-Starting with a patch from Andy Lutomirski <luto@amacapital.net>
-that used linker relocation trickery to free up a couple of bits
-in the "fixup" field of the exception table (and generalized the
-uaccess_err hack to use one of the classes).
+Extend the severity checking code to add a new context IN_KERN_RECOV
+which is used to indicate that the machine check was triggered by code
+in the kernel with a EXTABLE_CLASS_FAULT fixup entry.
 
-This patch allocates another one of the classes to provide
-a mechanism to provide the fault number to the fixup code
-in %rax.
+Major re-work to the tail code in do_machine_check() to make all this
+readable/maintainable. One functional change is that tolerant=3 no longer
+stops recovery actions. Revert to only skipping sending SIGBUS to the
+current process.
 
-Still one free class for the next brilliant idea. If more are
-needed it should be possible to squeeze another bit or three
-extending the same technique.
-
-Originally-from: Andy Lutomirski <luto@amacapital.net>
 Signed-off-by: Tony Luck <tony.luck@intel.com>
 ---
- arch/x86/include/asm/asm.h     | 102 +++++++++++++++++++++++++++++++----------
- arch/x86/include/asm/uaccess.h |  17 +++++--
- arch/x86/kernel/kprobes/core.c |   2 +-
- arch/x86/kernel/traps.c        |   6 +--
- arch/x86/mm/extable.c          |  66 ++++++++++++++++++--------
- arch/x86/mm/fault.c            |   2 +-
- 6 files changed, 142 insertions(+), 53 deletions(-)
+ arch/x86/kernel/cpu/mcheck/mce-severity.c | 32 +++++++++++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          | 71 ++++++++++++++++---------------
+ 2 files changed, 67 insertions(+), 36 deletions(-)
 
-diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-index 189679aba703..977273e36f87 100644
---- a/arch/x86/include/asm/asm.h
-+++ b/arch/x86/include/asm/asm.h
-@@ -43,19 +43,79 @@
- #define _ASM_DI		__ASM_REG(di)
+diff --git a/arch/x86/kernel/cpu/mcheck/mce-severity.c b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+index 9c682c222071..b6eee8e9b2a6 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce-severity.c
++++ b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+@@ -13,7 +13,9 @@
+ #include <linux/seq_file.h>
+ #include <linux/init.h>
+ #include <linux/debugfs.h>
++#include <linux/module.h>
+ #include <asm/mce.h>
++#include <asm/uaccess.h>
  
- /* Exception table entry */
--#ifdef __ASSEMBLY__
--# define _ASM_EXTABLE(from,to)					\
--	.pushsection "__ex_table","a" ;				\
--	.balign 8 ;						\
--	.long (from) - . ;					\
--	.long (to) - . ;					\
--	.popsection
+ #include "mce-internal.h"
  
--# define _ASM_EXTABLE_EX(from,to)				\
--	.pushsection "__ex_table","a" ;				\
--	.balign 8 ;						\
--	.long (from) - . ;					\
--	.long (to) - . + 0x7ffffff0 ;				\
-+#define	_EXTABLE_BIAS	0x20000000
-+/*
-+ * An exception table entry is 64 bits.  The first 32 bits are the offset
-+ * from that entry to the potentially faulting instruction.  sortextable
-+ * relies on that exact encoding.  The second 32 bits encode the fault
-+ * handler address.
-+ *
-+ * We want to stick two extra bits of handler class into the fault handler
-+ * address.  All of these are generated by relocations, so we can only
-+ * rely on addition.
-+ *
-+ * The offset to the fixup is signed, and we're trying to use the high
-+ * bits for a different purpose.  In C, we could just do:
-+ *
-+ * u32 class_and_offset = ((target - here) & 0x3fffffff) | class;
-+ *
-+ * Then, to decode it, we'd mask off the class and sign-extend to recover
-+ * the offset.
-+ *
-+ * In asm, we can't do that, because this all gets laundered through the
-+ * linker, and there's no relocation type that supports this chicanery.
-+ * Instead we cheat a bit.  We first add a large number to the offset
-+ * (0x20000000).  The result is still nominally signed, but now it's
-+ * always positive, and the two high bits are always clear.  We can then
-+ * set high bits by ordinary addition or subtraction instead of using
-+ * bitwise operations.  As far as the linker is concerned, all we're
-+ * doing is adding a large constant to the difference between here (".")
-+ * and the target, and that's a valid relocation type.
-+ *
-+ * We therefore emit:
-+ * (target - here) + (class) + 0x20000000
-+ *
-+ * This has the property that the two high bits are the class (see
-+ * ex_class().
-+ *
-+ * To get the offset back we just mask off the class bits and subtract
-+ * 0x20000000. See ex_fixup_addr().
-+ */
-+
-+/*
-+ * There are two bits of extable entry class giving four classes
-+ */
-+#define EXTABLE_CLASS_DEFAULT	0	/* standard uaccess fixup */
-+#define EXTABLE_CLASS_FAULT	1	/* provide fault number as well as fixup */
-+#define EXTABLE_CLASS_EX	2	/* uaccess + set uaccess_err */
-+#define EXTABLE_CLASS_UNUSED	3	/* available for something else */
-+
-+/*
-+ * The biases are the class constants + _EXTABLE_BIAS, as signed integers.
-+ * This can't use ordinary arithmetic -- the assembler isn't that smart.
-+ */
-+#define _EXTABLE_BIAS_DEFAULT	_EXTABLE_BIAS
-+#define _EXTABLE_BIAS_FAULT	_EXTABLE_BIAS + 0x40000000
-+#define _EXTABLE_BIAS_EX	_EXTABLE_BIAS - 0x80000000
-+#define _EXTABLE_BIAS_UNUSED	_EXTABLE_BIAS - 0x40000000
-+
-+#define _ASM_EXTABLE(from,to)						\
-+	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_DEFAULT)
-+
-+#define _ASM_EXTABLE_FAULT(from,to)					\
-+	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_FAULT)
-+
-+#define _ASM_EXTABLE_EX(from,to)					\
-+	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_EX)
-+
-+#ifdef __ASSEMBLY__
-+# define _EXPAND_EXTABLE_BIAS(x) x
-+# define _ASM_EXTABLE_CLASS(from,to,bias)				\
-+	.pushsection "__ex_table","a" ;					\
-+	.balign 8 ;							\
-+	.long (from) - . ;						\
-+	.long (to) - . + _EXPAND_EXTABLE_BIAS(bias) ;			\
- 	.popsection
+@@ -29,7 +31,7 @@
+  * panic situations)
+  */
  
- # define _ASM_NOKPROBE(entry)					\
-@@ -89,18 +149,12 @@
- 	.endm
+-enum context { IN_KERNEL = 1, IN_USER = 2 };
++enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
+ enum ser { SER_REQUIRED = 1, NO_SER = 2 };
+ enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
  
- #else
--# define _ASM_EXTABLE(from,to)					\
--	" .pushsection \"__ex_table\",\"a\"\n"			\
--	" .balign 8\n"						\
--	" .long (" #from ") - .\n"				\
--	" .long (" #to ") - .\n"				\
--	" .popsection\n"
--
--# define _ASM_EXTABLE_EX(from,to)				\
--	" .pushsection \"__ex_table\",\"a\"\n"			\
--	" .balign 8\n"						\
--	" .long (" #from ") - .\n"				\
--	" .long (" #to ") - . + 0x7ffffff0\n"			\
-+# define _EXPAND_EXTABLE_BIAS(x) #x
-+# define _ASM_EXTABLE_CLASS(from,to,bias)				\
-+	" .pushsection \"__ex_table\",\"a\"\n"				\
-+	" .balign 8\n"							\
-+	" .long (" #from ") - .\n"					\
-+	" .long (" #to ") - . + " _EXPAND_EXTABLE_BIAS(bias) "\n"	\
- 	" .popsection\n"
- /* For C file, we already have NOKPROBE_SYMBOL macro */
- #endif
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index a8df874f3e88..b023300cd6f0 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -93,9 +93,12 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
-  * The exception table consists of pairs of addresses relative to the
-  * exception table enty itself: the first is the address of an
-  * instruction that is allowed to fault, and the second is the address
-- * at which the program should continue.  No registers are modified,
-- * so it is entirely up to the continuation code to figure out what to
-- * do.
-+ * at which the program should continue.  The exception table is linked
-+ * soon after the fixup section, so we don't need a full 32-bit offset
-+ * for the fixup. We steal the two upper bits so we can tag exception
-+ * table entries with different classes. In the default class no registers
-+ * are modified, so it is entirely up to the continuation code to figure
-+ * out what to do.
-  *
-  * All the routines below use bits of fixup code that are out of line
-  * with the main instruction path.  This means when everything is well,
-@@ -110,7 +113,13 @@ struct exception_table_entry {
- #define ARCH_HAS_SORT_EXTABLE
- #define ARCH_HAS_SEARCH_EXTABLE
+@@ -48,6 +50,7 @@ static struct severity {
+ #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+ #define  KERNEL		.context = IN_KERNEL
+ #define  USER		.context = IN_USER
++#define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
+ #define  SER		.ser = SER_REQUIRED
+ #define  NOSER		.ser = NO_SER
+ #define  EXCP		.excp = EXCP_CONTEXT
+@@ -87,6 +90,10 @@ static struct severity {
+ 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+ 		),
+ 	MCESEV(
++		PANIC, "In kernel and no restart IP",
++		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
++		),
++	MCESEV(
+ 		DEFERRED, "Deferred error",
+ 		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
+ 		),
+@@ -123,6 +130,11 @@ static struct severity {
+ 		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, MCG_STATUS_RIPV)
+ 		),
+ 	MCESEV(
++		AR, "Action required: data load in error recoverable area of kernel",
++		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
++		KERNEL_RECOV
++		),
++	MCESEV(
+ 		AR, "Action required: data load error in a user process",
+ 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
+ 		USER
+@@ -170,6 +182,18 @@ static struct severity {
+ 		)	/* always matches. keep at end */
+ };
  
--extern int fixup_exception(struct pt_regs *regs);
-+static inline unsigned int
-+ex_class(const struct exception_table_entry *x)
++#define mc_recoverable(mcg) (((mcg) & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) == \
++				(MCG_STATUS_RIPV|MCG_STATUS_EIPV))
++
++static inline bool mce_in_kernel_recov(unsigned long addr)
 +{
-+	return (u32)x->fixup >> 30;
++	const struct exception_table_entry *fixup;
++
++	fixup = search_exception_tables(addr);
++
++	return fixup && ex_class(fixup) == EXTABLE_CLASS_FAULT;
 +}
 +
-+extern int fixup_exception(struct pt_regs *regs, int trapnr);
- extern int early_fixup_exception(unsigned long *ip);
+ /*
+  * If mcgstatus indicated that ip/cs on the stack were
+  * no good, then "m->cs" will be zero and we will have
+@@ -183,7 +207,11 @@ static struct severity {
+  */
+ static int error_context(struct mce *m)
+ {
+-	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
++	if ((m->cs & 3) == 3)
++		return IN_USER;
++	if (mc_recoverable(m->mcgstatus) && mce_in_kernel_recov(m->ip))
++		return IN_KERNEL_RECOV;
++	return IN_KERNEL;
+ }
  
  /*
-diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
-index 1deffe6cc873..0f05deeff5ce 100644
---- a/arch/x86/kernel/kprobes/core.c
-+++ b/arch/x86/kernel/kprobes/core.c
-@@ -988,7 +988,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
- 		 * In case the user-specified fault handler returned
- 		 * zero, try to fix up.
- 		 */
--		if (fixup_exception(regs))
-+		if (fixup_exception(regs, trapnr))
- 			return 1;
- 
- 		/*
-diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 346eec73f7db..df25081e5970 100644
---- a/arch/x86/kernel/traps.c
-+++ b/arch/x86/kernel/traps.c
-@@ -199,7 +199,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index 9d014b82a124..d69a69b38c54 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -31,6 +31,7 @@
+ #include <linux/types.h>
+ #include <linux/slab.h>
+ #include <linux/init.h>
++#include <linux/module.h>
+ #include <linux/kmod.h>
+ #include <linux/poll.h>
+ #include <linux/nmi.h>
+@@ -958,6 +959,20 @@ static void mce_clear_state(unsigned long *toclear)
  	}
- 
- 	if (!user_mode(regs)) {
--		if (!fixup_exception(regs)) {
-+		if (!fixup_exception(regs, trapnr)) {
- 			tsk->thread.error_code = error_code;
- 			tsk->thread.trap_nr = trapnr;
- 			die(str, regs, error_code);
-@@ -453,7 +453,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
- 
- 	tsk = current;
- 	if (!user_mode(regs)) {
--		if (fixup_exception(regs))
-+		if (fixup_exception(regs, X86_TRAP_GP))
- 			return;
- 
- 		tsk->thread.error_code = error_code;
-@@ -699,7 +699,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
- 	conditional_sti(regs);
- 
- 	if (!user_mode(regs)) {
--		if (!fixup_exception(regs)) {
-+		if (!fixup_exception(regs, X86_TRAP_DE)) {
- 			task->thread.error_code = error_code;
- 			task->thread.trap_nr = trapnr;
- 			die(str, regs, error_code);
-diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
-index 903ec1e9c326..7a592ec193d5 100644
---- a/arch/x86/mm/extable.c
-+++ b/arch/x86/mm/extable.c
-@@ -11,13 +11,51 @@ ex_insn_addr(const struct exception_table_entry *x)
- static inline unsigned long
- ex_fixup_addr(const struct exception_table_entry *x)
- {
--	return (unsigned long)&x->fixup + x->fixup;
-+	long offset = (long)((u32)x->fixup & 0x3fffffff) - (long)_EXTABLE_BIAS;
-+	return (unsigned long)&x->fixup + offset;
  }
  
--int fixup_exception(struct pt_regs *regs)
-+/* Fixup functions for each exception class */
-+static int fix_class_default(const struct exception_table_entry *fixup,
-+		      struct pt_regs *regs, int trapnr)
++static int do_memory_failure(struct mce *m)
 +{
-+	regs->ip = ex_fixup_addr(fixup);
-+	return 1;
-+}
-+static int fix_class_fault(const struct exception_table_entry *fixup,
-+		      struct pt_regs *regs, int trapnr)
-+{
-+	regs->ip = ex_fixup_addr(fixup);
-+	regs->ax = trapnr;
-+	return 1;
-+}
-+static int fix_class_ex(const struct exception_table_entry *fixup,
-+		      struct pt_regs *regs, int trapnr)
-+{
-+	/* Special hack for uaccess_err */
-+	current_thread_info()->uaccess_err = 1;
-+	regs->ip = ex_fixup_addr(fixup);
-+	return 1;
-+}
-+static int fix_class_unused(const struct exception_table_entry *fixup,
-+		      struct pt_regs *regs, int trapnr)
-+{
-+	/* can't happen unless exception table was corrupted */
-+	BUG_ON(1);
-+	return 0;
++	int flags = MF_ACTION_REQUIRED;
++	int ret;
++
++	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
++	if (!(m->mcgstatus & MCG_STATUS_RIPV))
++		flags |= MF_MUST_KILL;
++	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
++	if (ret)
++		pr_err("Memory error not recovered");
++	return ret;
 +}
 +
-+static int (*allclasses[])(const struct exception_table_entry *,
-+			   struct pt_regs *, int) = {
-+	[EXTABLE_CLASS_DEFAULT] = fix_class_default,
-+	[EXTABLE_CLASS_FAULT] = fix_class_fault,
-+	[EXTABLE_CLASS_EX] = fix_class_ex,
-+	[EXTABLE_CLASS_UNUSED] = fix_class_unused
-+};
-+
-+int fixup_exception(struct pt_regs *regs, int trapnr)
- {
- 	const struct exception_table_entry *fixup;
--	unsigned long new_ip;
+ /*
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+@@ -995,8 +1010,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+ 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
+ 	char *msg = "Unknown";
+-	u64 recover_paddr = ~0ull;
+-	int flags = MF_ACTION_REQUIRED;
+ 	int lmce = 0;
  
- #ifdef CONFIG_PNPBIOS
- 	if (unlikely(SEGMENT_IS_PNP_CODE(regs->cs))) {
-@@ -34,17 +72,8 @@ int fixup_exception(struct pt_regs *regs)
- #endif
+ 	ist_enter(regs);
+@@ -1123,22 +1136,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	}
  
- 	fixup = search_exception_tables(regs->ip);
--	if (fixup) {
--		new_ip = ex_fixup_addr(fixup);
--
--		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
--			/* Special hack for uaccess_err */
--			current_thread_info()->uaccess_err = 1;
--			new_ip -= 0x7ffffff0;
+ 	/*
+-	 * At insane "tolerant" levels we take no action. Otherwise
+-	 * we only die if we have no other choice. For less serious
+-	 * issues we try to recover, or limit damage to the current
+-	 * process.
++	 * If tolerant is at an insane level we drop requests to kill
++	 * processes and continue even when there is no way out.
+ 	 */
+-	if (cfg->tolerant < 3) {
+-		if (no_way_out)
+-			mce_panic("Fatal machine check on current CPU", &m, msg);
+-		if (worst == MCE_AR_SEVERITY) {
+-			recover_paddr = m.addr;
+-			if (!(m.mcgstatus & MCG_STATUS_RIPV))
+-				flags |= MF_MUST_KILL;
+-		} else if (kill_it) {
+-			force_sig(SIGBUS, current);
 -		}
--		regs->ip = new_ip;
--		return 1;
 -	}
-+	if (fixup)
-+		return allclasses[ex_class(fixup)](fixup, regs, trapnr);
++	if (cfg->tolerant == 3)
++		kill_it = 0;
++	else if (no_way_out)
++		mce_panic("Fatal machine check on current CPU", &m, msg);
  
- 	return 0;
- }
-@@ -53,18 +82,15 @@ int fixup_exception(struct pt_regs *regs)
- int __init early_fixup_exception(unsigned long *ip)
- {
- 	const struct exception_table_entry *fixup;
--	unsigned long new_ip;
+ 	if (worst > 0)
+ 		mce_report_event(regs);
+@@ -1146,25 +1150,24 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ out:
+ 	sync_core();
  
- 	fixup = search_exception_tables(*ip);
- 	if (fixup) {
--		new_ip = ex_fixup_addr(fixup);
--
--		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
--			/* uaccess handling not supported during early boot */
-+		if (ex_class(fixup)) {
-+			/* special handling not supported during early boot */
- 			return 0;
- 		}
+-	if (recover_paddr == ~0ull)
+-		goto done;
++	if (worst != MCE_AR_SEVERITY && !kill_it)
++		goto out_ist;
  
--		*ip = new_ip;
-+		*ip = ex_fixup_addr(fixup);
- 		return 1;
+-	pr_err("Uncorrected hardware memory error in user-access at %llx",
+-		 recover_paddr);
+-	/*
+-	 * We must call memory_failure() here even if the current process is
+-	 * doomed. We still need to mark the page as poisoned and alert any
+-	 * other users of the page.
+-	 */
+-	ist_begin_non_atomic(regs);
+-	local_irq_enable();
+-	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
+-		pr_err("Memory error not recovered");
+-		force_sig(SIGBUS, current);
++	/* Fault was in user mode and we need to take some action */
++	if ((m.cs & 3) == 3) {
++		ist_begin_non_atomic(regs);
++		local_irq_enable();
++
++		if (kill_it || do_memory_failure(&m))
++			force_sig(SIGBUS, current);
++		local_irq_disable();
++		ist_end_non_atomic();
++	} else {
++		if (!fixup_exception(regs, X86_TRAP_MC))
++			mce_panic("Failed kernel mode recovery", &m, NULL);
  	}
- 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index eef44d9a3f77..495946c3f9dd 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -656,7 +656,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
- 	int sig;
- 
- 	/* Are we prepared to handle this kernel fault? */
--	if (fixup_exception(regs)) {
-+	if (fixup_exception(regs, X86_TRAP_PF)) {
- 		/*
- 		 * Any interrupt that takes a fault gets the fixup. This makes
- 		 * the below recursive fault logic only apply to a faults from
+-	local_irq_disable();
+-	ist_end_non_atomic();
+-done:
++
++out_ist:
+ 	ist_exit(regs);
+ }
+ EXPORT_SYMBOL_GPL(do_machine_check);
 -- 
 2.1.4
 
