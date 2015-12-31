@@ -1,75 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E2906B002A
-	for <linux-mm@kvack.org>; Thu, 31 Dec 2015 16:22:40 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id wp13so67643940obc.1
-        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 13:22:40 -0800 (PST)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id n4si12954623obq.48.2015.12.31.13.22.39
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D841F6B002A
+	for <linux-mm@kvack.org>; Thu, 31 Dec 2015 17:08:37 -0500 (EST)
+Received: by mail-yk0-f182.google.com with SMTP id v14so95332527ykd.3
+        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 14:08:37 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id w69si3986495ywd.223.2015.12.31.14.08.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Dec 2015 13:22:39 -0800 (PST)
-Received: by mail-ob0-x231.google.com with SMTP id ba1so202101512obb.3
-        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 13:22:39 -0800 (PST)
+        Thu, 31 Dec 2015 14:08:36 -0800 (PST)
+Received: by mail-yk0-x22d.google.com with SMTP id k129so166157482yke.0
+        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 14:08:36 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CA+8MBb+MaZUK1vMPNwUchZJed0Fi3vh9_vFP2OoPZsUMoDO=ZQ@mail.gmail.com>
-References: <20151224214632.GF4128@pd.tnic> <ce84932301823b991b9b439a4715be93f1912c05.1451002295.git.tony.luck@intel.com>
- <20151225114937.GA862@pd.tnic> <5FBC1CF1-095B-466D-85D6-832FBFA98364@intel.com>
- <20151226103252.GA21988@pd.tnic> <CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
- <CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
- <CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
- <CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
- <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
- <CALCETrV2g6vSQcpNUADWeLMj5O_HDEGgp6vvLw9KgJVTWxZ1+g@mail.gmail.com>
- <CA+8MBbK842Ov74ZSU_fmxoZNw_72J+3hg3KQ4C5aBjd_cDYfAA@mail.gmail.com> <CA+8MBb+MaZUK1vMPNwUchZJed0Fi3vh9_vFP2OoPZsUMoDO=ZQ@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 31 Dec 2015 13:22:19 -0800
-Message-ID: <CALCETrUHiEfCKaD63pU_9mBYSS_msOLQ3C86MirCk+QYB4e-zw@mail.gmail.com>
-Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
- from machine checks
+In-Reply-To: <5684A0CD.9040005@oracle.com>
+References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
+	<56838FA3.5030909@oracle.com>
+	<CAPcyv4jAO-jJ3VCOJRCc7zrQULED362SdZ88dDgN+zfQQEsfsA@mail.gmail.com>
+	<5684A0CD.9040005@oracle.com>
+Date: Thu, 31 Dec 2015 14:08:36 -0800
+Message-ID: <CAPcyv4hUfQVff60JiN7=gQTEFeRf7FRnobwbT84dTLvW2jdfvg@mail.gmail.com>
+Subject: Re: [PATCH v6 2/7] dax: support dirty DAX entries in radix tree
+From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Robert <elliott@hpe.com>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Jan 1, 2016 4:30 AM, "Tony Luck" <tony.luck@gmail.com> wrote:
+On Wed, Dec 30, 2015 at 7:28 PM, Bob Liu <bob.liu@oracle.com> wrote:
 >
-> On Wed, Dec 30, 2015 at 3:32 PM, Tony Luck <tony.luck@gmail.com> wrote:
-> > Fifth is just a hack because I clearly didn't understand what I was
-> > doing in parts 2&3 because my new class shows up as '3' not '1'!
-> >
-> > Andy: Can you explain the assembler/linker arithmetic for the class?
+> On 12/31/2015 04:39 AM, Dan Williams wrote:
+>> On Wed, Dec 30, 2015 at 12:02 AM, Bob Liu <bob.liu@oracle.com> wrote:
+>>> Hi Ross,
+>>>
+>>> On 12/24/2015 03:39 AM, Ross Zwisler wrote:
+>>>> Add support for tracking dirty DAX entries in the struct address_space
+>>>> radix tree.  This tree is already used for dirty page writeback, and it
+>>>> already supports the use of exceptional (non struct page*) entries.
+>>>>
+>>>> In order to properly track dirty DAX pages we will insert new exceptional
+>>>> entries into the radix tree that represent dirty DAX PTE or PMD pages.
+>>>
+>>> I may get it wrong, but there is "struct page" for persistent memory after
+>>> "[PATCH v4 00/18]get_user_pages() for dax pte and pmd mappings".
+>>> So why not just add "struct page" to radix tree directly just like normal page cache?
+>>>
+>>> Then we don't need to deal with any exceptional entries and special writeback.
+>>
+>> That "struct page" is optional and fsync/msync needs to operate in its absence.
+>>
 >
-> Never mind ... figured it out.
+> Any special reason or scenario that "struct page" should not be enabled?
+> I didn't see any disadvantages if always enable "struct page" by force when using DAX model for pmem.
+> The benefits would be things can be more simple and less potential bugs because of smaller patches.
 >
-> The fixup entry in the extable is:
->
-> label - . + 0x2000000 - BIAS
->
-> The "label - ." part evaluates to a smallish negative value (because
-> the .fixup section is bundled in towards the end of .text, and the
-> ex_table section comes right after.
->
-> Then you add 0x20000000 to get a positive number, then *subtract*
-> the BIAS.  I'd picked BIAS = 0x40000000 thinking that would show
-> up directly in class bits. But 0x1ffff000 - 0x40000000 is 0xdffff000
-> so bits 31 & 31 are both set, and this is class3
->
-> I switched to BIAS 0xC0000000 ... and now I get class 1 entries
-> (bit31=0, bit30=1).
->
-> New patch series coming soon.
 
-That all sounds correct.
+We can't enable struct page coverage by default.
 
-You could also just to s/UACCESS/INDIRECT/ or whatever and leave using
-the next bit for whoever does the uaccess part, too.  After all,
-introducing the "uaccess" class without actually implementing it isn't
-very useful.
+The persistent memory capacity may be too large to allocate the memmap
+array from DRAM.  Allocating it from pmem reduces the size of the
+device and we can't have a block device change sizes just by booting a
+different kernel (any kernel less than 4.5).  So, enabling struct page
+must be an explicit action.
 
->
-> -Tony
+> Happy New Year!
+
+Happy New Year!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
