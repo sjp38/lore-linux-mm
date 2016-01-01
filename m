@@ -1,119 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3328F6B0008
-	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 04:50:50 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id e32so122930899qgf.3
-        for <linux-mm@kvack.org>; Fri, 01 Jan 2016 01:50:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u64si55146383qki.62.2016.01.01.01.50.49
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 105A86B0008
+	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 08:12:44 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id b14so107607097wmb.1
+        for <linux-mm@kvack.org>; Fri, 01 Jan 2016 05:12:44 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.73])
+        by mx.google.com with ESMTPS id js6si125214297wjb.211.2016.01.01.05.12.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Jan 2016 01:50:49 -0800 (PST)
-Date: Fri, 1 Jan 2016 11:50:45 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH RFC] balloon: fix page list locking
-Message-ID: <1451641671-17046-1-git-send-email-mst@redhat.com>
+        Fri, 01 Jan 2016 05:12:42 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm: avoid unused variables in memmap_init_zone
+Date: Fri, 01 Jan 2016 14:12:28 +0100
+Message-ID: <35629026.HgC1pGWutd@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Rafael Aquini <aquini@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, Konstantin Khlebnikov <koct9i@gmail.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Tony Luck <tony.luck@intel.com>, Mel Gorman <mgorman@techsingularity.net>
 
-Minchan Kim noticed that balloon_page_dequeue walks the pages list
-without holding the pages_lock. This can race e.g. with isolation, which
-has been reported to cause list corruption and crashes in leak_balloon.
-Page can also in theory get freed before it's locked, corrupting memory.
+A quick fix on mm/page_alloc.c introduced a harmless warning:
 
-To fix, make sure list accesses are done under lock, and
-always take a page reference before trying to lock it.
+mm/page_alloc.c: In function 'memmap_init_zone':
+mm/page_alloc.c:4617:44: warning: unused variable 'tmp' [-Wunused-variable]
+mm/page_alloc.c:4617:26: warning: unused variable 'r' [-Wunused-variable]
 
-Reported-by:  Minchan Kim <minchan@kernel.org>
-Cc: <stable@vger.kernel.org>
-Cc:  Rafael Aquini <aquini@redhat.com>
-Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+This uses another #ifdef to avoid declaring the two variables when the
+code is not built.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: 4c877dea44c4 ("a")
 ---
+This was obvious for any builds on yesterday's linux-next, so most likely
+it has already been submitted and/or fixed. If not, please fold this patch
+into the one that caused the warning.
 
-This is an alternative to patch
-	virtio_balloon: fix race between migration and ballooning
-by Minchan Kim in -mm.
-
-Untested - Minchan, could you pls confirm this fixes the issue for you?
-
- mm/balloon_compaction.c | 34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
-
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index d3116be..66d69c5 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -56,12 +56,34 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
-  */
- struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- {
--	struct page *page, *tmp;
-+	struct page *page;
- 	unsigned long flags;
- 	bool dequeued_page;
-+	LIST_HEAD(processed); /* protected by b_dev_info->pages_lock */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 47457a7a8f1f..cf6437b23bfa 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4614,7 +4614,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 	unsigned long pfn;
+ 	struct zone *z;
+ 	unsigned long nr_initialised = 0;
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	struct memblock_region *r = NULL, *tmp;
++#endif
  
- 	dequeued_page = false;
--	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-+	/*
-+	 * We need to go over b_dev_info->pages and lock each page,
-+	 * but b_dev_info->pages_lock must nest within page lock.
-+	 *
-+	 * To make this safe, remove each page from b_dev_info->pages list
-+	 * under b_dev_info->pages_lock, then drop this lock. Once list is
-+	 * empty, re-add them also under b_dev_info->pages_lock.
-+	 */
-+	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-+	while (!list_empty(&b_dev_info->pages)) {
-+		page = list_first_entry(&b_dev_info->pages, typeof(*page), lru);
-+		/* move to processed list to avoid going over it another time */
-+		list_move(&page->lru, &processed);
-+
-+		if (!get_page_unless_zero(page))
-+			continue;
-+		/*
-+		 * pages_lock nests within page lock,
-+		 * so drop it before trylock_page
-+		 */
-+		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+
- 		/*
- 		 * Block others from accessing the 'page' while we get around
- 		 * establishing additional references and preparing the 'page'
-@@ -72,6 +94,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- 			if (!PagePrivate(page)) {
- 				/* raced with isolation */
- 				unlock_page(page);
-+				put_page(page);
- 				continue;
- 			}
- #endif
-@@ -80,11 +103,18 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- 			__count_vm_event(BALLOON_DEFLATE);
- 			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
- 			unlock_page(page);
-+			put_page(page);
- 			dequeued_page = true;
- 			break;
- 		}
-+		put_page(page);
-+		spin_lock_irqsave(&b_dev_info->pages_lock, flags);
- 	}
- 
-+	/* re-add remaining entries */
-+	list_splice(&processed, &b_dev_info->pages);
-+	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+
- 	if (!dequeued_page) {
- 		/*
- 		 * If we are unable to dequeue a balloon page because the page
--- 
-MST
+ 	if (highest_memmap_pfn < end_pfn - 1)
+ 		highest_memmap_pfn = end_pfn - 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
