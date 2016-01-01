@@ -1,48 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C01066B0011
-	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 02:54:55 -0500 (EST)
-Received: by mail-io0-f172.google.com with SMTP id 77so76600849ioc.2
-        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 23:54:55 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v15si24430529igd.66.2015.12.31.23.54.54
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A428F6B0011
+	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 03:26:37 -0500 (EST)
+Received: by mail-qg0-f51.google.com with SMTP id 6so134990618qgy.1
+        for <linux-mm@kvack.org>; Fri, 01 Jan 2016 00:26:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w129si71816751qhb.105.2016.01.01.00.26.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Dec 2015 23:54:54 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: Always sleep before retrying.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201512301101.GJD12974.LOVFFtFMOHOJSQ@I-love.SAKURA.ne.jp>
-In-Reply-To: <201512301101.GJD12974.LOVFFtFMOHOJSQ@I-love.SAKURA.ne.jp>
-Message-Id: <201601011654.IFC09303.MOLOFFVOQtHSFJ@I-love.SAKURA.ne.jp>
-Date: Fri, 1 Jan 2016 16:54:41 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Jan 2016 00:26:36 -0800 (PST)
+Date: Fri, 1 Jan 2016 10:26:32 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 1/2] virtio_balloon: fix race by fill and leak
+Message-ID: <20160101082632.GA10656@redhat.com>
+References: <1451259313-26353-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1451259313-26353-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, penguin-kernel@I-love.SAKURA.ne.jp
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rafael Aquini <aquini@redhat.com>, stable@vger.kernel.org
 
-Tetsuo Handa wrote:
-> When we entered into "Reclaim has failed us, start killing things"
-> state, sleep function is called only when mutex_trylock(&oom_lock)
-> in __alloc_pages_may_oom() failed or immediately after returning from
-> oom_kill_process() in out_of_memory(). This may be insufficient for
-> giving other tasks a chance to run because mutex_trylock(&oom_lock)
-> will not fail under non-preemptive UP kernel.
+On Mon, Dec 28, 2015 at 08:35:12AM +0900, Minchan Kim wrote:
+> During my compaction-related stuff, I encountered a bug
+> with ballooning.
+> 
+> With repeated inflating and deflating cycle, guest memory(
+> ie, cat /proc/meminfo | grep MemTotal) is decreased and
+> couldn't be recovered.
+> 
+> The reason is balloon_lock doesn't cover release_pages_balloon
+> so struct virtio_balloon fields could be overwritten by race
+> of fill_balloon(e,g, vb->*pfns could be critical).
+> 
+> This patch fixes it in my test.
+> 
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-My misunderstanding. I thought cond_resched() is a no-op under
-non-preemptive UP kernel.
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
 
-Calling schedule_timeout_uninterruptible(1) will allow other pending
-workqueue items a chance to run if current thread is kworker thread.
-But if current thread is one of threads which the OOM victim depends
-on, calling it merely delays termination of the OOM victim. Therefore,
-nobody can judge whether calling it will help the OOM victim and its
-dependent threads to make use of CPU cycles for making progress.
-Although always sleeping helps saving CPU cycles under OOM livelock,
-we need to give up waiting for the OOM victim at some point (i.e.
-trigger kernel panic like panic_on_oom_timeout or choose subsequent
-OOM victims).
+> ---
+>  drivers/virtio/virtio_balloon.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 7efc32945810..7d3e5d0e9aa4 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -209,8 +209,8 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	 */
+>  	if (vb->num_pfns != 0)
+>  		tell_host(vb, vb->deflate_vq);
+> -	mutex_unlock(&vb->balloon_lock);
+>  	release_pages_balloon(vb);
+> +	mutex_unlock(&vb->balloon_lock);
+>  	return num_freed_pages;
+>  }
+>  
+> -- 
+> 1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
