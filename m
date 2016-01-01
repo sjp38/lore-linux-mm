@@ -1,55 +1,51 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
- from machine checks
-Date: Sun, 27 Dec 2015 14:33:30 +0100
-Message-ID: <20151227133330.GA20823@nazgul.tnic>
-References: <20151226103252.GA21988@pd.tnic>
- <CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
- <CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
- <CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
- <CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
- <CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
- <20151227100919.GA19398@nazgul.tnic>
- <CALCETrUcSB8ix0HSPyTwXT46gMAE2iGVZ8V1kEbkQVxVqrQFiQ@mail.gmail.com>
- <6c0b3214-f120-47ee-b7fe-677b4f27f039@email.android.com>
- <CALCETrVY7407jf-o4n1ZjKu=QNfUv9fnbxDQwX8Sa=o4PY+aFA@mail.gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C01066B0011
+	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 02:54:55 -0500 (EST)
+Received: by mail-io0-f172.google.com with SMTP id 77so76600849ioc.2
+        for <linux-mm@kvack.org>; Thu, 31 Dec 2015 23:54:55 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id v15si24430529igd.66.2015.12.31.23.54.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 31 Dec 2015 23:54:54 -0800 (PST)
+Subject: Re: [PATCH] mm,oom: Always sleep before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201512301101.GJD12974.LOVFFtFMOHOJSQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201512301101.GJD12974.LOVFFtFMOHOJSQ@I-love.SAKURA.ne.jp>
+Message-Id: <201601011654.IFC09303.MOLOFFVOQtHSFJ@I-love.SAKURA.ne.jp>
+Date: Fri, 1 Jan 2016 16:54:41 +0900
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <CALCETrVY7407jf-o4n1ZjKu=QNfUv9fnbxDQwX8Sa=o4PY+aFA@mail.gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Tony Luck <tony.luck@gmail.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Content-Type: text/plain; charset=us-ascii
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, penguin-kernel@I-love.SAKURA.ne.jp
 
-On Sun, Dec 27, 2015 at 05:25:45AM -0800, Andy Lutomirski wrote:
-> That could significantly bloat the kernel image.
+Tetsuo Handa wrote:
+> When we entered into "Reclaim has failed us, start killing things"
+> state, sleep function is called only when mutex_trylock(&oom_lock)
+> in __alloc_pages_may_oom() failed or immediately after returning from
+> oom_kill_process() in out_of_memory(). This may be insufficient for
+> giving other tasks a chance to run because mutex_trylock(&oom_lock)
+> will not fail under non-preemptive UP kernel.
 
-Yeah, we probably should build an allyesconfig and see how big
-__ex_table is and compute how much actually that bloat would be,
-because...
+My misunderstanding. I thought cond_resched() is a no-op under
+non-preemptive UP kernel.
 
-> Anyway, the bit 31 game isn't so bad IMO because it's localized to the
-> extable macros and the extable reader, whereas the bit 63 thing is all
-> tangled up with the __mcsafe_copy thing, and that's just the first
-> user of a more general mechanism.
-> 
-> Did you see this:
-> 
-> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/commit/?h=strict_uaccess_fixups/patch_v1&id=16644d9460fc6531456cf510d5efc57f89e5cd34
+Calling schedule_timeout_uninterruptible(1) will allow other pending
+workqueue items a chance to run if current thread is kworker thread.
+But if current thread is one of threads which the OOM victim depends
+on, calling it merely delays termination of the OOM victim. Therefore,
+nobody can judge whether calling it will help the OOM victim and its
+dependent threads to make use of CPU cycles for making progress.
+Although always sleeping helps saving CPU cycles under OOM livelock,
+we need to give up waiting for the OOM victim at some point (i.e.
+trigger kernel panic like panic_on_oom_timeout or choose subsequent
+OOM victims).
 
-... the problem this has is that you have 4 classes, AFAICT. And since
-we're talking about a generic mechanism, the moment the 4 classes are
-not enough, this new scheme fails.
-
-I'm just saying...
-
-4 classes are probably more than enough but we don't know.
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
 --
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
