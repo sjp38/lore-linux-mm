@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF416B0003
-	for <linux-mm@kvack.org>; Sat,  2 Jan 2016 10:58:56 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l65so122955156wmf.1
-        for <linux-mm@kvack.org>; Sat, 02 Jan 2016 07:58:56 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id im4si132708810wjb.193.2016.01.02.07.58.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 02 Jan 2016 07:58:55 -0800 (PST)
-Received: by mail-wm0-x232.google.com with SMTP id l65so122954924wmf.1
-        for <linux-mm@kvack.org>; Sat, 02 Jan 2016 07:58:55 -0800 (PST)
-Subject: Re: GPF in shm_lock ipc
-References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
- <20151012122702.GC2544@node> <20151012174945.GC3170@linux-uzut.site>
- <20151012181040.GC6447@node> <20151012185533.GD3170@linux-uzut.site>
- <20151013031821.GA3052@linux-uzut.site> <20151013123028.GA12934@node>
- <CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
- <20151105142336.46D907FD@black.fi.intel.com>
- <CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
- <5687B576.7020303@colorfullife.com>
- <CACT4Y+YCV-dWd+RugaFPmH0uhmv7xVvqjTnr9PicH3K39bQh0g@mail.gmail.com>
-From: Manfred Spraul <manfred@colorfullife.com>
-Message-ID: <5687F3BC.9030407@colorfullife.com>
-Date: Sat, 2 Jan 2016 16:58:52 +0100
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1466B0003
+	for <linux-mm@kvack.org>; Sat,  2 Jan 2016 11:43:31 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id yy13so82958247pab.3
+        for <linux-mm@kvack.org>; Sat, 02 Jan 2016 08:43:31 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id bw10si31582058pac.157.2016.01.02.08.43.30
+        for <linux-mm@kvack.org>;
+        Sat, 02 Jan 2016 08:43:30 -0800 (PST)
+Date: Sat, 2 Jan 2016 11:43:09 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH 7/8] xfs: Support for transparent PUD pages
+Message-ID: <20160102164309.GK2457@linux.intel.com>
+References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1450974037-24775-8-git-send-email-matthew.r.wilcox@intel.com>
+ <20151230233007.GA6682@dastard>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YCV-dWd+RugaFPmH0uhmv7xVvqjTnr9PicH3K39bQh0g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151230233007.GA6682@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-Hi Dmitry,
+On Thu, Dec 31, 2015 at 10:30:27AM +1100, Dave Chinner wrote:
+> > @@ -1637,6 +1669,7 @@ xfs_filemap_pfn_mkwrite(
+> >  static const struct vm_operations_struct xfs_file_vm_ops = {
+> >  	.fault		= xfs_filemap_fault,
+> >  	.pmd_fault	= xfs_filemap_pmd_fault,
+> > +	.pud_fault	= xfs_filemap_pud_fault,
+> 
+> This is getting silly - we now have 3 different page fault handlers
+> that all do exactly the same thing. Please abstract this so that the
+> page/pmd/pud is transparent and gets passed through to the generic
+> handler code that then handles the differences between page/pmd/pud
+> internally.
+> 
+> This, after all, is the original reason that the ->fault handler was
+> introduced....
 
-On 01/02/2016 01:19 PM, Dmitry Vyukov wrote:
-> On Sat, Jan 2, 2016 at 12:33 PM, Manfred Spraul
-> <manfred@colorfullife.com> wrote:
->> Hi Dmitry,
->>
->> shm locking differs too much from msg/sem locking, I never looked at it in
->> depth, so I'm not able to perform a proper review.
->>
->> Except for the obvious: Races that can be triggered from user space are
->> inacceptable.
->> Regardless if there is a BUG_ON, a WARN_ON or nothing at all.
->>
->> On 12/21/2015 04:44 PM, Dmitry Vyukov wrote:
->>>> +
->>>> +/* This is called by fork, once for every shm attach. */
->>>> +static void shm_open(struct vm_area_struct *vma)
->>>> +{
->>>> +       int err = __shm_open(vma);
->>>> +       /*
->>>> +        * We raced in the idr lookup or with shm_destroy().
->>>> +        * Either way, the ID is busted.
->>>> +        */
->>>> +       WARN_ON_ONCE(err);
->>>>    }
->> Is it possible to trigger this race? Parallel IPC_RMID & fork()?
-> Hi Manfred,
->
-> As far as I see my reproducer triggers exactly this warning (and later a crash).
-Do I understand it right, shm_open() is also called by remap()?
-Then please update the comment above shm_open().
-
-And: If this is something that userspace can trigger, why a WARN_ON_ONCE()?
-If the WARN_ON doesn't indicate a bug, then I would remove it entirely.
-
---
-     Manfred
+I agree that it's silly, but this is the direction I was asked to go in by
+the MM people at the last MM summit.  There was agreement that this needs
+to be abstracted, but that should be left for a separate cleanup round.
+I did prototype something I called a vpte (virtual pte), but that's very
+much on the back burner for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
