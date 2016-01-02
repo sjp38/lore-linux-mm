@@ -1,91 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D10386B0003
-	for <linux-mm@kvack.org>; Fri,  1 Jan 2016 17:19:53 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id u188so93051509wmu.1
-        for <linux-mm@kvack.org>; Fri, 01 Jan 2016 14:19:53 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id hj10si127907581wjb.128.2016.01.01.14.19.52
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B73DE6B0003
+	for <linux-mm@kvack.org>; Sat,  2 Jan 2016 05:37:35 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id f206so127374227wmf.0
+        for <linux-mm@kvack.org>; Sat, 02 Jan 2016 02:37:35 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id r186si35437815wmb.16.2016.01.02.02.37.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Jan 2016 14:19:52 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id f206so145288969wmf.0
-        for <linux-mm@kvack.org>; Fri, 01 Jan 2016 14:19:52 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 02 Jan 2016 02:37:31 -0800 (PST)
+Date: Sat, 2 Jan 2016 10:37:22 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH] ARM: mm: Speed up page list initialization during boot
+Message-ID: <20160102103722.GQ8644@n2100.arm.linux.org.uk>
+References: <004001d14158$114be8d0$33e3ba70$@samsung.com>
+ <005101d14158$b50842c0$1f18c840$@samsung.com>
+ <CAJFHJrpgHmcXBwuV5i4nH4SOL-OwrY2-+Fe7x9W2c6GWW=F7bg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+8MBb+MaZUK1vMPNwUchZJed0Fi3vh9_vFP2OoPZsUMoDO=ZQ@mail.gmail.com>
-References: <20151224214632.GF4128@pd.tnic>
-	<ce84932301823b991b9b439a4715be93f1912c05.1451002295.git.tony.luck@intel.com>
-	<20151225114937.GA862@pd.tnic>
-	<5FBC1CF1-095B-466D-85D6-832FBFA98364@intel.com>
-	<20151226103252.GA21988@pd.tnic>
-	<CALCETrUWmT7jwMvcS+NgaRKc7wpoZ5f_dGT8no7dOWFAGvKtmQ@mail.gmail.com>
-	<CA+8MBbL9M9GD6NEPChO7_g_HrKZcdrne0LYXdQu18t3RqNGMfQ@mail.gmail.com>
-	<CALCETrUhqQO4anRK+i4OdtRBZ9=0aVbZ-zZtuZ0QHt-O7fOkgg@mail.gmail.com>
-	<CALCETrU3OCVJoBWXcdmy-9Rr3d3rJ93606K1vC3V9zfT2bQc2g@mail.gmail.com>
-	<CA+8MBbJcw8dRW3DBYW-EhcOiGYFCm7HUxwG-df67wJCOqMpz0A@mail.gmail.com>
-	<CALCETrV2g6vSQcpNUADWeLMj5O_HDEGgp6vvLw9KgJVTWxZ1+g@mail.gmail.com>
-	<CA+8MBbK842Ov74ZSU_fmxoZNw_72J+3hg3KQ4C5aBjd_cDYfAA@mail.gmail.com>
-	<CA+8MBb+MaZUK1vMPNwUchZJed0Fi3vh9_vFP2OoPZsUMoDO=ZQ@mail.gmail.com>
-Date: Fri, 1 Jan 2016 14:19:52 -0800
-Message-ID: <CA+8MBbKqKp=AsKiNcaS+zcfw26KQj9CwcDLNqtYLECrt3T4W=g@mail.gmail.com>
-Subject: Re: [PATCHV5 3/3] x86, ras: Add __mcsafe_copy() function to recover
- from machine checks
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJFHJrpgHmcXBwuV5i4nH4SOL-OwrY2-+Fe7x9W2c6GWW=F7bg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>, "elliott@hpe.com" <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Chirantan Ekbote <chirantan@chromium.org>
+Cc: Jungseung Lee <js07.lee@samsung.com>, linux-mm@kvack.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Somehow this didn't get sent ... found it in the "Drafts" folder.  But
-it's rubbish, skip to the
-bottom.
+On Thu, Dec 31, 2015 at 05:05:54AM -0800, Chirantan Ekbote wrote:
+> On Mon, Dec 28, 2015 at 2:15 AM, Jungseung Lee <js07.lee@samsung.com> wrote:
+> > Hi,
+> >
+> >>During boot, we populate the page lists by using the page freeing
+> >>mechanism on every individual page.  Unfortunately, this is very
+> >>inefficient because the memory manager spends a lot of time coalescing
+> >>pairs of adjacent free pages into bigger blocks.
+> >>
+> >>Rather than adding a single order 0 page at a time, we can take
+> >>advantage of the fact that we know that all the pages are available and
+> >>free up big blocks of pages at a time instead.
+> >>
+> >>Signed-off-by: Chirantan Ekbote <chirantan at chromium.org>
+> >>---
+> >> arch/arm/mm/init.c  | 19 +++++++++++++++++--  include/linux/gfp.h |  1
+> >>+
+> >> mm/internal.h       |  1 -
+> >> 3 files changed, 18 insertions(+), 3 deletions(-)
+> >>
+> >>diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c index
+> >>97c293e..c7fc2d8 100644
+> >>--- a/arch/arm/mm/init.c
+> >>+++ b/arch/arm/mm/init.c
+> >>@@ -22,6 +22,7 @@
+> >> #include <linux/memblock.h>
+> >> #include <linux/dma-contiguous.h>
+> >> #include <linux/sizes.h>
+> >>+#include <linux/bitops.h>
+> >>
+> >> #include <asm/mach-types.h>
+> >> #include <asm/memblock.h>
+> >>@@ -469,8 +470,22 @@ static void __init free_unused_memmap(struct
+> >>meminfo
+> > *mi)
+> >> #ifdef CONFIG_HIGHMEM
+> >> static inline void free_area_high(unsigned long pfn, unsigned long
+> >>end)  {
+> >>-      for (; pfn < end; pfn++)
+> >>-              free_highmem_page(pfn_to_page(pfn));
+> >>+      while (pfn < end) {
+> >>+              struct page *page = pfn_to_page(pfn);
+> >>+              unsigned long order = min(__ffs(pfn), MAX_ORDER - 1);
+> >>+              unsigned long nr_pages = 1 << order;
+> >>+              unsigned long rem = end - pfn;
+> >>+
+> >>+              if (nr_pages > rem) {
+> >>+                      order = __fls(rem);
+> >>+                      nr_pages = 1 << order;
+> >>+              }
+> >>+
+> >>+              __free_pages_bootmem(page, order);
+> >>+              totalram_pages += nr_pages;
+> >>+              totalhigh_pages += nr_pages;
+> >>+              pfn += nr_pages;
+> >>+      }
+> >> }
+> >> #endif
+> >>
+> >>diff --git a/include/linux/gfp.h b/include/linux/gfp.h index
+> >>39b81dc..a63d666 100644
+> >>--- a/include/linux/gfp.h
+> >>+++ b/include/linux/gfp.h
+> >>@@ -367,6 +367,7 @@ void *alloc_pages_exact_nid(int nid, size_t size,
+> >>gfp_t
+> > gfp_mask);
+> >> #define __get_dma_pages(gfp_mask, order) \
+> >>               __get_free_pages((gfp_mask) | GFP_DMA, (order))
+> >>
+> >>+extern void __free_pages_bootmem(struct page *page, unsigned int
+> >>+order);
+> >> extern void __free_pages(struct page *page, unsigned int order);
+> >>extern void free_pages(unsigned long addr, unsigned int order);  extern
+> >>void free_hot_cold_page(struct page *page, int cold); diff --git
+> >>a/mm/internal.h b/mm/internal.h index 29e1e76..d2b8738 100644
+> >>--- a/mm/internal.h
+> >>+++ b/mm/internal.h
+> >>@@ -93,7 +93,6 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm,
+> >>unsigned
+> > long address);
+> >> /*
+> >>  * in mm/page_alloc.c
+> >>  */
+> >>-extern void __free_pages_bootmem(struct page *page, unsigned int
+> >>order);  extern void prep_compound_page(struct page *page, unsigned
+> >>long order);  #ifdef CONFIG_MEMORY_FAILURE  extern bool
+> >>is_free_buddy_page(struct page *page);
+> >>--
+> >>1.9.1.423.g4596e3a
+> >
+> > This patch really could save boot time.
+> > Is there any reason this patch is not merged to mainline kernel?
+> >
+> 
+> Well it was ignored when I originally posted it so I assumed mainline
+> developers weren't really interested.  I can re-spin and send a new
+> version if there's interest in getting it merged now.
 
-On Thu, Dec 31, 2015 at 12:30 PM, Tony Luck <tony.luck@gmail.com> wrote:
-> I switched to BIAS 0xC0000000 ... and now I should get class 1 entries
-> (bit31=0, bit30=1).
->
-> New patch series coming soon.
+Not getting a reply can be for many reasons: people may be too busy
+and there may be too much other mail.  I generally have a major problem
+with email in that it's all too easy for stuff to get buried and
+forgotten.  Remember, some of us get a lot of emails a day, and mails
+which should get a reply do get dropped simply because there isn't
+enough time to read them and properly write replies to every message
+that needs a response.
 
-Or not :-(
+So, it's good practice to resend after a week or so if you think your
+message has been missed; it may well have been missed and buried under
+a thousand or more other messages by that time.
 
-arch/x86/lib/lib.a(memcpy_64.o):(__ex_table+0x4): relocation truncated
-to fit: R_X86_64_PC32 against `.fixup'
-arch/x86/lib/lib.a(memcpy_64.o):(__ex_table+0xc): relocation truncated
-to fit: R_X86_64_PC32 against `.fixup'
-...
+In any case, it would be nice for such "speed up" changes to be
+quantified with some kind of measurement.  How much does it speed the
+boot process up, and in what circumstances?
 
-I guess it was something like this that made you do the 0x20000000 and
-subtract the BIAS?
+Thanks.
 
-I have a bad feeling that we may not really have four classes, just three:
-
-00: no funny arithmetic
-10: BIAS = 0x80000000 ... doesn't trigger truncation warning because
-sign bit is set
-11: BIAS = 0x40000000 ... ditto
-01: BIAS = ? ... Is there some magic value for BIAS that gets this?
-
---- end of Draft ... now to the real bit
-
-Not sure why I was hung up on *subtracting* values to get the desired
-class bits. Just
-blindly copying the initial case from your patch?
-
-If you can't get from A to B one way, try going around the other
-direction. Subtracting
-0xC0000000 is the same as adding 0x40000000 (when playing with u32 values).
-That doesn't upset the linker.
-
-I rebased:
-git://git.kernel.org/pub/scm/linux/kernel/git/ras/ras.git mcsafev6
-
-still needs a little cleanup, but it all works, and seems to be a much
-cleaner approach.  So clean that I wonder whether I really need
-the CONFIG_MCE_KERNEL_RECOVERY any more?? The only
-place it is used now is around the __mcsafe_copy()
-
--Tony
+-- 
+RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
