@@ -1,95 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 804A46B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 13:13:07 -0500 (EST)
-Received: by mail-yk0-f175.google.com with SMTP id a85so152078669ykb.1
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 10:13:07 -0800 (PST)
-Received: from mail-yk0-x234.google.com (mail-yk0-x234.google.com. [2607:f8b0:4002:c07::234])
-        by mx.google.com with ESMTPS id w4si33372403ywe.101.2016.01.03.10.13.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jan 2016 10:13:06 -0800 (PST)
-Received: by mail-yk0-x234.google.com with SMTP id a85so152078511ykb.1
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 10:13:06 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0178F6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 15:12:38 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id uo6so165964603pac.1
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 12:12:37 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id sp7si12246099pac.230.2016.01.03.12.12.36
+        for <linux-mm@kvack.org>;
+        Sun, 03 Jan 2016 12:12:36 -0800 (PST)
+Date: Mon, 4 Jan 2016 07:12:33 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: __vmalloc() vs. GFP_NOIO/GFP_NOFS
+Message-ID: <20160103201233.GC6682@dastard>
+References: <20160103071246.GK9938@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
-Date: Sun, 3 Jan 2016 10:13:06 -0800
-Message-ID: <CAPcyv4jVJGPO8Yhz8WgSJTFw+o8=5n6yx17zchXA6C+wEKcajg@mail.gmail.com>
-Subject: Re: [PATCH v6 4/7] dax: add support for fsync/msync
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160103071246.GK9938@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Ming Lei <ming.lei@canonical.com>
 
-On Wed, Dec 23, 2015 at 11:39 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> To properly handle fsync/msync in an efficient way DAX needs to track dirty
-> pages so it is able to flush them durably to media on demand.
->
-> The tracking of dirty pages is done via the radix tree in struct
-> address_space.  This radix tree is already used by the page writeback
-> infrastructure for tracking dirty pages associated with an open file, and
-> it already has support for exceptional (non struct page*) entries.  We
-> build upon these features to add exceptional entries to the radix tree for
-> DAX dirty PMD or PTE pages at fault time.
->
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On Sun, Jan 03, 2016 at 07:12:47AM +0000, Al Viro wrote:
+> 	While trying to write documentation on allocator choice, I've run
+> into something odd:
+>         /*
+>          * __vmalloc() will allocate data pages and auxillary structures (e.g.
+>          * pagetables) with GFP_KERNEL, yet we may be under GFP_NOFS context
+>          * here. Hence we need to tell memory reclaim that we are in such a
+>          * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
+>          * the filesystem here and potentially deadlocking.
+>          */
+> in XFS kmem_zalloc_large().  The comment is correct - __vmalloc() (actually,
+> map_vm_area() called from __vmalloc_area_node()) ignores gfp_flags; prior
+> to that point it does take care to pass __GFP_IO/__GFP_FS to page allocator,
+> but once the data pages are allocated and we get around to inserting them
+> into page tables those are ignored.
+> 
+> Allocation page tables doesn't have gfp argument at all.  Trying to propagate
+> it down there could be done, but it's not attractive.
 
-I'm hitting the following report with the ndctl dax test [1] on
-next-20151231.  I bisected it to
- commit 3cb108f941de "dax-add-support-for-fsync-sync-v6".  I'll take a
-closer look tomorrow, but in case someone can beat me to it, here's
-the back-trace:
+Patches were written to do this years ago:
 
-------------[ cut here ]------------
-kernel BUG at fs/inode.c:497!
-[..]
-CPU: 1 PID: 3001 Comm: umount Tainted: G           O    4.4.0-rc7+ #2412
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-task: ffff8800da2a5a00 ti: ffff880307794000 task.ti: ffff880307794000
-RIP: 0010:[<ffffffff81280171>]  [<ffffffff81280171>] clear_inode+0x71/0x80
-RSP: 0018:ffff880307797d50  EFLAGS: 00010002
-RAX: ffff8800da2a5a00 RBX: ffff8800ca2e7328 RCX: ffff8800da2a5a28
-RDX: 0000000000000001 RSI: 0000000000000005 RDI: ffff8800ca2e7530
-RBP: ffff880307797d60 R08: ffffffff82900ae0 R09: 0000000000000000
-R10: ffff8800ca2e7548 R11: 0000000000000000 R12: ffff8800ca2e7530
-R13: ffff8800ca2e7328 R14: ffff8800da2e88d0 R15: ffff8800da2e88d0
-FS:  00007f2b22f4a880(0000) GS:ffff88031fc40000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00005648abd933e8 CR3: 000000007f3fc000 CR4: 00000000000006e0
-Stack:
-ffff8800ca2e7328 ffff8800ca2e7000 ffff880307797d88 ffffffffa01c18af
-ffff8800ca2e7328 ffff8800ca2e74d0 ffffffffa01ec740 ffff880307797db0
-ffffffff81281038 ffff8800ca2e74c0 ffff880307797e00 ffff8800ca2e7328
-Call Trace:
-[<ffffffffa01c18af>] xfs_fs_evict_inode+0x5f/0x110 [xfs]
-[<ffffffff81281038>] evict+0xb8/0x180
-[<ffffffff8128113b>] dispose_list+0x3b/0x50
-[<ffffffff81282014>] evict_inodes+0x144/0x170
-[<ffffffff8126447f>] generic_shutdown_super+0x3f/0xf0
-[<ffffffff81264837>] kill_block_super+0x27/0x70
-[<ffffffff81264a53>] deactivate_locked_super+0x43/0x70
-[<ffffffff81264e9c>] deactivate_super+0x5c/0x60
-[<ffffffff81285aff>] cleanup_mnt+0x3f/0x90
-[<ffffffff81285b92>] __cleanup_mnt+0x12/0x20
-[<ffffffff810c4f26>] task_work_run+0x76/0x90
-[<ffffffff81003e3a>] syscall_return_slowpath+0x20a/0x280
-[<ffffffff8192671a>] int_ret_from_sys_call+0x25/0x9f
-Code: 48 8d 93 30 03 00 00 48 39 c2 75 23 48 8b 83 d0 00 00 00 a8 20
-74 1a a8 40 75 18 48 c7 8
-3 d0 00 00 00 60 00 00 00 5b 41 5c 5d c3 <0f> 0b 0f 0b 0f 0b 0f 0b 0f
-0b 0f 1f 44 00 00 0f 1f
-44 00 00 55
-RIP  [<ffffffff81280171>] clear_inode+0x71/0x80
-RSP <ffff880307797d50>
----[ end trace 3b1d8898a94a4fc1 ]---
+https://lkml.org/lkml/2012/4/23/77
 
-[1]: git://git@github.com:pmem/ndctl.git pending
-make TESTS="test/dax.sh" check
+But, well, using vmalloc is "lame"(*) and so it never got fixed. I
+did have a rant about the "nobody should use vmalloc" answer to any
+problem reported with vmalloc at the time:
+
+https://lkml.org/lkml/2012/6/13/628
+
+Nothing has really changed, except that we ended up with a
+per-task flag hack similar to what was suggested here:
+
+https://lkml.org/lkml/2012/4/25/475
+
+> Another approach is memalloc_noio_save(), actually used by XFS and some other
+> __vmalloc() callers that might be getting GFP_NOIO or GFP_NOFS.  That
+> works, but not all such callers are using that mechanism.  For example,
+> drbd bm_realloc_pages() has GFP_NOIO __vmalloc() with no memalloc_noio_...
+> in sight.  Either that GFP_NOIO is not needed there (quite possible) or
+> there's a deadlock in that code.  The same goes for ipoib.c ipoib_cm_tx_init();
+> again, either that GFP_NOIO is not needed, or it can deadlock.
+> 
+> Those, AFAICS, are such callers with GFP_NOIO; however, there's a shitload
+> of GFP_NOFS ones.  XFS uses memalloc_noio_save(), but a _lot_ of other
+> callers do not.  For example, all call chains leading to ceph_kvmalloc()
+> pass GFP_NOFS and none of them is under memalloc_noio_save().  The same
+> goes for GFS2 __vmalloc() callers, etc.  Again, quite a few of those probably
+> do not need GFP_NOFS at all, but those that do would appear to have
+> hard-to-trigger deadlocks.
+
+Yup, this has been addressed piecemeal in subsystems that can
+reproduce vmalloc deadlocks, or at least have produced lockdep
+warnings about it because most developers don't realise that vmalloc
+is not fs/io context safe.
+
+> Why do we do that in callers, though? 
+
+I think it's because nobody could get a change for vmalloc actually
+accepted (see "lame" comments above) and so per-callsite flag hacks
+are the path of least resistance.
+
+> I.e. why not do something like this:
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 8e3c9c5..412c5d6 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1622,6 +1622,16 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  			cond_resched();
+>  	}
+>  
+> +	if (unlikely(!(gfp_mask & __GFP_IO))) {
+> +		unsigned flags = memalloc_noio_save();
+> +		if (map_vm_area(area, prot, pages)) {
+> +			memalloc_noio_restore(flags);
+> +			goto fail;
+> +		}
+> +		memalloc_noio_restore(flags);
+> +		return area->addr;
+> +	}
+> +
+>  	if (map_vm_area(area, prot, pages))
+>  		goto fail;
+>  	return area->addr;
+
+That'd be a nice start, though it doesn't address callers of
+vm_map_ram() which also has hard-coded GFP_KERNEL allocation masks
+for various allocations. It probably also should have the comment
+from the XFS code added to it as well.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
