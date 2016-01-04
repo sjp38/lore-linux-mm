@@ -1,50 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC346B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:28:21 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id ik10so75538648igb.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:28:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id qo6si37753278igb.84.2016.01.04.06.28.20
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D35036B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:44:02 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id f206so216576368wmf.0
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:44:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i1si114301663wjq.10.2016.01.04.06.44.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 06:28:20 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for the newly added memory
-References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
-	<568A560A.80906@citrix.com>
-Date: Mon, 04 Jan 2016 15:28:12 +0100
-In-Reply-To: <568A560A.80906@citrix.com> (David Vrabel's message of "Mon, 4
-	Jan 2016 11:22:50 +0000")
-Message-ID: <871t9xto5f.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 Jan 2016 06:44:01 -0800 (PST)
+Subject: Re: [RFC contig pages support 1/2] IB: Supports contiguous memory
+ operations
+References: <1449587707-24214-1-git-send-email-yishaih@mellanox.com>
+ <1449587707-24214-2-git-send-email-yishaih@mellanox.com>
+ <20151208151852.GA6688@infradead.org>
+ <20151208171542.GB13549@obsidianresearch.com>
+ <AM4PR05MB146005B448BEA876519335CDDCE80@AM4PR05MB1460.eurprd05.prod.outlook.com>
+ <20151209183940.GA4522@infradead.org>
+ <AM4PR05MB14603FC8169D50AD2A8F5AA3DCEC0@AM4PR05MB1460.eurprd05.prod.outlook.com>
+ <56796538.9040906@suse.cz>
+ <AM4PR05MB14603CF21CB493086BDEE026DCE60@AM4PR05MB1460.eurprd05.prod.outlook.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <568A852F.6080806@suse.cz>
+Date: Mon, 4 Jan 2016 15:43:59 +0100
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <AM4PR05MB14603CF21CB493086BDEE026DCE60@AM4PR05MB1460.eurprd05.prod.outlook.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Shachar Raindel <raindel@mellanox.com>, Christoph Hellwig <hch@infradead.org>
+Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Yishai Hadas <yishaih@mellanox.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Or Gerlitz <ogerlitz@mellanox.com>, Tal Alon <talal@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-David Vrabel <david.vrabel@citrix.com> writes:
+On 12/23/2015 05:30 PM, Shachar Raindel wrote:
+ >>>
+ >>> I completely agree, and this RFC was sent in order to start discussion
+ >>> on this subject.
+ >>>
+ >>> Dear MM people, can you please advise on the subject?
+ >>>
+ >>> Multiple HW vendors, from different fields, ranging between embedded
+ >> SoC
+ >>> devices (TI) and HPC (Mellanox) are looking for a solution to allocate
+ >>> blocks of contiguous memory to user space applications, without using
+ >> huge
+ >>> pages.
+ >>>
+ >>> What should be the API to expose such feature?
+ >>>
+ >>> Should we create a virtual FS that allows the user to create "files"
+ >>> representing memory allocations, and define the contiguous level we
+ >>> attempt to allocate using folders (similar to hugetlbfs)?
+ >>>
+ >>> Should we patch hugetlbfs to allow allocation of contiguous memory
+ >> chunks,
+ >>> without creating larger memory mapping in the CPU page tables?
+ >>>
+ >>> Should we create a special "allocator" virtual device, that will hand
+ >> out
+ >>> memory in contiguous chunks via a call to mmap with an FD connected to
+ >> the
+ >>> device?
+ >>
+ >> How much memory do you assume to be used like this?
+ >
+ > Depends on the use case. Most likely several MBs/core, used for 
+interfacing
+ > with the HW (packet rings, frame buffers, etc.).
+ >
+ > Some applications might want to perform calculations in such memory, to
+ > optimize communication time, especially in the HPC market.
 
-> On 22/12/15 16:32, Vitaly Kuznetsov wrote:
->> @@ -1292,6 +1304,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
->>  	/* create new memmap entry */
->>  	firmware_map_add_hotplug(start, start + size, "System RAM");
->>  
->> +	/* online pages if requested */
->> +	if (online)
->> +		online_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT,
->> +			     MMOP_ONLINE_KEEP);
->
-> This will cause the Xen balloon driver to deadlock because it calls
-> add_memory_resource() with the balloon_mutex locked and the online page
-> callback also locks the balloon_mutex.
+OK.
 
-Currently xen ballon driver always calls add_memory_resource() with
-online=false so this won't happen.
+ >
+ >> Is this memory
+ >> supposed to be swappable, migratable, etc? I.e. on LRU lists?
+ >
+ > Most likely not. In many of the relevant applications (embedded, HPC),
+ > there is no swap and the application threads are pinned to specific cores
+ > and NUMA nodes.
+ > The biggest pain here is that these memory pages will not be eligible for
+ > compaction, making it harder to handle fragmentations and CMA allocation
+ > requests.
 
--- 
-  Vitaly
+There was a patch set to enable compaction on such pages, see 
+https://lwn.net/Articles/650917/
+Minchan was going to pick this after Gioh left, and then it should be 
+possible. But it requires careful driver-specific cooperation, i.e. when 
+a page can be isolated for the migration, see 
+http://article.gmane.org/gmane.linux.kernel.mm/136457
+
+ >> Allocating a lot of memory (e.g. most of userspace memory) that's not
+ >> LRU wouldn't be nice. But LRU operations are not prepared to work witch
+ >> such non-standard-sized allocations, regardless of what API you use.  So
+ >> I think that's the more fundamental questions here.
+ >
+ > I agree that there are fundamental questions here.
+ >
+ > That being said, there is a clear need for an API allowing
+ > allocation, to the user space, limited size of memory that
+ > is composed of large contiguous blocks.
+ >
+ > What will be the best way to implement such solution?
+
+Given the likely driver-specific constraints/handling of the page 
+migration, I'm not sure if some completely universal API is feasible.
+Maybe some reusable parts of the functionality in the patch in this 
+thread could be provided by mm.
+
+ > Thanks,
+ > --Shachar
+ >
+ > --
+ > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+ > the body to majordomo@kvack.org.  For more info on Linux MM,
+ > see: http://www.linux-mm.org/ .
+ > Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+ >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
