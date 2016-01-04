@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C1C406B0006
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 15:47:30 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id b14so184439wmb.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 12:47:30 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id v10si586121wmd.0.2016.01.04.12.47.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 12:47:29 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id l65so152814wmf.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 12:47:29 -0800 (PST)
-Date: Mon, 4 Jan 2016 22:47:27 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: pagewalk API
-Message-ID: <20160104204727.GE13515@node.shutemov.name>
-References: <20160104182939.GA27351@linux.intel.com>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E84606B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 16:02:50 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id f206so611349wmf.0
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 13:02:50 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id qr6si147698679wjc.206.2016.01.04.13.02.49
+        for <linux-mm@kvack.org>;
+        Mon, 04 Jan 2016 13:02:49 -0800 (PST)
+Date: Mon, 4 Jan 2016 22:02:28 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a
+ bit)
+Message-ID: <20160104210228.GR22941@pd.tnic>
+References: <cover.1451869360.git.tony.luck@intel.com>
+ <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
+ <20160104120751.GG22941@pd.tnic>
+ <CA+8MBbKZ6VfN9t5-dYNHhZVU0k2HEr+E7Un0y2gtsxE0sDgoHQ@mail.gmail.com>
+ <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20160104182939.GA27351@linux.intel.com>
+In-Reply-To: <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Tony Luck <tony.luck@gmail.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
 
-On Mon, Jan 04, 2016 at 01:29:39PM -0500, Matthew Wilcox wrote:
+On Mon, Jan 04, 2016 at 10:08:43AM -0800, Andy Lutomirski wrote:
+> All of that's correct, including the part where it's confusing.  The
+> comments aren't the best.
 > 
-> I find myself in the position of needing to expand the pagewalk API to
-> allow PUDs to be passed to pagewalk handlers.
+> How about adding a comment like:
 > 
-> The problem with the current pagewalk API is that it requires the callers
-> to implement a lot of boilerplate, and the further up the hierarchy we
-> intercept the pagewalk, the more boilerplate has to be implemented in each
-> caller, to the point where it's not worth using the pagewalk API any more.
+> ----- begin comment -----
 > 
-> Compare and contrast mincore's pud_entry that only has to handle PUDs
-> which are guaranteed to be (1) present, (2) huge, (3) locked versus the
-> PMD code which has to take care of checking all three things itself.
+> The offset to the fixup is signed, and we're trying to use the high
+> bits for a different purpose.  In C, we could just do:
 > 
-> (http://marc.info/?l=linux-mm&m=145097405229181&w=2)
+> u32 class_and_offset = ((target - here) & 0x3fffffff) | class;
 > 
-> Kirill's point is that it's confusing to have the PMD and PUD handling
-> be different, and I agree.  But it certainly saves a lot of code in the
-> callers.  So should we convert the PMD code to be similar?  Or put a
-> subptimal API in for the PUD case?
+> Then, to decode it, we'd mask off the class and sign-extend to recover
+> the offset.
+> 
+> In asm, we can't do that, because this all gets laundered through the
+> linker, and there's no relocation type that supports this chicanery.
+> Instead we cheat a bit.  We first add a large number to the offset
+> (0x20000000).  The result is still nominally signed, but now it's
+> always positive, and the two high bits are always clear.  We can then
+> set high bits by ordinary addition or subtraction instead of using
+> bitwise operations.  As far as the linker is concerned, all we're
+> doing is adding a large constant to the difference between here (".")
+> and the target, and that's a valid relocation type.
+> 
+> In the C code, we just mask off the class bits and subtract 0x20000000
+> to get the offset.
+> 
+> ----- end comment -----
 
-Naoya, if I remember correctly, we had something like this on early stage
-of you pagewalk rework. Is it correct? If yes, why it was changed to what
-we have now?
+Yeah, that makes more sense, thanks.
 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+That nasty "." current position thing stays in the way to do it cleanly. :-)
+
+Anyway, ok, I see it now. It still feels a bit hacky to me. I probably
+would've added the third int to the exception table instead. It would've
+been much more straightforward and clean this way and I'd gladly pay the
+additional 6K growth.
 
 -- 
- Kirill A. Shutemov
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
