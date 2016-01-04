@@ -1,46 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 685606B0007
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:37:08 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id b14so164414158wmb.1
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:37:08 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id ww6si142000163wjb.205.2016.01.03.17.37.07
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 61BB36B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 01:53:03 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id 65so152579909pff.3
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 22:53:03 -0800 (PST)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id hl6si56970111pac.123.2016.01.03.22.53.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jan 2016 17:37:07 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id f206so193193700wmf.0
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:37:07 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 03 Jan 2016 22:53:02 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id u046r02V006753
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Mon, 4 Jan 2016 15:53:00 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/page_isolation: use micro to judge the alignment
+Date: Mon, 4 Jan 2016 06:51:12 +0000
+Message-ID: <20160104065058.GA10434@hori1.linux.bs1.fc.nec.co.jp>
+References: <20160104134154.40c28f94@debian>
+In-Reply-To: <20160104134154.40c28f94@debian>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <59EEC0F1B59D4041BDB208DB80FD8E2C@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
-References: <cover.1451869360.git.tony.luck@intel.com>
-	<968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
-Date: Sun, 3 Jan 2016 17:37:07 -0800
-Message-ID: <CA+8MBbKuOHHwYeFHFePAts=DE=iR4aQUcfjDzGEg7u5ihTDmLg@mail.gmail.com>
-Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a bit)
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+Cc: David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Dec 30, 2015 at 9:59 AM, Andy Lutomirski <luto@amacapital.net> wrote:
-> This adds two bits of fixup class information to a fixup entry,
-> generalizing the uaccess_err hack currently in place.
->
-> Forward-ported-from-3.9-by: Tony Luck <tony.luck@intel.com>
-> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+On Mon, Jan 04, 2016 at 01:41:54PM +0800, Wang Xiaoqiang wrote:
+> Hi, Naoya,
+>=20
+> This patch simply use micro IS_ALIGNED() to judge the alignment,
+> instead of directly judging.
 
-Crivens!  I messed up when "git cherrypick"ing this and "git
-format-patch"ing it.
+Hi Xiaoqiang,
 
-I didn't mean to forge Andy's From line when sending this out (just to have a
-From: line to give him credit.for the patch).
+Can you apply the same cleanup to undo_isolate_page_range(), too?
+But anyway, this looks a good cleanup to me.
 
-Big OOPs ... this is "From:" me ... not Andy!
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
--Tony
+Thanks,
+Naoya Horiguchi
+
+> Signed-off-by: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+> ---
+>  mm/page_isolation.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 4568fd5..9248929 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -162,8 +162,8 @@ int start_isolate_page_range(unsigned long
+> start_pfn, unsigned long end_pfn, unsigned long undo_pfn;
+>  	struct page *page;
+> =20
+> -	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
+> -	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
+> +	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
+> +	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
+> =20
+>  	for (pfn =3D start_pfn;
+>  	     pfn < end_pfn;
+> --=20
+> 2.1.4
+>=20
+> thanks
+> Wang Xiaoqiang
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
