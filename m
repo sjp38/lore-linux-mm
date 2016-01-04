@@ -1,226 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 077C86B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 19:28:00 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id 65so147917567pff.3
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 16:27:59 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id dy5si39090933pab.142.2016.01.03.16.27.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jan 2016 16:27:59 -0800 (PST)
-Received: by mail-pa0-x22b.google.com with SMTP id cy9so188125299pac.0
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 16:27:59 -0800 (PST)
-Date: Mon, 4 Jan 2016 09:27:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] virtio_balloon: fix race between migration and
- ballooning
-Message-ID: <20160104002747.GA31090@blaptop.local>
-References: <1451259313-26353-1-git-send-email-minchan@kernel.org>
- <1451259313-26353-2-git-send-email-minchan@kernel.org>
- <20160101102756-mutt-send-email-mst@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160101102756-mutt-send-email-mst@redhat.com>
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F0B6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:26:17 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id e65so140591130pfe.1
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:26:17 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ff7si27876272pab.184.2016.01.03.17.26.16
+        for <linux-mm@kvack.org>;
+        Sun, 03 Jan 2016 17:26:16 -0800 (PST)
+Message-Id: <cover.1451869360.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Sun, 3 Jan 2016 17:02:40 -0800
+Subject: [PATCH v6 0/4] Machine check recovery when kernel accesses poison
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rafael Aquini <aquini@redhat.com>, stable@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Fri, Jan 01, 2016 at 11:36:13AM +0200, Michael S. Tsirkin wrote:
-> On Mon, Dec 28, 2015 at 08:35:13AM +0900, Minchan Kim wrote:
-> > In balloon_page_dequeue, pages_lock should cover the loop
-> > (ie, list_for_each_entry_safe). Otherwise, the cursor page could
-> > be isolated by compaction and then list_del by isolation could
-> > poison the page->lru.{prev,next} so the loop finally could
-> > access wrong address like this. This patch fixes the bug.
-> > 
-> > general protection fault: 0000 [#1] SMP
-> > Dumping ftrace buffer:
-> >    (ftrace buffer empty)
-> > Modules linked in:
-> > CPU: 2 PID: 82 Comm: vballoon Not tainted 4.4.0-rc5-mm1-access_bit+ #1906
-> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> > task: ffff8800a7ff0000 ti: ffff8800a7fec000 task.ti: ffff8800a7fec000
-> > RIP: 0010:[<ffffffff8115e754>]  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
-> > RSP: 0018:ffff8800a7fefdc0  EFLAGS: 00010246
-> > RAX: ffff88013fff9a70 RBX: ffffea000056fe00 RCX: 0000000000002b7d
-> > RDX: ffff88013fff9a70 RSI: ffffea000056fe00 RDI: ffff88013fff9a68
-> > RBP: ffff8800a7fefde8 R08: ffffea000056fda0 R09: 0000000000000000
-> > R10: ffff8800a7fefd90 R11: 0000000000000001 R12: dead0000000000e0
-> > R13: ffffea000056fe20 R14: ffff880138809070 R15: ffff880138809060
-> > FS:  0000000000000000(0000) GS:ffff88013fc40000(0000) knlGS:0000000000000000
-> > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > CR2: 00007f229c10e000 CR3: 00000000b8b53000 CR4: 00000000000006a0
-> > Stack:
-> >  0000000000000100 ffff880138809088 ffff880138809000 ffff880138809060
-> >  0000000000000046 ffff8800a7fefe28 ffffffff812c86d3 ffff880138809020
-> >  ffff880138809000 fffffffffff91900 0000000000000100 ffff880138809060
-> > Call Trace:
-> >  [<ffffffff812c86d3>] leak_balloon+0x93/0x1a0
-> >  [<ffffffff812c8bc7>] balloon+0x217/0x2a0
-> >  [<ffffffff8143739e>] ? __schedule+0x31e/0x8b0
-> >  [<ffffffff81078160>] ? abort_exclusive_wait+0xb0/0xb0
-> >  [<ffffffff812c89b0>] ? update_balloon_stats+0xf0/0xf0
-> >  [<ffffffff8105b6e9>] kthread+0xc9/0xe0
-> >  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
-> >  [<ffffffff8143b4af>] ret_from_fork+0x3f/0x70
-> >  [<ffffffff8105b620>] ? kthread_park+0x60/0x60
-> > Code: 8d 60 e0 0f 84 af 00 00 00 48 8b 43 20 a8 01 75 3b 48 89 d8 f0 0f ba 28 00 72 10 48 8b 03 f6 c4 08 75 2f 48 89 df e8 8c 83 f9 ff <49> 8b 44 24 20 4d 8d 6c 24 20 48 83 e8 20 4d 39 f5 74 7a 4c 89
-> > RIP  [<ffffffff8115e754>] balloon_page_dequeue+0x54/0x130
-> >  RSP <ffff8800a7fefdc0>
-> > ---[ end trace 43cf28060d708d5f ]---
-> > Kernel panic - not syncing: Fatal exception
-> > Dumping ftrace buffer:
-> >    (ftrace buffer empty)
-> > Kernel Offset: disabled
-> > 
-> > Cc: <stable@vger.kernel.org>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/balloon_compaction.c | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> > index d3116be5a00f..300117f1a08f 100644
-> > --- a/mm/balloon_compaction.c
-> > +++ b/mm/balloon_compaction.c
-> > @@ -61,6 +61,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
-> >  	bool dequeued_page;
-> >  
-> >  	dequeued_page = false;
-> > +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> >  	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-> >  		/*
-> >  		 * Block others from accessing the 'page' while we get around
-> > @@ -75,15 +76,14 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
-> >  				continue;
-> >  			}
-> >  #endif
-> > -			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> >  			balloon_page_delete(page);
-> >  			__count_vm_event(BALLOON_DEFLATE);
-> > -			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> >  			unlock_page(page);
-> >  			dequeued_page = true;
-> >  			break;
-> >  		}
-> >  	}
-> > +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> >  
-> >  	if (!dequeued_page) {
-> >  		/*
-> 
-> I think this will cause deadlocks.
-> 
-> pages_lock now nests within page lock, balloon_page_putback
-> nests them in the reverse order.
+This series is initially targeted at the folks doing filesystems
+on top of NVDIMMs. They really want to be able to return -EIO
+when there is a h/w error (just like spinning rust, and SSD does).
 
-In balloon_page_dequeu, we used trylock so I don't think it's
-deadlock.
+I plan to use the same infrastructure to write a machine check aware
+"copy_from_user()" that will SIGBUS the calling application when a
+syscall touches poison in user space (just like we do when the application
+touches the poison itself).
 
-> 
-> Did you test this with lockdep? You really should for
-> locking changes, and I'd expect it to warn about this.
+Changes V5-V6
+Andy:	Provoked massive re-write by providing what is now part1 of this
+	patch series. This frees up two bits in the exception table
+	fixup field that can be used to tag exception table entries
+	as different "classes". This means we don't need my separate
+	exception table fro machine checks. Also avoids duplicating
+	fixup actions for #PF and #MC cases that were in version 5.
+Andy:	Use C99 array initializers to tie the various class fixup
+	functions back to the defintions of each class. Also give the
+	functions meanningful names (not fixup_class0() etc.).
+Boris:	Cleaned up my lousy assembly code removing many spurious 'l'
+	modifiers on instructions.
+Boris:	Provided some helper functions for the machine check severity
+	calculation that make the code more readable.
+Boris:	Have __mcsafe_copy() return a structure with the 'remaining bytes'
+	in a separate field from the fault indicator. Boris had suggested
+	Linux -EFAULT/-EINVAL ... but I thought it made more sense to return
+	the exception number (X86_TRAP_MC, etc.)  This finally kills off
+	BIT(63) which has been controversial throughout all the early versions
+	of this patch series.
 
-I did but I don't see any warning.
+Changes V4-V5
+Tony:	Extended __mcsafe_copy() to have fixup entries for both machine
+	check and page fault.
 
-> 
-> Also, there's another issue there I think: after isolation page could
-> also get freed before we try to lock it.
+Changes V3-V4:
+Andy:   Simplify fixup_mcexception() by dropping used-once local variable
+Andy:   "Reviewed-by" tag added to part1
+Boris:  Moved new functions to memcpy_64.S and declaration to asm/string_64.h
+Boris:  Changed name s/mcsafe_memcpy/__mcsafe_copy/ to make it clear that this
+        is an internal function and that return value doesn't follow memcpy() semantics.
+Boris:  "Reviewed-by" tag added to parts 1&2
 
-If a page was isolated, the page shouldn't stay b_dev_info->pages
-list so balloon_page_dequeue cannot see the page.
-Am I missing something?
+Changes V2-V3:
 
-> 
-> We really must take a page reference before touching
-> the page.
-> 
-> I think we need something like the below to fix this issue.
-> Could you please try this out, and send Tested-by?
-> I will repost as a proper patch if this works for you.
+Andy:   Don't hack "regs->ax = BIT(63) | addr;" in the machine check
+        handler.  Now have better fixup code that computes the number
+        of remaining bytes (just like page-fault fixup).
+Andy:   #define for BIT(63). Done, plus couple of extra macros using it.
+Boris:  Don't clutter up generic code (like mm/extable.c) with this.
+        I moved everything under arch/x86 (the asm-generic change is
+        a more generic #define).
+Boris:  Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
+        I made it a real menu item with default "n". Dan Williams
+        will use "select MCE_KERNEL_RECOVERY" from his persistent
+        filesystem code.
+Boris:  Simplify conditionals in mce.c by moving tolerant/kill_it
+        checks earlier, with a skip to end if they aren't set.
+Boris:  Miscellaneous grammar/punctuation. Fixed.
+Boris:  Don't leak spurious __start_mcextable symbols into kernels
+        that didn't configure MCE_KERNEL_RECOVERY. Done.
+Tony:   New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
+        to new .S/.h files
+Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
+        or vmovntdqa on source addresses. I didn't fix this yet. Think
+        of the current mcsafe_memcpy() as the first of several functions.
+        This one is useful for small copies (meta-data) where the overhead
+        of saving SSE/AVX state isn't justified.
 
-If I missed something, I am happy to retest and report the result
-when I go to the office.
+Changes V1->V2:
 
-Thanks.
+0-day:  Reported build errors and warnings on 32-bit systems. Fixed
+0-day:  Reported bloat to tinyconfig. Fixed
+Boris:  Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
+Boris:  Re-write "tolerant==3" check to reduce indentation level. See below.
+Andy:   Check IP is valid before searching kernel exception tables. Done.
+Andy:   Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
+Andy:   Untangle mess of code in tail of do_machine_check() to make it
+        clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
+        if we were called from user code, not from kernel!). Done.
 
-> 
-> 
-> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> index d3116be..66d69c5 100644
-> --- a/mm/balloon_compaction.c
-> +++ b/mm/balloon_compaction.c
-> @@ -56,12 +56,34 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
->   */
->  struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
->  {
-> -	struct page *page, *tmp;
-> +	struct page *page;
->  	unsigned long flags;
->  	bool dequeued_page;
-> +	LIST_HEAD(processed); /* protected by b_dev_info->pages_lock */
->  
->  	dequeued_page = false;
-> -	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-> +	/*
-> +	 * We need to go over b_dev_info->pages and lock each page,
-> +	 * but b_dev_info->pages_lock must nest within page lock.
-> +	 *
-> +	 * To make this safe, remove each page from b_dev_info->pages list
-> +	 * under b_dev_info->pages_lock, then drop this lock. Once list is
-> +	 * empty, re-add them also under b_dev_info->pages_lock.
-> +	 */
-> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> +	while (!list_empty(&b_dev_info->pages)) {
-> +		page = list_first_entry(&b_dev_info->pages, typeof(*page), lru);
-> +		/* move to processed list to avoid going over it another time */
-> +		list_move(&page->lru, &processed);
-> +
-> +		if (!get_page_unless_zero(page))
-> +			continue;
-> +		/*
-> +		 * pages_lock nests within page lock,
-> +		 * so drop it before trylock_page
-> +		 */
-> +		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> +
->  		/*
->  		 * Block others from accessing the 'page' while we get around
->  		 * establishing additional references and preparing the 'page'
-> @@ -72,6 +94,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
->  			if (!PagePrivate(page)) {
->  				/* raced with isolation */
->  				unlock_page(page);
-> +				put_page(page);
->  				continue;
->  			}
->  #endif
-> @@ -80,11 +103,18 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
->  			__count_vm_event(BALLOON_DEFLATE);
->  			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
->  			unlock_page(page);
-> +			put_page(page);
->  			dequeued_page = true;
->  			break;
->  		}
-> +		put_page(page);
-> +		spin_lock_irqsave(&b_dev_info->pages_lock, flags);
->  	}
->  
-> +	/* re-add remaining entries */
-> +	list_splice(&processed, &b_dev_info->pages);
-> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> +
->  	if (!dequeued_page) {
->  		/*
->  		 * If we are unable to dequeue a balloon page because the page
+Andy Lutomirski (1):
+  x86: Clean up extable entry format (and free up a bit)
+
+Tony Luck (3):
+  x86: Cleanup and add a new exception class
+  x86, mce: Check for faults tagged in EXTABLE_CLASS_FAULT exception
+    table entries
+  x86, mce: Add __mcsafe_copy()
+
+ arch/x86/Kconfig                          |  10 +++
+ arch/x86/include/asm/asm.h                |  80 ++++++++++++------
+ arch/x86/include/asm/string_64.h          |  10 +++
+ arch/x86/include/asm/uaccess.h            |  17 +++-
+ arch/x86/kernel/cpu/mcheck/mce-severity.c |  32 ++++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          |  71 ++++++++--------
+ arch/x86/kernel/kprobes/core.c            |   2 +-
+ arch/x86/kernel/traps.c                   |   6 +-
+ arch/x86/kernel/x8664_ksyms_64.c          |   4 +
+ arch/x86/lib/memcpy_64.S                  | 136 ++++++++++++++++++++++++++++++
+ arch/x86/mm/extable.c                     |  66 ++++++++++-----
+ arch/x86/mm/fault.c                       |   2 +-
+ 12 files changed, 347 insertions(+), 89 deletions(-)
 
 -- 
-Kind regards,
-Minchan Kim
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
