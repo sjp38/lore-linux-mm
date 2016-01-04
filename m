@@ -1,100 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3306B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 05:47:22 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id ph11so241886999igc.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 02:47:22 -0800 (PST)
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E7266B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 06:04:42 -0500 (EST)
+Received: by mail-io0-f179.google.com with SMTP id q21so150786539iod.0
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 03:04:42 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s32si1911797ioi.32.2016.01.04.02.47.21
+        by mx.google.com with ESMTPS id b63si19760799ioe.200.2016.01.04.03.04.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 02:47:21 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for the newly added memory
-References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
-	<20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
-Date: Mon, 04 Jan 2016 11:47:12 +0100
-In-Reply-To: <20151222135520.1bcb2d18382f1e414864992c@linux-foundation.org>
-	(Andrew Morton's message of "Tue, 22 Dec 2015 13:55:20 -0800")
-Message-ID: <87d1thtydr.fsf@vitty.brq.redhat.com>
+        Mon, 04 Jan 2016 03:04:42 -0800 (PST)
+Date: Mon, 4 Jan 2016 19:04:27 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH v2 14/16] x86,nvdimm,kexec: Use walk_iomem_res_desc() for
+ iomem search
+Message-ID: <20160104110427.GA2965@dhcp-128-65.nay.redhat.com>
+References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+ <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
+ <20160104092545.GA7033@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160104092545.GA7033@dhcp-128-65.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: akpm@linux-foundation.org, bp@alien8.de, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, x86@kernel.org, linux-nvdimm@ml01.01.org, kexec@lists.infradead.org
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+On 01/04/16 at 05:25pm, Dave Young wrote:
+> Hi, Toshi,
+> 
+> On 12/25/15 at 03:09pm, Toshi Kani wrote:
+> > Change to call walk_iomem_res_desc() for searching resource entries
+> > with the following names:
+> >  "ACPI Tables"
+> >  "ACPI Non-volatile Storage"
+> >  "Persistent Memory (legacy)"
+> >  "Crash kernel"
+> > 
+> > Note, the caller of walk_iomem_res() with "GART" is left unchanged
+> > because this entry may be initialized by out-of-tree drivers, which
+> > do not have 'desc' set to IORES_DESC_GART.
+> 
+> Found below commit which initialize the GART entry:
+> commit 56dd669a138c40ea6cdae487f233430d12372767
+> Author: Aaron Durbin <adurbin@google.com>
+> Date:   Tue Sep 26 10:52:40 2006 +0200
+> 
+>     [PATCH] Insert GART region into resource map
+>     
+>     Patch inserts the GART region into the iomem resource map. The GART will then
+>     be visible within /proc/iomem. It will also allow for other users
+>     utilizing the GART to subreserve the region (agp or IOMMU).
+>     
+>     Signed-off-by: Aaron Durbin <adurbin@google.com>
+> 
+> But later it was reverted:
+> commit 707d4eefbdb31f8e588277157056b0ce637d6c68
+> Author: Bjorn Helgaas <bhelgaas@google.com>
+> Date:   Tue Mar 18 14:26:12 2014 -0600
+> 
+>     Revert "[PATCH] Insert GART region into resource map"
+>     
+>     This reverts commit 56dd669a138c, which makes the GART visible in
+>     /proc/iomem.  This fixes a regression: e501b3d87f00 ("agp: Support 64-bit
+>     APBASE") exposed an existing problem with a conflict between the GART
+>     region and a PCI BAR region.
+>     
+>     The GART addresses are bus addresses, not CPU addresses, and therefore
+>     should not be inserted in iomem_resource.
+>     
+>     On many machines, the GART region is addressable by the CPU as well as by
+>     an AGP master, but CPU addressability is not required by the spec.  On some
+>     of these machines, the GART is mapped by a PCI BAR, and in that case, the
+>     PCI core automatically inserts it into iomem_resource, just as it does for
+>     all BARs.
+>     
+>     Inserting it here means we'll have a conflict if the PCI core later tries
+>     to claim the GART region, so let's drop the insertion here.
+>     
+>     The conflict indirectly causes X failures, as reported by Jouni in the
+>     bugzilla below.  We detected the conflict even before e501b3d87f00, but
+>     after it the AGP code (fix_northbridge()) uses the PCI resource (which is
+>     zeroed because of the conflict) instead of reading the BAR again.
+>     
+>     Conflicts:
+>         arch/x86_64/kernel/aperture.c
+>     
+>     Fixes: e501b3d87f00 agp: Support 64-bit APBASE
+>     Link: https://bugzilla.kernel.org/show_bug.cgi?id=72201
+>     Reported-and-tested-by: Jouni Mettala <jtmettala@gmail.com>
+>     Signed-off-by: Bjorn Helgaas <bhelgaas@google.com>
+> 
+> 
+> For amd64 agp, currently the region name is "aperture" instead:
+> drivers/char/agp/amd64-agp.c: agp_aperture_valid()
+> 
+> This may not be the only case, but I doubt that anyone is testing this since
+> long time ago kexec-tools excluding the 'GART' region. Kexec-tools and kexec_file
+> may need update to use "aperture" if someone can test it.
+> 
+> I think adding an enum value for compatibility is reasonable, we do not care
+> about third party drivers in mainline.
 
-> On Tue, 22 Dec 2015 17:32:30 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
->
->> Currently, all newly added memory blocks remain in 'offline' state unless
->> someone onlines them, some linux distributions carry special udev rules
->> like:
->> 
->> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
->> 
->> to make this happen automatically. This is not a great solution for virtual
->> machines where memory hotplug is being used to address high memory pressure
->> situations as such onlining is slow and a userspace process doing this
->> (udev) has a chance of being killed by the OOM killer as it will probably
->> require to allocate some memory.
->> 
->> Introduce default policy for the newly added memory blocks in
->> /sys/devices/system/memory/hotplug_autoonline file with two possible
->> values: "offline" which preserves the current behavior and "online" which
->> causes all newly added memory blocks to go online as soon as they're added.
->> The default is "online" when MEMORY_HOTPLUG_AUTOONLINE kernel config option
->> is selected.
->
-> I think the default should be "offline" so vendors can ship kernels
-> which have CONFIG_MEMORY_HOTPLUG_AUTOONLINE=y while being
-> back-compatible with previous kernels.
->
+Hmm, rethink about it, the new kernel will not export "GART" regions thus the in-kernel loader should never see such regions as long as there's no other drivers exporting it. Thus dropping the code chunk in crash.c about 'GART' should be fine.
 
-(sorry for the delayed response, just picking things up after holidays)
-
-I was under an (wrong?) impression that in the majority of use cases
-users want to start using their newly added memory right away and that's
-what distros will ship. As an alternative to making the feature off by
-default I can suggest making CONFIG_MEMORY_HOTPLUG_AUTOONLINE a tristate
-switch (no feature, default offline, default online).
-
->> --- a/Documentation/kernel-parameters.txt
->> +++ b/Documentation/kernel-parameters.txt
->> @@ -2537,6 +2537,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->>  			shutdown the other cpus.  Instead use the REBOOT_VECTOR
->>  			irq.
->>  
->> +	nomemhp_autoonline	Don't automatically online newly added memory.
->> +
->
-> This wasn't mentioned in the changelog.  Why do we need a boot
-> parameter as well as the sysfs knob?
->
-
-I was thinking about some faulty hardware (e.g. reporting new memory
-blocks which for some reason are not really usable) and an easy way to
-make such hardware work.
-
->> +config MEMORY_HOTPLUG_AUTOONLINE
->> +	bool "Automatically online hot-added memory"
->> +	depends on MEMORY_HOTPLUG_SPARSE
->> +	help
->> +	  When memory is hot-added, it is not at ready-to-use state, a special
->
-> "When memory is hot-added it is not in a ready-to-use state.  A special"
->
->> +	  userspace action is required to online the newly added blocks. With
->> +	  this option enabled, the kernel will try to online all newly added
->> +	  memory automatically.
->> +
->>
->> ...
->>
-
--- 
-  Vitaly
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
