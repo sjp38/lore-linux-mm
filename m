@@ -1,84 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 97F056B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 14:35:23 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id do7so1081615pab.2
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:35:23 -0800 (PST)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0083.outbound.protection.outlook.com. [157.56.112.83])
-        by mx.google.com with ESMTPS id f90si1871747pfd.25.2016.01.04.11.35.22
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0890F6B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 14:46:25 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id ph11so765541igc.1
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:46:25 -0800 (PST)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id m81si29172438iom.134.2016.01.04.11.46.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 Jan 2016 11:35:22 -0800 (PST)
-From: Chris Metcalf <cmetcalf@ezchip.com>
-Subject: [PATCH v9 03/13] lru_add_drain_all: factor out lru_add_drain_needed
-Date: Mon, 4 Jan 2016 14:34:41 -0500
-Message-ID: <1451936091-29247-4-git-send-email-cmetcalf@ezchip.com>
-In-Reply-To: <1451936091-29247-1-git-send-email-cmetcalf@ezchip.com>
-References: <1451936091-29247-1-git-send-email-cmetcalf@ezchip.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jan 2016 11:46:24 -0800 (PST)
+Message-ID: <1451936749.19330.22.camel@hpe.com>
+Subject: Re: [PATCH v2 14/16] x86, nvdimm, kexec: Use walk_iomem_res_desc()
+ for iomem search
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Mon, 04 Jan 2016 12:45:49 -0700
+In-Reply-To: <20160104194059.GM22941@pd.tnic>
+References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+	 <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
+	 <20151226103804.GB21988@pd.tnic> <567F315B.8080005@hpe.com>
+	 <20151227021257.GA13560@dhcp-128-25.nay.redhat.com>
+	 <20151227102406.GB19398@nazgul.tnic>
+	 <20160104092937.GB7033@dhcp-128-65.nay.redhat.com>
+	 <20160104122619.GH22941@pd.tnic> <1451930260.19330.21.camel@hpe.com>
+	 <20160104194059.GM22941@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
- Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Chris Metcalf <cmetcalf@ezchip.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Dave Young <dyoung@redhat.com>, Minfei Huang <mhuang@redhat.com>, linux-arch@vger.kernel.org, linux-nvdimm@ml01.01.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>
 
-This per-cpu check was being done in the loop in lru_add_drain_all(),
-but having it be callable for a particular cpu is helpful for the
-task-isolation patches.
+On Mon, 2016-01-04 at 20:41 +0100, Borislav Petkov wrote:
+> On Mon, Jan 04, 2016 at 10:57:40AM -0700, Toshi Kani wrote:
+> > With this change, there will be no caller to walk_iomem_res().  Should 
+> > we remove walk_iomem_res() altogether, or keep it for now as a 
+> > deprecated func with the checkpatch check?
+> 
+> Yes, kill it on the spot so that people don't get crazy ideas.
 
-Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
----
- include/linux/swap.h |  1 +
- mm/swap.c            | 13 +++++++++----
- 2 files changed, 10 insertions(+), 4 deletions(-)
+Will do.  
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7ba7dccaf0e7..66719610c9f5 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -305,6 +305,7 @@ extern void activate_page(struct page *);
- extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
-+extern bool lru_add_drain_needed(int cpu);
- extern void lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 39395fb549c0..ce1eb052a293 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -854,6 +854,14 @@ void deactivate_file_page(struct page *page)
- 	}
- }
- 
-+bool lru_add_drain_needed(int cpu)
-+{
-+	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		need_activate_page_drain(cpu));
-+}
-+
- void lru_add_drain(void)
- {
- 	lru_add_drain_cpu(get_cpu());
-@@ -880,10 +888,7 @@ void lru_add_drain_all(void)
- 	for_each_online_cpu(cpu) {
- 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
- 
--		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
--		    need_activate_page_drain(cpu)) {
-+		if (lru_add_drain_needed(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
- 			cpumask_set_cpu(cpu, &has_work);
--- 
-2.1.2
+Thanks!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
