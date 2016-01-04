@@ -1,49 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5077F6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 06:41:35 -0500 (EST)
-Received: by mail-qg0-f47.google.com with SMTP id b35so121765303qge.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 03:41:35 -0800 (PST)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id o97si29166332qgd.69.2016.01.04.03.41.34
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 Jan 2016 03:41:34 -0800 (PST)
-Message-ID: <568A5A6B.3030700@citrix.com>
-Date: Mon, 4 Jan 2016 11:41:31 +0000
-From: David Vrabel <david.vrabel@citrix.com>
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8156B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 07:08:13 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id b14so181415900wmb.1
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 04:08:13 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id hz10si63094228wjb.190.2016.01.04.04.08.12
+        for <linux-mm@kvack.org>;
+        Mon, 04 Jan 2016 04:08:12 -0800 (PST)
+Date: Mon, 4 Jan 2016 13:07:51 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a
+ bit)
+Message-ID: <20160104120751.GG22941@pd.tnic>
+References: <cover.1451869360.git.tony.luck@intel.com>
+ <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] [PATCH v2 08/16] xen, mm: Set IORESOURCE_SYSTEM_RAM
- to System RAM
-References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
- <1451081365-15190-8-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1451081365-15190-8-git-send-email-toshi.kani@hpe.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>, akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On 25/12/15 22:09, Toshi Kani wrote:
-> Set IORESOURCE_SYSTEM_RAM to 'flags' of struct resource entries
-> with "System RAM".
-[...]
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -257,7 +257,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
->  		return NULL;
+On Wed, Dec 30, 2015 at 09:59:29AM -0800, Andy Lutomirski wrote:
+> This adds two bits of fixup class information to a fixup entry,
+> generalizing the uaccess_err hack currently in place.
+> 
+> Forward-ported-from-3.9-by: Tony Luck <tony.luck@intel.com>
+> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+> ---
+>  arch/x86/include/asm/asm.h | 70 ++++++++++++++++++++++++++++++----------------
+>  arch/x86/mm/extable.c      | 21 ++++++++------
+>  2 files changed, 59 insertions(+), 32 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
+> index 189679aba703..b64121ffb2da 100644
+> --- a/arch/x86/include/asm/asm.h
+> +++ b/arch/x86/include/asm/asm.h
+> @@ -43,19 +43,47 @@
+>  #define _ASM_DI		__ASM_REG(di)
 >  
->  	res->name = "System RAM";
-> -	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+>  /* Exception table entry */
+> -#ifdef __ASSEMBLY__
+> -# define _ASM_EXTABLE(from,to)					\
+> -	.pushsection "__ex_table","a" ;				\
+> -	.balign 8 ;						\
+> -	.long (from) - . ;					\
+> -	.long (to) - . ;					\
+> -	.popsection
 >  
->  	ret = allocate_resource(&iomem_resource, res,
->  				size, 0, -1,
+> -# define _ASM_EXTABLE_EX(from,to)				\
+> -	.pushsection "__ex_table","a" ;				\
+> -	.balign 8 ;						\
+> -	.long (from) - . ;					\
+> -	.long (to) - . + 0x7ffffff0 ;				\
+> +/*
+> + * An exception table entry is 64 bits.  The first 32 bits are the offset
 
-Acked-by: David Vrabel <david.vrabel@citrix.com>
+Two 32-bit ints, to be exact.
 
-David
+Also, there's text in arch/x86/include/asm/uaccess.h where the exception
+table entry is defined so you probably should sync with it so that the
+nomenclature is the same.
+
+> + * from that entry to the potentially faulting instruction.  sortextable
+
+								sortextable.c ?
+
+> + * relies on that exact encoding.  The second 32 bits encode the fault
+> + * handler address.
+> + *
+> + * We want to stick two extra bits of handler class into the fault handler
+> + * address.  All of these are generated by relocations, so we can only
+> + * rely on addition.  We therefore emit:
+> + *
+> + * (target - here) + (class) + 0x20000000
+
+I still don't understand that bit 29 thing.
+
+Because the offset is negative?
+
+The exception table currently looks like this here:
+
+insn offset: 0xff91a7c4, fixup offset: 0xffffd57a
+insn offset: 0xff91bac3, fixup offset: 0xffffd57e
+insn offset: 0xff91bac0, fixup offset: 0xffffd57d
+insn offset: 0xff91baba, fixup offset: 0xffffd57c
+insn offset: 0xff91bfca, fixup offset: 0xffffd57c
+insn offset: 0xff91bfff, fixup offset: 0xffffd57e
+insn offset: 0xff91c049, fixup offset: 0xffffd580
+insn offset: 0xff91c141, fixup offset: 0xffffd57f
+insn offset: 0xff91c24e, fixup offset: 0xffffd581
+insn offset: 0xff91c262, fixup offset: 0xffffd580
+insn offset: 0xff91c261, fixup offset: 0xffffd57f
+...
+
+It probably will dawn on me when I look at the rest of the patch...
+
+> + * This has the property that the two high bits are the class and the
+> + * rest is easy to decode.
+> + */
+> +
+> +/* There are two bits of extable entry class, added to a signed offset. */
+> +#define _EXTABLE_CLASS_DEFAULT	0		/* standard uaccess fixup */
+> +#define _EXTABLE_CLASS_EX	0x80000000	/* uaccess + set uaccess_err */
+
+				BIT(31) is more readable.
+
+> +
+> +/*
+> + * The biases are the class constants + 0x20000000, as signed integers.
+> + * This can't use ordinary arithmetic -- the assembler isn't that smart.
+> + */
+> +#define _EXTABLE_BIAS_DEFAULT	0x20000000
+> +#define _EXTABLE_BIAS_EX	0x20000000 - 0x80000000
+
+Ditto.
+
+> +
+> +#define _ASM_EXTABLE(from,to)						\
+> +	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_DEFAULT)
+> +
+> +#define _ASM_EXTABLE_EX(from,to)					\
+> +	_ASM_EXTABLE_CLASS(from, to, _EXTABLE_BIAS_EX)
+> +
+> +#ifdef __ASSEMBLY__
+> +# define _EXPAND_EXTABLE_BIAS(x) x
+> +# define _ASM_EXTABLE_CLASS(from,to,bias)				\
+> +	.pushsection "__ex_table","a" ;					\
+> +	.balign 8 ;							\
+> +	.long (from) - . ;						\
+> +	.long (to) - . + _EXPAND_EXTABLE_BIAS(bias) ;			\
+
+Why not simply:
+
+	.long (to) - . + (bias) ;
+
+and
+
+	" .long (" #to ") - . + "(" #bias ") "\n"
+
+below and get rid of that _EXPAND_EXTABLE_BIAS()?
+
+>  	.popsection
+>  
+>  # define _ASM_NOKPROBE(entry)					\
+> @@ -89,18 +117,12 @@
+>  	.endm
+>  
+>  #else
+> -# define _ASM_EXTABLE(from,to)					\
+> -	" .pushsection \"__ex_table\",\"a\"\n"			\
+> -	" .balign 8\n"						\
+> -	" .long (" #from ") - .\n"				\
+> -	" .long (" #to ") - .\n"				\
+> -	" .popsection\n"
+> -
+> -# define _ASM_EXTABLE_EX(from,to)				\
+> -	" .pushsection \"__ex_table\",\"a\"\n"			\
+> -	" .balign 8\n"						\
+> -	" .long (" #from ") - .\n"				\
+> -	" .long (" #to ") - . + 0x7ffffff0\n"			\
+> +# define _EXPAND_EXTABLE_BIAS(x) #x
+> +# define _ASM_EXTABLE_CLASS(from,to,bias)				\
+> +	" .pushsection \"__ex_table\",\"a\"\n"				\
+> +	" .balign 8\n"							\
+> +	" .long (" #from ") - .\n"					\
+> +	" .long (" #to ") - . + " _EXPAND_EXTABLE_BIAS(bias) "\n"	\
+>  	" .popsection\n"
+>  /* For C file, we already have NOKPROBE_SYMBOL macro */
+>  #endif
+> diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
+> index 903ec1e9c326..95e2ede71206 100644
+> --- a/arch/x86/mm/extable.c
+> +++ b/arch/x86/mm/extable.c
+> @@ -8,16 +8,24 @@ ex_insn_addr(const struct exception_table_entry *x)
+>  {
+>  	return (unsigned long)&x->insn + x->insn;
+>  }
+> +static inline unsigned int
+> +ex_class(const struct exception_table_entry *x)
+> +{
+> +	return (unsigned int)x->fixup & 0xC0000000;
+> +}
+> +
+>  static inline unsigned long
+>  ex_fixup_addr(const struct exception_table_entry *x)
+>  {
+> -	return (unsigned long)&x->fixup + x->fixup;
+> +	long offset = (long)((u32)x->fixup & 0x3fffffff) - (long)0x20000000;
+
+So basically:
+
+	x->fixup & 0x1fffffff
+
+Why the explicit subtraction of bit 29?
+
+IOW, I was expecting something simpler for the whole scheme like:
+
+ex_class:
+
+	return x->fixup & 0xC0000000;
+
+ex_fixup_addr:
+
+	return x->fixup | 0xC0000000;
+
+Why can't it be done this way?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
