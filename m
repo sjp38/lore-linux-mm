@@ -1,99 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D29C6B0007
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 14:05:34 -0500 (EST)
-Received: by mail-oi0-f53.google.com with SMTP id y66so261001840oig.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:05:34 -0800 (PST)
-Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
-        by mx.google.com with ESMTPS id l10si81591oeu.78.2016.01.04.11.05.33
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 97F056B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 14:35:23 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id do7so1081615pab.2
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:35:23 -0800 (PST)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0083.outbound.protection.outlook.com. [157.56.112.83])
+        by mx.google.com with ESMTPS id f90si1871747pfd.25.2016.01.04.11.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 11:05:33 -0800 (PST)
-Received: by mail-ob0-x22b.google.com with SMTP id bx1so229424769obb.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:05:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 Jan 2016 11:35:22 -0800 (PST)
+From: Chris Metcalf <cmetcalf@ezchip.com>
+Subject: [PATCH v9 03/13] lru_add_drain_all: factor out lru_add_drain_needed
+Date: Mon, 4 Jan 2016 14:34:41 -0500
+Message-ID: <1451936091-29247-4-git-send-email-cmetcalf@ezchip.com>
+In-Reply-To: <1451936091-29247-1-git-send-email-cmetcalf@ezchip.com>
+References: <1451936091-29247-1-git-send-email-cmetcalf@ezchip.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+8MBbJwsXoUQQc=N33pYJUR0xf7CmtgJ3kZTjN984sWLvQQfg@mail.gmail.com>
-References: <cover.1451869360.git.tony.luck@intel.com> <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
- <20160104120751.GG22941@pd.tnic> <CA+8MBbKZ6VfN9t5-dYNHhZVU0k2HEr+E7Un0y2gtsxE0sDgoHQ@mail.gmail.com>
- <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com> <CA+8MBbJwsXoUQQc=N33pYJUR0xf7CmtgJ3kZTjN984sWLvQQfg@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 4 Jan 2016 11:05:14 -0800
-Message-ID: <CALCETrXeYfERb6hUPmJnj=5KL7ffOjKgVO9cS_4eO+eUp8fx0w@mail.gmail.com>
-Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a bit)
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
+ Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@ezchip.com>
 
-On Mon, Jan 4, 2016 at 10:59 AM, Tony Luck <tony.luck@gmail.com> wrote:
->> ----- begin comment -----
->>
->> The offset to the fixup is signed, and we're trying to use the high
->> bits for a different purpose.  In C, we could just do:
->>
->> u32 class_and_offset = ((target - here) & 0x3fffffff) | class;
->>
->> Then, to decode it, we'd mask off the class and sign-extend to recover
->> the offset.
->>
->> In asm, we can't do that, because this all gets laundered through the
->> linker, and there's no relocation type that supports this chicanery.
->> Instead we cheat a bit.  We first add a large number to the offset
->> (0x20000000).  The result is still nominally signed, but now it's
->> always positive, and the two high bits are always clear.  We can then
->> set high bits by ordinary addition or subtraction instead of using
->> bitwise operations.  As far as the linker is concerned, all we're
->> doing is adding a large constant to the difference between here (".")
->> and the target, and that's a valid relocation type.
->>
->> In the C code, we just mask off the class bits and subtract 0x20000000
->> to get the offset.
->>
->> ----- end comment -----
->
-> But presumably those constants get folded together, so the linker
-> is dealing with only one offset.  It doesn't (I assume) know that our
-> source code added 0x20000000 and then added/subtracted some
-> more.
+This per-cpu check was being done in the loop in lru_add_drain_all(),
+but having it be callable for a particular cpu is helpful for the
+task-isolation patches.
 
-Yes, indeed.
+Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
+---
+ include/linux/swap.h |  1 +
+ mm/swap.c            | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 4 deletions(-)
 
->
-> It looks like we could just use:
-> class0: +0x40000000
-> class1: +0x80000000 (or subtract ... whatever doesn't make the linker cranky)
-> class2: -0x40000000
-> class3: don't add/subtract anything
->
-> ex_class() stays the same (just looks at bit31/bit30)
-> ex_fixup_addr() has to use ex_class() to decide what to add/subtract
-> (if anything).
->
-> Would that work?  Would it be more or less confusing?
-
-That probably works, but to me, at least, it's a bit more confusing.
-It also means that you need a table or some branches to compute the
-offset, whereas the "mask top two bits and add a constant" approach is
-straightforward, short, and fast.
-
-Also, I'm not 100% convinced that the 0x80000000 case can ever work
-reliably.  I don't know exactly what the condition that triggers the
-warning is, but the logical one would be to warn if the actual offset
-plus or minus the addend, as appropriate, overflows in a signed sense.
-Whether it overflows depends on the sign of the offset, and *that*
-depends on the actual layout of all the sections.
-
-Mine avoids this issue by being shifted by 0x20000000, so nothing ends
-up right on the edge.
-
---Andy
-
-
-
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7ba7dccaf0e7..66719610c9f5 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -305,6 +305,7 @@ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
++extern bool lru_add_drain_needed(int cpu);
+ extern void lru_add_drain_all(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
+diff --git a/mm/swap.c b/mm/swap.c
+index 39395fb549c0..ce1eb052a293 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -854,6 +854,14 @@ void deactivate_file_page(struct page *page)
+ 	}
+ }
+ 
++bool lru_add_drain_needed(int cpu)
++{
++	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
++		need_activate_page_drain(cpu));
++}
++
+ void lru_add_drain(void)
+ {
+ 	lru_add_drain_cpu(get_cpu());
+@@ -880,10 +888,7 @@ void lru_add_drain_all(void)
+ 	for_each_online_cpu(cpu) {
+ 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+ 
+-		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
+-		    need_activate_page_drain(cpu)) {
++		if (lru_add_drain_needed(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+ 			schedule_work_on(cpu, work);
+ 			cpumask_set_cpu(cpu, &has_work);
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
