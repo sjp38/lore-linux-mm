@@ -1,249 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA5E6B0009
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:26:58 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id yy13so96233082pab.3
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:26:58 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id uv10si27852624pac.62.2016.01.03.17.26.57
-        for <linux-mm@kvack.org>;
-        Sun, 03 Jan 2016 17:26:58 -0800 (PST)
-Message-Id: <794fcac5818fa07f707b04aa541b061d57b07bf7.1451869360.git.tony.luck@intel.com>
-In-Reply-To: <cover.1451869360.git.tony.luck@intel.com>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 685606B0007
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2016 20:37:08 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id b14so164414158wmb.1
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:37:08 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id ww6si142000163wjb.205.2016.01.03.17.37.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 03 Jan 2016 17:37:07 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id f206so193193700wmf.0
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2016 17:37:07 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
 References: <cover.1451869360.git.tony.luck@intel.com>
-From: Tony Luck <tony.luck@intel.com>
-Date: Thu, 31 Dec 2015 11:43:43 -0800
-Subject: [PATCH v6 4/4] x86, mce: Add __mcsafe_copy()
+	<968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
+Date: Sun, 3 Jan 2016 17:37:07 -0800
+Message-ID: <CA+8MBbKuOHHwYeFHFePAts=DE=iR4aQUcfjDzGEg7u5ihTDmLg@mail.gmail.com>
+Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a bit)
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
 
-Make use of the EXTABLE_FAULT exception table entries. This routine
-returns a structure to indicate the result of the copy:
+On Wed, Dec 30, 2015 at 9:59 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> This adds two bits of fixup class information to a fixup entry,
+> generalizing the uaccess_err hack currently in place.
+>
+> Forward-ported-from-3.9-by: Tony Luck <tony.luck@intel.com>
+> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
 
-struct mcsafe_ret {
-	u64 trapnr;
-	u64 remain;
-};
+Crivens!  I messed up when "git cherrypick"ing this and "git
+format-patch"ing it.
 
-If the copy is successful, then both 'trapnr' and 'remain' are zero.
+I didn't mean to forge Andy's From line when sending this out (just to have a
+From: line to give him credit.for the patch).
 
-If we faulted during the copy, then 'trapnr' will say which type
-of trap (X86_TRAP_PF or X86_TRAP_MC) and 'remain' says how many
-bytes were not copied.
+Big OOPs ... this is "From:" me ... not Andy!
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
----
- arch/x86/Kconfig                 |  10 +++
- arch/x86/include/asm/string_64.h |  10 +++
- arch/x86/kernel/x8664_ksyms_64.c |   4 ++
- arch/x86/lib/memcpy_64.S         | 136 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 160 insertions(+)
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 96d058a87100..42d26b4d1ec4 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1001,6 +1001,16 @@ config X86_MCE_INJECT
- 	  If you don't know what a machine check is and you don't do kernel
- 	  QA it is safe to say n.
- 
-+config MCE_KERNEL_RECOVERY
-+	bool "Recovery from machine checks in special kernel memory copy functions"
-+	default n
-+	depends on X86_MCE && X86_64
-+	---help---
-+	  This option provides a new memory copy function mcsafe_memcpy()
-+	  that is annotated to allow the machine check handler to return
-+	  to an alternate code path to return an error to the caller instead
-+	  of crashing the system. Say yes if you have a driver that uses this.
-+
- config X86_THERMAL_VECTOR
- 	def_bool y
- 	depends on X86_MCE_INTEL
-diff --git a/arch/x86/include/asm/string_64.h b/arch/x86/include/asm/string_64.h
-index ff8b9a17dc4b..3887f304d8cd 100644
---- a/arch/x86/include/asm/string_64.h
-+++ b/arch/x86/include/asm/string_64.h
-@@ -78,6 +78,16 @@ int strcmp(const char *cs, const char *ct);
- #define memset(s, c, n) __memset(s, c, n)
- #endif
- 
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+struct mcsafe_ret {
-+	u64 trapnr;
-+	u64 remain;
-+};
-+
-+struct mcsafe_ret __mcsafe_copy(void *dst, const void __user *src, unsigned size);
-+extern void __mcsafe_copy_end(void);
-+#endif
-+
- #endif /* __KERNEL__ */
- 
- #endif /* _ASM_X86_STRING_64_H */
-diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
-index a0695be19864..3d42d0ef3333 100644
---- a/arch/x86/kernel/x8664_ksyms_64.c
-+++ b/arch/x86/kernel/x8664_ksyms_64.c
-@@ -37,6 +37,10 @@ EXPORT_SYMBOL(__copy_user_nocache);
- EXPORT_SYMBOL(_copy_from_user);
- EXPORT_SYMBOL(_copy_to_user);
- 
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+EXPORT_SYMBOL(__mcsafe_copy);
-+#endif
-+
- EXPORT_SYMBOL(copy_page);
- EXPORT_SYMBOL(clear_page);
- 
-diff --git a/arch/x86/lib/memcpy_64.S b/arch/x86/lib/memcpy_64.S
-index 16698bba87de..e5b1acad8b1e 100644
---- a/arch/x86/lib/memcpy_64.S
-+++ b/arch/x86/lib/memcpy_64.S
-@@ -177,3 +177,139 @@ ENTRY(memcpy_orig)
- .Lend:
- 	retq
- ENDPROC(memcpy_orig)
-+
-+#ifdef CONFIG_MCE_KERNEL_RECOVERY
-+/*
-+ * __mcsafe_copy - memory copy with machine check exception handling
-+ * Note that we only catch machine checks when reading the source addresses.
-+ * Writes to target are posted and don't generate machine checks.
-+ */
-+ENTRY(__mcsafe_copy)
-+	cmpl $8,%edx
-+	jb 20f		/* less then 8 bytes, go to byte copy loop */
-+
-+	/* check for bad alignment of source */
-+	movl %esi,%ecx
-+	andl $7,%ecx
-+	jz 102f				/* already aligned */
-+	subl $8,%ecx
-+	negl %ecx
-+	subl %ecx,%edx
-+0:	movb (%rsi),%al
-+	movb %al,(%rdi)
-+	incq %rsi
-+	incq %rdi
-+	decl %ecx
-+	jnz 0b
-+102:
-+	movl %edx,%ecx
-+	andl $63,%edx
-+	shrl $6,%ecx
-+	jz 17f
-+1:	movq (%rsi),%r8
-+2:	movq 1*8(%rsi),%r9
-+3:	movq 2*8(%rsi),%r10
-+4:	movq 3*8(%rsi),%r11
-+	mov %r8,(%rdi)
-+	mov %r9,1*8(%rdi)
-+	mov %r10,2*8(%rdi)
-+	mov %r11,3*8(%rdi)
-+9:	movq 4*8(%rsi),%r8
-+10:	movq 5*8(%rsi),%r9
-+11:	movq 6*8(%rsi),%r10
-+12:	movq 7*8(%rsi),%r11
-+	mov %r8,4*8(%rdi)
-+	mov %r9,5*8(%rdi)
-+	mov %r10,6*8(%rdi)
-+	mov %r11,7*8(%rdi)
-+	leaq 64(%rsi),%rsi
-+	leaq 64(%rdi),%rdi
-+	decl %ecx
-+	jnz 1b
-+17:	movl %edx,%ecx
-+	andl $7,%edx
-+	shrl $3,%ecx
-+	jz 20f
-+18:	movq (%rsi),%r8
-+	mov %r8,(%rdi)
-+	leaq 8(%rsi),%rsi
-+	leaq 8(%rdi),%rdi
-+	decl %ecx
-+	jnz 18b
-+20:	andl %edx,%edx
-+	jz 23f
-+	movl %edx,%ecx
-+21:	movb (%rsi),%al
-+	movb %al,(%rdi)
-+	incq %rsi
-+	incq %rdi
-+	decl %ecx
-+	jnz 21b
-+23:	xorq %rax, %rax
-+	xorq %rdx, %rdx
-+	sfence
-+	/* copy successful. return 0 */
-+	ret
-+
-+	.section .fixup,"ax"
-+	/* fixups for machine check */
-+30:
-+	add %ecx,%edx
-+	jmp 100f
-+31:
-+	shl $6,%ecx
-+	add %ecx,%edx
-+	jmp 100f
-+32:
-+	shl $6,%ecx
-+	lea -8(%ecx,%edx),%edx
-+	jmp 100f
-+33:
-+	shl $6,%ecx
-+	lea -16(%ecx,%edx),%edx
-+	jmp 100f
-+34:
-+	shl $6,%ecx
-+	lea -24(%ecx,%edx),%edx
-+	jmp 100f
-+35:
-+	shl $6,%ecx
-+	lea -32(%ecx,%edx),%edx
-+	jmp 100f
-+36:
-+	shl $6,%ecx
-+	lea -40(%ecx,%edx),%edx
-+	jmp 100f
-+37:
-+	shl $6,%ecx
-+	lea -48(%ecx,%edx),%edx
-+	jmp 100f
-+38:
-+	shl $6,%ecx
-+	lea -56(%ecx,%edx),%edx
-+	jmp 100f
-+39:
-+	lea (%rdx,%rcx,8),%rdx
-+	jmp 100f
-+40:
-+	mov %ecx,%edx
-+100:
-+	sfence
-+
-+	/* %rax set the fault number in fixup_exception() */
-+	ret
-+	.previous
-+
-+	_ASM_EXTABLE_FAULT(0b,30b)
-+	_ASM_EXTABLE_FAULT(1b,31b)
-+	_ASM_EXTABLE_FAULT(2b,32b)
-+	_ASM_EXTABLE_FAULT(3b,33b)
-+	_ASM_EXTABLE_FAULT(4b,34b)
-+	_ASM_EXTABLE_FAULT(9b,35b)
-+	_ASM_EXTABLE_FAULT(10b,36b)
-+	_ASM_EXTABLE_FAULT(11b,37b)
-+	_ASM_EXTABLE_FAULT(12b,38b)
-+	_ASM_EXTABLE_FAULT(18b,39b)
-+	_ASM_EXTABLE_FAULT(21b,40b)
-+ENDPROC(__mcsafe_copy)
-+#endif
--- 
-2.1.4
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
