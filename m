@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D35036B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:44:02 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id f206so216576368wmf.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:44:02 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C8D8B6B0006
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:44:45 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id b14so187863994wmb.1
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:44:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i1si114301663wjq.10.2016.01.04.06.44.01
+        by mx.google.com with ESMTPS id 71si67589717wmk.60.2016.01.04.06.44.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 Jan 2016 06:44:01 -0800 (PST)
+        Mon, 04 Jan 2016 06:44:44 -0800 (PST)
 Subject: Re: [RFC contig pages support 1/2] IB: Supports contiguous memory
  operations
 References: <1449587707-24214-1-git-send-email-yishaih@mellanox.com>
@@ -21,8 +21,8 @@ References: <1449587707-24214-1-git-send-email-yishaih@mellanox.com>
  <56796538.9040906@suse.cz>
  <AM4PR05MB14603CF21CB493086BDEE026DCE60@AM4PR05MB1460.eurprd05.prod.outlook.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <568A852F.6080806@suse.cz>
-Date: Mon, 4 Jan 2016 15:43:59 +0100
+Message-ID: <568A855B.7060509@suse.cz>
+Date: Mon, 4 Jan 2016 15:44:43 +0100
 MIME-Version: 1.0
 In-Reply-To: <AM4PR05MB14603CF21CB493086BDEE026DCE60@AM4PR05MB1460.eurprd05.prod.outlook.com>
 Content-Type: text/plain; charset=windows-1252; format=flowed
@@ -30,7 +30,9 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shachar Raindel <raindel@mellanox.com>, Christoph Hellwig <hch@infradead.org>
-Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Yishai Hadas <yishaih@mellanox.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Or Gerlitz <ogerlitz@mellanox.com>, Tal Alon <talal@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Yishai Hadas <yishaih@mellanox.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Or Gerlitz <ogerlitz@mellanox.com>, Tal Alon <talal@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
+
+[Sorry for resending, forgot to CC Minchan]
 
 On 12/23/2015 05:30 PM, Shachar Raindel wrote:
  >>>
