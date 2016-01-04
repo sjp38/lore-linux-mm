@@ -1,150 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E546B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:11:34 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id f206so141708389wmf.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:11:34 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id q3si71301382wmb.104.2016.01.04.06.11.33
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DC346B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 09:28:21 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id ik10so75538648igb.1
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:28:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id qo6si37753278igb.84.2016.01.04.06.28.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 06:11:33 -0800 (PST)
-Received: by mail-wm0-x234.google.com with SMTP id f206so141707635wmf.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 06:11:33 -0800 (PST)
-Date: Mon, 4 Jan 2016 16:11:30 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, RESEND] ipc/shm: handle removed segments gracefully in
- shm_mmap()
-Message-ID: <20160104141130.GA13515@node.shutemov.name>
-References: <1447232220-36879-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151111170347.GA3502@linux-uzut.site>
- <20151111195023.GA17310@node.shutemov.name>
- <20151113053137.GB3502@linux-uzut.site>
- <20151113091259.GB28904@node.shutemov.name>
- <20151113192310.GC3502@linux-uzut.site>
- <5687B843.2040804@colorfullife.com>
+        Mon, 04 Jan 2016 06:28:20 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH v2] memory-hotplug: add automatic onlining policy for the newly added memory
+References: <1450801950-7744-1-git-send-email-vkuznets@redhat.com>
+	<568A560A.80906@citrix.com>
+Date: Mon, 04 Jan 2016 15:28:12 +0100
+In-Reply-To: <568A560A.80906@citrix.com> (David Vrabel's message of "Mon, 4
+	Jan 2016 11:22:50 +0000")
+Message-ID: <871t9xto5f.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5687B843.2040804@colorfullife.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <dave@stgolabs.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Vyukov <dvyukov@google.com>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Sat, Jan 02, 2016 at 12:45:07PM +0100, Manfred Spraul wrote:
-> On 11/13/2015 08:23 PM, Davidlohr Bueso wrote:
-> >
-> >So considering EINVAL, even your approach to bumping up nattach by calling
-> >_shm_open earlier isn't enough. Races exposed to user called rmid can
-> >still
-> >occur between dropping the lock and doing ->mmap(). Ultimately this leads
-> >to
-> >all ipc_valid_object() checks, as we totally ignore SHM_DEST segments
-> >nowadays
-> >since we forbid mapping previously removed segments.
-> >
-> >I think this is the first thing we must decide before going forward with
-> >this
-> >mess. ipc currently defines invalid objects by merely checking the deleted
-> >flag.
-> >
-> >Manfred, any thoughts?
-> >
-> With regards to locking: Sorry, shm is too different to msg/sem/mqueue.
-> 
-> With regards to EIDRM / EINVAL:
-> When all kernel memory was released, then the kernel cannot find out if the
-> ID was valid at one time or not.
-> Thus EIDRM can only be a hint, the OS (kernel/libc) cannot guarantee that
-> user space will never see something else.
-> (trivial example: user space sleeps just before the syscall)
-> 
-> So I would not create special code to optimize EIDRM handling for races. If
-> we sometimes report EINVAL, it would be probably ok as well.
+David Vrabel <david.vrabel@citrix.com> writes:
 
-Guys, here's yet another attempt to fix the issue.
+> On 22/12/15 16:32, Vitaly Kuznetsov wrote:
+>> @@ -1292,6 +1304,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
+>>  	/* create new memmap entry */
+>>  	firmware_map_add_hotplug(start, start + size, "System RAM");
+>>  
+>> +	/* online pages if requested */
+>> +	if (online)
+>> +		online_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+>> +			     MMOP_ONLINE_KEEP);
+>
+> This will cause the Xen balloon driver to deadlock because it calls
+> add_memory_resource() with the balloon_mutex locked and the online page
+> callback also locks the balloon_mutex.
 
-The key idea this time is to use shm_ids(ns).rwsem taken for read in shm_mmap()
-to prevent rmid under us.
+Currently xen ballon driver always calls add_memory_resource() with
+online=false so this won't happen.
 
-Any problem with this?
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index ed3027d0f277..b306fb3d9586 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -156,11 +156,12 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
- 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
- 
- 	/*
--	 * We raced in the idr lookup or with shm_destroy().  Either way, the
--	 * ID is busted.
-+	 * Callers of shm_lock() must validate the status of the returned ipc
-+	 * object pointer (as returned by ipc_lock()), and error out as
-+	 * appropriate.
- 	 */
--	WARN_ON(IS_ERR(ipcp));
--
-+	if (IS_ERR(ipcp))
-+		return (void *)ipcp;
- 	return container_of(ipcp, struct shmid_kernel, shm_perm);
- }
- 
-@@ -194,6 +195,14 @@ static void shm_open(struct vm_area_struct *vma)
- 	struct shmid_kernel *shp;
- 
- 	shp = shm_lock(sfd->ns, sfd->id);
-+
-+	/*
-+	 * We raced in the idr lookup or with shm_destroy().
-+	 * Either way, the ID is busted.
-+	 */
-+	if (WARN_ON(IS_ERR(shp)))
-+		return ;
-+
- 	shp->shm_atim = get_seconds();
- 	shp->shm_lprid = task_tgid_vnr(current);
- 	shp->shm_nattch++;
-@@ -386,18 +395,34 @@ static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
- static int shm_mmap(struct file *file, struct vm_area_struct *vma)
- {
- 	struct shm_file_data *sfd = shm_file_data(file);
-+	struct shmid_kernel *shp;
- 	int ret;
- 
-+	/* Prevent rmid under us */
-+	down_read(&shm_ids(sfd->ns).rwsem);
-+
-+	/* Check if we can map the segment */
-+	shp = shm_lock(sfd->ns, sfd->id);
-+	if (IS_ERR(shp)) {
-+		ret = PTR_ERR(shp);
-+		goto out;
-+	}
-+	ret = shp->shm_perm.mode & SHM_DEST ? -EINVAL : 0;
-+	shm_unlock(shp);
-+	if (ret)
-+		goto out;
-+
- 	ret = sfd->file->f_op->mmap(sfd->file, vma);
- 	if (ret != 0)
--		return ret;
-+		goto out;
- 	sfd->vm_ops = vma->vm_ops;
- #ifdef CONFIG_MMU
- 	WARN_ON(!sfd->vm_ops->fault);
- #endif
- 	vma->vm_ops = &shm_vm_ops;
- 	shm_open(vma);
--
-+out:
-+	up_read(&shm_ids(sfd->ns).rwsem);
- 	return ret;
- }
- 
 -- 
- Kirill A. Shutemov
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
