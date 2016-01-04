@@ -1,48 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0890F6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 14:46:25 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id ph11so765541igc.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 11:46:25 -0800 (PST)
-Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
-        by mx.google.com with ESMTPS id m81si29172438iom.134.2016.01.04.11.46.24
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 88CD96B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 15:30:45 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id f206so4670071wmf.0
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 12:30:45 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id b6si446930wma.49.2016.01.04.12.30.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 11:46:24 -0800 (PST)
-Message-ID: <1451936749.19330.22.camel@hpe.com>
-Subject: Re: [PATCH v2 14/16] x86, nvdimm, kexec: Use walk_iomem_res_desc()
- for iomem search
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 04 Jan 2016 12:45:49 -0700
-In-Reply-To: <20160104194059.GM22941@pd.tnic>
-References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
-	 <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
-	 <20151226103804.GB21988@pd.tnic> <567F315B.8080005@hpe.com>
-	 <20151227021257.GA13560@dhcp-128-25.nay.redhat.com>
-	 <20151227102406.GB19398@nazgul.tnic>
-	 <20160104092937.GB7033@dhcp-128-65.nay.redhat.com>
-	 <20160104122619.GH22941@pd.tnic> <1451930260.19330.21.camel@hpe.com>
-	 <20160104194059.GM22941@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 04 Jan 2016 12:30:44 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id f206so357104wmf.2
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 12:30:44 -0800 (PST)
+Date: Mon, 4 Jan 2016 22:30:42 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/8] mm: Add optional support for PUD-sized transparent
+ hugepages
+Message-ID: <20160104203041.GB13515@node.shutemov.name>
+References: <1450974037-24775-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1450974037-24775-2-git-send-email-matthew.r.wilcox@intel.com>
+ <20151228100551.GA4589@node.shutemov.name>
+ <20160102170638.GL2457@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160102170638.GL2457@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Dave Young <dyoung@redhat.com>, Minfei Huang <mhuang@redhat.com>, linux-arch@vger.kernel.org, linux-nvdimm@ml01.01.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Mon, 2016-01-04 at 20:41 +0100, Borislav Petkov wrote:
-> On Mon, Jan 04, 2016 at 10:57:40AM -0700, Toshi Kani wrote:
-> > With this change, there will be no caller to walk_iomem_res().  Should 
-> > we remove walk_iomem_res() altogether, or keep it for now as a 
-> > deprecated func with the checkpatch check?
+On Sat, Jan 02, 2016 at 12:06:38PM -0500, Matthew Wilcox wrote:
+> On Mon, Dec 28, 2015 at 12:05:51PM +0200, Kirill A. Shutemov wrote:
+> > On Thu, Dec 24, 2015 at 11:20:30AM -0500, Matthew Wilcox wrote:
+> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > > index 4bf3811..e14634f 100644
+> > > --- a/include/linux/mm.h
+> > > +++ b/include/linux/mm.h
+> > > @@ -1958,6 +1977,17 @@ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
+> > >  	return ptl;
+> > >  }
+> > >  
+> > > +/*
+> > > + * No scalability reason to split PUD locks yet, but follow the same pattern
+> > > + * as the PMD locks to make it easier if we have to.
+> > > + */
+> > 
+> > I don't think it makes any good unless you convert all other places where
+> > we use page_table_lock to protect pud table (like __pud_alloc()) to the
+> > same API.
+> > I think this would deserve separate patch.
 > 
-> Yes, kill it on the spot so that people don't get crazy ideas.
+> Sure, a separate patch to convert existing users of the PTL.  But I
+> don't think it does any harm to introduce the PUD version of the PMD API.
+> Maybe with a comment indicating that tere is significant work to be done
+> in converting existing users to this API?
 
-Will do.  
+I think that's fine with the fat comment around pud_lock() definition.
+ 
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index 416b129..7328df0 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -1220,9 +1220,27 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+> > >  	pud = pud_offset(pgd, addr);
+> > >  	do {
+> > >  		next = pud_addr_end(addr, end);
+> > > +		if (pud_trans_huge(*pud) || pud_devmap(*pud)) {
+> > > +			if (next - addr != HPAGE_PUD_SIZE) {
+> > > +#ifdef CONFIG_DEBUG_VM
+> > 
+> > IS_ENABLED(CONFIG_DEBUG_VM) ?
+> > 
+> > > +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+> > > +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
+> > > +						__func__, addr, end,
+> > > +						vma->vm_start,
+> > > +						vma->vm_end);
+> > 
+> > dump_vma(), I guess.
+> 
+> These two issues are copy-and-paste from the existing PMD code.  I'm happy
+> to update the PMD code to the new-and-improved way of doing things;
+> I'm just not keen to have the PMD and PUD code diverge unnecessarily.
 
-Thanks!
--Toshi
+Yes, please update PMD too. It looks ugly. VM_BUG_ON_VMA() is probably
+right way to deal with this.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
