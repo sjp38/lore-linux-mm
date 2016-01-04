@@ -1,64 +1,53 @@
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: [4.4-rc7] spinlock recursion while oom'ing.
-Date: Sun, 3 Jan 2016 17:27:28 -0500
-Message-ID: <20160103222728.GA11973@codemonkey.org.uk>
+From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
+Subject: Re: [PATCH v2 14/16] x86, nvdimm, kexec: Use walk_iomem_res_desc()
+ for iomem search
+Date: Mon, 4 Jan 2016 13:26:20 +0100
+Message-ID: <20160104122619.GH22941@pd.tnic>
+References: <1451081365-15190-1-git-send-email-toshi.kani@hpe.com>
+ <1451081365-15190-14-git-send-email-toshi.kani@hpe.com>
+ <20151226103804.GB21988@pd.tnic> <567F315B.8080005@hpe.com>
+ <20151227021257.GA13560@dhcp-128-25.nay.redhat.com>
+ <20151227102406.GB19398@nazgul.tnic>
+ <20160104092937.GB7033@dhcp-128-65.nay.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <kexec-bounces+glkk-kexec=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
 Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+In-Reply-To: <20160104092937.GB7033-0VdLhd/A9Pl+NNSt+8eSiB/sF2h8X+2i0E9HWUfgJXw@public.gmane.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/kexec>,
+ <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/kexec/>
+List-Post: <mailto:kexec-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+List-Help: <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/kexec>,
+ <mailto:kexec-request-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org?subject=subscribe>
+Sender: "kexec" <kexec-bounces-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>
+Errors-To: kexec-bounces+glkk-kexec=m.gmane.org-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org
+To: Dave Young <dyoung-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>
+Cc: linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Toshi Kani <toshi.kani-ZPxbGqLxI0U@public.gmane.org>, Minfei Huang <mhuang-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, linux-nvdimm-y27Ovi1pjclAfugRpC6u6w@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, kexec-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, Dan Williams <dan.j.williams-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-This is an odd one..
+On Mon, Jan 04, 2016 at 05:29:37PM +0800, Dave Young wrote:
+> Replied to Toshi old kernel will export the "GART" region for amd cards.
+> So for old kernel and new kexec-tools we will have problem.
+> 
+> I think add the GART desc for compitibility purpose is doable, no?
 
-Out of memory: Kill process 5861 (trinity-c10) score 504 or sacrifice child
-BUG: spinlock recursion on CPU#1, trinity-c8/8828
- lock: 0xffff8800a3635410, .magic: dead4ead, .owner: trinity-c8/8828, .owner_cpu: 1
-CPU: 1 PID: 8828 Comm: trinity-c8 Not tainted 4.4.0-rc7-gelk-debug+ #3 
- 00000000000001f8 ffff8800968d7808 ffffffff9a4d4451 ffff8800a3635410
- ffff8800968d7838 ffffffff9a117b36 ffff8800a3635410 ffff8800a3635420
- ffff8800a3635410 ffff8800a3635398 ffff8800968d7870 ffffffff9a117d63
-Call Trace:
- [<ffffffff9a4d4451>] dump_stack+0x4e/0x7d
- [<ffffffff9a117b36>] spin_dump+0xc6/0x130
- [<ffffffff9a117d63>] do_raw_spin_lock+0x163/0x1a0
- [<ffffffff9aae15ef>] _raw_spin_lock+0x1f/0x30
- [<ffffffff9a2271cb>] find_lock_task_mm+0x5b/0xd0
- [<ffffffff9a227cc0>] oom_kill_process+0x2a0/0x660
- [<ffffffff9a22855d>] out_of_memory+0x45d/0x4b0
- [<ffffffff9a228100>] ? check_panic_on_oom+0x80/0x80
- [<ffffffff9a22f4af>] ? __alloc_pages_direct_compact+0x7f/0x160
- [<ffffffff9a2302d0>] __alloc_pages_nodemask+0xd40/0xe80
- [<ffffffff9a0a2ae9>] ? copy_process+0x1d9/0x2ab0
- [<ffffffff9a22f590>] ? __alloc_pages_direct_compact+0x160/0x160
- [<ffffffff9a294700>] ? print_section+0x50/0x60
- [<ffffffff9a0deff1>] ? preempt_count_sub+0xc1/0x120
- [<ffffffff9aada916>] ? preempt_schedule_irq+0x86/0xb0
- [<ffffffff9aae28bd>] ? retint_kernel+0x1b/0x1d
- [<ffffffff9a2973f3>] ? deactivate_slab+0x3a3/0x400
- [<ffffffff9aae1758>] ? _raw_spin_unlock+0x18/0x30
- [<ffffffff9a297be5>] ? __slab_alloc.isra.62.constprop.64+0x45/0x50
- [<ffffffff9a29c00e>] ? kasan_kmalloc+0x5e/0x70
- [<ffffffff9a29c2ed>] ? kasan_slab_alloc+0xd/0x10
- [<ffffffff9a297ce1>] ? kmem_cache_alloc+0xf1/0x200
- [<ffffffff9a230505>] alloc_kmem_pages_node+0x25/0x30
- [<ffffffff9a0a2b07>] copy_process+0x1f7/0x2ab0
- [<ffffffff9a0def4a>] ? preempt_count_sub+0x1a/0x120
- [<ffffffff9aae1758>] ? _raw_spin_unlock+0x18/0x30
- [<ffffffff9a4f0d32>] ? iov_iter_init+0x82/0xc0
- [<ffffffff9a141d82>] ? jiffies_to_timeval+0x52/0x70
- [<ffffffff9a1ab530>] ? taskstats_exit+0x5a0/0x5a0
- [<ffffffff9a0f1b4f>] ? sched_clock_local+0x3f/0xb0
- [<ffffffff9a0a2910>] ? __cleanup_sighand+0x30/0x30
- [<ffffffff9a1abf40>] ? acct_account_cputime+0x40/0x50
- [<ffffffff9a0deff1>] ? preempt_count_sub+0xc1/0x120
- [<ffffffff9a0a5637>] _do_fork+0x107/0x510
- [<ffffffff9a0a5530>] ? fork_idle+0x130/0x130
- [<ffffffff9a002f20>] ? enter_from_user_mode+0x50/0x50
- [<ffffffff9a501f43>] ? __this_cpu_preempt_check+0x13/0x20
- [<ffffffff9a21ebc5>] ? __context_tracking_enter+0x95/0x140
- [<ffffffff9a1e2f20>] ? syscall_exit_register+0x310/0x310
- [<ffffffff9a0a5ae9>] SyS_clone+0x19/0x20
- [<ffffffff9aae1ef9>] tracesys_phase2+0x84/0x89
+Just read your other mails too. If I see it correctly, there's only one
+place which has "GART":
+
+$ git grep -e \"GART\"
+arch/x86/kernel/crash.c:235:    walk_iomem_res("GART", IORESOURCE_MEM, 0, -1,
+
+So crash.c only excludes this region but the kernel doesn't create it.
+Right?
+
+So we can kill that walk_iomem_res(), as you say. Which would be even
+nicer...
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
