@@ -1,62 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4351B6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:40:55 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id b14so19976968wmb.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:40:55 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C49536B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:44:24 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so20201885wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:44:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b133si4097196wmd.90.2016.01.05.01.40.54
+        by mx.google.com with ESMTPS id z187si4121397wmb.114.2016.01.05.01.44.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Jan 2016 01:40:54 -0800 (PST)
-Date: Tue, 5 Jan 2016 10:41:01 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v6 2/7] dax: support dirty DAX entries in radix tree
-Message-ID: <20160105094101.GB2724@quack.suse.cz>
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
- <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
+        Tue, 05 Jan 2016 01:44:23 -0800 (PST)
+Subject: Re: [PATCH 1/4] thp: add debugfs handle to split all huge pages
+References: <1450957883-96356-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1450957883-96356-2-git-send-email-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <568B9076.2060405@suse.cz>
+Date: Tue, 5 Jan 2016 10:44:22 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1450957883-96356-2-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
 
-On Wed 23-12-15 12:39:15, Ross Zwisler wrote:
-> Add support for tracking dirty DAX entries in the struct address_space
-> radix tree.  This tree is already used for dirty page writeback, and it
-> already supports the use of exceptional (non struct page*) entries.
-> 
-> In order to properly track dirty DAX pages we will insert new exceptional
-> entries into the radix tree that represent dirty DAX PTE or PMD pages.
-> These exceptional entries will also contain the writeback sectors for the
-> PTE or PMD faults that we can use at fsync/msync time.
-> 
-> There are currently two types of exceptional entries (shmem and shadow)
-> that can be placed into the radix tree, and this adds a third.  We rely on
-> the fact that only one type of exceptional entry can be found in a given
-> radix tree based on its usage.  This happens for free with DAX vs shmem but
-> we explicitly prevent shadow entries from being added to radix trees for
-> DAX mappings.
-> 
-> The only shadow entries that would be generated for DAX radix trees would
-> be to track zero page mappings that were created for holes.  These pages
-> would receive minimal benefit from having shadow entries, and the choice
-> to have only one type of exceptional entry in a given radix tree makes the
-> logic simpler both in clear_exceptional_entry() and in the rest of DAX.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On 12/24/2015 12:51 PM, Kirill A. Shutemov wrote:
+> Writing 1 into 'split_huge_pages' will try to find and split all huge
+> pages in the system. This is useful for debuging.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-The patch looks good to me. You can add:
+It's not very optimized pfn scanner, but that shouldn't matter. I have 
+but one suggestion and one fix below.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> ---
+>   mm/huge_memory.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>   1 file changed, 59 insertions(+)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index a880f9addba5..99f2a0ecb621 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -27,6 +27,7 @@
+>   #include <linux/userfaultfd_k.h>
+>   #include <linux/page_idle.h>
+>   #include <linux/swapops.h>
+> +#include <linux/debugfs.h>
+>
+>   #include <asm/tlb.h>
+>   #include <asm/pgalloc.h>
+> @@ -3535,3 +3536,61 @@ static struct shrinker deferred_split_shrinker = {
+>   	.scan_objects = deferred_split_scan,
+>   	.seeks = DEFAULT_SEEKS,
+>   };
+> +
+> +#ifdef CONFIG_DEBUG_FS
+> +static int split_huge_pages_set(void *data, u64 val)
+> +{
+> +	struct zone *zone;
+> +	struct page *page;
+> +	unsigned long pfn, max_zone_pfn;
+> +	unsigned long total = 0, split = 0;
+> +
+> +	if (val != 1)
+> +		return -EINVAL;
+> +
+> +	for_each_populated_zone(zone) {
+> +		max_zone_pfn = zone_end_pfn(zone);
+> +		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++) {
+> +			if (!pfn_valid(pfn))
+> +				continue;
+> +
+> +			page = pfn_to_page(pfn);
+> +			if (!get_page_unless_zero(page))
+> +				continue;
+> +
+> +			if (zone != page_zone(page))
+> +				goto next;
+
+I would do this check before get_page(...). Doesn't matter much, but 
+looks odd.
+
+> +
+> +			if (!PageHead(page) || !PageAnon(page) ||
+> +					PageHuge(page))
+> +				goto next;
+> +
+> +			total++;
+> +			lock_page(page);
+> +			if (!split_huge_page(page))
+> +				split++;
+> +			unlock_page(page);
+> +next:
+> +			put_page(page);
+> +		}
+> +	}
+> +
+> +	pr_info("%lu of %lu THP split", split, total);
+> +
+> +	return 0;
+> +}
+> +DEFINE_SIMPLE_ATTRIBUTE(split_huge_pages_fops, NULL, split_huge_pages_set,
+> +		"%llu\n");
+> +
+> +static int __init split_huge_pages_debugfs(void)
+> +{
+> +	void *ret;
+> +
+> +	ret = debugfs_create_file("split_huge_pages", 0644, NULL, NULL,
+> +			&split_huge_pages_fops);
+> +	if (!ret)
+> +		pr_warn("Failed to create fault_around_bytes in debugfs");
+
+s/fault_around_bytes/split_huge_pages/
+
+> +	return 0;
+> +}
+> +late_initcall(split_huge_pages_debugfs);
+> +#endif
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
