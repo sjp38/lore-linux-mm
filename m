@@ -1,133 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8115E6B0003
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 16:16:23 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id xn1so10648099obc.2
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 13:16:23 -0800 (PST)
-Received: from g2t2355.austin.hp.com (g2t2355.austin.hp.com. [15.217.128.54])
-        by mx.google.com with ESMTPS id eh3si31594614oeb.37.2016.01.05.13.16.22
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC4C6B0003
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 16:17:18 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id f206so48556589wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 13:17:18 -0800 (PST)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id b8si155015576wjx.62.2016.01.05.13.17.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 13:16:22 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v3 UPDATE 09/17] drivers: Initialize resource entry to zero
-Date: Tue,  5 Jan 2016 14:15:37 -0700
-Message-Id: <1452028537-27365-1-git-send-email-toshi.kani@hpe.com>
+        Tue, 05 Jan 2016 13:17:17 -0800 (PST)
+Received: by mail-wm0-x229.google.com with SMTP id l65so38081791wmf.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 13:17:17 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160105101017.GA14545@localhost.localdomain>
+References: <1451556549-8962-1-git-send-email-zhongjiang@huawei.com>
+	<20160105101017.GA14545@localhost.localdomain>
+Date: Wed, 6 Jan 2016 00:17:17 +0300
+Message-ID: <CAPAsAGwHyVDvaoNjVxZsjtVczWh7-+OQOxpFBLS+e961DBAzeQ@mail.gmail.com>
+Subject: Re: [PATCH] arm64: fix add kasan bug
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Porter <mporter@kernel.crashing.org>, Alexandre Bounine <alexandre.bounine@idt.com>, linux-acpi@vger.kernel.org, linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: zhongjiang <zhongjiang@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "long.wanglong@huawei.com" <long.wanglong@huawei.com>, Will Deacon <will.deacon@arm.com>
 
-I/O resource descriptor, 'desc' in struct resource, needs to be
-initialized to zero by default.  Some drivers call kmalloc() to
-allocate a resource entry, but does not initialize it to zero by
-memset().  Change these drivers to call kzalloc(), instead.
+2016-01-05 13:10 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+> On Thu, Dec 31, 2015 at 10:09:09AM +0000, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> In general, each process have 16kb stack space to use, but
+>> stack need extra space to store red_zone when kasan enable.
+>> the patch fix above question.
+>>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  arch/arm64/include/asm/thread_info.h | 15 +++++++++++++--
+>>  1 file changed, 13 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
+>> index 90c7ff2..45b5a7e 100644
+>> --- a/arch/arm64/include/asm/thread_info.h
+>> +++ b/arch/arm64/include/asm/thread_info.h
+> [...]
+>> +#ifdef CONFIG_KASAN
+>> +#define THREAD_SIZE          32768
+>> +#else
+>>  #define THREAD_SIZE          16384
+>> +#endif
+>
+> I'm not really keen on increasing the stack size to 32KB when KASan is
+> enabled (that's 8 4K pages). Have you actually seen a real problem with
+> the default size?
 
-Cc: Matt Porter <mporter@kernel.crashing.org>
-Cc: Alexandre Bounine <alexandre.bounine@idt.com>
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Acked-by: Simon Horman <horms+renesas@verge.net.au> # sh
-Acked-by: Helge Deller <deller@gmx.de> # parisc
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
----
-v3 UPDATE: Add cc to RAPIDIO maintainers that was missing.
----
- drivers/acpi/acpi_platform.c       |    2 +-
- drivers/parisc/eisa_enumerator.c   |    4 ++--
- drivers/rapidio/rio.c              |    8 ++++----
- drivers/sh/superhyway/superhyway.c |    2 +-
- 4 files changed, 8 insertions(+), 8 deletions(-)
+> How large is the red_zone?
+>
 
-diff --git a/drivers/acpi/acpi_platform.c b/drivers/acpi/acpi_platform.c
-index 296b7a1..b6f7fa3 100644
---- a/drivers/acpi/acpi_platform.c
-+++ b/drivers/acpi/acpi_platform.c
-@@ -62,7 +62,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
- 	if (count < 0) {
- 		return NULL;
- 	} else if (count > 0) {
--		resources = kmalloc(count * sizeof(struct resource),
-+		resources = kzalloc(count * sizeof(struct resource),
- 				    GFP_KERNEL);
- 		if (!resources) {
- 			dev_err(&adev->dev, "No memory for resources\n");
-diff --git a/drivers/parisc/eisa_enumerator.c b/drivers/parisc/eisa_enumerator.c
-index a656d9e..21905fe 100644
---- a/drivers/parisc/eisa_enumerator.c
-+++ b/drivers/parisc/eisa_enumerator.c
-@@ -91,7 +91,7 @@ static int configure_memory(const unsigned char *buf,
- 	for (i=0;i<HPEE_MEMORY_MAX_ENT;i++) {
- 		c = get_8(buf+len);
- 		
--		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			int result;
- 			
- 			res->name = name;
-@@ -183,7 +183,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
- 	for (i=0;i<HPEE_PORT_MAX_ENT;i++) {
- 		c = get_8(buf+len);
- 		
--		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			res->name = board;
- 			res->start = get_16(buf+len+1);
- 			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
-diff --git a/drivers/rapidio/rio.c b/drivers/rapidio/rio.c
-index d7b87c6..e220edc 100644
---- a/drivers/rapidio/rio.c
-+++ b/drivers/rapidio/rio.c
-@@ -117,7 +117,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_inb_mbox == NULL)
- 		goto out;
- 
--	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -185,7 +185,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_outb_mbox == NULL)
- 		goto out;
- 
--	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -285,7 +285,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
- {
- 	int rc = 0;
- 
--	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-@@ -360,7 +360,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
- struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
- 					u16 end)
- {
--	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-diff --git a/drivers/sh/superhyway/superhyway.c b/drivers/sh/superhyway/superhyway.c
-index 2d9e7f3..bb1fb771 100644
---- a/drivers/sh/superhyway/superhyway.c
-+++ b/drivers/sh/superhyway/superhyway.c
-@@ -66,7 +66,7 @@ int superhyway_add_device(unsigned long base, struct superhyway_device *sdev,
- 	superhyway_read_vcr(dev, base, &dev->vcr);
- 
- 	if (!dev->resource) {
--		dev->resource = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+		dev->resource = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 		if (!dev->resource) {
- 			kfree(dev);
- 			return -ENOMEM;
+Typical stack frame layout looks like this:
+    | 32-byte redzone | variable-1| padding-redzone to the next
+32-byte boundary| variable-2|padding |.... | 32-byte redzone|
+
+AFAIK gcc creates redzones  only if it can't prove that all accesses
+to variable are valid (e.g. reference to variable passed to external
+function).
+Besides redzones, stack could be increased due to additional spilling.
+Although arm64 should be less affected by this since it has more
+registers than x86_64.
+On x86_64 I've seen few bad cases where stack frame of a single
+function was bloated up to 6K.
+
+
+> With 4.5 we are going for separate IRQ stack on arm64, so the typical
+> stack overflow case no longer exists.
+>
+> --
+> Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
