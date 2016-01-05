@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB566B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:37:23 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id b14so19838006wmb.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:37:23 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4351B6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:40:55 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id b14so19976968wmb.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:40:55 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m189si350791wmb.98.2016.01.05.01.37.21
+        by mx.google.com with ESMTPS id b133si4097196wmd.90.2016.01.05.01.40.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Jan 2016 01:37:22 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm, thp: clear PG_mlocked when last mapping gone
-References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1451421990-32297-3-git-send-email-kirill.shutemov@linux.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <568B8ECE.7020605@suse.cz>
-Date: Tue, 5 Jan 2016 10:37:18 +0100
+        Tue, 05 Jan 2016 01:40:54 -0800 (PST)
+Date: Tue, 5 Jan 2016 10:41:01 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v6 2/7] dax: support dirty DAX entries in radix tree
+Message-ID: <20160105094101.GB2724@quack.suse.cz>
+References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1451421990-32297-3-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1450899560-26708-3-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On 12/29/2015 09:46 PM, Kirill A. Shutemov wrote:
-> I missed clear_page_mlock() in page_remove_anon_compound_rmap().
-> It usually shouldn't cause any problems since we munlock pages
-> explicitly, but in conjunction with missed munlock in __oom_reap_vmas()
-> it causes problems:
->   http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
->
-> Let's put it in place an mirror behaviour for small pages.
->
-> NOTE: I'm not entirely sure why we ever need clear_page_mlock() in
-> page_remove_rmap() codepath. It looks redundant to me as we munlock
-> pages anyway. But this is out of scope of the patch.
+On Wed 23-12-15 12:39:15, Ross Zwisler wrote:
+> Add support for tracking dirty DAX entries in the struct address_space
+> radix tree.  This tree is already used for dirty page writeback, and it
+> already supports the use of exceptional (non struct page*) entries.
+> 
+> In order to properly track dirty DAX pages we will insert new exceptional
+> entries into the radix tree that represent dirty DAX PTE or PMD pages.
+> These exceptional entries will also contain the writeback sectors for the
+> PTE or PMD faults that we can use at fsync/msync time.
+> 
+> There are currently two types of exceptional entries (shmem and shadow)
+> that can be placed into the radix tree, and this adds a third.  We rely on
+> the fact that only one type of exceptional entry can be found in a given
+> radix tree based on its usage.  This happens for free with DAX vs shmem but
+> we explicitly prevent shadow entries from being added to radix trees for
+> DAX mappings.
+> 
+> The only shadow entries that would be generated for DAX radix trees would
+> be to track zero page mappings that were created for holes.  These pages
+> would receive minimal benefit from having shadow entries, and the choice
+> to have only one type of exceptional entry in a given radix tree makes the
+> logic simpler both in clear_exceptional_entry() and in the rest of DAX.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Git blame actually quickly points to commit e6c509f854550 which explains 
-it :)
+The patch looks good to me. You can add:
 
->
-> The patch can be folded into
->   "thp: allow mlocked THP again"
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Ack.
-
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> ---
->   mm/rmap.c | 3 +++
->   1 file changed, 3 insertions(+)
->
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 384516fb7495..68af2e32f7ed 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1356,6 +1356,9 @@ static void page_remove_anon_compound_rmap(struct page *page)
->   		nr = HPAGE_PMD_NR;
->   	}
->
-> +	if (unlikely(PageMlocked(page)))
-> +		clear_page_mlock(page);
-> +
->   	if (nr) {
->   		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
->   		deferred_split_huge_page(page);
->
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
