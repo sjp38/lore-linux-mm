@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA6A6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:50:43 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id 78so224724013pfw.2
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:50:43 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id fk10si48971808pab.187.2016.01.05.07.50.42
-        for <linux-mm@kvack.org>;
-        Tue, 05 Jan 2016 07:50:42 -0800 (PST)
-Date: Tue, 5 Jan 2016 08:50:39 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v6 4/7] dax: add support for fsync/msync
-Message-ID: <20160105155039.GA6462@linux.intel.com>
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
- <1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
- <CAPcyv4jVJGPO8Yhz8WgSJTFw+o8=5n6yx17zchXA6C+wEKcajg@mail.gmail.com>
- <20160105111346.GC2724@quack.suse.cz>
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C5CF96B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:54:03 -0500 (EST)
+Received: by mail-io0-f169.google.com with SMTP id 1so143810485ion.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:54:03 -0800 (PST)
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com. [209.85.223.171])
+        by mx.google.com with ESMTPS id a28si4508130ioj.94.2016.01.05.07.54.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Jan 2016 07:54:03 -0800 (PST)
+Received: by mail-io0-f171.google.com with SMTP id 77so159702765ioc.2
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:54:03 -0800 (PST)
+Date: Tue, 5 Jan 2016 16:54:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Unrecoverable Out Of Memory kernel error
+Message-ID: <20160105155400.GC15594@dhcp22.suse.cz>
+References: <1451408582.2783.20.camel@libero.it>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160105111346.GC2724@quack.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1451408582.2783.20.camel@libero.it>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Guido Trentalancia <g.trentalancia@libero.it>
+Cc: linux-mm@kvack.org
 
-On Tue, Jan 05, 2016 at 12:13:46PM +0100, Jan Kara wrote:
-> On Sun 03-01-16 10:13:06, Dan Williams wrote:
-> > On Wed, Dec 23, 2015 at 11:39 AM, Ross Zwisler
-> > <ross.zwisler@linux.intel.com> wrote:
-> > > To properly handle fsync/msync in an efficient way DAX needs to track dirty
-> > > pages so it is able to flush them durably to media on demand.
-> > >
-> > > The tracking of dirty pages is done via the radix tree in struct
-> > > address_space.  This radix tree is already used by the page writeback
-> > > infrastructure for tracking dirty pages associated with an open file, and
-> > > it already has support for exceptional (non struct page*) entries.  We
-> > > build upon these features to add exceptional entries to the radix tree for
-> > > DAX dirty PMD or PTE pages at fault time.
-> > >
-> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > 
-> > I'm hitting the following report with the ndctl dax test [1] on
-> > next-20151231.  I bisected it to
-> >  commit 3cb108f941de "dax-add-support-for-fsync-sync-v6".  I'll take a
-> > closer look tomorrow, but in case someone can beat me to it, here's
-> > the back-trace:
-> > 
-> > ------------[ cut here ]------------
-> > kernel BUG at fs/inode.c:497!
+On Tue 29-12-15 18:03:02, Guido Trentalancia wrote:
+> Hello.
 > 
-> I suppose this is the check that mapping->nr_exceptional is zero, isn't it?
-> Hum, I don't see how that could happen given we call
-> truncate_inode_pages_final() just before the clear_inode() call which
-> removes all the exceptional entries from the radix tree.  And there's not
-> much room for a race during umount... Does the radix tree really contain
-> any entry or is it an accounting bug?
+> I am getting an unrecoverable Out Of Memory error on kernel 4.3.1,
+> while compiling Firefox 43.0.3. The system becomes unresponsive, the
+> hard-disk is continuously busy and a hard-reboot must be forced.
 > 
-> 								Honza
+> Here is the report from the kernel:
+[...]
+> Dec 29 12:28:25 vortex kernel: Mem-Info:
+> Dec 29 12:28:25 vortex kernel: active_anon:716916 inactive_anon:199483 isolated_anon:0
+> Dec 29 12:28:25 vortex kernel: active_file:3108 inactive_file:3160 isolated_file:32
+> Dec 29 12:28:25 vortex kernel: unevictable:4316 dirty:3173 writeback:55 unstable:0
+> Dec 29 12:28:25 vortex kernel: slab_reclaimable:16548 slab_unreclaimable:9058
+> Dec 29 12:28:25 vortex kernel: mapped:4037 shmem:13351 pagetables:6846 bounce:0
+> Dec 29 12:28:25 vortex kernel: free:7058 free_pcp:295 free_cma:0
+[...]
+> Dec 29 12:28:25 vortex kernel: Free swap  = 0kB
+> Dec 29 12:28:25 vortex kernel: Total swap = 16380kB
 
-I think this is a bug with the existing way that we handle PMD faults.  The
-issue is that the PMD path doesn't properly remove radix tree entries for zero
-pages covering holes.  The PMD path calls unmap_mapping_range() to unmap the
-range out of the struct address_space, but it is missing a call to
-truncate_inode_pages_range() or similar to clear out those entries in the
-radix tree.  Up until now we didn't notice, we just had an orphaned entry in
-the radix tree, but with my code we then find the page entry in the radix
-tree when handling a PMD fault, we remove it and add in a PMD entry.  This
-causes us to be off on both our mapping->nrpages and mapping->nrexceptional
-counts.	
+Your swap space is full and basically all the memory is eaten by the
+anonymous memory which cannot be reclaimed.
+[...]
+> Dec 29 12:28:25 vortex kernel: Killed process 10197 (cc1plus) total-vm:969632kB, anon-rss:809184kB, file-rss:9308kB
 
-In the PTE path we properly remove the pages from the radix tree when
-upgrading from a hole to a real DAX entry via the delete_from_page_cache()
-call, which eventually calls page_cache_tree_delete().
+This task is consuming a lot of memory so killing it should help to
+release the memory pressure. It would be interesting to see whether the
+task has died or not. Are there any follow up messages in the log?
+Maybe the target task is stuck behind some lock which is blocked because
+of a memory allocation. We have seen deadlocks like that in the past.
+The current linux-next has some measures to reduce the probability of
+such a deadlock so you might give it a try. Especially if this is
+reproducible.
 
-I'm working on a fix now (and making sure all the above is correct).
-
-- Ross
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
