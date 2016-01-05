@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 3982C6B000D
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DF36B000E
 	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 13:30:36 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id e65so171228216pfe.1
+Received: by mail-pf0-f172.google.com with SMTP id 78so226827818pfw.2
         for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:30:36 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
         by mx.google.com with ESMTP id z9si64834888par.42.2016.01.05.10.30.35
         for <linux-mm@kvack.org>;
         Tue, 05 Jan 2016 10:30:35 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v2 5/8] procfs: Add support for PUDs to smaps, clear_refs and pagemap
-Date: Tue,  5 Jan 2016 13:30:07 -0500
-Message-Id: <1452018610-26090-6-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v2 6/8] x86: Add support for PUD-sized transparent hugepages
+Date: Tue,  5 Jan 2016 13:30:08 -0500
+Message-Id: <1452018610-26090-7-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1452018610-26090-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1452018610-26090-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,177 +20,331 @@ Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lis
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-Because there's no 'struct page' for DAX THPs, a lot of this code is
-simpler than the PMD code it mimics.  Extra code would need to be added
-to support PUDs of anonymous or page-cache THPs.
+The x86-specific code needed to support the PUD uses in the transparent
+hugepages code.
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- fs/proc/task_mmu.c | 109 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 109 insertions(+)
+ arch/x86/Kconfig                      |  1 +
+ arch/x86/include/asm/paravirt.h       | 11 ++++
+ arch/x86/include/asm/paravirt_types.h |  2 +
+ arch/x86/include/asm/pgtable.h        | 95 +++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h     | 13 +++++
+ arch/x86/kernel/paravirt.c            |  1 +
+ arch/x86/mm/pgtable.c                 | 31 ++++++++++++
+ 7 files changed, 154 insertions(+)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 67aaaad..6a9dad7 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -596,6 +596,33 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index fd0c8ea..df99d21 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -89,6 +89,7 @@ config X86
+ 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
++	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
+ 	select HAVE_BPF_JIT			if X86_64
+ 	select HAVE_CC_STACKPROTECTOR
+ 	select HAVE_CMPXCHG_DOUBLE
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index c261402..db4f274 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -479,6 +479,17 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 			    native_pmd_val(pmd));
  }
+ 
++static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
++			      pud_t *pudp, pud_t pud)
++{
++	if (sizeof(pudval_t) > sizeof(long))
++		/* 5 arg words */
++		pv_mmu_ops.set_pud_at(mm, addr, pudp, pud);
++	else
++		PVOP_VCALL4(pv_mmu_ops.set_pud_at, mm, addr, pudp,
++			    native_pud_val(pud));
++}
++
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+ 	pmdval_t val = native_pmd_val(pmd);
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 2489d6a..261c203 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -247,6 +247,8 @@ struct pv_mmu_ops {
+ 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
+ 	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
+ 			   pmd_t *pmdp, pmd_t pmdval);
++	void (*set_pud_at)(struct mm_struct *mm, unsigned long addr,
++			   pud_t *pudp, pud_t pudval);
+ 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep);
+ 
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index c69f385..246bc5f 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -46,6 +46,7 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
+ #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+ #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
+ #define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
++#define set_pud_at(mm, addr, pudp, pud)	native_set_pud_at(mm, addr, pudp, pud)
+ 
+ #define set_pte_atomic(ptep, pte)					\
+ 	native_set_pte_atomic(ptep, pte)
+@@ -114,6 +115,16 @@ static inline int pmd_young(pmd_t pmd)
+ 	return pmd_flags(pmd) & _PAGE_ACCESSED;
+ }
+ 
++static inline int pud_dirty(pud_t pud)
++{
++	return pud_flags(pud) & _PAGE_DIRTY;
++}
++
++static inline int pud_young(pud_t pud)
++{
++	return pud_flags(pud) & _PAGE_ACCESSED;
++}
++
+ static inline int pte_write(pte_t pte)
+ {
+ 	return pte_flags(pte) & _PAGE_RW;
+@@ -167,12 +178,23 @@ static inline int pmd_trans_huge(pmd_t pmd)
+ 	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
+ }
+ 
++static inline int pud_trans_huge(pud_t pud)
++{
++	return (pud_val(pud) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
++}
++
+ #define pmd_devmap pmd_devmap
+ static inline int pmd_devmap(pmd_t pmd)
+ {
+ 	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
+ }
+ 
++#define pud_devmap pud_devmap
++static inline int pud_devmap(pud_t pud)
++{
++	return !!(pud_val(pud) & _PAGE_DEVMAP);
++}
++
+ static inline int has_transparent_hugepage(void)
+ {
+ 	return cpu_has_pse;
+@@ -317,6 +339,45 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+ 	return pmd_clear_flags(pmd, _PAGE_PRESENT | _PAGE_PROTNONE);
+ }
+ 
++static inline pud_t pud_set_flags(pud_t pud, pudval_t set)
++{
++	pudval_t v = native_pud_val(pud);
++
++	return __pud(v | set);
++}
++
++static inline pud_t pud_clear_flags(pud_t pud, pudval_t clear)
++{
++	pudval_t v = native_pud_val(pud);
++
++	return __pud(v & ~clear);
++}
++
++static inline pud_t pud_mkdevmap(pud_t pud)
++{
++	return pud_set_flags(pud, _PAGE_DEVMAP);
++}
++
++static inline pud_t pud_mkhuge(pud_t pud)
++{
++	return pud_set_flags(pud, _PAGE_PSE);
++}
++
++static inline pud_t pud_mkdirty(pud_t pud)
++{
++	return pud_set_flags(pud, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
++}
++
++static inline pud_t pud_mkyoung(pud_t pud)
++{
++	return pud_set_flags(pud, _PAGE_ACCESSED);
++}
++
++static inline pud_t pud_mkwrite(pud_t pud)
++{
++	return pud_set_flags(pud, _PAGE_RW);
++}
++
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+ static inline int pte_soft_dirty(pte_t pte)
+ {
+@@ -328,6 +389,11 @@ static inline int pmd_soft_dirty(pmd_t pmd)
+ 	return pmd_flags(pmd) & _PAGE_SOFT_DIRTY;
+ }
+ 
++static inline int pud_soft_dirty(pud_t pud)
++{
++	return pud_flags(pud) & _PAGE_SOFT_DIRTY;
++}
++
+ static inline pte_t pte_mksoft_dirty(pte_t pte)
+ {
+ 	return pte_set_flags(pte, _PAGE_SOFT_DIRTY);
+@@ -378,6 +444,13 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
+ 		     massage_pgprot(pgprot));
+ }
+ 
++#define pfn_pud pfn_pud
++static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
++{
++	return __pud(((phys_addr_t)page_nr << PAGE_SHIFT) |
++		     massage_pgprot(pgprot));
++}
++
+ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ {
+ 	pteval_t val = pte_val(pte);
+@@ -744,6 +817,12 @@ static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 	native_set_pmd(pmdp, pmd);
+ }
+ 
++static inline void native_set_pud_at(struct mm_struct *mm, unsigned long addr,
++				     pud_t *pudp , pud_t pud)
++{
++	native_set_pud(pudp, pud);
++}
++
+ #ifndef CONFIG_PARAVIRT
+ /*
+  * Rules for using pte_update - it must be called after any PTE update which
+@@ -822,10 +901,15 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm,
+ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 				 unsigned long address, pmd_t *pmdp,
+ 				 pmd_t entry, int dirty);
++extern int pudp_set_access_flags(struct vm_area_struct *vma,
++				 unsigned long address, pud_t *pudp,
++				 pud_t entry, int dirty);
+ 
+ #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+ extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ 				     unsigned long addr, pmd_t *pmdp);
++extern int pudp_test_and_clear_young(struct vm_area_struct *vma,
++				     unsigned long addr, pud_t *pudp);
+ 
+ #define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+@@ -845,6 +929,13 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm, unsigned long
+ 	return native_pmdp_get_and_clear(pmdp);
+ }
+ 
++#define __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR
++static inline pud_t pudp_huge_get_and_clear(struct mm_struct *mm, unsigned long addr,
++				       pud_t *pudp)
++{
++	return native_pudp_get_and_clear(pudp);
++}
++
+ #define __HAVE_ARCH_PMDP_SET_WRPROTECT
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 				      unsigned long addr, pmd_t *pmdp)
+@@ -893,6 +984,10 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
+ 		unsigned long addr, pmd_t *pmd)
+ {
+ }
++static inline void update_mmu_cache_pud(struct vm_area_struct *vma,
++		unsigned long addr, pud_t *pud)
++{
++}
+ 
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+ static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 2ee7811..a3aa6b7 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -106,6 +106,19 @@ static inline void native_pud_clear(pud_t *pud)
+ 	native_set_pud(pud, native_make_pud(0));
+ }
+ 
++static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
++{
++#ifdef CONFIG_SMP
++	return native_make_pud(xchg(&pudp->pud, 0));
++#else
++	/* native_local_pudp_get_and_clear,
++	   but duplicated because of cyclic dependency */
++	pud_t ret = *pudp;
++	native_pud_clear(pudp);
++	return ret;
++#endif
++}
++
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	*pgdp = pgd;
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+index f08ac28..24d61f2 100644
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -425,6 +425,7 @@ struct pv_mmu_ops pv_mmu_ops = {
+ 	.pmd_clear = native_pmd_clear,
+ #endif
+ 	.set_pud = native_set_pud,
++	.set_pud_at = native_set_pud_at,
+ 
+ 	.pmd_val = PTE_IDENT,
+ 	.make_pmd = PTE_IDENT,
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 4eb287e..b7c8df6 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -441,6 +441,26 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 
+ 	return changed;
+ }
++
++int pudp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
++			  pud_t *pudp, pud_t entry, int dirty)
++{
++	int changed = !pud_same(*pudp, entry);
++
++	VM_BUG_ON(address & ~HPAGE_PUD_MASK);
++
++	if (changed && dirty) {
++		*pudp = entry;
++		/*
++		 * We had a write-protection fault here and changed the pud
++		 * to to more permissive. No need to flush the TLB for that,
++		 * #PF is architecturally guaranteed to do that and in the
++		 * worst-case we'll generate a spurious fault.
++		 */
++	}
++
++	return changed;
++}
  #endif
  
-+static int smaps_pud_range(pud_t *pud, unsigned long addr, unsigned long end,
-+		struct mm_walk *walk)
-+{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct vm_area_struct *vma = walk->vma;
-+	struct mem_size_stats *mss = walk->private;
-+
-+	if (is_huge_zero_pud(*pud))
-+		return 0;
-+
-+	mss->resident += HPAGE_PUD_SIZE;
-+	if (vma->vm_flags & VM_SHARED) {
-+		if (pud_dirty(*pud))
-+			mss->shared_dirty += HPAGE_PUD_SIZE;
-+		else
-+			mss->shared_clean += HPAGE_PUD_SIZE;
-+	} else {
-+		if (pud_dirty(*pud))
-+			mss->private_dirty += HPAGE_PUD_SIZE;
-+		else
-+			mss->private_clean += HPAGE_PUD_SIZE;
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+
-+	return 0;
-+}
-+
- static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			   struct mm_walk *walk)
- {
-@@ -716,6 +743,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 	struct vm_area_struct *vma = v;
- 	struct mem_size_stats mss;
- 	struct mm_walk smaps_walk = {
-+		.pud_entry = smaps_pud_range,
- 		.pmd_entry = smaps_pte_range,
- #ifdef CONFIG_HUGETLB_PAGE
- 		.hugetlb_entry = smaps_hugetlb_range,
-@@ -901,13 +929,50 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ int ptep_test_and_clear_young(struct vm_area_struct *vma,
+@@ -470,6 +490,17 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
  
- 	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
+ 	return ret;
  }
-+static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
-+		unsigned long addr, pud_t *pudp)
++int pudp_test_and_clear_young(struct vm_area_struct *vma,
++			      unsigned long addr, pud_t *pudp)
 +{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	pud_t pud = pudp_huge_get_and_clear(vma->vm_mm, addr, pudp);
++	int ret = 0;
 +
-+	pud = pud_wrprotect(pud);
-+	pud = pud_clear_soft_dirty(pud);
++	if (pud_young(*pudp))
++		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
++					 (unsigned long *)pudp);
 +
-+	if (vma->vm_flags & VM_SOFTDIRTY)
-+		vma->vm_flags &= ~VM_SOFTDIRTY;
-+
-+	set_pud_at(vma->vm_mm, addr, pudp, pud);
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+}
- #else
- static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
- 		unsigned long addr, pmd_t *pmdp)
- {
- }
-+static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
-+		unsigned long addr, pud_t *pudp)
-+{
++	return ret;
 +}
  #endif
  
-+static int clear_refs_pud_range(pud_t *pud, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
-+{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct clear_refs_private *cp = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
-+
-+	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-+		clear_soft_dirty_pud(vma, addr, pud);
-+	} else {
-+		/* Clear accessed and referenced bits. */
-+		pudp_test_and_clear_young(vma, addr, pud);
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+
-+	return 0;
-+}
-+
- static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
- {
-@@ -1017,6 +1082,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 			.type = type,
- 		};
- 		struct mm_walk clear_refs_walk = {
-+			.pud_entry = clear_refs_pud_range,
- 			.pmd_entry = clear_refs_pte_range,
- 			.test_walk = clear_refs_test_walk,
- 			.mm = mm,
-@@ -1181,6 +1247,48 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
- 	return make_pme(frame, flags);
- }
- 
-+static int pagemap_pud_range(pud_t *pudp, unsigned long addr, unsigned long end,
-+			     struct mm_walk *walk)
-+{
-+	int err = 0;
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct vm_area_struct *vma = walk->vma;
-+	struct pagemapread *pm = walk->private;
-+	u64 flags = 0, frame = 0;
-+	pud_t pud = *pudp;
-+
-+	if ((vma->vm_flags & VM_SOFTDIRTY) || pud_soft_dirty(pud))
-+		flags |= PM_SOFT_DIRTY;
-+
-+	/*
-+	 * Currently pud for thp is always present because thp
-+	 * can not be swapped-out, migrated, or HWPOISONed
-+	 * (split in such cases instead.)
-+	 * This if-check is just to prepare for future implementation.
-+	 */
-+	if (pud_present(pud)) {
-+		flags |= PM_PRESENT;
-+		if (!(vma->vm_flags & VM_SHARED))
-+			flags |= PM_MMAP_EXCLUSIVE;
-+
-+		if (pm->show_pfn)
-+			frame = pud_pfn(pud) +
-+					((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+
-+		for (; addr != end; addr += PAGE_SIZE) {
-+			pagemap_entry_t pme = make_pme(frame, flags);
-+
-+			err = add_to_pagemap(addr, &pme, pm);
-+			if (err)
-+				break;
-+			if (pm->show_pfn && (flags & PM_PRESENT))
-+				frame++;
-+		}
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+	return err;
-+}
-+
- static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
- 			     struct mm_walk *walk)
- {
-@@ -1359,6 +1467,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	if (!pm.buffer)
- 		goto out_mm;
- 
-+	pagemap_walk.pud_entry = pagemap_pud_range;
- 	pagemap_walk.pmd_entry = pagemap_pmd_range;
- 	pagemap_walk.pte_hole = pagemap_pte_hole;
- #ifdef CONFIG_HUGETLB_PAGE
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
 -- 
 2.6.4
 
