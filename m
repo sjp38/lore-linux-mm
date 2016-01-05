@@ -1,82 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0896B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:17:18 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id cy9so212271829pac.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:17:18 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id q2si71852744pfa.27.2016.01.05.01.17.17
-        for <linux-mm@kvack.org>;
-        Tue, 05 Jan 2016 01:17:17 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] memblock: fix section mismatch
-Date: Tue,  5 Jan 2016 12:16:04 +0300
-Message-Id: <1451985364-90757-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BFB566B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 04:37:23 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id b14so19838006wmb.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 01:37:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m189si350791wmb.98.2016.01.05.01.37.21
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Jan 2016 01:37:22 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm, thp: clear PG_mlocked when last mapping gone
+References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1451421990-32297-3-git-send-email-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <568B8ECE.7020605@suse.cz>
+Date: Tue, 5 Jan 2016 10:37:18 +0100
+MIME-Version: 1.0
+In-Reply-To: <1451421990-32297-3-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, "Signed-off-by : Zhang Yanfei" <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
 
-allmodconfig produces following warning for me:
+On 12/29/2015 09:46 PM, Kirill A. Shutemov wrote:
+> I missed clear_page_mlock() in page_remove_anon_compound_rmap().
+> It usually shouldn't cause any problems since we munlock pages
+> explicitly, but in conjunction with missed munlock in __oom_reap_vmas()
+> it causes problems:
+>   http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
+>
+> Let's put it in place an mirror behaviour for small pages.
+>
+> NOTE: I'm not entirely sure why we ever need clear_page_mlock() in
+> page_remove_rmap() codepath. It looks redundant to me as we munlock
+> pages anyway. But this is out of scope of the patch.
 
-  WARNING: vmlinux.o(.text.unlikely+0x10314): Section mismatch in reference from the function movable_node_is_enabled() to the variable .meminit.data:movable_node_enabled
-  The function movable_node_is_enabled() references
-  the variable __meminitdata movable_node_enabled.
-  This is often because movable_node_is_enabled lacks a __meminitdata
-  annotation or the annotation of movable_node_enabled is wrong.
+Git blame actually quickly points to commit e6c509f854550 which explains 
+it :)
 
-Let's mark the function with __meminit. It fixes the warning.
+>
+> The patch can be folded into
+>   "thp: allow mlocked THP again"
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/memblock.h | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+Ack.
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 173fb44e22f1..3106ac1c895e 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -61,6 +61,14 @@ extern int memblock_debug;
- extern bool movable_node_enabled;
- #endif /* CONFIG_MOVABLE_NODE */
- 
-+#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-+#define __init_memblock __meminit
-+#define __initdata_memblock __meminitdata
-+#else
-+#define __init_memblock
-+#define __initdata_memblock
-+#endif
-+
- #define memblock_dbg(fmt, ...) \
- 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
- 
-@@ -166,7 +174,7 @@ static inline bool memblock_is_hotpluggable(struct memblock_region *m)
- 	return m->flags & MEMBLOCK_HOTPLUG;
- }
- 
--static inline bool movable_node_is_enabled(void)
-+static inline bool __init_memblock movable_node_is_enabled(void)
- {
- 	return movable_node_enabled;
- }
-@@ -405,14 +413,6 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
- 	for (idx = 0; idx < memblock_type->cnt;				\
- 	     idx++,rgn = &memblock_type->regions[idx])
- 
--#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
--#define __init_memblock __meminit
--#define __initdata_memblock __meminitdata
--#else
--#define __init_memblock
--#define __initdata_memblock
--#endif
--
- #ifdef CONFIG_MEMTEST
- extern void early_memtest(phys_addr_t start, phys_addr_t end);
- #else
--- 
-2.6.4
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+>   mm/rmap.c | 3 +++
+>   1 file changed, 3 insertions(+)
+>
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 384516fb7495..68af2e32f7ed 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1356,6 +1356,9 @@ static void page_remove_anon_compound_rmap(struct page *page)
+>   		nr = HPAGE_PMD_NR;
+>   	}
+>
+> +	if (unlikely(PageMlocked(page)))
+> +		clear_page_mlock(page);
+> +
+>   	if (nr) {
+>   		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
+>   		deferred_split_huge_page(page);
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
