@@ -1,71 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 375556B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 08:31:27 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id l65so22853538wmf.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 05:31:27 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EB2C6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 08:32:45 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id u188so23275567wmu.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 05:32:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vu8si152203326wjc.28.2016.01.05.05.31.25
+        by mx.google.com with ESMTPS id dl6si152543341wjb.82.2016.01.05.05.32.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Jan 2016 05:31:26 -0800 (PST)
-Date: Tue, 5 Jan 2016 14:31:23 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm, oom: skip mlocked VMAs in __oom_reap_vmas()
-Message-ID: <20160105133122.GB15324@dhcp22.suse.cz>
-References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1451421990-32297-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20160105124735.GA15324@dhcp22.suse.cz>
- <20160105131039.GA19907@node.shutemov.name>
+        Tue, 05 Jan 2016 05:32:44 -0800 (PST)
+Subject: Re: [PATCH 22/32] x86, pkeys: dump PTE pkey in /proc/pid/smaps
+References: <20151214190542.39C4886D@viggo.jf.intel.com>
+ <20151214190619.BA65327A@viggo.jf.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <568BC5FA.2080800@suse.cz>
+Date: Tue, 5 Jan 2016 14:32:42 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160105131039.GA19907@node.shutemov.name>
+In-Reply-To: <20151214190619.BA65327A@viggo.jf.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
+To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
-On Tue 05-01-16 15:10:39, Kirill A. Shutemov wrote:
-> On Tue, Jan 05, 2016 at 01:47:35PM +0100, Michal Hocko wrote:
-> > On Tue 29-12-15 23:46:29, Kirill A. Shutemov wrote:
-> > > As far as I can see we explicitly munlock pages everywhere before unmap
-> > > them. The only case when we don't to that is OOM-reaper.
-> > 
-> > Very well spotted!
-> > 
-> > > I don't think we should bother with munlocking in this case, we can just
-> > > skip the locked VMA.
-> > 
-> > Why cannot we simply munlock them here for the private mappings?
-> 
-> It's probably right think to do, but I wanted to fix the bug first.
+On 12/14/2015 08:06 PM, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Fair enough. It is surely simpler, although I think we should tear
-private mappings down even when mlocked. I can cook up a separate patch
-on top of yours which is obviously correct and can be folded into the
-original one.
+$SUBJ is a bit confusing in that it's dumping stuff from VMA, not PTE's?
 
-> And I wasn't ready to investigate context the reaper working in to check
-> if it's safe to munlock there. For instance, munlock would take page lock
-> and I'm not sure at the moment if it can or cannot lead to deadlock in
-> some scenario. So I choose safer fix.
+It could be also useful to extend dump_vma() appropriately. Currently 
+there are no string translations for the new "flags" (but one can figure 
+it out from the raw value). But maybe we should print pkey separately in 
+dump_vma() as you do here. I have a series in flight [1] that touches 
+dump_vma() and the flags printing in general, so to avoid conflicts, 
+handling pkeys there could wait. But mentioning it now for less chance 
+of being forgotten...
 
-repear is a flat kernel thread context which doesn't sit on any locks
-(except for mmap sem for read taken on the way) so I do not immediately
-see any potential for the dead lock. If the original context which
-wakes it up depend on the page lock to move on then we would be screwed
-already because we can end up doing exit_mmap in that context already
-and so end up doing munlock as well.
+[1] https://lkml.org/lkml/2015/12/18/178 - a previous version is in 
+mmotm and this should replace it after 4.5-rc1
 
-> If calling munlock is always safe where unmap happens, why not move inside
-> unmap?
-
-This would be less error prone for sure. I would rather see it as a
-separate patch which explains why it is safe in all cases though.
--- 
-Michal Hocko
-SUSE Labs
+> The protection key can now be just as important as read/write
+> permissions on a VMA.  We need some debug mechanism to help
+> figure out if it is in play.  smaps seems like a logical
+> place to expose it.
+>
+> arch/x86/kernel/setup.c is a bit of a weirdo place to put
+> this code, but it already had seq_file.h and there was not
+> a much better existing place to put it.
+>
+> We also use no #ifdef.  If protection keys is .config'd out
+> we will get the same function as if we used the weak generic
+> function.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+> ---
+>
+>   b/arch/x86/kernel/setup.c |    9 +++++++++
+>   b/fs/proc/task_mmu.c      |   14 ++++++++++++++
+>   2 files changed, 23 insertions(+)
+>
+> diff -puN arch/x86/kernel/setup.c~pkeys-40-smaps arch/x86/kernel/setup.c
+> --- a/arch/x86/kernel/setup.c~pkeys-40-smaps	2015-12-14 10:42:48.777070739 -0800
+> +++ b/arch/x86/kernel/setup.c	2015-12-14 10:42:48.782070963 -0800
+> @@ -112,6 +112,7 @@
+>   #include <asm/alternative.h>
+>   #include <asm/prom.h>
+>   #include <asm/microcode.h>
+> +#include <asm/mmu_context.h>
+>
+>   /*
+>    * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+> @@ -1282,3 +1283,11 @@ static int __init register_kernel_offset
+>   	return 0;
+>   }
+>   __initcall(register_kernel_offset_dumper);
+> +
+> +void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+> +{
+> +	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+> +		return;
+> +
+> +	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+> +}
+> diff -puN fs/proc/task_mmu.c~pkeys-40-smaps fs/proc/task_mmu.c
+> --- a/fs/proc/task_mmu.c~pkeys-40-smaps	2015-12-14 10:42:48.779070829 -0800
+> +++ b/fs/proc/task_mmu.c	2015-12-14 10:42:48.783071008 -0800
+> @@ -615,11 +615,20 @@ static void show_smap_vma_flags(struct s
+>   		[ilog2(VM_MERGEABLE)]	= "mg",
+>   		[ilog2(VM_UFFD_MISSING)]= "um",
+>   		[ilog2(VM_UFFD_WP)]	= "uw",
+> +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> +		/* These come out via ProtectionKey: */
+> +		[ilog2(VM_PKEY_BIT0)]	= "",
+> +		[ilog2(VM_PKEY_BIT1)]	= "",
+> +		[ilog2(VM_PKEY_BIT2)]	= "",
+> +		[ilog2(VM_PKEY_BIT3)]	= "",
+> +#endif
+>   	};
+>   	size_t i;
+>
+>   	seq_puts(m, "VmFlags: ");
+>   	for (i = 0; i < BITS_PER_LONG; i++) {
+> +		if (!mnemonics[i][0])
+> +			continue;
+>   		if (vma->vm_flags & (1UL << i)) {
+>   			seq_printf(m, "%c%c ",
+>   				   mnemonics[i][0], mnemonics[i][1]);
+> @@ -657,6 +666,10 @@ static int smaps_hugetlb_range(pte_t *pt
+>   }
+>   #endif /* HUGETLB_PAGE */
+>
+> +void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+> +{
+> +}
+> +
+>   static int show_smap(struct seq_file *m, void *v, int is_pid)
+>   {
+>   	struct vm_area_struct *vma = v;
+> @@ -713,6 +726,7 @@ static int show_smap(struct seq_file *m,
+>   		   (vma->vm_flags & VM_LOCKED) ?
+>   			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+>
+> +	arch_show_smap(m, vma);
+>   	show_smap_vma_flags(m, vma);
+>   	m_cache_vma(m, vma);
+>   	return 0;
+> _
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
