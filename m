@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DEA1F6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 06:20:17 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id f206so24017814wmf.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 03:20:17 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id ha10si151694591wjc.117.2016.01.05.03.20.16
-        for <linux-mm@kvack.org>;
-        Tue, 05 Jan 2016 03:20:16 -0800 (PST)
-Date: Tue, 5 Jan 2016 12:20:14 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a
- bit)
-Message-ID: <20160105112014.GC3718@pd.tnic>
-References: <cover.1451869360.git.tony.luck@intel.com>
- <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
- <20160104120751.GG22941@pd.tnic>
- <CA+8MBbKZ6VfN9t5-dYNHhZVU0k2HEr+E7Un0y2gtsxE0sDgoHQ@mail.gmail.com>
- <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com>
- <20160104210228.GR22941@pd.tnic>
- <CALCETrVOF9P3YFKMeShp0FYX15cqppkWhhiOBi6pxfu6k+XDmA@mail.gmail.com>
- <20160104230246.GU22941@pd.tnic>
- <CALCETrUcuZSp_D-bsZi3i7m2-DKHBOe4KpmJnbR+1bVvbyp5Mw@mail.gmail.com>
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 617016B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 07:47:38 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id f206so21728757wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 04:47:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z16si5059779wmc.124.2016.01.05.04.47.36
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Jan 2016 04:47:37 -0800 (PST)
+Date: Tue, 5 Jan 2016 13:47:35 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm, oom: skip mlocked VMAs in __oom_reap_vmas()
+Message-ID: <20160105124735.GA15324@dhcp22.suse.cz>
+References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1451421990-32297-2-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrUcuZSp_D-bsZi3i7m2-DKHBOe4KpmJnbR+1bVvbyp5Mw@mail.gmail.com>
+In-Reply-To: <1451421990-32297-2-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Tony Luck <tony.luck@gmail.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
 
-On Mon, Jan 04, 2016 at 03:25:58PM -0800, Andy Lutomirski wrote:
-> On Mon, Jan 4, 2016 at 3:02 PM, Borislav Petkov <bp@alien8.de> wrote:
-> > On Mon, Jan 04, 2016 at 02:29:09PM -0800, Andy Lutomirski wrote:
-> >> Josh will argue with you if he sees that :)
-> >
-> > Except Josh doesn't need allyesconfigs. tinyconfig's __ex_table is 2K.
-> 
-> If we do the make-it-bigger approach, we get a really nice
-> simplification.  Screw the whole 'class' idea -- just store an offset
-> to a handler.
-> 
-> bool extable_handler_default(struct pt_regs *regs, unsigned int fault,
-> unsigned long error_code, unsigned long info)
-> {
->     if (fault == X86_TRAP_MC)
->         return false;
-> 
->     ...
-> }
-> 
-> bool extable_handler_mc_copy(struct pt_regs *regs, unsigned int fault,
-> unsigned long error_code, unsigned long info);
-> bool extable_handler_getput_ex(struct pt_regs *regs, unsigned int
-> fault, unsigned long error_code, unsigned long info);
-> 
-> and then shove ".long extable_handler_whatever - ." into the extable entry.
+On Tue 29-12-15 23:46:29, Kirill A. Shutemov wrote:
+> As far as I can see we explicitly munlock pages everywhere before unmap
+> them. The only case when we don't to that is OOM-reaper.
 
-And to make it even cooler and more generic, you can make the exception
-table entry look like this:
+Very well spotted!
 
-{ <offset to fault address>, <offset to handler>, <offset to an opaque pointer> }
+> I don't think we should bother with munlocking in this case, we can just
+> skip the locked VMA.
 
-and that opaque pointer would be a void * to some struct we pass to
-that handler and filled with stuff it needs. For starters, it would
-contain the return address where the fixup wants us to go.
+Why cannot we simply munlock them here for the private mappings?
 
-The struct will have to be statically allocated but ok, that's fine.
-
-And this way you can do all the sophisticated handling you desire.
-
-> Major bonus points to whoever can figure out how to make
-> extable_handler_iret work -- the current implementation of that is a
-> real turd.  (Hint: it's not clear to me that it's even possible
-> without preserving at least part of the asm special case.)
-
-What's extable_handler_iret? IRET-ting from an exception? Where do we do
-that?
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4b0a5d8b92e1..25dd7cd6fb5e 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -456,9 +456,12 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
+ 		 * we do not want to block exit_mmap by keeping mm ref
+ 		 * count elevated without a good reason.
+ 		 */
+-		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
++		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
++			if (vma->vm_flags & VM_LOCKED)
++				munlock_vma_pages_all(vma);
+ 			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+ 					 &details);
++		}
+ 	}
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 	up_read(&mm->mmap_sem);
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
