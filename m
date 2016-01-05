@@ -1,54 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 345ED6B0003
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 13:22:31 -0500 (EST)
-Received: by mail-yk0-f169.google.com with SMTP id v14so197170145ykd.3
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:22:31 -0800 (PST)
-Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
-        by mx.google.com with ESMTPS id i129si65317743ywb.311.2016.01.05.10.22.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 10:22:30 -0800 (PST)
-Received: by mail-yk0-x22a.google.com with SMTP id k129so268084328yke.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:22:30 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20160105181430.GC6462@linux.intel.com>
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
-	<20160105111358.GD2724@quack.suse.cz>
-	<20160105171235.GB6462@linux.intel.com>
-	<CAPcyv4jAAAtRc7GSOqDZixxpQfM4bzHtkwmrsjLJ0Bqba+0KRA@mail.gmail.com>
-	<20160105181430.GC6462@linux.intel.com>
-Date: Tue, 5 Jan 2016 10:22:30 -0800
-Message-ID: <CAPcyv4hYsnHoSFOgTFDtPaQkOq_N=evsKJsKsVe2_HbRfu5j9Q@mail.gmail.com>
-Subject: Re: [PATCH v6 4/7] dax: add support for fsync/msync
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F85F6B0003
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 13:30:15 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id 65so179148044pff.3
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:30:15 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id x69si19386956pfi.0.2016.01.05.10.30.13
+        for <linux-mm@kvack.org>;
+        Tue, 05 Jan 2016 10:30:13 -0800 (PST)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH v2 0/8] Support for transparent PUD pages for DAX files
+Date: Tue,  5 Jan 2016 13:30:02 -0500
+Message-Id: <1452018610-26090-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Tue, Jan 5, 2016 at 10:14 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Tue, Jan 05, 2016 at 09:20:47AM -0800, Dan Williams wrote:
-[..]
->> My concern is whether flushing potentially invalid virtual addresses
->> is problematic on some architectures.  Maybe it's just FUD, but it's
->> less work in my opinion to just revalidate the address versus auditing
->> each arch for this concern.
->
-> I don't think that the addresses have the potential of being invalid from the
-> driver's point of view - we are still holding a reference on the block queue
-> via dax_map_atomic(), so we should be protected against races vs block device
-> removal.  I think the only question is whether it is okay to flush an address
-> that we know to be valid from the block device's point of view, but which the
-> filesystem may have truncated from being allocated to our inode.
->
-> Does that all make sense?
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Yes, I was confusing which revalidation we were talking about.  As
-long as the dax_map_atomic() is there I don't think we need any
-further revalidation.
+We have customer demand to use 1GB pages to map DAX files.  Unlike the 2MB
+page support, the Linux MM does not currently support PUD pages, so I have
+attempted to add support for the necessary pieces for DAX huge PUD pages.
+
+Filesystems still need work to allocate 1GB pages.  With ext4, I can
+only get 16MB of contiguous space, although it is aligned.  With XFS,
+I can get 80MB less than 1GB, and it's not aligned.  The XFS problem
+may be due to the small amount of RAM in my test machine.
+
+This patch set is against something approximately current -mm.  I'd like
+to thank Dave Chinner & Kirill Shutemov for their reviews of v1.
+The conversion of pmd_fault & pud_fault to huge_fault is thanks to
+Dave's poking, and Kirill spotted a couple of problems in the MM code.
+Version 2 of the patch set is about 200 lines smaller (1016 insertions,
+23 deletions in v1).
+
+I've done some light testing using a program to mmap a block device
+with DAX enabled, calling mincore() and examining /proc/smaps and
+/proc/pagemap.
+
+Matthew Wilcox (8):
+  mm: Convert an open-coded VM_BUG_ON_VMA
+  mm,fs,dax: Change ->pmd_fault to ->huge_fault
+  mm: Add optional support for PUD-sized transparent hugepages
+  mincore: Add support for PUDs
+  procfs: Add support for PUDs to smaps, clear_refs and pagemap
+  x86: Add support for PUD-sized transparent hugepages
+  dax: Support for transparent PUD pages
+  ext4: Support for PUD-sized transparent huge pages
+
+ Documentation/filesystems/dax.txt     |  12 +-
+ arch/Kconfig                          |   3 +
+ arch/x86/Kconfig                      |   1 +
+ arch/x86/include/asm/paravirt.h       |  11 ++
+ arch/x86/include/asm/paravirt_types.h |   2 +
+ arch/x86/include/asm/pgtable.h        |  95 ++++++++++
+ arch/x86/include/asm/pgtable_64.h     |  13 ++
+ arch/x86/kernel/paravirt.c            |   1 +
+ arch/x86/mm/pgtable.c                 |  31 ++++
+ fs/block_dev.c                        |  10 +-
+ fs/dax.c                              | 316 +++++++++++++++++++++++++---------
+ fs/ext2/file.c                        |  27 +--
+ fs/ext4/file.c                        |  60 +++----
+ fs/proc/task_mmu.c                    | 109 ++++++++++++
+ fs/xfs/xfs_file.c                     |  25 ++-
+ fs/xfs/xfs_trace.h                    |   2 +-
+ include/asm-generic/pgtable.h         |  62 ++++++-
+ include/asm-generic/tlb.h             |  14 ++
+ include/linux/dax.h                   |  17 --
+ include/linux/huge_mm.h               |  52 +++++-
+ include/linux/mm.h                    |  50 +++++-
+ include/linux/mmu_notifier.h          |  13 ++
+ mm/huge_memory.c                      | 151 ++++++++++++++++
+ mm/memory.c                           | 101 +++++++++--
+ mm/mincore.c                          |  13 ++
+ mm/pagewalk.c                         |  19 +-
+ mm/pgtable-generic.c                  |  14 ++
+ 27 files changed, 1008 insertions(+), 216 deletions(-)
+
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
