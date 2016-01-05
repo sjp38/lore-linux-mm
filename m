@@ -1,65 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9826C6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 18:26:19 -0500 (EST)
-Received: by mail-oi0-f46.google.com with SMTP id y66so264958964oig.0
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 15:26:19 -0800 (PST)
-Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
-        by mx.google.com with ESMTPS id ry4si7972174obb.106.2016.01.04.15.26.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jan 2016 15:26:18 -0800 (PST)
-Received: by mail-ob0-x22a.google.com with SMTP id wp13so126334402obc.1
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 15:26:18 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20160104230246.GU22941@pd.tnic>
-References: <cover.1451869360.git.tony.luck@intel.com> <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
- <20160104120751.GG22941@pd.tnic> <CA+8MBbKZ6VfN9t5-dYNHhZVU0k2HEr+E7Un0y2gtsxE0sDgoHQ@mail.gmail.com>
- <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com>
- <20160104210228.GR22941@pd.tnic> <CALCETrVOF9P3YFKMeShp0FYX15cqppkWhhiOBi6pxfu6k+XDmA@mail.gmail.com>
- <20160104230246.GU22941@pd.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 4 Jan 2016 15:25:58 -0800
-Message-ID: <CALCETrUcuZSp_D-bsZi3i7m2-DKHBOe4KpmJnbR+1bVvbyp5Mw@mail.gmail.com>
-Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a bit)
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5536B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2016 19:12:23 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id do7so4241792pab.2
+        for <linux-mm@kvack.org>; Mon, 04 Jan 2016 16:12:23 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id ro6si37938287pab.190.2016.01.04.16.12.22
+        for <linux-mm@kvack.org>;
+        Mon, 04 Jan 2016 16:12:22 -0800 (PST)
+Message-Id: <cover.1451952351.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Mon, 4 Jan 2016 16:05:51 -0800
+Subject: [PATCH v7 0/3] Machine check recovery when kernel accesses poison
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@gmail.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Mon, Jan 4, 2016 at 3:02 PM, Borislav Petkov <bp@alien8.de> wrote:
-> On Mon, Jan 04, 2016 at 02:29:09PM -0800, Andy Lutomirski wrote:
->> Josh will argue with you if he sees that :)
->
-> Except Josh doesn't need allyesconfigs. tinyconfig's __ex_table is 2K.
+This series is initially targeted at the folks doing filesystems
+on top of NVDIMMs. They really want to be able to return -EIO
+when there is a h/w error (just like spinning rust, and SSD does).
 
-If we do the make-it-bigger approach, we get a really nice
-simplification.  Screw the whole 'class' idea -- just store an offset
-to a handler.
+I plan to use the same infrastructure to write a machine check aware
+"copy_from_user()" that will SIGBUS the calling application when a
+syscall touches poison in user space (just like we do when the application
+touches the poison itself).
 
-bool extable_handler_default(struct pt_regs *regs, unsigned int fault,
-unsigned long error_code, unsigned long info)
-{
-    if (fault == X86_TRAP_MC)
-        return false;
+Changes V6-V7:
+Boris:	Why add/subtract 0x20000000? Added better comment provided by Andy
+Boris:	Churn. Part2 changes things only introduced in part1.
+	Merged parts 1&2 into one patch.
+Ingo:	Missing my sign off on part1. Added.
 
-    ...
-}
+Changes V5-V6
+Andy:	Provoked massive re-write by providing what is now part1 of this
+	patch series. This frees up two bits in the exception table
+	fixup field that can be used to tag exception table entries
+	as different "classes". This means we don't need my separate
+	exception table fro machine checks. Also avoids duplicating
+	fixup actions for #PF and #MC cases that were in version 5.
+Andy:	Use C99 array initializers to tie the various class fixup
+	functions back to the defintions of each class. Also give the
+	functions meanningful names (not fixup_class0() etc.).
+Boris:	Cleaned up my lousy assembly code removing many spurious 'l'
+	modifiers on instructions.
+Boris:	Provided some helper functions for the machine check severity
+	calculation that make the code more readable.
+Boris:	Have __mcsafe_copy() return a structure with the 'remaining bytes'
+	in a separate field from the fault indicator. Boris had suggested
+	Linux -EFAULT/-EINVAL ... but I thought it made more sense to return
+	the exception number (X86_TRAP_MC, etc.)  This finally kills off
+	BIT(63) which has been controversial throughout all the early versions
+	of this patch series.
 
-bool extable_handler_mc_copy(struct pt_regs *regs, unsigned int fault,
-unsigned long error_code, unsigned long info);
-bool extable_handler_getput_ex(struct pt_regs *regs, unsigned int
-fault, unsigned long error_code, unsigned long info);
+Changes V4-V5
+Tony:	Extended __mcsafe_copy() to have fixup entries for both machine
+	check and page fault.
 
-and then shove ".long extable_handler_whatever - ." into the extable entry.
+Changes V3-V4:
+Andy:   Simplify fixup_mcexception() by dropping used-once local variable
+Andy:   "Reviewed-by" tag added to part1
+Boris:  Moved new functions to memcpy_64.S and declaration to asm/string_64.h
+Boris:  Changed name s/mcsafe_memcpy/__mcsafe_copy/ to make it clear that this
+        is an internal function and that return value doesn't follow memcpy() semantics.
+Boris:  "Reviewed-by" tag added to parts 1&2
 
-Major bonus points to whoever can figure out how to make
-extable_handler_iret work -- the current implementation of that is a
-real turd.  (Hint: it's not clear to me that it's even possible
-without preserving at least part of the asm special case.)
+Changes V2-V3:
 
---Andy
+Andy:   Don't hack "regs->ax = BIT(63) | addr;" in the machine check
+        handler.  Now have better fixup code that computes the number
+        of remaining bytes (just like page-fault fixup).
+Andy:   #define for BIT(63). Done, plus couple of extra macros using it.
+Boris:  Don't clutter up generic code (like mm/extable.c) with this.
+        I moved everything under arch/x86 (the asm-generic change is
+        a more generic #define).
+Boris:  Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
+        I made it a real menu item with default "n". Dan Williams
+        will use "select MCE_KERNEL_RECOVERY" from his persistent
+        filesystem code.
+Boris:  Simplify conditionals in mce.c by moving tolerant/kill_it
+        checks earlier, with a skip to end if they aren't set.
+Boris:  Miscellaneous grammar/punctuation. Fixed.
+Boris:  Don't leak spurious __start_mcextable symbols into kernels
+        that didn't configure MCE_KERNEL_RECOVERY. Done.
+Tony:   New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
+        to new .S/.h files
+Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
+        or vmovntdqa on source addresses. I didn't fix this yet. Think
+        of the current mcsafe_memcpy() as the first of several functions.
+        This one is useful for small copies (meta-data) where the overhead
+        of saving SSE/AVX state isn't justified.
+
+Changes V1->V2:
+
+0-day:  Reported build errors and warnings on 32-bit systems. Fixed
+0-day:  Reported bloat to tinyconfig. Fixed
+Boris:  Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
+Boris:  Re-write "tolerant==3" check to reduce indentation level. See below.
+Andy:   Check IP is valid before searching kernel exception tables. Done.
+Andy:   Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
+Andy:   Untangle mess of code in tail of do_machine_check() to make it
+        clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
+        if we were called from user code, not from kernel!). Done.
+
+Tony Luck (3):
+  x86: Add classes to exception tables
+  x86, mce: Check for faults tagged in EXTABLE_CLASS_FAULT exception
+    table entries
+  x86, mce: Add __mcsafe_copy()
+
+ arch/x86/Kconfig                          |  10 +++
+ arch/x86/include/asm/asm.h                | 102 ++++++++++++++++------
+ arch/x86/include/asm/string_64.h          |  10 +++
+ arch/x86/include/asm/uaccess.h            |  17 +++-
+ arch/x86/kernel/cpu/mcheck/mce-severity.c |  32 ++++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          |  71 ++++++++--------
+ arch/x86/kernel/kprobes/core.c            |   2 +-
+ arch/x86/kernel/traps.c                   |   6 +-
+ arch/x86/kernel/x8664_ksyms_64.c          |   4 +
+ arch/x86/lib/memcpy_64.S                  | 136 ++++++++++++++++++++++++++++++
+ arch/x86/mm/extable.c                     |  66 ++++++++++-----
+ arch/x86/mm/fault.c                       |   2 +-
+ 12 files changed, 369 insertions(+), 89 deletions(-)
+
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
