@@ -1,130 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E6B4F800CA
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 13:55:38 -0500 (EST)
-Received: by mail-oi0-f47.google.com with SMTP id o62so274354926oif.3
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:55:38 -0800 (PST)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id q124si30827456oig.77.2016.01.05.10.55.38
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C71800CA
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 13:55:40 -0500 (EST)
+Received: by mail-oi0-f44.google.com with SMTP id o62so274355542oif.3
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 10:55:40 -0800 (PST)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id vf6si1042599obb.45.2016.01.05.10.55.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 10:55:38 -0800 (PST)
+        Tue, 05 Jan 2016 10:55:40 -0800 (PST)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v3 09/17] drivers: Initialize resource entry to zero
-Date: Tue,  5 Jan 2016 11:54:33 -0700
-Message-Id: <1452020081-26534-9-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH v3 10/17] resource: Change walk_system_ram to use System RAM type
+Date: Tue,  5 Jan 2016 11:54:34 -0700
+Message-Id: <1452020081-26534-10-git-send-email-toshi.kani@hpe.com>
 In-Reply-To: <1452020081-26534-1-git-send-email-toshi.kani@hpe.com>
 References: <1452020081-26534-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Toshi Kani <toshi.kani@hpe.com>
 
-I/O resource descriptor, 'desc' in struct resource, needs to be
-initialized to zero by default.  Some drivers call kmalloc() to
-allocate a resource entry, but does not initialize it to zero by
-memset().  Change these drivers to call kzalloc(), instead.
+Now that all System RAM resource entries have been initialized
+to IORESOURCE_SYSTEM_RAM type, change walk_system_ram_res() and
+walk_system_ram_range() to call find_next_iomem_res() by setting
+IORESOURCE_SYSTEM_RAM to @res.flags and NULL to @name.  With
+this change, they walk through the iomem table to find System
+RAM ranges without using strcmp().
 
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Acked-by: Simon Horman <horms+renesas@verge.net.au> # sh
+No functional change is made to the interfaces.
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 ---
- drivers/acpi/acpi_platform.c       |    2 +-
- drivers/parisc/eisa_enumerator.c   |    4 ++--
- drivers/rapidio/rio.c              |    8 ++++----
- drivers/sh/superhyway/superhyway.c |    2 +-
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ kernel/resource.c |   22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/acpi/acpi_platform.c b/drivers/acpi/acpi_platform.c
-index 296b7a1..b6f7fa3 100644
---- a/drivers/acpi/acpi_platform.c
-+++ b/drivers/acpi/acpi_platform.c
-@@ -62,7 +62,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
- 	if (count < 0) {
- 		return NULL;
- 	} else if (count > 0) {
--		resources = kmalloc(count * sizeof(struct resource),
-+		resources = kzalloc(count * sizeof(struct resource),
- 				    GFP_KERNEL);
- 		if (!resources) {
- 			dev_err(&adev->dev, "No memory for resources\n");
-diff --git a/drivers/parisc/eisa_enumerator.c b/drivers/parisc/eisa_enumerator.c
-index a656d9e..21905fe 100644
---- a/drivers/parisc/eisa_enumerator.c
-+++ b/drivers/parisc/eisa_enumerator.c
-@@ -91,7 +91,7 @@ static int configure_memory(const unsigned char *buf,
- 	for (i=0;i<HPEE_MEMORY_MAX_ENT;i++) {
- 		c = get_8(buf+len);
- 		
--		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			int result;
- 			
- 			res->name = name;
-@@ -183,7 +183,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
- 	for (i=0;i<HPEE_PORT_MAX_ENT;i++) {
- 		c = get_8(buf+len);
- 		
--		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			res->name = board;
- 			res->start = get_16(buf+len+1);
- 			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
-diff --git a/drivers/rapidio/rio.c b/drivers/rapidio/rio.c
-index d7b87c6..e220edc 100644
---- a/drivers/rapidio/rio.c
-+++ b/drivers/rapidio/rio.c
-@@ -117,7 +117,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_inb_mbox == NULL)
- 		goto out;
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 65eca4d..1d3ea50 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -415,9 +415,9 @@ int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+ }
  
--	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+ /*
+- * This function calls callback against all memory range of "System RAM"
+- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
+- * Now, this function is only for "System RAM". This function deals with
++ * This function calls callback against all memory range of System RAM
++ * which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
++ * Now, this function is only for System RAM. This function deals with
+  * full ranges and not pfn. If resources are not pfn aligned, dealing
+  * with pfn can truncate ranges.
+  */
+@@ -430,10 +430,10 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
  
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -185,7 +185,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_outb_mbox == NULL)
- 		goto out;
+ 	res.start = start;
+ 	res.end = end;
+-	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+ 	orig_end = res.end;
+ 	while ((res.start < res.end) &&
+-		(!find_next_iomem_res(&res, "System RAM", true))) {
++		(!find_next_iomem_res(&res, NULL, true))) {
+ 		ret = (*func)(res.start, res.end, arg);
+ 		if (ret)
+ 			break;
+@@ -446,9 +446,9 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
+ #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
  
--	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+ /*
+- * This function calls callback against all memory range of "System RAM"
+- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
+- * Now, this function is only for "System RAM".
++ * This function calls callback against all memory range of System RAM
++ * which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
++ * Now, this function is only for System RAM.
+  */
+ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+ 		void *arg, int (*func)(unsigned long, unsigned long, void *))
+@@ -460,10 +460,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
  
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -285,7 +285,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
+ 	res.start = (u64) start_pfn << PAGE_SHIFT;
+ 	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+-	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+ 	orig_end = res.end;
+ 	while ((res.start < res.end) &&
+-		(find_next_iomem_res(&res, "System RAM", true) >= 0)) {
++		(find_next_iomem_res(&res, NULL, true) >= 0)) {
+ 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+ 		if (end_pfn > pfn)
+@@ -484,7 +484,7 @@ static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
+ }
+ /*
+  * This generic page_is_ram() returns true if specified address is
+- * registered as "System RAM" in iomem_resource list.
++ * registered as System RAM in iomem_resource list.
+  */
+ int __weak page_is_ram(unsigned long pfn)
  {
- 	int rc = 0;
- 
--	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-@@ -360,7 +360,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
- struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
- 					u16 end)
- {
--	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-diff --git a/drivers/sh/superhyway/superhyway.c b/drivers/sh/superhyway/superhyway.c
-index 2d9e7f3..bb1fb771 100644
---- a/drivers/sh/superhyway/superhyway.c
-+++ b/drivers/sh/superhyway/superhyway.c
-@@ -66,7 +66,7 @@ int superhyway_add_device(unsigned long base, struct superhyway_device *sdev,
- 	superhyway_read_vcr(dev, base, &dev->vcr);
- 
- 	if (!dev->resource) {
--		dev->resource = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+		dev->resource = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 		if (!dev->resource) {
- 			kfree(dev);
- 			return -ENOMEM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
