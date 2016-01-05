@@ -1,123 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCA46B0006
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 06:13:59 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id f206so18714003wmf.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 03:13:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 82si4634664wmp.31.2016.01.05.03.13.56
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Jan 2016 03:13:58 -0800 (PST)
-Date: Tue, 5 Jan 2016 12:13:58 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v6 4/7] dax: add support for fsync/msync
-Message-ID: <20160105111358.GD2724@quack.suse.cz>
-References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
- <1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id DEA1F6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 06:20:17 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id f206so24017814wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 03:20:17 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id ha10si151694591wjc.117.2016.01.05.03.20.16
+        for <linux-mm@kvack.org>;
+        Tue, 05 Jan 2016 03:20:16 -0800 (PST)
+Date: Tue, 5 Jan 2016 12:20:14 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 1/4] x86: Clean up extable entry format (and free up a
+ bit)
+Message-ID: <20160105112014.GC3718@pd.tnic>
+References: <cover.1451869360.git.tony.luck@intel.com>
+ <968b4c079271431292fddfa49ceacff576be6849.1451869360.git.tony.luck@intel.com>
+ <20160104120751.GG22941@pd.tnic>
+ <CA+8MBbKZ6VfN9t5-dYNHhZVU0k2HEr+E7Un0y2gtsxE0sDgoHQ@mail.gmail.com>
+ <CALCETrU9AN6HmButY0tV1F4syNHZVKyQyVvit2JHcHAuXK9XNA@mail.gmail.com>
+ <20160104210228.GR22941@pd.tnic>
+ <CALCETrVOF9P3YFKMeShp0FYX15cqppkWhhiOBi6pxfu6k+XDmA@mail.gmail.com>
+ <20160104230246.GU22941@pd.tnic>
+ <CALCETrUcuZSp_D-bsZi3i7m2-DKHBOe4KpmJnbR+1bVvbyp5Mw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <CALCETrUcuZSp_D-bsZi3i7m2-DKHBOe4KpmJnbR+1bVvbyp5Mw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Tony Luck <tony.luck@gmail.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86-ML <x86@kernel.org>
 
-On Wed 23-12-15 12:39:17, Ross Zwisler wrote:
-> To properly handle fsync/msync in an efficient way DAX needs to track dirty
-> pages so it is able to flush them durably to media on demand.
+On Mon, Jan 04, 2016 at 03:25:58PM -0800, Andy Lutomirski wrote:
+> On Mon, Jan 4, 2016 at 3:02 PM, Borislav Petkov <bp@alien8.de> wrote:
+> > On Mon, Jan 04, 2016 at 02:29:09PM -0800, Andy Lutomirski wrote:
+> >> Josh will argue with you if he sees that :)
+> >
+> > Except Josh doesn't need allyesconfigs. tinyconfig's __ex_table is 2K.
 > 
-> The tracking of dirty pages is done via the radix tree in struct
-> address_space.  This radix tree is already used by the page writeback
-> infrastructure for tracking dirty pages associated with an open file, and
-> it already has support for exceptional (non struct page*) entries.  We
-> build upon these features to add exceptional entries to the radix tree for
-> DAX dirty PMD or PTE pages at fault time.
+> If we do the make-it-bigger approach, we get a really nice
+> simplification.  Screw the whole 'class' idea -- just store an offset
+> to a handler.
 > 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-...
-> +static int dax_writeback_one(struct block_device *bdev,
-> +		struct address_space *mapping, pgoff_t index, void *entry)
-> +{
-> +	struct radix_tree_root *page_tree = &mapping->page_tree;
-> +	int type = RADIX_DAX_TYPE(entry);
-> +	struct radix_tree_node *node;
-> +	struct blk_dax_ctl dax;
-> +	void **slot;
-> +	int ret = 0;
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	/*
-> +	 * Regular page slots are stabilized by the page lock even
-> +	 * without the tree itself locked.  These unlocked entries
-> +	 * need verification under the tree lock.
-> +	 */
-> +	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
-> +		goto unlock;
-> +	if (*slot != entry)
-> +		goto unlock;
-> +
-> +	/* another fsync thread may have already written back this entry */
-> +	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-> +		goto unlock;
-> +
-> +	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-> +
-> +	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD)) {
-> +		ret = -EIO;
-> +		goto unlock;
-> +	}
-> +
-> +	dax.sector = RADIX_DAX_SECTOR(entry);
-> +	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +
-> +	/*
-> +	 * We cannot hold tree_lock while calling dax_map_atomic() because it
-> +	 * eventually calls cond_resched().
-> +	 */
-> +	ret = dax_map_atomic(bdev, &dax);
-> +	if (ret < 0)
-> +		return ret;
-> +
-> +	if (WARN_ON_ONCE(ret < dax.size)) {
-> +		ret = -EIO;
-> +		dax_unmap_atomic(bdev, &dax);
-> +		return ret;
-> +	}
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	/*
-> +	 * We need to revalidate our radix entry while holding tree_lock
-> +	 * before we do the writeback.
-> +	 */
+> bool extable_handler_default(struct pt_regs *regs, unsigned int fault,
+> unsigned long error_code, unsigned long info)
+> {
+>     if (fault == X86_TRAP_MC)
+>         return false;
+> 
+>     ...
+> }
+> 
+> bool extable_handler_mc_copy(struct pt_regs *regs, unsigned int fault,
+> unsigned long error_code, unsigned long info);
+> bool extable_handler_getput_ex(struct pt_regs *regs, unsigned int
+> fault, unsigned long error_code, unsigned long info);
+> 
+> and then shove ".long extable_handler_whatever - ." into the extable entry.
 
-Do we really need to revalidate here? dax_map_atomic() makes sure the addr
-& size is still part of the device. I guess you are concerned that due to
-truncate or similar operation those sectors needn't belong to the same file
-anymore but we don't really care about flushing sectors for someone else,
-do we?
+And to make it even cooler and more generic, you can make the exception
+table entry look like this:
 
-Otherwise the patch looks good to me.
+{ <offset to fault address>, <offset to handler>, <offset to an opaque pointer> }
 
-> +	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
-> +		goto unmap;
-> +	if (*slot != entry)
-> +		goto unmap;
-> +
-> +	wb_cache_pmem(dax.addr, dax.size);
-> + unmap:
-> +	dax_unmap_atomic(bdev, &dax);
-> + unlock:
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +	return ret;
-> +}
+and that opaque pointer would be a void * to some struct we pass to
+that handler and filled with stuff it needs. For starters, it would
+contain the return address where the fixup wants us to go.
 
-								Honza
+The struct will have to be statically allocated but ok, that's fine.
+
+And this way you can do all the sophisticated handling you desire.
+
+> Major bonus points to whoever can figure out how to make
+> extable_handler_iret work -- the current implementation of that is a
+> real turd.  (Hint: it's not clear to me that it's even possible
+> without preserving at least part of the asm special case.)
+
+What's extable_handler_iret? IRET-ting from an exception? Where do we do
+that?
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
