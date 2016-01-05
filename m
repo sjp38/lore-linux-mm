@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F1096B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:02:17 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id u188so26447550wmu.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:02:17 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id u131si5810662wmb.69.2016.01.05.07.02.15
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB016B0006
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:03:16 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id b14so33237387wmb.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:03:16 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id dl6si153052021wjb.82.2016.01.05.07.03.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 07:02:15 -0800 (PST)
-Date: Tue, 5 Jan 2016 16:02:13 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [Intel-gfx] [PATCH v2 1/3] drm/i915: Enable lockless lookup of
- request tracking via RCU
-Message-ID: <20160105150213.GP6344@twins.programming.kicks-ass.net>
-References: <1450869563-23892-1-git-send-email-chris@chris-wilson.co.uk>
- <1450877756-2902-1-git-send-email-chris@chris-wilson.co.uk>
- <20160105145951.GN8076@phenom.ffwll.local>
+        Tue, 05 Jan 2016 07:03:15 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id f206so26368456wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:03:14 -0800 (PST)
+Date: Tue, 5 Jan 2016 17:03:12 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/2] mm, oom: skip mlocked VMAs in __oom_reap_vmas()
+Message-ID: <20160105150312.GC19907@node.shutemov.name>
+References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1451421990-32297-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160105124735.GA15324@dhcp22.suse.cz>
+ <20160105131039.GA19907@node.shutemov.name>
+ <20160105133122.GB15324@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160105145951.GN8076@phenom.ffwll.local>
+In-Reply-To: <20160105133122.GB15324@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, Linux MM <linux-mm@kvack.org>, Jens Axboe <jens.axboe@oracle.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
 
-On Tue, Jan 05, 2016 at 03:59:51PM +0100, Daniel Vetter wrote:
-> On Wed, Dec 23, 2015 at 01:35:54PM +0000, Chris Wilson wrote:
-> > If we enable RCU for the requests (providing a grace period where we can
-> > inspect a "dead" request before it is freed), we can allow callers to
-> > carefully perform lockless lookup of an active request.
+On Tue, Jan 05, 2016 at 02:31:23PM +0100, Michal Hocko wrote:
+> On Tue 05-01-16 15:10:39, Kirill A. Shutemov wrote:
+> > On Tue, Jan 05, 2016 at 01:47:35PM +0100, Michal Hocko wrote:
+> > > On Tue 29-12-15 23:46:29, Kirill A. Shutemov wrote:
+> > > > As far as I can see we explicitly munlock pages everywhere before unmap
+> > > > them. The only case when we don't to that is OOM-reaper.
+> > > 
+> > > Very well spotted!
+> > > 
+> > > > I don't think we should bother with munlocking in this case, we can just
+> > > > skip the locked VMA.
+> > > 
+> > > Why cannot we simply munlock them here for the private mappings?
 > > 
-> > However, by enabling deferred freeing of requests, we can potentially
-> > hog a lot of memory when dealing with tens of thousands of requests per
-> > second - with a quick insertion of the a synchronize_rcu() inside our
-> > shrinker callback, that issue disappears.
-> > 
-> > Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> > ---
-> >  drivers/gpu/drm/i915/i915_gem.c          |  3 ++-
-> >  drivers/gpu/drm/i915/i915_gem_request.c  |  2 +-
-> >  drivers/gpu/drm/i915/i915_gem_request.h  | 24 +++++++++++++++++++++++-
-> >  drivers/gpu/drm/i915/i915_gem_shrinker.c |  1 +
-> >  4 files changed, 27 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-> > index c169574758d5..696ada3891ed 100644
-> > --- a/drivers/gpu/drm/i915/i915_gem.c
-> > +++ b/drivers/gpu/drm/i915/i915_gem.c
-> > @@ -4222,7 +4222,8 @@ i915_gem_load(struct drm_device *dev)
-> >  	dev_priv->requests =
-> >  		kmem_cache_create("i915_gem_request",
-> >  				  sizeof(struct drm_i915_gem_request), 0,
-> > -				  SLAB_HWCACHE_ALIGN,
-> > +				  SLAB_HWCACHE_ALIGN |
-> > +				  SLAB_DESTROY_BY_RCU,
-> >  				  NULL);
-> >  
-> >  	INIT_LIST_HEAD(&dev_priv->context_list);
+> > It's probably right think to do, but I wanted to fix the bug first.
 > 
-> [snip i915 private changes, leave just slab/shrinker changes]
-> 
-> > diff --git a/drivers/gpu/drm/i915/i915_gem_shrinker.c b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> > index c561ed2b8287..03a8bbb3e31e 100644
-> > --- a/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> > +++ b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> > @@ -142,6 +142,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
-> >  	}
-> >  
-> >  	i915_gem_retire_requests(dev_priv->dev);
-> > +	synchronize_rcu(); /* expedite the grace period to free the requests */
-> 
-> Shouldn't the slab subsystem do this for us if we request it delays the
-> actual kfree? Seems like a core bug to me ... Adding more folks.
+> Fair enough. It is surely simpler, although I think we should tear
+> private mappings down even when mlocked. I can cook up a separate patch
+> on top of yours which is obviously correct and can be folded into the
+> original one.
 
-note that sync_rcu() can take a terribly long time.. but yes, I seem to
-remember Paul talking about adding this to reclaim paths for just this
-reason. Not sure that ever happened thouhg.
+I prefer it not to be folded. To be able to revert in something go wrong.
+
+> > And I wasn't ready to investigate context the reaper working in to check
+> > if it's safe to munlock there. For instance, munlock would take page lock
+> > and I'm not sure at the moment if it can or cannot lead to deadlock in
+> > some scenario. So I choose safer fix.
+> 
+> repear is a flat kernel thread context which doesn't sit on any locks
+> (except for mmap sem for read taken on the way) so I do not immediately
+> see any potential for the dead lock. If the original context which
+> wakes it up depend on the page lock to move on then we would be screwed
+> already because we can end up doing exit_mmap in that context already
+> and so end up doing munlock as well.
+
+Can target process hold page lock? Or a process in direct replaim?
+Basically, I don't know what I'm talking about ;-P
+
+> > If calling munlock is always safe where unmap happens, why not move inside
+> > unmap?
+> 
+> This would be less error prone for sure. I would rather see it as a
+> separate patch which explains why it is safe in all cases though.
+
+I haven't subscribed to implementing this just yet :)
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
