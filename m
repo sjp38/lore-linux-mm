@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7269F6B0007
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:03:42 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id f206so26385392wmf.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:03:42 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id ei4si147690373wjd.8.2016.01.05.07.03.41
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CE72800C7
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 10:06:58 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id cy9so216494311pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:06:58 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 86si10624208pfo.28.2016.01.05.07.06.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 07:03:41 -0800 (PST)
-Received: by mail-wm0-x22a.google.com with SMTP id l65so26092615wmf.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 07:03:41 -0800 (PST)
-Date: Tue, 5 Jan 2016 17:03:39 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/2] mm, oom: skip mlocked VMAs in __oom_reap_vmas()
-Message-ID: <20160105150339.GD19907@node.shutemov.name>
-References: <1451421990-32297-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1451421990-32297-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20160105133338.GC15324@dhcp22.suse.cz>
+        Tue, 05 Jan 2016 07:06:57 -0800 (PST)
+Date: Tue, 5 Jan 2016 16:06:48 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [Intel-gfx] [PATCH v2 1/3] drm/i915: Enable lockless lookup of
+ request tracking via RCU
+Message-ID: <20160105150648.GT6373@twins.programming.kicks-ass.net>
+References: <1450869563-23892-1-git-send-email-chris@chris-wilson.co.uk>
+ <1450877756-2902-1-git-send-email-chris@chris-wilson.co.uk>
+ <20160105145951.GN8076@phenom.ffwll.local>
+ <20160105150213.GP6344@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160105133338.GC15324@dhcp22.suse.cz>
+In-Reply-To: <20160105150213.GP6344@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, Linux MM <linux-mm@kvack.org>, Jens Axboe <jens.axboe@oracle.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, Jan 05, 2016 at 02:33:38PM +0100, Michal Hocko wrote:
-> On Tue 29-12-15 23:46:29, Kirill A. Shutemov wrote:
-> > As far as I can see we explicitly munlock pages everywhere before unmap
-> > them. The only case when we don't to that is OOM-reaper.
-> > 
-> > I don't think we should bother with munlocking in this case, we can just
-> > skip the locked VMA.
-> > 
-> > I think this patch would fix this crash:
-> >  http://lkml.kernel.org/r/5661FBB6.6050307@oracle.com
+On Tue, Jan 05, 2016 at 04:02:13PM +0100, Peter Zijlstra wrote:
+> > Shouldn't the slab subsystem do this for us if we request it delays the
+> > actual kfree? Seems like a core bug to me ... Adding more folks.
 > 
-> Btw, do you happen to have the full log here. OOM reaper can only
-> interfere if there was an OOM killer invoked.
+> note that sync_rcu() can take a terribly long time.. but yes, I seem to
+> remember Paul talking about adding this to reclaim paths for just this
+> reason. Not sure that ever happened thouhg.
 
-No, I don't. Sasha?
+Also, you might be wanting rcu_barrier() instead, that not only waits
+for a GP to complete, but also for all pending callbacks to be
+processed.
 
--- 
- Kirill A. Shutemov
+Without the latter there might still not be anything to free after it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
