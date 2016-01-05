@@ -1,146 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1826B0003
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 15:57:41 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id b14so47818188wmb.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 12:57:41 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
-        by mx.google.com with ESMTPS id di9si73000922wjc.18.2016.01.05.12.57.40
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id DAE1F6B0006
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 15:58:15 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so47892450wmf.0
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 12:58:15 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id ci1si154652187wjc.27.2016.01.05.12.58.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 12:57:40 -0800 (PST)
-Subject: Re: [PATCH v3 09/17] drivers: Initialize resource entry to zero
-References: <1452020081-26534-1-git-send-email-toshi.kani@hpe.com>
- <1452020081-26534-9-git-send-email-toshi.kani@hpe.com>
-From: Helge Deller <deller@gmx.de>
-Message-ID: <568C2E3D.4060701@gmx.de>
-Date: Tue, 5 Jan 2016 21:57:33 +0100
+        Tue, 05 Jan 2016 12:58:14 -0800 (PST)
+Received: by mail-wm0-x231.google.com with SMTP id u188so38112247wmu.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 12:58:14 -0800 (PST)
+Date: Tue, 5 Jan 2016 22:58:12 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Does vm_operations_struct require a .owner field?
+Message-ID: <20160105205812.GA24738@node.shutemov.name>
+References: <Pine.LNX.4.44L0.1601051024110.1666-100000@iolanthe.rowland.org>
+ <Pine.LNX.4.44L0.1601051108300.1666-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-In-Reply-To: <1452020081-26534-9-git-send-email-toshi.kani@hpe.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44L0.1601051108300.1666-100000@iolanthe.rowland.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>, akpm@linux-foundation.org, bp@alien8.de
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, David Laight <David.Laight@ACULAB.COM>, "'Steinar H. Gunderson'" <sesse@google.com>, "linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>
 
-On 05.01.2016 19:54, Toshi Kani wrote:
-> I/O resource descriptor, 'desc' in struct resource, needs to be
-> initialized to zero by default.  Some drivers call kmalloc() to
-> allocate a resource entry, but does not initialize it to zero by
-> memset().  Change these drivers to call kzalloc(), instead.
+On Tue, Jan 05, 2016 at 11:27:45AM -0500, Alan Stern wrote:
+> Hello:
 > 
-> Cc: linux-acpi@vger.kernel.org
-> Cc: linux-parisc@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Acked-by: Simon Horman <horms+renesas@verge.net.au> # sh
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> ---
->  drivers/acpi/acpi_platform.c       |    2 +-
->  drivers/parisc/eisa_enumerator.c   |    4 ++--
-
-The parisc changes look good. For those:
-Acked-by: Helge Deller <deller@gmx.de>
-
-
-
->  drivers/rapidio/rio.c              |    8 ++++----
->  drivers/sh/superhyway/superhyway.c |    2 +-
->  4 files changed, 8 insertions(+), 8 deletions(-)
+> Question: The vm_operations_struct structure contains lots of callback
+> pointers.  Is there any mechanism to prevent the callback routines and
+> the structure itself being unloaded from memory (if they are built into
+> modules) while the relevant VMAs are still in use?
 > 
-> diff --git a/drivers/acpi/acpi_platform.c b/drivers/acpi/acpi_platform.c
-> index 296b7a1..b6f7fa3 100644
-> --- a/drivers/acpi/acpi_platform.c
-> +++ b/drivers/acpi/acpi_platform.c
-> @@ -62,7 +62,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
->  	if (count < 0) {
->  		return NULL;
->  	} else if (count > 0) {
-> -		resources = kmalloc(count * sizeof(struct resource),
-> +		resources = kzalloc(count * sizeof(struct resource),
->  				    GFP_KERNEL);
->  		if (!resources) {
->  			dev_err(&adev->dev, "No memory for resources\n");
-> diff --git a/drivers/parisc/eisa_enumerator.c b/drivers/parisc/eisa_enumerator.c
-> index a656d9e..21905fe 100644
-> --- a/drivers/parisc/eisa_enumerator.c
-> +++ b/drivers/parisc/eisa_enumerator.c
-> @@ -91,7 +91,7 @@ static int configure_memory(const unsigned char *buf,
->  	for (i=0;i<HPEE_MEMORY_MAX_ENT;i++) {
->  		c = get_8(buf+len);
->  		
-> -		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-> +		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
->  			int result;
->  			
->  			res->name = name;
-> @@ -183,7 +183,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
->  	for (i=0;i<HPEE_PORT_MAX_ENT;i++) {
->  		c = get_8(buf+len);
->  		
-> -		if (NULL != (res = kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-> +		if (NULL != (res = kzalloc(sizeof(struct resource), GFP_KERNEL))) {
->  			res->name = board;
->  			res->start = get_16(buf+len+1);
->  			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
-> diff --git a/drivers/rapidio/rio.c b/drivers/rapidio/rio.c
-> index d7b87c6..e220edc 100644
-> --- a/drivers/rapidio/rio.c
-> +++ b/drivers/rapidio/rio.c
-> @@ -117,7 +117,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
->  	if (mport->ops->open_inb_mbox == NULL)
->  		goto out;
->  
-> -	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-> +	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
->  
->  	if (res) {
->  		rio_init_mbox_res(res, mbox, mbox);
-> @@ -185,7 +185,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
->  	if (mport->ops->open_outb_mbox == NULL)
->  		goto out;
->  
-> -	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-> +	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
->  
->  	if (res) {
->  		rio_init_mbox_res(res, mbox, mbox);
-> @@ -285,7 +285,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
->  {
->  	int rc = 0;
->  
-> -	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-> +	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
->  
->  	if (res) {
->  		rio_init_dbell_res(res, start, end);
-> @@ -360,7 +360,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
->  struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
->  					u16 end)
->  {
-> -	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
-> +	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
->  
->  	if (res) {
->  		rio_init_dbell_res(res, start, end);
-> diff --git a/drivers/sh/superhyway/superhyway.c b/drivers/sh/superhyway/superhyway.c
-> index 2d9e7f3..bb1fb771 100644
-> --- a/drivers/sh/superhyway/superhyway.c
-> +++ b/drivers/sh/superhyway/superhyway.c
-> @@ -66,7 +66,7 @@ int superhyway_add_device(unsigned long base, struct superhyway_device *sdev,
->  	superhyway_read_vcr(dev, base, &dev->vcr);
->  
->  	if (!dev->resource) {
-> -		dev->resource = kmalloc(sizeof(struct resource), GFP_KERNEL);
-> +		dev->resource = kzalloc(sizeof(struct resource), GFP_KERNEL);
->  		if (!dev->resource) {
->  			kfree(dev);
->  			return -ENOMEM;
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-parisc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Consider a simple example: A user program calls mmap(2) on a device
+> file.  Later on, the file is closed and the device driver's module is
+> unloaded.  But until munmap(2) is called or the user program exits, the
+> memory mapping and the corresponding VMA will remain in existence.  
+> (The man page for munmap specifically says "closing the file descriptor
+> does not unmap the region".)  Thus when the user program does do an
+> munmap(), the callback to vma->vm_ops->close will reference nonexistent
+> memory and cause an oops.
 > 
+> Normally this sort of thing is prevented by try_module_get(...->owner).  
+> But vm_operations_struct doesn't include a .owner field.
+> 
+> Am I missing something here?
+
+mmap(2) takes reference of the file, therefore the file is not closed from
+kernel POV until vma is gone and you cannot unload relevant module.
+See get_file() in mmap_region().
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
