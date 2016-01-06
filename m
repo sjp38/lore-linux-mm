@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F2FB16B0003
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 10:34:11 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id e32so214757618qgf.3
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:34:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x63si11184972qka.106.2016.01.06.07.34.11
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 687AE800C7
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 10:43:08 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id u188so64761886wmu.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:43:08 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id k8si12537499wmd.56.2016.01.06.07.43.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 07:34:11 -0800 (PST)
-Subject: Re: [PATCH] mm: mempolicy: skip non-migratable VMAs when setting
- MPOL_MF_LAZY
-References: <1452089927-22039-1-git-send-email-liangchen.linux@gmail.com>
-From: Rik van Riel <riel@redhat.com>
-Message-ID: <568D33F0.7080302@redhat.com>
-Date: Wed, 6 Jan 2016 10:34:08 -0500
-MIME-Version: 1.0
-In-Reply-To: <1452089927-22039-1-git-send-email-liangchen.linux@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Wed, 06 Jan 2016 07:43:07 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id f206so64084549wmf.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:43:07 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2 -mm] oom reaper v4
+Date: Wed,  6 Jan 2016 16:42:53 +0100
+Message-Id: <1452094975-551-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Chen <liangchen.linux@gmail.com>, linux-mm@kvack.org
-Cc: mgorman@suse.de, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-kernel@vger.kernel.org, Gavin Guo <gavin.guo@canonical.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
+Hi Andrew,
+the number of -fix patches for the the v3 of the patch [1] has grown
+quite a bit... so this is a drop in replacement for 
+mm-oom-introduce-oom-reaper.patch
+mm-oom-introduce-oom-reaper-fix.patch
+mm-oom-introduce-oom-reaper-fix-fix.patch
+mm-oom-introduce-oom-reaper-fix-fix-2.patch
+mm-oom-introduce-oom-reaper-checkpatch-fixes.patch
+mm-oom-introduce-oom-reaper-fix-3.patch
+mm-oom-introduce-oom-reaper-fix-4.patch
+mm-oom-introduce-oom-reaper-fix-4-fix.patch
+mm-oom-introduce-oom-reaper-fix-5.patch
+mm-oom-introduce-oom-reaper-fix-5-fix.patch
+mm-oom-introduce-oom-reaper-fix-6.patch
 
-On 01/06/2016 09:18 AM, Liang Chen wrote:
-> MPOL_MF_LAZY is not visible from userspace since 'commit
-> a720094ded8c ("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from
-> userspace for now")' , but it should still skip non-migratable
-> VMAs.
+I belive this should make the further review easier. I have put an
+additional patch on top which allows to munlock & unmap anonymous
+mappings as well. This went to a separate patch for an easier
+bisectability.
 
-The changelog could use a better description of exactly
-what the issue is, and why calling change_prot_numa
-on a non-migratable VMA is causing problems.
+[1] http://lkml.kernel.org/r/1450204575-13052-1-git-send-email-mhocko%40kernel.org
 
-> Signed-off-by: Liang Chen <liangchen.linux@gmail.com> 
-> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
+Michal Hocko (2):
+      mm, oom: introduce oom reaper
+      oom reaper: handle anonymous mlocked pages
 
-For the code itself:
+Diffstat says:
+ include/linux/mm.h |   2 +
+ mm/internal.h      |   5 ++
+ mm/memory.c        |  17 +++---
+ mm/oom_kill.c      | 162 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 175 insertions(+), 11 deletions(-)
 
-Acked-by: Rik van Riel <riel@redhat.com>
-
-Please resubmit with a better changelog.
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJWjTPwAAoJEM553pKExN6DCncIAKYtabnc7WjsI8/yzc0/qqYR
-s92KJjztJ2RiaMhioa6xO1aGh9c00oszHvbZfFlYFJVWn/MsGB83eVQ0KymYLOdx
-VyYP59Oe0oWvZagF4bvj7KEZVF35GFuUGOekLfbYihUw6VTgPE38cwAx9stIBTyf
-CBm5XT0WdPLWaJrxYl5aJlbdQiJ7BKxQIBx7yyLV8tAgw0KVwEmPpgfftjAI1oIq
-ItdrGDIqtOvb6vCc/5DJHT7+6b0ObwcpWWm4rE7QAc7OxyUUXbQydt/OKYXMhbUR
-j6wcfHutHW2dcZko5iln7oN9DvBlYnXVSmSa4WJxgavtbL0abTaJGpJLE61pWQQ=
-=sCoV
------END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
