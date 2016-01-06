@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0030C6B0003
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 08:44:56 -0500 (EST)
-Received: by mail-yk0-f172.google.com with SMTP id a85so237958883ykb.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 05:44:55 -0800 (PST)
-Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
-        by mx.google.com with ESMTPS id 193si43200280ywe.18.2016.01.06.05.44.55
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D5C8F6B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 09:21:01 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id 65so194620021pff.3
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 06:21:01 -0800 (PST)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id vz3si48499214pab.93.2016.01.06.06.21.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 05:44:55 -0800 (PST)
-Received: by mail-yk0-x233.google.com with SMTP id a85so237958545ykb.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 05:44:55 -0800 (PST)
-Date: Wed, 6 Jan 2016 08:44:53 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v4.4-rc7] sched: move sched lock synchronized bitfields
- in task_struct into ->atomic_flags
-Message-ID: <20160106134453.GB29797@mtj.duckdns.org>
-References: <20150921200141.GH13263@mtj.duckdns.org>
- <20151125144354.GB17308@twins.programming.kicks-ass.net>
- <20151125150207.GM11639@twins.programming.kicks-ass.net>
- <CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
- <20151125174449.GD17308@twins.programming.kicks-ass.net>
- <20151211162554.GS30240@mtj.duckdns.org>
- <20151215192245.GK6357@twins.programming.kicks-ass.net>
- <20151230092337.GD3873@htj.duckdns.org>
- <CA+55aFx0WxoUPrOPaq3HxM+YUQQ0DPV-c3f8kE1ec7agERb_Lg@mail.gmail.com>
- <20160101025628.GA3660@htj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160101025628.GA3660@htj.duckdns.org>
+        Wed, 06 Jan 2016 06:21:01 -0800 (PST)
+Received: by mail-pf0-x231.google.com with SMTP id e65so186687812pfe.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 06:21:00 -0800 (PST)
+From: Liang Chen <liangchen.linux@gmail.com>
+Subject: [PATCH] mm: mempolicy: skip non-migratable VMAs when setting MPOL_MF_LAZY
+Date: Wed,  6 Jan 2016 22:18:47 +0800
+Message-Id: <1452089927-22039-1-git-send-email-liangchen.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vladimir Davydov <vdavydov@parallels.com>, kernel-team <kernel-team@fb.com>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-mm@kvack.org
+Cc: mgorman@suse.de, akpm@linux-foundation.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, linux-kernel@vger.kernel.org, Liang Chen <liangchen.linux@gmail.com>, Gavin Guo <gavin.guo@canonical.com>
 
-On Thu, Dec 31, 2015 at 09:56:28PM -0500, Tejun Heo wrote:
-> task_struct has a cluster of unsigned bitfields.  Some are updated
-> under scheduler locks while others are updated only by the task
-> itself.  Currently, the two classes of bitfields aren't distinguished
-> and end up on the same word which can lead to clobbering when there
-> are simultaneous read-modify-write attempts.  While difficult to prove
-> definitely, it's likely that the resulting inconsistency led to low
-> frqeuency failures such as wrong memcg_may_oom state or loadavg
-> underflow due to clobbered sched_contributes_to_load.
+MPOL_MF_LAZY is not visible from userspace since 'commit a720094ded8c
+("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")'
+, but it should still skip non-migratable VMAs.
 
-Ping.
+Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
+Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
+---
+We have been evaluating the enablement of MPOL_MF_LAZY again, and found
+this issue. And we decided to push this patch upstream no matter if we
+finally determine to propose re-enablement of MPOL_MF_LAZY or not. Since
+it can be a potential problem even if MPOL_MF_LAZY is not enabled this
+time.
 
+ mm/mempolicy.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 87a1779..436ff411 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -610,7 +610,8 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
+ 
+ 	if (flags & MPOL_MF_LAZY) {
+ 		/* Similar to task_numa_work, skip inaccessible VMAs */
+-		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
++		if (vma_migratable(vma) &&
++			vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
+ 			change_prot_numa(vma, start, endvma);
+ 		return 1;
+ 	}
 -- 
-tejun
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
