@@ -1,84 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B69816B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 12:54:39 -0500 (EST)
-Received: by mail-oi0-f50.google.com with SMTP id y66so298130033oig.0
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:54:39 -0800 (PST)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id b188si6834699oih.29.2016.01.06.09.54.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 09:54:39 -0800 (PST)
-Received: by mail-ob0-x22e.google.com with SMTP id xn1so31693690obc.2
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:54:38 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20160106123346.GC19507@pd.tnic>
-References: <cover.1451952351.git.tony.luck@intel.com> <b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
- <20160106123346.GC19507@pd.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 6 Jan 2016 09:54:19 -0800
-Message-ID: <CALCETrVXD5YB_1UzR4LnSOCgV+ZzhDi9JRZrcxhMAjbvSzO6MQ@mail.gmail.com>
-Subject: Re: [PATCH v7 1/3] x86: Add classes to exception tables
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A3DFC6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:01:16 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id uo6so218538374pac.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:01:16 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id r17si35746336pfi.127.2016.01.06.10.01.15
+        for <linux-mm@kvack.org>;
+        Wed, 06 Jan 2016 10:01:15 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v7 3/9] pmem: add wb_cache_pmem() to the PMEM API
+Date: Wed,  6 Jan 2016 11:00:57 -0700
+Message-Id: <1452103263-1592-4-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
+References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-On Wed, Jan 6, 2016 at 4:33 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Wed, Dec 30, 2015 at 09:59:29AM -0800, Tony Luck wrote:
->> Starting with a patch from Andy Lutomirski <luto@amacapital.net>
->> that used linker relocation trickery to free up a couple of bits
->> in the "fixup" field of the exception table (and generalized the
->> uaccess_err hack to use one of the classes).
->
-> So I still think that the other idea Andy gave with putting the handler
-> in the exception table is much cleaner and straightforward.
->
-> Here's a totally untested patch which at least builds here. I think this
-> approach is much more extensible and simpler for the price of a couple
-> of KBs of __ex_table size.
->
-> ---
-> diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-> index 189679aba703..43b509c88b13 100644
-> --- a/arch/x86/include/asm/asm.h
-> +++ b/arch/x86/include/asm/asm.h
-> @@ -44,18 +44,20 @@
->
->  /* Exception table entry */
->  #ifdef __ASSEMBLY__
-> -# define _ASM_EXTABLE(from,to)                                 \
-> +# define _ASM_EXTABLE(from,to)                         \
->         .pushsection "__ex_table","a" ;                         \
->         .balign 8 ;                                             \
->         .long (from) - . ;                                      \
->         .long (to) - . ;                                        \
-> +       .long 0 - .;                                            \
+The function __arch_wb_cache_pmem() was already an internal implementation
+detail of the x86 PMEM API, but this functionality needs to be exported as
+part of the general PMEM API to handle the fsync/msync case for DAX mmaps.
 
-I assume that this zero is to save the couple of bytes for the
-relocation entry on relocatable kernels?
+One thing worth noting is that we really do want this to be part of the
+PMEM API as opposed to a stand-alone function like clflush_cache_range()
+because of ordering restrictions.  By having wb_cache_pmem() as part of the
+PMEM API we can leave it unordered, call it multiple times to write back
+large amounts of memory, and then order the multiple calls with a single
+wmb_pmem().
 
-If so, ...
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+---
+ arch/x86/include/asm/pmem.h | 11 ++++++-----
+ include/linux/pmem.h        | 22 +++++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 6 deletions(-)
 
-> +inline ex_handler_t ex_fixup_handler(const struct exception_table_entry *x)
-> +{
-> +       return (ex_handler_t)&x->handler + x->handler;
-
-I would check for zero here, because...
-
-> +       new_ip  = ex_fixup_addr(e);
-> +       handler = ex_fixup_handler(e);
-> +
-> +       if (!handler)
-> +               handler = ex_handler_default;
-
-the !handler condition here will never trigger because the offset was
-already applied.
-
-Otherwise this looks generally sane.
-
---Andy
+diff --git a/arch/x86/include/asm/pmem.h b/arch/x86/include/asm/pmem.h
+index 1544fab..c57fd1e 100644
+--- a/arch/x86/include/asm/pmem.h
++++ b/arch/x86/include/asm/pmem.h
+@@ -67,18 +67,19 @@ static inline void arch_wmb_pmem(void)
+ }
+ 
+ /**
+- * __arch_wb_cache_pmem - write back a cache range with CLWB
++ * arch_wb_cache_pmem - write back a cache range with CLWB
+  * @vaddr:	virtual start address
+  * @size:	number of bytes to write back
+  *
+  * Write back a cache range using the CLWB (cache line write back)
+  * instruction.  This function requires explicit ordering with an
+- * arch_wmb_pmem() call.  This API is internal to the x86 PMEM implementation.
++ * arch_wmb_pmem() call.
+  */
+-static inline void __arch_wb_cache_pmem(void *vaddr, size_t size)
++static inline void arch_wb_cache_pmem(void __pmem *addr, size_t size)
+ {
+ 	u16 x86_clflush_size = boot_cpu_data.x86_clflush_size;
+ 	unsigned long clflush_mask = x86_clflush_size - 1;
++	void *vaddr = (void __force *)addr;
+ 	void *vend = vaddr + size;
+ 	void *p;
+ 
+@@ -115,7 +116,7 @@ static inline size_t arch_copy_from_iter_pmem(void __pmem *addr, size_t bytes,
+ 	len = copy_from_iter_nocache(vaddr, bytes, i);
+ 
+ 	if (__iter_needs_pmem_wb(i))
+-		__arch_wb_cache_pmem(vaddr, bytes);
++		arch_wb_cache_pmem(addr, bytes);
+ 
+ 	return len;
+ }
+@@ -133,7 +134,7 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
+ 	void *vaddr = (void __force *)addr;
+ 
+ 	memset(vaddr, 0, size);
+-	__arch_wb_cache_pmem(vaddr, size);
++	arch_wb_cache_pmem(addr, size);
+ }
+ 
+ static inline bool __arch_has_wmb_pmem(void)
+diff --git a/include/linux/pmem.h b/include/linux/pmem.h
+index acfea8c..7c3d11a 100644
+--- a/include/linux/pmem.h
++++ b/include/linux/pmem.h
+@@ -53,12 +53,18 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
+ {
+ 	BUG();
+ }
++
++static inline void arch_wb_cache_pmem(void __pmem *addr, size_t size)
++{
++	BUG();
++}
+ #endif
+ 
+ /*
+  * Architectures that define ARCH_HAS_PMEM_API must provide
+  * implementations for arch_memcpy_to_pmem(), arch_wmb_pmem(),
+- * arch_copy_from_iter_pmem(), arch_clear_pmem() and arch_has_wmb_pmem().
++ * arch_copy_from_iter_pmem(), arch_clear_pmem(), arch_wb_cache_pmem()
++ * and arch_has_wmb_pmem().
+  */
+ static inline void memcpy_from_pmem(void *dst, void __pmem const *src, size_t size)
+ {
+@@ -178,4 +184,18 @@ static inline void clear_pmem(void __pmem *addr, size_t size)
+ 	else
+ 		default_clear_pmem(addr, size);
+ }
++
++/**
++ * wb_cache_pmem - write back processor cache for PMEM memory range
++ * @addr:	virtual start address
++ * @size:	number of bytes to write back
++ *
++ * Write back the processor cache range starting at 'addr' for 'size' bytes.
++ * This function requires explicit ordering with a wmb_pmem() call.
++ */
++static inline void wb_cache_pmem(void __pmem *addr, size_t size)
++{
++	if (arch_has_pmem_api())
++		arch_wb_cache_pmem(addr, size);
++}
+ #endif /* __PMEM_H__ */
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
