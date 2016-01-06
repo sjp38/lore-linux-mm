@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FF56B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 14:14:10 -0500 (EST)
-Received: by mail-qk0-f173.google.com with SMTP id p186so77838684qke.0
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:14:10 -0800 (PST)
-Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
-        by mx.google.com with ESMTPS id j203si1851974qhc.107.2016.01.06.11.14.10
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 117F66B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 14:43:41 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id b35so180910569qge.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:43:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 2si98045086qgi.13.2016.01.06.11.43.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 11:14:10 -0800 (PST)
-Received: by mail-qk0-x22d.google.com with SMTP id h11so16963803qke.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:14:10 -0800 (PST)
+        Wed, 06 Jan 2016 11:43:40 -0800 (PST)
+Date: Wed, 6 Jan 2016 20:43:31 +0100
+From: Mateusz Guzik <mguzik@redhat.com>
+Subject: Re: [PATCH 2/2] proc read mm's {arg,env}_{start,end} with mmap
+ semaphore taken.
+Message-ID: <20160106194329.GB14492@mguzik>
+References: <1452056549-10048-1-git-send-email-mguzik@redhat.com>
+ <1452056549-10048-3-git-send-email-mguzik@redhat.com>
+ <CAKeScWjvz7Bja6wMw5euWNWYdZ5_ikEdgR1Qk77pcCFajHmbeQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
-References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
-Date: Wed, 6 Jan 2016 11:14:09 -0800
-Message-ID: <CAPcyv4h3NcXHHQAWL=HwgGxTbFTeOa98S9fxWu7dA3nTEcFxxA@mail.gmail.com>
-Subject: Re: [PATCH v7 1/9] dax: fix NULL pointer dereference in __dax_dbg()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAKeScWjvz7Bja6wMw5euWNWYdZ5_ikEdgR1Qk77pcCFajHmbeQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>
+To: Anshuman Khandual <anshuman.linux@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexey Dobriyan <adobriyan@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jarod Wilson <jarod@redhat.com>, Jan Stancek <jstancek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Wed, Jan 6, 2016 at 10:00 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> __dax_dbg() currently assumes that bh->b_bdev is non-NULL, passing it into
-> bdevname() where is is dereferenced.  This assumption isn't always true -
-> when called for reads of holes, ext4_dax_mmap_get_block() returns a buffer
-> head where bh->b_bdev is never set.  I hit this BUG while testing the DAX
-> PMD fault path.
->
-> Instead, verify that we have a valid bh->b_bdev, else just say "unknown"
-> for the block device.
->
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> ---
->  fs/dax.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
->
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 7af8797..03cc4a3 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -563,7 +563,12 @@ static void __dax_dbg(struct buffer_head *bh, unsigned long address,
->  {
->         if (bh) {
->                 char bname[BDEVNAME_SIZE];
-> -               bdevname(bh->b_bdev, bname);
-> +
-> +               if (bh->b_bdev)
-> +                       bdevname(bh->b_bdev, bname);
-> +               else
-> +                       snprintf(bname, BDEVNAME_SIZE, "unknown");
-> +
->                 pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
->                         "length %zd fallback: %s\n", fn, current->comm,
->                         address, bname, bh->b_state, (u64)bh->b_blocknr,
+On Wed, Jan 06, 2016 at 03:14:22PM +0530, Anshuman Khandual wrote:
+> On Wed, Jan 6, 2016 at 10:32 AM, Mateusz Guzik <mguzik@redhat.com> wrote:
+> > Only functions doing more than one read are modified. Consumeres
+> > happened to deal with possibly changing data, but it does not seem
+> > like a good thing to rely on.
+> 
+> There are no other functions which might be reading mm-> members without
+> having a lock ? Why just deal with functions with more than one read ?
 
-I'm assuming there's no danger of a such a buffer_head ever being used
-for the bdev parameter to dax_map_atomic()?  Shouldn't we also/instead
-go fix ext4 to not send partially filled buffer_heads?
+Ideally all functions would read stuff with some kind of lock.
+
+However, if only one field is read, the lock does not change anything.
+Similarly, if multiple fields are read, but are not used for
+calculations against each other, the lock likely does not change
+anything, so there is no rush here.
+
+Using mmap_sem in all places may or may not be possible as it is, and
+even if it is possible it may turn out to be wasteful and maybe
+something else should be derived for protection of said fields (maybe a
+seq counter?).
+
+That said, patches here only deal with one actual I found and patch up
+consumers which had the most potential for trouble. Patching everything
+in some way definitely sounds like a good idea and I may get around to
+that.
+
+-- 
+Mateusz Guzik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
