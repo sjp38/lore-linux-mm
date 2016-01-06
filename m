@@ -1,40 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E8F386B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 12:43:35 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ho8so2087792pac.2
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:43:35 -0800 (PST)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D3786B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 12:46:17 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id 65so197290028pff.3
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:46:17 -0800 (PST)
 Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id d80si83510090pfj.168.2016.01.06.09.43.35
+        by mx.google.com with ESMTP id fd9si3036734pac.80.2016.01.06.09.46.16
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 09:43:35 -0800 (PST)
-Subject: Re: [PATCH 01/32] mm, gup: introduce concept of "foreign"
- get_user_pages()
+        Wed, 06 Jan 2016 09:46:16 -0800 (PST)
+Subject: Re: [PATCH 22/32] x86, pkeys: dump PTE pkey in /proc/pid/smaps
 References: <20151214190542.39C4886D@viggo.jf.intel.com>
- <20151214190544.74DCE448@viggo.jf.intel.com> <568BA039.4060901@suse.cz>
+ <20151214190619.BA65327A@viggo.jf.intel.com> <568BC5FA.2080800@suse.cz>
 From: Dave Hansen <dave@sr71.net>
-Message-ID: <568D5245.4070409@sr71.net>
-Date: Wed, 6 Jan 2016 09:43:33 -0800
+Message-ID: <568D52E7.1060602@sr71.net>
+Date: Wed, 6 Jan 2016 09:46:15 -0800
 MIME-Version: 1.0
-In-Reply-To: <568BA039.4060901@suse.cz>
+In-Reply-To: <568BC5FA.2080800@suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com
+Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
 
-On 01/05/2016 02:51 AM, Vlastimil Babka wrote:
+On 01/05/2016 05:32 AM, Vlastimil Babka wrote:
+> On 12/14/2015 08:06 PM, Dave Hansen wrote:
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Changelog doesn't mention that get_user_pages_unlocked() is also changed
-> to be effectively get_current_user_pages_unlocked(). It's a bit
-> non-obvious and the inconsistent naming is unfortunate, but I can see
-> how get_current_user_pages_unlocked() would be too long, and just
-> deleting the parameters from get_user_pages() would be too large and
-> intrusive. But please mention this in changelog?
+> $SUBJ is a bit confusing in that it's dumping stuff from VMA, not PTE's?
 
-Thanks for the review!  Good point about the churn there.  I'll add some
-changelog comments.
+Yeah, absolutely.  That's a relic from when I thought I'd need to be
+walking the page tables to figure this out.  I'll update it.
+
+> It could be also useful to extend dump_vma() appropriately. Currently
+> there are no string translations for the new "flags" (but one can figure
+> it out from the raw value). But maybe we should print pkey separately in
+> dump_vma() as you do here. I have a series in flight [1] that touches
+> dump_vma() and the flags printing in general, so to avoid conflicts,
+> handling pkeys there could wait. But mentioning it now for less chance
+> of being forgotten...
+> 
+> [1] https://lkml.org/lkml/2015/12/18/178 - a previous version is in
+> mmotm and this should replace it after 4.5-rc1
+
+Ahhh, very nice.  I'll go back and add support for it once your patch lands.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
