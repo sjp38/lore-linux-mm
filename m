@@ -1,130 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A97828DE
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:01:21 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id ho8so2314277pac.2
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:01:21 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id r17si35746336pfi.127.2016.01.06.10.01.18
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2557F828DE
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:01:23 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id e65so189553218pfe.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:01:23 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id sq8si3131167pab.10.2016.01.06.10.01.18
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 10:01:18 -0800 (PST)
+        Wed, 06 Jan 2016 10:01:19 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v7 5/9] mm: add find_get_entries_tag()
-Date: Wed,  6 Jan 2016 11:00:59 -0700
-Message-Id: <1452103263-1592-6-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v7 0/9] DAX fsync/msync support
+Date: Wed,  6 Jan 2016 11:00:54 -0700
+Message-Id: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-Add find_get_entries_tag() to the family of functions that include
-find_get_entries(), find_get_pages() and find_get_pages_tag().  This is
-needed for DAX dirty page handling because we need a list of both page
-offsets and radix tree entries ('indices' and 'entries' in this function)
-that are marked with the PAGECACHE_TAG_TOWRITE tag.
+Changes since v6 [1]:
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- include/linux/pagemap.h |  3 +++
- mm/filemap.c            | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+)
+1) Fixed an existing NULL pointer dereference bug in __dax_dbg() in patch 1.
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 4d08b6c..92395a0 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -361,6 +361,9 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
- 			       unsigned int nr_pages, struct page **pages);
- unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 			int tag, unsigned int nr_pages, struct page **pages);
-+unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-+			int tag, unsigned int nr_entries,
-+			struct page **entries, pgoff_t *indices);
- 
- struct page *grab_cache_page_write_begin(struct address_space *mapping,
- 			pgoff_t index, unsigned flags);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7b8be78..1e215fc 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1499,6 +1499,74 @@ repeat:
- }
- EXPORT_SYMBOL(find_get_pages_tag);
- 
-+/**
-+ * find_get_entries_tag - find and return entries that match @tag
-+ * @mapping:	the address_space to search
-+ * @start:	the starting page cache index
-+ * @tag:	the tag index
-+ * @nr_entries:	the maximum number of entries
-+ * @entries:	where the resulting entries are placed
-+ * @indices:	the cache indices corresponding to the entries in @entries
-+ *
-+ * Like find_get_entries, except we only return entries which are tagged with
-+ * @tag.
-+ */
-+unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-+			int tag, unsigned int nr_entries,
-+			struct page **entries, pgoff_t *indices)
-+{
-+	void **slot;
-+	unsigned int ret = 0;
-+	struct radix_tree_iter iter;
-+
-+	if (!nr_entries)
-+		return 0;
-+
-+	rcu_read_lock();
-+restart:
-+	radix_tree_for_each_tagged(slot, &mapping->page_tree,
-+				   &iter, start, tag) {
-+		struct page *page;
-+repeat:
-+		page = radix_tree_deref_slot(slot);
-+		if (unlikely(!page))
-+			continue;
-+		if (radix_tree_exception(page)) {
-+			if (radix_tree_deref_retry(page)) {
-+				/*
-+				 * Transient condition which can only trigger
-+				 * when entry at index 0 moves out of or back
-+				 * to root: none yet gotten, safe to restart.
-+				 */
-+				goto restart;
-+			}
-+
-+			/*
-+			 * A shadow entry of a recently evicted page, a swap
-+			 * entry from shmem/tmpfs or a DAX entry.  Return it
-+			 * without attempting to raise page count.
-+			 */
-+			goto export;
-+		}
-+		if (!page_cache_get_speculative(page))
-+			goto repeat;
-+
-+		/* Has the page moved? */
-+		if (unlikely(page != *slot)) {
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+export:
-+		indices[ret] = iter.index;
-+		entries[ret] = page;
-+		if (++ret == nr_entries)
-+			break;
-+	}
-+	rcu_read_unlock();
-+	return ret;
-+}
-+EXPORT_SYMBOL(find_get_entries_tag);
-+
- /*
-  * CD/DVDs are error prone. When a medium error occurs, the driver may fail
-  * a _large_ part of the i/o request. Imagine the worst scenario:
+2) Fixed an existing bug with the way holes are converted into DAX PMD
+entries in patch 2.  This solves a BUG_ON reported by Dan Williams.
+
+3) Removed second verification of our radix tree entry before cache flush
+in dax_writeback_one(). (Jan Kara)
+
+4) Updated to the new argument list types for dax_pmd_dbg(). (Dan Williams)
+
+5) Fixed the text of a random debug message so that it accurately reflects
+the error being found.
+
+This series replaces v6 in the MM tree and in the "akpm" branch of the next
+tree.  A working tree can be found here:
+
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=fsync_v7
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-December/003663.html
+
+Ross Zwisler (9):
+  dax: fix NULL pointer dereference in __dax_dbg()
+  dax: fix conversion of holes to PMDs
+  pmem: add wb_cache_pmem() to the PMEM API
+  dax: support dirty DAX entries in radix tree
+  mm: add find_get_entries_tag()
+  dax: add support for fsync/msync
+  ext2: call dax_pfn_mkwrite() for DAX fsync/msync
+  ext4: call dax_pfn_mkwrite() for DAX fsync/msync
+  xfs: call dax_pfn_mkwrite() for DAX fsync/msync
+
+ arch/x86/include/asm/pmem.h |  11 +--
+ fs/block_dev.c              |   2 +-
+ fs/dax.c                    | 214 ++++++++++++++++++++++++++++++++++++++++----
+ fs/ext2/file.c              |   4 +-
+ fs/ext4/file.c              |   4 +-
+ fs/inode.c                  |   2 +-
+ fs/xfs/xfs_file.c           |   7 +-
+ include/linux/dax.h         |   7 ++
+ include/linux/fs.h          |   3 +-
+ include/linux/pagemap.h     |   3 +
+ include/linux/pmem.h        |  22 ++++-
+ include/linux/radix-tree.h  |   9 ++
+ mm/filemap.c                |  91 +++++++++++++++++--
+ mm/truncate.c               |  69 +++++++-------
+ mm/vmscan.c                 |   9 +-
+ mm/workingset.c             |   4 +-
+ 16 files changed, 391 insertions(+), 70 deletions(-)
+
 -- 
 2.5.0
 
