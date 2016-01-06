@@ -1,85 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C28656B0003
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 07:44:05 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id b14so73654587wmb.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 04:44:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l7si95735967wjq.40.2016.01.06.04.44.04
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E95886B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 08:17:58 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l65so58925343wmf.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 05:17:58 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id 75si12449665wmn.68.2016.01.06.05.17.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 06 Jan 2016 04:44:04 -0800 (PST)
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
- <201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
- <201512282313.DHE87075.OSLJOFOtMVQHFF@I-love.SAKURA.ne.jp>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <568D0C10.1090504@suse.cz>
-Date: Wed, 6 Jan 2016 13:44:00 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Jan 2016 05:17:57 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so59137356wmf.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 05:17:57 -0800 (PST)
+Date: Wed, 6 Jan 2016 14:17:56 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC][PATCH] sysrq: ensure manual invocation of the OOM
+ killerunder OOM livelock
+Message-ID: <20160106131755.GB13900@dhcp22.suse.cz>
+References: <201512301533.JDJ18237.QOFOMVSFtHOJLF@I-love.SAKURA.ne.jp>
+ <20160105162246.GH15324@dhcp22.suse.cz>
+ <20160105180507.GB23326@dhcp22.suse.cz>
+ <201601062049.CIB17682.VtMHSQFOJOOLFF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <201512282313.DHE87075.OSLJOFOtMVQHFF@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201601062049.CIB17682.VtMHSQFOJOOLFF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/28/2015 03:13 PM, Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
->> Tetsuo Handa wrote:
->> > I got OOM killers while running heavy disk I/O (extracting kernel source,
->> > running lxr's genxref command). (Environ: 4 CPUs / 2048MB RAM / no swap / XFS)
->> > Do you think these OOM killers reasonable? Too weak against fragmentation?
->>
->> Since I cannot establish workload that caused December 24's natural OOM
->> killers, I used the following stressor for generating similar situation.
->>
+On Wed 06-01-16 20:49:23, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 05-01-16 17:22:46, Michal Hocko wrote:
+> > > On Wed 30-12-15 15:33:47, Tetsuo Handa wrote:
+> > [...]
+> > > > I wish for a kernel thread that does OOM-kill operation.
+> > > > Maybe we can change the OOM reaper kernel thread to do it.
+> > > > What do you think?
+> > > 
+> > > I do no think a separate kernel thread would help much if the
+> > > allocations have to keep looping in the allocator. oom_reaper is a
+> > > separate kernel thread only due to locking required for the exit_mmap
+> > > path.
+> > 
+> > Let me clarify what I've meant here. What you actually want is to do
+> > select_bad_process and oom_kill_process (including oom_reap_vmas) in
+> > the kernel thread context, right?
 > 
-> I came to feel that I am observing a different problem which is currently
-> hidden behind the "too small to fail" memory-allocation rule. That is, tasks
-> requesting order > 0 pages are continuously losing the competition when
-> tasks requesting order = 0 pages dominate, for reclaimed pages are stolen
-> by tasks requesting order = 0 pages before reclaimed pages are combined to
-> order > 0 pages (or maybe order > 0 pages are immediately split into
-> order = 0 pages due to tasks requesting order = 0 pages).
+> Right.
 
-Hm I would expect that as long as there are some reserves left that your
-reproducer cannot grab, there are some free pages left and the allocator should
-thus preserve the order-2 pages that combine, since order-0 allocations will get
-existing order-0 pages before splitting higher orders. Compaction should also be
-able to successfully combine order-2 without racing allocators thanks to per-cpu
-caching (but I'd have to check).
+It still seems we were not on the same page. I thought you wanted to
+make _all_ oom killer handling to be done from the kernel thread while
+you only cared about the sysrq+f case. Your patch below sounds like a
+reasonable compromise to me. It conflates two different things together
+but they are not that different in principle so I guess this could be
+acceptable. Maybe s@oom_reaper@async_oom_killer@ would be more
+appropriate to reflect that fact.
 
-So I think the problem is not higher-order page itself, but that order-2 needs 4
-pages and thus needs to pass a bit higher watermark, thus being at disadvantage
-to order-0 allocations. Thus I would expect the order-2 pages to be there, but
-not available for allocation due to watermarks.
+[...]
 
-> Currently, order <= PAGE_ALLOC_COSTLY_ORDER allocations implicitly retry
-> unless chosen by the OOM killer. Therefore, even if tasks requesting
-> order = 2 pages lost the competition when there are tasks requesting
-> order = 0 pages, the order = 2 allocation request is implicitly retried
-> and therefore the OOM killer is not invoked (though there is a problem that
-> tasks requesting order > 0 allocation will stall as long as tasks requesting
-> order = 0 pages dominate).
+> While testing above patch, I once hit depletion of memory reserves.
+[...]
+> Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20160106.txt.xz .
 > 
-> But this patchset introduced a limit of 16 retries. Thus, if tasks requesting
-> order = 2 pages lost the competition for 16 times due to tasks requesting
-> order = 0 pages, tasks requesting order = 2 pages invoke the OOM killer.
-> To avoid the OOM killer, we need to make sure that pages reclaimed for
-> order > 0 allocations will not be stolen by tasks requesting order = 0
-> allocations.
+> I don't think this depletion was caused by above patch because the last
+> invocation was not SysRq-f.
+
+Yes I agree this is not related to the patch.
+
+> I believe we should add a workaround for
+> the worst case now. It is impossible to add it after we made the code
+> more and more difficult to test.
 > 
-> Is my feeling plausible?
+> >                               We would have to handle queuing of the
+> > oom requests because multiple oom killers might be active in different
+> > allocation domains (cpusets, memcgs) so I am not so sure this would be a
+> > great win in the end. But I haven't tried to do it so I might be wrong
+> > and it will turn up being much more easier than I expect.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> I could not catch what you want to say.
+
+I was contemplating about all the OOM killer handling from within the
+kernel thread as that was my understanding of what you were proposing.
+
+> If you are worrying about failing
+> to call oom_reap_vmas() for second victim due to invoking the OOM killer
+> again before mm_to_reap is updated from first victim to NULL, we can walk
+> on the process list.
+[...]
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
