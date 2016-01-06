@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D3786B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 12:46:17 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id 65so197290028pff.3
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:46:17 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id fd9si3036734pac.80.2016.01.06.09.46.16
-        for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 09:46:16 -0800 (PST)
-Subject: Re: [PATCH 22/32] x86, pkeys: dump PTE pkey in /proc/pid/smaps
-References: <20151214190542.39C4886D@viggo.jf.intel.com>
- <20151214190619.BA65327A@viggo.jf.intel.com> <568BC5FA.2080800@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <568D52E7.1060602@sr71.net>
-Date: Wed, 6 Jan 2016 09:46:15 -0800
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B4016B0006
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 12:48:32 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id ik10so37049998igb.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:48:32 -0800 (PST)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id o67si16554382ioi.5.2016.01.06.09.48.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Jan 2016 09:48:31 -0800 (PST)
+Received: by mail-ig0-x232.google.com with SMTP id z14so15678354igp.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 09:48:31 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <568BC5FA.2080800@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160106173515.GA25980@agluck-desk.sc.intel.com>
+References: <cover.1451952351.git.tony.luck@intel.com>
+	<b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
+	<20160106123346.GC19507@pd.tnic>
+	<20160106173515.GA25980@agluck-desk.sc.intel.com>
+Date: Wed, 6 Jan 2016 09:48:31 -0800
+Message-ID: <CA+55aFx7_sP_R+n6c3Ew=KVcwJwwgXhB57pSG9Kh24oiAqd+vw@mail.gmail.com>
+Subject: Re: [PATCH v7 1/3] x86: Add classes to exception tables
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, the arch/x86 maintainers <x86@kernel.org>
 
-On 01/05/2016 05:32 AM, Vlastimil Babka wrote:
-> On 12/14/2015 08:06 PM, Dave Hansen wrote:
->> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> $SUBJ is a bit confusing in that it's dumping stuff from VMA, not PTE's?
+On Wed, Jan 6, 2016 at 9:35 AM, Luck, Tony <tony.luck@intel.com> wrote:
+>
+> Linus, Peter, Ingo, Thomas: Can we head this direction? The code is cleaner
+> and more flexible. Or should we stick with Andy's clever way to squeeze a
+> couple of "class" bits into the fixup field of the exception table?
 
-Yeah, absolutely.  That's a relic from when I thought I'd need to be
-walking the page tables to figure this out.  I'll update it.
+I'd rather not be clever in order to save just a tiny amount of space
+in the exception table, which isn't really criticial for anybody.
 
-> It could be also useful to extend dump_vma() appropriately. Currently
-> there are no string translations for the new "flags" (but one can figure
-> it out from the raw value). But maybe we should print pkey separately in
-> dump_vma() as you do here. I have a series in flight [1] that touches
-> dump_vma() and the flags printing in general, so to avoid conflicts,
-> handling pkeys there could wait. But mentioning it now for less chance
-> of being forgotten...
-> 
-> [1] https://lkml.org/lkml/2015/12/18/178 - a previous version is in
-> mmotm and this should replace it after 4.5-rc1
+So I think Borislav's patch has the advantage of being pretty
+straightforward and allowing arbitrary fixups, in case we end up
+having localized special cases..
 
-Ahhh, very nice.  I'll go back and add support for it once your patch lands.
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
