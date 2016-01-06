@@ -1,124 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 966EC800C7
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 19:15:36 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id to18so22654900igc.0
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 16:15:36 -0800 (PST)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id y79si41582186ioi.7.2016.01.05.16.15.36
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C13C1800C7
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2016 19:17:53 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id ik10so22423194igb.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 16:17:53 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id 143si37485068ion.76.2016.01.05.16.17.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 16:15:36 -0800 (PST)
-Received: by mail-io0-x236.google.com with SMTP id 1so156678932ion.1
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 16:15:36 -0800 (PST)
+        Tue, 05 Jan 2016 16:17:53 -0800 (PST)
+Received: by mail-ig0-x22b.google.com with SMTP id ik10so22423129igb.1
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 16:17:53 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1450755641-7856-8-git-send-email-laura@labbott.name>
+In-Reply-To: <5679B701.9040802@suse.cz>
 References: <1450755641-7856-1-git-send-email-laura@labbott.name>
-	<1450755641-7856-8-git-send-email-laura@labbott.name>
-Date: Tue, 5 Jan 2016 16:15:35 -0800
-Message-ID: <CAGXu5jKZTg9jfg9CtXxjDOO_DDBW=c5iyLtkfJr7zAqzxWgQ4Q@mail.gmail.com>
-Subject: Re: [RFC][PATCH 7/7] lkdtm: Add READ_AFTER_FREE test
+	<1450755641-7856-2-git-send-email-laura@labbott.name>
+	<5679B701.9040802@suse.cz>
+Date: Tue, 5 Jan 2016 16:17:53 -0800
+Message-ID: <CAGXu5jLvS0jzi07QegCHoBoCc3wFhbcMOjCpmbe3KC2oJO9jPQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH 1/7] mm/slab_common.c: Add common support for slab saniziation
 From: Kees Cook <keescook@chromium.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <laura@labbott.name>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Laura Abbott <laura@labbott.name>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Mathias Krause <minipli@googlemail.com>
 
-On Mon, Dec 21, 2015 at 7:40 PM, Laura Abbott <laura@labbott.name> wrote:
+On Tue, Dec 22, 2015 at 12:48 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 22.12.2015 4:40, Laura Abbott wrote:
+>> Each of the different allocators (SLAB/SLUB/SLOB) handles
+>> clearing of objects differently depending on configuration.
+>> Add common infrastructure for selecting sanitization levels
+>> (off, slow path only, partial, full) and marking caches as
+>> appropriate.
+>>
+>> All credit for the original work should be given to Brad Spengler and
+>> the PaX Team.
+>>
+>> Signed-off-by: Laura Abbott <laura@labbott.name>
+>>
+>> +#ifdef CONFIG_SLAB_MEMORY_SANITIZE
+>> +#ifdef CONFIG_X86_64
+>> +#define SLAB_MEMORY_SANITIZE_VALUE       '\xfe'
+>> +#else
+>> +#define SLAB_MEMORY_SANITIZE_VALUE       '\xff'
+>> +#endif
+>> +enum slab_sanitize_mode {
+>> +     /* No sanitization */
+>> +     SLAB_SANITIZE_OFF = 0,
+>> +
+>> +     /* Partial sanitization happens only on the slow path */
+>> +     SLAB_SANITIZE_PARTIAL_SLOWPATH = 1,
 >
-> In a similar manner to WRITE_AFTER_FREE, add a READ_AFTER_FREE
-> test to test free poisoning features. Sample output when
-> no poison is present:
+> Can you explain more about this variant? I wonder who might find it useful
+> except someone getting a false sense of security, but cheaper.
+> It sounds like wanting the cake and eat it too :)
+> I would be surprised if such IMHO half-solution existed in the original
+> PAX_MEMORY_SANITIZE too?
 >
-> [   20.222501] lkdtm: Performing direct entry READ_AFTER_FREE
-> [   20.226163] lkdtm: Freed val: 12345678
->
-> with poison:
->
-> [   24.203748] lkdtm: Performing direct entry READ_AFTER_FREE
-> [   24.207261] general protection fault: 0000 [#1] SMP
-> [   24.208193] Modules linked in:
-> [   24.208193] CPU: 0 PID: 866 Comm: sh Not tainted 4.4.0-rc5-work+ #108
->
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Signed-off-by: Laura Abbott <laura@labbott.name>
-> ---
->  drivers/misc/lkdtm.c | 29 +++++++++++++++++++++++++++++
->  1 file changed, 29 insertions(+)
->
-> diff --git a/drivers/misc/lkdtm.c b/drivers/misc/lkdtm.c
-> index 11fdadc..c641fb7 100644
-> --- a/drivers/misc/lkdtm.c
-> +++ b/drivers/misc/lkdtm.c
-> @@ -92,6 +92,7 @@ enum ctype {
->         CT_UNALIGNED_LOAD_STORE_WRITE,
->         CT_OVERWRITE_ALLOCATION,
->         CT_WRITE_AFTER_FREE,
-> +       CT_READ_AFTER_FREE,
->         CT_SOFTLOCKUP,
->         CT_HARDLOCKUP,
->         CT_SPINLOCKUP,
-> @@ -129,6 +130,7 @@ static char* cp_type[] = {
->         "UNALIGNED_LOAD_STORE_WRITE",
->         "OVERWRITE_ALLOCATION",
->         "WRITE_AFTER_FREE",
-> +       "READ_AFTER_FREE",
->         "SOFTLOCKUP",
->         "HARDLOCKUP",
->         "SPINLOCKUP",
-> @@ -417,6 +419,33 @@ static void lkdtm_do_action(enum ctype which)
->                 memset(data, 0x78, len);
->                 break;
->         }
-> +       case CT_READ_AFTER_FREE: {
-> +               int **base;
-> +               int *val, *tmp;
-> +
-> +               base = kmalloc(1024, GFP_KERNEL);
-> +               if (!base)
-> +                       return;
-> +
-> +               val = kmalloc(1024, GFP_KERNEL);
-> +               if (!val)
-> +                       return;
+> Or is there something that guarantees that the objects freed on hotpath won't
+> stay there for long so the danger of leak is low? (And what about
+> use-after-free?) It depends on further slab activity, no? (I'm not that familiar
+> with SLUB, but I would expect the hotpath there being similar to SLAB freeing
+> the object on per-cpu array_cache. But, it seems the PARTIAL_SLOWPATH is not
+> implemented for SLAB, so there might be some fundamental difference I'm missing.)
 
-For both of these test failure return, I think there should be a
-pr_warn too (see CT_EXEC_USERSPACE).
-
-> +
-> +               *val = 0x12345678;
-> +
-> +               /*
-> +                * Don't just use the first entry since that's where the
-> +                * freelist goes for the slab allocator
-> +                */
-> +               base[1] = val;
-
-Maybe just aim at the middle, in case allocator freelist tracking ever
-grows? base[1024/sizeof(int)/2] or something?
-
-> +               kfree(base);
-> +
-> +               tmp = base[1];
-> +               pr_info("Freed val: %x\n", *tmp);
-
-Instead of depending on the deref to fail, maybe just use a simple
-BUG_ON to test that the value did actually change? Or, change the
-pr_info to "Failed to Oops when reading freed value: ..." just to be
-slightly more verbose about what failed?
-
-> +
-> +               kfree(val);
-> +               break;
-> +       }
->         case CT_SOFTLOCKUP:
->                 preempt_disable();
->                 for (;;)
-> --
-> 2.5.0
->
+Perhaps the partial sanitize could be a separate patch so it's
+features were more logically separated?
 
 -Kees
 
