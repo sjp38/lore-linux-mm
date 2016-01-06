@@ -1,69 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id ABD8A6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:07:39 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id ba1so305807662obb.3
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:07:39 -0800 (PST)
-Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
-        by mx.google.com with ESMTPS id c75si22894127oig.36.2016.01.06.10.07.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 10:07:39 -0800 (PST)
-Received: by mail-ob0-x236.google.com with SMTP id wp13so170810192obc.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:07:39 -0800 (PST)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B13D86B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:10:14 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id cy9so237364549pac.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:10:14 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id wk6si3161391pac.91.2016.01.06.10.10.13
+        for <linux-mm@kvack.org>;
+        Wed, 06 Jan 2016 10:10:14 -0800 (PST)
+Date: Wed, 6 Jan 2016 11:10:12 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v6 4/7] dax: add support for fsync/msync
+Message-ID: <20160106181012.GA7332@linux.intel.com>
+References: <1450899560-26708-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1450899560-26708-5-git-send-email-ross.zwisler@linux.intel.com>
+ <CAPcyv4jVJGPO8Yhz8WgSJTFw+o8=5n6yx17zchXA6C+wEKcajg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160106175948.GA16647@pd.tnic>
-References: <cover.1451952351.git.tony.luck@intel.com> <b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
- <20160106123346.GC19507@pd.tnic> <CALCETrVXD5YB_1UzR4LnSOCgV+ZzhDi9JRZrcxhMAjbvSzO6MQ@mail.gmail.com>
- <20160106175948.GA16647@pd.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 6 Jan 2016 10:07:19 -0800
-Message-ID: <CALCETrXsC9eiQ8yF555-8G88pYEms4bDsS060e24FoadAOK+kw@mail.gmail.com>
-Subject: Re: [PATCH v7 1/3] x86: Add classes to exception tables
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jVJGPO8Yhz8WgSJTFw+o8=5n6yx17zchXA6C+wEKcajg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Wed, Jan 6, 2016 at 9:59 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Wed, Jan 06, 2016 at 09:54:19AM -0800, Andy Lutomirski wrote:
->> I assume that this zero is to save the couple of bytes for the
->> relocation entry on relocatable kernels?
->
-> I didn't want to touch all _ASM_EXTABLE() macro invocations by adding a
-> third param @handler which is redundant as we know which it is.
+On Sun, Jan 03, 2016 at 10:13:06AM -0800, Dan Williams wrote:
+> On Wed, Dec 23, 2015 at 11:39 AM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+> > To properly handle fsync/msync in an efficient way DAX needs to track dirty
+> > pages so it is able to flush them durably to media on demand.
+> >
+> > The tracking of dirty pages is done via the radix tree in struct
+> > address_space.  This radix tree is already used by the page writeback
+> > infrastructure for tracking dirty pages associated with an open file, and
+> > it already has support for exceptional (non struct page*) entries.  We
+> > build upon these features to add exceptional entries to the radix tree for
+> > DAX dirty PMD or PTE pages at fault time.
+> >
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> 
+> I'm hitting the following report with the ndctl dax test [1] on
+> next-20151231.  I bisected it to
+>  commit 3cb108f941de "dax-add-support-for-fsync-sync-v6".  I'll take a
+> closer look tomorrow, but in case someone can beat me to it, here's
+> the back-trace:
+> 
+> ------------[ cut here ]------------
+> kernel BUG at fs/inode.c:497!
+> [..]
+> CPU: 1 PID: 3001 Comm: umount Tainted: G           O    4.4.0-rc7+ #2412
+> Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> task: ffff8800da2a5a00 ti: ffff880307794000 task.ti: ffff880307794000
+> RIP: 0010:[<ffffffff81280171>]  [<ffffffff81280171>] clear_inode+0x71/0x80
+> RSP: 0018:ffff880307797d50  EFLAGS: 00010002
+> RAX: ffff8800da2a5a00 RBX: ffff8800ca2e7328 RCX: ffff8800da2a5a28
+> RDX: 0000000000000001 RSI: 0000000000000005 RDI: ffff8800ca2e7530
+> RBP: ffff880307797d60 R08: ffffffff82900ae0 R09: 0000000000000000
+> R10: ffff8800ca2e7548 R11: 0000000000000000 R12: ffff8800ca2e7530
+> R13: ffff8800ca2e7328 R14: ffff8800da2e88d0 R15: ffff8800da2e88d0
+> FS:  00007f2b22f4a880(0000) GS:ffff88031fc40000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00005648abd933e8 CR3: 000000007f3fc000 CR4: 00000000000006e0
+> Stack:
+> ffff8800ca2e7328 ffff8800ca2e7000 ffff880307797d88 ffffffffa01c18af
+> ffff8800ca2e7328 ffff8800ca2e74d0 ffffffffa01ec740 ffff880307797db0
+> ffffffff81281038 ffff8800ca2e74c0 ffff880307797e00 ffff8800ca2e7328
+> Call Trace:
+> [<ffffffffa01c18af>] xfs_fs_evict_inode+0x5f/0x110 [xfs]
+> [<ffffffff81281038>] evict+0xb8/0x180
+> [<ffffffff8128113b>] dispose_list+0x3b/0x50
+> [<ffffffff81282014>] evict_inodes+0x144/0x170
+> [<ffffffff8126447f>] generic_shutdown_super+0x3f/0xf0
+> [<ffffffff81264837>] kill_block_super+0x27/0x70
+> [<ffffffff81264a53>] deactivate_locked_super+0x43/0x70
+> [<ffffffff81264e9c>] deactivate_super+0x5c/0x60
+> [<ffffffff81285aff>] cleanup_mnt+0x3f/0x90
+> [<ffffffff81285b92>] __cleanup_mnt+0x12/0x20
+> [<ffffffff810c4f26>] task_work_run+0x76/0x90
+> [<ffffffff81003e3a>] syscall_return_slowpath+0x20a/0x280
+> [<ffffffff8192671a>] int_ret_from_sys_call+0x25/0x9f
+> Code: 48 8d 93 30 03 00 00 48 39 c2 75 23 48 8b 83 d0 00 00 00 a8 20
+> 74 1a a8 40 75 18 48 c7 8
+> 3 d0 00 00 00 60 00 00 00 5b 41 5c 5d c3 <0f> 0b 0f 0b 0f 0b 0f 0b 0f
+> 0b 0f 1f 44 00 00 0f 1f
+> 44 00 00 55
+> RIP  [<ffffffff81280171>] clear_inode+0x71/0x80
+> RSP <ffff880307797d50>
+> ---[ end trace 3b1d8898a94a4fc1 ]---
+> 
+> [1]: git://git@github.com:pmem/ndctl.git pending
+> make TESTS="test/dax.sh" check
 
-I see.  You could shove the .long ex_handler_default - . into the
-macro, but that would indeed bloat the kernel image a bit more
-(although not the in-memory size of the kernel).
+This issue is fixed with patch 2 of v7:
 
->
->> > +       new_ip  = ex_fixup_addr(e);
->> > +       handler = ex_fixup_handler(e);
->> > +
->> > +       if (!handler)
->> > +               handler = ex_handler_default;
->>
->> the !handler condition here will never trigger because the offset was
->> already applied.
->
-> Actually, if I do "0 - .", that would overflow the int because current
-> location is virtual address and that's 64-bit. Or would gas simply
-> truncate it? Lemme check...
->
-> Anyway, what we should do instead is simply
->
->         .long 0
->
-> to denote that the @handler is implicit.
->
-> Right?
+https://lists.01.org/pipermail/linux-nvdimm/2016-January/003888.html
 
-Agreed.  I just think that your current fixup_ex_handler
-implementation needs adjustment if you do it that way.
-
---Andy
+Thanks for the report!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
