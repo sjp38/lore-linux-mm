@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CBDD6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 14:04:36 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id 6so231560315qgy.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:04:36 -0800 (PST)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id v17si113584916qhb.37.2016.01.06.11.04.35
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E2FF56B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 14:14:10 -0500 (EST)
+Received: by mail-qk0-f173.google.com with SMTP id p186so77838684qke.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:14:10 -0800 (PST)
+Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
+        by mx.google.com with ESMTPS id j203si1851974qhc.107.2016.01.06.11.14.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 11:04:35 -0800 (PST)
-Received: by mail-qk0-x234.google.com with SMTP id q19so102319710qke.3
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:04:35 -0800 (PST)
+        Wed, 06 Jan 2016 11:14:10 -0800 (PST)
+Received: by mail-qk0-x22d.google.com with SMTP id h11so16963803qke.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 11:14:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1452103263-1592-3-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
 References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1452103263-1592-3-git-send-email-ross.zwisler@linux.intel.com>
-Date: Wed, 6 Jan 2016 11:04:35 -0800
-Message-ID: <CAPcyv4ig1W8LpC6ORYCZd65idK3QuOYa40FsbujWXXaZT_WMRA@mail.gmail.com>
-Subject: Re: [PATCH v7 2/9] dax: fix conversion of holes to PMDs
+	<1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
+Date: Wed, 6 Jan 2016 11:14:09 -0800
+Message-ID: <CAPcyv4h3NcXHHQAWL=HwgGxTbFTeOa98S9fxWu7dA3nTEcFxxA@mail.gmail.com>
+Subject: Re: [PATCH v7 1/9] dax: fix NULL pointer dereference in __dax_dbg()
 From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -27,77 +27,43 @@ Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anv
 
 On Wed, Jan 6, 2016 at 10:00 AM, Ross Zwisler
 <ross.zwisler@linux.intel.com> wrote:
-> When we get a DAX PMD fault for a write it is possible that there could be
-> some number of 4k zero pages already present for the same range that were
-> inserted to service reads from a hole.  These 4k zero pages need to be
-> unmapped from the VMAs and removed from the struct address_space radix tree
-> before the real DAX PMD entry can be inserted.
+> __dax_dbg() currently assumes that bh->b_bdev is non-NULL, passing it into
+> bdevname() where is is dereferenced.  This assumption isn't always true -
+> when called for reads of holes, ext4_dax_mmap_get_block() returns a buffer
+> head where bh->b_bdev is never set.  I hit this BUG while testing the DAX
+> PMD fault path.
 >
-> For PTE faults this same use case also exists and is handled by a
-> combination of unmap_mapping_range() to unmap the VMAs and
-> delete_from_page_cache() to remove the page from the address_space radix
-> tree.
->
-> For PMD faults we do have a call to unmap_mapping_range() (protected by a
-> buffer_new() check), but nothing clears out the radix tree entry.  The
-> buffer_new() check is also incorrect as the current ext4 and XFS filesystem
-> code will never return a buffer_head with BH_New set, even when allocating
-> new blocks over a hole.  Instead the filesystem will zero the blocks
-> manually and return a buffer_head with only BH_Mapped set.
->
-> Fix this situation by removing the buffer_new() check and adding a call to
-> truncate_inode_pages_range() to clear out the radix tree entries before we
-> insert the DAX PMD.
+> Instead, verify that we have a valid bh->b_bdev, else just say "unknown"
+> for the block device.
 >
 > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-
-Replaced the current contents of v6 in -mm from next-20160106 with
-this v7 set and it looks good.
-
-Reported-by: Dan Williams <dan.j.williams@intel.com>
-Tested-by: Dan Williams <dan.j.williams@intel.com>
-
-One question below...
-
+> Cc: Dan Williams <dan.j.williams@intel.com>
 > ---
->  fs/dax.c | 20 ++++++++++----------
->  1 file changed, 10 insertions(+), 10 deletions(-)
+>  fs/dax.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 >
 > diff --git a/fs/dax.c b/fs/dax.c
-> index 03cc4a3..9dc0c97 100644
+> index 7af8797..03cc4a3 100644
 > --- a/fs/dax.c
 > +++ b/fs/dax.c
-> @@ -594,6 +594,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->         bool write = flags & FAULT_FLAG_WRITE;
->         struct block_device *bdev;
->         pgoff_t size, pgoff;
-> +       loff_t lstart, lend;
->         sector_t block;
->         int result = 0;
->
-> @@ -647,15 +648,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->                 goto fallback;
->         }
->
-> -       /*
-> -        * If we allocated new storage, make sure no process has any
-> -        * zero pages covering this hole
-> -        */
-> -       if (buffer_new(&bh)) {
-> -               i_mmap_unlock_read(mapping);
-> -               unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
-> -               i_mmap_lock_read(mapping);
-> -       }
-> +       /* make sure no process has any zero pages covering this hole */
-> +       lstart = pgoff << PAGE_SHIFT;
-> +       lend = lstart + PMD_SIZE - 1; /* inclusive */
-> +       i_mmap_unlock_read(mapping);
-> +       unmap_mapping_range(mapping, lstart, PMD_SIZE, 0);
-> +       truncate_inode_pages_range(mapping, lstart, lend);
+> @@ -563,7 +563,12 @@ static void __dax_dbg(struct buffer_head *bh, unsigned long address,
+>  {
+>         if (bh) {
+>                 char bname[BDEVNAME_SIZE];
+> -               bdevname(bh->b_bdev, bname);
+> +
+> +               if (bh->b_bdev)
+> +                       bdevname(bh->b_bdev, bname);
+> +               else
+> +                       snprintf(bname, BDEVNAME_SIZE, "unknown");
+> +
+>                 pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
+>                         "length %zd fallback: %s\n", fn, current->comm,
+>                         address, bname, bh->b_state, (u64)bh->b_blocknr,
 
-Do we need to do both unmap and truncate given that
-truncate_inode_page() optionally does an unmap_mapping_range()
-internally?
+I'm assuming there's no danger of a such a buffer_head ever being used
+for the bdev parameter to dax_map_atomic()?  Shouldn't we also/instead
+go fix ext4 to not send partially filled buffer_heads?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
