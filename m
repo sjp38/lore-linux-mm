@@ -1,70 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 854E1800C7
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 10:43:12 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id u188so64764468wmu.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:43:12 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id lg10si160360671wjc.20.2016.01.06.07.43.11
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F00BA800C7
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 10:54:59 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id b14so81720489wmb.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:54:59 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id s72si13330683wmd.89.2016.01.06.07.54.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 07:43:11 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id b14so81213656wmb.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:43:11 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] oom reaper: handle anonymous mlocked pages
-Date: Wed,  6 Jan 2016 16:42:55 +0100
-Message-Id: <1452094975-551-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1452094975-551-1-git-send-email-mhocko@kernel.org>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
+        Wed, 06 Jan 2016 07:54:58 -0800 (PST)
+Received: by mail-wm0-x22d.google.com with SMTP id l65so64251769wmf.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 07:54:58 -0800 (PST)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH] mm/kasan: map KASAN zero page read only
+Date: Wed,  6 Jan 2016 16:54:47 +0100
+Message-Id: <1452095687-18136-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, ryabinin.a.a@gmail.com, catalin.marinas@arm.com, mingo@kernel.org
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-From: Michal Hocko <mhocko@suse.com>
+The original x86_64-only version of KASAN mapped its zero page
+read-only, but this got lost when the code was generalised and
+ported to arm64, since, at the time, the PAGE_KERNEL_RO define
+did not exist. It has been added to arm64 in the mean time, so
+let's use it.
 
-__oom_reap_vmas current skips over all mlocked vmas because they need
-a special treatment before they are unmapped. This is primarily done
-for simplicity. There is no reason to skip over them for all mappings
-though and reduce the amount of reclaimed memory. Anonymous mappings
-are not visible by any other process so doing a munlock before unmap
-is safe to do from the semantic point of view. munlock_vma_pages_all
-is also safe to be called from the oom reaper context because it
-doesn't sit on any locks but mmap_sem (for read).
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 ---
- mm/oom_kill.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ mm/kasan/kasan_init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1ece40b94725..913b68a44fd4 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -445,11 +445,16 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
- 			continue;
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index 3f9a41cf0ac6..8726a92604ad 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -49,7 +49,7 @@ static void __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
+ 	pte_t *pte = pte_offset_kernel(pmd, addr);
+ 	pte_t zero_pte;
  
- 		/*
--		 * mlocked VMAs require explicit munlocking before unmap.
--		 * Let's keep it simple here and skip such VMAs.
-+		 * mlocked VMAs require explicit munlocking before unmap
-+		 * and that is safe only for anonymous mappings because
-+		 * nobody except for the victim will need them locked
- 		 */
--		if (vma->vm_flags & VM_LOCKED)
--			continue;
-+		if (vma->vm_flags & VM_LOCKED) {
-+			if (vma_is_anonymous(vma))
-+				munlock_vma_pages_all(vma);
-+			else
-+				continue;
-+		}
+-	zero_pte = pfn_pte(PFN_DOWN(__pa(kasan_zero_page)), PAGE_KERNEL);
++	zero_pte = pfn_pte(PFN_DOWN(__pa(kasan_zero_page)), PAGE_KERNEL_RO);
+ 	zero_pte = pte_wrprotect(zero_pte);
  
- 		/*
- 		 * Only anonymous pages have a good chance to be dropped
+ 	while (addr + PAGE_SIZE <= end) {
 -- 
-2.6.4
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
