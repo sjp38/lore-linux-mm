@@ -1,57 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D5C8F6B0003
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 09:21:01 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id 65so194620021pff.3
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 06:21:01 -0800 (PST)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id vz3si48499214pab.93.2016.01.06.06.21.00
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D87766B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 09:26:22 -0500 (EST)
+Received: by mail-yk0-f180.google.com with SMTP id a85so239262743ykb.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 06:26:22 -0800 (PST)
+Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
+        by mx.google.com with ESMTPS id q5si59810412ywb.370.2016.01.06.06.26.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jan 2016 06:21:01 -0800 (PST)
-Received: by mail-pf0-x231.google.com with SMTP id e65so186687812pfe.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 06:21:00 -0800 (PST)
-From: Liang Chen <liangchen.linux@gmail.com>
-Subject: [PATCH] mm: mempolicy: skip non-migratable VMAs when setting MPOL_MF_LAZY
-Date: Wed,  6 Jan 2016 22:18:47 +0800
-Message-Id: <1452089927-22039-1-git-send-email-liangchen.linux@gmail.com>
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 06 Jan 2016 06:26:21 -0800 (PST)
+Date: Wed, 6 Jan 2016 09:26:12 -0500
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
+Message-ID: <20160106142611.GD2957@windriver.com>
+References: <1450204575-13052-1-git-send-email-mhocko@kernel.org>
+ <CAP=VYLoGcqXvX8ORTmLH9u5s3p2u5f7qqBy14-U4gUdRTF6C5g@mail.gmail.com>
+ <20160106091027.GA13900@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160106091027.GA13900@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mgorman@suse.de, akpm@linux-foundation.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, linux-kernel@vger.kernel.org, Liang Chen <liangchen.linux@gmail.com>, Gavin Guo <gavin.guo@canonical.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-MPOL_MF_LAZY is not visible from userspace since 'commit a720094ded8c
-("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")'
-, but it should still skip non-migratable VMAs.
+[Re: [PATCH 1/2] mm, oom: introduce oom reaper] On 06/01/2016 (Wed 10:10) Michal Hocko wrote:
 
-Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
-Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
----
-We have been evaluating the enablement of MPOL_MF_LAZY again, and found
-this issue. And we decided to push this patch upstream no matter if we
-finally determine to propose re-enablement of MPOL_MF_LAZY or not. Since
-it can be a potential problem even if MPOL_MF_LAZY is not enabled this
-time.
+> On Mon 21-12-15 15:38:21, Paul Gortmaker wrote:
+> [...]
+> > ...use one of the non-modular initcalls here?   I'm trying to clean up most of
+> > the non-modular uses of modular macros etc. since:
+> > 
+> >  (1) it is easy to accidentally code up an unused module_exit function
+> >  (2) it can be misleading when reading the source, thinking it can be
+> >       modular when the Makefile and/or Kconfig prohibit it
+> >  (3) it requires the include of the module.h header file which in turn
+> >      includes nearly everything else, thus increasing CPP overhead.
+> > 
+> > I figured no point in sending a follow on patch since this came in via
+> > the akpm tree into next and that gets rebased/updated regularly.
+> 
+> Sorry for the late reply. I was mostly offline throughout the last 2
+> weeks last year. Is the following what you would like to see? If yes I
+> will fold it into the original patch.
 
- mm/mempolicy.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Yes, that looks fine.  Do note that susbsys_initcall is earlier than the
+module_init that you were using previously though.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 87a1779..436ff411 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -610,7 +610,8 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
- 
- 	if (flags & MPOL_MF_LAZY) {
- 		/* Similar to task_numa_work, skip inaccessible VMAs */
--		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
-+		if (vma_migratable(vma) &&
-+			vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
- 			change_prot_numa(vma, start, endvma);
- 		return 1;
- 	}
--- 
-1.9.1
+Thanks,
+Paul.
+--
+
+> 
+> Thanks!
+> ---
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 7a9678c50edd..1ece40b94725 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -36,7 +36,7 @@
+>  #include <linux/ftrace.h>
+>  #include <linux/ratelimit.h>
+>  #include <linux/kthread.h>
+> -#include <linux/module.h>
+> +#include <linux/init.h>
+>  
+>  #include <asm/tlb.h>
+>  #include "internal.h"
+> @@ -541,7 +541,7 @@ static int __init oom_init(void)
+>  	}
+>  	return 0;
+>  }
+> -module_init(oom_init)
+> +subsys_initcall(oom_init)
+>  #else
+>  static void wake_oom_reaper(struct mm_struct *mm)
+>  {
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
