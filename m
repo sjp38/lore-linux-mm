@@ -1,98 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 11818828DE
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:01:50 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id e65so189559857pfe.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:01:50 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id qy6si61005097pab.19.2016.01.06.10.01.49
-        for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 10:01:49 -0800 (PST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v7 2/9] dax: fix conversion of holes to PMDs
-Date: Wed,  6 Jan 2016 11:00:56 -0700
-Message-Id: <1452103263-1592-3-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id ABD8A6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 13:07:39 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id ba1so305807662obb.3
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:07:39 -0800 (PST)
+Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
+        by mx.google.com with ESMTPS id c75si22894127oig.36.2016.01.06.10.07.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Jan 2016 10:07:39 -0800 (PST)
+Received: by mail-ob0-x236.google.com with SMTP id wp13so170810192obc.1
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 10:07:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160106175948.GA16647@pd.tnic>
+References: <cover.1451952351.git.tony.luck@intel.com> <b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
+ <20160106123346.GC19507@pd.tnic> <CALCETrVXD5YB_1UzR4LnSOCgV+ZzhDi9JRZrcxhMAjbvSzO6MQ@mail.gmail.com>
+ <20160106175948.GA16647@pd.tnic>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 6 Jan 2016 10:07:19 -0800
+Message-ID: <CALCETrXsC9eiQ8yF555-8G88pYEms4bDsS060e24FoadAOK+kw@mail.gmail.com>
+Subject: Re: [PATCH v7 1/3] x86: Add classes to exception tables
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-When we get a DAX PMD fault for a write it is possible that there could be
-some number of 4k zero pages already present for the same range that were
-inserted to service reads from a hole.  These 4k zero pages need to be
-unmapped from the VMAs and removed from the struct address_space radix tree
-before the real DAX PMD entry can be inserted.
+On Wed, Jan 6, 2016 at 9:59 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Wed, Jan 06, 2016 at 09:54:19AM -0800, Andy Lutomirski wrote:
+>> I assume that this zero is to save the couple of bytes for the
+>> relocation entry on relocatable kernels?
+>
+> I didn't want to touch all _ASM_EXTABLE() macro invocations by adding a
+> third param @handler which is redundant as we know which it is.
 
-For PTE faults this same use case also exists and is handled by a
-combination of unmap_mapping_range() to unmap the VMAs and
-delete_from_page_cache() to remove the page from the address_space radix
-tree.
+I see.  You could shove the .long ex_handler_default - . into the
+macro, but that would indeed bloat the kernel image a bit more
+(although not the in-memory size of the kernel).
 
-For PMD faults we do have a call to unmap_mapping_range() (protected by a
-buffer_new() check), but nothing clears out the radix tree entry.  The
-buffer_new() check is also incorrect as the current ext4 and XFS filesystem
-code will never return a buffer_head with BH_New set, even when allocating
-new blocks over a hole.  Instead the filesystem will zero the blocks
-manually and return a buffer_head with only BH_Mapped set.
+>
+>> > +       new_ip  = ex_fixup_addr(e);
+>> > +       handler = ex_fixup_handler(e);
+>> > +
+>> > +       if (!handler)
+>> > +               handler = ex_handler_default;
+>>
+>> the !handler condition here will never trigger because the offset was
+>> already applied.
+>
+> Actually, if I do "0 - .", that would overflow the int because current
+> location is virtual address and that's 64-bit. Or would gas simply
+> truncate it? Lemme check...
+>
+> Anyway, what we should do instead is simply
+>
+>         .long 0
+>
+> to denote that the @handler is implicit.
+>
+> Right?
 
-Fix this situation by removing the buffer_new() check and adding a call to
-truncate_inode_pages_range() to clear out the radix tree entries before we
-insert the DAX PMD.
+Agreed.  I just think that your current fixup_ex_handler
+implementation needs adjustment if you do it that way.
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- fs/dax.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
-
-diff --git a/fs/dax.c b/fs/dax.c
-index 03cc4a3..9dc0c97 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -594,6 +594,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	bool write = flags & FAULT_FLAG_WRITE;
- 	struct block_device *bdev;
- 	pgoff_t size, pgoff;
-+	loff_t lstart, lend;
- 	sector_t block;
- 	int result = 0;
- 
-@@ -647,15 +648,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		goto fallback;
- 	}
- 
--	/*
--	 * If we allocated new storage, make sure no process has any
--	 * zero pages covering this hole
--	 */
--	if (buffer_new(&bh)) {
--		i_mmap_unlock_read(mapping);
--		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
--		i_mmap_lock_read(mapping);
--	}
-+	/* make sure no process has any zero pages covering this hole */
-+	lstart = pgoff << PAGE_SHIFT;
-+	lend = lstart + PMD_SIZE - 1; /* inclusive */
-+	i_mmap_unlock_read(mapping);
-+	unmap_mapping_range(mapping, lstart, PMD_SIZE, 0);
-+	truncate_inode_pages_range(mapping, lstart, lend);
-+	i_mmap_lock_read(mapping);
- 
- 	/*
- 	 * If a truncate happened while we were allocating blocks, we may
-@@ -669,7 +668,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		goto out;
- 	}
- 	if ((pgoff | PG_PMD_COLOUR) >= size) {
--		dax_pmd_dbg(&bh, address, "pgoff unaligned");
-+		dax_pmd_dbg(&bh, address,
-+				"offset + huge page size > file size");
- 		goto fallback;
- 	}
- 
--- 
-2.5.0
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
