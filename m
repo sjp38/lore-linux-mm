@@ -1,123 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 74A896B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 00:02:45 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id o11so295458917qge.2
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 21:02:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b65si344217qkj.116.2016.01.05.21.02.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jan 2016 21:02:44 -0800 (PST)
-From: Mateusz Guzik <mguzik@redhat.com>
-Subject: [PATCH 2/2] proc read mm's {arg,env}_{start,end} with mmap semaphore taken.
-Date: Wed,  6 Jan 2016 06:02:29 +0100
-Message-Id: <1452056549-10048-3-git-send-email-mguzik@redhat.com>
-In-Reply-To: <1452056549-10048-1-git-send-email-mguzik@redhat.com>
-References: <1452056549-10048-1-git-send-email-mguzik@redhat.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 92A386B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 02:06:44 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id yy13so136241211pab.3
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2016 23:06:44 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id 4si12931995pfa.245.2016.01.05.23.06.43
+        for <linux-mm@kvack.org>;
+        Tue, 05 Jan 2016 23:06:43 -0800 (PST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v7 3/3] x86, mce: Add __mcsafe_copy()
+Date: Wed, 6 Jan 2016 07:06:41 +0000
+Message-ID: <A527EC4B-4069-4FDE-BE4C-5279C45BCABE@intel.com>
+References: <cover.1451952351.git.tony.luck@intel.com>
+	<5b0243c5df825ad0841f4bb5584cd15d3f013f09.1451952351.git.tony.luck@intel.com>,<CAPcyv4jjWT3Od_XvGpVb+O7MT95mBRXviPXi1zUfM5o+kN4CUA@mail.gmail.com>
+In-Reply-To: <CAPcyv4jjWT3Od_XvGpVb+O7MT95mBRXviPXi1zUfM5o+kN4CUA@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Alexey Dobriyan <adobriyan@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jarod Wilson <jarod@redhat.com>, Jan Stancek <jstancek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: "Williams, Dan J" <dan.j.williams@intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew
+ Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-Only functions doing more than one read are modified. Consumeres
-happened to deal with possibly changing data, but it does not seem
-like a good thing to rely on.
+You were heading towards:
 
-Signed-off-by: Mateusz Guzik <mguzik@redhat.com>
----
- fs/proc/base.c | 13 ++++++++++---
- mm/util.c      | 16 ++++++++++++----
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ld: undefined __mcsafe_copy
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index e665097..4f764c2 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -953,6 +953,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
- 	unsigned long src = *ppos;
- 	int ret = 0;
- 	struct mm_struct *mm = file->private_data;
-+	unsigned long env_start, env_end;
- 
- 	if (!mm)
- 		return 0;
-@@ -964,19 +965,25 @@ static ssize_t environ_read(struct file *file, char __user *buf,
- 	ret = 0;
- 	if (!atomic_inc_not_zero(&mm->mm_users))
- 		goto free;
-+
-+	down_read(&mm->mmap_sem);
-+	env_start = mm->env_start;
-+	env_end = mm->env_end;
-+	up_read(&mm->mmap_sem);
-+
- 	while (count > 0) {
- 		size_t this_len, max_len;
- 		int retval;
- 
--		if (src >= (mm->env_end - mm->env_start))
-+		if (src >= (env_end - env_start))
- 			break;
- 
--		this_len = mm->env_end - (mm->env_start + src);
-+		this_len = env_end - (env_start + src);
- 
- 		max_len = min_t(size_t, PAGE_SIZE, count);
- 		this_len = min(max_len, this_len);
- 
--		retval = access_remote_vm(mm, (mm->env_start + src),
-+		retval = access_remote_vm(mm, (env_start + src),
- 			page, this_len, 0);
- 
- 		if (retval <= 0) {
-diff --git a/mm/util.c b/mm/util.c
-index 338e697..bafd4c5 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -506,17 +506,25 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
- 	int res = 0;
- 	unsigned int len;
- 	struct mm_struct *mm = get_task_mm(task);
-+	unsigned long arg_start, arg_end, env_start, env_end;
- 	if (!mm)
- 		goto out;
- 	if (!mm->arg_end)
- 		goto out_mm;	/* Shh! No looking before we're done */
- 
--	len = mm->arg_end - mm->arg_start;
-+	down_read(&mm->mmap_sem);
-+	arg_start = mm->arg_start;
-+	arg_end = mm->arg_end;
-+	env_start = mm->env_start;
-+	env_end = mm->env_end;
-+	up_read(&mm->mmap_sem);
-+
-+	len = arg_end - arg_start;
- 
- 	if (len > buflen)
- 		len = buflen;
- 
--	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
-+	res = access_process_vm(task, arg_start, buffer, len, 0);
- 
- 	/*
- 	 * If the nul at the end of args has been overwritten, then
-@@ -527,10 +535,10 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
- 		if (len < res) {
- 			res = len;
- 		} else {
--			len = mm->env_end - mm->env_start;
-+			len = env_end - env_start;
- 			if (len > buflen - res)
- 				len = buflen - res;
--			res += access_process_vm(task, mm->env_start,
-+			res += access_process_vm(task, env_start,
- 						 buffer+res, len, 0);
- 			res = strnlen(buffer, res);
- 		}
--- 
-1.8.3.1
+since that is also inside the #ifdef.=20
+
+Weren't you going to "select" this?
+
+I'm seriously wondering whether the ifdef still makes sense. Now I don't ha=
+ve an extra exception table and routines to sort/search/fixup, it doesn't s=
+eem as useful as it was a few iterations ago.
+
+Sent from my iPhone
+
+> On Jan 5, 2016, at 20:43, Dan Williams <dan.j.williams@intel.com> wrote:
+>=20
+>> On Thu, Dec 31, 2015 at 11:43 AM, Tony Luck <tony.luck@intel.com> wrote:
+>> Make use of the EXTABLE_FAULT exception table entries. This routine
+>> returns a structure to indicate the result of the copy:
+>>=20
+>> struct mcsafe_ret {
+>>        u64 trapnr;
+>>        u64 remain;
+>> };
+>>=20
+>> If the copy is successful, then both 'trapnr' and 'remain' are zero.
+>>=20
+>> If we faulted during the copy, then 'trapnr' will say which type
+>> of trap (X86_TRAP_PF or X86_TRAP_MC) and 'remain' says how many
+>> bytes were not copied.
+>>=20
+>> Signed-off-by: Tony Luck <tony.luck@intel.com>
+>> ---
+>> arch/x86/Kconfig                 |  10 +++
+>> arch/x86/include/asm/string_64.h |  10 +++
+>> arch/x86/kernel/x8664_ksyms_64.c |   4 ++
+>> arch/x86/lib/memcpy_64.S         | 136 +++++++++++++++++++++++++++++++++=
+++++++
+>> 4 files changed, 160 insertions(+)
+>>=20
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index 96d058a87100..42d26b4d1ec4 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -1001,6 +1001,16 @@ config X86_MCE_INJECT
+>>          If you don't know what a machine check is and you don't do kern=
+el
+>>          QA it is safe to say n.
+>>=20
+>> +config MCE_KERNEL_RECOVERY
+>> +       bool "Recovery from machine checks in special kernel memory copy=
+ functions"
+>> +       default n
+>> +       depends on X86_MCE && X86_64
+>> +       ---help---
+>> +         This option provides a new memory copy function mcsafe_memcpy(=
+)
+>> +         that is annotated to allow the machine check handler to return
+>> +         to an alternate code path to return an error to the caller ins=
+tead
+>> +         of crashing the system. Say yes if you have a driver that uses=
+ this.
+>> +
+>> config X86_THERMAL_VECTOR
+>>        def_bool y
+>>        depends on X86_MCE_INTEL
+>> diff --git a/arch/x86/include/asm/string_64.h b/arch/x86/include/asm/str=
+ing_64.h
+>> index ff8b9a17dc4b..16a8f0e56e4a 100644
+>> --- a/arch/x86/include/asm/string_64.h
+>> +++ b/arch/x86/include/asm/string_64.h
+>> @@ -78,6 +78,16 @@ int strcmp(const char *cs, const char *ct);
+>> #define memset(s, c, n) __memset(s, c, n)
+>> #endif
+>>=20
+>> +#ifdef CONFIG_MCE_KERNEL_RECOVERY
+>> +struct mcsafe_ret {
+>> +       u64 trapnr;
+>> +       u64 remain;
+>> +};
+>=20
+> Can we move this definition outside of the CONFIG_MCE_KERNEL_RECOVERY
+> ifdef guard?  On a test integration branch the kbuild robot caught the
+> following:
+>=20
+>   In file included from include/linux/pmem.h:21:0,
+>                    from drivers/acpi/nfit.c:22:
+>   arch/x86/include/asm/pmem.h: In function 'arch_memcpy_from_pmem':
+>>> arch/x86/include/asm/pmem.h:55:21: error: storage size of 'ret' isn't k=
+nown
+>      struct mcsafe_ret ret;
+>                        ^
+>>> arch/x86/include/asm/pmem.h:57:9: error: implicit declaration of functi=
+on '__mcsafe_copy' [-Werror=3Dimplicit-function-declaration]
+>      ret =3D __mcsafe_copy(dst, (void __force *) src, n);
+>            ^
+>>> arch/x86/include/asm/pmem.h:55:21: warning: unused variable 'ret' [-Wun=
+used-variable]
+>      struct mcsafe_ret ret;
+>                        ^
+>   cc1: some warnings being treated as errors
+>=20
+> vim +55 arch/x86/include/asm/pmem.h
+>=20
+>    49  }
+>    50
+>    51  static inline int arch_memcpy_from_pmem(void *dst, const void
+> __pmem *src,
+>    52                  size_t n)
+>    53  {
+>    54          if (IS_ENABLED(CONFIG_MCE_KERNEL_RECOVERY)) {
+>> 55                  struct mcsafe_ret ret;
+>    56
+>> 57                  ret =3D __mcsafe_copy(dst, (void __force *) src, n);
+>    58                  if (ret.remain)
+>    59                          return -EIO;
+>    60                  return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
