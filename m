@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ED14828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 05:45:01 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id u188so92922646wmu.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:45:01 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id 126si18898719wma.118.2016.01.07.02.44.59
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A508828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 05:54:07 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id b14so116844798wmb.1
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:54:07 -0800 (PST)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id h79si18992755wme.86.2016.01.07.02.54.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 02:45:00 -0800 (PST)
-Received: by mail-wm0-f41.google.com with SMTP id l65so91597626wmf.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:44:59 -0800 (PST)
-Date: Thu, 7 Jan 2016 11:44:58 +0100
+        Thu, 07 Jan 2016 02:54:05 -0800 (PST)
+Received: by mail-wm0-f53.google.com with SMTP id l65so91890921wmf.1
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:54:05 -0800 (PST)
+Date: Thu, 7 Jan 2016 11:54:04 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 11/14] mm, page_owner: copy page owner info during
- migration
-Message-ID: <20160107104458.GI27868@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 12/14] mm, page_owner: track and print last migrate
+ reason
+Message-ID: <20160107105404.GJ27868@dhcp22.suse.cz>
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
- <1450429406-7081-12-git-send-email-vbabka@suse.cz>
+ <1450429406-7081-13-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1450429406-7081-12-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1450429406-7081-13-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On Fri 18-12-15 10:03:23, Vlastimil Babka wrote:
-> The page_owner mechanism stores gfp_flags of an allocation and stack trace
-> that lead to it. During page migration, the original information is
-> practically replaced by the allocation of free page as the migration target.
-> Arguably this is less useful and might lead to all the page_owner info for
-> migratable pages gradually converge towards compaction or numa balancing
-> migrations. It has also lead to inaccuracies such as one fixed by commit
-> e2cfc91120fa ("mm/page_owner: set correct gfp_mask on page_owner").
+On Fri 18-12-15 10:03:24, Vlastimil Babka wrote:
+> During migration, page_owner info is now copied with the rest of the page, so
+> the stacktrace leading to free page allocation during migration is overwritten.
+> For debugging purposes, it might be however useful to know that the page has
+> been migrated since its initial allocation. This might happen many times during
+> the lifetime for different reasons and fully tracking this, especially with
+> stacktraces would incur extra memory costs. As a compromise, store and print
+> the migrate_reason of the last migration that occurred to the page. This is
+> enough to distinguish compaction, numa balancing etc.
+
+So you know that the page has been migrated because of compaction the
+last time. You do not know anything about the previous migrations
+though. How would you use that information during debugging? Wouldn't it
+be sufficient to know that the page has been migrated (or count how many
+times) instead? That would lead to less code and it might be sufficient
+for practical use.
+
+> Example page_owner entry after the patch:
 > 
-> This patch thus introduces copying the page_owner info during migration.
-> However, since the fact that the page has been migrated from its original
-> place might be useful for debugging, the next patch will introduce a way to
-> track that information as well.
+> Page allocated via order 0, mask 0x24213ca(GFP_HIGHUSER_MOVABLE|GFP_COLD|GFP_NOWARN|GFP_NORETRY)
+> PFN 674308 type Movable Block 1317 type Movable Flags 0x1fffff80010068(uptodate|lru|active|mappedtodisk)
+>  [<ffffffff81164e9a>] __alloc_pages_nodemask+0x15a/0xa30
+>  [<ffffffff811ab938>] alloc_pages_current+0x88/0x120
+>  [<ffffffff8115bc46>] __page_cache_alloc+0xe6/0x120
+>  [<ffffffff81168b9b>] __do_page_cache_readahead+0xdb/0x200
+>  [<ffffffff81168df5>] ondemand_readahead+0x135/0x260
+>  [<ffffffff81168f8c>] page_cache_async_readahead+0x6c/0x70
+>  [<ffffffff8115d5f8>] generic_file_read_iter+0x378/0x590
+>  [<ffffffff811d12a7>] __vfs_read+0xa7/0xd0
+> Page has been migrated, last migrate reason: compaction
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
@@ -49,109 +66,15 @@ On Fri 18-12-15 10:03:23, Vlastimil Babka wrote:
 > Cc: Mel Gorman <mgorman@suse.de>
 > Cc: Michal Hocko <mhocko@suse.cz>
 > Cc: Hugh Dickins <hughd@google.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > ---
->  include/linux/page_owner.h | 10 +++++++++-
->  mm/migrate.c               |  3 +++
->  mm/page_owner.c            | 25 +++++++++++++++++++++++++
->  3 files changed, 37 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-> index 8e2eb153c7b9..6440daab4ef8 100644
-> --- a/include/linux/page_owner.h
-> +++ b/include/linux/page_owner.h
-> @@ -11,6 +11,7 @@ extern void __reset_page_owner(struct page *page, unsigned int order);
->  extern void __set_page_owner(struct page *page,
->  			unsigned int order, gfp_t gfp_mask);
->  extern gfp_t __get_page_owner_gfp(struct page *page);
-> +extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
->  
->  static inline void reset_page_owner(struct page *page, unsigned int order)
->  {
-> @@ -32,6 +33,11 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
->  	else
->  		return 0;
->  }
-> +static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
-> +{
-> +	if (static_branch_unlikely(&page_owner_inited))
-> +		__copy_page_owner(oldpage, newpage);
-> +}
->  #else
->  static inline void reset_page_owner(struct page *page, unsigned int order)
->  {
-> @@ -44,6 +50,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
->  {
->  	return 0;
->  }
-> -
-> +static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
-> +{
-> +}
->  #endif /* CONFIG_PAGE_OWNER */
->  #endif /* __LINUX_PAGE_OWNER_H */
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index b1034f9c77e7..863a0f1fe23f 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -38,6 +38,7 @@
->  #include <linux/balloon_compaction.h>
->  #include <linux/mmu_notifier.h>
->  #include <linux/page_idle.h>
-> +#include <linux/page_owner.h>
->  
->  #include <asm/tlbflush.h>
->  
-> @@ -578,6 +579,8 @@ void migrate_page_copy(struct page *newpage, struct page *page)
->  	 */
->  	if (PageWriteback(newpage))
->  		end_page_writeback(newpage);
-> +
-> +	copy_page_owner(page, newpage);
->  }
->  
->  /************************************************************
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index c8ea1361146e..a390d2665df2 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -84,6 +84,31 @@ gfp_t __get_page_owner_gfp(struct page *page)
->  	return page_ext->gfp_mask;
->  }
->  
-> +void __copy_page_owner(struct page *oldpage, struct page *newpage)
-> +{
-> +	struct page_ext *old_ext = lookup_page_ext(oldpage);
-> +	struct page_ext *new_ext = lookup_page_ext(newpage);
-> +	int i;
-> +
-> +	new_ext->order = old_ext->order;
-> +	new_ext->gfp_mask = old_ext->gfp_mask;
-> +	new_ext->nr_entries = old_ext->nr_entries;
-> +
-> +	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
-> +		new_ext->trace_entries[i] = old_ext->trace_entries[i];
-> +
-> +	/*
-> +	 * We don't clear the bit on the oldpage as it's going to be freed
-> +	 * after migration. Until then, the info can be useful in case of
-> +	 * a bug, and the overal stats will be off a bit only temporarily.
-> +	 * Also, migrate_misplaced_transhuge_page() can still fail the
-> +	 * migration and then we want the oldpage to retain the info. But
-> +	 * in that case we also don't need to explicitly clear the info from
-> +	 * the new page, which will be freed.
-> +	 */
-> +	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
-> +}
-> +
->  static ssize_t
->  print_page_owner(char __user *buf, size_t count, unsigned long pfn,
->  		struct page *page, struct page_ext *page_ext)
-> -- 
-> 2.6.3
-
+>  include/linux/migrate.h    |  6 +++++-
+>  include/linux/page_ext.h   |  1 +
+>  include/linux/page_owner.h |  9 +++++++++
+>  mm/debug.c                 | 11 +++++++++++
+>  mm/migrate.c               | 10 +++++++---
+>  mm/page_owner.c            | 17 +++++++++++++++++
+>  6 files changed, 50 insertions(+), 4 deletions(-)
+[...]
 -- 
 Michal Hocko
 SUSE Labs
