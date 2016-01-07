@@ -1,172 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 920376B0007
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 04:57:59 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l65so90039752wmf.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 01:57:59 -0800 (PST)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id 74si18765405wmm.7.2016.01.07.01.57.58
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D65D6B0007
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 05:01:42 -0500 (EST)
+Received: by mail-io0-f179.google.com with SMTP id 1so200200601ion.1
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:01:42 -0800 (PST)
+Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
+        by mx.google.com with ESMTPS id g33si37000494ioi.97.2016.01.07.02.01.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 01:57:58 -0800 (PST)
-Received: by mail-wm0-f53.google.com with SMTP id f206so114574940wmf.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 01:57:58 -0800 (PST)
-Date: Thu, 7 Jan 2016 10:57:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 06/14] mm, debug: replace dump_flags() with the new
- printk formats
-Message-ID: <20160107095756.GF27868@dhcp22.suse.cz>
-References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
- <1450429406-7081-7-git-send-email-vbabka@suse.cz>
+        Thu, 07 Jan 2016 02:01:40 -0800 (PST)
+Received: by mail-io0-x233.google.com with SMTP id 77so216101671ioc.2
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 02:01:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1450429406-7081-7-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20160107095127.GQ6301@e104818-lin.cambridge.arm.com>
+References: <1452095687-18136-1-git-send-email-ard.biesheuvel@linaro.org>
+	<CAPAsAGxmjF-_ZZFwtaxZsXN9g7J2sn6O0L+pBiPdARsKC_644g@mail.gmail.com>
+	<CAKv+Gu9b_2WWYhgQmdnAUk0G0W3dwWXdWmpEmMtKW+=-KaJYgw@mail.gmail.com>
+	<20160107095127.GQ6301@e104818-lin.cambridge.arm.com>
+Date: Thu, 7 Jan 2016 11:01:40 +0100
+Message-ID: <CAKv+Gu-tvGYp7hFZgOfo3ZDkFBrEC5isXuwhZinwncpSEhkLYg@mail.gmail.com>
+Subject: Re: [PATCH] mm/kasan: map KASAN zero page read only
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, mingo <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri 18-12-15 10:03:18, Vlastimil Babka wrote:
-> With the new printk format strings for flags, we can get rid of dump_flags()
-> in mm/debug.c.
-> 
-> This also fixes dump_vma() which used dump_flags() for printing vma flags.
-> However dump_flags() did a page-flags specific filtering of bits higher than
-> NR_PAGEFLAGS in order to remove the zone id part. For dump_vma() this resulted
-> in removing several VM_* flags from the symbolic translation.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Hocko <mhocko@suse.cz>
+On 7 January 2016 at 10:51, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> On Wed, Jan 06, 2016 at 09:18:03PM +0100, Ard Biesheuvel wrote:
+>> On 6 January 2016 at 20:48, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>> > 2016-01-06 18:54 GMT+03:00 Ard Biesheuvel <ard.biesheuvel@linaro.org>:
+>> >> The original x86_64-only version of KASAN mapped its zero page
+>> >> read-only, but this got lost when the code was generalised and
+>> >> ported to arm64, since, at the time, the PAGE_KERNEL_RO define
+>> >> did not exist. It has been added to arm64 in the mean time, so
+>> >> let's use it.
+>> >>
+>> >
+>> > Read-only wasn't lost. Just look at the next line:
+>> >      zero_pte = pte_wrprotect(zero_pte);
+>> >
+>> > PAGE_KERNEL_RO is not available on all architectures, thus it would be better
+>> > to not use it in generic code.
+>>
+>> OK, I didn't see that. For some reason, it is not working for me on
+>> arm64, though.
+>
+> It's because the arm64 set_pte_at() doesn't bother checking for
+> !PTE_WRITE to set PTE_RDONLY when mapping kernel pages. It works fine
+> for user though. That's because usually all read-only kernel mappings
+> already have PTE_RDONLY set via PAGE_KERNEL_RO.
+>
+> We may need to change the set_pte_at logic a bit to cover the above
+> case.
+>
 
-Nice simplification for sure!
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/debug.c | 60 ++++++++++++++----------------------------------------------
->  1 file changed, 14 insertions(+), 46 deletions(-)
-> 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 79621a5ce46f..5ea57bc49ef6 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -28,36 +28,6 @@ const struct trace_print_flags vmaflag_names[] = {
->  	{0, NULL}
->  };
->  
-> -static void dump_flags(unsigned long flags,
-> -			const struct trace_print_flags *names, int count)
-> -{
-> -	const char *delim = "";
-> -	unsigned long mask;
-> -	int i;
-> -
-> -	pr_emerg("flags: %#lx(", flags);
-> -
-> -	/* remove zone id */
-> -	flags &= (1UL << NR_PAGEFLAGS) - 1;
-> -
-> -	for (i = 0; i < count && flags; i++) {
-> -
-> -		mask = names[i].mask;
-> -		if ((flags & mask) != mask)
-> -			continue;
-> -
-> -		flags &= ~mask;
-> -		pr_cont("%s%s", delim, names[i].name);
-> -		delim = "|";
-> -	}
-> -
-> -	/* check for left over flags */
-> -	if (flags)
-> -		pr_cont("%s%#lx", delim, flags);
-> -
-> -	pr_cont(")\n");
-> -}
-> -
->  void dump_page_badflags(struct page *page, const char *reason,
->  		unsigned long badflags)
->  {
-> @@ -68,15 +38,15 @@ void dump_page_badflags(struct page *page, const char *reason,
->  		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
->  	pr_cont("\n");
->  	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
-> -	dump_flags(page->flags, pageflag_names,
-> -					ARRAY_SIZE(pageflag_names) - 1);
-> +	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
-> +
->  	if (reason)
->  		pr_alert("page dumped because: %s\n", reason);
-> -	if (page->flags & badflags) {
-> -		pr_alert("bad because of flags:\n");
-> -		dump_flags(page->flags & badflags, pageflag_names,
-> -					ARRAY_SIZE(pageflag_names) - 1);
-> -	}
-> +
-> +	badflags &= page->flags;
-> +	if (badflags)
-> +		pr_alert("bad because of flags: %#lx(%pgp)\n", badflags,
-> +								&badflags);
->  #ifdef CONFIG_MEMCG
->  	if (page->mem_cgroup)
->  		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
-> @@ -96,13 +66,14 @@ void dump_vma(const struct vm_area_struct *vma)
->  	pr_emerg("vma %p start %p end %p\n"
->  		"next %p prev %p mm %p\n"
->  		"prot %lx anon_vma %p vm_ops %p\n"
-> -		"pgoff %lx file %p private_data %p\n",
-> +		"pgoff %lx file %p private_data %p\n"
-> +		"flags: %#lx(%pgv)\n",
->  		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
->  		vma->vm_prev, vma->vm_mm,
->  		(unsigned long)pgprot_val(vma->vm_page_prot),
->  		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
-> -		vma->vm_file, vma->vm_private_data);
-> -	dump_flags(vma->vm_flags, vmaflag_names, ARRAY_SIZE(vmaflag_names) - 1);
-> +		vma->vm_file, vma->vm_private_data,
-> +		vma->vm_flags, &vma->vm_flags);
->  }
->  EXPORT_SYMBOL(dump_vma);
->  
-> @@ -136,7 +107,7 @@ void dump_mm(const struct mm_struct *mm)
->  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
->  		"tlb_flush_pending %d\n"
->  #endif
-> -		"%s",	/* This is here to hold the comma */
-> +		"def_flags: %#lx(%pgv)\n",
->  
->  		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
->  #ifdef CONFIG_MMU
-> @@ -170,11 +141,8 @@ void dump_mm(const struct mm_struct *mm)
->  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
->  		mm->tlb_flush_pending,
->  #endif
-> -		""		/* This is here to not have a comma! */
-> -		);
-> -
-> -		dump_flags(mm->def_flags, vmaflag_names,
-> -				ARRAY_SIZE(vmaflag_names) - 1);
-> +		mm->def_flags, &mm->def_flags
-> +	);
->  }
->  
->  #endif		/* CONFIG_DEBUG_VM */
-> -- 
-> 2.6.3
+Yes, that would be useful. I had an interesting dive down a rabbit
+hole yesterday due to the fact that the kasan zero page (which backs a
+substantial chunk of the shadow area) was getting written to by one
+mapping, and reporting KAsan errors via another.
 
 -- 
-Michal Hocko
-SUSE Labs
+Ard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
