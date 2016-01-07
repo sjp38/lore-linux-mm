@@ -1,176 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C4D5C6B000A
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 23:19:55 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id t15so20216327igr.0
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 20:19:55 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id d27si1343754ioj.63.2016.01.06.20.19.54
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B2F6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 03:07:14 -0500 (EST)
+Received: by mail-oi0-f42.google.com with SMTP id o124so308799839oia.1
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 00:07:14 -0800 (PST)
+Received: from out4133-50.mail.aliyun.com (out4133-50.mail.aliyun.com. [42.120.133.50])
+        by mx.google.com with ESMTP id ed4si12272424obb.35.2016.01.07.00.07.12
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 20:19:54 -0800 (PST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 5/5] x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when booting.
-Date: Thu, 7 Jan 2016 12:20:25 +0800
-Message-ID: <1452140425-16577-6-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1452140425-16577-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1452140425-16577-1-git-send-email-tangchen@cn.fujitsu.com>
+        Thu, 07 Jan 2016 00:07:13 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole punch
+Date: Thu, 07 Jan 2016 16:06:50 +0800
+Message-ID: <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com
-Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michel Lespinasse' <walken@google.com>
 
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> 
+> Page faults can race with fallocate hole punch.  If a page fault happens
+> between the unmap and remove operations, the page is not removed and
+> remains within the hole.  This is not the desired behavior.  The race
+> is difficult to detect in user level code as even in the non-race
+> case, a page within the hole could be faulted back in before fallocate
+> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
+> this race will be easier to observe.
+> 
+> If this race is detected and a page is mapped, the remove operation
+> (remove_inode_hugepages) will unmap the page before removing.  The unmap
+> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
+> so that no other faults will be processed until the page is removed.
+> 
+> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
+> remove_inode_hugepages to satisfy the new reference.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  fs/hugetlbfs/inode.c | 139 +++++++++++++++++++++++++++------------------------
+>  1 file changed, 73 insertions(+), 66 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 0444760..0871d70 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)
+>  	delete_from_page_cache(page);
+>  }
+> 
+> +static inline void
+> +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+> +{
+> +	struct vm_area_struct *vma;
+> +
+> +	/*
+> +	 * end == 0 indicates that the entire range after
+> +	 * start should be unmapped.
+> +	 */
+> +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
 
-This patch finishes step 4.
+[1] perhaps end can be reused.
 
-This patch set the persistent cpuid <-> nodeid mapping for all enabled/disabled
-processors at boot time via an additional acpi namespace walk for processors.
+> +		unsigned long v_offset;
+> +
+> +		/*
+> +		 * Can the expression below overflow on 32-bit arches?
+> +		 * No, because the interval tree returns us only those vmas
+> +		 * which overlap the truncated area starting at pgoff,
+> +		 * and no vma on a 32-bit arch can span beyond the 4GB.
+> +		 */
+> +		if (vma->vm_pgoff < start)
+> +			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+> +		else
+> +			v_offset = 0;
+> +
+> +		if (end) {
+> +			end = ((end - start) << PAGE_SHIFT) +
+> +			       vma->vm_start + v_offset;
 
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- arch/ia64/kernel/acpi.c       |  2 +-
- arch/x86/kernel/acpi/boot.c   |  2 +-
- drivers/acpi/bus.c            |  3 ++
- drivers/acpi/processor_core.c | 65 +++++++++++++++++++++++++++++++++++++++++++
- include/linux/acpi.h          |  2 ++
- 5 files changed, 72 insertions(+), 2 deletions(-)
+[2] end is input to be pgoff_t, but changed to be the type of v_offset.
+Further we cannot handle the case that end is input to be zero.
+See the diff below please.
 
-diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
-index b1698bc..7db5563 100644
---- a/arch/ia64/kernel/acpi.c
-+++ b/arch/ia64/kernel/acpi.c
-@@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
-  *  ACPI based hotplug CPU support
-  */
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
--static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-+int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
- {
- #ifdef CONFIG_ACPI_NUMA
- 	/*
-diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index 0ce06ee..7d45261 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ b/arch/x86/kernel/acpi/boot.c
-@@ -696,7 +696,7 @@ static void __init acpi_set_irq_model_ioapic(void)
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
- #include <acpi/processor.h>
+> +			if (end > vma->vm_end)
+> +				end = vma->vm_end;
+> +		} else
+> +			end = vma->vm_end;
+> +
+> +		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
+> +	}
+> +}
+> +
+> 
+>  /*
+>   * remove_inode_hugepages handles two distinct cases: truncation and hole
+>   * punch.  There are subtle differences in operation for each case.
+> -
+> + *
+>   * truncation is indicated by end of range being LLONG_MAX
+>   *	In this case, we first scan the range and release found pages.
+>   *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv
+> @@ -379,6 +414,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+> 
+>  		for (i = 0; i < pagevec_count(&pvec); ++i) {
+>  			struct page *page = pvec.pages[i];
+> +			bool rsv_on_error;
+>  			u32 hash;
+> 
+>  			/*
+> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>  							mapping, next, 0);
+>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
+> 
+> -			lock_page(page);
+> -			if (likely(!page_mapped(page))) {
+> -				bool rsv_on_error = !PagePrivate(page);
+> -				/*
+> -				 * We must free the huge page and remove
+> -				 * from page cache (remove_huge_page) BEFORE
+> -				 * removing the region/reserve map
+> -				 * (hugetlb_unreserve_pages).  In rare out
+> -				 * of memory conditions, removal of the
+> -				 * region/reserve map could fail.  Before
+> -				 * free'ing the page, note PagePrivate which
+> -				 * is used in case of error.
+> -				 */
+> -				remove_huge_page(page);
+> -				freed++;
+> -				if (!truncate_op) {
+> -					if (unlikely(hugetlb_unreserve_pages(
+> -							inode, next,
+> -							next + 1, 1)))
+> -						hugetlb_fix_reserve_counts(
+> -							inode, rsv_on_error);
+> -				}
+> -			} else {
+> -				/*
+> -				 * If page is mapped, it was faulted in after
+> -				 * being unmapped.  It indicates a race between
+> -				 * hole punch and page fault.  Do nothing in
+> -				 * this case.  Getting here in a truncate
+> -				 * operation is a bug.
+> -				 */
+> +			/*
+> +			 * If page is mapped, it was faulted in after being
+> +			 * unmapped in caller.  Unmap (again) now after taking
+> +			 * the fault mutex.  The mutex will prevent faults
+> +			 * until we finish removing the page.
+> +			 *
+> +			 * This race can only happen in the hole punch case.
+> +			 * Getting here in a truncate operation is a bug.
+> +			 */
+> +			if (unlikely(page_mapped(page))) {
+>  				BUG_ON(truncate_op);
+> +
+> +				i_mmap_lock_write(mapping);
+> +				hugetlb_vmdelete_list(&mapping->i_mmap,
+> +					next * pages_per_huge_page(h),
+> +					(next + 1) * pages_per_huge_page(h));
+> +				i_mmap_unlock_write(mapping);
+> +			}
+> +
+> +			lock_page(page);
+> +			/*
+> +			 * We must free the huge page and remove from page
+> +			 * cache (remove_huge_page) BEFORE removing the
+> +			 * region/reserve map (hugetlb_unreserve_pages).  In
+> +			 * rare out of memory conditions, removal of the
+> +			 * region/reserve map could fail.  Before free'ing
+> +			 * the page, note PagePrivate which is used in case
+> +			 * of error.
+> +			 */
+> +			rsv_on_error = !PagePrivate(page);
+> +			remove_huge_page(page);
+> +			freed++;
+> +			if (!truncate_op) {
+> +				if (unlikely(hugetlb_unreserve_pages(inode,
+> +							next, next + 1, 1)))
+> +					hugetlb_fix_reserve_counts(inode,
+> +								rsv_on_error);
+>  			}
+> 
+>  			unlock_page(page);
+> @@ -452,41 +494,6 @@ static void hugetlbfs_evict_inode(struct inode *inode)
+>  	clear_inode(inode);
+>  }
+> 
+> -static inline void
+> -hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+> -{
+> -	struct vm_area_struct *vma;
+> -
+> -	/*
+> -	 * end == 0 indicates that the entire range after
+> -	 * start should be unmapped.
+> -	 */
+> -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+> -		unsigned long v_offset;
+> -
+> -		/*
+> -		 * Can the expression below overflow on 32-bit arches?
+> -		 * No, because the interval tree returns us only those vmas
+> -		 * which overlap the truncated area starting at pgoff,
+> -		 * and no vma on a 32-bit arch can span beyond the 4GB.
+> -		 */
+> -		if (vma->vm_pgoff < start)
+> -			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+> -		else
+> -			v_offset = 0;
+> -
+> -		if (end) {
+> -			end = ((end - start) << PAGE_SHIFT) +
+> -			       vma->vm_start + v_offset;
+> -			if (end > vma->vm_end)
+> -				end = vma->vm_end;
+> -		} else
+> -			end = vma->vm_end;
+> -
+> -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
+> -	}
+> -}
+> -
+>  static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+>  {
+>  	pgoff_t pgoff;
+> --
+> 2.4.3
+> 
+
+--- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016
++++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016
+@@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro
+ 	 * end == 0 indicates that the entire range after
+ 	 * start should be unmapped.
+ 	 */
+-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
++	if (!end)
++		end = ULONG_MAX;
++	vma_interval_tree_foreach(vma, root, start, end) {
+ 		unsigned long v_offset;
++		unsigned long v_end;
  
--static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-+void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
- {
- #ifdef CONFIG_ACPI_NUMA
- 	int nid;
-diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
-index a212cef..d59e1cd 100644
---- a/drivers/acpi/bus.c
-+++ b/drivers/acpi/bus.c
-@@ -1094,6 +1094,9 @@ static int __init acpi_init(void)
- 	acpi_debugfs_init();
- 	acpi_sleep_proc_init();
- 	acpi_wakeup_device_init();
-+#ifdef CONFIG_ACPI_HOTPLUG_CPU
-+	acpi_set_processor_mapping();
-+#endif
- 	return 0;
+ 		/*
+ 		 * Can the expression below overflow on 32-bit arches?
+@@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro
+ 		else
+ 			v_offset = 0;
+ 
+-		if (end) {
+-			end = ((end - start) << PAGE_SHIFT) +
++		v_end = ((end - start) << PAGE_SHIFT) +
+ 			       vma->vm_start + v_offset;
+-			if (end > vma->vm_end)
+-				end = vma->vm_end;
+-		} else
+-			end = vma->vm_end;
++		if (v_end > vma->vm_end)
++			v_end = vma->vm_end;
+ 
+-		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
++		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end, NULL);
+ 	}
  }
  
-diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
-index 824b98b..45580ff 100644
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -261,6 +261,71 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
- }
- EXPORT_SYMBOL_GPL(acpi_get_cpuid);
- 
-+#ifdef CONFIG_ACPI_HOTPLUG_CPU
-+static bool map_processor(acpi_handle handle, int *phys_id, int *cpuid)
-+{
-+	int type;
-+	u32 acpi_id;
-+	acpi_status status;
-+	acpi_object_type acpi_type;
-+	unsigned long long tmp;
-+	union acpi_object object = { 0 };
-+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
-+
-+	status = acpi_get_type(handle, &acpi_type);
-+	if (ACPI_FAILURE(status))
-+		return false;
-+
-+	switch (acpi_type) {
-+	case ACPI_TYPE_PROCESSOR:
-+		status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-+		if (ACPI_FAILURE(status))
-+			return false;
-+		acpi_id = object.processor.proc_id;
-+		break;
-+	case ACPI_TYPE_DEVICE:
-+		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
-+		if (ACPI_FAILURE(status))
-+			return false;
-+		acpi_id = tmp;
-+		break;
-+	default:
-+		return false;
-+	}
-+
-+	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
-+
-+	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
-+	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
-+	if (*cpuid == -1)
-+		return false;
-+
-+	return true;
-+}
-+
-+static acpi_status __init
-+set_processor_node_mapping(acpi_handle handle, u32 lvl, void *context,
-+			   void **rv)
-+{
-+	u32 apic_id;
-+	int cpu_id;
-+
-+	if (!map_processor(handle, &apic_id, &cpu_id))
-+		return AE_ERROR;
-+
-+	acpi_map_cpu2node(handle, cpu_id, apic_id);
-+	return AE_OK;
-+}
-+
-+void __init acpi_set_processor_mapping(void)
-+{
-+	/* Set persistent cpu <-> node mapping for all processors. */
-+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-+			    ACPI_UINT32_MAX, set_processor_node_mapping,
-+			    NULL, NULL, NULL);
-+}
-+#endif
-+
- #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
- static int get_ioapic_id(struct acpi_subtable_header *entry, u32 gsi_base,
- 			 u64 *phys_addr, int *ioapic_id)
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 1991aea..327cb7e 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -194,6 +194,8 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
- /* Arch dependent functions for cpu hotplug support */
- int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
- int acpi_unmap_cpu(int cpu);
-+void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
-+void __init acpi_set_processor_mapping(void);
- #endif /* CONFIG_ACPI_HOTPLUG_CPU */
- 
- #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
--- 
-1.9.3
-
-
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
