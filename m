@@ -1,21 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C53C828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 06:23:22 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id cy9so256736196pac.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 03:23:22 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id hv6si31251777pac.145.2016.01.07.03.23.20
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 863D0828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 06:26:44 -0500 (EST)
+Received: by mail-oi0-f51.google.com with SMTP id y66so311861029oig.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 03:26:44 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id os5si14171090oeb.92.2016.01.07.03.26.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jan 2016 03:23:21 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
+        Thu, 07 Jan 2016 03:26:43 -0800 (PST)
+Subject: [PATCH] mm,oom: Re-enable OOM killer using timers.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
-	<1452094975-551-2-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1452094975-551-2-git-send-email-mhocko@kernel.org>
-Message-Id: <201601072023.AGC51005.QSFFHOVMJOFLtO@I-love.SAKURA.ne.jp>
-Date: Thu, 7 Jan 2016 20:23:04 +0900
+Message-Id: <201601072026.JCJ95845.LHQOFOOSMFtVFJ@I-love.SAKURA.ne.jp>
+Date: Thu, 7 Jan 2016 20:26:29 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -23,159 +20,201 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org, akpm@linux-foundation.org
 Cc: mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-Michal Hocko wrote:
-> @@ -607,17 +748,25 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  			continue;
->  		if (same_thread_group(p, victim))
->  			continue;
-> -		if (unlikely(p->flags & PF_KTHREAD))
-> -			continue;
->  		if (is_global_init(p))
->  			continue;
-> -		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +		if (unlikely(p->flags & PF_KTHREAD) ||
-> +		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> +			/*
-> +			 * We cannot use oom_reaper for the mm shared by this
-> +			 * process because it wouldn't get killed and so the
-> +			 * memory might be still used.
-> +			 */
-> +			can_oom_reap = false;
->  			continue;
-> -
-> +		}
->  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
->  	}
->  	rcu_read_unlock();
+>From 2f73abcec47535062d41c04bd7d9068cd71214b0 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Thu, 7 Jan 2016 11:34:41 +0900
+Subject: [PATCH] mm,oom: Re-enable OOM killer using timers.
 
-According to commit a2b829d95958da20 ("mm/oom_kill.c: avoid attempting
-to kill init sharing same memory"), below patch is needed for avoid
-killing init process with SIGSEGV.
+This patch introduces two timers ( holdoff timer and victim wait timer)
+and sysctl variables for changing timeout ( oomkiller_holdoff_ms and
+oomkiller_victim_wait_ms ) for respectively handling collateral OOM
+victim problem and OOM livelock problem. When you are trying to analyze
+problems under OOM condition, you can set holdoff timer's timeout to 0
+and victim wait timer's timeout to very large value for emulating
+current behavior.
 
-----------
+
+About collateral OOM victim problem:
+
+We can observe collateral victim being OOM-killed immediately after
+the memory hog process is OOM-killed. This is caused by a race:
+
+   (1) The process which called oom_kill_process() releases the oom_lock
+       mutex before the memory reclaimed by OOM-killing the memory hog
+       process becomes allocatable for others.
+
+   (2) Another process acquires the oom_lock mutex and checks for
+       get_page_from_freelist() before the memory reclaimed by OOM-killing
+       the memory hog process becomes allocatable for others.
+       get_page_from_freelist() fails and thus the process proceeds
+       calling out_of_memory().
+
+   (3) The memory hog process exits and clears TIF_MEMDIE flag.
+
+   (4) select_bad_process() in out_of_memory() fails to find a task with
+       TIF_MEMDIE pending. Thus the process proceeds choosing next OOM
+       victim.
+
+   (5) The memory reclaimed by OOM-killing the memory hog process becomes
+       allocatable for others. But get_page_from_freelist() is no longer
+       called by somebody which held the oom_lock mutex.
+
+   (6) oom_kill_process() is called although get_page_from_freelist()
+       could now succeed. If get_page_from_freelist() can succeed, this
+       is a collateral victim.
+
+We cannot completely avoid this race because we cannot predict when the
+memory reclaimed by OOM-killing the memory hog process becomes allocatable
+for others. But we can reduce possibility of hitting this race by keeping
+the OOM killer disabled for some administrator controlled period, instead
+of relying on a sleep with oom_lock mutex held.
+
+This patch adds /proc/sys/vm/oomkiller_holdoff_ms for that purpose.
+Since the OOM reaper retries for 10 times with 0.1 second interval,
+this timeout can be relatively short (e.g. between 0.1 second and few
+seconds). Longer the period is, more unlikely to hit this race but more
+likely to stall longer when the OOM reaper failed to reclaim memory.
+
+
+About OOM livelock problem:
+
+We are trying to reduce the possibility of hitting OOM livelock by
+introducing the OOM reaper, but we can still observe OOM livelock
+when the OOM reaper failed to reclaim enough memory.
+
+When the OOM reaper failed, we need to take some action for making forward
+progress. Possible candidates are: choose next OOM victim, allow access to
+memory reserves, trigger kernel panic.
+
+Allowing access to memory reserves might help, but on rare occasions
+we are already observing depletion of the memory reserves with current
+behavior. Thus, this is not a reliable candidate.
+
+Triggering kernel panic upon timeout might help, but can be overkilling
+for those who use with /proc/sys/vm/panic_on_oom = 0. At least some of
+them prefer choosing next OOM victim because it is very likely that the
+OOM reaper can eventually reclaim memory if we continue choosing
+subsequent OOM victims.
+
+Therefore, this patch adds /proc/sys/vm/oomkiller_victim_wait_ms for
+ignoring current behavior in order to choose subsequent OOM victims.
+Since wait victim timer should expire after the OOM reaper fails,
+this timeout should be longer than holdoff timer's timeout (e.g.
+between few seconds and a minute).
+
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+  include/linux/oom.h |  2 ++
+  kernel/sysctl.c     | 14 ++++++++++++++
+  mm/oom_kill.c       | 31 ++++++++++++++++++++++++++++++-
+  3 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 03e6257..633e92a 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -117,4 +117,6 @@ static inline bool task_will_free_mem(struct task_struct *task)
+  extern int sysctl_oom_dump_tasks;
+  extern int sysctl_oom_kill_allocating_task;
+  extern int sysctl_panic_on_oom;
++extern unsigned int sysctl_oomkiller_holdoff_ms;
++extern unsigned int sysctl_oomkiller_victim_wait_ms;
+  #endif /* _INCLUDE_LINUX_OOM_H */
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 9142036..7102212 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1209,6 +1209,20 @@ static struct ctl_table vm_table[] = {
+  		.proc_handler	= proc_dointvec,
+  	},
+  	{
++		.procname       = "oomkiller_holdoff_ms",
++		.data           = &sysctl_oomkiller_holdoff_ms,
++		.maxlen         = sizeof(sysctl_oomkiller_holdoff_ms),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++	},
++	{
++		.procname       = "oomkiller_victim_wait_ms",
++		.data           = &sysctl_oomkiller_victim_wait_ms,
++		.maxlen         = sizeof(sysctl_oomkiller_victim_wait_ms),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++	},
++	{
+  		.procname	= "overcommit_ratio",
+  		.data		= &sysctl_overcommit_ratio,
+  		.maxlen		= sizeof(sysctl_overcommit_ratio),
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 9548dce..9832f3f 100644
+index b8a4210..9548dce 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -784,9 +784,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-  			continue;
-  		if (same_thread_group(p, victim))
-  			continue;
--		if (is_global_init(p))
--			continue;
--		if (unlikely(p->flags & PF_KTHREAD) ||
-+		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p) ||
-  		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-  			/*
-  			 * We cannot use oom_reaper for the mm shared by this
-----------
+@@ -48,9 +48,17 @@
+  int sysctl_panic_on_oom;
+  int sysctl_oom_kill_allocating_task;
+  int sysctl_oom_dump_tasks = 1;
++unsigned int sysctl_oomkiller_holdoff_ms = 100; /* 0.1 second */
++unsigned int sysctl_oomkiller_victim_wait_ms = 5000; /* 5 seconds */
 
-----------
-#define _GNU_SOURCE
-#include <stdlib.h>
-#include <unistd.h>
-#include <sched.h>
+  DEFINE_MUTEX(oom_lock);
 
-static int child(void *unused)
-{
-	char *buf = NULL;
-	unsigned long i;
-	unsigned long size = 0;
-	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-		char *cp = realloc(buf, size);
-		if (!cp) {
-			size >>= 1;
-			break;
-		}
-		buf = cp;
-	}
-	for (i = 0; i < size; i += 4096)
-		buf[i] = '\0'; /* Will cause OOM due to overcommit */
-	return 0;
-}
++static void oomkiller_reset(unsigned long arg)
++{
++}
++static DEFINE_TIMER(oomkiller_holdoff_timer, oomkiller_reset, 0, 0);
++static DEFINE_TIMER(oomkiller_victim_wait_timer, oomkiller_reset, 0, 0);
++
+  #ifdef CONFIG_NUMA
+  /**
+   * has_intersects_mems_allowed() - check task eligiblity for kill
+@@ -292,8 +300,14 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+  	 * Don't allow any other task to have access to the reserves.
+  	 */
+  	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
++		/*
++		 * If one of TIF_MEMDIE tasks cannot die after victim wait
++		 * timeout expires, treat such tasks as unkillable because
++		 * they are likely stuck at OOM livelock.
++		 */
+  		if (!is_sysrq_oom(oc))
+-			return OOM_SCAN_ABORT;
++			return timer_pending(&oomkiller_victim_wait_timer) ?
++				OOM_SCAN_ABORT : OOM_SCAN_CONTINUE;
+  	}
+  	if (!task->mm)
+  		return OOM_SCAN_CONTINUE;
+@@ -575,6 +589,14 @@ void mark_oom_victim(struct task_struct *tsk)
+  	/* OOM killer might race with memcg OOM */
+  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+  		return;
++	/* Start holdoff timer and victim wait timer. */
++	if (sysctl_oomkiller_holdoff_ms)
++		mod_timer(&oomkiller_holdoff_timer, jiffies +
++			  msecs_to_jiffies(sysctl_oomkiller_holdoff_ms));
++	if (sysctl_oomkiller_victim_wait_ms)
++		mod_timer(&oomkiller_victim_wait_timer, jiffies +
++			  msecs_to_jiffies(sysctl_oomkiller_victim_wait_ms));
++
+  	/*
+  	 * Make sure that the task is woken up from uninterruptible sleep
+  	 * if it is frozen because OOM killer wouldn't be able to free
+@@ -865,6 +887,13 @@ bool out_of_memory(struct oom_control *oc)
+  	}
 
-int main(int argc, char *argv[])
-{
-	char *cp = malloc(8192);
-	if (cp && clone(child, cp + 8192, CLONE_VM, NULL) > 0)
-		while (1) {
-			sleep(1);
-			write(1, cp, 1);
-		}
-	return 0;
-}
-----------
-[    2.954212] init invoked oom-killer: order=0, oom_score_adj=0, gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|GFP_ZERO)
-[    2.959697] init cpuset=/ mems_allowed=0
-[    2.961927] CPU: 0 PID: 98 Comm: init Not tainted 4.4.0-rc8-next-20160106+ #28
-[    2.965738] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[    2.971239]  0000000000000000 0000000075c7a38e ffffffff812ab8c4 ffff88003bd6fd48
-[    2.975461]  ffffffff8117eb58 0000000000000000 ffff88003bd6fd48 0000000000000000
-[    2.979572]  ffffffff810c5630 0000000000000003 0000000000000202 0000000000000549
-[    2.983525] Call Trace:
-[    2.984813]  [<ffffffff812ab8c4>] ? dump_stack+0x40/0x5c
-[    2.987497]  [<ffffffff8117eb58>] ? dump_header+0x58/0x1ed
-[    2.990285]  [<ffffffff810c5630>] ? ktime_get+0x30/0x90
-[    2.992963]  [<ffffffff810fd225>] ? delayacct_end+0x35/0x60
-[    2.995884]  [<ffffffff81113dc3>] ? oom_kill_process+0x323/0x460
-[    2.998944]  [<ffffffff81114060>] ? out_of_memory+0x110/0x480
-[    3.001833]  [<ffffffff811197ad>] ? __alloc_pages_nodemask+0xbbd/0xd60
-[    3.005400]  [<ffffffff8115d951>] ? alloc_pages_vma+0xb1/0x220
-[    3.008391]  [<ffffffff811780ac>] ? mem_cgroup_commit_charge+0x7c/0xf0
-[    3.011668]  [<ffffffff8113ce86>] ? handle_mm_fault+0x1036/0x1460
-[    3.014782]  [<ffffffff81056c97>] ? __do_page_fault+0x177/0x430
-[    3.017770]  [<ffffffff81056f7b>] ? do_page_fault+0x2b/0x70
-[    3.020615]  [<ffffffff815a9198>] ? page_fault+0x28/0x30
-[    3.023359] Mem-Info:
-[    3.024575] active_anon:244334 inactive_anon:0 isolated_anon:0
-[    3.024575]  active_file:0 inactive_file:0 isolated_file:0
-[    3.024575]  unevictable:561 dirty:0 writeback:0 unstable:0
-[    3.024575]  slab_reclaimable:94 slab_unreclaimable:2386
-[    3.024575]  mapped:275 shmem:0 pagetables:477 bounce:0
-[    3.024575]  free:1924 free_pcp:304 free_cma:0
-[    3.040715] Node 0 DMA free:3936kB min:60kB low:72kB high:88kB active_anon:11260kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB 
-present:15988kB managed:15904kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:4kB slab_unreclaimable:64kB kernel_stack:0kB pagetables:564kB unstable:0kB bounce:0kB 
-free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-[    3.062251] lowmem_reserve[]: 0 969 969 969
-[    3.064752] Node 0 DMA32 free:3760kB min:3812kB low:4764kB high:5716kB active_anon:966076kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:2244kB isolated(anon):0kB 
-isolated(file):0kB present:1032064kB managed:994872kB mlocked:0kB dirty:0kB writeback:0kB mapped:1100kB shmem:0kB slab_reclaimable:372kB slab_unreclaimable:9480kB kernel_stack:2192kB pagetables:1344kB 
-unstable:0kB bounce:0kB free_pcp:1216kB local_pcp:244kB free_cma:0kB writeback_tmp:0kB pages_scanned:2244 all_unreclaimable? yes
-[    3.087299] lowmem_reserve[]: 0 0 0 0
-[    3.089437] Node 0 DMA: 2*4kB (ME) 1*8kB (E) 3*16kB (UME) 3*32kB (UME) 3*64kB (UME) 2*128kB (ME) 3*256kB (UME) 3*512kB (UME) 1*1024kB (E) 0*2048kB 0*4096kB = 3936kB
-[    3.098058] Node 0 DMA32: 4*4kB (UME) 4*8kB (UME) 2*16kB (UE) 1*32kB (M) 1*64kB (M) 2*128kB (UE) 1*256kB (E) 0*512kB 3*1024kB (UME) 0*2048kB 0*4096kB = 3760kB
-[    3.106371] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
-[    3.110846] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-[    3.115169] 561 total pagecache pages
-[    3.117051] 0 pages in swap cache
-[    3.118764] Swap cache stats: add 0, delete 0, find 0/0
-[    3.121414] Free swap  = 0kB
-[    3.122958] Total swap = 0kB
-[    3.124468] 262013 pages RAM
-[    3.125962] 0 pages HighMem/MovableOnly
-[    3.127932] 9319 pages reserved
-[    3.129597] 0 pages cma reserved
-[    3.131258] 0 pages hwpoisoned
-[    3.132836] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-[    3.137232] [   98]     0    98   279607   244400     489       5        0             0 init
-[    3.141664] Out of memory: Kill process 98 (init) score 940 or sacrifice child
-[    3.145346] Killed process 98 (init) total-vm:1118428kB, anon-rss:977464kB, file-rss:136kB, shmem-rss:0kB
-[    3.416105] init[1]: segfault at 0 ip           (null) sp 00007ffd484cf5f0 error 14 in init[400000+1000]
-[    3.439074] Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b
-[    3.439074]
-[    3.450193] Kernel Offset: disabled
-[    3.456259] ---[ end Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b
-[    3.456259]
-----------
-
-Guessing from commit 1e99bad0d9c12a4a ("oom: kill all threads sharing oom
-killed task's mm"), the
-
-	if (same_thread_group(p, victim))
-		continue;
-
-test is for avoiding "Kill process %d (%s) sharing same memory\n" on the
-victim's mm, but that printk() was already removed. Thus, I think we have
-nothing to do (or can remove it if we don't mind sending SIGKILL twice).
+  	/*
++	 * Do not try to choose next OOM victim until holdoff timer expires
++	 * so that we can reduce possibility of making a collateral victim.
++	 */
++	if (timer_pending(&oomkiller_holdoff_timer))
++		return true;
++
++	/*
+  	 * Check if there were limitations on the allocation (only relevant for
+  	 * NUMA) that may require different handling.
+  	 */
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
