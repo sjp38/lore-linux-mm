@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 6679C828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 17:44:25 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id wp13so204443563obc.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 14:44:25 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t2si1575439obd.39.2016.01.07.14.44.23
+	by kanga.kvack.org (Postfix) with ESMTP id EBDAF828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 17:44:34 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id bx1so312669469obb.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 14:44:34 -0800 (PST)
+Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
+        by mx.google.com with ESMTPS id j6si17214145oem.25.2016.01.07.14.44.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 14:44:24 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH] mm/hugetlbfs Fix bugs in hugetlb_vmtruncate_list
-Date: Thu,  7 Jan 2016 14:35:37 -0800
-Message-Id: <1452206137-12441-1-git-send-email-mike.kravetz@oracle.com>
+        Thu, 07 Jan 2016 14:44:34 -0800 (PST)
+Received: by mail-ob0-x22d.google.com with SMTP id bx1so312669285obb.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 14:44:34 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <568EE2F7.5000902@sr71.net>
+References: <20160107000104.1A105322@viggo.jf.intel.com> <20160107000148.ED5D13DF@viggo.jf.intel.com>
+ <CALCETrUUS=jHCwmeQ5iUeTAq15PAGZO8Js57ZBLKPM6oEDz3Qg@mail.gmail.com> <568EE2F7.5000902@sr71.net>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 7 Jan 2016 14:44:14 -0800
+Message-ID: <CALCETrUYA6osHAH-o55WYquCKf+41pF8UaY+LJjajw9v0TCONA@mail.gmail.com>
+Subject: Re: [PATCH 31/31] x86, pkeys: execute-only support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <hillf.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org, "[4.3]"@kvack.org
+To: Dave Hansen <dave@sr71.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@google.com>
 
-Hillf Danton noticed bugs in the hugetlb_vmtruncate_list routine.
-The argument end is of type pgoff_t.  It was being converted to a
-vaddr offset and passed to unmap_hugepage_range.  However, end
-was also being used as an argument to the vma_interval_tree_foreach
-controlling loop.  In addition, the conversion of end to vaddr offset
-was incorrect.
+On Thu, Jan 7, 2016 at 2:13 PM, Dave Hansen <dave@sr71.net> wrote:
+> On 01/07/2016 01:10 PM, Andy Lutomirski wrote:
+>> On Wed, Jan 6, 2016 at 4:01 PM, Dave Hansen <dave@sr71.net> wrote:
+>>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>>> Protection keys provide new page-based protection in hardware.
+>>> But, they have an interesting attribute: they only affect data
+>>> accesses and never affect instruction fetches.  That means that
+>>> if we set up some memory which is set as "access-disabled" via
+>>> protection keys, we can still execute from it.
+>>> could lose the bits in PKRU that enforce execute-only
+>>> permissions.  To avoid this, we suggest avoiding ever calling
+>>> mmap() or mprotect() when the PKRU value is expected to be
+>>> stable.
+>>
+>> This may be a bit unfortunate for people who call mmap from signal
+>> handlers.  Admittedly, the failure mode isn't that bad.
+>
+> mmap() isn't in the list of async-signal-safe functions, so it's bad
+> already.
 
-Fixes: 1bfad99ab (" hugetlbfs: hugetlb_vmtruncate_list() needs to take a range")
-Cc: stable@vger.kernel.org [4.3]
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+mmap the POSIX function may not be, but mmap the syscall is just a
+syscall.  Also, I'm moderately confident that there are synchronous
+signals, too.  If not, there should be (e.g. raise with an unblocked
+signal).
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 0444760..89abdc9 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -461,8 +461,12 @@ hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
- 	 * end == 0 indicates that the entire range after
- 	 * start should be unmapped.
- 	 */
--	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-+	if (!end)
-+		end = ULONG_MAX;
-+
-+	vma_interval_tree_foreach(vma, root, start, end) {
- 		unsigned long v_offset;
-+		unsigned long v_end;
- 
- 		/*
- 		 * Can the expression below overflow on 32-bit arches?
-@@ -475,15 +479,12 @@ hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
- 		else
- 			v_offset = 0;
- 
--		if (end) {
--			end = ((end - start) << PAGE_SHIFT) +
--			       vma->vm_start + v_offset;
--			if (end > vma->vm_end)
--				end = vma->vm_end;
--		} else
--			end = vma->vm_end;
-+		v_end = (end - vma->vm_pgoff) << PAGE_SHIFT;
-+		if (v_end > vma->vm_end)
-+			v_end = vma->vm_end;
- 
--		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
-+		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end,
-+									NULL);
- 	}
- }
- 
--- 
-2.4.3
+>
+>> Out of curiosity, do you have timing information for WRPKRU and
+>> RDPKRU?  If they're fast and if anyone ever implements my deferred
+>> xstate restore idea, then the performance issue goes away and we can
+>> stop caring about whether PKRU is in the init state.
+>
+> I don't have timing information that I can share.  From my perspective,
+> they're pretty fast, *not* like an MSR write or something.  I think
+> they're fast enough to use in the context switch path.  I'd say PKRU is
+> in XSAVE for consistency more than for performance.
+>
+
+I'll play with this at some point.  Probably not until I get the right hardware.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
