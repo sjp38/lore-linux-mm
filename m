@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E337828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 10:17:23 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id 6so251042907qgy.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 07:17:23 -0800 (PST)
-Received: from mail-qk0-x231.google.com (mail-qk0-x231.google.com. [2607:f8b0:400d:c09::231])
-        by mx.google.com with ESMTPS id x130si93621698qka.101.2016.01.07.07.17.22
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D9C6828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 10:38:59 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id yy13so168844290pab.3
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 07:38:59 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id hp4si67566681pad.113.2016.01.07.07.38.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 07:17:22 -0800 (PST)
-Received: by mail-qk0-x231.google.com with SMTP id n135so182228513qka.2
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 07:17:22 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20160107093402.GA8380@quack.suse.cz>
-References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
-	<CAPcyv4h3NcXHHQAWL=HwgGxTbFTeOa98S9fxWu7dA3nTEcFxxA@mail.gmail.com>
-	<20160107093402.GA8380@quack.suse.cz>
-Date: Thu, 7 Jan 2016 07:17:22 -0800
-Message-ID: <CAPcyv4i_xfihzc_LKYiz_XuTVVCMSf5dsJQE8g7-NURe170p7g@mail.gmail.com>
-Subject: Re: [PATCH v7 1/9] dax: fix NULL pointer dereference in __dax_dbg()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jan 2016 07:38:58 -0800 (PST)
+Subject: Re: [PATCH] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201512292258.ABF87505.OFOSJLHMFVOQFt@I-love.SAKURA.ne.jp>
+	<20160107091512.GB27868@dhcp22.suse.cz>
+	<201601072231.DGG78695.OOFVLHJFFQOStM@I-love.SAKURA.ne.jp>
+	<20160107145841.GN27868@dhcp22.suse.cz>
+In-Reply-To: <20160107145841.GN27868@dhcp22.suse.cz>
+Message-Id: <201601080038.CIF04698.VFJHSOQLOFFMOt@I-love.SAKURA.ne.jp>
+Date: Fri, 8 Jan 2016 00:38:43 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>
+To: mhocko@kernel.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 7, 2016 at 1:34 AM, Jan Kara <jack@suse.cz> wrote:
-> On Wed 06-01-16 11:14:09, Dan Williams wrote:
->> On Wed, Jan 6, 2016 at 10:00 AM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > __dax_dbg() currently assumes that bh->b_bdev is non-NULL, passing it into
->> > bdevname() where is is dereferenced.  This assumption isn't always true -
->> > when called for reads of holes, ext4_dax_mmap_get_block() returns a buffer
->> > head where bh->b_bdev is never set.  I hit this BUG while testing the DAX
->> > PMD fault path.
->> >
->> > Instead, verify that we have a valid bh->b_bdev, else just say "unknown"
->> > for the block device.
->> >
->> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
->> > Cc: Dan Williams <dan.j.williams@intel.com>
->> > ---
->> >  fs/dax.c | 7 ++++++-
->> >  1 file changed, 6 insertions(+), 1 deletion(-)
->> >
->> > diff --git a/fs/dax.c b/fs/dax.c
->> > index 7af8797..03cc4a3 100644
->> > --- a/fs/dax.c
->> > +++ b/fs/dax.c
->> > @@ -563,7 +563,12 @@ static void __dax_dbg(struct buffer_head *bh, unsigned long address,
->> >  {
->> >         if (bh) {
->> >                 char bname[BDEVNAME_SIZE];
->> > -               bdevname(bh->b_bdev, bname);
->> > +
->> > +               if (bh->b_bdev)
->> > +                       bdevname(bh->b_bdev, bname);
->> > +               else
->> > +                       snprintf(bname, BDEVNAME_SIZE, "unknown");
->> > +
->> >                 pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
->> >                         "length %zd fallback: %s\n", fn, current->comm,
->> >                         address, bname, bh->b_state, (u64)bh->b_blocknr,
->>
->> I'm assuming there's no danger of a such a buffer_head ever being used
->> for the bdev parameter to dax_map_atomic()?  Shouldn't we also/instead
->> go fix ext4 to not send partially filled buffer_heads?
->
-> No. The real problem is a long-standing abuse of struct buffer_head to be
-> used for passing block mapping information (it's on my todo list to remove
-> that at least from DAX code and use cleaner block mapping interface but
-> first I want basic DAX functionality to settle down to avoid unnecessary
-> conflicts). Filesystem is not supposed to touch bh->b_bdev. If you need
-> that filled in, set it yourself in before passing bh to the block mapping
-> function.
->
+Michal Hocko wrote:
+> @@ -333,6 +333,14 @@ static struct task_struct *select_bad_process(struct oom_control *oc,
+>  		if (points == chosen_points && thread_group_leader(chosen))
+>  			continue;
+>  
+> +		/*
+> +		 * If the current major task is already ooom killed and this
+> +		 * is sysrq+f request then we rather choose somebody else
+> +		 * because the current oom victim might be stuck.
+> +		 */
+> +		if (is_sysrq_oom(sc) && test_tsk_thread_flag(p, TIF_MEMDIE))
+> +			continue;
+> +
+>  		chosen = p;
+>  		chosen_points = points;
+>  	}
 
-Ok, makes sense.
+Do we want to require SysRq-f for each thread in a process?
+If g has 1024 p, dump_tasks() will do
 
-Ross, can you fix this instead by unconditionally looking up the bdev
-rather that saying "unknown".  The bdev should always be retrievable.
+  pr_info("[%5d] %5d %5d %8lu %8lu %7ld %7ld %8lu         %5hd %s\n",
+
+for 1024 times? I think one SysRq-f per one process is sufficient.
+
+How can we guarantee that find_lock_task_mm() from oom_kill_process()
+chooses !TIF_MEMDIE thread when try_to_sacrifice_child() somehow chose
+!TIF_MEMDIE thread? I think choosing !TIF_MEMDIE thread at
+find_lock_task_mm() is the simplest way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
