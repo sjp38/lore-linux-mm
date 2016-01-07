@@ -1,288 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C551828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 11:54:28 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id bx1so304460414obb.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 08:54:28 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id m188si17290698oif.87.2016.01.07.08.54.26
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E3419828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 12:23:50 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id o11so332683465qge.2
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 09:23:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e8si15238743qgf.2.2016.01.07.09.23.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 08:54:27 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
- <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <568E964E.1060003@oracle.com>
-Date: Thu, 7 Jan 2016 08:46:06 -0800
-MIME-Version: 1.0
-In-Reply-To: <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Thu, 07 Jan 2016 09:23:49 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: [PATCH v3] memory-hotplug: add automatic onlining policy for the newly added memory
+Date: Thu,  7 Jan 2016 18:23:41 +0100
+Message-Id: <1452187421-15747-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michel Lespinasse' <walken@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On 01/07/2016 12:06 AM, Hillf Danton wrote:
->>
->> Page faults can race with fallocate hole punch.  If a page fault happens
->> between the unmap and remove operations, the page is not removed and
->> remains within the hole.  This is not the desired behavior.  The race
->> is difficult to detect in user level code as even in the non-race
->> case, a page within the hole could be faulted back in before fallocate
->> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
->> this race will be easier to observe.
->>
->> If this race is detected and a page is mapped, the remove operation
->> (remove_inode_hugepages) will unmap the page before removing.  The unmap
->> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
->> so that no other faults will be processed until the page is removed.
->>
->> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
->> remove_inode_hugepages to satisfy the new reference.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  fs/hugetlbfs/inode.c | 139 +++++++++++++++++++++++++++------------------------
->>  1 file changed, 73 insertions(+), 66 deletions(-)
->>
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 0444760..0871d70 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)
->>  	delete_from_page_cache(page);
->>  }
->>
->> +static inline void
->> +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
->> +{
->> +	struct vm_area_struct *vma;
->> +
->> +	/*
->> +	 * end == 0 indicates that the entire range after
->> +	 * start should be unmapped.
->> +	 */
->> +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> 
-> [1] perhaps end can be reused.
-> 
->> +		unsigned long v_offset;
->> +
->> +		/*
->> +		 * Can the expression below overflow on 32-bit arches?
->> +		 * No, because the interval tree returns us only those vmas
->> +		 * which overlap the truncated area starting at pgoff,
->> +		 * and no vma on a 32-bit arch can span beyond the 4GB.
->> +		 */
->> +		if (vma->vm_pgoff < start)
->> +			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
->> +		else
->> +			v_offset = 0;
->> +
->> +		if (end) {
->> +			end = ((end - start) << PAGE_SHIFT) +
->> +			       vma->vm_start + v_offset;
-> 
-> [2] end is input to be pgoff_t, but changed to be the type of v_offset.
-> Further we cannot handle the case that end is input to be zero.
-> See the diff below please.
+Currently, all newly added memory blocks remain in 'offline' state unless
+someone onlines them, some linux distributions carry special udev rules
+like:
 
-Thanks Hillf.
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
 
-This bug is part of the existing code.  I did not modify current
-hugetlb_vmdelete_list code, just moved it as part of this patch.
-Therefore, I will create a separate patch to fix this issue.
+to make this happen automatically. This is not a great solution for virtual
+machines where memory hotplug is being used to address high memory pressure
+situations as such onlining is slow and a userspace process doing this
+(udev) has a chance of being killed by the OOM killer as it will probably
+require to allocate some memory.
 
+Introduce default policy for the newly added memory blocks in
+/sys/devices/system/memory/auto_online_blocks file with two possible
+values: "offline" which preserves the current behavior and "online" which
+causes all newly added memory blocks to go online as soon as they're added.
+The default is "offline".
+
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Daniel Kiper <daniel.kiper@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: David Vrabel <david.vrabel@citrix.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+Cc: Igor Mammedov <imammedo@redhat.com>
+Cc: Kay Sievers <kay@vrfy.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+---
+- Changes since 'v2':
+  - Remove config option, revert to 'offline' by default [Andrew Morton,
+    David Rientjes]
+  - Rename 'hotplug_autoonline' to 'auto_online_blocks' [David Rientjes]
+
+- Changes since 'v1':
+  Add 'online' parameter to add_memory_resource() as it is being used by
+  xen ballon driver and it adds "empty" memory pages [David Vrabel].
+  (I don't completely understand what prevents manual onlining in this
+   case as we still have all newly added blocks in sysfs ... this is the
+   discussion point.)
+
+- Changes since 'RFC':
+  It seems nobody is strongly opposed to the idea, thus non-RFC.
+  Change memhp_autoonline to bool, we support only MMOP_ONLINE_KEEP
+  and MMOP_OFFLINE for the auto-onlining policy, eliminate 'unknown'
+  from show_memhp_autoonline(). [Daniel Kiper]
+  Put everything under CONFIG_MEMORY_HOTPLUG_AUTOONLINE, enable the
+  feature by default (when the config option is selected) and add
+  kernel parameter (nomemhp_autoonline) to disable the functionality
+  upon boot when needed.
+
+- RFC:
+  I was able to find previous attempts to fix the issue, e.g.:
+  http://marc.info/?l=linux-kernel&m=137425951924598&w=2
+  http://marc.info/?l=linux-acpi&m=127186488905382
+  but I'm not completely sure why it didn't work out and the solution
+  I suggest is not 'smart enough', thus 'RFC'.
+---
+ Documentation/memory-hotplug.txt | 19 +++++++++++++++----
+ drivers/base/memory.c            | 32 ++++++++++++++++++++++++++++++++
+ drivers/xen/balloon.c            |  2 +-
+ include/linux/memory_hotplug.h   |  4 +++-
+ mm/memory_hotplug.c              | 12 ++++++++++--
+ 5 files changed, 61 insertions(+), 8 deletions(-)
+
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index ce2cfcf..ceaf40c 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -254,12 +254,23 @@ If the memory block is online, you'll read "online".
+ If the memory block is offline, you'll read "offline".
+ 
+ 
+-5.2. How to online memory
++5.2. Memory onlining
+ ------------
+-Even if the memory is hot-added, it is not at ready-to-use state.
+-For using newly added memory, you have to "online" the memory block.
++When the memory is hot-added, the kernel decides whether or not to "online"
++it according to the policy which can be read from "auto_online_blocks" file:
+ 
+-For onlining, you have to write "online" to the memory block's state file as:
++% cat /sys/devices/system/memory/auto_online_blocks
++
++The default is "offline" which means the newly added memory is not in a
++ready-to-use state and you have to "online" the newly added memory blocks
++manually. Automatic onlining can be requested by writing "online" to
++"auto_online_blocks" file:
++
++% echo online > /sys/devices/system/memory/auto_online_blocks
++
++If the automatic onlining wasn't requested or some memory block was offlined
++it is possible to change the individual block's state by writing to the "state"
++file:
+ 
+ % echo online > /sys/devices/system/memory/memoryXXX/state
+ 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 25425d3..44a618d 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -439,6 +439,37 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+ 
+ /*
++ * Memory auto online policy.
++ */
++
++static ssize_t
++show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
++			char *buf)
++{
++	if (memhp_auto_online)
++		return sprintf(buf, "online\n");
++	else
++		return sprintf(buf, "offline\n");
++}
++
++static ssize_t
++store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
++			 const char *buf, size_t count)
++{
++	if (sysfs_streq(buf, "online"))
++		memhp_auto_online = true;
++	else if (sysfs_streq(buf, "offline"))
++		memhp_auto_online = false;
++	else
++		return -EINVAL;
++
++	return count;
++}
++
++static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
++		   store_auto_online_blocks);
++
++/*
+  * Some architectures will have custom drivers to do this, and
+  * will not need to do it from userspace.  The fake hot-add code
+  * as well as ppc64 will do all of their discovery in userspace
+@@ -737,6 +768,7 @@ static struct attribute *memory_root_attrs[] = {
+ #endif
+ 
+ 	&dev_attr_block_size_bytes.attr,
++	&dev_attr_auto_online_blocks.attr,
+ 	NULL
+ };
+ 
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 12eab50..890c3b5 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -338,7 +338,7 @@ static enum bp_state reserve_additional_memory(void)
+ 	}
+ #endif
+ 
+-	rc = add_memory_resource(nid, resource);
++	rc = add_memory_resource(nid, resource, false);
+ 	if (rc) {
+ 		pr_warn("Cannot add additional memory (%i)\n", rc);
+ 		goto err;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 2ea574f..4b7949a 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -99,6 +99,8 @@ extern void __online_page_free(struct page *page);
+ 
+ extern int try_online_node(int nid);
+ 
++extern bool memhp_auto_online;
++
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
+ extern int arch_remove_memory(u64 start, u64 size);
+@@ -267,7 +269,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *));
+ extern int add_memory(int nid, u64 start, u64 size);
+-extern int add_memory_resource(int nid, struct resource *resource);
++extern int add_memory_resource(int nid, struct resource *resource, bool online);
+ extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+ 		bool for_device);
+ extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a042a9d..0ecf860 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -76,6 +76,9 @@ static struct {
+ #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+ #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+ 
++bool memhp_auto_online;
++EXPORT_SYMBOL_GPL(memhp_auto_online);
++
+ void get_online_mems(void)
+ {
+ 	might_sleep();
+@@ -1232,7 +1235,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+ }
+ 
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory_resource(int nid, struct resource *res)
++int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ {
+ 	u64 start, size;
+ 	pg_data_t *pgdat = NULL;
+@@ -1292,6 +1295,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
+ 
++	/* online pages if requested */
++	if (online)
++		online_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT,
++			     MMOP_ONLINE_KEEP);
++
+ 	goto out;
+ 
+ error:
+@@ -1315,7 +1323,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 	if (!res)
+ 		return -EEXIST;
+ 
+-	ret = add_memory_resource(nid, res);
++	ret = add_memory_resource(nid, res, memhp_auto_online);
+ 	if (ret < 0)
+ 		release_memory_resource(res);
+ 	return ret;
 -- 
-Mike Kravetz
-
-> 
->> +			if (end > vma->vm_end)
->> +				end = vma->vm_end;
->> +		} else
->> +			end = vma->vm_end;
->> +
->> +		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
->> +	}
->> +}
->> +
->>
->>  /*
->>   * remove_inode_hugepages handles two distinct cases: truncation and hole
->>   * punch.  There are subtle differences in operation for each case.
->> -
->> + *
->>   * truncation is indicated by end of range being LLONG_MAX
->>   *	In this case, we first scan the range and release found pages.
->>   *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv
->> @@ -379,6 +414,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>
->>  		for (i = 0; i < pagevec_count(&pvec); ++i) {
->>  			struct page *page = pvec.pages[i];
->> +			bool rsv_on_error;
->>  			u32 hash;
->>
->>  			/*
->> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>  							mapping, next, 0);
->>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->>
->> -			lock_page(page);
->> -			if (likely(!page_mapped(page))) {
->> -				bool rsv_on_error = !PagePrivate(page);
->> -				/*
->> -				 * We must free the huge page and remove
->> -				 * from page cache (remove_huge_page) BEFORE
->> -				 * removing the region/reserve map
->> -				 * (hugetlb_unreserve_pages).  In rare out
->> -				 * of memory conditions, removal of the
->> -				 * region/reserve map could fail.  Before
->> -				 * free'ing the page, note PagePrivate which
->> -				 * is used in case of error.
->> -				 */
->> -				remove_huge_page(page);
->> -				freed++;
->> -				if (!truncate_op) {
->> -					if (unlikely(hugetlb_unreserve_pages(
->> -							inode, next,
->> -							next + 1, 1)))
->> -						hugetlb_fix_reserve_counts(
->> -							inode, rsv_on_error);
->> -				}
->> -			} else {
->> -				/*
->> -				 * If page is mapped, it was faulted in after
->> -				 * being unmapped.  It indicates a race between
->> -				 * hole punch and page fault.  Do nothing in
->> -				 * this case.  Getting here in a truncate
->> -				 * operation is a bug.
->> -				 */
->> +			/*
->> +			 * If page is mapped, it was faulted in after being
->> +			 * unmapped in caller.  Unmap (again) now after taking
->> +			 * the fault mutex.  The mutex will prevent faults
->> +			 * until we finish removing the page.
->> +			 *
->> +			 * This race can only happen in the hole punch case.
->> +			 * Getting here in a truncate operation is a bug.
->> +			 */
->> +			if (unlikely(page_mapped(page))) {
->>  				BUG_ON(truncate_op);
->> +
->> +				i_mmap_lock_write(mapping);
->> +				hugetlb_vmdelete_list(&mapping->i_mmap,
->> +					next * pages_per_huge_page(h),
->> +					(next + 1) * pages_per_huge_page(h));
->> +				i_mmap_unlock_write(mapping);
->> +			}
->> +
->> +			lock_page(page);
->> +			/*
->> +			 * We must free the huge page and remove from page
->> +			 * cache (remove_huge_page) BEFORE removing the
->> +			 * region/reserve map (hugetlb_unreserve_pages).  In
->> +			 * rare out of memory conditions, removal of the
->> +			 * region/reserve map could fail.  Before free'ing
->> +			 * the page, note PagePrivate which is used in case
->> +			 * of error.
->> +			 */
->> +			rsv_on_error = !PagePrivate(page);
->> +			remove_huge_page(page);
->> +			freed++;
->> +			if (!truncate_op) {
->> +				if (unlikely(hugetlb_unreserve_pages(inode,
->> +							next, next + 1, 1)))
->> +					hugetlb_fix_reserve_counts(inode,
->> +								rsv_on_error);
->>  			}
->>
->>  			unlock_page(page);
->> @@ -452,41 +494,6 @@ static void hugetlbfs_evict_inode(struct inode *inode)
->>  	clear_inode(inode);
->>  }
->>
->> -static inline void
->> -hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
->> -{
->> -	struct vm_area_struct *vma;
->> -
->> -	/*
->> -	 * end == 0 indicates that the entire range after
->> -	 * start should be unmapped.
->> -	 */
->> -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
->> -		unsigned long v_offset;
->> -
->> -		/*
->> -		 * Can the expression below overflow on 32-bit arches?
->> -		 * No, because the interval tree returns us only those vmas
->> -		 * which overlap the truncated area starting at pgoff,
->> -		 * and no vma on a 32-bit arch can span beyond the 4GB.
->> -		 */
->> -		if (vma->vm_pgoff < start)
->> -			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
->> -		else
->> -			v_offset = 0;
->> -
->> -		if (end) {
->> -			end = ((end - start) << PAGE_SHIFT) +
->> -			       vma->vm_start + v_offset;
->> -			if (end > vma->vm_end)
->> -				end = vma->vm_end;
->> -		} else
->> -			end = vma->vm_end;
->> -
->> -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
->> -	}
->> -}
->> -
->>  static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
->>  {
->>  	pgoff_t pgoff;
->> --
->> 2.4.3
->>
-> 
-> --- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016
-> +++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016
-> @@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro
->  	 * end == 0 indicates that the entire range after
->  	 * start should be unmapped.
->  	 */
-> -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> +	if (!end)
-> +		end = ULONG_MAX;
-> +	vma_interval_tree_foreach(vma, root, start, end) {
->  		unsigned long v_offset;
-> +		unsigned long v_end;
->  
->  		/*
->  		 * Can the expression below overflow on 32-bit arches?
-> @@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro
->  		else
->  			v_offset = 0;
->  
-> -		if (end) {
-> -			end = ((end - start) << PAGE_SHIFT) +
-> +		v_end = ((end - start) << PAGE_SHIFT) +
->  			       vma->vm_start + v_offset;
-> -			if (end > vma->vm_end)
-> -				end = vma->vm_end;
-> -		} else
-> -			end = vma->vm_end;
-> +		if (v_end > vma->vm_end)
-> +			v_end = vma->vm_end;
->  
-> -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
-> +		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end, NULL);
->  	}
->  }
->  
-> --
-> 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
