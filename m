@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A746B000E
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:01:58 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id do7so5840174pab.2
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:01:58 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rr5si11046016pab.188.2016.01.06.16.01.17
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EFD906B0010
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:02:00 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id cy9so243228290pac.0
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:02:00 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id fl9si5408147pab.219.2016.01.06.16.01.19
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 16:01:17 -0800 (PST)
-Subject: [PATCH 06/31] x86, pkeys: add PKRU xsave fields and data structure(s)
+        Wed, 06 Jan 2016 16:01:20 -0800 (PST)
+Subject: [PATCH 10/31] x86, pkeys: arch-specific protection bits
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 06 Jan 2016 16:01:13 -0800
+Date: Wed, 06 Jan 2016 16:01:19 -0800
 References: <20160107000104.1A105322@viggo.jf.intel.com>
 In-Reply-To: <20160107000104.1A105322@viggo.jf.intel.com>
-Message-Id: <20160107000113.48B6AE5D@viggo.jf.intel.com>
+Message-Id: <20160107000119.7BB92E5B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,117 +22,137 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The protection keys register (PKRU) is saved and restored using
-xsave.  Define the data structure that we will use to access it
-inside the xsave buffer.
+Lots of things seem to do:
 
-Note that we also have to widen the printk of the xsave feature
-masks since this is feature 0x200 and we only did two characters
-before.
+        vma->vm_page_prot = vm_get_page_prot(flags);
+
+and the ptes get created right from things we pull out
+of ->vm_page_prot.  So it is very convenient if we can
+store the protection key in flags and vm_page_prot, just
+like the existing permission bits (_PAGE_RW/PRESENT).  It
+greatly reduces the amount of plumbing and arch-specific
+hacking we have to do in generic code.
+
+This also takes the new PROT_PKEY{0,1,2,3} flags and
+turns *those* in to VM_ flags for vma->vm_flags.
+
+The protection key values are stored in 4 places:
+	1. "prot" argument to system calls
+	2. vma->vm_flags, filled from the mmap "prot"
+	3. vma->vm_page prot, filled from vma->vm_flags
+	4. the PTE itself.
+
+The pseudocode for these for steps are as follows:
+
+	mmap(PROT_PKEY*)
+	vma->vm_flags 	  = ... | arch_calc_vm_prot_bits(mmap_prot);
+	vma->vm_page_prot = ... | arch_vm_get_page_prot(vma->vm_flags);
+	pte = pfn | vma->vm_page_prot
+
+Note that this provides a new definitions for x86:
+
+	arch_vm_get_page_prot()
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/fpu/types.h  |   11 +++++++++++
- b/arch/x86/include/asm/fpu/xstate.h |    4 +++-
- b/arch/x86/kernel/fpu/xstate.c      |    7 ++++++-
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ b/arch/x86/include/asm/mmu_context.h   |   11 +++++++++++
+ b/arch/x86/include/asm/pgtable_types.h |   12 ++++++++++--
+ b/arch/x86/include/uapi/asm/mman.h     |   16 ++++++++++++++++
+ b/include/linux/mm.h                   |    7 +++++++
+ 4 files changed, 44 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/include/asm/fpu/types.h~pkeys-03-xsave arch/x86/include/asm/fpu/types.h
---- a/arch/x86/include/asm/fpu/types.h~pkeys-03-xsave	2016-01-06 15:50:05.206137774 -0800
-+++ b/arch/x86/include/asm/fpu/types.h	2016-01-06 15:50:05.212138044 -0800
-@@ -109,6 +109,7 @@ enum xfeature {
- 	XFEATURE_ZMM_Hi256,
- 	XFEATURE_Hi16_ZMM,
- 	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
-+	XFEATURE_PKRU,
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma	2016-01-06 15:50:06.939215908 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2016-01-06 15:50:06.947216268 -0800
+@@ -243,4 +243,15 @@ static inline void arch_unmap(struct mm_
+ 		mpx_notify_unmap(mm, vma, start, end);
+ }
  
- 	XFEATURE_MAX,
- };
-@@ -121,6 +122,7 @@ enum xfeature {
- #define XFEATURE_MASK_OPMASK		(1 << XFEATURE_OPMASK)
- #define XFEATURE_MASK_ZMM_Hi256		(1 << XFEATURE_ZMM_Hi256)
- #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
-+#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
- 
- #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
- #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
-@@ -213,6 +215,15 @@ struct avx_512_hi16_state {
- 	struct reg_512_bit		hi16_zmm[16];
- } __packed;
- 
-+/*
-+ * State component 9: 32-bit PKRU register.  The state is
-+ * 8 bytes long but only 4 bytes is used currently.
-+ */
-+struct pkru_state {
-+	u32				pkru;
-+	u32				pad;
-+} __packed;
++static inline int vma_pkey(struct vm_area_struct *vma)
++{
++	u16 pkey = 0;
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
++				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
++	pkey = (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
++#endif
++	return pkey;
++}
 +
- struct xstate_header {
- 	u64				xfeatures;
- 	u64				xcomp_bv;
-diff -puN arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave arch/x86/include/asm/fpu/xstate.h
---- a/arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave	2016-01-06 15:50:05.208137864 -0800
-+++ b/arch/x86/include/asm/fpu/xstate.h	2016-01-06 15:50:05.213138090 -0800
-@@ -27,7 +27,9 @@
- 				 XFEATURE_MASK_Hi16_ZMM)
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
+diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma	2016-01-06 15:50:06.941215998 -0800
++++ b/arch/x86/include/asm/pgtable_types.h	2016-01-06 15:50:06.948216313 -0800
+@@ -111,7 +111,12 @@
+ #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+ 			 _PAGE_DIRTY)
  
- /* Supported features which require eager state saving */
--#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)
-+#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | \
-+				 XFEATURE_MASK_BNDCSR | \
-+				 XFEATURE_MASK_PKRU)
+-/* Set of bits not changed in pte_modify */
++/*
++ * Set of bits not changed in pte_modify.  The pte's
++ * protection key is treated like _PAGE_RW, for
++ * instance, and is *not* included in this mask since
++ * pte_modify() does modify it.
++ */
+ #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+ 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+ 			 _PAGE_SOFT_DIRTY)
+@@ -227,7 +232,10 @@ enum page_cache_mode {
+ /* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
  
- /* All currently supported features */
- #define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
-diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave	2016-01-06 15:50:05.209137909 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2016-01-06 15:50:05.213138090 -0800
-@@ -29,6 +29,8 @@ static const char *xfeature_names[] =
- 	"AVX-512 Hi256"			,
- 	"AVX-512 ZMM_Hi256"		,
- 	"Processor Trace (unused)"	,
-+	"Protection Keys User registers",
-+	"unknown xstate feature"	,
- };
+-/* Extracts the flags from a (pte|pmd|pud|pgd)val_t of a 4KB page */
++/*
++ *  Extracts the flags from a (pte|pmd|pud|pgd)val_t
++ *  This includes the protection key value.
++ */
+ #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
  
- /*
-@@ -57,6 +59,7 @@ void fpu__xstate_clear_all_cpu_caps(void
- 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
- 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
- 	setup_clear_cpu_cap(X86_FEATURE_MPX);
-+	setup_clear_cpu_cap(X86_FEATURE_PKU);
- }
+ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma arch/x86/include/uapi/asm/mman.h
+--- a/arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma	2016-01-06 15:50:06.942216043 -0800
++++ b/arch/x86/include/uapi/asm/mman.h	2016-01-06 15:50:06.948216313 -0800
+@@ -6,6 +6,22 @@
+ #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+ #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
  
- /*
-@@ -235,7 +238,7 @@ static void __init print_xstate_feature(
- 	const char *feature_name;
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++/*
++ * Take the 4 protection key bits out of the vma->vm_flags
++ * value and turn them in to the bits that we can put in
++ * to a pte.
++ *
++ * Only override these if Protection Keys are available
++ * (which is only on 64-bit).
++ */
++#define arch_vm_get_page_prot(vm_flags)	__pgprot(	\
++		((vm_flags) & VM_PKEY_BIT0 ? _PAGE_PKEY_BIT0 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT1 ? _PAGE_PKEY_BIT1 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT2 ? _PAGE_PKEY_BIT2 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
++#endif
++
+ #include <asm-generic/mman.h>
  
- 	if (cpu_has_xfeatures(xstate_mask, &feature_name))
--		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
-+		pr_info("x86/fpu: Supporting XSAVE feature 0x%03Lx: '%s'\n", xstate_mask, feature_name);
- }
+ #endif /* _ASM_X86_MMAN_H */
+diff -puN include/linux/mm.h~pkeys-07-store-pkey-in-vma include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-07-store-pkey-in-vma	2016-01-06 15:50:06.944216133 -0800
++++ b/include/linux/mm.h	2016-01-06 15:50:06.949216358 -0800
+@@ -171,6 +171,13 @@ extern unsigned int kobjsize(const void
  
- /*
-@@ -251,6 +254,7 @@ static void __init print_xstate_features
- 	print_xstate_feature(XFEATURE_MASK_OPMASK);
- 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
- 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
-+	print_xstate_feature(XFEATURE_MASK_PKRU);
- }
- 
- /*
-@@ -467,6 +471,7 @@ static void check_xstate_against_struct(
- 	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
-+	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
- 
- 	/*
- 	 * Make *SURE* to add any feature numbers in below if
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
++#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
++# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
++# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
++# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
++# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
++# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
++#endif
+ #elif defined(CONFIG_PPC)
+ # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
+ #elif defined(CONFIG_PARISC)
 _
 
 --
