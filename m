@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BFCB828DE
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:08:35 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id uo6so224788215pac.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:08:35 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id kz6si35935987pab.18.2016.01.06.16.01.25
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1302B828DE
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:08:38 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id xn1so39346341obc.2
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:08:38 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id x66si10256902oif.123.2016.01.06.16.01.39
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 16:01:25 -0800 (PST)
-Subject: [PATCH 13/31] x86, pkeys: fill in pkey field in siginfo
+        Wed, 06 Jan 2016 16:01:39 -0800 (PST)
+Subject: [PATCH 24/31] x86, pkeys: actually enable Memory Protection Keys in CPU
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 06 Jan 2016 16:01:23 -0800
+Date: Wed, 06 Jan 2016 16:01:38 -0800
 References: <20160107000104.1A105322@viggo.jf.intel.com>
 In-Reply-To: <20160107000104.1A105322@viggo.jf.intel.com>
-Message-Id: <20160107000123.DEB64910@viggo.jf.intel.com>
+Message-Id: <20160107000138.E8A63FF9@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,147 +22,102 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This fills in the new siginfo field: si_pkey to indicate to
-userspace which protection key was set on the PTE that we faulted
-on.
+This sets the bit in 'cr4' to actually enable the protection
+keys feature.  We also include a boot-time disable for the
+feature "nopku".
 
-Note though that *ALL* protection key faults have to be generated
-by a valid, present PTE at some point.  But this code does no PTE
-lookups which seeds odd.  The reason is that we take advantage of
-the way we generate PTEs from VMAs.  All PTEs under a VMA share
-some attributes.  For instance, they are _all_ either PROT_READ
-*OR* PROT_NONE.  They also always share a protection key, so we
-never have to walk the page tables; we just use the VMA.
+Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE cpuid
+bit to appear set.  At this point in boot, identify_cpu()
+has already run the actual CPUID instructions and populated
+the "cpu features" structures.  We need to go back and
+re-run identify_cpu() to make sure it gets updated values.
 
-Note that _pkey is a 64-bit value.  The current hardware only
-supports 4-bit protection keys.  We do this because there is
-_plenty_ of space in _sigfault and it is possible that future
-processors would support more than 4 bits of protection keys.
+We *could* simply re-populate the 11th word of the cpuid
+data, but this is probably quick enough.
+
+Also note that with the cpu_has() check and X86_FEATURE_PKU
+present in disabled-features.h, we do not need an #ifdef
+for setup_pku().
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/pgtable_types.h |    5 ++
- b/arch/x86/mm/fault.c                  |   64 ++++++++++++++++++++++++++++++++-
- 2 files changed, 68 insertions(+), 1 deletion(-)
+ b/Documentation/kernel-parameters.txt |    3 ++
+ b/arch/x86/kernel/cpu/common.c        |   41 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-09-siginfo-x86 arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~pkeys-09-siginfo-x86	2016-01-06 15:50:08.273276052 -0800
-+++ b/arch/x86/include/asm/pgtable_types.h	2016-01-06 15:50:08.278276277 -0800
-@@ -64,6 +64,11 @@
- #endif
- #define __HAVE_ARCH_PTE_SPECIAL
- 
-+#define _PAGE_PKEY_MASK (_PAGE_PKEY_BIT0 | \
-+			 _PAGE_PKEY_BIT1 | \
-+			 _PAGE_PKEY_BIT2 | \
-+			 _PAGE_PKEY_BIT3)
-+
- #ifdef CONFIG_KMEMCHECK
- #define _PAGE_HIDDEN	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
- #else
-diff -puN arch/x86/mm/fault.c~pkeys-09-siginfo-x86 arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-09-siginfo-x86	2016-01-06 15:50:08.275276142 -0800
-+++ b/arch/x86/mm/fault.c	2016-01-06 15:50:08.279276323 -0800
-@@ -15,12 +15,14 @@
- #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
- #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
- 
-+#include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
- #include <asm/traps.h>			/* dotraplinkage, ...		*/
- #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
- #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
- #include <asm/fixmap.h>			/* VSYSCALL_ADDR		*/
- #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
- #include <asm/vm86.h>			/* struct vm86			*/
-+#include <asm/mmu_context.h>		/* vma_pkey()			*/
- 
- #define CREATE_TRACE_POINTS
- #include <asm/trace/exceptions.h>
-@@ -169,6 +171,56 @@ is_prefetch(struct pt_regs *regs, unsign
- 	return prefetch;
+diff -puN arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch arch/x86/kernel/cpu/common.c
+--- a/arch/x86/kernel/cpu/common.c~pkeys-50-should-be-last-patch	2016-01-06 15:50:13.522512707 -0800
++++ b/arch/x86/kernel/cpu/common.c	2016-01-06 15:50:13.528512977 -0800
+@@ -289,6 +289,46 @@ static __always_inline void setup_smap(s
  }
  
-+/*
-+ * A protection key fault means that the PKRU value did not allow
-+ * access to some PTE.  Userspace can figure out what PKRU was
-+ * from the XSAVE state, and this function fills out a field in
-+ * siginfo so userspace can discover which protection key was set
-+ * on the PTE.
-+ *
-+ * If we get here, we know that the hardware signaled a PF_PK
-+ * fault and that there was a VMA once we got in the fault
-+ * handler.  It does *not* guarantee that the VMA we find here
-+ * was the one that we faulted on.
-+ *
-+ * 1. T1   : mprotect_key(foo, PAGE_SIZE, pkey=4);
-+ * 2. T1   : set PKRU to deny access to pkey=4, touches page
-+ * 3. T1   : faults...
-+ * 4.    T2: mprotect_key(foo, PAGE_SIZE, pkey=5);
-+ * 5. T1   : enters fault handler, takes mmap_sem, etc...
-+ * 6. T1   : reaches here, sees vma_pkey(vma)=5, when we really
-+ *	     faulted on a pte with its pkey=4.
+ /*
++ * Protection Keys are not available in 32-bit mode.
 + */
-+static void fill_sig_info_pkey(int si_code, siginfo_t *info,
-+		struct vm_area_struct *vma)
++static bool pku_disabled;
++static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 +{
-+	/* This is effectively an #ifdef */
-+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
++	if (!cpu_has(c, X86_FEATURE_PKU))
++		return;
++	if (pku_disabled)
 +		return;
 +
-+	/* Fault not from Protection Keys: nothing to do */
-+	if (si_code != SEGV_PKUERR)
-+		return;
++	cr4_set_bits(X86_CR4_PKE);
 +	/*
-+	 * force_sig_info_fault() is called from a number of
-+	 * contexts, some of which have a VMA and some of which
-+	 * do not.  The PF_PK handing happens after we have a
-+	 * valid VMA, so we should never reach this without a
-+	 * valid VMA.
++	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
++	 * cpuid bit to be set.  We need to ensure that we
++	 * update that bit in this CPU's "cpu_info".
 +	 */
-+	if (!vma) {
-+		WARN_ONCE(1, "PKU fault with no VMA passed in");
-+		info->si_pkey = 0;
-+		return;
-+	}
-+	/*
-+	 * si_pkey should be thought of as a strong hint, but not
-+	 * absolutely guranteed to be 100% accurate because of
-+	 * the race explained above.
-+	 */
-+	info->si_pkey = vma_pkey(vma);
++	get_cpu_cap(c);
 +}
-+
- static void
- force_sig_info_fault(int si_signo, int si_code, unsigned long address,
- 		     struct task_struct *tsk, struct vm_area_struct *vma,
-@@ -187,6 +239,8 @@ force_sig_info_fault(int si_signo, int s
- 		lsb = PAGE_SHIFT;
- 	info.si_addr_lsb = lsb;
- 
-+	fill_sig_info_pkey(si_code, &info, vma);
-+
- 	force_sig_info(si_signo, &info, tsk);
- }
- 
-@@ -847,7 +901,15 @@ static noinline void
- bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
- 		      unsigned long address, struct vm_area_struct *vma)
- {
--	__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++static __init int setup_disable_pku(char *arg)
++{
 +	/*
-+	 * This OSPKE check is not strictly necessary at runtime.
-+	 * But, doing it this way allows compiler optimizations
-+	 * if pkeys are compiled out.
++	 * Do not clear the X86_FEATURE_PKU bit.  All of the
++	 * runtime checks are against OSPKE so clearing the
++	 * bit does nothing.
++	 *
++	 * This way, we will see "pku" in cpuinfo, but not
++	 * "ospke", which is exactly what we want.  It shows
++	 * that the CPU has PKU, but the OS has not enabled it.
++	 * This happens to be exactly how a system would look
++	 * if we disabled the config option.
 +	 */
-+	if (boot_cpu_has(X86_FEATURE_OSPKE) && (error_code & PF_PK))
-+		__bad_area(regs, error_code, address, vma, SEGV_PKUERR);
-+	else
-+		__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
- }
++	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
++	pku_disabled = true;
++	return 1;
++}
++__setup("nopku", setup_disable_pku);
++#endif /* CONFIG_X86_64 */
++
++/*
+  * Some CPU features depend on higher CPUID levels, which may not always
+  * be available due to CPUID level capping or broken virtualization
+  * software.  Add those features to this table to auto-disable them.
+@@ -948,6 +988,7 @@ static void identify_cpu(struct cpuinfo_
+ 	init_hypervisor(c);
+ 	x86_init_rdrand(c);
+ 	x86_init_cache_qos(c);
++	setup_pku(c);
  
- static void
+ 	/*
+ 	 * Clear/Set all flags overriden by options, need do it
+diff -puN Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch Documentation/kernel-parameters.txt
+--- a/Documentation/kernel-parameters.txt~pkeys-50-should-be-last-patch	2016-01-06 15:50:13.524512797 -0800
++++ b/Documentation/kernel-parameters.txt	2016-01-06 15:50:13.529513023 -0800
+@@ -958,6 +958,9 @@ bytes respectively. Such letter suffixes
+ 			See Documentation/x86/intel_mpx.txt for more
+ 			information about the feature.
+ 
++	nopku		[X86] Disable Memory Protection Keys CPU feature found
++			in some Intel CPUs.
++
+ 	eagerfpu=	[X86]
+ 			on	enable eager fpu restore
+ 			off	disable eager fpu restore
 _
 
 --
