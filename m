@@ -1,147 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD71828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 08:10:03 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id f206so96621688wmf.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:10:03 -0800 (PST)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id u75si19767916wmu.18.2016.01.07.05.10.02
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B28F828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 08:17:54 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so96890377wmf.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:17:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 194si19793359wmo.35.2016.01.07.05.17.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 05:10:02 -0800 (PST)
-Received: by mail-wm0-f54.google.com with SMTP id f206so122553324wmf.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:10:02 -0800 (PST)
-Date: Thu, 7 Jan 2016 14:10:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 14/14] mm, debug: move bad flags printing to bad_page()
-Message-ID: <20160107131000.GM27868@dhcp22.suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 07 Jan 2016 05:17:53 -0800 (PST)
+Subject: Re: [PATCH v3 12/14] mm, page_owner: track and print last migrate
+ reason
 References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
- <1450429406-7081-15-git-send-email-vbabka@suse.cz>
+ <1450429406-7081-13-git-send-email-vbabka@suse.cz>
+ <20160107105404.GJ27868@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <568E657B.9040306@suse.cz>
+Date: Thu, 7 Jan 2016 14:17:47 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1450429406-7081-15-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20160107105404.GJ27868@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On Fri 18-12-15 10:03:26, Vlastimil Babka wrote:
-> Since bad_page() is the only user of the badflags parameter of
-> dump_page_badflags(), we can move the code to bad_page() and simplify a bit.
-> 
-> The dump_page_badflags() function is renamed to __dump_page() and can still be
-> called separately from dump_page() for temporary debug prints where page_owner
-> info is not desired.
-> 
-> The only user-visible change is that page->mem_cgroup is printed before the bad
-> flags.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Hocko <mhocko@suse.cz>
+On 01/07/2016 11:54 AM, Michal Hocko wrote:
+> On Fri 18-12-15 10:03:24, Vlastimil Babka wrote:
+>> During migration, page_owner info is now copied with the rest of the page, so
+>> the stacktrace leading to free page allocation during migration is overwritten.
+>> For debugging purposes, it might be however useful to know that the page has
+>> been migrated since its initial allocation. This might happen many times during
+>> the lifetime for different reasons and fully tracking this, especially with
+>> stacktraces would incur extra memory costs. As a compromise, store and print
+>> the migrate_reason of the last migration that occurred to the page. This is
+>> enough to distinguish compaction, numa balancing etc.
+>
+> So you know that the page has been migrated because of compaction the
+> last time. You do not know anything about the previous migrations
+> though. How would you use that information during debugging? Wouldn't it
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+The assumption is that if a migration does something bad, chances are it 
+will manifest before another migration happens. I.e. the last migration 
+is probably more related to the bug (e.g. catched by VM_BUG_ON_PAGE()) 
+than the previous ones. Statistically if trinity sees more errors 
+implying compaction than numa balancing, we should look for bugs in 
+compaction, etc.
 
-> ---
->  include/linux/mmdebug.h |  3 +--
->  mm/debug.c              | 10 +++-------
->  mm/page_alloc.c         | 10 +++++++---
->  3 files changed, 11 insertions(+), 12 deletions(-)
-> 
-> diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-> index 2c8286cf162e..9b0dc2161f7a 100644
-> --- a/include/linux/mmdebug.h
-> +++ b/include/linux/mmdebug.h
-> @@ -14,8 +14,7 @@ extern const struct trace_print_flags vmaflag_names[];
->  extern const struct trace_print_flags gfpflag_names[];
->  
->  extern void dump_page(struct page *page, const char *reason);
-> -extern void dump_page_badflags(struct page *page, const char *reason,
-> -			       unsigned long badflags);
-> +extern void __dump_page(struct page *page, const char *reason);
->  void dump_vma(const struct vm_area_struct *vma);
->  void dump_mm(const struct mm_struct *mm);
->  
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 7260644d8cc1..4c03b6d07c82 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -40,8 +40,7 @@ const struct trace_print_flags vmaflag_names[] = {
->  	{0, NULL}
->  };
->  
-> -void dump_page_badflags(struct page *page, const char *reason,
-> -		unsigned long badflags)
-> +void __dump_page(struct page *page, const char *reason)
->  {
->  	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
->  		  page, atomic_read(&page->_count), page_mapcount(page),
-> @@ -50,15 +49,12 @@ void dump_page_badflags(struct page *page, const char *reason,
->  		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
->  	pr_cont("\n");
->  	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
-> +
->  	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
->  
->  	if (reason)
->  		pr_alert("page dumped because: %s\n", reason);
->  
-> -	badflags &= page->flags;
-> -	if (badflags)
-> -		pr_alert("bad because of flags: %#lx(%pgp)\n", badflags,
-> -								&badflags);
->  #ifdef CONFIG_MEMCG
->  	if (page->mem_cgroup)
->  		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
-> @@ -67,7 +63,7 @@ void dump_page_badflags(struct page *page, const char *reason,
->  
->  void dump_page(struct page *page, const char *reason)
->  {
-> -	dump_page_badflags(page, reason, 0);
-> +	__dump_page(page, reason);
->  	dump_page_owner(page);
->  }
->  EXPORT_SYMBOL(dump_page);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7718ee40726a..bac8842d4fcf 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -428,7 +428,7 @@ static void bad_page(struct page *page, const char *reason,
->  			goto out;
->  		}
->  		if (nr_unshown) {
-> -			printk(KERN_ALERT
-> +			pr_alert(
->  			      "BUG: Bad page state: %lu messages suppressed\n",
->  				nr_unshown);
->  			nr_unshown = 0;
-> @@ -438,9 +438,13 @@ static void bad_page(struct page *page, const char *reason,
->  	if (nr_shown++ == 0)
->  		resume = jiffies + 60 * HZ;
->  
-> -	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
-> +	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
->  		current->comm, page_to_pfn(page));
-> -	dump_page_badflags(page, reason, bad_flags);
-> +	__dump_page(page, reason);
-> +	bad_flags &= page->flags;
-> +	if (bad_flags)
-> +		pr_alert("bad because of flags: %#lx(%pgp)\n",
-> +						bad_flags, &bad_flags);
->  	dump_page_owner(page);
->  
->  	print_modules();
-> -- 
-> 2.6.3
+> be sufficient to know that the page has been migrated (or count how many
+> times) instead? That would lead to less code and it might be sufficient
+> for practical use.
 
--- 
-Michal Hocko
-SUSE Labs
+Yeah it's hard to predict how useful/sufficient this patch would be. The 
+fact that migration happened should be definitely noted. How many times 
+is not that useful IMHO. Migrate reason seemed appropriate and useful 
+enough and we already distinguish them for tracepoints.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
