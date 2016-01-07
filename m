@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 318AA828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 16:11:05 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id xn1so63617368obc.2
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 13:11:05 -0800 (PST)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id c15si772093oig.28.2016.01.07.13.11.04
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id EBF28828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 16:29:13 -0500 (EST)
+Received: by mail-io0-f169.google.com with SMTP id g73so68425396ioe.3
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 13:29:13 -0800 (PST)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id p4si9864790igg.41.2016.01.07.13.29.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 13:11:04 -0800 (PST)
-Received: by mail-oi0-x235.google.com with SMTP id l9so294282831oia.2
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 13:11:04 -0800 (PST)
+        Thu, 07 Jan 2016 13:29:13 -0800 (PST)
+Received: by mail-pa0-x229.google.com with SMTP id yy13so175492324pab.3
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 13:29:13 -0800 (PST)
+Date: Thu, 7 Jan 2016 13:29:11 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 9/9] mm, oom: print symbolic gfp_flags in oom
+ warning
+In-Reply-To: <1448368581-6923-10-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.10.1601071327490.20990@chino.kir.corp.google.com>
+References: <1448368581-6923-1-git-send-email-vbabka@suse.cz> <1448368581-6923-10-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160107000148.ED5D13DF@viggo.jf.intel.com>
-References: <20160107000104.1A105322@viggo.jf.intel.com> <20160107000148.ED5D13DF@viggo.jf.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 7 Jan 2016 13:10:44 -0800
-Message-ID: <CALCETrUUS=jHCwmeQ5iUeTAq15PAGZO8Js57ZBLKPM6oEDz3Qg@mail.gmail.com>
-Subject: Re: [PATCH 31/31] x86, pkeys: execute-only support
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Jan 6, 2016 at 4:01 PM, Dave Hansen <dave@sr71.net> wrote:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
+On Tue, 24 Nov 2015, Vlastimil Babka wrote:
 
-> Protection keys provide new page-based protection in hardware.
-> But, they have an interesting attribute: they only affect data
-> accesses and never affect instruction fetches.  That means that
-> if we set up some memory which is set as "access-disabled" via
-> protection keys, we can still execute from it.
-> could lose the bits in PKRU that enforce execute-only
-> permissions.  To avoid this, we suggest avoiding ever calling
-> mmap() or mprotect() when the PKRU value is expected to be
-> stable.
+> It would be useful to translate gfp_flags into string representation when
+> printing in case of an OOM, especially as the flags have been undergoing some
+> changes recently and the script ./scripts/gfp-translate needs a matching source
+> version to be accurate.
+> 
+> Example output:
+> 
+> a.out invoked oom-killer: order=0, oom_score_adj=0, gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|GFP_ZERO)
+> 
 
-s/stable/unstable/
-
-This may be a bit unfortunate for people who call mmap from signal
-handlers.  Admittedly, the failure mode isn't that bad.
-
-Out of curiosity, do you have timing information for WRPKRU and
-RDPKRU?  If they're fast and if anyone ever implements my deferred
-xstate restore idea, then the performance issue goes away and we can
-stop caring about whether PKRU is in the init state.
-
---Andy
+Is there a way that we can keep the order of the fields so that anything 
+parsing the kernel log for oom kills doesn't break?  The messages printed 
+to the kernel log are the only (current) way to determine that the kernel 
+killed something so we should be careful not to break anything parsing 
+them, and this is a common line to look for.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
