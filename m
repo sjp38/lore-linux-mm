@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B36AF828DE
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:09:43 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id uo6so224809259pac.1
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:09:43 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id xy7si53705206pab.6.2016.01.06.16.01.26
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FFAA828DE
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:09:51 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id do7so5989611pab.2
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:09:51 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id xp4si4893969pab.1.2016.01.06.16.01.44
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 16:01:27 -0800 (PST)
-Subject: [PATCH 15/31] mm: factor out VMA fault permission checking
+        Wed, 06 Jan 2016 16:01:44 -0800 (PST)
+Subject: [PATCH 28/31] x86, fpu: allow setting of XSAVE state
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 06 Jan 2016 16:01:26 -0800
+Date: Wed, 06 Jan 2016 16:01:44 -0800
 References: <20160107000104.1A105322@viggo.jf.intel.com>
 In-Reply-To: <20160107000104.1A105322@viggo.jf.intel.com>
-Message-Id: <20160107000126.4DFCD531@viggo.jf.intel.com>
+Message-Id: <20160107000144.B1B55C1E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,59 +22,242 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This code matches a fault condition up with the VMA and ensures
-that the VMA allows the fault to be handled instead of just
-erroring out.
+We want to modify the Protection Key rights inside the kernel, so
+we need to change PKRU's contents.  But, if we do a plain
+'wrpkru', when we return to userspace we might do an XRSTOR and
+wipe out the kernel's 'wrpkru'.  So, we need to go after PKRU in
+the xsave buffer.
 
-We will be extending this in a moment to comprehend protection
-keys.
+We do this by:
+1. Ensuring that we have the XSAVE registers (fpregs) in the
+   kernel FPU buffer (fpstate)
+2. Looking up the location of a given state in the buffer
+3. Filling in the stat
+4. Ensuring that the hardware knows that state is present there
+   (basically that the 'init optimization' is not in place).
+5. Copying the newly-modified state back to the registers if
+   necessary.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/mm/gup.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ b/arch/x86/include/asm/fpu/internal.h |    2 
+ b/arch/x86/kernel/fpu/core.c          |   63 +++++++++++++++++++++
+ b/arch/x86/kernel/fpu/xstate.c        |   98 +++++++++++++++++++++++++++++++++-
+ 3 files changed, 161 insertions(+), 2 deletions(-)
 
-diff -puN mm/gup.c~pkeys-10-pte-fault mm/gup.c
---- a/mm/gup.c~pkeys-10-pte-fault	2016-01-06 15:50:09.144315322 -0800
-+++ b/mm/gup.c	2016-01-06 15:50:09.148315502 -0800
-@@ -557,6 +557,18 @@ next_page:
+diff -puN arch/x86/include/asm/fpu/internal.h~pkeys-76-xsave-set arch/x86/include/asm/fpu/internal.h
+--- a/arch/x86/include/asm/fpu/internal.h~pkeys-76-xsave-set	2016-01-06 15:50:15.440599181 -0800
++++ b/arch/x86/include/asm/fpu/internal.h	2016-01-06 15:50:15.446599452 -0800
+@@ -24,6 +24,8 @@
+ extern void fpu__activate_curr(struct fpu *fpu);
+ extern void fpu__activate_fpstate_read(struct fpu *fpu);
+ extern void fpu__activate_fpstate_write(struct fpu *fpu);
++extern void fpu__current_fpstate_write_begin(void);
++extern void fpu__current_fpstate_write_end(void);
+ extern void fpu__save(struct fpu *fpu);
+ extern void fpu__restore(struct fpu *fpu);
+ extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
+diff -puN arch/x86/kernel/fpu/core.c~pkeys-76-xsave-set arch/x86/kernel/fpu/core.c
+--- a/arch/x86/kernel/fpu/core.c~pkeys-76-xsave-set	2016-01-06 15:50:15.441599227 -0800
++++ b/arch/x86/kernel/fpu/core.c	2016-01-06 15:50:15.447599497 -0800
+@@ -352,6 +352,69 @@ void fpu__activate_fpstate_write(struct
  }
- EXPORT_SYMBOL(__get_user_pages);
  
-+bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
+ /*
++ * This function must be called before we write the current
++ * task's fpstate.
++ *
++ * This call gets the current FPU register state and moves
++ * it in to the 'fpstate'.  Preemption is disabled so that
++ * no writes to the 'fpstate' can occur from context
++ * swiches.
++ *
++ * Must be followed by a fpu__current_fpstate_write_end().
++ */
++void fpu__current_fpstate_write_begin(void)
 +{
-+	vm_flags_t vm_flags;
++	struct fpu *fpu = &current->thread.fpu;
 +
-+	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
++	/*
++	 * Ensure that the context-switching code does not write
++	 * over the fpstate while we are doing our update.
++	 */
++	preempt_disable();
 +
-+	if (!(vm_flags & vma->vm_flags))
-+		return false;
++	/*
++	 * Move the fpregs in to the fpu's 'fpstate'.
++	 */
++	fpu__activate_fpstate_read(fpu);
 +
-+	return true;
++	/*
++	 * The caller is about to write to 'fpu'.  Ensure that no
++	 * CPU thinks that its fpregs match the fpstate.  This
++	 * ensures we will not be lazy and skip a XRSTOR in the
++	 * future.
++	 */
++	fpu->last_cpu = -1;
 +}
 +
++/*
++ * This function must be paired with fpu__current_fpstate_write_begin()
++ *
++ * This will ensure that the modified fpstate gets placed back in
++ * the fpregs if necessary.
++ *
++ * Note: This function may be called whether or not an _actual_
++ * write to the fpstate occurred.
++ */
++void fpu__current_fpstate_write_end(void)
++{
++	struct fpu *fpu = &current->thread.fpu;
++
++	/*
++	 * 'fpu' now has an updated copy of the state, but the
++	 * registers may still be out of date.  Update them with
++	 * an XRSTOR if they are active.
++	 */
++	if (fpregs_active())
++		copy_kernel_to_fpregs(&fpu->state);
++
++	/*
++	 * Our update is done and the fpregs/fpstate are in sync
++	 * if necessary.  Context switches can happen again.
++	 */
++	preempt_enable();
++}
++
++/*
+  * 'fpu__restore()' is called to copy FPU registers from
+  * the FPU fpstate to the live hw registers and to activate
+  * access to the hardware registers, so that FPU instructions
+diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-76-xsave-set arch/x86/kernel/fpu/xstate.c
+--- a/arch/x86/kernel/fpu/xstate.c~pkeys-76-xsave-set	2016-01-06 15:50:15.443599317 -0800
++++ b/arch/x86/kernel/fpu/xstate.c	2016-01-06 15:50:15.447599497 -0800
+@@ -679,6 +679,19 @@ void fpu__resume_cpu(void)
+ }
+ 
  /*
-  * fixup_user_fault() - manually resolve a user page fault
-  * @tsk:	the task_struct to use for page fault accounting, or
-@@ -588,15 +600,13 @@ int fixup_user_fault(struct task_struct
- 		     unsigned long address, unsigned int fault_flags)
++ * Given an xstate feature mask, calculate where in the xsave
++ * buffer the state is.  Callers should ensure that the buffer
++ * is valid.
++ *
++ * Note: does not work for compacted buffers.
++ */
++void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
++{
++	int feature_nr = fls64(xstate_feature_mask) - 1;
++
++	return (void *)xsave + xstate_comp_offsets[feature_nr];
++}
++/*
+  * Given the xsave area and a state inside, this function returns the
+  * address of the state.
+  *
+@@ -698,7 +711,6 @@ void fpu__resume_cpu(void)
+  */
+ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
  {
- 	struct vm_area_struct *vma;
--	vm_flags_t vm_flags;
- 	int ret;
+-	int feature_nr = fls64(xstate_feature) - 1;
+ 	/*
+ 	 * Do we even *have* xsave state?
+ 	 */
+@@ -727,7 +739,7 @@ void *get_xsave_addr(struct xregs_state
+ 	if (!(xsave->header.xfeatures & xstate_feature))
+ 		return NULL;
  
- 	vma = find_extend_vma(mm, address);
- 	if (!vma || address < vma->vm_start)
- 		return -EFAULT;
+-	return (void *)xsave + xstate_comp_offsets[feature_nr];
++	return __raw_xsave_addr(xsave, xstate_feature);
+ }
+ EXPORT_SYMBOL_GPL(get_xsave_addr);
  
--	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
--	if (!(vm_flags & vma->vm_flags))
-+	if (!vma_permits_fault(vma, fault_flags))
- 		return -EFAULT;
+@@ -762,3 +774,85 @@ const void *get_xsave_field_ptr(int xsav
  
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
+ 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
+ }
++
++
++/*
++ * Set xfeatures (aka XSTATE_BV) bit for a feature that we want
++ * to take out of its "init state".  This will ensure that an
++ * XRSTOR actually restores the state.
++ */
++static void fpu__xfeature_set_non_init(struct xregs_state *xsave,
++		int xstate_feature_mask)
++{
++	xsave->header.xfeatures |= xstate_feature_mask;
++}
++
++/*
++ * This function is safe to call whether the FPU is in use or not.
++ *
++ * Note that this only works on the current task.
++ *
++ * Inputs:
++ *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
++ *	XFEATURE_MASK_SSE, etc...)
++ *	@xsave_state_ptr: a pointer to a copy of the state that you would
++ *	like written in to the current task's FPU xsave state.  This pointer
++ *	must not be located in the current tasks's xsave area.
++ * Output:
++ *	address of the state in the xsave area or NULL if the state
++ *	is not present or is in its 'init state'.
++ */
++static void fpu__xfeature_set_state(int xstate_feature_mask,
++		void *xstate_feature_src, size_t len)
++{
++	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
++	struct fpu *fpu = &current->thread.fpu;
++	void *dst;
++
++	if (!boot_cpu_has(X86_FEATURE_XSAVE)) {
++		WARN_ONCE(1, "%s() attempted with no xsave support", __func__);
++		return;
++	}
++
++	/*
++	 * Tell the FPU code that we need the FPU state to be in
++	 * 'fpu' (not in the registers), and that we need it to
++	 * be stable while we write to it.
++	 */
++	fpu__current_fpstate_write_begin();
++
++	/*
++	 * This method *WILL* *NOT* work for compact-format
++	 * buffers.  If the 'xstate_feature_mask' is unset in
++	 * xcomp_bv then we may need to move other feature state
++	 * "up" in the buffer.
++	 */
++	if (xsave->header.xcomp_bv & xstate_feature_mask) {
++		WARN_ON_ONCE(1);
++		goto out;
++	}
++
++	/* find the location in the xsave buffer of the desired state */
++	dst = __raw_xsave_addr(&fpu->state.xsave, xstate_feature_mask);
++
++	/*
++	 * Make sure that the pointer being passed in did not
++	 * come from the xsave buffer itself.
++	 */
++	WARN_ONCE(xstate_feature_src == dst, "set from xsave buffer itself");
++
++	/* put the caller-provided data in the location */
++	memcpy(dst, xstate_feature_src, len);
++
++	/*
++	 * Mark the xfeature so that the CPU knows there is state
++	 * in the buffer now.
++	 */
++	fpu__xfeature_set_non_init(xsave, xstate_feature_mask);
++out:
++	/*
++	 * We are done writing to the 'fpu'.  Reenable preeption
++	 * and (possibly) move the fpstate back in to the fpregs.
++	 */
++	fpu__current_fpstate_write_end();
++}
 _
 
 --
