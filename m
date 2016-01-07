@@ -1,107 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F62D828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 14:26:35 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id l65so109762110wmf.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 11:26:35 -0800 (PST)
-Received: from libero.it (smtp-17.italiaonline.it. [212.48.25.145])
-        by mx.google.com with ESMTP id ko8si159359750wjb.26.2016.01.07.11.26.34
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE8A828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 14:56:45 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id z14so59893695igp.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 11:56:45 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id qo9si2025166igb.16.2016.01.07.11.56.44
         for <linux-mm@kvack.org>;
-        Thu, 07 Jan 2016 11:26:34 -0800 (PST)
-Message-ID: <1452194792.7839.20.camel@libero.it>
-Subject: Re: Unrecoverable Out Of Memory kernel error
-From: Guido Trentalancia <g.trentalancia@libero.it>
-Date: Thu, 07 Jan 2016 20:26:32 +0100
-In-Reply-To: <20160105155400.GC15594@dhcp22.suse.cz>
-References: <1451408582.2783.20.camel@libero.it>
-	 <20160105155400.GC15594@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 07 Jan 2016 11:56:44 -0800 (PST)
+Date: Thu, 7 Jan 2016 11:55:31 -0800
+From: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Subject: Re: [PATCH v3 22/22] thermal/intel_powerclamp: Convert the kthread
+ to kthread worker API
+Message-ID: <20160107115531.34279a9b@icelake>
+In-Reply-To: <1447853127-3461-23-git-send-email-pmladek@suse.com>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+	<1447853127-3461-23-git-send-email-pmladek@suse.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, linux-pm@vger.kernel.org, jacob.jun.pan@linux.intel.com
 
-Hello Michal.
+On Wed, 18 Nov 2015 14:25:27 +0100
+Petr Mladek <pmladek@suse.com> wrote:
 
-I believe it's a serious problem, as an unprivileged user-space
-application can basically render the system completely unusable, so
-that it must be hard-rebooted.
-
-I'll try to answer your points below...
-
-On mar, 2016-01-05 at 16:54 +0100, Michal Hocko wrote:
-> On Tue 29-12-15 18:03:02, Guido Trentalancia wrote:
-> > Hello.
-> > 
-> > I am getting an unrecoverable Out Of Memory error on kernel 4.3.1,
-> > while compiling Firefox 43.0.3. The system becomes unresponsive,
-> > the
-> > hard-disk is continuously busy and a hard-reboot must be forced.
-> > 
-> > Here is the report from the kernel:
-> [...]
-> > Dec 29 12:28:25 vortex kernel: Mem-Info:
-> > Dec 29 12:28:25 vortex kernel: active_anon:716916
-> > inactive_anon:199483 isolated_anon:0
-> > Dec 29 12:28:25 vortex kernel: active_file:3108 inactive_file:3160
-> > isolated_file:32
-> > Dec 29 12:28:25 vortex kernel: unevictable:4316 dirty:3173
-> > writeback:55 unstable:0
-> > Dec 29 12:28:25 vortex kernel: slab_reclaimable:16548
-> > slab_unreclaimable:9058
-> > Dec 29 12:28:25 vortex kernel: mapped:4037 shmem:13351
-> > pagetables:6846 bounce:0
-> > Dec 29 12:28:25 vortex kernel: free:7058 free_pcp:295 free_cma:0
-> [...]
-> > Dec 29 12:28:25 vortex kernel: Free swap  = 0kB
-> > Dec 29 12:28:25 vortex kernel: Total swap = 16380kB
+> From: Petr Mladek <pmladek@suse.com>
+> To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov
+> <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar
+> <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org> Cc: Steven
+> Rostedt <rostedt@goodmis.org>, "Paul E. McKenney"
+> <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>,
+> Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds
+> <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>,
+> Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>,
+> linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>,
+> linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek
+> <pmladek@suse.com>, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin
+> <edubezval@gmail.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>,
+> linux-pm@vger.kernel.org Subject: [PATCH v3 22/22]
+> thermal/intel_powerclamp: Convert the kthread to kthread worker API
+> Date: Wed, 18 Nov 2015 14:25:27 +0100 X-Mailer: git-send-email 1.8.5.6
 > 
-> Your swap space is full and basically all the memory is eaten by the
-> anonymous memory which cannot be reclaimed.
-> [...]
-> > Dec 29 12:28:25 vortex kernel: Killed process 10197 (cc1plus)
-> > total-vm:969632kB, anon-rss:809184kB, file-rss:9308kB
+> Kthreads are currently implemented as an infinite loop. Each
+> has its own variant of checks for terminating, freezing,
+> awakening. In many cases it is unclear to say in which state
+> it is and sometimes it is done a wrong way.
 > 
-> This task is consuming a lot of memory so killing it should help to
-> release the memory pressure. It would be interesting to see whether
-> the
-> task has died or not. 
+> The plan is to convert kthreads into kthread_worker or workqueues
+> API. It allows to split the functionality into separate operations.
+> It helps to make a better structure. Also it defines a clean state
+> where no locks are taken, IRQs blocked, the kthread might sleep
+> or even be safely migrated.
+> 
+> The kthread worker API is useful when we want to have a dedicated
+> single thread for the work. It helps to make sure that it is
+> available when needed. Also it allows a better control, e.g.
+> define a scheduling priority.
+> 
+> This patch converts the intel powerclamp kthreads into the kthread
+> worker because they need to have a good control over the assigned
+> CPUs.
+> 
+I have tested this patchset and found no obvious issues in terms of
+functionality, power and performance. Tested CPU online/offline,
+suspend resume, freeze etc.
+Power numbers are comparable too. e.g. on IVB 8C system. Inject idle
+from 5 to 50% and read package power while running CPU bound workload.
 
-I am not able to login into any console and therefore I cannot check
-whether the gcc task died or not.
+Before:
+IdlePct    Perf    RAPL    WallPower                               
+5 256.28 16.50 0.0                                                 
+10 248.86 15.64 0.0                                                
+15 209.01 14.57 0.0                                                
+20 176.17 13.88 0.0                                                
+25 161.25 13.37 0.0                                                
+30 165.62 13.38 0.0                                                
+35 150.94 12.89 0.0                                                
+40 137.45 12.47 0.0                                                
+45 123.80 11.83 0.0                                                
+50 137.59 11.80 0.0                                                
 
-> Are there any follow up messages in the log?
+After:
 
-The first message have been posted entirely. Such message is then
-repeated several times (for the "cc1plus" task and once for the "as"
-assembler). The other messages are similar and therefore have not been
-posted...
+(deb_chroot)root@ubuntu-jp-nfs:~/powercap-power# ./test.py -c 5
+IdlePct	Perf	RAPL	WallPower
+5 266.30 16.34 0.0
+10 226.32 15.27 0.0
+15 195.52 14.29 0.0
+20 200.96 13.98 0.0
+25 174.77 13.08 0.0
+30 162.05 13.04 0.0
+35 166.70 12.90 0.0
+40 134.78 12.12 0.0
+45 128.08 11.70 0.0
+50 117.74 11.74 0.0    
 
-It only appears to happen with parallel builds ("make -j4") and not
-with normal builds ("make" or "make -j1"), but that's another issue, I
-mean a user-space application should not be able to render the system
-unusable by sucking all of its memory...
 
-Is the hard-disk working continuosly because the kernel is trying to
-swap endlessly and cannot reclaim back memory ?!?
 
-> Maybe the target task is stuck behind some lock which is blocked
-> because
-> of a memory allocation. We have seen deadlocks like that in the past.
-> The current linux-next has some measures to reduce the probability of
-> such a deadlock so you might give it a try. Especially if this is
-> reproducible.
+> IMHO, the most natural way is to split one cycle into two works.
+> First one does some balancing and let the CPU work normal
+> way for some time. The second work checks what the CPU has done
+> in the meantime and put it into C-state to reach the required
+> idle time ratio. The delay between the two works is achieved
+> by the delayed kthread work.
+> 
+> The two works have to share some data that used to be local
+> variables of the single kthread function. This is achieved
+> by the new per-CPU struct kthread_worker_data. It might look
+> as a complication. On the other hand, the long original kthread
+> function was not nice either.
+> 
+> The patch tries to avoid extra init and cleanup works. All the
+> actions might be done outside the thread. They are moved
+> to the functions that create or destroy the worker. Especially,
+> I checked that the timers are assigned to the right CPU.
+> 
+> The two works are queuing each other. It makes it a bit tricky to
+> break it when we want to stop the worker. We use the global and
+> per-worker "clamping" variables to make sure that the re-queuing
+> eventually stops. We also cancel the works to make it faster.
+> Note that the canceling is not reliable because the handling
+> of the two variables and queuing is not synchronized via a lock.
+> But it is not a big deal because it is just an optimization.
+> The job is stopped faster than before in most cases.
+I am not convinced this added complexity is necessary, here are my
+concerns by breaking down into two work items.
+- overhead of queuing, per cpu data as you already mentioned.
+- since we need to have very tight timing control, two items may limit
+  our turnaround time. Wouldn't it take one extra tick for the scheduler
+  to run the balance work then add delay? as opposed to just
+  schedule_timeout()?
+- vulnerable to future changes of queuing work
 
-It's probably possible to reproduce it on my system by launching a
-parallel build "make -j4" of the firefox 43.0.3.
-
-Gcc is version 5.3.0, glibc is version 2.22. If the same versions of
-gcc, glibc and firefox are installed on another system, it might or
-might not be possible to reproduce it, I have not checked...
-
-Guido
+Jacob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
