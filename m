@@ -1,128 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0648A828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 07:39:49 -0500 (EST)
-Received: by mail-qk0-f173.google.com with SMTP id p186so95345941qke.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 04:39:49 -0800 (PST)
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 39906828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 07:40:37 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id e32so235958467qgf.3
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 04:40:37 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a189si6591318qhd.58.2016.01.07.04.39.48
+        by mx.google.com with ESMTPS id z134si5770384qkz.51.2016.01.07.04.40.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 04:39:48 -0800 (PST)
-Date: Thu, 7 Jan 2016 20:39:30 +0800
+        Thu, 07 Jan 2016 04:40:36 -0800 (PST)
+Date: Thu, 7 Jan 2016 20:40:22 +0800
 From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH v3 14/17] x86,nvdimm,kexec: Use walk_iomem_res_desc() for
- iomem search
-Message-ID: <20160107123930.GC2870@dhcp-128-65.nay.redhat.com>
+Subject: Re: [PATCH v3 16/17] resource: Kill walk_iomem_res()
+Message-ID: <20160107124022.GD2870@dhcp-128-65.nay.redhat.com>
 References: <1452020081-26534-1-git-send-email-toshi.kani@hpe.com>
- <1452020081-26534-14-git-send-email-toshi.kani@hpe.com>
+ <1452020081-26534-16-git-send-email-toshi.kani@hpe.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1452020081-26534-14-git-send-email-toshi.kani@hpe.com>
+In-Reply-To: <1452020081-26534-16-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Minfei Huang <mhuang@redhat.com>, x86@kernel.org, linux-nvdimm@ml01.01.org, kexec@lists.infradead.org
+Cc: akpm@linux-foundation.org, bp@alien8.de, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
 
 On 01/05/16 at 11:54am, Toshi Kani wrote:
-> Change the callers of walk_iomem_res() with the following names
-> to use walk_iomem_res(), instead.
+> walk_iomem_res_desc() replaced walk_iomem_res(), and there is no
+> caller to walk_iomem_res() any more.
 > 
->  "ACPI Tables"
->  "ACPI Non-volatile Storage"
->  "Persistent Memory (legacy)"
->  "Crash kernel"
+> Kill walk_iomem_res().  Also remove @name from find_next_iomem_res()
+> as it is no longer used.
 > 
-> Note, the caller of walk_iomem_res() with "GART" will be removed
-> in a later patch.
-> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Borislav Petkov <bp@alien8.de>
 > Cc: Dan Williams <dan.j.williams@intel.com>
 > Cc: Dave Young <dyoung@redhat.com>
-> Cc: Minfei Huang <mhuang@redhat.com>
-> Cc: x86@kernel.org
-> Cc: linux-nvdimm@lists.01.org
-> Cc: kexec@lists.infradead.org
 > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 > ---
->  arch/x86/kernel/crash.c |    4 ++--
->  arch/x86/kernel/pmem.c  |    4 ++--
->  drivers/nvdimm/e820.c   |    2 +-
->  kernel/kexec_file.c     |    8 ++++----
->  4 files changed, 9 insertions(+), 9 deletions(-)
+>  include/linux/ioport.h |    3 ---
+>  kernel/resource.c      |   49 +++++-------------------------------------------
+>  2 files changed, 5 insertions(+), 47 deletions(-)
 > 
-> diff --git a/arch/x86/kernel/crash.c b/arch/x86/kernel/crash.c
-> index 2c1910f..082373b 100644
-> --- a/arch/x86/kernel/crash.c
-> +++ b/arch/x86/kernel/crash.c
-> @@ -588,12 +588,12 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
->  	/* Add ACPI tables */
->  	cmd.type = E820_ACPI;
->  	flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> -	walk_iomem_res("ACPI Tables", flags, 0, -1, &cmd,
-> +	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
->  		       memmap_entry_callback);
+> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> index 2a4a5e8..afb4559 100644
+> --- a/include/linux/ioport.h
+> +++ b/include/linux/ioport.h
+> @@ -270,9 +270,6 @@ walk_system_ram_res(u64 start, u64 end, void *arg,
+>  extern int
+>  walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start, u64 end,
+>  		    void *arg, int (*func)(u64, u64, void *));
+> -extern int
+> -walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end, void *arg,
+> -	       int (*func)(u64, u64, void *));
 >  
->  	/* Add ACPI Non-volatile Storage */
->  	cmd.type = E820_NVS;
-> -	walk_iomem_res("ACPI Non-volatile Storage", flags, 0, -1, &cmd,
-> +	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
->  			memmap_entry_callback);
->  
->  	/* Add crashk_low_res region */
-> diff --git a/arch/x86/kernel/pmem.c b/arch/x86/kernel/pmem.c
-> index 14415af..92f7014 100644
-> --- a/arch/x86/kernel/pmem.c
-> +++ b/arch/x86/kernel/pmem.c
-> @@ -13,11 +13,11 @@ static int found(u64 start, u64 end, void *data)
->  
->  static __init int register_e820_pmem(void)
+>  /* True if any part of r1 overlaps r2 */
+>  static inline bool resource_overlaps(struct resource *r1, struct resource *r2)
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index 7b26f58..3ed5901 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -335,13 +335,12 @@ EXPORT_SYMBOL(release_resource);
+>  /*
+>   * Finds the lowest iomem reosurce exists with-in [res->start.res->end)
+>   * the caller must specify res->start, res->end, res->flags, and optionally
+> - * desc and "name".  If found, returns 0, res is overwritten, if not found,
+> - * returns -1.
+> + * desc.  If found, returns 0, res is overwritten, if not found, returns -1.
+>   * This walks through whole tree and not just first level children
+>   * until and unless first_level_children_only is true.
+>   */
+>  static int find_next_iomem_res(struct resource *res, unsigned long desc,
+> -				char *name, bool first_level_children_only)
+> +				bool first_level_children_only)
 >  {
-> -	char *pmem = "Persistent Memory (legacy)";
->  	struct platform_device *pdev;
->  	int rc;
->  
-> -	rc = walk_iomem_res(pmem, IORESOURCE_MEM, 0, -1, NULL, found);
-> +	rc = walk_iomem_res_desc(IORES_DESC_PERSISTENT_MEMORY_LEGACY,
-> +				 IORESOURCE_MEM, 0, -1, NULL, found);
->  	if (rc <= 0)
->  		return 0;
->  
-> diff --git a/drivers/nvdimm/e820.c b/drivers/nvdimm/e820.c
-> index b0045a5..95825b3 100644
-> --- a/drivers/nvdimm/e820.c
-> +++ b/drivers/nvdimm/e820.c
-> @@ -55,7 +55,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
->  	for (p = iomem_resource.child; p ; p = p->sibling) {
->  		struct nd_region_desc ndr_desc;
->  
-> -		if (strncmp(p->name, "Persistent Memory (legacy)", 26) != 0)
-> +		if (p->desc != IORES_DESC_PERSISTENT_MEMORY_LEGACY)
+>  	resource_size_t start, end;
+>  	struct resource *p;
+> @@ -363,8 +362,6 @@ static int find_next_iomem_res(struct resource *res, unsigned long desc,
 >  			continue;
+>  		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
+>  			continue;
+> -		if (name && strcmp(p->name, name))
+> -			continue;
+>  		if (p->start > end) {
+>  			p = NULL;
+>  			break;
+> @@ -411,7 +408,7 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
+>  	orig_end = res.end;
 >  
->  		memset(&ndr_desc, 0, sizeof(ndr_desc));
-> diff --git a/kernel/kexec_file.c b/kernel/kexec_file.c
-> index c245085..6e31cea 100644
-> --- a/kernel/kexec_file.c
-> +++ b/kernel/kexec_file.c
-> @@ -522,10 +522,10 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
+>  	while ((res.start < res.end) &&
+> -		(!find_next_iomem_res(&res, desc, NULL, false))) {
+> +		(!find_next_iomem_res(&res, desc, false))) {
+>  		ret = (*func)(res.start, res.end, arg);
+>  		if (ret)
+>  			break;
+> @@ -423,42 +420,6 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
+>  }
 >  
->  	/* Walk the RAM ranges and allocate a suitable range for the buffer */
->  	if (image->type == KEXEC_TYPE_CRASH)
-> -		ret = walk_iomem_res("Crash kernel",
-> -				     IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY,
-> -				     crashk_res.start, crashk_res.end, kbuf,
-> -				     locate_mem_hole_callback);
-> +		ret = walk_iomem_res_desc(crashk_res.desc,
-> +				IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY,
-> +				crashk_res.start, crashk_res.end, kbuf,
-> +				locate_mem_hole_callback);
->  	else
->  		ret = walk_system_ram_res(0, -1, kbuf,
->  					  locate_mem_hole_callback);
+>  /*
+> - * Walks through iomem resources and calls func() with matching resource
+> - * ranges. This walks through whole tree and not just first level children.
+> - * All the memory ranges which overlap start,end and also match flags and
+> - * name are valid candidates.
+> - *
+> - * @name: name of resource
+> - * @flags: resource flags
+> - * @start: start addr
+> - * @end: end addr
+> - *
+> - * NOTE: This function is deprecated and should not be used in new code.
+> - *       Use walk_iomem_res_desc(), instead.
+> - */
+> -int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+> -		void *arg, int (*func)(u64, u64, void *))
+> -{
+> -	struct resource res;
+> -	u64 orig_end;
+> -	int ret = -1;
+> -
+> -	res.start = start;
+> -	res.end = end;
+> -	res.flags = flags;
+> -	orig_end = res.end;
+> -	while ((res.start < res.end) &&
+> -		(!find_next_iomem_res(&res, IORES_DESC_NONE, name, false))) {
+> -		ret = (*func)(res.start, res.end, arg);
+> -		if (ret)
+> -			break;
+> -		res.start = res.end + 1;
+> -		res.end = orig_end;
+> -	}
+> -	return ret;
+> -}
+> -
+> -/*
+>   * This function calls callback against all memory range of System RAM
+>   * which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
+>   * Now, this function is only for System RAM. This function deals with
+> @@ -477,7 +438,7 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
+>  	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+>  	orig_end = res.end;
+>  	while ((res.start < res.end) &&
+> -		(!find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true))) {
+> +		(!find_next_iomem_res(&res, IORES_DESC_NONE, true))) {
+>  		ret = (*func)(res.start, res.end, arg);
+>  		if (ret)
+>  			break;
+> @@ -507,7 +468,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+>  	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+>  	orig_end = res.end;
+>  	while ((res.start < res.end) &&
+> -		(find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true) >= 0)) {
+> +		(find_next_iomem_res(&res, IORES_DESC_NONE, true) >= 0)) {
+>  		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+>  		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+>  		if (end_pfn > pfn)
 
-Reviewed-by: Dave Young <dyoung@redhat.com>
+Acked-by: Dave Young <dyoung@redhat.com>
 
 Thanks
 Dave
