@@ -1,159 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 74771828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 08:07:06 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id 1so204410538ion.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:07:06 -0800 (PST)
-Received: from mxout1.idt.com (mxout1.idt.com. [157.165.5.25])
-        by mx.google.com with ESMTPS id 32si3331881iot.211.2016.01.07.05.07.05
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD71828DE
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 08:10:03 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id f206so96621688wmf.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:10:03 -0800 (PST)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id u75si19767916wmu.18.2016.01.07.05.10.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jan 2016 05:07:05 -0800 (PST)
-From: "Bounine, Alexandre" <Alexandre.Bounine@idt.com>
-Subject: RE: [PATCH v3 UPDATE 09/17] drivers: Initialize resource entry to
- zero
-Date: Thu, 7 Jan 2016 13:06:37 +0000
-Message-ID: <8D983423E7EDF846BB3056827B8CC5D15CFB6756@corpmail1.na.ads.idt.com>
-References: <1452028537-27365-1-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1452028537-27365-1-git-send-email-toshi.kani@hpe.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jan 2016 05:10:02 -0800 (PST)
+Received: by mail-wm0-f54.google.com with SMTP id f206so122553324wmf.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 05:10:02 -0800 (PST)
+Date: Thu, 7 Jan 2016 14:10:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 14/14] mm, debug: move bad flags printing to bad_page()
+Message-ID: <20160107131000.GM27868@dhcp22.suse.cz>
+References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
+ <1450429406-7081-15-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1450429406-7081-15-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "bp@alien8.de" <bp@alien8.de>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Porter <mporter@kernel.crashing.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
 
-Ack-ed.
+On Fri 18-12-15 10:03:26, Vlastimil Babka wrote:
+> Since bad_page() is the only user of the badflags parameter of
+> dump_page_badflags(), we can move the code to bad_page() and simplify a bit.
+> 
+> The dump_page_badflags() function is renamed to __dump_page() and can still be
+> called separately from dump_page() for temporary debug prints where page_owner
+> info is not desired.
+> 
+> The only user-visible change is that page->mem_cgroup is printed before the bad
+> flags.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Sasha Levin <sasha.levin@oracle.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-Alex.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
------Original Message-----
-From: Toshi Kani [mailto:toshi.kani@hpe.com]=20
-Sent: Tuesday, January 05, 2016 4:16 PM
-To: akpm@linux-foundation.org; bp@alien8.de
-Cc: linux-arch@vger.kernel.org; linux-mm@kvack.org; linux-kernel@vger.kerne=
-l.org; Matt Porter; Bounine, Alexandre; linux-acpi@vger.kernel.org; linux-p=
-arisc@vger.kernel.org; linux-sh@vger.kernel.org; Toshi Kani
-Subject: [PATCH v3 UPDATE 09/17] drivers: Initialize resource entry to zero
+> ---
+>  include/linux/mmdebug.h |  3 +--
+>  mm/debug.c              | 10 +++-------
+>  mm/page_alloc.c         | 10 +++++++---
+>  3 files changed, 11 insertions(+), 12 deletions(-)
+> 
+> diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+> index 2c8286cf162e..9b0dc2161f7a 100644
+> --- a/include/linux/mmdebug.h
+> +++ b/include/linux/mmdebug.h
+> @@ -14,8 +14,7 @@ extern const struct trace_print_flags vmaflag_names[];
+>  extern const struct trace_print_flags gfpflag_names[];
+>  
+>  extern void dump_page(struct page *page, const char *reason);
+> -extern void dump_page_badflags(struct page *page, const char *reason,
+> -			       unsigned long badflags);
+> +extern void __dump_page(struct page *page, const char *reason);
+>  void dump_vma(const struct vm_area_struct *vma);
+>  void dump_mm(const struct mm_struct *mm);
+>  
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 7260644d8cc1..4c03b6d07c82 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -40,8 +40,7 @@ const struct trace_print_flags vmaflag_names[] = {
+>  	{0, NULL}
+>  };
+>  
+> -void dump_page_badflags(struct page *page, const char *reason,
+> -		unsigned long badflags)
+> +void __dump_page(struct page *page, const char *reason)
+>  {
+>  	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
+>  		  page, atomic_read(&page->_count), page_mapcount(page),
+> @@ -50,15 +49,12 @@ void dump_page_badflags(struct page *page, const char *reason,
+>  		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
+>  	pr_cont("\n");
+>  	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+> +
+>  	pr_emerg("flags: %#lx(%pgp)\n", page->flags, &page->flags);
+>  
+>  	if (reason)
+>  		pr_alert("page dumped because: %s\n", reason);
+>  
+> -	badflags &= page->flags;
+> -	if (badflags)
+> -		pr_alert("bad because of flags: %#lx(%pgp)\n", badflags,
+> -								&badflags);
+>  #ifdef CONFIG_MEMCG
+>  	if (page->mem_cgroup)
+>  		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
+> @@ -67,7 +63,7 @@ void dump_page_badflags(struct page *page, const char *reason,
+>  
+>  void dump_page(struct page *page, const char *reason)
+>  {
+> -	dump_page_badflags(page, reason, 0);
+> +	__dump_page(page, reason);
+>  	dump_page_owner(page);
+>  }
+>  EXPORT_SYMBOL(dump_page);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7718ee40726a..bac8842d4fcf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -428,7 +428,7 @@ static void bad_page(struct page *page, const char *reason,
+>  			goto out;
+>  		}
+>  		if (nr_unshown) {
+> -			printk(KERN_ALERT
+> +			pr_alert(
+>  			      "BUG: Bad page state: %lu messages suppressed\n",
+>  				nr_unshown);
+>  			nr_unshown = 0;
+> @@ -438,9 +438,13 @@ static void bad_page(struct page *page, const char *reason,
+>  	if (nr_shown++ == 0)
+>  		resume = jiffies + 60 * HZ;
+>  
+> -	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
+> +	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
+>  		current->comm, page_to_pfn(page));
+> -	dump_page_badflags(page, reason, bad_flags);
+> +	__dump_page(page, reason);
+> +	bad_flags &= page->flags;
+> +	if (bad_flags)
+> +		pr_alert("bad because of flags: %#lx(%pgp)\n",
+> +						bad_flags, &bad_flags);
+>  	dump_page_owner(page);
+>  
+>  	print_modules();
+> -- 
+> 2.6.3
 
-I/O resource descriptor, 'desc' in struct resource, needs to be
-initialized to zero by default.  Some drivers call kmalloc() to
-allocate a resource entry, but does not initialize it to zero by
-memset().  Change these drivers to call kzalloc(), instead.
-
-Cc: Matt Porter <mporter@kernel.crashing.org>
-Cc: Alexandre Bounine <alexandre.bounine@idt.com>
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Acked-by: Simon Horman <horms+renesas@verge.net.au> # sh
-Acked-by: Helge Deller <deller@gmx.de> # parisc
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
----
-v3 UPDATE: Add cc to RAPIDIO maintainers that was missing.
----
- drivers/acpi/acpi_platform.c       |    2 +-
- drivers/parisc/eisa_enumerator.c   |    4 ++--
- drivers/rapidio/rio.c              |    8 ++++----
- drivers/sh/superhyway/superhyway.c |    2 +-
- 4 files changed, 8 insertions(+), 8 deletions(-)
-
-diff --git a/drivers/acpi/acpi_platform.c b/drivers/acpi/acpi_platform.c
-index 296b7a1..b6f7fa3 100644
---- a/drivers/acpi/acpi_platform.c
-+++ b/drivers/acpi/acpi_platform.c
-@@ -62,7 +62,7 @@ struct platform_device *acpi_create_platform_device(struc=
-t acpi_device *adev)
- 	if (count < 0) {
- 		return NULL;
- 	} else if (count > 0) {
--		resources =3D kmalloc(count * sizeof(struct resource),
-+		resources =3D kzalloc(count * sizeof(struct resource),
- 				    GFP_KERNEL);
- 		if (!resources) {
- 			dev_err(&adev->dev, "No memory for resources\n");
-diff --git a/drivers/parisc/eisa_enumerator.c b/drivers/parisc/eisa_enumera=
-tor.c
-index a656d9e..21905fe 100644
---- a/drivers/parisc/eisa_enumerator.c
-+++ b/drivers/parisc/eisa_enumerator.c
-@@ -91,7 +91,7 @@ static int configure_memory(const unsigned char *buf,
- 	for (i=3D0;i<HPEE_MEMORY_MAX_ENT;i++) {
- 		c =3D get_8(buf+len);
- 	=09
--		if (NULL !=3D (res =3D kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL !=3D (res =3D kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			int result;
- 		=09
- 			res->name =3D name;
-@@ -183,7 +183,7 @@ static int configure_port(const unsigned char *buf, str=
-uct resource *io_parent,
- 	for (i=3D0;i<HPEE_PORT_MAX_ENT;i++) {
- 		c =3D get_8(buf+len);
- 	=09
--		if (NULL !=3D (res =3D kmalloc(sizeof(struct resource), GFP_KERNEL))) {
-+		if (NULL !=3D (res =3D kzalloc(sizeof(struct resource), GFP_KERNEL))) {
- 			res->name =3D board;
- 			res->start =3D get_16(buf+len+1);
- 			res->end =3D get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
-diff --git a/drivers/rapidio/rio.c b/drivers/rapidio/rio.c
-index d7b87c6..e220edc 100644
---- a/drivers/rapidio/rio.c
-+++ b/drivers/rapidio/rio.c
-@@ -117,7 +117,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_inb_mbox =3D=3D NULL)
- 		goto out;
-=20
--	res =3D kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res =3D kzalloc(sizeof(struct resource), GFP_KERNEL);
-=20
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -185,7 +185,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
- 	if (mport->ops->open_outb_mbox =3D=3D NULL)
- 		goto out;
-=20
--	res =3D kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	res =3D kzalloc(sizeof(struct resource), GFP_KERNEL);
-=20
- 	if (res) {
- 		rio_init_mbox_res(res, mbox, mbox);
-@@ -285,7 +285,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
- {
- 	int rc =3D 0;
-=20
--	struct resource *res =3D kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res =3D kzalloc(sizeof(struct resource), GFP_KERNEL);
-=20
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-@@ -360,7 +360,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 =
-start, u16 end)
- struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
- 					u16 end)
- {
--	struct resource *res =3D kmalloc(sizeof(struct resource), GFP_KERNEL);
-+	struct resource *res =3D kzalloc(sizeof(struct resource), GFP_KERNEL);
-=20
- 	if (res) {
- 		rio_init_dbell_res(res, start, end);
-diff --git a/drivers/sh/superhyway/superhyway.c b/drivers/sh/superhyway/sup=
-erhyway.c
-index 2d9e7f3..bb1fb771 100644
---- a/drivers/sh/superhyway/superhyway.c
-+++ b/drivers/sh/superhyway/superhyway.c
-@@ -66,7 +66,7 @@ int superhyway_add_device(unsigned long base, struct supe=
-rhyway_device *sdev,
- 	superhyway_read_vcr(dev, base, &dev->vcr);
-=20
- 	if (!dev->resource) {
--		dev->resource =3D kmalloc(sizeof(struct resource), GFP_KERNEL);
-+		dev->resource =3D kzalloc(sizeof(struct resource), GFP_KERNEL);
- 		if (!dev->resource) {
- 			kfree(dev);
- 			return -ENOMEM;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
