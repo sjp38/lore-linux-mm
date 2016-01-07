@@ -1,111 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CFF56B0006
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 04:29:02 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id f206so89387901wmf.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 01:29:02 -0800 (PST)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id x11si18568504wmx.51.2016.01.07.01.29.01
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 111BE6B0006
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 04:33:58 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id f206so90050430wmf.0
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 01:33:58 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 76si18610110wms.44.2016.01.07.01.33.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 01:29:01 -0800 (PST)
-Received: by mail-wm0-f51.google.com with SMTP id b14so113291992wmb.1
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 01:29:01 -0800 (PST)
-Date: Thu, 7 Jan 2016 10:29:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 02/14] mm, tracing: make show_gfp_flags() up to date
-Message-ID: <20160107092900.GC27868@dhcp22.suse.cz>
-References: <1450429406-7081-1-git-send-email-vbabka@suse.cz>
- <1450429406-7081-3-git-send-email-vbabka@suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 07 Jan 2016 01:33:56 -0800 (PST)
+Date: Thu, 7 Jan 2016 10:34:02 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v7 1/9] dax: fix NULL pointer dereference in __dax_dbg()
+Message-ID: <20160107093402.GA8380@quack.suse.cz>
+References: <1452103263-1592-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1452103263-1592-2-git-send-email-ross.zwisler@linux.intel.com>
+ <CAPcyv4h3NcXHHQAWL=HwgGxTbFTeOa98S9fxWu7dA3nTEcFxxA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1450429406-7081-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <CAPcyv4h3NcXHHQAWL=HwgGxTbFTeOa98S9fxWu7dA3nTEcFxxA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>
 
-On Fri 18-12-15 10:03:14, Vlastimil Babka wrote:
-> The show_gfp_flags() macro provides human-friendly printing of gfp flags in
-> tracepoints. However, it is somewhat out of date and missing several flags.
-> This patches fills in the missing flags, and distinguishes properly between
-> GFP_ATOMIC and __GFP_ATOMIC which were both translated to "GFP_ATOMIC".
+On Wed 06-01-16 11:14:09, Dan Williams wrote:
+> On Wed, Jan 6, 2016 at 10:00 AM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+> > __dax_dbg() currently assumes that bh->b_bdev is non-NULL, passing it into
+> > bdevname() where is is dereferenced.  This assumption isn't always true -
+> > when called for reads of holes, ext4_dax_mmap_get_block() returns a buffer
+> > head where bh->b_bdev is never set.  I hit this BUG while testing the DAX
+> > PMD fault path.
+> >
+> > Instead, verify that we have a valid bh->b_bdev, else just say "unknown"
+> > for the block device.
+> >
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  fs/dax.c | 7 ++++++-
+> >  1 file changed, 6 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index 7af8797..03cc4a3 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -563,7 +563,12 @@ static void __dax_dbg(struct buffer_head *bh, unsigned long address,
+> >  {
+> >         if (bh) {
+> >                 char bname[BDEVNAME_SIZE];
+> > -               bdevname(bh->b_bdev, bname);
+> > +
+> > +               if (bh->b_bdev)
+> > +                       bdevname(bh->b_bdev, bname);
+> > +               else
+> > +                       snprintf(bname, BDEVNAME_SIZE, "unknown");
+> > +
+> >                 pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
+> >                         "length %zd fallback: %s\n", fn, current->comm,
+> >                         address, bname, bh->b_state, (u64)bh->b_blocknr,
 > 
-> Also add a note in gfp.h so hopefully future changes will be synced better.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Hocko <mhocko@suse.cz>
+> I'm assuming there's no danger of a such a buffer_head ever being used
+> for the bdev parameter to dax_map_atomic()?  Shouldn't we also/instead
+> go fix ext4 to not send partially filled buffer_heads?
 
-Reviewed-by: Michal Hocko <mhocko@suse.com>
+No. The real problem is a long-standing abuse of struct buffer_head to be
+used for passing block mapping information (it's on my todo list to remove
+that at least from DAX code and use cleaner block mapping interface but
+first I want basic DAX functionality to settle down to avoid unnecessary
+conflicts). Filesystem is not supposed to touch bh->b_bdev. If you need
+that filled in, set it yourself in before passing bh to the block mapping
+function.
 
-> ---
->  include/linux/gfp.h             | 5 +++++
->  include/trace/events/gfpflags.h | 9 +++++++--
->  2 files changed, 12 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 91f74e741aa2..6ffee7f93af7 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -9,6 +9,11 @@
->  
->  struct vm_area_struct;
->  
-> +/*
-> + * In case of changes, please don't forget to update
-> + * include/trace/events/gfpflags.h
-> + */
-> +
->  /* Plain integer GFP bitmasks. Do not use this directly. */
->  #define ___GFP_DMA		0x01u
->  #define ___GFP_HIGHMEM		0x02u
-> diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-> index dde6bf092c8a..8395798d97b0 100644
-> --- a/include/trace/events/gfpflags.h
-> +++ b/include/trace/events/gfpflags.h
-> @@ -19,9 +19,13 @@
->  	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
->  	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
->  	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
-> +	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
-> +	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
-> +	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
->  	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
-> -	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
-> +	{(unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
->  	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
-> +	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
->  	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
->  	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
->  	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
-> @@ -36,8 +40,9 @@
->  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
->  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
->  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
-> +	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
->  	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
->  	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
->  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
-> -	) : "GFP_NOWAIT"
-> +	) : "none"
->  
-> -- 
-> 2.6.3
-
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
