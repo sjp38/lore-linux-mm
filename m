@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FB6F828DE
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:08:08 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id do7so5957480pab.2
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:08:08 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id dz4si51415275pab.235.2016.01.06.16.01.33
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D6A9828DE
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2016 19:08:09 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id do7so5957760pab.2
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2016 16:08:09 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id kz6si35935987pab.18.2016.01.06.16.01.24
         for <linux-mm@kvack.org>;
-        Wed, 06 Jan 2016 16:01:34 -0800 (PST)
-Subject: [PATCH 20/31] x86, pkeys: differentiate instruction fetches
+        Wed, 06 Jan 2016 16:01:24 -0800 (PST)
+Subject: [PATCH 11/31] x86, pkeys: pass VMA down in to fault signal generation code
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 06 Jan 2016 16:01:33 -0800
+Date: Wed, 06 Jan 2016 16:01:20 -0800
 References: <20160107000104.1A105322@viggo.jf.intel.com>
 In-Reply-To: <20160107000104.1A105322@viggo.jf.intel.com>
-Message-Id: <20160107000133.45294541@viggo.jf.intel.com>
+Message-Id: <20160107000120.E6D5CF55@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,178 +22,205 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-As discussed earlier, we attempt to enforce protection keys in
-software.
+During a page fault, we look up the VMA to ensure that the fault
+is in a region with a valid mapping.  But, in the top-level page
+fault code we don't need the VMA for much else.  Once we have
+decided that an access is bad, we are going to send a signal no
+matter what and do not need the VMA any more.  So we do not pass
+it down in to the signal generation code.
 
-However, the code checks all faults to ensure that they are not
-violating protection key permissions.  It was assumed that all
-faults are either write faults where we check PKRU[key].WD (write
-disable) or read faults where we check the AD (access disable)
-bit.
-
-But, there is a third category of faults for protection keys:
-instruction faults.  Instruction faults never run afoul of
-protection keys because they do not affect instruction fetches.
-
-So, plumb the PF_INSTR bit down in to the
-arch_vma_access_permitted() function where we do the protection
-key checks.
-
-We also add a new FAULT_FLAG_INSTRUCTION.  This is because
-handle_mm_fault() is not passed the architecture-specific
-error_code where we keep PF_INSTR, so we need to encode the
-instruction fetch information in to the arch-generic fault
-flags.
+But, for protection keys, we need the VMA.  It tells us *which*
+protection key we violated if we get a PF_PK.  So, we need to
+pass the VMA down and fill in siginfo->si_pkey.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-
 ---
 
- b/arch/powerpc/include/asm/mmu_context.h |    2 +-
- b/arch/s390/include/asm/mmu_context.h    |    2 +-
- b/arch/x86/include/asm/mmu_context.h     |    5 ++++-
- b/arch/x86/mm/fault.c                    |    8 ++++++--
- b/include/asm-generic/mm_hooks.h         |    2 +-
- b/include/linux/mm.h                     |    1 +
- b/mm/gup.c                               |   11 +++++++++--
- b/mm/memory.c                            |    1 +
- 8 files changed, 24 insertions(+), 8 deletions(-)
+ b/arch/x86/mm/fault.c |   50 ++++++++++++++++++++++++++++----------------------
+ 1 file changed, 28 insertions(+), 22 deletions(-)
 
-diff -puN arch/powerpc/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/powerpc/include/asm/mmu_context.h
---- a/arch/powerpc/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.677429524 -0800
-+++ b/arch/powerpc/include/asm/mmu_context.h	2016-01-06 15:50:11.692430200 -0800
-@@ -149,7 +149,7 @@ static inline void arch_bprm_mm_init(str
- }
+diff -puN arch/x86/mm/fault.c~pkeys-08-pass-down-vma arch/x86/mm/fault.c
+--- a/arch/x86/mm/fault.c~pkeys-08-pass-down-vma	2016-01-06 15:50:07.422237684 -0800
++++ b/arch/x86/mm/fault.c	2016-01-06 15:50:07.425237819 -0800
+@@ -171,7 +171,8 @@ is_prefetch(struct pt_regs *regs, unsign
  
- static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
--		bool write, bool foreign)
-+		bool write, bool execute, bool foreign)
+ static void
+ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
+-		     struct task_struct *tsk, int fault)
++		     struct task_struct *tsk, struct vm_area_struct *vma,
++		     int fault)
  {
- 	/* by default, allow everything */
- 	return true;
-diff -puN arch/s390/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/s390/include/asm/mmu_context.h
---- a/arch/s390/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.679429614 -0800
-+++ b/arch/s390/include/asm/mmu_context.h	2016-01-06 15:50:11.692430200 -0800
-@@ -131,7 +131,7 @@ static inline void arch_bprm_mm_init(str
- }
+ 	unsigned lsb = 0;
+ 	siginfo_t info;
+@@ -656,6 +657,8 @@ no_context(struct pt_regs *regs, unsigne
+ 	struct task_struct *tsk = current;
+ 	unsigned long flags;
+ 	int sig;
++	/* No context means no VMA to pass down */
++	struct vm_area_struct *vma = NULL;
  
- static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
--		bool write, bool foreign)
-+		bool write, bool execute, bool foreign)
+ 	/* Are we prepared to handle this kernel fault? */
+ 	if (fixup_exception(regs)) {
+@@ -679,7 +682,8 @@ no_context(struct pt_regs *regs, unsigne
+ 			tsk->thread.cr2 = address;
+ 
+ 			/* XXX: hwpoison faults will set the wrong code. */
+-			force_sig_info_fault(signal, si_code, address, tsk, 0);
++			force_sig_info_fault(signal, si_code, address,
++					     tsk, vma, 0);
+ 		}
+ 
+ 		/*
+@@ -756,7 +760,8 @@ show_signal_msg(struct pt_regs *regs, un
+ 
+ static void
+ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		       unsigned long address, int si_code)
++		       unsigned long address, struct vm_area_struct *vma,
++		       int si_code)
  {
- 	/* by default, allow everything */
- 	return true;
-diff -puN arch/x86/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.681429704 -0800
-+++ b/arch/x86/include/asm/mmu_context.h	2016-01-06 15:50:11.693430245 -0800
-@@ -291,8 +291,11 @@ static inline bool vma_is_foreign(struct
- }
+ 	struct task_struct *tsk = current;
  
- static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
--		bool write, bool foreign)
-+		bool write, bool execute, bool foreign)
- {
-+	/* pkeys never affect instruction fetches */
-+	if (execute)
-+		return true;
- 	/* allow access if the VMA is not one from this process */
- 	if (foreign || vma_is_foreign(vma))
- 		return true;
-diff -puN arch/x86/mm/fault.c~pkeys-16-allow-execute-on-unreadable arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.682429749 -0800
-+++ b/arch/x86/mm/fault.c	2016-01-06 15:50:11.693430245 -0800
-@@ -908,7 +908,8 @@ static inline bool bad_area_access_from_
- 	if (error_code & PF_PK)
- 		return true;
- 	/* this checks permission keys on the VMA: */
--	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
-+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE),
-+				(error_code & PF_INSTR), foreign))
- 		return true;
- 	return false;
- }
-@@ -1112,7 +1113,8 @@ access_error(unsigned long error_code, s
- 	 * faults just to hit a PF_PK as soon as we fill in a
- 	 * page.
- 	 */
--	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
-+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE),
-+				(error_code & PF_INSTR), foreign))
- 		return 1;
+@@ -799,7 +804,7 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 		tsk->thread.error_code	= error_code;
+ 		tsk->thread.trap_nr	= X86_TRAP_PF;
  
- 	if (error_code & PF_WRITE) {
-@@ -1267,6 +1269,8 @@ __do_page_fault(struct pt_regs *regs, un
+-		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
++		force_sig_info_fault(SIGSEGV, si_code, address, tsk, vma, 0);
  
- 	if (error_code & PF_WRITE)
- 		flags |= FAULT_FLAG_WRITE;
-+	if (error_code & PF_INSTR)
-+		flags |= FAULT_FLAG_INSTRUCTION;
- 
- 	/*
- 	 * When running in the kernel we expect faults to occur only to
-diff -puN include/asm-generic/mm_hooks.h~pkeys-16-allow-execute-on-unreadable include/asm-generic/mm_hooks.h
---- a/include/asm-generic/mm_hooks.h~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.684429839 -0800
-+++ b/include/asm-generic/mm_hooks.h	2016-01-06 15:50:11.694430290 -0800
-@@ -27,7 +27,7 @@ static inline void arch_bprm_mm_init(str
- }
- 
- static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
--		bool write, bool foreign)
-+		bool write, bool execute, bool foreign)
- {
- 	/* by default, allow everything */
- 	return true;
-diff -puN include/linux/mm.h~pkeys-16-allow-execute-on-unreadable include/linux/mm.h
---- a/include/linux/mm.h~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.685429885 -0800
-+++ b/include/linux/mm.h	2016-01-06 15:50:11.695430335 -0800
-@@ -238,6 +238,7 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_TRIED	0x20	/* Second try */
- #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
- #define FAULT_FLAG_FOREIGN	0x80	/* faulting for non current tsk/mm */
-+#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
- 
- /*
-  * vm_fault is filled by the the pagefault handler and passed to the vma's
-diff -puN mm/gup.c~pkeys-16-allow-execute-on-unreadable mm/gup.c
---- a/mm/gup.c~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.687429975 -0800
-+++ b/mm/gup.c	2016-01-06 15:50:11.695430335 -0800
-@@ -396,7 +396,11 @@ static int check_vma_flags(struct vm_are
- 		if (!(vm_flags & VM_MAYREAD))
- 			return -EFAULT;
+ 		return;
  	}
--	if (!arch_vma_access_permitted(vma, write, foreign))
-+	/*
-+	 * gups are always data accesses, not instruction
-+	 * fetches, so execute=false here
-+	 */
-+	if (!arch_vma_access_permitted(vma, write, false, foreign))
- 		return -EFAULT;
- 	return 0;
+@@ -812,14 +817,14 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 
+ static noinline void
+ bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		     unsigned long address)
++		     unsigned long address, struct vm_area_struct *vma)
+ {
+-	__bad_area_nosemaphore(regs, error_code, address, SEGV_MAPERR);
++	__bad_area_nosemaphore(regs, error_code, address, vma, SEGV_MAPERR);
  }
-@@ -576,8 +580,11 @@ bool vma_permits_fault(struct vm_area_st
- 	/*
- 	 * The architecture might have a hardware protection
- 	 * mechanism other than read/write that can deny access.
-+	 *
-+	 * gup always represents data access, not instruction
-+	 * fetches, so execute=false here:
+ 
+ static void
+ __bad_area(struct pt_regs *regs, unsigned long error_code,
+-	   unsigned long address, int si_code)
++	   unsigned long address,  struct vm_area_struct *vma, int si_code)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 
+@@ -829,25 +834,25 @@ __bad_area(struct pt_regs *regs, unsigne
  	 */
--	if (!arch_vma_access_permitted(vma, write, foreign))
-+	if (!arch_vma_access_permitted(vma, write, false, foreign))
- 		return false;
+ 	up_read(&mm->mmap_sem);
  
- 	return true;
-diff -puN mm/memory.c~pkeys-16-allow-execute-on-unreadable mm/memory.c
---- a/mm/memory.c~pkeys-16-allow-execute-on-unreadable	2016-01-06 15:50:11.689430065 -0800
-+++ b/mm/memory.c	2016-01-06 15:50:11.696430380 -0800
-@@ -3346,6 +3346,7 @@ static int __handle_mm_fault(struct mm_s
- 	pte_t *pte;
+-	__bad_area_nosemaphore(regs, error_code, address, si_code);
++	__bad_area_nosemaphore(regs, error_code, address, vma, si_code);
+ }
  
- 	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
-+					    flags & FAULT_FLAG_INSTRUCTION,
- 					    flags & FAULT_FLAG_FOREIGN))
- 		return VM_FAULT_SIGSEGV;
+ static noinline void
+ bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
+ {
+-	__bad_area(regs, error_code, address, SEGV_MAPERR);
++	__bad_area(regs, error_code, address, NULL, SEGV_MAPERR);
+ }
+ 
+ static noinline void
+ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
+-		      unsigned long address)
++		      unsigned long address, struct vm_area_struct *vma)
+ {
+-	__bad_area(regs, error_code, address, SEGV_ACCERR);
++	__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
+ }
+ 
+ static void
+ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+-	  unsigned int fault)
++	  struct vm_area_struct *vma, unsigned int fault)
+ {
+ 	struct task_struct *tsk = current;
+ 	int code = BUS_ADRERR;
+@@ -874,12 +879,13 @@ do_sigbus(struct pt_regs *regs, unsigned
+ 		code = BUS_MCEERR_AR;
+ 	}
+ #endif
+-	force_sig_info_fault(SIGBUS, code, address, tsk, fault);
++	force_sig_info_fault(SIGBUS, code, address, tsk, vma, fault);
+ }
+ 
+ static noinline void
+ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+-	       unsigned long address, unsigned int fault)
++	       unsigned long address, struct vm_area_struct *vma,
++	       unsigned int fault)
+ {
+ 	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
+ 		no_context(regs, error_code, address, 0, 0);
+@@ -903,9 +909,9 @@ mm_fault_error(struct pt_regs *regs, uns
+ 	} else {
+ 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+ 			     VM_FAULT_HWPOISON_LARGE))
+-			do_sigbus(regs, error_code, address, fault);
++			do_sigbus(regs, error_code, address, vma, fault);
+ 		else if (fault & VM_FAULT_SIGSEGV)
+-			bad_area_nosemaphore(regs, error_code, address);
++			bad_area_nosemaphore(regs, error_code, address, vma);
+ 		else
+ 			BUG();
+ 	}
+@@ -1119,7 +1125,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 		 * Don't take the mm semaphore here. If we fixup a prefetch
+ 		 * fault we could otherwise deadlock:
+ 		 */
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 
+ 		return;
+ 	}
+@@ -1132,7 +1138,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 		pgtable_bad(regs, error_code, address);
+ 
+ 	if (unlikely(smap_violation(error_code, regs))) {
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 		return;
+ 	}
+ 
+@@ -1141,7 +1147,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 	 * in a region with pagefaults disabled then we must not take the fault
+ 	 */
+ 	if (unlikely(faulthandler_disabled() || !mm)) {
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 		return;
+ 	}
+ 
+@@ -1185,7 +1191,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
+ 		if ((error_code & PF_USER) == 0 &&
+ 		    !search_exception_tables(regs->ip)) {
+-			bad_area_nosemaphore(regs, error_code, address);
++			bad_area_nosemaphore(regs, error_code, address, NULL);
+ 			return;
+ 		}
+ retry:
+@@ -1233,7 +1239,7 @@ retry:
+ 	 */
+ good_area:
+ 	if (unlikely(access_error(error_code, vma))) {
+-		bad_area_access_error(regs, error_code, address);
++		bad_area_access_error(regs, error_code, address, vma);
+ 		return;
+ 	}
+ 
+@@ -1271,7 +1277,7 @@ good_area:
+ 
+ 	up_read(&mm->mmap_sem);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+-		mm_fault_error(regs, error_code, address, fault);
++		mm_fault_error(regs, error_code, address, vma, fault);
+ 		return;
+ 	}
  
 _
 
