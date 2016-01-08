@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id F14B9828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 09:07:46 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id t15so52310546igr.0
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 06:07:46 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id 85si14083587ioj.6.2016.01.08.06.07.46
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EDDF828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 11:04:21 -0500 (EST)
+Received: by mail-lb0-f180.google.com with SMTP id oh2so227063100lbb.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 08:04:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 88si62271248lfv.243.2016.01.08.08.04.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jan 2016 06:07:46 -0800 (PST)
-Date: Fri, 8 Jan 2016 08:07:44 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
-In-Reply-To: <568F0F75.4090101@labbott.name>
-Message-ID: <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org>
-References: <1450755641-7856-1-git-send-email-laura@labbott.name> <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org> <5679ACE9.70701@labbott.name> <CAGXu5jJQKaA1qgLEV9vXEVH4QBC__Vg141BX22ZsZzW6p9yk4Q@mail.gmail.com> <568C8741.4040709@labbott.name>
- <alpine.DEB.2.20.1601071020570.28979@east.gentwo.org> <568F0F75.4090101@labbott.name>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 08 Jan 2016 08:04:19 -0800 (PST)
+Message-ID: <1452268927.11435.3.camel@suse.com>
+Subject: Re: [PATCH] Add support for usbfs zerocopy.
+From: Oliver Neukum <oneukum@suse.com>
+Date: Fri, 08 Jan 2016 17:02:07 +0100
+In-Reply-To: <20160108094535.GA17286@infradead.org>
+References: <20160106144512.GA21737@imap.gmail.com>
+	 <Pine.LNX.4.44L0.1601061032000.1579-100000@iolanthe.rowland.org>
+	 <20160108094535.GA17286@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <laura@labbott.name>
-Cc: Kees Cook <keescook@chromium.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Alan Stern <stern@rowland.harvard.edu>, "Steinar H. Gunderson" <sesse@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 7 Jan 2016, Laura Abbott wrote:
+On Fri, 2016-01-08 at 01:45 -0800, Christoph Hellwig wrote:
+> On Wed, Jan 06, 2016 at 10:35:05AM -0500, Alan Stern wrote:
+> > Indeed, the I/O operations we are using with mmap here are not reads or 
+> > writes; they are ioctls.  As far as I know, the kernel doesn't have any 
+> > defined interface for zerocopy ioctls.
+> 
+> IF it was using mmap for I/O it would read in through the page fault
+> handler an then mark the page dirty for writeback by the VM.  Thats
+> clearly not the case.
 
-> The slub_debug=P not only poisons it enables other consistency checks on the
-> slab as well, assuming my understanding of what check_object does is correct.
-> My hope was to have the poison part only and none of the consistency checks in
-> an attempt to mitigate performance issues. I misunderstood when the checks
-> actually run and how SLUB_DEBUG was used.
+That won't work because we need the ability to determine the chunk size
+IO is done in. USB devices don't map to files, yet the memory they can
+operate on depends on the device, so allocation in the kernel for
+a specific device is a necessity.
 
-Ok I see that there pointer check is done without checking the
-corresponding debug flag. Patch attached thar fixes it.
+	Regards
+		Oliver
 
-> Another option would be to have a flag like SLAB_NO_SANITY_CHECK.
-> sanitization enablement would just be that and SLAB_POISON
-> in the debug options. The disadvantage to this approach would be losing
-> the sanitization for ->ctor caches (the grsecurity version works around this
-> by re-initializing with ->ctor, I haven't heard any feedback if this actually
-> acceptable) and not having some of the fast paths enabled
-> (assuming I'm understanding the code path correctly.) which would also
-> be a performance penalty
-
-I think we simply need to fix the missing check there. There is already a
-flag SLAB_DEBUG_FREE for the pointer checks.
-
-
-
-Subject: slub: Only perform pointer checks in check_object when SLAB_DEBUG_FREE is set
-
-Seems that check_object() always checks for pointer issues currently.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -848,6 +848,9 @@ static int check_object(struct kmem_cach
- 		 */
- 		return 1;
-
-+	if (!(s->flags & SLAB_DEBUG_FREE))
-+		return 1;
-+
- 	/* Check free pointer validity */
- 	if (!check_valid_pointer(s, page, get_freepointer(s, p))) {
- 		object_err(s, page, p, "Freepointer corrupt");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
