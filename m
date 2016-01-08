@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 87BA06B0256
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:34:45 -0500 (EST)
-Received: by mail-ig0-f175.google.com with SMTP id z14so70702030igp.0
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:34:45 -0800 (PST)
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C0E436B0256
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:35:44 -0500 (EST)
+Received: by mail-io0-f179.google.com with SMTP id g73so81902161ioe.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:35:44 -0800 (PST)
 Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
-        by mx.google.com with ESMTPS id s71si9005990ioe.137.2016.01.08.00.34.44
+        by mx.google.com with ESMTPS id n67si7741750ioi.144.2016.01.08.00.35.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 00:34:44 -0800 (PST)
+        Fri, 08 Jan 2016 00:35:44 -0800 (PST)
 Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 0D011AC025A
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 17:34:38 +0900 (JST)
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 550FFAC0488
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 17:35:36 +0900 (JST)
 From: Taku Izumi <izumi.taku@jp.fujitsu.com>
 Subject: [PATCH v4 0/2] mm: Introduce kernelcore=mirror option
-Date: Fri,  8 Jan 2016 17:25:23 +0900
-Message-Id: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
+Date: Fri,  8 Jan 2016 17:26:19 +0900
+Message-Id: <1452241579-19601-1-git-send-email-izumi.taku@jp.fujitsu.com>
+In-Reply-To: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
+References: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
