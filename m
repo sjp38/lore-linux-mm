@@ -1,68 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 911526B025F
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:37 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id yy13so196753655pab.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:37 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 826456B0260
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:38 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id yy13so196753837pab.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:38 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id f7si7938955pfd.188.2016.01.08.15.15.36
+        by mx.google.com with ESMTP id n16si7938166pfj.185.2016.01.08.15.15.37
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 15:15:36 -0800 (PST)
+        Fri, 08 Jan 2016 15:15:37 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 00/13] x86/mm: PCID and INVPCID
-Date: Fri,  8 Jan 2016 15:15:18 -0800
-Message-Id: <cover.1452294700.git.luto@kernel.org>
+Subject: [RFC 01/13] x86/paravirt: Turn KASAN off for parvirt.o
+Date: Fri,  8 Jan 2016 15:15:19 -0800
+Message-Id: <bffe57f96d76a92655cb5d230d86cec195a20f6e.1452294700.git.luto@kernel.org>
+In-Reply-To: <cover.1452294700.git.luto@kernel.org>
+References: <cover.1452294700.git.luto@kernel.org>
+In-Reply-To: <cover.1452294700.git.luto@kernel.org>
+References: <cover.1452294700.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
 
-Here's my PCID and INVPCID work-in-progress.  It seems to work well
-enough to play with it.  (That is, I'm not aware of anything wrong
-with it, although it may eat your data.)
+Otherwise terrible things happen if some of the callbacks end up
+calling into KASAN in unexpected places.
 
-PCID and INVPCID use are orthogonal here.  INVPCID is a
-straightforward speedup for global TLB flushes.  Other than that, I
-don't use INVPCID at all, since it seems slower than just
-manipulating CR3 carefully, at least on my Skylake laptop.
+This has no obvious symptoms yet, but adding a memory reference to
+native_flush_tlb_global without this blows up on KASAN kernels.
 
-Please play around and suggest (and run?) good benchmarks.  It seems
-to save around 100ns on cross-process context switches for me.
-Unfortunately, we suck at context switches in general, so this is,
-at best, a little over a 10% speedup.  Most of the time is spent in
-the scheduler, not in arch code.
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+---
+ arch/x86/kernel/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
 
-Andy Lutomirski (13):
-  x86/paravirt: Turn KASAN off for parvirt.o
-  x86/mm: Add INVPCID helpers
-  x86/mm: Add a noinvpcid option to turn off INVPCID
-  x86/mm: If INVPCID is available, use it to flush global mappings
-  x86/mm: Add barriers and document switch_mm-vs-flush synchronization
-  x86/mm: Disable PCID on 32-bit kernels
-  x86/mm: Add nopcid to turn off PCID
-  x86/mm: Teach CR3 readers about PCID
-  x86/mm: Disable interrupts when flushing the TLB using CR3
-  x86/mm: Factor out remote TLB flushing
-  x86/mm: Build arch/x86/mm/tlb.c even on !SMP
-  x86/mm: Uninline switch_mm
-  x86/mm: Try to preserve old TLB entries using PCID
-
- Documentation/kernel-parameters.txt      |   4 +
- arch/x86/include/asm/disabled-features.h |   4 +-
- arch/x86/include/asm/mmu.h               |   7 +-
- arch/x86/include/asm/mmu_context.h       |  62 +-----
- arch/x86/include/asm/tlbflush.h          |  86 ++++++++
- arch/x86/kernel/Makefile                 |   1 +
- arch/x86/kernel/cpu/bugs.c               |   6 +
- arch/x86/kernel/cpu/common.c             |  38 ++++
- arch/x86/kernel/head64.c                 |   3 +-
- arch/x86/kernel/ldt.c                    |   2 +
- arch/x86/kernel/process_64.c             |   2 +
- arch/x86/mm/Makefile                     |   3 +-
- arch/x86/mm/fault.c                      |   8 +-
- arch/x86/mm/tlb.c                        | 324 +++++++++++++++++++++++++++++--
- 14 files changed, 467 insertions(+), 83 deletions(-)
-
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index b1b78ffe01d0..b7cd5bdf314b 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -19,6 +19,7 @@ endif
+ KASAN_SANITIZE_head$(BITS).o := n
+ KASAN_SANITIZE_dumpstack.o := n
+ KASAN_SANITIZE_dumpstack_$(BITS).o := n
++KASAN_SANITIZE_paravirt.o := n
+ 
+ CFLAGS_irq.o := -I$(src)/../include/asm/trace
+ 
 -- 
 2.5.0
 
