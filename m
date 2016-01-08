@@ -1,36 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E72828ED
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:38:25 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id uo6so271799758pac.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:38:25 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k62si8046809pfb.74.2016.01.08.15.38.25
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 35567828ED
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:41:11 -0500 (EST)
+Received: by mail-io0-f170.google.com with SMTP id g73so104441571ioe.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:41:11 -0800 (PST)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id tg1si2294908igb.83.2016.01.08.15.41.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 15:38:25 -0800 (PST)
-Date: Fri, 8 Jan 2016 15:38:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: do some cleanup
-Message-Id: <20160108153824.076a81042fa3752d6012466e@linux-foundation.org>
-In-Reply-To: <20160108141459.5da3b29c@debian>
-References: <20160108141459.5da3b29c@debian>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 08 Jan 2016 15:41:10 -0800 (PST)
+Received: by mail-ig0-x22a.google.com with SMTP id z14so86055408igp.0
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:41:10 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <a75dbc8fb47148e7f7f3b171c033a5a11d83e690.1452294700.git.luto@kernel.org>
+References: <cover.1452294700.git.luto@kernel.org>
+	<a75dbc8fb47148e7f7f3b171c033a5a11d83e690.1452294700.git.luto@kernel.org>
+Date: Fri, 8 Jan 2016 15:41:10 -0800
+Message-ID: <CA+55aFxChuKFYyUtG6a+zn82JFB=9XaM6mH9V+kdYa9iEDKUzQ@mail.gmail.com>
+Subject: Re: [RFC 09/13] x86/mm: Disable interrupts when flushing the TLB
+ using CR3
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 8 Jan 2016 14:14:59 +0800 Wang Xiaoqiang <wangxq10@lzu.edu.cn> wrote:
+On Fri, Jan 8, 2016 at 3:15 PM, Andy Lutomirski <luto@kernel.org> wrote:
+> +       /*
+> +        * We mustn't be preempted or handle an IPI while reading and
+> +        * writing CR3.  Preemption could switch mms and switch back, and
+> +        * an IPI could call leave_mm.  Either of those could cause our
+> +        * PCID to change asynchronously.
+> +        */
+> +       raw_local_irq_save(flags);
+>         native_write_cr3(native_read_cr3());
+> +       raw_local_irq_restore(flags);
 
-> removed extra newlines and avoid too many characters in one line.
+This seems sad for two reasons:
 
-Some of these patches are just too trivial, sorry.
+ - it adds unnecessary overhead on non-pcid setups (32-bit being an
+example of that)
 
-And that doesn't mean "send them to trivial@kernel.org"!  They're too
-trivial for that as well.
+ - on pcid setups, wouldn't invpcid_flush_single_context() be better?
+
+So on the whole I hate it.
+
+Why isn't this something like
+
+        if (static_cpu_has_safe(X86_FEATURE_INVPCID)) {
+                invpcid_flush_single_context();
+                return;
+        }
+        native_write_cr3(native_read_cr3());
+
+*without* any flag saving crud?
+
+And yes, that means that we'd require X86_FEATURE_INVPCID in order to
+use X86_FEATURE_PCID, but that seems fine.
+
+Or is there some reason you wanted the odd flags version? If so, that
+should be documented.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
