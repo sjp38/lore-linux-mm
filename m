@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C0E436B0256
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:35:44 -0500 (EST)
-Received: by mail-io0-f179.google.com with SMTP id g73so81902161ioe.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:35:44 -0800 (PST)
-Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
-        by mx.google.com with ESMTPS id n67si7741750ioi.144.2016.01.08.00.35.43
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 194716B0256
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:35:55 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id ba1so348889157obb.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:35:55 -0800 (PST)
+Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
+        by mx.google.com with ESMTPS id c71si52961734oih.74.2016.01.08.00.35.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 00:35:44 -0800 (PST)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 550FFAC0488
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 17:35:36 +0900 (JST)
+        Fri, 08 Jan 2016 00:35:54 -0800 (PST)
+Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
+	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 922B5AC02E3
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 17:35:48 +0900 (JST)
 From: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Subject: [PATCH v4 0/2] mm: Introduce kernelcore=mirror option
-Date: Fri,  8 Jan 2016 17:26:19 +0900
-Message-Id: <1452241579-19601-1-git-send-email-izumi.taku@jp.fujitsu.com>
+Subject: [PATCH v4 1/2] mm/page_alloc.c: calculate zone_start_pfn at zone_spanned_pages_in_node()
+Date: Fri,  8 Jan 2016 17:26:37 +0900
+Message-Id: <1452241597-19640-1-git-send-email-izumi.taku@jp.fujitsu.com>
 In-Reply-To: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
 References: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,80 +23,142 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk, arnd@arndb.de, steve.capper@linaro.org, sudeep.holla@arm.com, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-Xeon E7 v3 based systems supports Address Range Mirroring
-and UEFI BIOS complied with UEFI spec 2.5 can notify which
-ranges are mirrored (reliable) via EFI memory map.
-Now Linux kernel utilize its information and allocates 
-boot time memory from reliable region.
+Currently each zone's zone_start_pfn is calculated at
+free_area_init_core().  However zone's range is fixed at the time when
+invoking zone_spanned_pages_in_node().
 
-My requirement is:
-  - allocate kernel memory from mirrored region 
-  - allocate user memory from non-mirrored region
-
-In order to meet my requirement, ZONE_MOVABLE is useful.
-By arranging non-mirrored range into ZONE_MOVABLE, 
-mirrored memory is used for kernel allocations.
-
-My idea is to extend existing "kernelcore" option and 
-introduces kernelcore=mirror option. By specifying
-"mirror" instead of specifying the amount of memory,
-non-mirrored region will be arranged into ZONE_MOVABLE.
-
-Earlier discussions are at: 
- https://lkml.org/lkml/2015/10/9/24
- https://lkml.org/lkml/2015/10/15/9
- https://lkml.org/lkml/2015/11/27/18
- https://lkml.org/lkml/2015/12/8/836
-
-For example, suppose 2-nodes system with the following memory
- range: 
-  node 0 [mem 0x0000000000001000-0x000000109fffffff] 
-  node 1 [mem 0x00000010a0000000-0x000000209fffffff]
-and the following ranges are marked as reliable (mirrored):
-  [0x0000000000000000-0x0000000100000000] 
-  [0x0000000100000000-0x0000000180000000] 
-  [0x0000000800000000-0x0000000880000000] 
-  [0x00000010a0000000-0x0000001120000000]
-  [0x00000017a0000000-0x0000001820000000] 
-
-If you specify kernelcore=mirror, ZONE_NORMAL and ZONE_MOVABLE
-are arranged like bellow:
-
- - node 0:
-  ZONE_NORMAL : [0x0000000100000000-0x00000010a0000000]
-  ZONE_MOVABLE: [0x0000000180000000-0x00000010a0000000]
- - node 1: 
-  ZONE_NORMAL : [0x00000010a0000000-0x00000020a0000000]
-  ZONE_MOVABLE: [0x0000001120000000-0x00000020a0000000]
- 
-In overlapped range, pages to be ZONE_MOVABLE in ZONE_NORMAL
-are treated as absent pages, and vice versa.
-
-This patchset is created against "akpm" branch of linux-next
-
+This patch changes each zone->zone_start_pfn is calculated at
+zone_spanned_pages_in_node().
 
 v1 -> v2:
- - Refine so that the above example case also can be
- handled properly:
-v2 -> v3:
- - Change the option name from kernelcore=reliable
- into kernelcore=mirror and some documentation fix
- according to Andrew Morton's point
-v3 -> v4:
  - Fix up the case of CONFIG_HAVE_MEMBLOCK_NODE_MAP=n
-   (Fix boot failed of ARM machines)
  - No functional change in case of CONFIG_HAVE_MEMBLOCK_NODE_MAP=y
 
+Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+---
+ mm/page_alloc.c | 40 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 29 insertions(+), 11 deletions(-)
 
-Taku Izumi (2):
-  mm/page_alloc.c: calculate zone_start_pfn at
-    zone_spanned_pages_in_node()
-  mm/page_alloc.c: introduce kernelcore=mirror option
-
- Documentation/kernel-parameters.txt |  12 ++-
- mm/page_alloc.c                     | 154 ++++++++++++++++++++++++++++++++----
- 2 files changed, 148 insertions(+), 18 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3c3a5c5..efb8996 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5076,31 +5076,31 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+ 					unsigned long node_start_pfn,
+ 					unsigned long node_end_pfn,
++					unsigned long *zone_start_pfn,
++					unsigned long *zone_end_pfn,
+ 					unsigned long *ignored)
+ {
+-	unsigned long zone_start_pfn, zone_end_pfn;
+-
+ 	/* When hotadd a new node from cpu_up(), the node should be empty */
+ 	if (!node_start_pfn && !node_end_pfn)
+ 		return 0;
+ 
+ 	/* Get the start and end of the zone */
+-	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+-	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
++	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
++	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 				node_start_pfn, node_end_pfn,
+-				&zone_start_pfn, &zone_end_pfn);
++				zone_start_pfn, zone_end_pfn);
+ 
+ 	/* Check that this node has pages within the zone's required range */
+-	if (zone_end_pfn < node_start_pfn || zone_start_pfn > node_end_pfn)
++	if (*zone_end_pfn < node_start_pfn || *zone_start_pfn > node_end_pfn)
+ 		return 0;
+ 
+ 	/* Move the zone boundaries inside the node if necessary */
+-	zone_end_pfn = min(zone_end_pfn, node_end_pfn);
+-	zone_start_pfn = max(zone_start_pfn, node_start_pfn);
++	*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
++	*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
+ 
+ 	/* Return the spanned pages */
+-	return zone_end_pfn - zone_start_pfn;
++	return *zone_end_pfn - *zone_start_pfn;
+ }
+ 
+ /*
+@@ -5165,8 +5165,18 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+ 					unsigned long node_start_pfn,
+ 					unsigned long node_end_pfn,
++					unsigned long *zone_start_pfn,
++					unsigned long *zone_end_pfn,
+ 					unsigned long *zones_size)
+ {
++	unsigned int zone;
++
++	*zone_start_pfn = node_start_pfn;
++	for (zone = 0; zone < zone_type; zone++)
++		*zone_start_pfn += zones_size[zone];
++
++	*zone_end_pfn = *zone_start_pfn + zones_size[zone_type];
++
+ 	return zones_size[zone_type];
+ }
+ 
+@@ -5195,15 +5205,22 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
+ 
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
++		unsigned long zone_start_pfn, zone_end_pfn;
+ 		unsigned long size, real_size;
+ 
+ 		size = zone_spanned_pages_in_node(pgdat->node_id, i,
+ 						  node_start_pfn,
+ 						  node_end_pfn,
++						  &zone_start_pfn,
++						  &zone_end_pfn,
+ 						  zones_size);
+ 		real_size = size - zone_absent_pages_in_node(pgdat->node_id, i,
+ 						  node_start_pfn, node_end_pfn,
+ 						  zholes_size);
++		if (size)
++			zone->zone_start_pfn = zone_start_pfn;
++		else
++			zone->zone_start_pfn = 0;
+ 		zone->spanned_pages = size;
+ 		zone->present_pages = real_size;
+ 
+@@ -5324,7 +5341,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ {
+ 	enum zone_type j;
+ 	int nid = pgdat->node_id;
+-	unsigned long zone_start_pfn = pgdat->node_start_pfn;
+ 	int ret;
+ 
+ 	pgdat_resize_init(pgdat);
+@@ -5340,6 +5356,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, freesize, memmap_pages;
++		unsigned long zone_start_pfn = zone->zone_start_pfn;
+ 
+ 		size = zone->spanned_pages;
+ 		realsize = freesize = zone->present_pages;
+@@ -5408,7 +5425,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		BUG_ON(ret);
+ 		memmap_init(size, nid, j, zone_start_pfn);
+-		zone_start_pfn += size;
+ 	}
+ }
+ 
+@@ -5476,6 +5492,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
+ 		(u64)start_pfn << PAGE_SHIFT,
+ 		end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
++#else
++	start_pfn = node_start_pfn;
+ #endif
+ 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
+ 				  zones_size, zholes_size);
 -- 
 1.9.1
 
