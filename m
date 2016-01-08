@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5AD828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 18:52:38 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id xn1so66885853obc.2
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 15:52:38 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id dh8si14691162obb.81.2016.01.07.15.52.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 15:52:38 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in hugetlb_vmtruncate_list
-References: <1452206137-12441-1-git-send-email-mike.kravetz@oracle.com>
- <20160107151356.0e131b25f5740f6046221419@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <568EF9F9.8050404@oracle.com>
-Date: Thu, 7 Jan 2016 15:51:21 -0800
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 17A006B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 20:14:00 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id q63so1618603pfb.1
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 17:14:00 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id xd1si74787688pab.130.2016.01.07.17.13.59
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jan 2016 17:13:59 -0800 (PST)
+Subject: Re: [PATCH v4] memory-hotplug: Fix kernel warning during memory
+ hotplug on ppc64
+References: <568D9568.1010808@linux.vnet.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <568F0D56.5010908@intel.com>
+Date: Thu, 7 Jan 2016 17:13:58 -0800
 MIME-Version: 1.0
-In-Reply-To: <20160107151356.0e131b25f5740f6046221419@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <568D9568.1010808@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>, stable@vger.kernel.org
+To: John Allen <jallen@linux.vnet.ibm.com>, gregkh@linuxfoundation.org
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>, akpm@linux-foundation.org, Michael Ellerman <mpe@ellerman.id.au>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Linux-MM <linux-mm@kvack.org>Andrew Morton <akpm@linux-foundation.org>
 
-On 01/07/2016 03:13 PM, Andrew Morton wrote:
-> On Thu,  7 Jan 2016 14:35:37 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> 
->> Hillf Danton noticed bugs in the hugetlb_vmtruncate_list routine.
->> The argument end is of type pgoff_t.  It was being converted to a
->> vaddr offset and passed to unmap_hugepage_range.  However, end
->> was also being used as an argument to the vma_interval_tree_foreach
->> controlling loop.  In addition, the conversion of end to vaddr offset
->> was incorrect.
-> 
-> Could we please have a description of the user-visible effects of the
-> bug?  It's always needed for -stable things.  And for all bugfixes, really.
-> 
-> (stable@vger.kernel.org[4.3] isn't an email address btw - my client barfed)
+On 01/06/2016 02:30 PM, John Allen wrote:
+> On any architecture that uses memory_probe_store to reserve memory, the
+> udev rule will be triggered after the first section of the block is
+> reserved and will subsequently attempt to online the entire block,
+> interrupting the memory reservation process and causing the warning.
+> This patch modifies memory_probe_store to add a block of memory with
+> a single call to add_memory as opposed to looping through and adding
+> each section individually. A single call to add_memory is protected by
+> the mem_hotplug mutex which will prevent the udev rule from onlining
+> memory until the reservation of the entire block is complete.
 
-Will do.
+Seems sane to me.  Makes the code simpler too, so win win.
 
-As I stare at the code to come up with user visible effects, I am not
-convinced the fix is correct.  An update will come after more study.
-
--- 
-Mike Kravetz
+Acked-by: Dave Hansen <dave.hansen@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
