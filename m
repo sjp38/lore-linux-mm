@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 021E5828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:02:29 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id bc4so219804203lbc.2
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:02:28 -0800 (PST)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id l188si22313366lfb.29.2016.01.08.00.02.27
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4435C6B0255
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:15:25 -0500 (EST)
+Received: by mail-oi0-f42.google.com with SMTP id k206so6641501oia.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:15:25 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id wc7si20313052oeb.88.2016.01.08.00.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 00:02:27 -0800 (PST)
-Received: by mail-lf0-x242.google.com with SMTP id t141so1618927lfd.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:02:27 -0800 (PST)
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH] mm/page_alloc: remove unused struct zone *z variable
-Date: Fri,  8 Jan 2016 13:59:08 +0600
-Message-Id: <1452239948-1012-1-git-send-email-kuleshovmail@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Jan 2016 00:15:24 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/mmap.c: remove redundant check "if (length <
+ info->length)"
+Date: Fri, 8 Jan 2016 08:11:27 +0000
+Message-ID: <20160108081125.GA11868@hori1.linux.bs1.fc.nec.co.jp>
+References: <20160107165923.77fea9a3@debian>
+In-Reply-To: <20160107165923.77fea9a3@debian>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <622C146B41276042A4698AD875E6B7BA@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Yaowei Bai <bywxiaobai@163.com>, Xishi Qiu <qiuxishi@huawei.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Kuleshov <kuleshovmail@gmail.com>
+To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch removes unused struct zone *z variable which is
-appeared in 86051ca5eaf5 (mm: fix usemap initialization)
+On Thu, Jan 07, 2016 at 04:59:23PM +0800, Wang Xiaoqiang wrote:
+> Hi, all,
+>=20
+> since the code:
+>=20
+> length =3D info->length + info->align_mask
+>=20
+> and all variables above are "unsigned long" type,
+> so there must be "length >=3D info->length".
 
-Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
----
- mm/page_alloc.c | 2 --
- 1 file changed, 2 deletions(-)
+I think that if info->align_mask is "very large" as an unsigned long value
+and the sum of these 2 overflows, length can become smaller than info->leng=
+th,
+so we seem to need the check.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d666df..9bde098 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4471,13 +4471,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long end_pfn = start_pfn + size;
- 	unsigned long pfn;
--	struct zone *z;
- 	unsigned long nr_initialised = 0;
- 
- 	if (highest_memmap_pfn < end_pfn - 1)
- 		highest_memmap_pfn = end_pfn - 1;
- 
--	z = &pgdat->node_zones[zone];
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		/*
- 		 * There can be holes in boot-time mem_map[]s
--- 
-2.6.2.485.g1bc8fea
+But why returning -ENOMEM?  Isn't it worth VM_BUG_ON()?
+
+Thanks,
+Naoya Horiguchi
+
+>=20
+> Signed-off-by: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+> ---
+>  mm/mmap.c | 2 --
+>  1 file changed, 2 deletions(-)
+>=20
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2ce04a6..99fc461 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1716,8 +1716,6 @@ unsigned long unmapped_area(struct vm_unmapped_area=
+_info *info)
+> =20
+>  	/* Adjust search length to account for worst case alignment overhead */
+>  	length =3D info->length + info->align_mask;
+> -	if (length < info->length)
+> -		return -ENOMEM;
+> =20
+>  	/* Adjust search limits by the desired length */
+>  	if (info->high_limit < length)
+> --=20
+> 2.1.4
+>=20
+> thanks,
+> Wang Xiaoqiang
+>=20
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
