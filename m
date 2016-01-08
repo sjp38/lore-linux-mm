@@ -1,159 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 33CE4828DE
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2016 23:44:28 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id cy9so275375272pac.0
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 20:44:28 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id cj5si60308569pad.65.2016.01.07.20.44.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jan 2016 20:44:27 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
- <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <568F3D73.60901@oracle.com>
-Date: Thu, 7 Jan 2016 20:39:15 -0800
-MIME-Version: 1.0
-In-Reply-To: <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A681E828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 00:28:13 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id ho8so15288707pac.2
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 21:28:13 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hp4si71961805pad.113.2016.01.07.21.28.12
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jan 2016 21:28:12 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v8 0/9] DAX fsync/msync support
+Date: Thu,  7 Jan 2016 22:27:50 -0700
+Message-Id: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michel Lespinasse' <walken@google.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-On 01/07/2016 12:06 AM, Hillf Danton wrote:
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 0444760..0871d70 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)
->>  	delete_from_page_cache(page);
->>  }
->>
->> +static inline void
->> +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
->> +{
->> +	struct vm_area_struct *vma;
->> +
->> +	/*
->> +	 * end == 0 indicates that the entire range after
->> +	 * start should be unmapped.
->> +	 */
->> +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> 
-> [1] perhaps end can be reused.
-> 
->> +		unsigned long v_offset;
->> +
->> +		/*
->> +		 * Can the expression below overflow on 32-bit arches?
->> +		 * No, because the interval tree returns us only those vmas
->> +		 * which overlap the truncated area starting at pgoff,
->> +		 * and no vma on a 32-bit arch can span beyond the 4GB.
->> +		 */
->> +		if (vma->vm_pgoff < start)
->> +			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
->> +		else
->> +			v_offset = 0;
->> +
->> +		if (end) {
->> +			end = ((end - start) << PAGE_SHIFT) +
->> +			       vma->vm_start + v_offset;
-> 
-> [2] end is input to be pgoff_t, but changed to be the type of v_offset.
-> Further we cannot handle the case that end is input to be zero.
-> See the diff below please.
->
-<snip>
-> 
-> --- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016
-> +++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016
-> @@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro
->  	 * end == 0 indicates that the entire range after
->  	 * start should be unmapped.
->  	 */
-> -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> +	if (!end)
-> +		end = ULONG_MAX;
-> +	vma_interval_tree_foreach(vma, root, start, end) {
->  		unsigned long v_offset;
-> +		unsigned long v_end;
->  
->  		/*
->  		 * Can the expression below overflow on 32-bit arches?
-> @@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro
->  		else
->  			v_offset = 0;
->  
-> -		if (end) {
-> -			end = ((end - start) << PAGE_SHIFT) +
-> +		v_end = ((end - start) << PAGE_SHIFT) +
->  			       vma->vm_start + v_offset;
-> -			if (end > vma->vm_end)
-> -				end = vma->vm_end;
-> -		} else
-> -			end = vma->vm_end;
-> +		if (v_end > vma->vm_end)
-> +			v_end = vma->vm_end;
->  
-> -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
-> +		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end, NULL);
->  	}
->  }
->  
-> --
+Changes since v7 [1]:
 
-Unfortunately, that calculation of v_end is not correct.  I know it
-is based on the existing code, but the existing code it not correct.
+1) Update patch 1 so that we initialize bh->b_bdev before passing it to
+get_block() instead of working around the fact that it could still be NULL
+after get_block() completes. (Dan)
 
-I attempted to fix in a patch earlier today, but that was not correct
-either.  Below is a proposed new version of hugetlb_vmdelete_list.
-Let me know what you think.
+2) Add a check to dax_radix_entry() so that we WARN_ON_ONCE() and exit
+gracefully if we find a page cache entry still in the radix tree when
+trying to insert a DAX entry.
 
-static inline void
-hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
-{
-	struct vm_area_struct *vma;
+This series replaces v7 in the MM tree and in the "akpm" branch of the next
+tree.  A working tree can be found here:
 
-	/*
-	 * end == 0 indicates that the entire range after
-	 * start should be unmapped.
-	 */
-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-		unsigned long v_offset;
-		unsigned long v_end;
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=fsync_v8
 
-		/*
-		 * Can the expression below overflow on 32-bit arches?
-		 * No, because the interval tree returns us only those vmas
-		 * which overlap the truncated area starting at pgoff,
-		 * and no vma on a 32-bit arch can span beyond the 4GB.
-		 */
-		if (vma->vm_pgoff < start)
-			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
-		else
-			v_offset = 0;
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2016-January/003886.html
 
-		if (!end)
-			v_end = vma->vm_end;
-		else {
-			v_end = ((end - vma->vm_pgoff) << PAGE_SHIFT)
-							+ vma->vm_start;
-			if (v_end > vma->vm_end)
-				v_end = vma->vm_end;
-		}
+Ross Zwisler (9):
+  dax: fix NULL pointer dereference in __dax_dbg()
+  dax: fix conversion of holes to PMDs
+  pmem: add wb_cache_pmem() to the PMEM API
+  dax: support dirty DAX entries in radix tree
+  mm: add find_get_entries_tag()
+  dax: add support for fsync/msync
+  ext2: call dax_pfn_mkwrite() for DAX fsync/msync
+  ext4: call dax_pfn_mkwrite() for DAX fsync/msync
+  xfs: call dax_pfn_mkwrite() for DAX fsync/msync
 
-		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end,
-									NULL);
-	}
-}
+ arch/x86/include/asm/pmem.h |  11 +--
+ fs/block_dev.c              |   2 +-
+ fs/dax.c                    | 215 ++++++++++++++++++++++++++++++++++++++++----
+ fs/ext2/file.c              |   4 +-
+ fs/ext4/file.c              |   4 +-
+ fs/inode.c                  |   2 +-
+ fs/xfs/xfs_file.c           |   7 +-
+ include/linux/dax.h         |   7 ++
+ include/linux/fs.h          |   3 +-
+ include/linux/pagemap.h     |   3 +
+ include/linux/pmem.h        |  22 ++++-
+ include/linux/radix-tree.h  |   9 ++
+ mm/filemap.c                |  91 +++++++++++++++++--
+ mm/truncate.c               |  69 +++++++-------
+ mm/vmscan.c                 |   9 +-
+ mm/workingset.c             |   4 +-
+ 16 files changed, 393 insertions(+), 69 deletions(-)
 
 -- 
-Mike Kravetz
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
