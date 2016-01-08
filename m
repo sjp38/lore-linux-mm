@@ -1,170 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B4F5828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 11:36:46 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id b14so179588427wmb.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 08:36:46 -0800 (PST)
-Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
-        by mx.google.com with ESMTPS id y126si28624142wmd.120.2016.01.08.08.36.45
+Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 94CC8828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 11:49:40 -0500 (EST)
+Received: by mail-lf0-f49.google.com with SMTP id d17so12769956lfb.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 08:49:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n9si964339lbd.135.2016.01.08.08.49.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 08:36:45 -0800 (PST)
-Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
-Date: Fri, 08 Jan 2016 11:36:44 -0500
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <MlEP9uqReCv7NftCLWPAYNaNKA8U9H41_UgMHwMv0qelG9Q4NiVURosYKMck7en52IocTne6nvaTEcJRk2qTrQ==@protonmail.ch>
-In-Reply-To: <uywjiEnwKZXpN_45W7m7NCUzBWvntcu6YsAFaAgM2kJLHBFbArd1Z3pDt1Hxpx6XUgp8iI36V9_v53lGBNBT1A==@protonmail.ch>
-References: <uywjiEnwKZXpN_45W7m7NCUzBWvntcu6YsAFaAgM2kJLHBFbArd1Z3pDt1Hxpx6XUgp8iI36V9_v53lGBNBT1A==@protonmail.ch>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 08 Jan 2016 08:49:39 -0800 (PST)
+Date: Fri, 8 Jan 2016 17:49:31 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v3 22/22] thermal/intel_powerclamp: Convert the kthread
+ to kthread worker API
+Message-ID: <20160108164931.GT3178@pathway.suse.cz>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+ <1447853127-3461-23-git-send-email-pmladek@suse.com>
+ <20160107115531.34279a9b@icelake>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_b9f8fe918d277b0335125f47e562bf8f"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160107115531.34279a9b@icelake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, linux-pm@vger.kernel.org
 
-This is a multi-part message in MIME format.
+On Thu 2016-01-07 11:55:31, Jacob Pan wrote:
+> On Wed, 18 Nov 2015 14:25:27 +0100
+> Petr Mladek <pmladek@suse.com> wrote:
+> I have tested this patchset and found no obvious issues in terms of
+> functionality, power and performance. Tested CPU online/offline,
+> suspend resume, freeze etc.
+> Power numbers are comparable too. e.g. on IVB 8C system. Inject idle
+> from 5 to 50% and read package power while running CPU bound workload.
 
---b1_b9f8fe918d277b0335125f47e562bf8f
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Great news. Thanks a lot for testing.
 
-SGVsbG8/IDopCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJqZWN0OiBS
-ZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9
-PT09PT09PT09CkxvY2FsIFRpbWU6IE9jdG9iZXIgOCAyMDE1IDc6MzAgYW0KVVRDIFRpbWU6IE9j
-dG9iZXIgOCAyMDE1IDU6MzAgYW0KRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4
-LW1tQGt2YWNrLm9yZyxicEBhbGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5v
-cmcsY2xAbGludXgtZm91bmRhdGlvbi5vcmcKClBsZWFzZSByZXBseT8KCgotLS0tLS0tLSBPcmln
-aW5hbCBNZXNzYWdlIC0tLS0tLS0tClN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5j
-cnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT0KVGltZSAoVVRDKTogU2Vw
-dGVtYmVyIDMgMjAxNSAyOjI5IHBtCkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoClRvOiBsaW51
-eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwu
-b3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgpJcyBhbnlib2R5IGhlcmU/IDopCgoKLS0tLS0t
-LS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJqZWN0OiBSZTogPT09PT09PT09PSBSZTog
-UkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09PT09PT09ClRpbWUgKFVU
-Qyk6IEF1Z3VzdCA0IDIwMTUgNzo0MiBhbQpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaApUbzog
-bGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxsaXplZmFuQGh1YXdlaS5jb20sdGpAa2Vy
-bmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKSGFsbG8/CgotLS0tLS0tLSBPcmlnaW5h
-bCBNZXNzYWdlIC0tLS0tLS0tClN1YmplY3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9u
-IGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PQpUaW1lIChHTVQpOiBKdW4gMjMgMjAx
-NSAwNDo0MjozNApGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaApUbzogbGludXgtbW1Aa3ZhY2su
-b3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xA
-bGludXgtZm91bmRhdGlvbi5vcmcKCklzIGFueWJvZHkgcmVhZGluZyB0aGlzPwoKLS0tLS0tLS0g
-T3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5k
-IGtleSBzdG9yaW5nIGluIENQVQpUaW1lIChHTVQpOiBKdW4gMTkgMjAxNSAxNzoyMjo0OQpGcm9t
-OiBuZ2Fib3JAcHJvdG9ubWFpbC5jaApUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjgu
-ZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlv
-bi5vcmcKCkhhbGxvPyA6KQoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJq
-ZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVQpUaW1lIChHTVQp
-OiBNYXkgMjMgMjAxNSAwOTowMToyNgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaApUbzogbGlu
-dXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2Vy
-bmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcKCkFueSBjb21tZW50cz8KCi0tLS0tLS0t
-IE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtl
-eSBzdG9yaW5nIGluIENQVQpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQpGcm9tOiBu
-Z2Fib3JAcHJvdG9ubWFpbC5jaApUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUs
-IGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5v
-cmcKCkhlbGxvLAoKPT09PT09PT09PQpQcm9ibGVtOgoKRXZlcnl0aGluZyBpcyBzdG9yZWQgaW4g
-cGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgpTbyBpZiBhbHRob3VnaCBmdWxsIGRpc2MgZW5jcnlw
-dGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMgcG9zc2libGUgdG8gY29weSB0
-aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90ZWJvb2sgd2FzIG9uIHN1c3Bl
-bmQgb3IgaXQgd2FzIHJ1bm5pbmc6CgpodHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJj
-aC9tZW1vcnkvbWVkaWEvCgo9PT09PT09PT09ClNvbHV0aW9uOgoKQ2FuIHdlIChvcHRpb25hbGx5
-KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5IGFuZCBzdG9yZSB0aGUga2V5IGZv
-ciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4gZ2VuZXJhbCB0aGVzZSBraW5kIG9m
-IGF0dGFja3M/CgpodHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29y
-CgpJcyB0aGlzIHNvbHV0aW9uIGFscmVhZHkgaW4gdGhlIExpbnV4IGtlcm5lbD8gSWYgeWVzLCBo
-b3cgY2FuIGEgTGludXggZW5kdXNlciB0dXJuIGl0IG9uPyBJZiBubywgaG93IGNhbiB3ZSBnZXQg
-dGhlIGNvZGUvaWRlYSBpbiB0aGUgbWFpbmxpbmU/IFdoYXQgYXJlIHRoZSBhcmd1bWVudHMgYWdh
-aW5zdCBpdD8KCippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVz
-a3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9u
-IHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5v
-dGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KClRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50cy4=
+> > IMHO, the most natural way is to split one cycle into two works.
+> > First one does some balancing and let the CPU work normal
+> > way for some time. The second work checks what the CPU has done
+> > in the meantime and put it into C-state to reach the required
+> > idle time ratio. The delay between the two works is achieved
+> > by the delayed kthread work.
+> > 
+> > The two works have to share some data that used to be local
+> > variables of the single kthread function. This is achieved
+> > by the new per-CPU struct kthread_worker_data. It might look
+> > as a complication. On the other hand, the long original kthread
+> > function was not nice either.
+> > 
+> > The two works are queuing each other. It makes it a bit tricky to
+> > break it when we want to stop the worker. We use the global and
+> > per-worker "clamping" variables to make sure that the re-queuing
+> > eventually stops. We also cancel the works to make it faster.
+> > Note that the canceling is not reliable because the handling
+> > of the two variables and queuing is not synchronized via a lock.
+> > But it is not a big deal because it is just an optimization.
+> > The job is stopped faster than before in most cases.
+
+> I am not convinced this added complexity is necessary, here are my
+> concerns by breaking down into two work items.
+
+I am not super happy with the split either. But the current state has
+its drawback as well.
 
 
---b1_b9f8fe918d277b0335125f47e562bf8f
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
+> - overhead of queuing,
 
-PGRpdj5IZWxsbz8gOik8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGJsb2NrcXVvdGUgY2xhc3M9
-InByb3Rvbm1haWxfcXVvdGUiPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0t
-LTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlv
-biBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT08YnI+PC9kaXY+PGRpdj5Mb2NhbCBU
-aW1lOiBPY3RvYmVyIDggMjAxNSA3OjMwIGFtPGJyPjwvZGl2PjxkaXY+VVRDIFRpbWU6IE9jdG9i
-ZXIgOCAyMDE1IDU6MzAgYW08YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5j
-aDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVm
-YW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwv
-ZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+UGxlYXNlIHJlcGx5PyA8YnI+PC9kaXY+PGRpdj48YnI+
-PC9kaXY+PGJsb2NrcXVvdGUgY2xhc3M9InByb3Rvbm1haWxfcXVvdGUiPjxkaXY+LS0tLS0tLS0g
-T3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiA9PT09
-PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09
-PT08YnI+PC9kaXY+PGRpdj5UaW1lIChVVEMpOiBTZXB0ZW1iZXIgMyAyMDE1IDI6MjkgcG08YnI+
-PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBs
-aW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJu
-ZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
-aXY+SXMgYW55Ym9keSBoZXJlPyA6KTxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48YmxvY2txdW90
-ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5T
-dWJqZWN0OiBSZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
-IGluIENQVSA9PT09PT09PT09PGJyPjwvZGl2PjxkaXY+VGltZSAoVVRDKTogQXVndXN0IDQgMjAx
-NSA3OjQyIGFtPGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9k
-aXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxsaXplZmFuQGh1YXdl
-aS5jb20sdGpAa2VybmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2
-Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0t
-LSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogPT09PT09
-PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09PT09PT09
-PGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogSnVuIDIzIDIwMTUgMDQ6NDI6MzQ8YnI+PC9kaXY+
-PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1t
-bUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwu
-b3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
-PklzIGFueWJvZHkgcmVhZGluZyB0aGlzPyA8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0t
-LS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUmU6
-IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFU8YnI+PC9kaXY+PGRpdj5UaW1l
-IChHTVQpOiBKdW4gMTkgMjAxNSAxNzoyMjo0OTxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJvckBw
-cm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxp
-ZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5k
-YXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SGFsbG8/IDopPGJyPjwvZGl2
-PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48
-L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4g
-Q1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogTWF5IDIzIDIwMTUgMDk6MDE6MjY8YnI+PC9k
-aXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51
-eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJu
-ZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48
-ZGl2PkFueSBjb21tZW50cz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3Jp
-Z2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJBTSBlbmNyeXB0
-aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFU8YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBNYXkg
-MjEgMjAxNSAxMDoxNzoyNTxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNo
-PGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXpl
-ZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJy
-PjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SGVsbG8sIDxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
-dj48ZGl2Pj09PT09PT09PT08YnI+PC9kaXY+PGRpdj48Yj5Qcm9ibGVtPC9iPjogPGJyPjwvZGl2
-PjxkaXY+PGJyPjwvZGl2PjxkaXY+RXZlcnl0aGluZyBpcyBzdG9yZWQgaW4gcGxhaW50ZXh0IGlu
-IHRoZSBNZW1vcnkuIDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlNvIGlmIGFsdGhvdWdo
-IGZ1bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBw
-b3NzaWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3Rl
-Ym9vayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzogPGJyPjwvZGl2PjxkaXY+PGJy
-PjwvZGl2PjxkaXY+PGEgaHJlZj0iaHR0cHM6Ly9jaXRwLnByaW5jZXRvbi5lZHUvcmVzZWFyY2gv
-bWVtb3J5L21lZGlhLyI+aHR0cHM6Ly9jaXRwLnByaW5jZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5
-L21lZGlhLzwvYT48YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwv
-ZGl2PjxkaXY+PGI+U29sdXRpb248L2I+OiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5D
-YW4gd2UgKG9wdGlvbmFsbHkqKSBlbmNyeXB0IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnkgYW5k
-IHN0b3JlIHRoZSBrZXkgZm9yIGRlY3J5cHRpb24gaW4gdGhlIENQVSB0byBhdm9pZCBpbiBnZW5l
-cmFsIHRoZXNlIGtpbmQgb2YgYXR0YWNrcz8gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+
-PGEgaHJlZj0iaHR0cHM6Ly93d3cxLmluZm9ybWF0aWsudW5pLWVybGFuZ2VuLmRlL3RyZXNvciI+
-aHR0cHM6Ly93d3cxLmluZm9ybWF0aWsudW5pLWVybGFuZ2VuLmRlL3RyZXNvcjwvYT48YnI+PC9k
-aXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JcyB0aGlzIHNvbHV0aW9uIGFscmVhZHkgaW4gdGhlIExp
-bnV4IGtlcm5lbD8gSWYgeWVzLCBob3cgY2FuIGEgTGludXggZW5kdXNlciB0dXJuIGl0IG9uPyBJ
-ZiBubywgaG93IGNhbiB3ZSBnZXQgdGhlIGNvZGUvaWRlYSBpbiB0aGUgbWFpbmxpbmU/IFdoYXQg
-YXJlIHRoZSBhcmd1bWVudHMgYWdhaW5zdCBpdD8gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
-aXY+KmlmIHNvbWVvbmUgd291bGQgd2FudCB0byBoYXJkZW4gaXQncyBMaW51eCBEZXNrdG9wIChz
-aW5jZSBub3RlYm9va3MgY291bGQgYmUgc3RvbGVuLi4pIGl0IGNvdWxkIHR1cm4gb24gdGhpcyBm
-ZWF0dXJlIHRvIGF2b2lkIGEgcG9saWN5IHRvIGFsd2F5cyB0dXJuIG9mZiB0aGUgbm90ZWJvb2sg
-d2hpbGUgbm90IHVzaW5nIGl0LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5UaGFuayB5
-b3UgZm9yIHlvdXIgY29tbWVudHMuIDxicj48L2Rpdj48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3Rl
-PjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT48ZGl2
-Pjxicj48L2Rpdj48L2Jsb2NrcXVvdGU+
+Good question. Here is a rather typical snippet from function_graph
+tracer of the clamp_balancing func:
+
+  31)               |  clamp_balancing_func() {
+  31)               |    queue_delayed_kthread_work() {
+  31)               |      __queue_delayed_kthread_work() {
+  31)               |        add_timer() {
+  31)   4.906 us    |        }
+  31)   5.959 us    |      }
+  31)   9.702 us    |    }
+  31) + 10.878 us   |  }
+
+On one hand it spends most of the time (10 of 11 secs) in queueing
+the work. On the other hand, half of this time is spent on adding
+the timer. schedule_timeout() would need to setup the timer as well.
 
 
+Here is a snippet from clamp_idle_injection_func()
 
---b1_b9f8fe918d277b0335125f47e562bf8f--
+  31)               |  clamp_idle_injection_func() {
+  31)               |    smp_apic_timer_interrupt() {
+  31) + 67.523 us   |    }
+  31)               |    smp_apic_timer_interrupt() {
+  31) + 59.946 us   |    }
+  ...
+  31)               |    queue_kthread_work() {
+  31)   4.314 us    |    }
+  31) * 24075.11 us |  }
+
+
+Of course, it spends most of the time in the idle state. Anyway, the
+time spent on queuing is negligible in compare with the time spent
+in the several timer interrupt handlers.
+
+
+> per cpu data as you already mentioned.
+
+On the other hand, the variables need to be stored somewhere.
+Also it helps to split the rather long function into more pieces.
+
+
+> - since we need to have very tight timing control, two items may limit
+>   our turnaround time. Wouldn't it take one extra tick for the scheduler
+>   to run the balance work then add delay? as opposed to just
+>   schedule_timeout()?
+
+Kthread worker processes works until the queue is empty. It calls
+try_to_freeze() and __preempt_schedule() between the works.
+Where __preempt_schedule() is hidden in the spin_unlock_irq().
+
+try_to_freeze() is in the original code as well.
+
+Is the __preempt_schedule() a problem? It allows to switch the process
+when needed. I thought that it was safe because try_to_freeze() might
+have slept as well.
+
+
+> - vulnerable to future changes of queuing work
+
+The question is if it is safe to sleep, freeze, or even migrate
+the system between the works. It looks like because of the
+try_to_freeze() and schedule_interrupt() calls in the original code.
+
+BTW: I wonder if the original code correctly handle freezing after
+the schedule_timeout(). It does not call try_to_freeze()
+there and the forced idle states might block freezing.
+I think that the small overhead of kthread works is worth
+solving such bugs. It makes it easier to maintain these
+sleeping states.
+
+
+Thanks a lot for feedback,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
