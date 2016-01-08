@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 66B83828E9
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:49 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id uo6so271556877pac.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:49 -0800 (PST)
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A0480828E9
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:50 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id q63so16322106pfb.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:50 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id ww1si19628688pab.181.2016.01.08.15.15.48
+        by mx.google.com with ESMTP id d3si21159548pas.116.2016.01.08.15.15.49
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 15:15:48 -0800 (PST)
+        Fri, 08 Jan 2016 15:15:49 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 09/13] x86/mm: Disable interrupts when flushing the TLB using CR3
-Date: Fri,  8 Jan 2016 15:15:27 -0800
-Message-Id: <a75dbc8fb47148e7f7f3b171c033a5a11d83e690.1452294700.git.luto@kernel.org>
+Subject: [RFC 10/13] x86/mm: Factor out remote TLB flushing
+Date: Fri,  8 Jan 2016 15:15:28 -0800
+Message-Id: <357b13bf9d6d04e585894ff5dcf40fa14ea1d3a7.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
 References: <cover.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
@@ -21,33 +21,63 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
 
+There are three call sites that propagate TLB flushes, and they all
+do exactly the same thing.  Factor the code out into a helper.
+
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/include/asm/tlbflush.h | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ arch/x86/mm/tlb.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 3d905f12cda9..32e3d8769a22 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -135,7 +135,17 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
- 
- static inline void __native_flush_tlb(void)
- {
-+	unsigned long flags;
-+
-+	/*
-+	 * We mustn't be preempted or handle an IPI while reading and
-+	 * writing CR3.  Preemption could switch mms and switch back, and
-+	 * an IPI could call leave_mm.  Either of those could cause our
-+	 * PCID to change asynchronously.
-+	 */
-+	raw_local_irq_save(flags);
- 	native_write_cr3(native_read_cr3());
-+	raw_local_irq_restore(flags);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 8f4cc3dfac32..b208a33571b0 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -154,6 +154,14 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 	smp_call_function_many(cpumask, flush_tlb_func, &info, 1);
  }
  
- static inline void __native_flush_tlb_global_irq_disabled(void)
++static void propagate_tlb_flush(unsigned int this_cpu,
++				struct mm_struct *mm, unsigned long start,
++				unsigned long end)
++{
++	if (cpumask_any_but(mm_cpumask(mm), this_cpu) < nr_cpu_ids)
++		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
++}
++
+ void flush_tlb_current_task(void)
+ {
+ 	struct mm_struct *mm = current->mm;
+@@ -166,8 +174,7 @@ void flush_tlb_current_task(void)
+ 	local_flush_tlb();
+ 
+ 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
++	propagate_tlb_flush(smp_processor_id(), mm, 0UL, TLB_FLUSH_ALL);
+ 	preempt_enable();
+ }
+ 
+@@ -231,8 +238,7 @@ out:
+ 		start = 0UL;
+ 		end = TLB_FLUSH_ALL;
+ 	}
+-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, start, end);
++	propagate_tlb_flush(smp_processor_id(), mm, start, end);
+ 	preempt_enable();
+ }
+ 
+@@ -257,8 +263,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 		}
+ 	}
+ 
+-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, start, 0UL);
++	propagate_tlb_flush(smp_processor_id(), mm, start, 0UL);
+ 
+ 	preempt_enable();
+ }
 -- 
 2.5.0
 
