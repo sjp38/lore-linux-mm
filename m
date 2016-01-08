@@ -1,136 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 394DF828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 12:02:44 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id e65so12146773pfe.0
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 09:02:44 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id be4si1419470pad.177.2016.01.08.09.02.43
-        for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 09:02:43 -0800 (PST)
-Subject: Re: [PATCH v4 2/2] mm/page_alloc.c: introduce kernelcore=mirror
- option
-References: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <1452241613-19680-1-git-send-email-izumi.taku@jp.fujitsu.com>
-From: Sudeep Holla <sudeep.holla@arm.com>
-Message-ID: <568FEBAF.9040405@arm.com>
-Date: Fri, 8 Jan 2016 17:02:39 +0000
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A5631828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 13:27:54 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id b14so184095354wmb.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 10:27:54 -0800 (PST)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
+        by mx.google.com with ESMTPS id p3si176249676wjy.59.2016.01.08.10.27.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 08 Jan 2016 10:27:53 -0800 (PST)
+Date: Fri, 8 Jan 2016 18:27:44 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] arm64: fix add kasan bug
+Message-ID: <20160108182744.GQ16432@e104818-lin.cambridge.arm.com>
+References: <1451556549-8962-1-git-send-email-zhongjiang@huawei.com>
+ <20160105101017.GA14545@localhost.localdomain>
+ <CAPAsAGwHyVDvaoNjVxZsjtVczWh7-+OQOxpFBLS+e961DBAzeQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1452241613-19680-1-git-send-email-izumi.taku@jp.fujitsu.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPAsAGwHyVDvaoNjVxZsjtVczWh7-+OQOxpFBLS+e961DBAzeQ@mail.gmail.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taku Izumi <izumi.taku@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Sudeep Holla <sudeep.holla@arm.com>, tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk, arnd@arndb.de, steve.capper@linaro.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: zhongjiang <zhongjiang@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "long.wanglong@huawei.com" <long.wanglong@huawei.com>, Will Deacon <will.deacon@arm.com>
 
+On Wed, Jan 06, 2016 at 12:17:17AM +0300, Andrey Ryabinin wrote:
+> 2016-01-05 13:10 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+> > On Thu, Dec 31, 2015 at 10:09:09AM +0000, zhongjiang wrote:
+> >> From: zhong jiang <zhongjiang@huawei.com>
+> >>
+> >> In general, each process have 16kb stack space to use, but
+> >> stack need extra space to store red_zone when kasan enable.
+> >> the patch fix above question.
+> >>
+> >> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> >> ---
+> >>  arch/arm64/include/asm/thread_info.h | 15 +++++++++++++--
+> >>  1 file changed, 13 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include=
+/asm/thread_info.h
+> >> index 90c7ff2..45b5a7e 100644
+> >> --- a/arch/arm64/include/asm/thread_info.h
+> >> +++ b/arch/arm64/include/asm/thread_info.h
+> > [...]
+> >> +#ifdef CONFIG_KASAN
+> >> +#define THREAD_SIZE          32768
+> >> +#else
+> >>  #define THREAD_SIZE          16384
+> >> +#endif
+> >
+> > I'm not really keen on increasing the stack size to 32KB when KASan is
+> > enabled (that's 8 4K pages). Have you actually seen a real problem with
+> > the default size?
+>
+> > How large is the red_zone?
+>
+> Typical stack frame layout looks like this:
+>     | 32-byte redzone | variable-1| padding-redzone to the next
+> 32-byte boundary| variable-2|padding |.... | 32-byte redzone|
+>
+> AFAIK gcc creates redzones  only if it can't prove that all accesses
+> to variable are valid (e.g. reference to variable passed to external
+> function).
+> Besides redzones, stack could be increased due to additional spilling.
+> Although arm64 should be less affected by this since it has more
+> registers than x86_64.
+> On x86_64 I've seen few bad cases where stack frame of a single
+> function was bloated up to 6K.
 
+I think on arm64 we shouldn't be affected that badly. I did some tests
+(well, running LTP and checking the maximum stack usage). Without KASan,
+I get about 5-6KB usage maximum. Once KASan is enabled, the maximum
+stack utilisation is around 8KB.
 
-On 08/01/16 08:26, Taku Izumi wrote:
-> This patch extends existing "kernelcore" option and introduces
-> kernelcore=mirror option.  By specifying "mirror" instead of specifying
-> the amount of memory, non-mirrored (non-reliable) region will be arranged
-> into ZONE_MOVABLE.
->
-> v1 -> v2:
->   - Refine so that the following case also can be
->     handled properly:
->
->   Node X:  |MMMMMM------MMMMMM--------|
->     (legend) M: mirrored  -: not mirrrored
->
->   In this case, ZONE_NORMAL and ZONE_MOVABLE are
->   arranged like bellow:
->
->   Node X:  |MMMMMM------MMMMMM--------|
->            |ooooooxxxxxxooooooxxxxxxxx| ZONE_NORMAL
->                  |ooooooxxxxxxoooooooo| ZONE_MOVABLE
->     (legend) o: present  x: absent
->
-> v2 -> v3:
->   - Fix build with CONFIG_HAVE_MEMBLOCK_NODE_MAP=n
->   - No functional change in case of CONFIG_HAVE_MEMBLOCK_NODE_MAP=y
->
-> Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
-> ---
->   Documentation/kernel-parameters.txt |  12 +++-
->   mm/page_alloc.c                     | 114 ++++++++++++++++++++++++++++++++++--
->   2 files changed, 119 insertions(+), 7 deletions(-)
->
+I also changed FRAME_WARN to be 2048 with KASAN but it didn't trigger
+any warning on arm64 (defconfig + KASAN).
 
-[...]
+Of course, there is a risk of IRQ followed by softirq which is what led
+us to increase the stack size to 16KB. However, in 4.5 we'll have
+separate IRQ stacks while still keeping THREAD_SIZE to 16KB. In 4.6, the
+plan is to try to reduce default THREAD_SIZE to 8KB.
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index efb8996..b528328 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -260,6 +260,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
->   static unsigned long __initdata required_kernelcore;
->   static unsigned long __initdata required_movablecore;
->   static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-> +static bool mirrored_kernelcore;
->
->   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
->   int movable_zone;
-> @@ -4613,6 +4614,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->   	unsigned long pfn;
->   	struct zone *z;
->   	unsigned long nr_initialised = 0;
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +	struct memblock_region *r = NULL, *tmp;
-> +#endif
->
->   	if (highest_memmap_pfn < end_pfn - 1)
->   		highest_memmap_pfn = end_pfn - 1;
-> @@ -4639,6 +4643,40 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->   			if (!update_defer_init(pgdat, pfn, end_pfn,
->   						&nr_initialised))
->   				break;
-> +
-> +			/*
-> +			 * if not mirrored_kernelcore and ZONE_MOVABLE exists,
-> +			 * range from zone_movable_pfn[nid] to end of each node
-> +			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
-> +			 */
-> +			if (!mirrored_kernelcore && zone_movable_pfn[nid])
-> +				if (zone == ZONE_NORMAL &&
-> +				    pfn >= zone_movable_pfn[nid])
-> +					continue;
-> +
+So it's only in 4.6 (if we go for 8KB THREAD_SIZE) that we should
+increase the stack when KASAN is enabled (though to 16KB rather than
+32KB).
 
-I tried this with today's -next, the above lines gave compilation error.
-Moved them below into HAVE_MEMBLOCK_NODE_MAP and tested it on ARM64.
-I don't see the previous backtraces. Let me know if that's correct or
-you can post a version that compiles correctly and I can give a try.
+I don't think 4.5 needs any adjustments and for 4.4 I would only do this
+*if* there is actually a regression. However, I haven't seen any such
+report yet, in which case I NAK this patch (at least until further
+information emerges).
 
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +			/*
-> +			 * check given memblock attribute by firmware which
-> +			 * can affect kernel memory layout.
-> +			 * if zone==ZONE_MOVABLE but memory is mirrored,
-> +			 * it's an overlapped memmap init. skip it.
-> +			 */
-> +			if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
-> +				if (!r ||
-> +				    pfn >= memblock_region_memory_end_pfn(r)) {
-> +					for_each_memblock(memory, tmp)
-> +						if (pfn < memblock_region_memory_end_pfn(tmp))
-> +							break;
-> +					r = tmp;
-> +				}
-> +				if (pfn >= memblock_region_memory_base_pfn(r) &&
-> +				    memblock_is_mirror(r)) {
-> +					/* already initialized as NORMAL */
-> +					pfn = memblock_region_memory_end_pfn(r);
-> +					continue;
-> +				}
-> +			}
-> +#endif
->   		}
-
--- 
-Regards,
-Sudeep
+--
+Catalin
+IMPORTANT NOTICE: The contents of this email and any attachments are confid=
+ential and may also be privileged. If you are not the intended recipient, p=
+lease notify the sender immediately and do not disclose the contents to any=
+ other person, use it for any purpose, or store or copy the information in =
+any medium. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
