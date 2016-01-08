@@ -1,239 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B723E828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 19:19:01 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id 65so16477214pff.2
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 16:19:01 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id ta9si21475440pab.92.2016.01.08.16.19.00
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D76D16B0257
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 19:19:31 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id cy9so289982860pac.0
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 16:19:31 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id bf9si11333413pac.163.2016.01.08.16.19.30
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 16:19:01 -0800 (PST)
-Message-Id: <bf35edc38cebc9e1648fab2759d84475cbff2222.1452297867.git.tony.luck@intel.com>
+        Fri, 08 Jan 2016 16:19:31 -0800 (PST)
+Message-Id: <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
 In-Reply-To: <cover.1452297867.git.tony.luck@intel.com>
 References: <cover.1452297867.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Date: Thu, 31 Dec 2015 11:40:27 -0800
-Subject: [PATCH v8 2/3] x86, mce: Check for faults tagged in
- EXTABLE_CLASS_FAULT exception table entries
+Date: Fri, 8 Jan 2016 13:18:03 -0800
+Subject: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-Extend the severity checking code to add a new context IN_KERN_RECOV
-which is used to indicate that the machine check was triggered by code
-in the kernel with a EXTABLE_CLASS_FAULT fixup entry.
+Make use of the EXTABLE_FAULT exception table entries. This routine
+returns a structure to indicate the result of the copy:
 
-Major re-work to the tail code in do_machine_check() to make all this
-readable/maintainable. One functional change is that tolerant=3 no longer
-stops recovery actions. Revert to only skipping sending SIGBUS to the
-current process.
+struct mcsafe_ret {
+        u64 trapnr;
+        u64 remain;
+};
+
+If the copy is successful, then both 'trapnr' and 'remain' are zero.
+
+If we faulted during the copy, then 'trapnr' will say which type
+of trap (X86_TRAP_PF or X86_TRAP_MC) and 'remain' says how many
+bytes were not copied.
 
 Signed-off-by: Tony Luck <tony.luck@intel.com>
 ---
- arch/x86/kernel/cpu/mcheck/mce-severity.c | 32 +++++++++++++-
- arch/x86/kernel/cpu/mcheck/mce.c          | 71 ++++++++++++++++---------------
- 2 files changed, 67 insertions(+), 36 deletions(-)
+ arch/x86/include/asm/string_64.h |   8 +++
+ arch/x86/kernel/x8664_ksyms_64.c |   2 +
+ arch/x86/lib/memcpy_64.S         | 133 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 143 insertions(+)
 
-diff --git a/arch/x86/kernel/cpu/mcheck/mce-severity.c b/arch/x86/kernel/cpu/mcheck/mce-severity.c
-index 9c682c222071..e87aa060977c 100644
---- a/arch/x86/kernel/cpu/mcheck/mce-severity.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce-severity.c
-@@ -13,7 +13,9 @@
- #include <linux/seq_file.h>
- #include <linux/init.h>
- #include <linux/debugfs.h>
-+#include <linux/module.h>
- #include <asm/mce.h>
-+#include <asm/uaccess.h>
+diff --git a/arch/x86/include/asm/string_64.h b/arch/x86/include/asm/string_64.h
+index ff8b9a17dc4b..5b24039463a4 100644
+--- a/arch/x86/include/asm/string_64.h
++++ b/arch/x86/include/asm/string_64.h
+@@ -78,6 +78,14 @@ int strcmp(const char *cs, const char *ct);
+ #define memset(s, c, n) __memset(s, c, n)
+ #endif
  
- #include "mce-internal.h"
- 
-@@ -29,7 +31,7 @@
-  * panic situations)
-  */
- 
--enum context { IN_KERNEL = 1, IN_USER = 2 };
-+enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
- enum ser { SER_REQUIRED = 1, NO_SER = 2 };
- enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
- 
-@@ -48,6 +50,7 @@ static struct severity {
- #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
- #define  KERNEL		.context = IN_KERNEL
- #define  USER		.context = IN_USER
-+#define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
- #define  SER		.ser = SER_REQUIRED
- #define  NOSER		.ser = NO_SER
- #define  EXCP		.excp = EXCP_CONTEXT
-@@ -87,6 +90,10 @@ static struct severity {
- 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
- 		),
- 	MCESEV(
-+		PANIC, "In kernel and no restart IP",
-+		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
-+		),
-+	MCESEV(
- 		DEFERRED, "Deferred error",
- 		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
- 		),
-@@ -123,6 +130,11 @@ static struct severity {
- 		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, MCG_STATUS_RIPV)
- 		),
- 	MCESEV(
-+		AR, "Action required: data load in error recoverable area of kernel",
-+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
-+		KERNEL_RECOV
-+		),
-+	MCESEV(
- 		AR, "Action required: data load error in a user process",
- 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
- 		USER
-@@ -170,6 +182,18 @@ static struct severity {
- 		)	/* always matches. keep at end */
- };
- 
-+#define mc_recoverable(mcg) (((mcg) & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) == \
-+				(MCG_STATUS_RIPV|MCG_STATUS_EIPV))
++struct mcsafe_ret {
++	u64 trapnr;
++	u64 remain;
++};
 +
-+static inline bool mce_in_kernel_recov(unsigned long addr)
-+{
-+	const struct exception_table_entry *fixup;
++struct mcsafe_ret __mcsafe_copy(void *dst, const void __user *src, size_t cnt);
++extern void __mcsafe_copy_end(void);
 +
-+	fixup = search_exception_tables(addr);
+ #endif /* __KERNEL__ */
+ 
+ #endif /* _ASM_X86_STRING_64_H */
+diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
+index a0695be19864..96434edd7430 100644
+--- a/arch/x86/kernel/x8664_ksyms_64.c
++++ b/arch/x86/kernel/x8664_ksyms_64.c
+@@ -37,6 +37,8 @@ EXPORT_SYMBOL(__copy_user_nocache);
+ EXPORT_SYMBOL(_copy_from_user);
+ EXPORT_SYMBOL(_copy_to_user);
+ 
++EXPORT_SYMBOL(__mcsafe_copy);
 +
-+	return fixup && fixup->handler == EXTABLE_CLASS_FAULT;
-+}
+ EXPORT_SYMBOL(copy_page);
+ EXPORT_SYMBOL(clear_page);
+ 
+diff --git a/arch/x86/lib/memcpy_64.S b/arch/x86/lib/memcpy_64.S
+index 16698bba87de..195ff0144152 100644
+--- a/arch/x86/lib/memcpy_64.S
++++ b/arch/x86/lib/memcpy_64.S
+@@ -177,3 +177,136 @@ ENTRY(memcpy_orig)
+ .Lend:
+ 	retq
+ ENDPROC(memcpy_orig)
 +
- /*
-  * If mcgstatus indicated that ip/cs on the stack were
-  * no good, then "m->cs" will be zero and we will have
-@@ -183,7 +207,11 @@ static struct severity {
-  */
- static int error_context(struct mce *m)
- {
--	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
-+	if ((m->cs & 3) == 3)
-+		return IN_USER;
-+	if (mc_recoverable(m->mcgstatus) && mce_in_kernel_recov(m->ip))
-+		return IN_KERNEL_RECOV;
-+	return IN_KERNEL;
- }
- 
- /*
-diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-index c5b0d562dbf5..c95eb203b5c3 100644
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -31,6 +31,7 @@
- #include <linux/types.h>
- #include <linux/slab.h>
- #include <linux/init.h>
-+#include <linux/module.h>
- #include <linux/kmod.h>
- #include <linux/poll.h>
- #include <linux/nmi.h>
-@@ -958,6 +959,20 @@ static void mce_clear_state(unsigned long *toclear)
- 	}
- }
- 
-+static int do_memory_failure(struct mce *m)
-+{
-+	int flags = MF_ACTION_REQUIRED;
-+	int ret;
++/*
++ * __mcsafe_copy - memory copy with machine check exception handling
++ * Note that we only catch machine checks when reading the source addresses.
++ * Writes to target are posted and don't generate machine checks.
++ */
++ENTRY(__mcsafe_copy)
++	cmpl $8,%edx
++	jb 20f		/* less then 8 bytes, go to byte copy loop */
 +
-+	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
-+	if (!(m->mcgstatus & MCG_STATUS_RIPV))
-+		flags |= MF_MUST_KILL;
-+	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
-+	if (ret)
-+		pr_err("Memory error not recovered");
-+	return ret;
-+}
++	/* check for bad alignment of source */
++	movl %esi,%ecx
++	andl $7,%ecx
++	jz 102f				/* already aligned */
++	subl $8,%ecx
++	negl %ecx
++	subl %ecx,%edx
++0:	movb (%rsi),%al
++	movb %al,(%rdi)
++	incq %rsi
++	incq %rdi
++	decl %ecx
++	jnz 0b
++102:
++	movl %edx,%ecx
++	andl $63,%edx
++	shrl $6,%ecx
++	jz 17f
++1:	movq (%rsi),%r8
++2:	movq 1*8(%rsi),%r9
++3:	movq 2*8(%rsi),%r10
++4:	movq 3*8(%rsi),%r11
++	mov %r8,(%rdi)
++	mov %r9,1*8(%rdi)
++	mov %r10,2*8(%rdi)
++	mov %r11,3*8(%rdi)
++9:	movq 4*8(%rsi),%r8
++10:	movq 5*8(%rsi),%r9
++11:	movq 6*8(%rsi),%r10
++12:	movq 7*8(%rsi),%r11
++	mov %r8,4*8(%rdi)
++	mov %r9,5*8(%rdi)
++	mov %r10,6*8(%rdi)
++	mov %r11,7*8(%rdi)
++	leaq 64(%rsi),%rsi
++	leaq 64(%rdi),%rdi
++	decl %ecx
++	jnz 1b
++17:	movl %edx,%ecx
++	andl $7,%edx
++	shrl $3,%ecx
++	jz 20f
++18:	movq (%rsi),%r8
++	mov %r8,(%rdi)
++	leaq 8(%rsi),%rsi
++	leaq 8(%rdi),%rdi
++	decl %ecx
++	jnz 18b
++20:	andl %edx,%edx
++	jz 23f
++	movl %edx,%ecx
++21:	movb (%rsi),%al
++	movb %al,(%rdi)
++	incq %rsi
++	incq %rdi
++	decl %ecx
++	jnz 21b
++23:	xorq %rax, %rax
++	xorq %rdx, %rdx
++	sfence
++	/* copy successful. return 0 */
++	ret
 +
- /*
-  * The actual machine check handler. This only handles real
-  * exceptions when something got corrupted coming in through int 18.
-@@ -995,8 +1010,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
- 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
- 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
- 	char *msg = "Unknown";
--	u64 recover_paddr = ~0ull;
--	int flags = MF_ACTION_REQUIRED;
- 	int lmce = 0;
- 
- 	ist_enter(regs);
-@@ -1123,22 +1136,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
- 	}
- 
- 	/*
--	 * At insane "tolerant" levels we take no action. Otherwise
--	 * we only die if we have no other choice. For less serious
--	 * issues we try to recover, or limit damage to the current
--	 * process.
-+	 * If tolerant is at an insane level we drop requests to kill
-+	 * processes and continue even when there is no way out.
- 	 */
--	if (cfg->tolerant < 3) {
--		if (no_way_out)
--			mce_panic("Fatal machine check on current CPU", &m, msg);
--		if (worst == MCE_AR_SEVERITY) {
--			recover_paddr = m.addr;
--			if (!(m.mcgstatus & MCG_STATUS_RIPV))
--				flags |= MF_MUST_KILL;
--		} else if (kill_it) {
--			force_sig(SIGBUS, current);
--		}
--	}
-+	if (cfg->tolerant == 3)
-+		kill_it = 0;
-+	else if (no_way_out)
-+		mce_panic("Fatal machine check on current CPU", &m, msg);
- 
- 	if (worst > 0)
- 		mce_report_event(regs);
-@@ -1146,25 +1150,24 @@ void do_machine_check(struct pt_regs *regs, long error_code)
- out:
- 	sync_core();
- 
--	if (recover_paddr == ~0ull)
--		goto done;
-+	if (worst != MCE_AR_SEVERITY && !kill_it)
-+		goto out_ist;
- 
--	pr_err("Uncorrected hardware memory error in user-access at %llx",
--		 recover_paddr);
--	/*
--	 * We must call memory_failure() here even if the current process is
--	 * doomed. We still need to mark the page as poisoned and alert any
--	 * other users of the page.
--	 */
--	ist_begin_non_atomic(regs);
--	local_irq_enable();
--	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
--		pr_err("Memory error not recovered");
--		force_sig(SIGBUS, current);
-+	/* Fault was in user mode and we need to take some action */
-+	if ((m.cs & 3) == 3) {
-+		ist_begin_non_atomic(regs);
-+		local_irq_enable();
++	.section .fixup,"ax"
++	/* fixups for machine check */
++30:
++	add %ecx,%edx
++	jmp 100f
++31:
++	shl $6,%ecx
++	add %ecx,%edx
++	jmp 100f
++32:
++	shl $6,%ecx
++	lea -8(%ecx,%edx),%edx
++	jmp 100f
++33:
++	shl $6,%ecx
++	lea -16(%ecx,%edx),%edx
++	jmp 100f
++34:
++	shl $6,%ecx
++	lea -24(%ecx,%edx),%edx
++	jmp 100f
++35:
++	shl $6,%ecx
++	lea -32(%ecx,%edx),%edx
++	jmp 100f
++36:
++	shl $6,%ecx
++	lea -40(%ecx,%edx),%edx
++	jmp 100f
++37:
++	shl $6,%ecx
++	lea -48(%ecx,%edx),%edx
++	jmp 100f
++38:
++	shl $6,%ecx
++	lea -56(%ecx,%edx),%edx
++	jmp 100f
++39:
++	lea (%rdx,%rcx,8),%rdx
++	jmp 100f
++40:
++	mov %ecx,%edx
++100:
++	sfence
 +
-+		if (kill_it || do_memory_failure(&m))
-+			force_sig(SIGBUS, current);
-+		local_irq_disable();
-+		ist_end_non_atomic();
-+	} else {
-+		if (!fixup_exception(regs, X86_TRAP_MC))
-+			mce_panic("Failed kernel mode recovery", &m, NULL);
- 	}
--	local_irq_disable();
--	ist_end_non_atomic();
--done:
++	/* %rax set the fault number in fixup_exception() */
++	ret
++	.previous
 +
-+out_ist:
- 	ist_exit(regs);
- }
- EXPORT_SYMBOL_GPL(do_machine_check);
++	_ASM_EXTABLE_FAULT(0b,30b)
++	_ASM_EXTABLE_FAULT(1b,31b)
++	_ASM_EXTABLE_FAULT(2b,32b)
++	_ASM_EXTABLE_FAULT(3b,33b)
++	_ASM_EXTABLE_FAULT(4b,34b)
++	_ASM_EXTABLE_FAULT(9b,35b)
++	_ASM_EXTABLE_FAULT(10b,36b)
++	_ASM_EXTABLE_FAULT(11b,37b)
++	_ASM_EXTABLE_FAULT(12b,38b)
++	_ASM_EXTABLE_FAULT(18b,39b)
++	_ASM_EXTABLE_FAULT(21b,40b)
 -- 
 2.1.4
 
