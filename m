@@ -1,110 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D42D828F2
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 00:30:30 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id ho8so15320974pac.2
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 21:30:30 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id u89si2382308pfi.92.2016.01.07.21.30.29
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9AF6B0258
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 01:26:02 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id 65so5195002pff.2
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2016 22:26:02 -0800 (PST)
+Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
+        by mx.google.com with ESMTP id s65si2702761pfs.14.2016.01.07.22.26.00
         for <linux-mm@kvack.org>;
-        Thu, 07 Jan 2016 21:30:29 -0800 (PST)
-Date: Thu, 7 Jan 2016 21:30:29 -0800
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH v7 1/3] x86: Add classes to exception tables
-Message-ID: <20160108053028.GA1833@agluck-desk.sc.intel.com>
-References: <cover.1451952351.git.tony.luck@intel.com>
- <b5dc7a1ee68f48dc61c10959b2209851f6eb6aab.1451952351.git.tony.luck@intel.com>
- <20160106123346.GC19507@pd.tnic>
- <CALCETrVXD5YB_1UzR4LnSOCgV+ZzhDi9JRZrcxhMAjbvSzO6MQ@mail.gmail.com>
- <20160106175948.GA16647@pd.tnic>
- <CALCETrXsC9eiQ8yF555-8G88pYEms4bDsS060e24FoadAOK+kw@mail.gmail.com>
- <20160106194222.GC16647@pd.tnic>
- <20160107121131.GB23768@pd.tnic>
+        Thu, 07 Jan 2016 22:26:01 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com> <04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com> <568F3D73.60901@oracle.com>
+In-Reply-To: <568F3D73.60901@oracle.com>
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole punch
+Date: Fri, 08 Jan 2016 14:25:23 +0800
+Message-ID: <058d01d149dd$5b436ac0$11ca4040$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160107121131.GB23768@pd.tnic>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michel Lespinasse' <walken@google.com>
 
-Also need some comment and Documentation/ changes:
+> On 01/07/2016 12:06 AM, Hillf Danton wrote:
+> >> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> >> index 0444760..0871d70 100644
+> >> --- a/fs/hugetlbfs/inode.c
+> >> +++ b/fs/hugetlbfs/inode.c
+> >> @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)
+> >>  	delete_from_page_cache(page);
+> >>  }
+> >>
+> >> +static inline void
+> >> +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+> >> +{
+> >> +	struct vm_area_struct *vma;
+> >> +
+> >> +	/*
+> >> +	 * end == 0 indicates that the entire range after
+> >> +	 * start should be unmapped.
+> >> +	 */
+> >> +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+> >
+> > [1] perhaps end can be reused.
+> >
+> >> +		unsigned long v_offset;
+> >> +
+> >> +		/*
+> >> +		 * Can the expression below overflow on 32-bit arches?
+> >> +		 * No, because the interval tree returns us only those vmas
+> >> +		 * which overlap the truncated area starting at pgoff,
+> >> +		 * and no vma on a 32-bit arch can span beyond the 4GB.
+> >> +		 */
+> >> +		if (vma->vm_pgoff < start)
+> >> +			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+> >> +		else
+> >> +			v_offset = 0;
+> >> +
+> >> +		if (end) {
+> >> +			end = ((end - start) << PAGE_SHIFT) +
+> >> +			       vma->vm_start + v_offset;
+> >
+> > [2] end is input to be pgoff_t, but changed to be the type of v_offset.
+> > Further we cannot handle the case that end is input to be zero.
+> > See the diff below please.
+> >
+> <snip>
+> >
+> > --- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016
+> > +++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016
+> > @@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro
+> >  	 * end == 0 indicates that the entire range after
+> >  	 * start should be unmapped.
+> >  	 */
+> > -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+> > +	if (!end)
+> > +		end = ULONG_MAX;
+> > +	vma_interval_tree_foreach(vma, root, start, end) {
+> >  		unsigned long v_offset;
+> > +		unsigned long v_end;
+> >
+> >  		/*
+> >  		 * Can the expression below overflow on 32-bit arches?
+> > @@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro
+> >  		else
+> >  			v_offset = 0;
+> >
+> > -		if (end) {
+> > -			end = ((end - start) << PAGE_SHIFT) +
+> > +		v_end = ((end - start) << PAGE_SHIFT) +
+> >  			       vma->vm_start + v_offset;
+> > -			if (end > vma->vm_end)
+> > -				end = vma->vm_end;
+> > -		} else
+> > -			end = vma->vm_end;
+> > +		if (v_end > vma->vm_end)
+> > +			v_end = vma->vm_end;
+> >
+> > -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
+> > +		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end, NULL);
+> >  	}
+> >  }
+> >
+> > --
+> 
+> Unfortunately, that calculation of v_end is not correct.  I know it
+> is based on the existing code, but the existing code it not correct.
+> 
+> I attempted to fix in a patch earlier today, but that was not correct
+> either.  Below is a proposed new version of hugetlb_vmdelete_list.
 
+Thanks Mike.
 
-diff --git a/Documentation/x86/exception-tables.txt b/Documentation/x86/exception-tables.txt
-index 32901aa36f0a..ae47b9f64b8a 100644
---- a/Documentation/x86/exception-tables.txt
-+++ b/Documentation/x86/exception-tables.txt
-@@ -290,3 +290,37 @@ Due to the way that the exception table is built and needs to be ordered,
- only use exceptions for code in the .text section.  Any other section
- will cause the exception table to not be sorted correctly, and the
- exceptions will fail.
-+
-+Things changed when 64-bit support was added to x86 Linux. Rather than
-+double the size of the exception table by expanding the two entries
-+from 32-bits to 64 bits, a clever trick was used to store addreesses
-+as relative offsets from the table itself. The assembly code changed
-+from:
-+	.long 1b,3b
-+to:
-+        .long (from) - .
-+        .long (to) - .
-+and the C-code that uses these values converts back to absolute addresses
-+like this:
-+	ex_insn_addr(const struct exception_table_entry *x)
-+	{
-+		return (unsigned long)&x->insn + x->insn;
-+	}
-+
-+In v4.5 the exception table entry was given a new field "handler".
-+This is also 32-bits wide and contains a table entry relative address
-+of a handler function that can perform specific operations in addition
-+to re-writing the instruction pointer to jump to the fixup location.
-+Initially there are three such functions:
-+
-+1) int ex_handler_default(const struct exception_table_entry *fixup,
-+   This is legacy case that just jumps to the fixup code
-+2) int ex_handler_fault(const struct exception_table_entry *fixup,
-+   This case provides the fault number of the trap that occured at
-+   entry->insn. It is used to distinguish page faults from machine
-+   check.
-+3) int ex_handler_ext(const struct exception_table_entry *fixup,
-+   This case is used to for uaccess_err ... we need to set a flag
-+   in the task structure. Before the handler functions existed this
-+   case was handled by adding a large offset to the fixup to tag
-+   it as special.
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index b8f6f7545679..563443870915 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -90,12 +90,12 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
- 	likely(!__range_not_ok(addr, size, user_addr_max()))
- 
- /*
-- * The exception table consists of pairs of addresses relative to the
-+ * The exception table consists of triples of addresses relative to the
-  * exception table enty itself: the first is the address of an
-- * instruction that is allowed to fault, and the second is the address
-- * at which the program should continue.  No registers are modified,
-- * so it is entirely up to the continuation code to figure out what to
-- * do.
-+ * instruction that is allowed to fault, the second is the address
-+ * at which the program should continue, the last is the address of
-+ * a handler function to deal with the fault referenced by the instruction
-+ * in the first field.
-  *
-  * All the routines below use bits of fixup code that are out of line
-  * with the main instruction path.  This means when everything is well,
-diff --git a/arch/x86/lib/memcpy_64.S b/arch/x86/lib/memcpy_64.S
-index f057718d8d15..195ff0144152 100644
---- a/arch/x86/lib/memcpy_64.S
-+++ b/arch/x86/lib/memcpy_64.S
-@@ -310,4 +310,3 @@ ENTRY(__mcsafe_copy)
- 	_ASM_EXTABLE_FAULT(12b,38b)
- 	_ASM_EXTABLE_FAULT(18b,39b)
- 	_ASM_EXTABLE_FAULT(21b,40b)
--#endif
+> Let me know what you think.
+> 
+> static inline void
+> hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+> {
+> 	struct vm_area_struct *vma;
+> 
+> 	/*
+> 	 * end == 0 indicates that the entire range after
+> 	 * start should be unmapped.
+> 	 */
+> 	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+> 		unsigned long v_offset;
+> 		unsigned long v_end;
+> 
+> 		/*
+> 		 * Can the expression below overflow on 32-bit arches?
+> 		 * No, because the interval tree returns us only those vmas
+> 		 * which overlap the truncated area starting at pgoff,
+> 		 * and no vma on a 32-bit arch can span beyond the 4GB.
+> 		 */
+> 		if (vma->vm_pgoff < start)
+> 			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+> 		else
+> 			v_offset = 0;
+> 
+> 		if (!end)
+> 			v_end = vma->vm_end;
+> 		else {
+> 			v_end = ((end - vma->vm_pgoff) << PAGE_SHIFT)
+> 							+ vma->vm_start;
+> 			if (v_end > vma->vm_end)
+> 				v_end = vma->vm_end;
+> 		}
+> 
+> 		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end,
+> 									NULL);
+> 	}
+> }
+> 
+Looks good to me.
+
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
