@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 225496B0261
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:41 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id uo6so271555522pac.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:41 -0800 (PST)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id EED29828E9
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:42 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id e65so15938292pfe.0
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:42 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id 7si7944282pfa.205.2016.01.08.15.15.40
+        by mx.google.com with ESMTP id d16si7950622pfb.152.2016.01.08.15.15.42
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 15:15:40 -0800 (PST)
+        Fri, 08 Jan 2016 15:15:42 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 03/13] x86/mm: Add a noinvpcid option to turn off INVPCID
-Date: Fri,  8 Jan 2016 15:15:21 -0800
-Message-Id: <b41559f7b75e4574d7b6b30214ca57d0eabd39a7.1452294700.git.luto@kernel.org>
+Subject: [RFC 04/13] x86/mm: If INVPCID is available, use it to flush global mappings
+Date: Fri,  8 Jan 2016 15:15:22 -0800
+Message-Id: <1ddac818ae831c89dc4f680bbf4bfac7b6ba2b4c.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
 References: <cover.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
@@ -21,52 +21,36 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
 
+On my Skylake laptop, INVPCID function 2 (flush absolutely
+everything) takes about 376ns, whereas saving flags, twiddling
+CR4.PGE to flush global mappings, and restoring flags takes about
+539ns.
+
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- Documentation/kernel-parameters.txt |  2 ++
- arch/x86/kernel/cpu/common.c        | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+)
+ arch/x86/include/asm/tlbflush.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 742f69d18fc8..b34e55e00bae 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2508,6 +2508,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 20fc38d8478a..4eba5164430d 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -145,6 +145,15 @@ static inline void __native_flush_tlb_global(void)
+ {
+ 	unsigned long flags;
  
- 	nointroute	[IA-64]
- 
-+	noinvpcid	[X86] Disable the INVPCID cpu feature.
++	if (static_cpu_has_safe(X86_FEATURE_INVPCID)) {
++		/*
++		 * Using INVPCID is considerably faster than a pair of writes
++		 * to CR4 sandwiched inside an IRQ flag save/restore.
++		 */
++		invpcid_flush_everything();
++		return;
++	}
 +
- 	nojitter	[IA-64] Disables jitter checking for ITC timers.
- 
- 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
-diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-index c2b7522cbf35..48196980c1c7 100644
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -162,6 +162,22 @@ static int __init x86_mpx_setup(char *s)
- }
- __setup("nompx", x86_mpx_setup);
- 
-+static int __init x86_noinvpcid_setup(char *s)
-+{
-+	/* noinvpcid doesn't accept parameters */
-+	if (s)
-+		return -EINVAL;
-+
-+	/* do not emit a message if the feature is not present */
-+	if (!boot_cpu_has(X86_FEATURE_INVPCID))
-+		return 0;
-+
-+	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
-+	pr_info("noinvpcid: INVPCID feature disabled\n");
-+	return 0;
-+}
-+early_param("noinvpcid", x86_noinvpcid_setup);
-+
- #ifdef CONFIG_X86_32
- static int cachesize_override = -1;
- static int disable_x86_serial_nr = 1;
+ 	/*
+ 	 * Read-modify-write to CR4 - protect it from preemption and
+ 	 * from interrupts. (Use the raw variant because this code can
 -- 
 2.5.0
 
