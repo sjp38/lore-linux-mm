@@ -1,78 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4435C6B0255
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:15:25 -0500 (EST)
-Received: by mail-oi0-f42.google.com with SMTP id k206so6641501oia.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:15:25 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id wc7si20313052oeb.88.2016.01.08.00.15.24
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 87BA06B0256
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 03:34:45 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id z14so70702030igp.0
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 00:34:45 -0800 (PST)
+Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
+        by mx.google.com with ESMTPS id s71si9005990ioe.137.2016.01.08.00.34.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jan 2016 00:15:24 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/mmap.c: remove redundant check "if (length <
- info->length)"
-Date: Fri, 8 Jan 2016 08:11:27 +0000
-Message-ID: <20160108081125.GA11868@hori1.linux.bs1.fc.nec.co.jp>
-References: <20160107165923.77fea9a3@debian>
-In-Reply-To: <20160107165923.77fea9a3@debian>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <622C146B41276042A4698AD875E6B7BA@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jan 2016 00:34:44 -0800 (PST)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 0D011AC025A
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 17:34:38 +0900 (JST)
+From: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Subject: [PATCH v4 0/2] mm: Introduce kernelcore=mirror option
+Date: Fri,  8 Jan 2016 17:25:23 +0900
+Message-Id: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk, arnd@arndb.de, steve.capper@linaro.org, sudeep.holla@arm.com, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-On Thu, Jan 07, 2016 at 04:59:23PM +0800, Wang Xiaoqiang wrote:
-> Hi, all,
->=20
-> since the code:
->=20
-> length =3D info->length + info->align_mask
->=20
-> and all variables above are "unsigned long" type,
-> so there must be "length >=3D info->length".
+Xeon E7 v3 based systems supports Address Range Mirroring
+and UEFI BIOS complied with UEFI spec 2.5 can notify which
+ranges are mirrored (reliable) via EFI memory map.
+Now Linux kernel utilize its information and allocates 
+boot time memory from reliable region.
 
-I think that if info->align_mask is "very large" as an unsigned long value
-and the sum of these 2 overflows, length can become smaller than info->leng=
-th,
-so we seem to need the check.
+My requirement is:
+  - allocate kernel memory from mirrored region 
+  - allocate user memory from non-mirrored region
 
-But why returning -ENOMEM?  Isn't it worth VM_BUG_ON()?
+In order to meet my requirement, ZONE_MOVABLE is useful.
+By arranging non-mirrored range into ZONE_MOVABLE, 
+mirrored memory is used for kernel allocations.
 
-Thanks,
-Naoya Horiguchi
+My idea is to extend existing "kernelcore" option and 
+introduces kernelcore=mirror option. By specifying
+"mirror" instead of specifying the amount of memory,
+non-mirrored region will be arranged into ZONE_MOVABLE.
 
->=20
-> Signed-off-by: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-> ---
->  mm/mmap.c | 2 --
->  1 file changed, 2 deletions(-)
->=20
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 2ce04a6..99fc461 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1716,8 +1716,6 @@ unsigned long unmapped_area(struct vm_unmapped_area=
-_info *info)
-> =20
->  	/* Adjust search length to account for worst case alignment overhead */
->  	length =3D info->length + info->align_mask;
-> -	if (length < info->length)
-> -		return -ENOMEM;
-> =20
->  	/* Adjust search limits by the desired length */
->  	if (info->high_limit < length)
-> --=20
-> 2.1.4
->=20
-> thanks,
-> Wang Xiaoqiang
->=20
-> =
+Earlier discussions are at: 
+ https://lkml.org/lkml/2015/10/9/24
+ https://lkml.org/lkml/2015/10/15/9
+ https://lkml.org/lkml/2015/11/27/18
+ https://lkml.org/lkml/2015/12/8/836
+
+For example, suppose 2-nodes system with the following memory
+ range: 
+  node 0 [mem 0x0000000000001000-0x000000109fffffff] 
+  node 1 [mem 0x00000010a0000000-0x000000209fffffff]
+and the following ranges are marked as reliable (mirrored):
+  [0x0000000000000000-0x0000000100000000] 
+  [0x0000000100000000-0x0000000180000000] 
+  [0x0000000800000000-0x0000000880000000] 
+  [0x00000010a0000000-0x0000001120000000]
+  [0x00000017a0000000-0x0000001820000000] 
+
+If you specify kernelcore=mirror, ZONE_NORMAL and ZONE_MOVABLE
+are arranged like bellow:
+
+ - node 0:
+  ZONE_NORMAL : [0x0000000100000000-0x00000010a0000000]
+  ZONE_MOVABLE: [0x0000000180000000-0x00000010a0000000]
+ - node 1: 
+  ZONE_NORMAL : [0x00000010a0000000-0x00000020a0000000]
+  ZONE_MOVABLE: [0x0000001120000000-0x00000020a0000000]
+ 
+In overlapped range, pages to be ZONE_MOVABLE in ZONE_NORMAL
+are treated as absent pages, and vice versa.
+
+This patchset is created against "akpm" branch of linux-next
+
+
+v1 -> v2:
+ - Refine so that the above example case also can be
+ handled properly:
+v2 -> v3:
+ - Change the option name from kernelcore=reliable
+ into kernelcore=mirror and some documentation fix
+ according to Andrew Morton's point
+v3 -> v4:
+ - Fix up the case of CONFIG_HAVE_MEMBLOCK_NODE_MAP=n
+   (Fix boot failed of ARM machines)
+ - No functional change in case of CONFIG_HAVE_MEMBLOCK_NODE_MAP=y
+
+
+Taku Izumi (2):
+  mm/page_alloc.c: calculate zone_start_pfn at
+    zone_spanned_pages_in_node()
+  mm/page_alloc.c: introduce kernelcore=mirror option
+
+ Documentation/kernel-parameters.txt |  12 ++-
+ mm/page_alloc.c                     | 154 ++++++++++++++++++++++++++++++++----
+ 2 files changed, 148 insertions(+), 18 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
