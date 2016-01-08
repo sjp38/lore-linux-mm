@@ -1,62 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BF46D828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 06:34:34 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id f206so132529128wmf.0
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 03:34:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l191si27045974wmg.78.2016.01.08.03.34.33
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E1FF0828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 07:37:39 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id b14so169303537wmb.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 04:37:39 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id h79si27330570wme.86.2016.01.08.04.37.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 08 Jan 2016 03:34:33 -0800 (PST)
-Subject: Re: [PATCH v2 9/9] mm, oom: print symbolic gfp_flags in oom warning
-References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
- <1448368581-6923-10-git-send-email-vbabka@suse.cz>
- <alpine.DEB.2.10.1601071327490.20990@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <568F9EC6.8070708@suse.cz>
-Date: Fri, 8 Jan 2016 12:34:30 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jan 2016 04:37:38 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so134451400wmf.0
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 04:37:38 -0800 (PST)
+Date: Fri, 8 Jan 2016 13:37:36 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+Message-ID: <20160108123735.GB14657@dhcp22.suse.cz>
+References: <201512292258.ABF87505.OFOSJLHMFVOQFt@I-love.SAKURA.ne.jp>
+ <20160107162815.GA31729@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1601071327490.20990@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160107162815.GA31729@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/07/2016 10:29 PM, David Rientjes wrote:
-> On Tue, 24 Nov 2015, Vlastimil Babka wrote:
->
->> It would be useful to translate gfp_flags into string representation when
->> printing in case of an OOM, especially as the flags have been undergoing some
->> changes recently and the script ./scripts/gfp-translate needs a matching source
->> version to be accurate.
->>
->> Example output:
->>
->> a.out invoked oom-killer: order=0, oom_score_adj=0, gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|GFP_ZERO)
->>
->
-> Is there a way that we can keep the order of the fields so that anything
-> parsing the kernel log for oom kills doesn't break?
+On Thu 07-01-16 11:28:15, Johannes Weiner wrote:
+> On Tue, Dec 29, 2015 at 10:58:22PM +0900, Tetsuo Handa wrote:
+> > >From 8bb9e36891a803e82c589ef78077838026ce0f7d Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Tue, 29 Dec 2015 22:20:58 +0900
+> > Subject: [PATCH] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+> > 
+> > The OOM reaper kernel thread can reclaim OOM victim's memory before the victim
+> > terminates. But since oom_kill_process() tries to kill children of the memory
+> > hog process first, the OOM reaper can not reclaim enough memory for terminating
+> > the victim if the victim is consuming little memory. The result is OOM livelock
+> > as usual, for timeout based next OOM victim selection is not implemented.
+> 
+> What we should be doing is have the OOM reaper clear TIF_MEMDIE after
+> it's done. There is no reason to wait for and prioritize the exit of a
+> task that doesn't even have memory anymore. Once a task's memory has
+> been reaped, subsequent OOM invocations should evaluate anew the most
+> desirable OOM victim.
 
-Yes, this is possible with the new printk handling of flags, please look 
-at v3:
-http://marc.info/?l=linux-mm&m=145042944710510&w=2
+This is an interesting idea. It definitely sounds better than timeout
+based solutions. I will cook up a patch for this. The API between oom
+killer and the reaper has to change slightly but that shouldn't be a big
+deal.
 
-There I changed the print just to have order first and gfp_mask next, as 
-it seemed more logical. But it doesn't need to be that way and I can 
-post V4 keeping the original order of variables. But do you think the 
-flags expansion is safe to add there, or should I put it on separate line?
-
-Thanks
-
-> The messages printed
-> to the kernel log are the only (current) way to determine that the kernel
-> killed something so we should be careful not to break anything parsing
-> them, and this is a common line to look for.
->
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
