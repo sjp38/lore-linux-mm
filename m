@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9A9828E9
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:45 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id uo6so271556292pac.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:45 -0800 (PST)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E2860828E9
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:46 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id 65so15916589pff.2
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:46 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id r5si7928437pfr.2.2016.01.08.15.15.44
+        by mx.google.com with ESMTP id tj2si14588153pab.76.2016.01.08.15.15.46
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 15:15:45 -0800 (PST)
+        Fri, 08 Jan 2016 15:15:46 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 06/13] x86/mm: Disable PCID on 32-bit kernels
-Date: Fri,  8 Jan 2016 15:15:24 -0800
-Message-Id: <a68c8eb9183aa633c5c976a58120ee0a64f75563.1452294700.git.luto@kernel.org>
+Subject: [RFC 07/13] x86/mm: Add nopcid to turn off PCID
+Date: Fri,  8 Jan 2016 15:15:25 -0800
+Message-Id: <7752daf506becd3b36e768bd2561f562f64d9d16.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
 References: <cover.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
@@ -21,60 +21,57 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
 
-32-bit kernels on new hardware will see PCID in CPUID, but PCID can
-only be used in 64-bit mode.  Rather than making all PCID code
-conditional, just disable the feature on 32-bit builds.
+The parameter is only present on x86_64 systems to save a few bytes,
+as PCID is always disabled on x86_32.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/include/asm/disabled-features.h | 4 +++-
- arch/x86/kernel/cpu/bugs.c               | 6 ++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ Documentation/kernel-parameters.txt |  2 ++
+ arch/x86/kernel/cpu/common.c        | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)
 
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index f226df064660..8b17c2ad1048 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -21,11 +21,13 @@
- # define DISABLE_K6_MTRR	(1<<(X86_FEATURE_K6_MTRR & 31))
- # define DISABLE_CYRIX_ARR	(1<<(X86_FEATURE_CYRIX_ARR & 31))
- # define DISABLE_CENTAUR_MCR	(1<<(X86_FEATURE_CENTAUR_MCR & 31))
-+# define DISABLE_PCID		0
- #else
- # define DISABLE_VME		0
- # define DISABLE_K6_MTRR	0
- # define DISABLE_CYRIX_ARR	0
- # define DISABLE_CENTAUR_MCR	0
-+# define DISABLE_PCID		(1<<(X86_FEATURE_PCID & 31))
- #endif /* CONFIG_X86_64 */
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index b34e55e00bae..2f61809706c5 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2544,6 +2544,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 	nopat		[X86] Disable PAT (page attribute table extension of
+ 			pagetables) support.
  
- /*
-@@ -35,7 +37,7 @@
- #define DISABLED_MASK1	0
- #define DISABLED_MASK2	0
- #define DISABLED_MASK3	(DISABLE_CYRIX_ARR|DISABLE_CENTAUR_MCR|DISABLE_K6_MTRR)
--#define DISABLED_MASK4	0
-+#define DISABLED_MASK4	(DISABLE_PCID)
- #define DISABLED_MASK5	0
- #define DISABLED_MASK6	0
- #define DISABLED_MASK7	0
-diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
-index bd17db15a2c1..741d107e5376 100644
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -19,6 +19,12 @@
- 
- void __init check_bugs(void)
- {
-+	/*
-+	 * Regardless of whether PCID is enumerated, it can't be used in
-+	 * 32-bit mode.
-+	 */
-+	setup_clear_cpu_cap(X86_FEATURE_PCID);
++	nopcid		[X86-64] Disable the PCID cpu feature.
 +
- 	identify_boot_cpu();
- #ifndef CONFIG_SMP
- 	pr_info("CPU: ");
+ 	norandmaps	Don't use address space randomization.  Equivalent to
+ 			echo 0 > /proc/sys/kernel/randomize_va_space
+ 
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index 48196980c1c7..7e1fc53a4ba5 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -162,6 +162,24 @@ static int __init x86_mpx_setup(char *s)
+ }
+ __setup("nompx", x86_mpx_setup);
+ 
++#ifdef CONFIG_X86_64
++static int __init x86_pcid_setup(char *s)
++{
++	/* require an exact match without trailing characters */
++	if (strlen(s))
++		return 0;
++
++	/* do not emit a message if the feature is not present */
++	if (!boot_cpu_has(X86_FEATURE_PCID))
++		return 1;
++
++	setup_clear_cpu_cap(X86_FEATURE_PCID);
++	pr_info("nopcid: PCID feature disabled\n");
++	return 1;
++}
++__setup("nopcid", x86_pcid_setup);
++#endif
++
+ static int __init x86_noinvpcid_setup(char *s)
+ {
+ 	/* noinvpcid doesn't accept parameters */
 -- 
 2.5.0
 
