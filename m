@@ -1,199 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC10828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 14:50:13 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id q63so14285945pfb.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 11:50:13 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id q21si6916229pfq.26.2016.01.08.11.49.58
-        for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 11:49:58 -0800 (PST)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v3 5/8] procfs: Add support for PUDs to smaps, clear_refs and pagemap
-Date: Fri,  8 Jan 2016 14:49:49 -0500
-Message-Id: <1452282592-27290-6-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1452282592-27290-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1452282592-27290-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 135D0828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 14:52:14 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id l65so147220011wmf.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 11:52:14 -0800 (PST)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id o184si1013183wmb.25.2016.01.08.11.52.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Jan 2016 11:52:13 -0800 (PST)
+Date: Fri, 8 Jan 2016 20:51:16 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 31/31] x86, pkeys: execute-only support
+In-Reply-To: <20160107000148.ED5D13DF@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1601082043160.3575@nanos>
+References: <20160107000104.1A105322@viggo.jf.intel.com> <20160107000148.ED5D13DF@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, keescook@google.com, luto@amacapital.net
 
-From: Matthew Wilcox <willy@linux.intel.com>
+On Wed, 6 Jan 2016, Dave Hansen wrote:
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-Because there's no 'struct page' for DAX THPs, a lot of this code is
-simpler than the PMD code it mimics.  Extra code would need to be added
-to support PUDs of anonymous or page-cache THPs.
+> diff -puN arch/x86/mm/fault.c~pkeys-79-xonly arch/x86/mm/fault.c
+> --- a/arch/x86/mm/fault.c~pkeys-79-xonly	2016-01-06 15:50:16.799660453 -0800
+> +++ b/arch/x86/mm/fault.c	2016-01-06 15:50:16.810660949 -0800
+> @@ -14,6 +14,8 @@
+>  #include <linux/prefetch.h>		/* prefetchw			*/
+>  #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
+>  #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
+> +#include <linux/pkeys.h>		/* PKEY_*			*/
+> +#include <uapi/asm-generic/mman-common.h>
+>  
+>  #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
+>  #include <asm/traps.h>			/* dotraplinkage, ...		*/
+> @@ -23,6 +25,7 @@
+>  #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
+>  #include <asm/vm86.h>			/* struct vm86			*/
+>  #include <asm/mmu_context.h>		/* vma_pkey()			*/
+> +#include <asm/fpu/internal.h>		/* fpregs_active()		*/
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
----
- fs/proc/task_mmu.c | 109 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 109 insertions(+)
+These include changes are presumably leftovers from an earlier version. At
+least I can't see a reason why we would need them for the change below.
+  
+>  #define CREATE_TRACE_POINTS
+>  #include <asm/trace/exceptions.h>
+> @@ -1108,6 +1111,16 @@ access_error(unsigned long error_code, s
+>  	 */
+>  	if (error_code & PF_PK)
+>  		return 1;
+> +
+> +	if (!(error_code & PF_INSTR)) {
+> +		/*
+> +		 * Assume all accesses require either read or execute
+> +		 * permissions.  This is not an instruction access, so
+> +		 * it requires read permissions.
+> +		 */
+> +		if (!(vma->vm_flags & VM_READ))
+> +			return 1;
+> +	}
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 65a1b6c..e45cbc2 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -595,6 +595,33 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
- }
- #endif
- 
-+static int smaps_pud_range(pud_t *pud, unsigned long addr, unsigned long end,
-+		struct mm_walk *walk)
-+{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct vm_area_struct *vma = walk->vma;
-+	struct mem_size_stats *mss = walk->private;
-+
-+	if (is_huge_zero_pud(*pud))
-+		return 0;
-+
-+	mss->resident += HPAGE_PUD_SIZE;
-+	if (vma->vm_flags & VM_SHARED) {
-+		if (pud_dirty(*pud))
-+			mss->shared_dirty += HPAGE_PUD_SIZE;
-+		else
-+			mss->shared_clean += HPAGE_PUD_SIZE;
-+	} else {
-+		if (pud_dirty(*pud))
-+			mss->private_dirty += HPAGE_PUD_SIZE;
-+		else
-+			mss->private_clean += HPAGE_PUD_SIZE;
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+
-+	return 0;
-+}
-+
- static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			   struct mm_walk *walk)
- {
-@@ -715,6 +742,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 	struct vm_area_struct *vma = v;
- 	struct mem_size_stats mss;
- 	struct mm_walk smaps_walk = {
-+		.pud_entry = smaps_pud_range,
- 		.pmd_entry = smaps_pte_range,
- #ifdef CONFIG_HUGETLB_PAGE
- 		.hugetlb_entry = smaps_hugetlb_range,
-@@ -897,13 +925,50 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
- 
- 	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
- }
-+static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
-+		unsigned long addr, pud_t *pudp)
-+{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	pud_t pud = pudp_huge_get_and_clear(vma->vm_mm, addr, pudp);
-+
-+	pud = pud_wrprotect(pud);
-+	pud = pud_clear_soft_dirty(pud);
-+
-+	if (vma->vm_flags & VM_SOFTDIRTY)
-+		vma->vm_flags &= ~VM_SOFTDIRTY;
-+
-+	set_pud_at(vma->vm_mm, addr, pudp, pud);
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+}
- #else
- static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
- 		unsigned long addr, pmd_t *pmdp)
- {
- }
-+static inline void clear_soft_dirty_pud(struct vm_area_struct *vma,
-+		unsigned long addr, pud_t *pudp)
-+{
-+}
- #endif
- 
-+static int clear_refs_pud_range(pud_t *pud, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
-+{
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct clear_refs_private *cp = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
-+
-+	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-+		clear_soft_dirty_pud(vma, addr, pud);
-+	} else {
-+		/* Clear accessed and referenced bits. */
-+		pudp_test_and_clear_young(vma, addr, pud);
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+
-+	return 0;
-+}
-+
- static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
- {
-@@ -1013,6 +1078,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 			.type = type,
- 		};
- 		struct mm_walk clear_refs_walk = {
-+			.pud_entry = clear_refs_pud_range,
- 			.pmd_entry = clear_refs_pte_range,
- 			.test_walk = clear_refs_test_walk,
- 			.mm = mm,
-@@ -1177,6 +1243,48 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
- 	return make_pme(frame, flags);
- }
- 
-+static int pagemap_pud_range(pud_t *pudp, unsigned long addr, unsigned long end,
-+			     struct mm_walk *walk)
-+{
-+	int err = 0;
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	struct vm_area_struct *vma = walk->vma;
-+	struct pagemapread *pm = walk->private;
-+	u64 flags = 0, frame = 0;
-+	pud_t pud = *pudp;
-+
-+	if ((vma->vm_flags & VM_SOFTDIRTY) || pud_soft_dirty(pud))
-+		flags |= PM_SOFT_DIRTY;
-+
-+	/*
-+	 * Currently pud for thp is always present because thp
-+	 * can not be swapped-out, migrated, or HWPOISONed
-+	 * (split in such cases instead.)
-+	 * This if-check is just to prepare for future implementation.
-+	 */
-+	if (pud_present(pud)) {
-+		flags |= PM_PRESENT;
-+		if (!(vma->vm_flags & VM_SHARED))
-+			flags |= PM_MMAP_EXCLUSIVE;
-+
-+		if (pm->show_pfn)
-+			frame = pud_pfn(pud) +
-+					((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+
-+		for (; addr != end; addr += PAGE_SIZE) {
-+			pagemap_entry_t pme = make_pme(frame, flags);
-+
-+			err = add_to_pagemap(addr, &pme, pm);
-+			if (err)
-+				break;
-+			if (pm->show_pfn && (flags & PM_PRESENT))
-+				frame++;
-+		}
-+	}
-+#endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+	return err;
-+}
-+
- static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
- 			     struct mm_walk *walk)
- {
-@@ -1355,6 +1463,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	if (!pm.buffer)
- 		goto out_mm;
- 
-+	pagemap_walk.pud_entry = pagemap_pud_range;
- 	pagemap_walk.pmd_entry = pagemap_pmd_range;
- 	pagemap_walk.pte_hole = pagemap_pte_hole;
- #ifdef CONFIG_HUGETLB_PAGE
--- 
-2.6.4
+Except for the above nit: Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
