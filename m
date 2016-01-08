@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A0480828E9
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:50 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id q63so16322106pfb.1
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:50 -0800 (PST)
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C206F828E9
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 18:15:51 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id 65so15917253pff.2
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 15:15:51 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id d3si21159548pas.116.2016.01.08.15.15.49
+        by mx.google.com with ESMTP id v23si7928826pfi.58.2016.01.08.15.15.51
         for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 15:15:49 -0800 (PST)
+        Fri, 08 Jan 2016 15:15:51 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [RFC 10/13] x86/mm: Factor out remote TLB flushing
-Date: Fri,  8 Jan 2016 15:15:28 -0800
-Message-Id: <357b13bf9d6d04e585894ff5dcf40fa14ea1d3a7.1452294700.git.luto@kernel.org>
+Subject: [RFC 11/13] x86/mm: Build arch/x86/mm/tlb.c even on !SMP
+Date: Fri,  8 Jan 2016 15:15:29 -0800
+Message-Id: <a6eab8f94f1c6e0134246e4a21aa8af1cb7155fd.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
 References: <cover.1452294700.git.luto@kernel.org>
 In-Reply-To: <cover.1452294700.git.luto@kernel.org>
@@ -21,63 +21,58 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
 
-There are three call sites that propagate TLB flushes, and they all
-do exactly the same thing.  Factor the code out into a helper.
+Currently all of the functions that live in tlb.c are inlined on
+!SMP builds.  One can debate whether this is a good idea (in many
+respects the code in tlb.c is better than the inlined UP code).
+
+Regardless, I want to add code that needs to be built on UP and SMP
+kernels and relates to tlb flushing, so arrange for tlb.c to be
+compiled unconditionally.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/mm/tlb.c | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ arch/x86/mm/Makefile | 3 +--
+ arch/x86/mm/tlb.c    | 4 ++++
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 65c47fda26fc..1ae7c141f778 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -1,5 +1,5 @@
+ obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
+-	    pat.o pgtable.o physaddr.o gup.o setup_nx.o
++	    pat.o pgtable.o physaddr.o gup.o setup_nx.o tlb.o
+ 
+ # Make sure __phys_addr has no stackprotector
+ nostackp := $(call cc-option, -fno-stack-protector)
+@@ -9,7 +9,6 @@ CFLAGS_setup_nx.o		:= $(nostackp)
+ CFLAGS_fault.o := -I$(src)/../include/asm/trace
+ 
+ obj-$(CONFIG_X86_PAT)		+= pat_rbtree.o
+-obj-$(CONFIG_SMP)		+= tlb.o
+ 
+ obj-$(CONFIG_X86_32)		+= pgtable_32.o iomap_32.o
+ 
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 8f4cc3dfac32..b208a33571b0 100644
+index b208a33571b0..87fcc7a62e71 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
-@@ -154,6 +154,14 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
- 	smp_call_function_many(cpumask, flush_tlb_func, &info, 1);
- }
+@@ -28,6 +28,8 @@
+  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
+  */
  
-+static void propagate_tlb_flush(unsigned int this_cpu,
-+				struct mm_struct *mm, unsigned long start,
-+				unsigned long end)
-+{
-+	if (cpumask_any_but(mm_cpumask(mm), this_cpu) < nr_cpu_ids)
-+		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-+}
++#ifdef CONFIG_SMP
 +
- void flush_tlb_current_task(void)
- {
- 	struct mm_struct *mm = current->mm;
-@@ -166,8 +174,7 @@ void flush_tlb_current_task(void)
- 	local_flush_tlb();
- 
- 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
--	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-+	propagate_tlb_flush(smp_processor_id(), mm, 0UL, TLB_FLUSH_ALL);
- 	preempt_enable();
+ struct flush_tlb_info {
+ 	struct mm_struct *flush_mm;
+ 	unsigned long flush_start;
+@@ -352,3 +354,5 @@ static int __init create_tlb_single_page_flush_ceiling(void)
+ 	return 0;
  }
- 
-@@ -231,8 +238,7 @@ out:
- 		start = 0UL;
- 		end = TLB_FLUSH_ALL;
- 	}
--	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--		flush_tlb_others(mm_cpumask(mm), mm, start, end);
-+	propagate_tlb_flush(smp_processor_id(), mm, start, end);
- 	preempt_enable();
- }
- 
-@@ -257,8 +263,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 		}
- 	}
- 
--	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--		flush_tlb_others(mm_cpumask(mm), mm, start, 0UL);
-+	propagate_tlb_flush(smp_processor_id(), mm, start, 0UL);
- 
- 	preempt_enable();
- }
+ late_initcall(create_tlb_single_page_flush_ceiling);
++
++#endif /* CONFIG_SMP */
 -- 
 2.5.0
 
