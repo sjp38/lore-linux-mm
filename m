@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 461106B025B
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 19:27:40 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id n128so16553502pfn.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 16:27:40 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id sl3si20021783pac.220.2016.01.08.16.27.39
-        for <linux-mm@kvack.org>;
-        Fri, 08 Jan 2016 16:27:39 -0800 (PST)
-Subject: Re: [RFC 13/13] x86/mm: Try to preserve old TLB entries using PCID
-References: <cover.1452294700.git.luto@kernel.org>
- <c4125ff6333c97d3ce00e5886b809b7c20594585.1452294700.git.luto@kernel.org>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <569053F9.7060002@linux.intel.com>
-Date: Fri, 8 Jan 2016 16:27:37 -0800
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D175828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 20:49:51 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id ba1so368879625obb.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:49:51 -0800 (PST)
+Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
+        by mx.google.com with ESMTPS id oo8si8298311obb.53.2016.01.08.17.49.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jan 2016 17:49:50 -0800 (PST)
+Received: by mail-oi0-x22a.google.com with SMTP id o124so13588886oia.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:49:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <c4125ff6333c97d3ce00e5886b809b7c20594585.1452294700.git.luto@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+References: <cover.1452297867.git.tony.luck@intel.com> <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 8 Jan 2016 17:49:30 -0800
+Message-ID: <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
+Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, x86@kernel.org, linux-kernel@vger.kernel.org
-Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tony Luck <tony.luck@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On 01/08/2016 03:15 PM, Andy Lutomirski wrote:
-> + * The guiding principle of this code is that TLB entries that have
-> + * survived more than a small number of context switches are mostly
-> + * useless, so we don't try very hard not to evict them.
+On Jan 8, 2016 4:19 PM, "Tony Luck" <tony.luck@intel.com> wrote:
+>
+> Make use of the EXTABLE_FAULT exception table entries. This routine
+> returns a structure to indicate the result of the copy:
 
-Big ack on that.  The original approach tried to keep track of the full
-4k worth of possible PCIDs, it also needed an additional cpumask (which
-it dynamically allocated) for where the PCID was active in addition to
-the normal "where has this mm been" mask.
+Perhaps this is silly, but could we make this feature depend on ERMS
+and thus make the code a lot simpler?
 
-That's a lot of extra data to mangle, and I can definitely see your
-approach as being nicer, *IF* the hardware isn't doing something useful
-with the other 9 bits of PCID that you're throwing away. ;)
+Also, what's the sfence for?  You don't seem to be using any
+non-temporal operations.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
