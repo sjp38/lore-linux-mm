@@ -1,39 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D175828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 20:49:51 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id ba1so368879625obb.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:49:51 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id oo8si8298311obb.53.2016.01.08.17.49.50
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A9FB828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 20:53:15 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id ba1so368915769obb.3
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:53:15 -0800 (PST)
+Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
+        by mx.google.com with ESMTPS id fj3si14236359obc.64.2016.01.08.17.53.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jan 2016 17:49:50 -0800 (PST)
-Received: by mail-oi0-x22a.google.com with SMTP id o124so13588886oia.3
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:49:50 -0800 (PST)
+        Fri, 08 Jan 2016 17:53:14 -0800 (PST)
+Received: by mail-oi0-x235.google.com with SMTP id k206so21974866oia.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 17:53:14 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
-References: <cover.1452297867.git.tony.luck@intel.com> <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+In-Reply-To: <3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
+References: <cover.1452297867.git.tony.luck@intel.com> <3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
 From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 8 Jan 2016 17:49:30 -0800
-Message-ID: <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
-Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Date: Fri, 8 Jan 2016 17:52:54 -0800
+Message-ID: <CALCETrURssJHn42dXsEJbJbr=VGPnV1U_-UkYEZ48SPUSbUDww@mail.gmail.com>
+Subject: Re: [PATCH v8 1/3] x86: Expand exception table to allow new handling options
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tony Luck <tony.luck@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-On Jan 8, 2016 4:19 PM, "Tony Luck" <tony.luck@intel.com> wrote:
+On Fri, Jan 8, 2016 at 12:49 PM, Tony Luck <tony.luck@intel.com> wrote:
+> Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
+> produce this. Andy provided the inspiration to add classes to the
+> exception table with a clever bit-squeezing trick, Boris pointed
+> out how much cleaner it would all be if we just had a new field.
 >
-> Make use of the EXTABLE_FAULT exception table entries. This routine
-> returns a structure to indicate the result of the copy:
+> Linus Torvalds blessed the expansion with:
+>   I'd rather not be clever in order to save just a tiny amount of space
+>   in the exception table, which isn't really criticial for anybody.
+>
+> The third field is a simple integer indexing into an array of handler
+> functions (I thought it couldn't be a relative pointer like the other
+> fields because a module may have its ex_table loaded more than 2GB away
+> from the handler function - but that may not be actually true. But the
+> integer is pretty flexible, we are only really using low two bits now).
+>
+> We start out with three handlers:
+>
+> 0: Legacy - just jumps the to fixup IP
+> 1: Fault - provide the trap number in %ax to the fixup code
+> 2: Cleaned up legacy for the uaccess error hack
 
-Perhaps this is silly, but could we make this feature depend on ERMS
-and thus make the code a lot simpler?
+I think I preferred the relative function pointer approach.
 
-Also, what's the sfence for?  You don't seem to be using any
-non-temporal operations.
+Also, I think it would be nicer if the machine check code would invoke
+the handler regardless of which handler (or class) is selected.  Then
+the handlers that don't want to handle #MC can just reject them.
+
+Also, can you make the handlers return bool instead of int?
 
 --Andy
 
