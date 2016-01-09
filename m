@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 93F036B0256
-	for <linux-mm@kvack.org>; Sat,  9 Jan 2016 06:30:32 -0500 (EST)
-Received: by mail-yk0-f178.google.com with SMTP id x67so389046085ykd.2
-        for <linux-mm@kvack.org>; Sat, 09 Jan 2016 03:30:32 -0800 (PST)
-Received: from mail-yk0-x22b.google.com (mail-yk0-x22b.google.com. [2607:f8b0:4002:c07::22b])
-        by mx.google.com with ESMTPS id m123si7333323ywf.387.2016.01.09.03.30.31
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C866B6B0256
+	for <linux-mm@kvack.org>; Sat,  9 Jan 2016 06:33:44 -0500 (EST)
+Received: by mail-yk0-f174.google.com with SMTP id k129so366161195yke.0
+        for <linux-mm@kvack.org>; Sat, 09 Jan 2016 03:33:44 -0800 (PST)
+Received: from mail-yk0-x22c.google.com (mail-yk0-x22c.google.com. [2607:f8b0:4002:c07::22c])
+        by mx.google.com with ESMTPS id l186si68496442ywb.113.2016.01.09.03.33.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jan 2016 03:30:31 -0800 (PST)
-Received: by mail-yk0-x22b.google.com with SMTP id v14so295206666ykd.3
-        for <linux-mm@kvack.org>; Sat, 09 Jan 2016 03:30:31 -0800 (PST)
+        Sat, 09 Jan 2016 03:33:43 -0800 (PST)
+Received: by mail-yk0-x22c.google.com with SMTP id a85so310972043ykb.1
+        for <linux-mm@kvack.org>; Sat, 09 Jan 2016 03:33:43 -0800 (PST)
 From: nimisolo <nimisolo@gmail.com>
 Subject: [PATCH] mm/memblock: If nr_new is 0 just return
-Date: Sat,  9 Jan 2016 06:30:23 -0500
-Message-Id: <1452339024-3416-1-git-send-email-nimisolo@gmail.com>
+Date: Sat,  9 Jan 2016 06:33:40 -0500
+Message-Id: <1452339220-3457-1-git-send-email-nimisolo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kuleshovmail@gmail.com, penberg@kernel.org, tony.luck@intel.com, mgorman@suse.de, tangchen@cn.fujitsu.com, weiyang@linux.vnet.ibm.com, holt@sgi.com
+To: akpm@linux-foundation.org, kuleshovmail@gmail.com, penberg@kernel.org, tony.luck@intel.com, mgorman@suse.de, tangchen@cn.fujitsu.com, weiyang@linux.vnet.ibm.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nimisolo <nimisolo@gmail.com>
 
 If nr_new is 0 which means there's no region would be added,
