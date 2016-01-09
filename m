@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E8AAF828DE
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 23:28:48 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id f206so156146574wmf.0
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 20:28:48 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id s8si3834244wmf.111.2016.01.08.20.28.47
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC95828DE
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2016 23:31:17 -0500 (EST)
+Received: by mail-oi0-f42.google.com with SMTP id k206so23184407oia.1
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 20:31:17 -0800 (PST)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id y196si17755523oie.8.2016.01.08.20.31.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jan 2016 20:28:47 -0800 (PST)
-Date: Sat, 9 Jan 2016 04:28:39 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
-Message-ID: <20160109042839.GA864@ZenIV.linux.org.uk>
-References: <20160108232727.GA23490@www.outflux.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jan 2016 20:31:16 -0800 (PST)
+Received: by mail-oi0-x244.google.com with SMTP id e195so14617189oig.2
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2016 20:31:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160108232727.GA23490@www.outflux.net>
+In-Reply-To: <CAMzpN2j=ZRrL=rXLOTOoUeodtu_AqkQPm1-K0uQmVwLAC6MQGA@mail.gmail.com>
+References: <cover.1452297867.git.tony.luck@intel.com>
+	<3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
+	<CALCETrURssJHn42dXsEJbJbr=VGPnV1U_-UkYEZ48SPUSbUDww@mail.gmail.com>
+	<CAMzpN2j=ZRrL=rXLOTOoUeodtu_AqkQPm1-K0uQmVwLAC6MQGA@mail.gmail.com>
+Date: Fri, 8 Jan 2016 23:31:16 -0500
+Message-ID: <CAMzpN2jAvhM74ZGNecnqU3ozLUXb185Cb2iZN6LB0bToFo4Xhw@mail.gmail.com>
+Subject: Re: [PATCH v8 1/3] x86: Expand exception table to allow new handling options
+From: Brian Gerst <brgerst@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, linux-api@vger.kern, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Robert <elliott@hpe.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, X86 ML <x86@kernel.org>
 
-On Fri, Jan 08, 2016 at 03:27:27PM -0800, Kees Cook wrote:
+On Fri, Jan 8, 2016 at 10:39 PM, Brian Gerst <brgerst@gmail.com> wrote:
+> On Fri, Jan 8, 2016 at 8:52 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> On Fri, Jan 8, 2016 at 12:49 PM, Tony Luck <tony.luck@intel.com> wrote:
+>>> Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
+>>> produce this. Andy provided the inspiration to add classes to the
+>>> exception table with a clever bit-squeezing trick, Boris pointed
+>>> out how much cleaner it would all be if we just had a new field.
+>>>
+>>> Linus Torvalds blessed the expansion with:
+>>>   I'd rather not be clever in order to save just a tiny amount of space
+>>>   in the exception table, which isn't really criticial for anybody.
+>>>
+>>> The third field is a simple integer indexing into an array of handler
+>>> functions (I thought it couldn't be a relative pointer like the other
+>>> fields because a module may have its ex_table loaded more than 2GB away
+>>> from the handler function - but that may not be actually true. But the
+>>> integer is pretty flexible, we are only really using low two bits now).
+>>>
+>>> We start out with three handlers:
+>>>
+>>> 0: Legacy - just jumps the to fixup IP
+>>> 1: Fault - provide the trap number in %ax to the fixup code
+>>> 2: Cleaned up legacy for the uaccess error hack
+>>
+>> I think I preferred the relative function pointer approach.
+>>
+>> Also, I think it would be nicer if the machine check code would invoke
+>> the handler regardless of which handler (or class) is selected.  Then
+>> the handlers that don't want to handle #MC can just reject them.
+>>
+>> Also, can you make the handlers return bool instead of int?
+>
+> I'm hashing up an idea that could eliminate alot of text in the .fixup
+> section, but it needs the integer handler method to work.  We have
+> alot of fixup code that does "mov $-EFAULT, reg; jmp xxxx".  If we
+> encode the register in the third word, the handler can be generic and
+> no fixup code for each user access would be needed.  That would
+> recover alot of the memory used by expanding the exception table.
 
-> diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
-> index e063effe0cc1..096c4b3afe6a 100644
-> --- a/include/uapi/asm-generic/fcntl.h
-> +++ b/include/uapi/asm-generic/fcntl.h
-> @@ -88,6 +88,10 @@
->  #define __O_TMPFILE	020000000
->  #endif
->  
-> +#ifndef O_REMOVEPRIV
-> +#define O_REMOVEPRIV	040000000
-> +#endif
+On second thought, this could still be implemented with a relative
+function pointer.  We'd just need a separate function for each
+register.
 
-Hmm...  Is that value always available?  AFAICS, parisc has already grabbed
-it (for __O_TMPFILE).  On sparc it's taken by __O_SYNC, on alpha - O_PATH...
-There's a reason why those definitions are not unconditional; some targets
-have ABI shared with a preexisting Unix variant on the architecture in
-question.
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
