@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id EB904828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 06:26:45 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id b14so229897337wmb.1
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 03:26:45 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id p126si14052446wmg.99.2016.01.10.03.26.44
-        for <linux-mm@kvack.org>;
-        Sun, 10 Jan 2016 03:26:44 -0800 (PST)
-Date: Sun, 10 Jan 2016 12:26:35 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
-Message-ID: <20160110112635.GC22896@pd.tnic>
-References: <cover.1452297867.git.tony.luck@intel.com>
- <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
- <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
- <CA+8MBbL5Cwxjr_vtfE5n+XHPknFK4QMC3QNwaif5RvWo-eZATQ@mail.gmail.com>
- <CALCETrVQ_NxcnDr4N-VqROrMJ2hUzMKgmxjxAZu9TFbznqSDcg@mail.gmail.com>
- <CA+8MBbLUtVh3E4RqcHbZ165v+fURGYPm=ejOn2cOPq012BwLSg@mail.gmail.com>
- <CAPcyv4hAenpeqPsj7Rd0Un_SgDpm+CjqH3EK72ho-=zZFvG7wA@mail.gmail.com>
- <CALCETrVRgaWS86wq4B6oZbEY5_ODb3Nh5OeE9vvdGdds6j_pYg@mail.gmail.com>
- <CAPcyv4iCbp0oR_V+XCTduLd1t2UxyFwaoJVk0_vwk8aO2Uh=bQ@mail.gmail.com>
- <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id EC7BF828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 08:59:26 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id u188so186128712wmu.1
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 05:59:26 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id k206si14978201wmf.37.2016.01.10.05.59.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Jan 2016 05:59:25 -0800 (PST)
+Received: by mail-wm0-x231.google.com with SMTP id f206so183475277wmf.0
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 05:59:25 -0800 (PST)
+Message-ID: <569263BA.5060503@plexistor.com>
+Date: Sun, 10 Jan 2016 15:59:22 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
+Subject: [PATCHSET 0/2] Allow single pagefault in write access of a VM_MIXEDMAP
+ mapping
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat, Jan 09, 2016 at 05:40:05PM -0800, Tony Luck wrote:
-> BUT ... it's all going to be very messy.  We don't have any CPUID
-> capability bits to say whether we support recovery, or which instructions
-> are good/bad choices for recovery.
+Hi
 
-We can always define synthetic ones and set them after having checked
-MCA capability bits, f/m/s, etc., maybe even based on the list you're
-supplying...
+Today any VM_MIXEDMAP or VM_PFN mapping when enabling a write access
+to their mapping, will have a double pagefault for every write access.
 
-> Linux code recently got some recovery bits for AMD cpus ... I don't
-> know what the story is on which models support this,
+This is because vma->vm_page_prot defines how a page/pfn is inserted into
+the page table (see vma_wants_writenotify in mm/mmap.c).
 
-You mean this?
+Which means that it is always inserted with read-only under the
+assumption that we want to be notified when write access occurs.
 
-                /*
-                 * overflow_recov is supported for F15h Models 00h-0fh
-                 * even though we don't have a CPUID bit for it.
-                 */
-                if (c->x86 == 0x15 && c->x86_model <= 0xf)
-                        mce_flags.overflow_recov = 1;
+But this is not always true and adds an unnecessary page-fault on
+every new mmap-write access
 
-If so, that's just an improvement which makes MCi_STATUS[Overflow] MCEs
-non-fatal.
+This patchset is trying to give the fault handler more choice by passing
+an pgprot_t to vm_insert_mixed() via a new vm_insert_mixed_prot() API.
 
--- 
-Regards/Gruss,
-    Boris.
+If the mm guys feel that the pgprot_t and its helpers and flags are private
+to mm/memory.c I can easily do a new: vm_insert_mixed_rw() instead. of the
+above vm_insert_mixed_prot() which enables any control not only write.
 
-ECO tip #101: Trim your mails when you reply.
+Following is a patch to DAX to optimize out the extra page-fault.
+
+TODO: I only did 4k mapping perhaps 2M mapping can enjoy the same single
+fault on write access. If interesting to anyone I can attempt a fix.
+
+Dan Andrew who needs to pick this up please?
+
+list of patches:
+[PATCH 1/2] mm: Allow single pagefault on mmap-write with VM_MIXEDMAP
+[PATCH 2/2] dax: Only fault once on mmap write access
+
+Thank you
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
