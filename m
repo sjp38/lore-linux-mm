@@ -1,59 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7CD828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 16:10:59 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id l65so190167743wmf.1
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 13:10:59 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id kz4si7670381wjc.203.2016.01.10.13.10.58
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 466AB828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 16:40:23 -0500 (EST)
+Received: by mail-qg0-f43.google.com with SMTP id 6so312263279qgy.1
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 13:40:23 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g44si104425284qge.3.2016.01.10.13.40.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Jan 2016 13:10:58 -0800 (PST)
-Date: Sun, 10 Jan 2016 21:10:51 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
-Message-ID: <20160110211051.GH17997@ZenIV.linux.org.uk>
-References: <20160108232727.GA23490@www.outflux.net>
- <CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
- <20160110193044.GG17997@ZenIV.linux.org.uk>
- <CALYGNiOxyXX2dpiPoGQUz0CDsvZtH57CO7gE2rAmTQWLigeL1w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Jan 2016 13:40:22 -0800 (PST)
+Date: Sun, 10 Jan 2016 23:40:17 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 2/2] virtio_balloon: fix race between migration and
+ ballooning
+Message-ID: <20160110233310-mutt-send-email-mst@redhat.com>
+References: <1451259313-26353-1-git-send-email-minchan@kernel.org>
+ <1451259313-26353-2-git-send-email-minchan@kernel.org>
+ <20160101102756-mutt-send-email-mst@redhat.com>
+ <20160104002747.GA31090@blaptop.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALYGNiOxyXX2dpiPoGQUz0CDsvZtH57CO7gE2rAmTQWLigeL1w@mail.gmail.com>
+In-Reply-To: <20160104002747.GA31090@blaptop.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-arch@vger.kernel.org, Linux API <linux-api@vger.kern>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rafael Aquini <aquini@redhat.com>, stable@vger.kernel.org
 
-On Sun, Jan 10, 2016 at 10:51:52PM +0300, Konstantin Khlebnikov wrote:
-> On Sun, Jan 10, 2016 at 10:30 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> > On Sun, Jan 10, 2016 at 06:48:32PM +0300, Konstantin Khlebnikov wrote:
-> >> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
-> >>
-> >> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
-> >> under mmap_sem, then if needed grab reference to struct file from vma and
-> >> clear suid after unlocking mmap_sem.
-> >
-> > Which vma?  mprotect(2) can cover more than one mapping...  You'd have to
-> > play interesting games to collect the set of affected struct file; it
-> > _might_ be doable (e.g. by using task_work_add() to have the damn thing
-> > trigger on the way to userland), but it would require some care to avoid
-> > hitting the same file more than once - it might, after all, be mmapped
-> > in more than one process, so racing mprotect() would need to be taken
-> > into account.  Hell knows - might be doable, but I'm not sure it'll be
-> > any prettier.
+On Mon, Jan 04, 2016 at 09:27:47AM +0900, Minchan Kim wrote:
+> > I think this will cause deadlocks.
+> > 
+> > pages_lock now nests within page lock, balloon_page_putback
+> > nests them in the reverse order.
 > 
-> Ok, I didn't thought about that. mprotect don't have to be atomic for whole
-> range -- we could drop mmap_sem, clear suid from one file and restart it
-> for next vma and so on.
+> In balloon_page_dequeu, we used trylock so I don't think it's
+> deadlock.
 
-Won't be fun.  Even aside of the user-visible behaviour changes, you'll have
-a lot of new corner cases, starting with the fact that you can't hold onto
-vma - virtual address is the best you can do and vma you find after regaining
-mmap_sem might start at lower address than one where you are restarting;
-getting the splitting-related logics right will be interesting, to put it
-mildly.
+I went over this again and I don't see the issue anymore.
+I think I was mistaken, so I dropped my patch and picked
+up yours. Sorry about the noise.
+
+
+> > 
+> > Also, there's another issue there I think: after isolation page could
+> > also get freed before we try to lock it.
+> 
+> If a page was isolated, the page shouldn't stay b_dev_info->pages
+> list so balloon_page_dequeue cannot see the page.
+> Am I missing something?
+
+I mean without locks, as it is now. With either your or my patch in
+place, it's fine.
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
