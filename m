@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E715E828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 09:03:46 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id f206so183552189wmf.0
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 06:03:46 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id o82si14931186wmg.112.2016.01.10.06.03.45
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 69EE9828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 09:07:44 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id bc4so241923438lbc.2
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 06:07:44 -0800 (PST)
+Received: from mail-lb0-x244.google.com (mail-lb0-x244.google.com. [2a00:1450:4010:c04::244])
+        by mx.google.com with ESMTPS id e193si50868926lfd.173.2016.01.10.06.07.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jan 2016 06:03:46 -0800 (PST)
-Received: by mail-wm0-x22f.google.com with SMTP id u188so186205088wmu.1
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 06:03:45 -0800 (PST)
-Message-ID: <569264BF.8010905@plexistor.com>
-Date: Sun, 10 Jan 2016 16:03:43 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+        Sun, 10 Jan 2016 06:07:43 -0800 (PST)
+Received: by mail-lb0-x244.google.com with SMTP id ti8so24209433lbb.3
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 06:07:42 -0800 (PST)
+Date: Sun, 10 Jan 2016 17:07:40 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH next] powerpc/mm: fix _PAGE_SWP_SOFT_DIRTY breaking
+ swapoff
+Message-ID: <20160110140740.GB4306@uranus>
+References: <alpine.LSU.2.11.1601091651130.9808@eggly.anvils>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] dax: Only fault once on mmap write access
-References: <569263BA.5060503@plexistor.com>
-In-Reply-To: <569263BA.5060503@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1601091651130.9808@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
+On Sat, Jan 09, 2016 at 04:54:59PM -0800, Hugh Dickins wrote:
+> Swapoff after swapping hangs on the G5, when CONFIG_CHECKPOINT_RESTORE=y
+> but CONFIG_MEM_SOFT_DIRTY is not set.  That's because the non-zero
+> _PAGE_SWP_SOFT_DIRTY bit, added by CONFIG_HAVE_ARCH_SOFT_DIRTY=y, is not
+> discounted when CONFIG_MEM_SOFT_DIRTY is not set: so swap ptes cannot be
+> recognized.
+> 
+> (I suspect that the peculiar dependence of HAVE_ARCH_SOFT_DIRTY on
+> CHECKPOINT_RESTORE in arch/powerpc/Kconfig comes from an incomplete
+> attempt to solve this problem.)
+> 
+> It's true that the relationship between CONFIG_HAVE_ARCH_SOFT_DIRTY and
+> and CONFIG_MEM_SOFT_DIRTY is too confusing, and it's true that swapoff
+> should be made more robust; but nevertheless, fix up the powerpc ifdefs
+> as x86_64 and s390 (which met the same problem) have them, defining the
+> bits as 0 if CONFIG_MEM_SOFT_DIRTY is not set.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
-In current code for any mmap-write access there are two page faults.
-One that maps the pfn into the vma (vm_insert_mixed()), and a second
-one that converts the read-only mapping to read-write (via pfn_mkwrite).
-
-But since we already know that this is a write access we can map the
-pfn read-write and save the extra fault.
-
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
----
- fs/dax.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
-
-diff --git a/fs/dax.c b/fs/dax.c
-index a86d3cc..3fee696 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -289,6 +289,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	sector_t sector = bh->b_blocknr << (inode->i_blkbits - 9);
- 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
- 	void __pmem *addr;
-+	pgprot_t prot = vma->vm_page_prot;
- 	unsigned long pfn;
- 	pgoff_t size;
- 	int error;
-@@ -321,7 +322,10 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 		wmb_pmem();
- 	}
- 
--	error = vm_insert_mixed(vma, vaddr, pfn);
-+	if (vmf->flags & FAULT_FLAG_WRITE)
-+		prot = pgprot_modify(prot, PAGE_SHARED);
-+
-+	error = vm_insert_mixed_prot(vma, vaddr, pfn, prot);
- 
-  out:
- 	i_mmap_unlock_read(mapping);
--- 
-1.9.3
-
+Thank you, Hugh!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
