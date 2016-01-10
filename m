@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAAB828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 13:59:29 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id u188so191127039wmu.1
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 10:59:29 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id r138si16855772wmg.30.2016.01.10.10.59.27
-        for <linux-mm@kvack.org>;
-        Sun, 10 Jan 2016 10:59:27 -0800 (PST)
-Date: Sun, 10 Jan 2016 19:59:16 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC 01/13] x86/paravirt: Turn KASAN off for parvirt.o
-Message-ID: <20160110185916.GD22896@pd.tnic>
-References: <cover.1452294700.git.luto@kernel.org>
- <bffe57f96d76a92655cb5d230d86cec195a20f6e.1452294700.git.luto@kernel.org>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 83261828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 14:30:55 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id f206so239871861wmf.0
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 11:30:55 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id qs3si37371647wjc.230.2016.01.10.11.30.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Jan 2016 11:30:54 -0800 (PST)
+Date: Sun, 10 Jan 2016 19:30:44 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
+Message-ID: <20160110193044.GG17997@ZenIV.linux.org.uk>
+References: <20160108232727.GA23490@www.outflux.net>
+ <CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bffe57f96d76a92655cb5d230d86cec195a20f6e.1452294700.git.luto@kernel.org>
+In-Reply-To: <CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-arch@vger.kernel.org, Linux API <linux-api@vger.kern>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-+ Andrey.
-
-On Fri, Jan 08, 2016 at 03:15:19PM -0800, Andy Lutomirski wrote:
-> Otherwise terrible things happen if some of the callbacks end up
-> calling into KASAN in unexpected places.
+On Sun, Jan 10, 2016 at 06:48:32PM +0300, Konstantin Khlebnikov wrote:
+> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
 > 
-> This has no obvious symptoms yet, but adding a memory reference to
-> native_flush_tlb_global without this blows up on KASAN kernels.
-> 
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/kernel/Makefile | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-> index b1b78ffe01d0..b7cd5bdf314b 100644
-> --- a/arch/x86/kernel/Makefile
-> +++ b/arch/x86/kernel/Makefile
-> @@ -19,6 +19,7 @@ endif
->  KASAN_SANITIZE_head$(BITS).o := n
->  KASAN_SANITIZE_dumpstack.o := n
->  KASAN_SANITIZE_dumpstack_$(BITS).o := n
-> +KASAN_SANITIZE_paravirt.o := n
->  
->  CFLAGS_irq.o := -I$(src)/../include/asm/trace
+> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
+> under mmap_sem, then if needed grab reference to struct file from vma and
+> clear suid after unlocking mmap_sem.
 
-Shouldn't we take this one irrespectively of what happens to the rest in
-the patchset?
+Which vma?  mprotect(2) can cover more than one mapping...  You'd have to
+play interesting games to collect the set of affected struct file; it
+_might_ be doable (e.g. by using task_work_add() to have the damn thing
+trigger on the way to userland), but it would require some care to avoid
+hitting the same file more than once - it might, after all, be mmapped
+in more than one process, so racing mprotect() would need to be taken
+into account.  Hell knows - might be doable, but I'm not sure it'll be
+any prettier.
 
--- 
-Regards/Gruss,
-    Boris.
+->f_u.fu_rcuhead.func would need to be zeroed on struct file allocation,
+and that code would need to
+	* check ->f_u.fu_rcuhead.func; if non-NULL - sod off, nothing to do
+	* lock ->f_lock
+	* recheck (and unlock if we'd lost a race and need to sod off)
+	* get_file()
+	* task_work_add() on ->f_u.fu_rcuhead
+	* drop ->f_lock
+with task_work_add() callback removing SUID, zero ->fu.fu_rcuhead.func (under
+->f_lock) and finally fput().
 
-ECO tip #101: Trim your mails when you reply.
+In principle, that would work; the primitive would be along the lines of
+"make sure that SUID is removed before return to userland" and both mmap
+and mprotect would use it.  The primitive itself would be in fs/file_table.c,
+encapsulating the messy details in there.  All existing users of ->f_u don't
+touch it until ->f_count drops to 0, so we are OK to use it here.  It obviously
+should _not_ be used for kernel threads (task_work_add() won't do us any
+good in those, but then we are not going to do mmap or mprotect there either).
+Regular writes should *not* use that - they ought to strip SUID directly.
+
+Might be worth trying...  Any takers?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
