@@ -1,39 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 46EFF828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 12:38:55 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id bc4so243209642lbc.2
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 09:38:55 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u79si25794285lfd.72.2016.01.10.09.38.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jan 2016 09:38:53 -0800 (PST)
-Date: Sun, 10 Jan 2016 12:38:48 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH mmotm] memcg: avoid vmpressure oops when memcg disabled
-Message-ID: <20160110173848.GA20871@cmpxchg.org>
-References: <alpine.LSU.2.11.1601091717160.10107@eggly.anvils>
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AAAB828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 13:59:29 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id u188so191127039wmu.1
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 10:59:29 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id r138si16855772wmg.30.2016.01.10.10.59.27
+        for <linux-mm@kvack.org>;
+        Sun, 10 Jan 2016 10:59:27 -0800 (PST)
+Date: Sun, 10 Jan 2016 19:59:16 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC 01/13] x86/paravirt: Turn KASAN off for parvirt.o
+Message-ID: <20160110185916.GD22896@pd.tnic>
+References: <cover.1452294700.git.luto@kernel.org>
+ <bffe57f96d76a92655cb5d230d86cec195a20f6e.1452294700.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1601091717160.10107@eggly.anvils>
+In-Reply-To: <bffe57f96d76a92655cb5d230d86cec195a20f6e.1452294700.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Sat, Jan 09, 2016 at 05:21:44PM -0800, Hugh Dickins wrote:
-> A CONFIG_MEMCG=y kernel booted with "cgroup_disable=memory" crashes on
-> a NULL memcg (but non-NULL root_mem_cgroup) when vmpressure kicks in.
-> Here's the patch I use to avoid that, but you might prefer a test on
-> mem_cgroup_disabled() somewhere.
++ Andrey.
+
+On Fri, Jan 08, 2016 at 03:15:19PM -0800, Andy Lutomirski wrote:
+> Otherwise terrible things happen if some of the callbacks end up
+> calling into KASAN in unexpected places.
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> This has no obvious symptoms yet, but adding a memory reference to
+> native_flush_tlb_global without this blows up on KASAN kernels.
+> 
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+>  arch/x86/kernel/Makefile | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+> index b1b78ffe01d0..b7cd5bdf314b 100644
+> --- a/arch/x86/kernel/Makefile
+> +++ b/arch/x86/kernel/Makefile
+> @@ -19,6 +19,7 @@ endif
+>  KASAN_SANITIZE_head$(BITS).o := n
+>  KASAN_SANITIZE_dumpstack.o := n
+>  KASAN_SANITIZE_dumpstack_$(BITS).o := n
+> +KASAN_SANITIZE_paravirt.o := n
+>  
+>  CFLAGS_irq.o := -I$(src)/../include/asm/trace
 
-Thanks Hugh. This looks good.
+Shouldn't we take this one irrespectively of what happens to the rest in
+the patchset?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
