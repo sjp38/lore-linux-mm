@@ -1,120 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B072E680F7F
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:19:47 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id z14so130832361igp.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:19:47 -0800 (PST)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id h26si11591159iod.112.2016.01.11.15.19.47
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F31680F7F
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:23:12 -0500 (EST)
+Received: by mail-oi0-f50.google.com with SMTP id p187so44023095oia.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:23:12 -0800 (PST)
+Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
+        by mx.google.com with ESMTPS id k77si36987232oib.148.2016.01.11.15.23.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 15:19:47 -0800 (PST)
-Received: by mail-ig0-x22f.google.com with SMTP id t15so107455680igr.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:19:47 -0800 (PST)
+        Mon, 11 Jan 2016 15:23:12 -0800 (PST)
+Received: by mail-ob0-x231.google.com with SMTP id is5so12379480obc.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:23:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CALYGNiO73NfhqrBoCwfdbMg5kNMC1nrNGeT9rUisBDHXTYY-Gg@mail.gmail.com>
-References: <20160108232727.GA23490@www.outflux.net>
-	<CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
-	<CAGXu5jJaoZC7WL=MndBr915XhEpn9n3HOOhB-ue1xqyKFWxxzQ@mail.gmail.com>
-	<CALYGNiPC224w7-xeo9NOX9nrHH84o+_KXBtKWtd4TPXQyQMq2w@mail.gmail.com>
-	<CAGXu5j+UV39Q5reWOWBrtxuP6cLpweEF5e-KBV_K4moszCC24g@mail.gmail.com>
-	<CALYGNiO73NfhqrBoCwfdbMg5kNMC1nrNGeT9rUisBDHXTYY-Gg@mail.gmail.com>
-Date: Mon, 11 Jan 2016 15:19:46 -0800
-Message-ID: <CAGXu5jKn8_LqR=oESz4QXxV7G-niD4rEmDpLepHqq50-zUrxcw@mail.gmail.com>
-Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
-From: Kees Cook <keescook@chromium.org>
+In-Reply-To: <CAMzpN2gamZbY+k=oADhAxEiNPEzeezaRDDOvF2ZU1rWG2CDNSA@mail.gmail.com>
+References: <cover.1452297867.git.tony.luck@intel.com> <3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
+ <CALCETrURssJHn42dXsEJbJbr=VGPnV1U_-UkYEZ48SPUSbUDww@mail.gmail.com>
+ <CAMzpN2j=ZRrL=rXLOTOoUeodtu_AqkQPm1-K0uQmVwLAC6MQGA@mail.gmail.com>
+ <CAMzpN2jAvhM74ZGNecnqU3ozLUXb185Cb2iZN6LB0bToFo4Xhw@mail.gmail.com>
+ <CALCETrVR=_CYHt4R4yurKpnfi76P8GTwHycPLmqPshK2bCv+Fg@mail.gmail.com> <CAMzpN2gamZbY+k=oADhAxEiNPEzeezaRDDOvF2ZU1rWG2CDNSA@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 11 Jan 2016 15:22:52 -0800
+Message-ID: <CALCETrWZ=Z42HHqzr+_G=MHehW2toGyY=tdpZuv8wBjxoxYPUg@mail.gmail.com>
+Subject: Re: [PATCH v8 1/3] x86: Expand exception table to allow new handling options
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Brian Gerst <brgerst@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Robert <elliott@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>
 
-On Mon, Jan 11, 2016 at 3:16 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-> On Tue, Jan 12, 2016 at 1:45 AM, Kees Cook <keescook@chromium.org> wrote:
->> On Mon, Jan 11, 2016 at 2:39 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>> On Mon, Jan 11, 2016 at 10:38 PM, Kees Cook <keescook@chromium.org> wrote:
->>>> On Sun, Jan 10, 2016 at 7:48 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>>>> On Sat, Jan 9, 2016 at 2:27 AM, Kees Cook <keescook@chromium.org> wrote:
->>>>>> Normally, when a user can modify a file that has setuid or setgid bits,
->>>>>> those bits are cleared when they are not the file owner or a member
->>>>>> of the group. This is enforced when using write and truncate but not
->>>>>> when writing to a shared mmap on the file. This could allow the file
->>>>>> writer to gain privileges by changing a binary without losing the
->>>>>> setuid/setgid/caps bits.
->>>>>>
->>>>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
->>>>>> during the page fault (due to mmap_sem being held during the fault). We
->>>>>> could do this during vm_mmap_pgoff, but that would need coverage in
->>>>>> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
->>>>>> again. We could clear at open() time, but it's possible things are
->>>>>> accidentally opening with O_RDWR and only reading. Better to clear on
->>>>>> close and error failures (i.e. an improvement over now, which is not
->>>>>> clearing at all).
->>>>>
->>>>> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
->>>>>
->>>>> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
->>>>> under mmap_sem, then if needed grab reference to struct file from vma and
->>>>> clear suid after unlocking mmap_sem.
->>>>>
->>>>> I haven't seen previous iterations, probably this approach has known flaws.
->>>>
->>>> mmap_sem is still needed in mprotect (to find and hold the vma), so
->>>> it's not possible. I'd love to be proven wrong, but I didn't see a
->>>> way.
+On Mon, Jan 11, 2016 at 3:09 PM, Brian Gerst <brgerst@gmail.com> wrote:
+> On Sat, Jan 9, 2016 at 1:36 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> On Jan 8, 2016 8:31 PM, "Brian Gerst" <brgerst@gmail.com> wrote:
 >>>
->>> something like this
+>>> On Fri, Jan 8, 2016 at 10:39 PM, Brian Gerst <brgerst@gmail.com> wrote:
+>>> > On Fri, Jan 8, 2016 at 8:52 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>>> >> On Fri, Jan 8, 2016 at 12:49 PM, Tony Luck <tony.luck@intel.com> wrote:
+>>> >>> Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
+>>> >>> produce this. Andy provided the inspiration to add classes to the
+>>> >>> exception table with a clever bit-squeezing trick, Boris pointed
+>>> >>> out how much cleaner it would all be if we just had a new field.
+>>> >>>
+>>> >>> Linus Torvalds blessed the expansion with:
+>>> >>>   I'd rather not be clever in order to save just a tiny amount of space
+>>> >>>   in the exception table, which isn't really criticial for anybody.
+>>> >>>
+>>> >>> The third field is a simple integer indexing into an array of handler
+>>> >>> functions (I thought it couldn't be a relative pointer like the other
+>>> >>> fields because a module may have its ex_table loaded more than 2GB away
+>>> >>> from the handler function - but that may not be actually true. But the
+>>> >>> integer is pretty flexible, we are only really using low two bits now).
+>>> >>>
+>>> >>> We start out with three handlers:
+>>> >>>
+>>> >>> 0: Legacy - just jumps the to fixup IP
+>>> >>> 1: Fault - provide the trap number in %ax to the fixup code
+>>> >>> 2: Cleaned up legacy for the uaccess error hack
+>>> >>
+>>> >> I think I preferred the relative function pointer approach.
+>>> >>
+>>> >> Also, I think it would be nicer if the machine check code would invoke
+>>> >> the handler regardless of which handler (or class) is selected.  Then
+>>> >> the handlers that don't want to handle #MC can just reject them.
+>>> >>
+>>> >> Also, can you make the handlers return bool instead of int?
+>>> >
+>>> > I'm hashing up an idea that could eliminate alot of text in the .fixup
+>>> > section, but it needs the integer handler method to work.  We have
+>>> > alot of fixup code that does "mov $-EFAULT, reg; jmp xxxx".  If we
+>>> > encode the register in the third word, the handler can be generic and
+>>> > no fixup code for each user access would be needed.  That would
+>>> > recover alot of the memory used by expanding the exception table.
 >>>
->>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+>>> On second thought, this could still be implemented with a relative
+>>> function pointer.  We'd just need a separate function for each
+>>> register.
 >>>
->>>         vm_flags = calc_vm_prot_bits(prot);
->>>
->>> +restart:
->>>         down_write(&current->mm->mmap_sem);
->>>
->>>         vma = find_vma(current->mm, start);
->>> @@ -416,6 +418,21 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start,
->>> size_t, len,
->>>                         goto out;
->>>                 }
->>>
->>> +               if ((newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
->>> +                   vma->vm_file && file_needs_remove_privs(vma->vm_file)) {
->>> +                       struct file *file = get_file(vma->vm_file);
->>> +
->>> +                       start = vma->vm_start;
->>> +                       up_write(&current->mm->mmap_sem);
->>> +                       mutex_lock(&file_inode(file)->i_mutex);
->>> +                       error = file_remove_privs(file);
->>> +                       mutex_unlock(&file_inode(file)->i_mutex);
->>> +                       fput(file);
->>> +                       if (error)
->>> +                               return error;
->>> +                       goto restart;
->>> +               }
->>> +
 >>
->> Is this safe against the things Al mentioned? I still don't like the
->> mmap/mprotect approach because it makes the change before anything was
->> actually written...
+>> If we could get gcc to play along (which, IIRC, it already can for
+>> __put_user), we can do much better with jump labels -- the fixup
+>> target would be a jump label.
+>>
+>> Even without that, how about using @cc?  Do:
+>>
+>> clc
+>> mov whatever, wherever
+>>
+>> The fixup sets the carry flag and skips the faulting instruction
+>> (either by knowing the length or by decoding it), and the inline asm
+>> causes gcc to emit jc to the error logic.
+>>
+>> --Andy
 >
-> (I forgot to check VM_SHARED)
+> I agree that for at least put_user() using asm goto would be an even
+> better option.  get_user() on the other hand, will be much messier to
+> deal with, since asm goto statements can't have outputs, plus it
+> zeroes the output register on fault.
 >
-> Yep, this should be safe.
->
-> I think suid should be cleared before any possible change of data.
-> New content could hit the disk but suid never be cleared,
-> for example if system suddenly crashed or rebooted.
 
-Oooh, very good point. Yeah, that's enough to convince me. :) Ignore my v7...
+The cc thing still works for get_user, I think.
 
-Al, are you okay with this semantic change?
+int fault;
+asm ("clc; mov whatever, wherever" : "=r" (out), "=@ccc" (fault) : "m" (in));
+if (fault) {
+  out = 0;
+  return -EFAULT;
+}
 
--Kees
+return 0;
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+You'd set the handler to a special handler that does regs->flags |=
+X86_EFLAGS_CF in addition to jumping to the landing pad, which, in
+this case, is immediately after the mov.
+
+If you want to be *really* fancy, a post-compilation pass could detect
+these things, observe that the landing pad points to jc, nop out the
+jc, and move the landing pad to the jc target.  This gets most of the
+speed benefit of what asm goto would do if gcc supported it without
+relying on gcc support.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
