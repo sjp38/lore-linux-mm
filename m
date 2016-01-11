@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 11 Jan 2016 17:07:52 -0500
+Date: Mon, 11 Jan 2016 17:07:58 -0500
 From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: [PATCH 11/13] mm: enable __do_page_cache_readahead() to include present pages
-Message-ID: <7b76f5442bab13114bbb75c3143e1ccc5f17de98.1452549431.git.bcrl@kvack.org>
+Subject: [PATCH 12/13] aio: add support for aio readahead
+Message-ID: <130a393a298209223b5ed3c3d3fe9023e56eddcb.1452549431.git.bcrl@kvack.org>
 References: <cover.1452549431.git.bcrl@kvack.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,99 +13,212 @@ List-ID: <linux-mm.kvack.org>
 To: linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-For the upcoming AIO readahead operation it is necessary to know that
-all the pages in a readahead request have had reads issued for them or
-that the read was satisfied from cache.  Add a parameter to
-__do_page_cache_readahead() to instruct it to count these pages in the
-return value.
+Introduce an asynchronous operation to populate the page cache with
+pages at a given offset and length.  This operation is conceptually
+similar to performing an asynchronous read except that it does not
+actually copy the data from the page cache into userspace, rather it
+performs readahead and notifies userspace when all pages have been read.
+
+The motivation for this came about as a result of investigation into a
+performace degradation when reading from disk.  In the case of a heavily
+loaded system, the copy_to_user() performed for an asynchronous read was
+temporally quite distant from when the data was actually used.  By only
+reading the data into the kernel's page cache, the cache pollution
+caused by copying the data into userspace is avoided, and overall system
+performance is improved.
 
 Signed-off-by: Benjamin LaHaise <ben.lahaise@solacesystems.com>
 Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
 ---
- mm/internal.h  |  4 ++--
- mm/readahead.c | 13 +++++++++----
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ fs/aio.c                     | 141 +++++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/aio_abi.h |   1 +
+ 2 files changed, 142 insertions(+)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 38e24b8..7599068 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -43,7 +43,7 @@ static inline void set_page_count(struct page *page, int v)
+diff --git a/fs/aio.c b/fs/aio.c
+index 3a70492..5cb3d74 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -42,6 +42,7 @@
+ #include <linux/mount.h>
+ #include <linux/fdtable.h>
+ #include <linux/fs_struct.h>
++#include <../mm/internal.h>
  
- extern int __do_page_cache_readahead(struct address_space *mapping,
- 		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
--		unsigned long lookahead_size);
-+		unsigned long lookahead_size, int report_present);
+ #include <asm/kmap_types.h>
+ #include <asm/uaccess.h>
+@@ -238,6 +239,8 @@ long aio_do_openat(int fd, const char *filename, int flags, int mode);
+ long aio_do_unlinkat(int fd, const char *filename, int flags, int mode);
+ long aio_foo_at(struct aio_kiocb *req, do_foo_at_t do_foo_at);
  
- /*
-  * Submit IO for the read-ahead request in file_ra_state.
-@@ -52,7 +52,7 @@ static inline unsigned long ra_submit(struct file_ra_state *ra,
- 		struct address_space *mapping, struct file *filp)
++long aio_readahead(struct aio_kiocb *iocb, unsigned long len);
++
+ static __always_inline bool aio_may_use_threads(void)
  {
- 	return __do_page_cache_readahead(mapping, filp,
--					ra->start, ra->size, ra->async_size);
-+					ra->start, ra->size, ra->async_size, 0);
+ #if IS_ENABLED(CONFIG_AIO_THREAD)
+@@ -1812,6 +1815,137 @@ long aio_foo_at(struct aio_kiocb *req, do_foo_at_t do_foo_at)
+ 				     AIO_THREAD_NEED_FILES |
+ 				     AIO_THREAD_NEED_CRED);
  }
- 
- /*
-diff --git a/mm/readahead.c b/mm/readahead.c
-index ba22d7f..afd3abe 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -151,12 +151,13 @@ out:
-  */
- int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 			pgoff_t offset, unsigned long nr_to_read,
--			unsigned long lookahead_size)
-+			unsigned long lookahead_size, int report_present)
- {
- 	struct inode *inode = mapping->host;
- 	struct page *page;
- 	unsigned long end_index;	/* The last page we want to read */
- 	LIST_HEAD(page_pool);
-+	int present = 0;
- 	int page_idx;
- 	int ret = 0;
- 	loff_t isize = i_size_read(inode);
-@@ -178,8 +179,10 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 		rcu_read_lock();
- 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
- 		rcu_read_unlock();
--		if (page && !radix_tree_exceptional_entry(page))
-+		if (page && !radix_tree_exceptional_entry(page)) {
-+			present++;
- 			continue;
++
++static int aio_ra_filler(void *data, struct page *page)
++{
++	struct file *file = data;
++
++	return file->f_mapping->a_ops->readpage(file, page);
++}
++
++static long aio_ra_wait_on_pages(struct file *file, pgoff_t start,
++				 unsigned long nr)
++{
++	struct address_space *mapping = file->f_mapping;
++	unsigned long i;
++
++	/* Wait on pages starting at the end to holdfully avoid too many
++	 * wakeups.
++	 */
++	for (i = nr; i-- > 0; ) {
++		pgoff_t index = start + i;
++		struct page *page;
++
++		/* First do the quick check to see if the page is present and
++		 * uptodate.
++		 */
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, index);
++		rcu_read_unlock();
++
++		if (page && !radix_tree_exceptional_entry(page) &&
++		    PageUptodate(page)) {
++			continue;
 +		}
++
++		page = read_cache_page(mapping, index, aio_ra_filler, file);
++		if (IS_ERR(page))
++			return PTR_ERR(page);
++		page_cache_release(page);
++	}
++	return 0;
++}
++
++static long aio_thread_op_readahead(struct aio_kiocb *iocb)
++{
++	pgoff_t start, end, nr, offset;
++	long ret = 0;
++
++	start = iocb->common.ki_pos >> PAGE_CACHE_SHIFT;
++	end = (iocb->common.ki_pos + iocb->ki_data - 1) >> PAGE_CACHE_SHIFT;
++	nr = end - start + 1;
++
++	for (offset = 0; offset < nr; ) {
++		pgoff_t chunk = nr - offset;
++		unsigned long max_chunk = (2 * 1024 * 1024) / PAGE_CACHE_SIZE;
++
++		if (chunk > max_chunk)
++			chunk = max_chunk;
++
++		ret = __do_page_cache_readahead(iocb->common.ki_filp->f_mapping,
++						iocb->common.ki_filp,
++						start + offset, chunk, 0, 1);
++		if (ret <= 0)
++			break;
++		offset += ret;
++	}
++
++	if (!offset && ret < 0)
++		return ret;
++
++	if (offset > 0) {
++		ret = aio_ra_wait_on_pages(iocb->common.ki_filp, start, offset);
++		if (ret < 0)
++			return ret;
++	}
++
++	if (offset == nr)
++		return iocb->ki_data;
++	if (offset > 0)
++		return ((start + offset) << PAGE_CACHE_SHIFT) -
++			iocb->common.ki_pos;
++	return 0;
++}
++
++long aio_readahead(struct aio_kiocb *iocb, unsigned long len)
++{
++	struct address_space *mapping = iocb->common.ki_filp->f_mapping;
++	pgoff_t index, end;
++	loff_t epos, isize;
++	int do_io = 0;
++
++	if (!mapping || !mapping->a_ops)
++		return -EBADF;
++	if (!mapping->a_ops->readpage && !mapping->a_ops->readpages)
++		return -EBADF;
++	if (!len)
++		return 0;
++
++	epos = iocb->common.ki_pos + len;
++	if (epos < 0)
++		return -EINVAL;
++	isize = i_size_read(mapping->host);
++	if (isize < epos) {
++		epos = isize - iocb->common.ki_pos;
++		if (epos <= 0)
++			return 0;
++		if ((unsigned long)epos != epos)
++			return -EINVAL;
++		len = epos;
++	}
++
++	index = iocb->common.ki_pos >> PAGE_CACHE_SHIFT;
++	end = (iocb->common.ki_pos + len - 1) >> PAGE_CACHE_SHIFT;
++	iocb->ki_data = len;
++	if (end < index)
++		return -EINVAL;
++
++	do {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, index);
++		rcu_read_unlock();
++
++		if (!page || radix_tree_exceptional_entry(page) ||
++		    !PageUptodate(page))
++			do_io = 1;
++	} while (!do_io && (index++ < end));
++
++	if (do_io)
++		return aio_thread_queue_iocb(iocb, aio_thread_op_readahead, 0);
++	return len;
++}
+ #endif /* IS_ENABLED(CONFIG_AIO_THREAD) */
  
- 		page = page_cache_alloc_readahead(mapping);
- 		if (!page)
-@@ -199,6 +202,8 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	if (ret)
- 		read_pages(mapping, filp, &page_pool, ret);
- 	BUG_ON(!list_empty(&page_pool));
-+	if (report_present)
-+		ret += present;
- out:
- 	return ret;
- }
-@@ -222,7 +227,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 		if (this_chunk > nr_to_read)
- 			this_chunk = nr_to_read;
- 		err = __do_page_cache_readahead(mapping, filp,
--						offset, this_chunk, 0);
-+						offset, this_chunk, 0, 0);
- 		if (err < 0)
- 			return err;
+ /*
+@@ -1922,6 +2056,13 @@ rw_common:
+ 			ret = aio_foo_at(req, aio_do_unlinkat);
+ 		break;
  
-@@ -441,7 +446,7 @@ ondemand_readahead(struct address_space *mapping,
- 	 * standalone, small random read
- 	 * Read as is, and do not pollute the readahead state.
- 	 */
--	return __do_page_cache_readahead(mapping, filp, offset, req_size, 0);
-+	return __do_page_cache_readahead(mapping, filp, offset, req_size, 0, 0);
++	case IOCB_CMD_READAHEAD:
++		if (user_iocb->aio_buf)
++			return -EINVAL;
++		if (aio_may_use_threads())
++			ret = aio_readahead(req, user_iocb->aio_nbytes);
++		break;
++
+ 	default:
+ 		pr_debug("EINVAL: no operation provided\n");
+ 		return -EINVAL;
+diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
+index 63a0d41..4def682 100644
+--- a/include/uapi/linux/aio_abi.h
++++ b/include/uapi/linux/aio_abi.h
+@@ -47,6 +47,7 @@ enum {
  
- initial_readahead:
- 	ra->start = offset;
+ 	IOCB_CMD_OPENAT = 9,
+ 	IOCB_CMD_UNLINKAT = 10,
++	IOCB_CMD_READAHEAD = 12,
+ };
+ 
+ /*
 -- 
 2.5.0
 
