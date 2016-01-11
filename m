@@ -1,89 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DE6F828EB
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:35:50 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id yy13so235408163pab.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 14:35:50 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x83si10749954pfi.25.2016.01.11.14.35.49
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 10FB2828EB
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:39:31 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id cl12so45243625lbc.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 14:39:31 -0800 (PST)
+Received: from mail-lb0-x243.google.com (mail-lb0-x243.google.com. [2a00:1450:4010:c04::243])
+        by mx.google.com with ESMTPS id rg5si43111569lbb.72.2016.01.11.14.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 14:35:49 -0800 (PST)
-Date: Mon, 11 Jan 2016 14:35:48 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-Message-Id: <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
-In-Reply-To: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 11 Jan 2016 14:39:29 -0800 (PST)
+Received: by mail-lb0-x243.google.com with SMTP id bc4so17806882lbc.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 14:39:29 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jJaoZC7WL=MndBr915XhEpn9n3HOOhB-ue1xqyKFWxxzQ@mail.gmail.com>
+References: <20160108232727.GA23490@www.outflux.net>
+	<CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
+	<CAGXu5jJaoZC7WL=MndBr915XhEpn9n3HOOhB-ue1xqyKFWxxzQ@mail.gmail.com>
+Date: Tue, 12 Jan 2016 01:39:29 +0300
+Message-ID: <CALYGNiPC224w7-xeo9NOX9nrHH84o+_KXBtKWtd4TPXQyQMq2w@mail.gmail.com>
+Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kern>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-
-> Page faults can race with fallocate hole punch.  If a page fault happens
-> between the unmap and remove operations, the page is not removed and
-> remains within the hole.  This is not the desired behavior.  The race
-> is difficult to detect in user level code as even in the non-race
-> case, a page within the hole could be faulted back in before fallocate
-> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
-> this race will be easier to observe.
-> 
-> If this race is detected and a page is mapped, the remove operation
-> (remove_inode_hugepages) will unmap the page before removing.  The unmap
-> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
-> so that no other faults will be processed until the page is removed.
-> 
-> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
-> remove_inode_hugepages to satisfy the new reference.
-> 
-> ...
+On Mon, Jan 11, 2016 at 10:38 PM, Kees Cook <keescook@chromium.org> wrote:
+> On Sun, Jan 10, 2016 at 7:48 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>> On Sat, Jan 9, 2016 at 2:27 AM, Kees Cook <keescook@chromium.org> wrote:
+>>> Normally, when a user can modify a file that has setuid or setgid bits,
+>>> those bits are cleared when they are not the file owner or a member
+>>> of the group. This is enforced when using write and truncate but not
+>>> when writing to a shared mmap on the file. This could allow the file
+>>> writer to gain privileges by changing a binary without losing the
+>>> setuid/setgid/caps bits.
+>>>
+>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>>> during the page fault (due to mmap_sem being held during the fault). We
+>>> could do this during vm_mmap_pgoff, but that would need coverage in
+>>> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
+>>> again. We could clear at open() time, but it's possible things are
+>>> accidentally opening with O_RDWR and only reading. Better to clear on
+>>> close and error failures (i.e. an improvement over now, which is not
+>>> clearing at all).
+>>
+>> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
+>>
+>> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
+>> under mmap_sem, then if needed grab reference to struct file from vma and
+>> clear suid after unlocking mmap_sem.
+>>
+>> I haven't seen previous iterations, probably this approach has known flaws.
 >
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
->
-> ...
->
-> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  							mapping, next, 0);
->  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  
-> -			lock_page(page);
-> -			if (likely(!page_mapped(page))) {
+> mmap_sem is still needed in mprotect (to find and hold the vma), so
+> it's not possible. I'd love to be proven wrong, but I didn't see a
+> way.
 
-hm, what are the locking requirements for page_mapped()?
+something like this
 
-> -				bool rsv_on_error = !PagePrivate(page);
-> -				/*
-> -				 * We must free the huge page and remove
-> -				 * from page cache (remove_huge_page) BEFORE
-> -				 * removing the region/reserve map
-> -				 * (hugetlb_unreserve_pages).  In rare out
-> -				 * of memory conditions, removal of the
-> -				 * region/reserve map could fail.  Before
-> -				 * free'ing the page, note PagePrivate which
-> -				 * is used in case of error.
-> -				 */
-> -				remove_huge_page(page);
+@@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 
-And remove_huge_page().
+        vm_flags = calc_vm_prot_bits(prot);
 
-> -				freed++;
-> -				if (!truncate_op) {
-> -					if (unlikely(hugetlb_unreserve_pages(
-> -							inode, next,
-> -							next + 1, 1)))
-> -						hugetlb_fix_reserve_counts(
-> -							inode, rsv_on_error);
-> -				}
++restart:
+        down_write(&current->mm->mmap_sem);
+
+        vma = find_vma(current->mm, start);
+@@ -416,6 +418,21 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start,
+size_t, len,
+                        goto out;
+                }
+
++               if ((newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
++                   vma->vm_file && file_needs_remove_privs(vma->vm_file)) {
++                       struct file *file = get_file(vma->vm_file);
++
++                       start = vma->vm_start;
++                       up_write(&current->mm->mmap_sem);
++                       mutex_lock(&file_inode(file)->i_mutex);
++                       error = file_remove_privs(file);
++                       mutex_unlock(&file_inode(file)->i_mutex);
++                       fput(file);
++                       if (error)
++                               return error;
++                       goto restart;
++               }
++
+
+
 >
-> ...
+> -Kees
 >
+> --
+> Kees Cook
+> Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
