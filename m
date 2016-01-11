@@ -1,254 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 544D7828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 07:42:10 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l65so209461902wmf.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 04:42:10 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id ia6si198533053wjb.29.2016.01.11.04.42.07
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 476DD828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 07:43:14 -0500 (EST)
+Received: by mail-yk0-f175.google.com with SMTP id x67so429650773ykd.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 04:43:14 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id q207si13816642ywg.215.2016.01.11.04.43.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 04:42:07 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id f206so26106344wmf.2
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 04:42:07 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/2] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
-Date: Mon, 11 Jan 2016 13:42:00 +0100
-Message-Id: <1452516120-5535-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1452094975-551-1-git-send-email-mhocko@kernel.org>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
+        Mon, 11 Jan 2016 04:43:13 -0800 (PST)
+Date: Mon, 11 Jan 2016 13:42:33 +0100
+From: Daniel Kiper <daniel.kiper@oracle.com>
+Subject: Re: [PATCH v3] memory-hotplug: add automatic onlining policy for the
+ newly added memory
+Message-ID: <20160111124233.GN3485@olila.local.net-space.pl>
+References: <1452187421-15747-1-git-send-email-vkuznets@redhat.com>
+ <20160108140123.GK3485@olila.local.net-space.pl>
+ <87y4c02eqc.fsf@vitty.brq.redhat.com>
+ <20160111081013.GM3485@olila.local.net-space.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160111081013.GM3485@olila.local.net-space.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon, Jan 11, 2016 at 09:10:13AM +0100, Daniel Kiper wrote:
+> On Fri, Jan 08, 2016 at 05:55:07PM +0100, Vitaly Kuznetsov wrote:
+> > Daniel Kiper <daniel.kiper@oracle.com> writes:
+>
+> [...]
+>
+> > >> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+> > >> index ce2cfcf..ceaf40c 100644
+> > >> --- a/Documentation/memory-hotplug.txt
+> > >> +++ b/Documentation/memory-hotplug.txt
+> > >> @@ -254,12 +254,23 @@ If the memory block is online, you'll read "online".
+> > >>  If the memory block is offline, you'll read "offline".
+> > >>
+> > >>
+> > >> -5.2. How to online memory
+> > >> +5.2. Memory onlining
+> > >>  ------------
+> > >> -Even if the memory is hot-added, it is not at ready-to-use state.
+> > >> -For using newly added memory, you have to "online" the memory block.
+> > >> +When the memory is hot-added, the kernel decides whether or not to "online"
+> > >> +it according to the policy which can be read from "auto_online_blocks" file:
+> > >>
+> > >> -For onlining, you have to write "online" to the memory block's state file as:
+> > >> +% cat /sys/devices/system/memory/auto_online_blocks
+> > >> +
+> > >> +The default is "offline" which means the newly added memory is not in a
+> > >> +ready-to-use state and you have to "online" the newly added memory blocks
+> > >> +manually. Automatic onlining can be requested by writing "online" to
+> > >> +"auto_online_blocks" file:
+> > >> +
+> > >> +% echo online > /sys/devices/system/memory/auto_online_blocks
+> > >> +
+> > >> +If the automatic onlining wasn't requested or some memory block was offlined
+> > >> +it is possible to change the individual block's state by writing to the "state"
+> > >> +file:
+> > >>
+> > >>  % echo online > /sys/devices/system/memory/memoryXXX/state
+> > >
+> > > Please say clearly that offlined blocks are not onlined automatically
+> > > when /sys/devices/system/memory/auto_online_blocks is set to online.
+> > >
+> >
+> > You mean the blocks which were manually offlined won't magically come
+> > back, right? Ok, I'll try.
+>
+> Yep, but AIUI it works in that way for all offlined blocks not only for
+> earlier manually offlined ones.
+>
+> > >> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> > >> index 25425d3..44a618d 100644
+> > >> --- a/drivers/base/memory.c
+> > >> +++ b/drivers/base/memory.c
+> > >> @@ -439,6 +439,37 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+> > >>  static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+> > >>
+> > >>  /*
+> > >> + * Memory auto online policy.
+> > >> + */
+> > >> +
+> > >> +static ssize_t
+> > >> +show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+> > >> +			char *buf)
+> > >> +{
+> > >> +	if (memhp_auto_online)
+> > >> +		return sprintf(buf, "online\n");
+> > >> +	else
+> > >> +		return sprintf(buf, "offline\n");
+> > >> +}
+> > >> +
+> > >> +static ssize_t
+> > >> +store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+> > >> +			 const char *buf, size_t count)
+> > >> +{
+> > >> +	if (sysfs_streq(buf, "online"))
+> > >> +		memhp_auto_online = true;
+> > >> +	else if (sysfs_streq(buf, "offline"))
+> > >> +		memhp_auto_online = false;
+> > >> +	else
+> > >> +		return -EINVAL;
+> > >> +
+> > >> +	return count;
+> > >> +}
+> > >> +
+> > >> +static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
+> > >> +		   store_auto_online_blocks);
+> > >> +
+> > >> +/*
+> > >>   * Some architectures will have custom drivers to do this, and
+> > >>   * will not need to do it from userspace.  The fake hot-add code
+> > >>   * as well as ppc64 will do all of their discovery in userspace
+> > >> @@ -737,6 +768,7 @@ static struct attribute *memory_root_attrs[] = {
+> > >>  #endif
+> > >>
+> > >>  	&dev_attr_block_size_bytes.attr,
+> > >> +	&dev_attr_auto_online_blocks.attr,
+> > >>  	NULL
+> > >>  };
+> > >>
+> > >> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> > >> index 12eab50..890c3b5 100644
+> > >> --- a/drivers/xen/balloon.c
+> > >> +++ b/drivers/xen/balloon.c
+> > >> @@ -338,7 +338,7 @@ static enum bp_state reserve_additional_memory(void)
+> > >>  	}
+> > >>  #endif
+> > >>
+> > >> -	rc = add_memory_resource(nid, resource);
+> > >> +	rc = add_memory_resource(nid, resource, false);
+> > >
+> > > This is partial solution and does not allow us to use new feature in Xen.
+> > > Could you add separate patch which fixes this issue?
+> > >
+> >
+> > Sure, I'd be glad to make this work for Xen too.
+>
+> Great! Thanks a lot!
+>
+> > >>  	if (rc) {
+> > >>  		pr_warn("Cannot add additional memory (%i)\n", rc);
+> > >>  		goto err;
+> > >> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> > >> index 2ea574f..4b7949a 100644
+> > >> --- a/include/linux/memory_hotplug.h
+> > >> +++ b/include/linux/memory_hotplug.h
+> > >> @@ -99,6 +99,8 @@ extern void __online_page_free(struct page *page);
+> > >>
+> > >>  extern int try_online_node(int nid);
+> > >>
+> > >> +extern bool memhp_auto_online;
+> > >> +
+> > >>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> > >>  extern bool is_pageblock_removable_nolock(struct page *page);
+> > >>  extern int arch_remove_memory(u64 start, u64 size);
+> > >> @@ -267,7 +269,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+> > >>  extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+> > >>  		void *arg, int (*func)(struct memory_block *, void *));
+> > >>  extern int add_memory(int nid, u64 start, u64 size);
+> > >> -extern int add_memory_resource(int nid, struct resource *resource);
+> > >> +extern int add_memory_resource(int nid, struct resource *resource, bool online);
+> > >>  extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+> > >>  		bool for_device);
+> > >>  extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
+> > >> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > >> index a042a9d..0ecf860 100644
+> > >> --- a/mm/memory_hotplug.c
+> > >> +++ b/mm/memory_hotplug.c
+> > >> @@ -76,6 +76,9 @@ static struct {
+> > >>  #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+> > >>  #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+> > >>
+> > >> +bool memhp_auto_online;
+> > >> +EXPORT_SYMBOL_GPL(memhp_auto_online);
+> > >> +
+> > >>  void get_online_mems(void)
+> > >>  {
+> > >>  	might_sleep();
+> > >> @@ -1232,7 +1235,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+> > >>  }
+> > >>
+> > >>  /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+> > >> -int __ref add_memory_resource(int nid, struct resource *res)
+> > >> +int __ref add_memory_resource(int nid, struct resource *res, bool online)
+> > >>  {
+> > >>  	u64 start, size;
+> > >>  	pg_data_t *pgdat = NULL;
+> > >> @@ -1292,6 +1295,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
+> > >>  	/* create new memmap entry */
+> > >>  	firmware_map_add_hotplug(start, start + size, "System RAM");
+> > >>
+> > >> +	/* online pages if requested */
+> > >> +	if (online)
+> > >> +		online_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+> > >> +			     MMOP_ONLINE_KEEP);
+> > >> +
+> > >
+> > > This way we go in deadlock if auto online feature is enabled in Xen (this was
+> > > pointed out by David Vrabel).
+> >
+> > Yes, but as I said the patch doesn't change anything for Xen guests for
+> > now, we always call add_memory_resource() with online = false.
+> >
+> > > And we want to have it working out of the box.
+> > > So, I think that we should find proper solution. I suppose that we can schedule
+> > > a task here which auto online attached blocks. Hmmm... Not nice but should work.
+> > > Or maybe you have better idea how to fix this issue.
+> >
+> > I'd like to avoid additional delays and memory allocations between
+> > adding new memory and onlining it (and this is the main purpose of the
+> > patch). Maybe we can have a tristate online parameter ('online_now',
+> > 'online_delay', 'keep_offlined') and handle it
+> > accordingly. Alternatively I can suggest we have the onlining in Xen
+> > balloon driver code, memhp_auto_online is exported so we can call
+> > online_pages() after we release the ballon_mutex.
+>
+> This is not nice too. I prefer the same code path for every case.
+> Give me some time. I will think how to solve that issue.
 
-When oom_reaper manages to unmap all the eligible vmas there shouldn't
-be much of the freable memory held by the oom victim left anymore so it
-makes sense to clear the TIF_MEMDIE flag for the victim and allow the
-OOM killer to select another task if necessary.
+It looks that we can safely call mutex_unlock() just before add_memory_resource()
+call and retake lock immediately after add_memory_resource(). add_memory_resource()
+itself does not play with balloon stuff and even if online_pages() does then it
+take balloon_mutex in right place. Additionally, only one balloon task can run,
+so, I think that we are on safe side. Am I right?
 
-The lack of TIF_MEMDIE also means that the victim cannot access memory
-reserves anymore but that shouldn't be a problem because it would get
-the access again if it needs to allocate and hits the OOM killer again
-due to the fatal_signal_pending resp. PF_EXITING check. We can safely
-hide the task from the OOM killer because it is clearly not a good
-candidate anymore as everyhing reclaimable has been torn down already.
-
-This patch will allow to cap the time an OOM victim can keep TIF_MEMDIE
-and thus hold off further global OOM killer actions granted the oom
-reaper is able to take mmap_sem for the associated mm struct. This is
-not guaranteed now but further steps should make sure that mmap_sem
-for write should be blocked killable which will help to reduce such a
-lock contention. This is not done by this patch.
-
-Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-this has passed my basic testing but it definitely needs a deeper
-review.  I have tested it by flooding the system by OOM and delaying
-exit_mm for TIF_MEMDIE tasks to win the race for the oom reaper. I made
-sure to delay after the mm was set to NULL to make sure that oom reaper
-sees NULL mm from time to time to exercise this case as well. This
-happened in roughly half instance.
-
- include/linux/oom.h |  2 +-
- kernel/exit.c       |  2 +-
- mm/oom_kill.c       | 72 ++++++++++++++++++++++++++++++++++-------------------
- 3 files changed, 49 insertions(+), 27 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 03e6257321f0..45993b840ed6 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -91,7 +91,7 @@ extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 
- extern bool out_of_memory(struct oom_control *oc);
- 
--extern void exit_oom_victim(void);
-+extern void exit_oom_victim(struct task_struct *tsk);
- 
- extern int register_oom_notifier(struct notifier_block *nb);
- extern int unregister_oom_notifier(struct notifier_block *nb);
-diff --git a/kernel/exit.c b/kernel/exit.c
-index ea95ee1b5ef7..4c114ba8a825 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -436,7 +436,7 @@ static void exit_mm(struct task_struct *tsk)
- 	mm_update_next_owner(mm);
- 	mmput(mm);
- 	if (test_thread_flag(TIF_MEMDIE))
--		exit_oom_victim();
-+		exit_oom_victim(tsk);
- }
- 
- static struct task_struct *find_alive_thread(struct task_struct *p)
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 45e51ad2f7cf..abefeeb42504 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -419,21 +419,37 @@ bool oom_killer_disabled __read_mostly;
-  * victim (if that is possible) to help the OOM killer to move on.
-  */
- static struct task_struct *oom_reaper_th;
--static struct mm_struct *mm_to_reap;
-+static struct task_struct *task_to_reap;
- static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
- 
--static bool __oom_reap_vmas(struct mm_struct *mm)
-+static bool __oom_reap_task(struct task_struct *tsk)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
-+	struct mm_struct *mm;
-+	struct task_struct *p;
- 	struct zap_details details = {.check_swap_entries = true,
- 				      .ignore_dirty = true};
- 	bool ret = true;
- 
--	/* We might have raced with exit path */
--	if (!atomic_inc_not_zero(&mm->mm_users))
-+	/*
-+	 * Make sure we find the associated mm_struct even when the particular
-+	 * thread has already terminated and cleared its mm.
-+	 * We might have race with exit path so consider our work done if there
-+	 * is no mm.
-+	 */
-+	p = find_lock_task_mm(tsk);
-+	if (!p)
- 		return true;
- 
-+	mm = p->mm;
-+	if (!atomic_inc_not_zero(&mm->mm_users)) {
-+		task_unlock(p);
-+		return true;
-+	}
-+
-+	task_unlock(p);
-+
- 	if (!down_read_trylock(&mm->mmap_sem)) {
- 		ret = false;
- 		goto out;
-@@ -463,60 +479,66 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
- 	}
- 	tlb_finish_mmu(&tlb, 0, -1);
- 	up_read(&mm->mmap_sem);
-+
-+	/*
-+	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
-+	 * reasonably reclaimable memory anymore. OOM killer can continue
-+	 * by selecting other victim if unmapping hasn't led to any
-+	 * improvements. This also means that selecting this task doesn't
-+	 * make any sense.
-+	 */
-+	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
-+	exit_oom_victim(tsk);
- out:
- 	mmput(mm);
- 	return ret;
- }
- 
--static void oom_reap_vmas(struct mm_struct *mm)
-+static void oom_reap_task(struct task_struct *tsk)
- {
- 	int attempts = 0;
- 
- 	/* Retry the down_read_trylock(mmap_sem) a few times */
--	while (attempts++ < 10 && !__oom_reap_vmas(mm))
-+	while (attempts++ < 10 && !__oom_reap_task(tsk))
- 		schedule_timeout_idle(HZ/10);
- 
- 	/* Drop a reference taken by wake_oom_reaper */
--	mmdrop(mm);
-+	put_task_struct(tsk);
- }
- 
- static int oom_reaper(void *unused)
- {
- 	while (true) {
--		struct mm_struct *mm;
-+		struct task_struct *tsk;
- 
- 		wait_event_freezable(oom_reaper_wait,
--				     (mm = READ_ONCE(mm_to_reap)));
--		oom_reap_vmas(mm);
--		WRITE_ONCE(mm_to_reap, NULL);
-+				     (tsk = READ_ONCE(task_to_reap)));
-+		oom_reap_task(tsk);
-+		WRITE_ONCE(task_to_reap, NULL);
- 	}
- 
- 	return 0;
- }
- 
--static void wake_oom_reaper(struct mm_struct *mm)
-+static void wake_oom_reaper(struct task_struct *tsk)
- {
--	struct mm_struct *old_mm;
-+	struct task_struct *old_tsk;
- 
- 	if (!oom_reaper_th)
- 		return;
- 
--	/*
--	 * Pin the given mm. Use mm_count instead of mm_users because
--	 * we do not want to delay the address space tear down.
--	 */
--	atomic_inc(&mm->mm_count);
-+	get_task_struct(tsk);
- 
- 	/*
- 	 * Make sure that only a single mm is ever queued for the reaper
- 	 * because multiple are not necessary and the operation might be
- 	 * disruptive so better reduce it to the bare minimum.
- 	 */
--	old_mm = cmpxchg(&mm_to_reap, NULL, mm);
--	if (!old_mm)
-+	old_tsk = cmpxchg(&task_to_reap, NULL, tsk);
-+	if (!old_tsk)
- 		wake_up(&oom_reaper_wait);
- 	else
--		mmdrop(mm);
-+		put_task_struct(tsk);
- }
- 
- static int __init oom_init(void)
-@@ -539,7 +561,7 @@ static int __init oom_init(void)
- }
- subsys_initcall(oom_init)
- #else
--static void wake_oom_reaper(struct mm_struct *mm)
-+static void wake_oom_reaper(struct task_struct *mm)
- {
- }
- #endif
-@@ -570,9 +592,9 @@ void mark_oom_victim(struct task_struct *tsk)
- /**
-  * exit_oom_victim - note the exit of an OOM victim
-  */
--void exit_oom_victim(void)
-+void exit_oom_victim(struct task_struct *tsk)
- {
--	clear_thread_flag(TIF_MEMDIE);
-+	clear_tsk_thread_flag(tsk, TIF_MEMDIE);
- 
- 	if (!atomic_dec_return(&oom_victims))
- 		wake_up_all(&oom_victims_wait);
-@@ -759,7 +781,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	rcu_read_unlock();
- 
- 	if (can_oom_reap)
--		wake_oom_reaper(mm);
-+		wake_oom_reaper(victim);
- 
- 	mmdrop(mm);
- 	put_task_struct(victim);
--- 
-2.6.4
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
