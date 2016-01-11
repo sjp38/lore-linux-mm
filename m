@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D80CE828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 04:22:18 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id f206so257779988wmf.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 01:22:18 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id wt9si197415002wjc.42.2016.01.11.01.22.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 01:22:17 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id b14so257667141wmb.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 01:22:17 -0800 (PST)
-Message-ID: <56937446.1050308@plexistor.com>
-Date: Mon, 11 Jan 2016 11:22:14 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A926F828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 04:56:25 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id e65so42657608pfe.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 01:56:25 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ko6si45481938pab.2.2016.01.11.01.56.24
+        for <linux-mm@kvack.org>;
+        Mon, 11 Jan 2016 01:56:24 -0800 (PST)
+Subject: Re: [PATCH v4 2/2] mm/page_alloc.c: introduce kernelcore=mirror
+ option
+References: <1452241523-19559-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <1452241613-19680-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <568FEBAF.9040405@arm.com>
+ <20160108151223.a9b7e9099de69dbe6309d159@linux-foundation.org>
+From: Sudeep Holla <sudeep.holla@arm.com>
+Message-ID: <56937C44.9040707@arm.com>
+Date: Mon, 11 Jan 2016 09:56:20 +0000
 MIME-Version: 1.0
-Subject: Re: [PATCHSET 0/2] Allow single pagefault in write access of a VM_MIXEDMAP
- mapping
-References: <569263BA.5060503@plexistor.com> <CAPcyv4hb6T9cR2Z=G9U_U2q-i_wEmRwNCrkc8kK9YpH9RkS9cA@mail.gmail.com>
-In-Reply-To: <CAPcyv4hb6T9cR2Z=G9U_U2q-i_wEmRwNCrkc8kK9YpH9RkS9cA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20160108151223.a9b7e9099de69dbe6309d159@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sudeep Holla <sudeep.holla@arm.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, dave.hansen@intel.com, matt@codeblueprint.co.uk, arnd@arndb.de, steve.capper@linaro.org
 
-On 01/11/2016 03:19 AM, Dan Williams wrote:
-> On Sun, Jan 10, 2016 at 5:59 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
->> Hi
->>
->> Today any VM_MIXEDMAP or VM_PFN mapping when enabling a write access
->> to their mapping, will have a double pagefault for every write access.
->>
->> This is because vma->vm_page_prot defines how a page/pfn is inserted into
->> the page table (see vma_wants_writenotify in mm/mmap.c).
->>
->> Which means that it is always inserted with read-only under the
->> assumption that we want to be notified when write access occurs.
->>
->> But this is not always true and adds an unnecessary page-fault on
->> every new mmap-write access
->>
->> This patchset is trying to give the fault handler more choice by passing
->> an pgprot_t to vm_insert_mixed() via a new vm_insert_mixed_prot() API.
->>
->> If the mm guys feel that the pgprot_t and its helpers and flags are private
->> to mm/memory.c I can easily do a new: vm_insert_mixed_rw() instead. of the
->> above vm_insert_mixed_prot() which enables any control not only write.
->>
->> Following is a patch to DAX to optimize out the extra page-fault.
->>
->> TODO: I only did 4k mapping perhaps 2M mapping can enjoy the same single
->> fault on write access. If interesting to anyone I can attempt a fix.
->>
->> Dan Andrew who needs to pick this up please?
-> 
-> This collides with the patches currently pending in -mm for 4.5, lets
-> take a look at this for 4.6.
-> 
 
-OK thanks, I will try to work this over current linux-next and sure we
-will wait for 4.5-rc1 to look at this again.
 
-Do you have any comments in general about this?
+On 08/01/16 23:12, Andrew Morton wrote:
+> On Fri, 8 Jan 2016 17:02:39 +0000 Sudeep Holla <sudeep.holla@arm.com> wrote:
+>
+>>> +
+>>> +			/*
+>>> +			 * if not mirrored_kernelcore and ZONE_MOVABLE exists,
+>>> +			 * range from zone_movable_pfn[nid] to end of each node
+>>> +			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
+>>> +			 */
+>>> +			if (!mirrored_kernelcore && zone_movable_pfn[nid])
+>>> +				if (zone == ZONE_NORMAL &&
+>>> +				    pfn >= zone_movable_pfn[nid])
+>>> +					continue;
+>>> +
+>>
+>> I tried this with today's -next, the above lines gave compilation error.
+>> Moved them below into HAVE_MEMBLOCK_NODE_MAP and tested it on ARM64.
+>> I don't see the previous backtraces. Let me know if that's correct or
+>> you can post a version that compiles correctly and I can give a try.
+>
+> Thanks.   I'll include the below and shall add your tested-by:, OK?
+>
 
-Thanks
-Boaz
+Yes this is the exact change I tested. Also I retested your latest patch
+set with today's -next. So,
+
+Tested-by: Sudeep Holla <sudeep.holla@arm.com>
+
+-- 
+Regards,
+Sudeep
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
