@@ -1,63 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 07FDA828EB
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:54:57 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id uo6so311498662pac.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 14:54:57 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y15si31410303pfi.232.2016.01.11.14.54.56
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3B8680F7F
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:09:47 -0500 (EST)
+Received: by mail-oi0-f49.google.com with SMTP id k206so61457117oia.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:09:47 -0800 (PST)
+Received: from mail-ob0-x244.google.com (mail-ob0-x244.google.com. [2607:f8b0:4003:c01::244])
+        by mx.google.com with ESMTPS id x83si54921236oig.53.2016.01.11.15.09.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 14:54:56 -0800 (PST)
-Date: Mon, 11 Jan 2016 14:54:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-Id: <20160111145455.51e183aed810f7d366ea50a0@linux-foundation.org>
-In-Reply-To: <1452094975-551-2-git-send-email-mhocko@kernel.org>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
-	<1452094975-551-2-git-send-email-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 11 Jan 2016 15:09:47 -0800 (PST)
+Received: by mail-ob0-x244.google.com with SMTP id q2so34224795obl.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:09:47 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CALCETrVR=_CYHt4R4yurKpnfi76P8GTwHycPLmqPshK2bCv+Fg@mail.gmail.com>
+References: <cover.1452297867.git.tony.luck@intel.com>
+	<3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
+	<CALCETrURssJHn42dXsEJbJbr=VGPnV1U_-UkYEZ48SPUSbUDww@mail.gmail.com>
+	<CAMzpN2j=ZRrL=rXLOTOoUeodtu_AqkQPm1-K0uQmVwLAC6MQGA@mail.gmail.com>
+	<CAMzpN2jAvhM74ZGNecnqU3ozLUXb185Cb2iZN6LB0bToFo4Xhw@mail.gmail.com>
+	<CALCETrVR=_CYHt4R4yurKpnfi76P8GTwHycPLmqPshK2bCv+Fg@mail.gmail.com>
+Date: Mon, 11 Jan 2016 18:09:46 -0500
+Message-ID: <CAMzpN2gamZbY+k=oADhAxEiNPEzeezaRDDOvF2ZU1rWG2CDNSA@mail.gmail.com>
+Subject: Re: [PATCH v8 1/3] x86: Expand exception table to allow new handling options
+From: Brian Gerst <brgerst@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Robert <elliott@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>
 
-On Wed,  6 Jan 2016 16:42:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Sat, Jan 9, 2016 at 1:36 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Jan 8, 2016 8:31 PM, "Brian Gerst" <brgerst@gmail.com> wrote:
+>>
+>> On Fri, Jan 8, 2016 at 10:39 PM, Brian Gerst <brgerst@gmail.com> wrote:
+>> > On Fri, Jan 8, 2016 at 8:52 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> >> On Fri, Jan 8, 2016 at 12:49 PM, Tony Luck <tony.luck@intel.com> wrote:
+>> >>> Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
+>> >>> produce this. Andy provided the inspiration to add classes to the
+>> >>> exception table with a clever bit-squeezing trick, Boris pointed
+>> >>> out how much cleaner it would all be if we just had a new field.
+>> >>>
+>> >>> Linus Torvalds blessed the expansion with:
+>> >>>   I'd rather not be clever in order to save just a tiny amount of space
+>> >>>   in the exception table, which isn't really criticial for anybody.
+>> >>>
+>> >>> The third field is a simple integer indexing into an array of handler
+>> >>> functions (I thought it couldn't be a relative pointer like the other
+>> >>> fields because a module may have its ex_table loaded more than 2GB away
+>> >>> from the handler function - but that may not be actually true. But the
+>> >>> integer is pretty flexible, we are only really using low two bits now).
+>> >>>
+>> >>> We start out with three handlers:
+>> >>>
+>> >>> 0: Legacy - just jumps the to fixup IP
+>> >>> 1: Fault - provide the trap number in %ax to the fixup code
+>> >>> 2: Cleaned up legacy for the uaccess error hack
+>> >>
+>> >> I think I preferred the relative function pointer approach.
+>> >>
+>> >> Also, I think it would be nicer if the machine check code would invoke
+>> >> the handler regardless of which handler (or class) is selected.  Then
+>> >> the handlers that don't want to handle #MC can just reject them.
+>> >>
+>> >> Also, can you make the handlers return bool instead of int?
+>> >
+>> > I'm hashing up an idea that could eliminate alot of text in the .fixup
+>> > section, but it needs the integer handler method to work.  We have
+>> > alot of fixup code that does "mov $-EFAULT, reg; jmp xxxx".  If we
+>> > encode the register in the third word, the handler can be generic and
+>> > no fixup code for each user access would be needed.  That would
+>> > recover alot of the memory used by expanding the exception table.
+>>
+>> On second thought, this could still be implemented with a relative
+>> function pointer.  We'd just need a separate function for each
+>> register.
+>>
+>
+> If we could get gcc to play along (which, IIRC, it already can for
+> __put_user), we can do much better with jump labels -- the fixup
+> target would be a jump label.
+>
+> Even without that, how about using @cc?  Do:
+>
+> clc
+> mov whatever, wherever
+>
+> The fixup sets the carry flag and skips the faulting instruction
+> (either by knowing the length or by decoding it), and the inline asm
+> causes gcc to emit jc to the error logic.
+>
+> --Andy
 
-> - use subsys_initcall instead of module_init - Paul Gortmaker
+I agree that for at least put_user() using asm goto would be an even
+better option.  get_user() on the other hand, will be much messier to
+deal with, since asm goto statements can't have outputs, plus it
+zeroes the output register on fault.
 
-That's pretty much the only change between what-i-have and
-what-you-sent, so I'll just do this as a delta:
-
-
---- a/mm/oom_kill.c~mm-oom-introduce-oom-reaper-v4
-+++ a/mm/oom_kill.c
-@@ -32,12 +32,11 @@
- #include <linux/mempolicy.h>
- #include <linux/security.h>
- #include <linux/ptrace.h>
--#include <linux/delay.h>
- #include <linux/freezer.h>
- #include <linux/ftrace.h>
- #include <linux/ratelimit.h>
- #include <linux/kthread.h>
--#include <linux/module.h>
-+#include <linux/init.h>
- 
- #include <asm/tlb.h>
- #include "internal.h"
-@@ -542,7 +541,7 @@ static int __init oom_init(void)
- 	}
- 	return 0;
- }
--module_init(oom_init)
-+subsys_initcall(oom_init)
- #else
- static void wake_oom_reaper(struct mm_struct *mm)
- {
-_
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
