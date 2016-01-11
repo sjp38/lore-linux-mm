@@ -1,44 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BAB9680F7F
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:48:24 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ho8so68131755pac.2
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:48:24 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id r79si25913755pfb.75.2016.01.11.15.48.23
-        for <linux-mm@kvack.org>;
-        Mon, 11 Jan 2016 15:48:23 -0800 (PST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH v8 1/3] x86: Expand exception table to allow new
- handling options
-Date: Mon, 11 Jan 2016 23:48:12 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F39FAA697@ORSMSX114.amr.corp.intel.com>
-References: <cover.1452297867.git.tony.luck@intel.com>
-	<3a259f1cce4a3c309c2f81df715f8c2c9bb80015.1452297867.git.tony.luck@intel.com>
-	<CALCETrURssJHn42dXsEJbJbr=VGPnV1U_-UkYEZ48SPUSbUDww@mail.gmail.com>
-	<CAMzpN2j=ZRrL=rXLOTOoUeodtu_AqkQPm1-K0uQmVwLAC6MQGA@mail.gmail.com>
-	<CAMzpN2jAvhM74ZGNecnqU3ozLUXb185Cb2iZN6LB0bToFo4Xhw@mail.gmail.com>
-	<CALCETrVR=_CYHt4R4yurKpnfi76P8GTwHycPLmqPshK2bCv+Fg@mail.gmail.com>
- <CAMzpN2gamZbY+k=oADhAxEiNPEzeezaRDDOvF2ZU1rWG2CDNSA@mail.gmail.com>
-In-Reply-To: <CAMzpN2gamZbY+k=oADhAxEiNPEzeezaRDDOvF2ZU1rWG2CDNSA@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7586C680F7F
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:49:29 -0500 (EST)
+Received: by mail-io0-f175.google.com with SMTP id 77so335102634ioc.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:49:29 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ck10si28337990igb.65.2016.01.11.15.49.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 15:49:28 -0800 (PST)
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+ punch
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+ <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56943D00.7090405@oracle.com>
+Date: Mon, 11 Jan 2016 15:38:40 -0800
 MIME-Version: 1.0
+In-Reply-To: <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: "Williams, Dan J" <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Robert <elliott@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
 
-PiBJIGFncmVlIHRoYXQgZm9yIGF0IGxlYXN0IHB1dF91c2VyKCkgdXNpbmcgYXNtIGdvdG8gd291
-bGQgYmUgYW4gZXZlbg0KPiBiZXR0ZXIgb3B0aW9uLiAgZ2V0X3VzZXIoKSBvbiB0aGUgb3RoZXIg
-aGFuZCwgd2lsbCBiZSBtdWNoIG1lc3NpZXIgdG8NCj4gZGVhbCB3aXRoLCBzaW5jZSBhc20gZ290
-byBzdGF0ZW1lbnRzIGNhbid0IGhhdmUgb3V0cHV0cywgcGx1cyBpdA0KPiB6ZXJvZXMgdGhlIG91
-dHB1dCByZWdpc3RlciBvbiBmYXVsdC4NCg0KZ2V0X3VzZXIoKSBpcyB0aGUgbXVjaCBtb3JlIGlu
-dGVyZXN0aW5nIG9uZSBmb3IgbWUuIEEgcmVhZCBmcm9tDQphIHBvaXNvbmVkIHVzZXIgYWRkcmVz
-cyB0aGF0IGdlbmVyYXRlcyBhIG1hY2hpbmUgY2hlY2sgaXMgc29tZXRoaW5nDQp0aGF0IGNhbiBi
-ZSByZWNvdmVyZWQgKGtpbGwgdGhlIHByb2Nlc3MpLiAgQSB3cml0ZSB0byB1c2VyIHNwYWNlIGRv
-ZXNuJ3QNCmV2ZW4gZ2VuZXJhdGUgYSBtYWNoaW5lIGNoZWNrLg0KDQotVG9ueQ0K
+On 01/11/2016 02:35 PM, Andrew Morton wrote:
+> On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+> 
+>> Page faults can race with fallocate hole punch.  If a page fault happens
+>> between the unmap and remove operations, the page is not removed and
+>> remains within the hole.  This is not the desired behavior.  The race
+>> is difficult to detect in user level code as even in the non-race
+>> case, a page within the hole could be faulted back in before fallocate
+>> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
+>> this race will be easier to observe.
+>>
+>> If this race is detected and a page is mapped, the remove operation
+>> (remove_inode_hugepages) will unmap the page before removing.  The unmap
+>> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
+>> so that no other faults will be processed until the page is removed.
+>>
+>> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
+>> remove_inode_hugepages to satisfy the new reference.
+>>
+>> ...
+>>
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>>
+>> ...
+>>
+>> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>>  							mapping, next, 0);
+>>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
+>>  
+>> -			lock_page(page);
+>> -			if (likely(!page_mapped(page))) {
+> 
+> hm, what are the locking requirements for page_mapped()?
+
+page_mapped is just reading/evaluating an atomic within the struct page
+which we have a referene on from the pagevec_lookup.  But, I think the
+question is what prevents page_mapped from changing after we check it?
+
+The patch takes the hugetlb_fault_mutex_table lock before checking
+page_mapped.  If the page is unmapped and the hugetlb_fault_mutex_table
+is held, it can not be faulted in and change from unmapped to mapped.
+
+The new comment in the patch about taking hugetlb_fault_mutex_table is
+right before the check for page_mapped.
+
+> 
+>> -				bool rsv_on_error = !PagePrivate(page);
+>> -				/*
+>> -				 * We must free the huge page and remove
+>> -				 * from page cache (remove_huge_page) BEFORE
+>> -				 * removing the region/reserve map
+>> -				 * (hugetlb_unreserve_pages).  In rare out
+>> -				 * of memory conditions, removal of the
+>> -				 * region/reserve map could fail.  Before
+>> -				 * free'ing the page, note PagePrivate which
+>> -				 * is used in case of error.
+>> -				 */
+>> -				remove_huge_page(page);
+> 
+> And remove_huge_page().
+
+The page must be locked before calling remove_huge_page, since it will
+call delete_from_page_cache.  It currently is locked.  Would you prefer
+a comment stating this before the call?
+
+-- 
+Mike Kravetz
+
+> 
+>> -				freed++;
+>> -				if (!truncate_op) {
+>> -					if (unlikely(hugetlb_unreserve_pages(
+>> -							inode, next,
+>> -							next + 1, 1)))
+>> -						hugetlb_fix_reserve_counts(
+>> -							inode, rsv_on_error);
+>> -				}
+>>
+>> ...
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
