@@ -1,126 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B54F680F7F
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:16:57 -0500 (EST)
-Received: by mail-lf0-f50.google.com with SMTP id h129so28098175lfh.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:16:57 -0800 (PST)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id u7si12440463lbw.3.2016.01.11.15.16.55
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B072E680F7F
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 18:19:47 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id z14so130832361igp.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:19:47 -0800 (PST)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id h26si11591159iod.112.2016.01.11.15.19.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 15:16:55 -0800 (PST)
-Received: by mail-lf0-x242.google.com with SMTP id c134so4514032lfb.2
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:16:55 -0800 (PST)
+        Mon, 11 Jan 2016 15:19:47 -0800 (PST)
+Received: by mail-ig0-x22f.google.com with SMTP id t15so107455680igr.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 15:19:47 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+UV39Q5reWOWBrtxuP6cLpweEF5e-KBV_K4moszCC24g@mail.gmail.com>
+In-Reply-To: <CALYGNiO73NfhqrBoCwfdbMg5kNMC1nrNGeT9rUisBDHXTYY-Gg@mail.gmail.com>
 References: <20160108232727.GA23490@www.outflux.net>
 	<CALYGNiOUL7ewU3+5Zoi_9qofYWwF0vpqMy=A0wS=jUFZ11haCg@mail.gmail.com>
 	<CAGXu5jJaoZC7WL=MndBr915XhEpn9n3HOOhB-ue1xqyKFWxxzQ@mail.gmail.com>
 	<CALYGNiPC224w7-xeo9NOX9nrHH84o+_KXBtKWtd4TPXQyQMq2w@mail.gmail.com>
 	<CAGXu5j+UV39Q5reWOWBrtxuP6cLpweEF5e-KBV_K4moszCC24g@mail.gmail.com>
-Date: Tue, 12 Jan 2016 02:16:55 +0300
-Message-ID: <CALYGNiO73NfhqrBoCwfdbMg5kNMC1nrNGeT9rUisBDHXTYY-Gg@mail.gmail.com>
+	<CALYGNiO73NfhqrBoCwfdbMg5kNMC1nrNGeT9rUisBDHXTYY-Gg@mail.gmail.com>
+Date: Mon, 11 Jan 2016 15:19:46 -0800
+Message-ID: <CAGXu5jKn8_LqR=oESz4QXxV7G-niD4rEmDpLepHqq50-zUrxcw@mail.gmail.com>
 Subject: Re: [PATCH v6] fs: clear file privilege bits when mmap writing
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+From: Kees Cook <keescook@chromium.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jan 12, 2016 at 1:45 AM, Kees Cook <keescook@chromium.org> wrote:
-> On Mon, Jan 11, 2016 at 2:39 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->> On Mon, Jan 11, 2016 at 10:38 PM, Kees Cook <keescook@chromium.org> wrote:
->>> On Sun, Jan 10, 2016 at 7:48 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>>> On Sat, Jan 9, 2016 at 2:27 AM, Kees Cook <keescook@chromium.org> wrote:
->>>>> Normally, when a user can modify a file that has setuid or setgid bits,
->>>>> those bits are cleared when they are not the file owner or a member
->>>>> of the group. This is enforced when using write and truncate but not
->>>>> when writing to a shared mmap on the file. This could allow the file
->>>>> writer to gain privileges by changing a binary without losing the
->>>>> setuid/setgid/caps bits.
+On Mon, Jan 11, 2016 at 3:16 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+> On Tue, Jan 12, 2016 at 1:45 AM, Kees Cook <keescook@chromium.org> wrote:
+>> On Mon, Jan 11, 2016 at 2:39 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>>> On Mon, Jan 11, 2016 at 10:38 PM, Kees Cook <keescook@chromium.org> wrote:
+>>>> On Sun, Jan 10, 2016 at 7:48 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>>>>> On Sat, Jan 9, 2016 at 2:27 AM, Kees Cook <keescook@chromium.org> wrote:
+>>>>>> Normally, when a user can modify a file that has setuid or setgid bits,
+>>>>>> those bits are cleared when they are not the file owner or a member
+>>>>>> of the group. This is enforced when using write and truncate but not
+>>>>>> when writing to a shared mmap on the file. This could allow the file
+>>>>>> writer to gain privileges by changing a binary without losing the
+>>>>>> setuid/setgid/caps bits.
+>>>>>>
+>>>>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>>>>>> during the page fault (due to mmap_sem being held during the fault). We
+>>>>>> could do this during vm_mmap_pgoff, but that would need coverage in
+>>>>>> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
+>>>>>> again. We could clear at open() time, but it's possible things are
+>>>>>> accidentally opening with O_RDWR and only reading. Better to clear on
+>>>>>> close and error failures (i.e. an improvement over now, which is not
+>>>>>> clearing at all).
 >>>>>
->>>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
->>>>> during the page fault (due to mmap_sem being held during the fault). We
->>>>> could do this during vm_mmap_pgoff, but that would need coverage in
->>>>> mprotect as well, but to check for MAP_SHARED, we'd need to hold mmap_sem
->>>>> again. We could clear at open() time, but it's possible things are
->>>>> accidentally opening with O_RDWR and only reading. Better to clear on
->>>>> close and error failures (i.e. an improvement over now, which is not
->>>>> clearing at all).
+>>>>> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
+>>>>>
+>>>>> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
+>>>>> under mmap_sem, then if needed grab reference to struct file from vma and
+>>>>> clear suid after unlocking mmap_sem.
+>>>>>
+>>>>> I haven't seen previous iterations, probably this approach has known flaws.
 >>>>
->>>> I think this should be done in mmap/mprotect. Code in sys_mmap is trivial.
->>>>
->>>> In sys_mprotect you can check file_needs_remove_privs() and VM_SHARED
->>>> under mmap_sem, then if needed grab reference to struct file from vma and
->>>> clear suid after unlocking mmap_sem.
->>>>
->>>> I haven't seen previous iterations, probably this approach has known flaws.
+>>>> mmap_sem is still needed in mprotect (to find and hold the vma), so
+>>>> it's not possible. I'd love to be proven wrong, but I didn't see a
+>>>> way.
 >>>
->>> mmap_sem is still needed in mprotect (to find and hold the vma), so
->>> it's not possible. I'd love to be proven wrong, but I didn't see a
->>> way.
->>
->> something like this
->>
->> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>
->>         vm_flags = calc_vm_prot_bits(prot);
->>
->> +restart:
->>         down_write(&current->mm->mmap_sem);
->>
->>         vma = find_vma(current->mm, start);
->> @@ -416,6 +418,21 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start,
->> size_t, len,
->>                         goto out;
->>                 }
->>
->> +               if ((newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
->> +                   vma->vm_file && file_needs_remove_privs(vma->vm_file)) {
->> +                       struct file *file = get_file(vma->vm_file);
->> +
->> +                       start = vma->vm_start;
->> +                       up_write(&current->mm->mmap_sem);
->> +                       mutex_lock(&file_inode(file)->i_mutex);
->> +                       error = file_remove_privs(file);
->> +                       mutex_unlock(&file_inode(file)->i_mutex);
->> +                       fput(file);
->> +                       if (error)
->> +                               return error;
->> +                       goto restart;
->> +               }
->> +
->
-> Is this safe against the things Al mentioned? I still don't like the
-> mmap/mprotect approach because it makes the change before anything was
-> actually written...
-
-(I forgot to check VM_SHARED)
-
-Yep, this should be safe.
-
-I think suid should be cleared before any possible change of data.
-New content could hit the disk but suid never be cleared,
-for example if system suddenly crashed or rebooted.
-
->
-> -Kees
->
->>
->>
+>>> something like this
 >>>
->>> -Kees
+>>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 >>>
->>> --
->>> Kees Cook
->>> Chrome OS & Brillo Security
+>>>         vm_flags = calc_vm_prot_bits(prot);
+>>>
+>>> +restart:
+>>>         down_write(&current->mm->mmap_sem);
+>>>
+>>>         vma = find_vma(current->mm, start);
+>>> @@ -416,6 +418,21 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start,
+>>> size_t, len,
+>>>                         goto out;
+>>>                 }
+>>>
+>>> +               if ((newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
+>>> +                   vma->vm_file && file_needs_remove_privs(vma->vm_file)) {
+>>> +                       struct file *file = get_file(vma->vm_file);
+>>> +
+>>> +                       start = vma->vm_start;
+>>> +                       up_write(&current->mm->mmap_sem);
+>>> +                       mutex_lock(&file_inode(file)->i_mutex);
+>>> +                       error = file_remove_privs(file);
+>>> +                       mutex_unlock(&file_inode(file)->i_mutex);
+>>> +                       fput(file);
+>>> +                       if (error)
+>>> +                               return error;
+>>> +                       goto restart;
+>>> +               }
+>>> +
+>>
+>> Is this safe against the things Al mentioned? I still don't like the
+>> mmap/mprotect approach because it makes the change before anything was
+>> actually written...
 >
+> (I forgot to check VM_SHARED)
 >
+> Yep, this should be safe.
 >
-> --
-> Kees Cook
-> Chrome OS & Brillo Security
+> I think suid should be cleared before any possible change of data.
+> New content could hit the disk but suid never be cleared,
+> for example if system suddenly crashed or rebooted.
+
+Oooh, very good point. Yeah, that's enough to convince me. :) Ignore my v7...
+
+Al, are you okay with this semantic change?
+
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
