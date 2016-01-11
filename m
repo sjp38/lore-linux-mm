@@ -1,120 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E22DC828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 11:23:30 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id n128so46898620pfn.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 08:23:30 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d26si29386140pfb.137.2016.01.11.08.23.30
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CBCE828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 11:37:40 -0500 (EST)
+Received: by mail-yk0-f176.google.com with SMTP id x67so437687333ykd.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 08:37:40 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id b189si15530900ywf.172.2016.01.11.08.37.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 08:23:30 -0800 (PST)
-Date: Mon, 11 Jan 2016 17:22:58 +0100
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [PATCH v3] memory-hotplug: add automatic onlining policy for the
- newly added memory
-Message-ID: <20160111162258.GP3485@olila.local.net-space.pl>
-References: <1452187421-15747-1-git-send-email-vkuznets@redhat.com>
- <20160108140123.GK3485@olila.local.net-space.pl>
- <87y4c02eqc.fsf@vitty.brq.redhat.com>
- <20160111081013.GM3485@olila.local.net-space.pl>
- <20160111124233.GN3485@olila.local.net-space.pl>
- <87twmki2ew.fsf@vitty.brq.redhat.com>
+        Mon, 11 Jan 2016 08:37:39 -0800 (PST)
+Received: by mail-yk0-x22d.google.com with SMTP id v14so343395353ykd.3
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 08:37:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87twmki2ew.fsf@vitty.brq.redhat.com>
+In-Reply-To: <56937446.1050308@plexistor.com>
+References: <569263BA.5060503@plexistor.com>
+	<CAPcyv4hb6T9cR2Z=G9U_U2q-i_wEmRwNCrkc8kK9YpH9RkS9cA@mail.gmail.com>
+	<56937446.1050308@plexistor.com>
+Date: Mon, 11 Jan 2016 08:37:38 -0800
+Message-ID: <CAPcyv4g6SeAqA9Vt_B0U411xNJXZ-c5JE2+tYEq-8CXQtHO+tw@mail.gmail.com>
+Subject: Re: [PATCHSET 0/2] Allow single pagefault in write access of a
+ VM_MIXEDMAP mapping
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, Jan 11, 2016 at 04:03:35PM +0100, Vitaly Kuznetsov wrote:
-> Daniel Kiper <daniel.kiper@oracle.com> writes:
+On Mon, Jan 11, 2016 at 1:22 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+> On 01/11/2016 03:19 AM, Dan Williams wrote:
+>> On Sun, Jan 10, 2016 at 5:59 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+>>> Hi
+>>>
+>>> Today any VM_MIXEDMAP or VM_PFN mapping when enabling a write access
+>>> to their mapping, will have a double pagefault for every write access.
+>>>
+>>> This is because vma->vm_page_prot defines how a page/pfn is inserted into
+>>> the page table (see vma_wants_writenotify in mm/mmap.c).
+>>>
+>>> Which means that it is always inserted with read-only under the
+>>> assumption that we want to be notified when write access occurs.
+>>>
+>>> But this is not always true and adds an unnecessary page-fault on
+>>> every new mmap-write access
+>>>
+>>> This patchset is trying to give the fault handler more choice by passing
+>>> an pgprot_t to vm_insert_mixed() via a new vm_insert_mixed_prot() API.
+>>>
+>>> If the mm guys feel that the pgprot_t and its helpers and flags are private
+>>> to mm/memory.c I can easily do a new: vm_insert_mixed_rw() instead. of the
+>>> above vm_insert_mixed_prot() which enables any control not only write.
+>>>
+>>> Following is a patch to DAX to optimize out the extra page-fault.
+>>>
+>>> TODO: I only did 4k mapping perhaps 2M mapping can enjoy the same single
+>>> fault on write access. If interesting to anyone I can attempt a fix.
+>>>
+>>> Dan Andrew who needs to pick this up please?
+>>
+>> This collides with the patches currently pending in -mm for 4.5, lets
+>> take a look at this for 4.6.
+>>
 >
-> [skip]
+> OK thanks, I will try to work this over current linux-next and sure we
+> will wait for 4.5-rc1 to look at this again.
 >
-> >> > > And we want to have it working out of the box.
-> >> > > So, I think that we should find proper solution. I suppose that we can schedule
-> >> > > a task here which auto online attached blocks. Hmmm... Not nice but should work.
-> >> > > Or maybe you have better idea how to fix this issue.
-> >> >
-> >> > I'd like to avoid additional delays and memory allocations between
-> >> > adding new memory and onlining it (and this is the main purpose of the
-> >> > patch). Maybe we can have a tristate online parameter ('online_now',
-> >> > 'online_delay', 'keep_offlined') and handle it
-> >> > accordingly. Alternatively I can suggest we have the onlining in Xen
-> >> > balloon driver code, memhp_auto_online is exported so we can call
-> >> > online_pages() after we release the ballon_mutex.
-> >>
-> >> This is not nice too. I prefer the same code path for every case.
-> >> Give me some time. I will think how to solve that issue.
-> >
-> > It looks that we can safely call mutex_unlock() just before add_memory_resource()
-> > call and retake lock immediately after add_memory_resource(). add_memory_resource()
-> > itself does not play with balloon stuff and even if online_pages() does then it
-> > take balloon_mutex in right place. Additionally, only one balloon task can run,
-> > so, I think that we are on safe side. Am I right?
->
-> I think you are as balloon_mutex is internal to xen driver and there is
-> only one balloon_process() running at the time. I just smoke-tested the
-> following:
->
-> commit 0fce4746a0090d533e9302cc42b3d3c0645d756d
-> Author: Vitaly Kuznetsov <vkuznets@redhat.com>
-> Date:   Mon Jan 11 14:22:11 2016 +0100
->
->     xen_balloon: make hotplug auto online work
->
->     Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
->
-> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> index 890c3b5..08bbf35 100644
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -338,7 +338,10 @@ static enum bp_state reserve_additional_memory(void)
->  	}
->  #endif
->
-> -	rc = add_memory_resource(nid, resource, false);
-> +	mutex_unlock(&balloon_mutex);
-> +	rc = add_memory_resource(nid, resource, memhp_auto_online);
-> +	mutex_lock(&balloon_mutex);
-> +
->  	if (rc) {
->  		pr_warn("Cannot add additional memory (%i)\n", rc);
->  		goto err;
-> @@ -565,8 +568,10 @@ static void balloon_process(struct work_struct *work)
->  		if (credit > 0) {
->  			if (balloon_is_inflated())
->  				state = increase_reservation(credit);
-> -			else
-> +			else {
-> +				printk("balloon_process: adding memory (credit: %ld)!\n", credit);
->  				state = reserve_additional_memory();
-> +			}
->  		}
->
->  		if (credit < 0)
->
-> And it seems to work (unrelated rant: 'xl mem-set' after 'xl max-mem'
+> Do you have any comments in general about this?
 
-Great! Thanks!
-
-Let's go further. Please add bool online argument to reserve_additional_memory() and
-then call add_memory_resource() with it. Then call reserve_additional_memory() with
-memhp_auto_online from balloon_process() and with false from add_ballooned_pages(). Voila!
-
-Please do not forget to add comment for mutex_unlock() and mutex_lock()
-around add_memory_resource() (why it is needed and why it works correctly).
-
-> doesn't work with "libxl: error: libxl.c:4809:libxl_set_memory_target:
-> memory_dynamic_max must be less than or equal to memory_static_max". At
-
-Ignore that. It must be fixed and it is on my TODO list. However, I am busy
-with more important stuff right now.
-
-Daniel
+Looks worthwhile at first glance, the only concern that comes to mind
+is integration with Ross' fsync/msync enabling.  How much does this
+change matter in practice?  If the mapping is long standing then I
+expect this cost gets hidden?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
