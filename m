@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CB189828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 10:50:44 -0500 (EST)
-Received: by mail-io0-f172.google.com with SMTP id g73so156366589ioe.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 07:50:44 -0800 (PST)
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
-        by mx.google.com with ESMTPS id d1si25715819igl.23.2016.01.11.07.50.42
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 70535828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 11:04:41 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id f206so217676640wmf.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 08:04:41 -0800 (PST)
+Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com. [195.75.94.105])
+        by mx.google.com with ESMTPS id 14si23965620wmq.78.2016.01.11.08.04.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 07:50:44 -0800 (PST)
+        Mon, 11 Jan 2016 08:04:40 -0800 (PST)
 Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 12 Jan 2016 01:50:39 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 20C3E2BB0052
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 02:50:33 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0BFoLAN17957002
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 02:50:33 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0BFnuOc022239
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 02:49:56 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2] mm/powerpc: Fix _PAGE_PTE breaking swapoff
-Date: Mon, 11 Jan 2016 21:19:34 +0530
-Message-Id: <1452527374-4886-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 11 Jan 2016 16:04:39 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id A09C51B08074
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:04:38 +0000 (GMT)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0BG4b0m8192368
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:04:37 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0BG4aSn007713
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 11:04:36 -0500
+Subject: Re: [PATCH next] powerpc/mm: fix _PAGE_SWP_SOFT_DIRTY breaking
+ swapoff
+References: <alpine.LSU.2.11.1601091651130.9808@eggly.anvils>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Message-ID: <5693D292.7020603@linux.vnet.ibm.com>
+Date: Mon, 11 Jan 2016 17:04:34 +0100
+MIME-Version: 1.0
+In-Reply-To: <alpine.LSU.2.11.1601091651130.9808@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Core kernel expect swp_entry_t to be consisting of
-only swap type and swap offset. We should not leak pte bits to
-swp_entry_t. This breaks swapoff which use the swap type and offset
-to build a swp_entry_t and later compare that to the swp_entry_t
-obtained from linux page table pte. Leaking pte bits to swp_entry_t
-breaks that comparison and results in us looping in try_to_unuse.
+On 10/01/2016 01:54, Hugh Dickins wrote:
+> Swapoff after swapping hangs on the G5, when CONFIG_CHECKPOINT_RESTORE=y
+> but CONFIG_MEM_SOFT_DIRTY is not set.  That's because the non-zero
+> _PAGE_SWP_SOFT_DIRTY bit, added by CONFIG_HAVE_ARCH_SOFT_DIRTY=y, is not
+> discounted when CONFIG_MEM_SOFT_DIRTY is not set: so swap ptes cannot be
+> recognized.
+> 
+> (I suspect that the peculiar dependence of HAVE_ARCH_SOFT_DIRTY on
+> CHECKPOINT_RESTORE in arch/powerpc/Kconfig comes from an incomplete
+> attempt to solve this problem.)
+> 
+> It's true that the relationship between CONFIG_HAVE_ARCH_SOFT_DIRTY and
+> and CONFIG_MEM_SOFT_DIRTY is too confusing, and it's true that swapoff
+> should be made more robust; but nevertheless, fix up the powerpc ifdefs
+> as x86_64 and s390 (which met the same problem) have them, defining the
+> bits as 0 if CONFIG_MEM_SOFT_DIRTY is not set.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-The stack trace can be anywhere below try_to_unuse() in mm/swapfile.c,
-since swapoff is circling around and around that function, reading from
-each used swap block into a page, then trying to find where that page
-belongs, looking at every non-file pte of every mm that ever swapped.
+Acked-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-Reported-by: Hugh Dickins <hughd@google.com>
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
-Changes from V1:
-* improve change log and code comment
-
- arch/powerpc/include/asm/book3s/64/pgtable.h | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 03c1a5a21c0c..cecb971674a8 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -158,9 +158,14 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
- #define __swp_entry(type, offset)	((swp_entry_t) { \
- 					((type) << _PAGE_BIT_SWAP_TYPE) \
- 					| ((offset) << PTE_RPN_SHIFT) })
--
--#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
--#define __swp_entry_to_pte(x)		__pte((x).val)
-+/*
-+ * swp_entry_t should be independent of pte bits. We build a swp_entry_t from
-+ * swap type and offset we get from swap and convert that to pte to
-+ * find a matching pte in linux page table.
-+ * Clear bits not found in swap entries here
-+ */
-+#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
-+#define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
- 
- #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
- #define _PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + _PAGE_BIT_SWAP_TYPE))
--- 
-2.5.0
+Thanks, Hugh!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
