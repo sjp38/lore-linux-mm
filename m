@@ -1,86 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 635F4828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 23:56:24 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id q63so40012135pfb.1
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 20:56:24 -0800 (PST)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [125.16.236.5])
-        by mx.google.com with ESMTPS id ym10si741321pac.41.2016.01.10.20.56.22
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 41F68828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 00:07:38 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id n128so38981924pfn.3
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 21:07:38 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id or6si36911550pab.5.2016.01.10.21.07.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Jan 2016 20:56:23 -0800 (PST)
-Received: from localhost
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 11 Jan 2016 10:26:21 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 44680394005A
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 10:26:18 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0B4uHZe50528282
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 10:26:18 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0B4uEdO031315
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 10:26:16 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH next] powerpc/mm: fix _PAGE_PTE breaking swapoff
-In-Reply-To: <alpine.LSU.2.11.1601091643060.9808@eggly.anvils>
-References: <alpine.LSU.2.11.1601091643060.9808@eggly.anvils>
-Date: Mon, 11 Jan 2016 10:26:10 +0530
-Message-ID: <87si24u32t.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Sun, 10 Jan 2016 21:07:37 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm,oom: do not loop !__GFP_FS allocation if the OOM killer is disabled.
+Date: Mon, 11 Jan 2016 14:07:16 +0900
+Message-Id: <1452488836-6772-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: mhocko@suse.cz, hannes@cmpxchg.org, rientjes@google.com
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Hugh Dickins <hughd@google.com> writes:
+After the OOM killer is disabled during suspend operation,
+any !__GFP_NOFAIL && __GFP_FS allocations are forced to fail.
+Thus, any !__GFP_NOFAIL && !__GFP_FS allocations should be
+forced to fail as well.
 
-> Swapoff after swapping hangs on the G5.  That's because the _PAGE_PTE
-> bit, added by set_pte_at(), is not expected by swapoff: so swap ptes
-> cannot be recognized.
->
-> I'm not sure whether a swap pte should or should not have _PAGE_PTE set:
-> this patch assumes not, and fixes set_pte_at() to set _PAGE_PTE only on
-> present entries.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-One of the reason we added _PAGE_PTE is to enable HUGETLB migration. So
-we want migratio ptes to have _PAGE_PTE set.
-
->
-> But if that's wrong, a reasonable alternative would be to
-> #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) & ~_PAGE_PTE })
-> #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
->
-
-We do clear _PAGE_PTE bits, when converting swp_entry_t to type and
-offset. Can you share the stack trace for the hang, which will help me
-understand this more ? . 
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->
->  arch/powerpc/mm/pgtable.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
->
-> --- 4.4-next/arch/powerpc/mm/pgtable.c	2016-01-06 11:54:01.477512251 -0800
-> +++ linux/arch/powerpc/mm/pgtable.c	2016-01-09 13:51:15.793485717 -0800
-> @@ -180,9 +180,10 @@ void set_pte_at(struct mm_struct *mm, un
->  	VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
->  		(_PAGE_PRESENT | _PAGE_USER));
->  	/*
-> -	 * Add the pte bit when tryint set a pte
-> +	 * Add the pte bit when setting a pte (not a swap entry)
->  	 */
-> -	pte = __pte(pte_val(pte) | _PAGE_PTE);
-> +	if (pte_val(pte) & _PAGE_PRESENT)
-> +		pte = __pte(pte_val(pte) | _PAGE_PTE);
->
->  	/* Note: mm->context.id might not yet have been assigned as
->  	 * this context might not have been activated yet when this
-
--aneesh
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3c3a5c5..214f824 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2766,7 +2766,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 			 * and the OOM killer can't be invoked, but
+ 			 * keep looping as per tradition.
+ 			 */
+-			*did_some_progress = 1;
++			*did_some_progress = !oom_killer_disabled;
+ 			goto out;
+ 		}
+ 		if (pm_suspended_storage())
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
