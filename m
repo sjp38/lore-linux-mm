@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 118F5828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 05:07:04 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id n128so42648542pfn.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 02:07:04 -0800 (PST)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id 88si27535830pfq.240.2016.01.11.02.07.02
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 020A4828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 05:44:31 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id f206so261319536wmf.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 02:44:30 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id kq7si809889wjb.150.2016.01.11.02.44.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 02:07:03 -0800 (PST)
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 11 Jan 2016 20:06:57 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id F3CB93578052
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 21:06:55 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0BA6lDg60030990
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 21:06:55 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0BA6MqT010132
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 21:06:22 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/powerpc: Fix _PAGE_PTE breaking swapoff
-Date: Mon, 11 Jan 2016 15:35:50 +0530
-Message-Id: <1452506750-2355-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 02:44:29 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id l65so25631855wmf.3
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 02:44:29 -0800 (PST)
+Date: Mon, 11 Jan 2016 11:44:25 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Message-ID: <20160111104425.GA29448@gmail.com>
+References: <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+ <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
+ <CA+8MBbL5Cwxjr_vtfE5n+XHPknFK4QMC3QNwaif5RvWo-eZATQ@mail.gmail.com>
+ <CALCETrVQ_NxcnDr4N-VqROrMJ2hUzMKgmxjxAZu9TFbznqSDcg@mail.gmail.com>
+ <CA+8MBbLUtVh3E4RqcHbZ165v+fURGYPm=ejOn2cOPq012BwLSg@mail.gmail.com>
+ <CAPcyv4hAenpeqPsj7Rd0Un_SgDpm+CjqH3EK72ho-=zZFvG7wA@mail.gmail.com>
+ <CALCETrVRgaWS86wq4B6oZbEY5_ODb3Nh5OeE9vvdGdds6j_pYg@mail.gmail.com>
+ <CAPcyv4iCbp0oR_V+XCTduLd1t2UxyFwaoJVk0_vwk8aO2Uh=bQ@mail.gmail.com>
+ <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
+ <20160110112635.GC22896@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160110112635.GC22896@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tony Luck <tony.luck@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-When converting a swp_entry_t to pte, we need to add _PAGE_PTE,
-because we later compare the pte with linux page table entries to
-find a matching pte. We do set _PAGE_PTE on pte entries on linux page
-table even if it is a swap entry. So add them when converting
-swp_entry_t to pte_t
 
-The stack trace can be anywhere below try_to_unuse() in mm/swapfile.c,
-since swapoff is circling around and around that function, reading from
-each used swap block into a page, then trying to find where that page
-belongs, looking at every non-file pte of every mm that ever swapped.
+* Borislav Petkov <bp@alien8.de> wrote:
 
-Reported-by: Hugh Dickins <hughd@google.com>
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/book3s/64/pgtable.h | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+> On Sat, Jan 09, 2016 at 05:40:05PM -0800, Tony Luck wrote:
+> > BUT ... it's all going to be very messy.  We don't have any CPUID
+> > capability bits to say whether we support recovery, or which instructions
+> > are good/bad choices for recovery.
+> 
+> We can always define synthetic ones and set them after having checked
+> MCA capability bits, f/m/s, etc., maybe even based on the list you're
+> supplying...
 
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 03c1a5a21c0c..48edcd8fbc4f 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -158,9 +158,14 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
- #define __swp_entry(type, offset)	((swp_entry_t) { \
- 					((type) << _PAGE_BIT_SWAP_TYPE) \
- 					| ((offset) << PTE_RPN_SHIFT) })
--
--#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
--#define __swp_entry_to_pte(x)		__pte((x).val)
-+/*
-+ * swp_entry_t should be arch independent. We build a swp_entry_t from
-+ * swap type and offset we get from swap and convert that to pte to
-+ * find a matching pte in linux page table.
-+ * Clear bits not found in swap entries here
-+ */
-+#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
-+#define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
- 
- #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
- #define _PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + _PAGE_BIT_SWAP_TYPE))
--- 
-2.5.0
+So such a synthetic CPUID bit would definitely be useful.
+
+Also, knowing whether a memcpy function is recoverable or not, should not be 
+delegated to callers: there should be the regular memcpy APIs, plus new APIs that 
+do everything they can to provide recoverable memory copies. Whether it's achieved 
+via flag checking, a function pointer or code patching is an implementation detail 
+that's not visible to drivers making use of the new facility.
+
+I'd go for the simplest, most robust solution initially, also perhaps with boot 
+time messages to make sure users know which variant is used and now.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
