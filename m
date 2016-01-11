@@ -1,111 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D7329828F3
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 09:49:31 -0500 (EST)
-Received: by mail-lf0-f41.google.com with SMTP id h129so19305607lfh.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 06:49:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u7si11378693lbw.3.2016.01.11.06.49.30
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A524A828F3
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 10:02:16 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id f206so216421204wmf.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 07:02:16 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id v10si23639565wmd.0.2016.01.11.07.02.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 06:49:30 -0800 (PST)
-Date: Mon, 11 Jan 2016 15:49:24 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: What is oom_killer_disable() for?
-Message-ID: <20160111144924.GF27317@dhcp22.suse.cz>
-References: <1452337485-8273-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <201601100202.DHE57897.OVLJOMHFOtFFSQ@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 07:02:15 -0800 (PST)
+Received: by mail-wm0-f43.google.com with SMTP id f206so273009188wmf.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 07:02:15 -0800 (PST)
+Date: Mon, 11 Jan 2016 16:02:13 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Unrecoverable Out Of Memory kernel error
+Message-ID: <20160111150212.GG27317@dhcp22.suse.cz>
+References: <1451408582.2783.20.camel@libero.it>
+ <20160105155400.GC15594@dhcp22.suse.cz>
+ <1452194792.7839.20.camel@libero.it>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201601100202.DHE57897.OVLJOMHFOtFFSQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <1452194792.7839.20.camel@libero.it>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, rientjes@google.com, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Guido Trentalancia <g.trentalancia@libero.it>
+Cc: linux-mm@kvack.org
 
-[CCing Rafael]
-
-On Sun 10-01-16 02:02:32, Tetsuo Handa wrote:
-> I wonder what oom_killer_disable() wants to do.
+On Thu 07-01-16 20:26:32, Guido Trentalancia wrote:
+> Hello Michal.
 > 
-> (1) We need to save a consistent memory snapshot image when suspending,
->     is this correct?
+> I believe it's a serious problem, as an unprivileged user-space
+> application can basically render the system completely unusable, so
+> that it must be hard-rebooted.
 
-Yes
+Unfortunatelly there are many other ways how your user can consume a lot
+of memory without some way of memory containment. E.g. memory cgroups
+can help in that regards.
 
-> (2) To obtain a consistent memory snapshot image, we need to freeze all
->     but current thread in order to avoid modifying on-memory data while
->     saving to disk, is this correct?
+[...]
+> > > Dec 29 12:28:25 vortex kernel: Killed process 10197 (cc1plus)
+> > > total-vm:969632kB, anon-rss:809184kB, file-rss:9308kB
+> > 
+> > This task is consuming a lot of memory so killing it should help to
+> > release the memory pressure. It would be interesting to see whether
+> > the
+> > task has died or not. 
+> 
+> I am not able to login into any console and therefore I cannot check
+> whether the gcc task died or not.
 
-Yes, the system has to enter a quiescent state where no further user
-space activity can interfere with the PM suspend.
+sysrq is not an option?
+
+> > Are there any follow up messages in the log?
+> 
+> The first message have been posted entirely. Such message is then
+> repeated several times (for the "cc1plus" task and once for the "as"
+> assembler). The other messages are similar and therefore have not been
+> posted...
+
+A full kernel log is usually more interesting to see the timing and
+other information (e.g. how much has the situation changed after the OOM
+killer invocation).
  
-> (3) Then, what is the purpose of disabling the OOM killer? Why do we
->     need to disable the OOM killer? Is it because the OOM killer thaws
->     already frozen threads?
+> It only appears to happen with parallel builds ("make -j4") and not
+> with normal builds ("make" or "make -j1"), but that's another issue,
 
-Yes. We have to be able to thaw frozen tasks if they are chosen as an
-OOM victim otherwise you could hide processes into the fridge and lockup
-the system. oom_killer_disable is then needed for pm freezer because the
-OOM killer might be invoked even after all the userspace is considered
-in the quiescent state. We cannot wake any task anymore during the later
-pm freezer processing AFAIU. oom_killer_disable then acts as a hard
-barrier after which we know that even OOM killer won't wake any user
-space tasks.
+This could mean that the memory got so fragmented that a larger fork
+load which requires higher order allocations can trigger OOM killer.
+Your OOM report talks about order-0 request triggering the OOM killer
+but higher parallel load might contribute
 
-> (4) Then, why do we wait for TIF_MEMDIE threads to terminate? We can
->     freeze thawed threads again without waiting for TIF_MEMDIE threads,
->     can't we? Is it because we need free memory for saving to disk?
+> I mean a user-space application should not be able to render the
+> system unusable by sucking all of its memory...
+> 
+> Is the hard-disk working continuosly because the kernel is trying to
+> swap endlessly and cannot reclaim back memory ?!?
 
-It is preferable to finish the OOM killer handling before entering the
-quiescent state. As only TIF_MEMDIE tasks are thawed we do not wait for
-all killed task. If this alone doesn't help to resolve the OOM condition
-then we will likely fail later in the process when a memory allocation
-is required and ENOMEM terminate the whole process.
+I would suspect page cache trashing to be a more probable reason. As
+already pointed out your swap space is full and so the anonymous memory
+which is the largest contributor to the memory consumption cannot be
+reclaimed. So all you get is to reclaim the page cache and your load
+will likely need more of it then would fit into the remaining memory.
 
-> (5) Then, why waiting for only TIF_MEMDIE threads is sufficient? There
->     is no TIF_MEMDIE threads does not guarantee that we have free memory,
->     for there might be !TIF_MEMDIE threads which are still sharing memory
->     used by TIF_MEMDIE threads.
-
-see above. We are trying to be as good as possible but not perfect. The
-only hard requirement is that an unexpected OOM victim won't interfere
-with a code which doesn't expect userspace to run.
-
-> (6) Since oom_killer_disable() already disabled the OOM killer,
->     !TIF_MEMDIE threads which are sharing memory used by TIF_MEMDIE
->     threads cannot get TIF_MEMDIE by calling out_of_memory().
-
-They shouldn't be running at all because the whole userspace has been
-frozen. Only TIF_MEMDIE tasks are running at the time we are disabling
-the oom killer and we are waiting for them. Please go and read through
-c32b3cbe0d06 ("oom, PM: make OOM detection in the freezer path raceless")
-
->     Also, since out_of_memory() returns false after oom_killer_disable()
->     disabled the OOM killer, allocation requests by these !TIF_MEMDIE
->     threads start failing. Why do we need to give up with accepting
->     undesirable errors (e.g. failure of syscalls which modify an object's
->     attribute)?
-
-Userspace shouldn't see unexpected errors due to OOM being disabled
-because it is not runable at that time.
-
->     Why don't we abort suspend operation by marking that
->     re-enabling of the OOM killer might caused modification of on-memory
->     data (like patch shown below)? We can make final decision after memory
->     image snapshot is saved to disk, can't we?
-
-I am not sure I am following you here but how do you detect that the
-userspace has corrupted your image or accesses an already (half)
-suspended device or something similar?
-
-I am not saying disabling the OOM killer is the greatest solution. It
-took quite some time to make it work reliably. But I fail to see how can
-we guarantee no userspace interference when an OOM victim might be woken
-by any allocation deep inside the PM code path. I believe we simply
-need a point of no userspace activity to proceed with further PM steps
-reasonably.
 -- 
 Michal Hocko
 SUSE Labs
