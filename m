@@ -1,61 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FDAB828F3
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 20:19:06 -0500 (EST)
-Received: by mail-yk0-f181.google.com with SMTP id x67so417167189ykd.2
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 17:19:06 -0800 (PST)
-Received: from mail-yk0-x232.google.com (mail-yk0-x232.google.com. [2607:f8b0:4002:c07::232])
-        by mx.google.com with ESMTPS id q185si14783320ywe.315.2016.01.10.17.19.05
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AA613828F3
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2016 23:00:27 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id 65so38211390pff.2
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 20:00:27 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id wl2si16023175pab.236.2016.01.10.20.00.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jan 2016 17:19:05 -0800 (PST)
-Received: by mail-yk0-x232.google.com with SMTP id v14so323049291ykd.3
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2016 17:19:05 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Jan 2016 20:00:26 -0800 (PST)
+Message-ID: <56932791.3080502@huawei.com>
+Date: Mon, 11 Jan 2016 11:54:57 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <569263BA.5060503@plexistor.com>
-References: <569263BA.5060503@plexistor.com>
-Date: Sun, 10 Jan 2016 17:19:05 -0800
-Message-ID: <CAPcyv4hb6T9cR2Z=G9U_U2q-i_wEmRwNCrkc8kK9YpH9RkS9cA@mail.gmail.com>
-Subject: Re: [PATCHSET 0/2] Allow single pagefault in write access of a
- VM_MIXEDMAP mapping
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm: add ratio in slabinfo print
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: cl@linux.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On Sun, Jan 10, 2016 at 5:59 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> Hi
->
-> Today any VM_MIXEDMAP or VM_PFN mapping when enabling a write access
-> to their mapping, will have a double pagefault for every write access.
->
-> This is because vma->vm_page_prot defines how a page/pfn is inserted into
-> the page table (see vma_wants_writenotify in mm/mmap.c).
->
-> Which means that it is always inserted with read-only under the
-> assumption that we want to be notified when write access occurs.
->
-> But this is not always true and adds an unnecessary page-fault on
-> every new mmap-write access
->
-> This patchset is trying to give the fault handler more choice by passing
-> an pgprot_t to vm_insert_mixed() via a new vm_insert_mixed_prot() API.
->
-> If the mm guys feel that the pgprot_t and its helpers and flags are private
-> to mm/memory.c I can easily do a new: vm_insert_mixed_rw() instead. of the
-> above vm_insert_mixed_prot() which enables any control not only write.
->
-> Following is a patch to DAX to optimize out the extra page-fault.
->
-> TODO: I only did 4k mapping perhaps 2M mapping can enjoy the same single
-> fault on write access. If interesting to anyone I can attempt a fix.
->
-> Dan Andrew who needs to pick this up please?
+Add ratio(active_objs/num_objs) in /proc/slabinfo, it is used to show
+the availability factor in each slab. Also adjustment format because
+some slabs' name is too long.
 
-This collides with the patches currently pending in -mm for 4.5, lets
-take a look at this for 4.6.
+before applied
+...
+ext4_inode_cache    1591   3008   1008   32    8 : tunables    0    0    0 : slabdata     94     94      0
+ext4_free_data       640    640     64   64    1 : tunables    0    0    0 : slabdata     10     10      0
+ext4_allocation_context    480    480    128   32    1 : tunables    0    0    0 : slabdata     15     15      0
+ext4_io_end          616    616     72   56    1 : tunables    0    0    0 : slabdata     11     11      0
+ext4_extent_status   3979   4794     40  102    1 : tunables    0    0    0 : slabdata     47     47      0
+jbd2_journal_handle   1360   1360     48   85    1 : tunables    0    0    0 : slabdata     16     16      0
+jbd2_journal_head    510    510    120   34    1 : tunables    0    0    0 : slabdata     15     15      0
+jbd2_revoke_table_s    768    768     16  256    1 : tunables    0    0    0 : slabdata      3      3      0
+jbd2_revoke_record_s    384    384     32  128    1 : tunables    0    0    0 : slabdata      3      3      0
+scsi_data_buffer       0      0     24  170    1 : tunables    0    0    0 : slabdata      0      0      0
+cfq_queue            560    560    232   35    2 : tunables    0    0    0 : slabdata     16     16      0
+bsg_cmd                0      0    312   26    2 : tunables    0    0    0 : slabdata      0      0      0
+mqueue_inode_cache     36     36    896   36    8 : tunables    0    0    0 : slabdata      1      1      0
+isofs_inode_cache      0      0    600   27    4 : tunables    0    0    0 : slabdata      0      0      0
+hugetlbfs_inode_cache     28     28    568   28    4 : tunables    0    0    0 : slabdata      1      1      0
+dquot                448    448    256   32    2 : tunables    0    0    0 : slabdata     14     14      0
+
+after applied
+...
+ext4_inode_cache            1287   2400     53%   1008   32    8 : tunables    0    0    0 : slabdata     75     75      0
+ext4_free_data               640    640    100%     64   64    1 : tunables    0    0    0 : slabdata     10     10      0
+ext4_allocation_context      512    512    100%    128   32    1 : tunables    0    0    0 : slabdata     16     16      0
+ext4_io_end                  560    560    100%     72   56    1 : tunables    0    0    0 : slabdata     10     10      0
+ext4_extent_status          3775   4692     80%     40  102    1 : tunables    0    0    0 : slabdata     46     46      0
+jbd2_journal_handle         1360   1360    100%     48   85    1 : tunables    0    0    0 : slabdata     16     16      0
+jbd2_journal_head            544    544    100%    120   34    1 : tunables    0    0    0 : slabdata     16     16      0
+jbd2_revoke_table_s          768    768    100%     16  256    1 : tunables    0    0    0 : slabdata      3      3      0
+jbd2_revoke_record_s         512    512    100%     32  128    1 : tunables    0    0    0 : slabdata      4      4      0
+scsi_data_buffer               0      0      0%     24  170    1 : tunables    0    0    0 : slabdata      0      0      0
+cfq_queue                    560    560    100%    232   35    2 : tunables    0    0    0 : slabdata     16     16      0
+bsg_cmd                        0      0      0%    312   26    2 : tunables    0    0    0 : slabdata      0      0      0
+mqueue_inode_cache            36     36    100%    896   36    8 : tunables    0    0    0 : slabdata      1      1      0
+isofs_inode_cache              0      0      0%    600   27    4 : tunables    0    0    0 : slabdata      0      0      0
+hugetlbfs_inode_cache         28     28    100%    568   28    4 : tunables    0    0    0 : slabdata      1      1      0
+dquot                        448    448    100%    256   32    2 : tunables    0    0    0 : slabdata     14     14      0
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/slab_common.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 3c6a86b..6f1e130 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1041,8 +1041,8 @@ static void print_slabinfo_header(struct seq_file *m)
+ #else
+ 	seq_puts(m, "slabinfo - version: 2.1\n");
+ #endif
+-	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> "
+-		 "<objperslab> <pagesperslab>");
++	seq_puts(m, "# name                   <active_objs> <num_objs> <ratio> "
++		 "<objsize> <objperslab> <pagesperslab>");
+ 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
+ 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
+ #ifdef CONFIG_DEBUG_SLAB
+@@ -1093,15 +1093,18 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
+ static void cache_show(struct kmem_cache *s, struct seq_file *m)
+ {
+ 	struct slabinfo sinfo;
++	unsigned long ratio;
+ 
+ 	memset(&sinfo, 0, sizeof(sinfo));
+ 	get_slabinfo(s, &sinfo);
+ 
+ 	memcg_accumulate_slabinfo(s, &sinfo);
++	ratio = sinfo.num_objs ? sinfo.active_objs * 100 / sinfo.num_objs : 0;
+ 
+-	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
+-		   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->size,
+-		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
++	seq_printf(m, "%-25s %6lu %6lu %6lu%% %6u %4u %4d",
++		   cache_name(s), sinfo.active_objs, sinfo.num_objs,
++		   ratio, s->size, sinfo.objects_per_slab,
++		   (1 << sinfo.cache_order));
+ 
+ 	seq_printf(m, " : tunables %4u %4u %4u",
+ 		   sinfo.limit, sinfo.batchcount, sinfo.shared);
+-- 
+2.0.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
