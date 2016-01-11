@@ -1,149 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 11 Jan 2016 17:08:05 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: [PATCH 13/13] aio: add support for aio renameat operation
-Message-ID: <86d03af4b834ddfc451334ab7a63d1f57c47755d.1452549431.git.bcrl@kvack.org>
-References: <cover.1452549431.git.bcrl@kvack.org>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DE6F828EB
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:35:50 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id yy13so235408163pab.3
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 14:35:50 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x83si10749954pfi.25.2016.01.11.14.35.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 14:35:49 -0800 (PST)
+Date: Mon, 11 Jan 2016 14:35:48 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+ punch
+Message-Id: <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
+In-Reply-To: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1452549431.git.bcrl@kvack.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
 
-Add support for an aio renameat operation that implements an
-asynchronous renameat2().
+On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-Signed-off-by: Benjamin LaHaise <ben.lahaise@solacesystems.com>
-Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
----
- fs/aio.c                     | 63 ++++++++++++++++++++++++++++++++++++++++++++
- include/uapi/linux/aio_abi.h |  9 +++++++
- 2 files changed, 72 insertions(+)
+> Page faults can race with fallocate hole punch.  If a page fault happens
+> between the unmap and remove operations, the page is not removed and
+> remains within the hole.  This is not the desired behavior.  The race
+> is difficult to detect in user level code as even in the non-race
+> case, a page within the hole could be faulted back in before fallocate
+> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
+> this race will be easier to observe.
+> 
+> If this race is detected and a page is mapped, the remove operation
+> (remove_inode_hugepages) will unmap the page before removing.  The unmap
+> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
+> so that no other faults will be processed until the page is removed.
+> 
+> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
+> remove_inode_hugepages to satisfy the new reference.
+> 
+> ...
+>
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+>
+> ...
+>
+> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>  							mapping, next, 0);
+>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
+>  
+> -			lock_page(page);
+> -			if (likely(!page_mapped(page))) {
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 5cb3d74..aaecadf 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -240,6 +240,7 @@ long aio_do_unlinkat(int fd, const char *filename, int flags, int mode);
- long aio_foo_at(struct aio_kiocb *req, do_foo_at_t do_foo_at);
- 
- long aio_readahead(struct aio_kiocb *iocb, unsigned long len);
-+long aio_renameat(struct aio_kiocb *iocb, struct iocb *user_iocb);
- 
- static __always_inline bool aio_may_use_threads(void)
- {
-@@ -1946,6 +1947,63 @@ long aio_readahead(struct aio_kiocb *iocb, unsigned long len)
- 		return aio_thread_queue_iocb(iocb, aio_thread_op_readahead, 0);
- 	return len;
- }
-+
-+static long aio_thread_op_renameat(struct aio_kiocb *iocb)
-+{
-+	const void * __user user_info = (void * __user)iocb->common.private;
-+	struct renameat_info info;
-+	const char * __user old;
-+	const char * __user new;
-+	int olddir, newdir;
-+	unsigned flags;
-+	long ret;
-+
-+	use_mm(aio_get_mm(&iocb->common));
-+	if (unlikely(copy_from_user(&info, user_info, sizeof(info)))) {
-+		ret = -EFAULT;
-+		goto done;
-+	}
-+
-+	old = (const char * __user)(unsigned long)info.oldpath;
-+	new = (const char * __user)(unsigned long)info.newpath;
-+	olddir = info.olddirfd;
-+	newdir = info.newdirfd;
-+	flags = info.flags;
-+
-+	if (((unsigned long)old != info.oldpath) ||
-+	    ((unsigned long)new != info.newpath) ||
-+	    (olddir != info.olddirfd) ||
-+	    (newdir != info.newdirfd) ||
-+	    (flags != info.flags))
-+		ret = -EINVAL;
-+	else
-+		ret = sys_renameat2(olddir, old, newdir, new, flags);
-+done:
-+	unuse_mm(aio_get_mm(&iocb->common));
-+	return ret;
-+}
-+
-+long aio_renameat(struct aio_kiocb *iocb, struct iocb *user_iocb)
-+{
-+	const void * __user user_info;
-+
-+	if (user_iocb->aio_nbytes != sizeof(struct renameat_info))
-+		return -EINVAL;
-+	if (user_iocb->aio_offset)
-+		return -EINVAL;
-+
-+	user_info = (const void * __user)user_iocb->aio_buf;
-+	if (unlikely(!access_ok(VERIFY_READ, user_info,
-+				sizeof(struct renameat_info))))
-+		return -EFAULT;
-+
-+	iocb->common.private = (void *)user_info;
-+	return aio_thread_queue_iocb(iocb, aio_thread_op_renameat,
-+				     AIO_THREAD_NEED_TASK |
-+				     AIO_THREAD_NEED_FS |
-+				     AIO_THREAD_NEED_FILES |
-+				     AIO_THREAD_NEED_CRED);
-+}
- #endif /* IS_ENABLED(CONFIG_AIO_THREAD) */
- 
- /*
-@@ -2063,6 +2121,11 @@ rw_common:
- 			ret = aio_readahead(req, user_iocb->aio_nbytes);
- 		break;
- 
-+	case IOCB_CMD_RENAMEAT:
-+		if (aio_may_use_threads())
-+			ret = aio_renameat(req, user_iocb);
-+		break;
-+
- 	default:
- 		pr_debug("EINVAL: no operation provided\n");
- 		return -EINVAL;
-diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
-index 4def682..9417abd 100644
---- a/include/uapi/linux/aio_abi.h
-+++ b/include/uapi/linux/aio_abi.h
-@@ -48,6 +48,7 @@ enum {
- 	IOCB_CMD_OPENAT = 9,
- 	IOCB_CMD_UNLINKAT = 10,
- 	IOCB_CMD_READAHEAD = 12,
-+	IOCB_CMD_RENAMEAT = 13,
- };
- 
- /*
-@@ -108,6 +109,14 @@ struct iocb {
- 	__u32	aio_resfd;
- }; /* 64 bytes */
- 
-+struct renameat_info {
-+	__s64	olddirfd;
-+	__u64	oldpath;
-+	__s64	newdirfd;
-+	__u64	newpath;
-+	__u64	flags;
-+};
-+
- #undef IFBIG
- #undef IFLITTLE
- 
--- 
-2.5.0
+hm, what are the locking requirements for page_mapped()?
 
+> -				bool rsv_on_error = !PagePrivate(page);
+> -				/*
+> -				 * We must free the huge page and remove
+> -				 * from page cache (remove_huge_page) BEFORE
+> -				 * removing the region/reserve map
+> -				 * (hugetlb_unreserve_pages).  In rare out
+> -				 * of memory conditions, removal of the
+> -				 * region/reserve map could fail.  Before
+> -				 * free'ing the page, note PagePrivate which
+> -				 * is used in case of error.
+> -				 */
+> -				remove_huge_page(page);
 
--- 
-"Thought is the essence of where you are now."
+And remove_huge_page().
+
+> -				freed++;
+> -				if (!truncate_op) {
+> -					if (unlikely(hugetlb_unreserve_pages(
+> -							inode, next,
+> -							next + 1, 1)))
+> -						hugetlb_fix_reserve_counts(
+> -							inode, rsv_on_error);
+> -				}
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
