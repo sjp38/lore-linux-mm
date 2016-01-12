@@ -1,102 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 987DF680F7F
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:22:29 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id z14so131732411igp.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:22:29 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE17680F80
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:26:47 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id ho8so68631748pac.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:26:47 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id d1si43508181pas.96.2016.01.11.16.26.46
+        for <linux-mm@kvack.org>;
+        Mon, 11 Jan 2016 16:26:46 -0800 (PST)
+Date: Mon, 11 Jan 2016 16:26:45 -0800
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Message-ID: <20160112002645.GA10179@agluck-desk.sc.intel.com>
+References: <cover.1452297867.git.tony.luck@intel.com>
+ <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+ <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
-References: <cover.1452549431.git.bcrl@kvack.org>
-	<150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
-Date: Mon, 11 Jan 2016 16:22:28 -0800
-Message-ID: <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
-Subject: Re: [PATCH 09/13] aio: add support for async openat()
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>, Ingo Molnar <mingo@kernel.org>
-Cc: linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Mon, Jan 11, 2016 at 2:07 PM, Benjamin LaHaise <bcrl@kvack.org> wrote:
-> Another blocking operation used by applications that want aio
-> functionality is that of opening files that are not resident in memory.
-> Using the thread based aio helper, add support for IOCB_CMD_OPENAT.
+On Fri, Jan 08, 2016 at 05:49:30PM -0800, Andy Lutomirski wrote:
+> Also, what's the sfence for?  You don't seem to be using any
+> non-temporal operations.
 
-So I think this is ridiculously ugly.
+So I deleted the "sfence" and now I just have a comment
+at the 100: label.
 
-AIO is a horrible ad-hoc design, with the main excuse being "other,
-less gifted people, made that design, and we are implementing it for
-compatibility because database people - who seldom have any shred of
-taste - actually use it".
+37:
+        shl $6,%ecx
+        lea -48(%ecx,%edx),%edx
+        jmp 100f
+38:
+        shl $6,%ecx
+        lea -56(%ecx,%edx),%edx
+        jmp 100f
+39:
+        lea (%rdx,%rcx,8),%rdx
+        jmp 100f
+40:
+        mov %ecx,%edx
+100:
+        /* %rax set the fault number in fixup_exception() */
+        ret
 
-But AIO was always really really ugly.
+Should I just change all the "jmp 100f" into "ret"?  There
+aren't any tools that will be confused that the function
+has 10 returns, are there?
 
-Now you introduce the notion of doing almost arbitrary system calls
-asynchronously in threads, but then you use that ass-backwards nasty
-interface to do so.
-
-Why?
-
-If you want to do arbitrary asynchronous system calls, just *do* it.
-But do _that_, not "let's extend this horrible interface in arbitrary
-random ways one special system call at a time".
-
-In other words, why is the interface not simply: "do arbitrary system
-call X with arguments A, B, C, D asynchronously using a kernel
-thread".
-
-That's something that a lot of people might use. In fact, if they can
-avoid the nasty AIO interface, maybe they'll even use it for things
-like read() and write().
-
-So I really think it would be a nice thing to allow some kind of
-arbitrary "queue up asynchronous system call" model.
-
-But I do not think the AIO model should be the model used for that,
-even if I think there might be some shared infrastructure.
-
-So I would seriously suggest:
-
- - how about we add a true "asynchronous system call" interface
-
- - make it be a list of system calls with a futex completion for each
-list entry, so that you can easily wait for the end result that way.
-
- - maybe (and this is where it gets really iffy) you could even pass
-in the result of one system call to the next, so that you can do
-things like
-
-       fd = openat(..)
-       ret = read(fd, ..)
-
-   asynchronously and then just wait for the read() to complete.
-
-and let us *not* tie this to the aio interface.
-
-In fact, if we do it well, we can go the other way, and try to
-implement the nasty AIO interface on top of the generic "just do
-things asynchronously".
-
-And I actually think many of your kernel thread parts are good for a
-generic implementation. That whole "AIO_THREAD_NEED_CRED" etc logic
-all makes sense, although I do suspect you could just make it
-unconditional. The cost of a few atomics shouldn't be excessive when
-we're talking "use a thread to do op X".
-
-What do you think? Do you think it might be possible to aim for a
-generic "do system call asynchronously" model instead?
-
-I'm adding Ingo the to cc, because I think Ingo had a "run this list
-of system calls" patch at one point - in order to avoid system call
-overhead. I don't think that was very interesting (because system call
-overhead is seldom all that noticeable for any interesting system
-calls), but with the "let's do the list asynchronously" addition it
-might be much more intriguing. Ingo, do I remember correctly that it
-was you? I might be confused about who wrote that patch, and I can't
-find it now.
-
-               Linus
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
