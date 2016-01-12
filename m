@@ -1,70 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BC9C4403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 03:18:00 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id b14so306594483wmb.1
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 00:18:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fa10si130781038wjd.246.2016.01.12.00.17.58
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D45B44403DB
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:34:04 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id py5so54563243obc.2
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 01:34:04 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id mz3si31907760obb.100.2016.01.12.01.34.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 12 Jan 2016 00:17:58 -0800 (PST)
-Date: Tue, 12 Jan 2016 09:17:57 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm,oom: do not loop !__GFP_FS allocation if the OOM
- killer is disabled.
-Message-ID: <20160112081756.GD25337@dhcp22.suse.cz>
-References: <1452488836-6772-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160111170047.GB32132@cmpxchg.org>
- <20160111172058.GK27317@dhcp22.suse.cz>
- <20160111174329.GA377@cmpxchg.org>
- <20160111174958.GM27317@dhcp22.suse.cz>
- <201601120630.ICG86454.FFMFVSOOtHJOQL@I-love.SAKURA.ne.jp>
- <20160111220216.GA5452@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 01:34:04 -0800 (PST)
+Date: Tue, 12 Jan 2016 12:33:56 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: re: balloon: fix page list locking
+Message-ID: <20160112093356.GC29804@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160111220216.GA5452@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org
+To: mst@redhat.com
+Cc: linux-mm@kvack.org
 
-On Mon 11-01-16 17:02:16, Johannes Weiner wrote:
-> On Tue, Jan 12, 2016 at 06:30:15AM +0900, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > > Scratch my objection to this patch then. But please do add to/update
-> > > > that XXX comment above that line, or it'll be confusing. Hm?
-> > > > 
-> > > > 			/*
-> > > > 			 * XXX: Page reclaim didn't yield anything,
-> > > > 			 * and the OOM killer can't be invoked, but
-> > > > 			 * keep looping as per tradition. Unless the
-> > > > 			 * system is trying to enter a quiescent state
-> > > > 			 * during suspend and the OOM killer has been
-> > > > 			 * shut off already. Give up like with other
-> > > > 			 * !__GFP_NOFAIL allocations in that case.
-> > > > 			 */
-> > > > 			*did_some_progress = !oom_killer_disabled;
-> > > 
-> > > Yes this makes it more clear IMO.
-> > > 
-> > If you don't want to expose oom_killer_disabled outside of the OOM proper,
-> > can't we move this "if (!(gfp_mask & __GFP_FS)) { ... }" block to before
-> > constraint = constrained_alloc(oc, &totalpages) line in out_of_memory() ?
-> 
-> I think your patch is fine as it is.
-> 
-> It's better to pull out oom_killer_disabled. We want the logic that
-> filters OOM invocation based on allocation type in one place. And as
-> per the XXX we eventually want to drop that bogus *did_some_progress
-> setting anyway.
+Hello Michael S. Tsirkin,
 
-Completely agreed.
+The patch 0b5ffdb4f7c6: "balloon: fix page list locking" from Jan 1,
+2016, leads to the following static checker warning:
 
--- 
-Michal Hocko
-SUSE Labs
+	mm/balloon_compaction.c:116 balloon_page_dequeue()
+	error: double unlock 'spin_lock:&b_dev_info->pages_lock'
+
+mm/balloon_compaction.c
+   101                          spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+   102                          balloon_page_delete(page);
+   103                          __count_vm_event(BALLOON_DEFLATE);
+   104                          spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Unlock.
+
+   105                          unlock_page(page);
+   106                          put_page(page);
+   107                          dequeued_page = true;
+   108                          break;
+   109                  }
+   110                  put_page(page);
+   111                  spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+   112          }
+   113  
+   114          /* re-add remaining entries */
+   115          list_splice(&processed, &b_dev_info->pages);
+   116          spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Second unlock.
+
+   117  
+   118          if (!dequeued_page) {
+
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
