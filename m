@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5CF680F84
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:31:27 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id f206so296581944wmf.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:31:27 -0800 (PST)
-Received: from vena.lwn.net (tex.lwn.net. [70.33.254.29])
-        by mx.google.com with ESMTPS id c10si203226786wjb.83.2016.01.11.17.31.26
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 56B83680F84
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:39:29 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id mw1so122177233igb.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:39:29 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id e91si4362141ioi.138.2016.01.11.17.39.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 17:31:26 -0800 (PST)
-Date: Mon, 11 Jan 2016 18:31:22 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH] Documentation/kernel-parameters: update KMG units
-Message-ID: <20160111183122.1f7e5728@lwn.net>
-In-Reply-To: <1450917496-4023-1-git-send-email-elliott@hpe.com>
-References: <1450917496-4023-1-git-send-email-elliott@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 17:39:28 -0800 (PST)
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+ punch
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+ <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
+ <56943D00.7090405@oracle.com>
+ <20160111162931.0bea916e.akpm@linux-foundation.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <569458AB.5000102@oracle.com>
+Date: Mon, 11 Jan 2016 17:36:43 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160111162931.0bea916e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Elliott <elliott@hpe.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, matt@codeblueprint.co.uk, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Wed, 23 Dec 2015 18:38:16 -0600
-Robert Elliott <elliott@hpe.com> wrote:
-
-> Since commit e004f3c7780d ("lib/cmdline.c: add size unit t/p/e to
-> memparse") expanded memparse() to support T, P, and E units in addition
-> to K, M, and G, all the kernel parameters that use that function became
-> capable of more than [KMG] mentioned in kernel-parameters.txt.
+On 01/11/2016 04:29 PM, Andrew Morton wrote:
+> On Mon, 11 Jan 2016 15:38:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 > 
-> Expand the introduction to the units and change all existing [KMG]
-> descriptions to [KMGTPE].  cma only had [MG]; reservelow only had [K].
+>> On 01/11/2016 02:35 PM, Andrew Morton wrote:
+>>> On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+
+<snip>
+
+>>>> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
+>>>> remove_inode_hugepages to satisfy the new reference.
+>>>>
+
+<snip>
+
 > 
-> Add [KMGTPE] for hugepagesz and memory_corruption_check_size, which also
-> use memparse().
+> I'll mark this patch as "pending, awaiting Mike's go-ahead".
 > 
-> Update two source code files with comments mentioning [KMG].
 
-So I've ended up dropping this one from the docs tree for now.  In the
-end, I just didn't want my pull request to include an explanation for why
-the docs tree has a conflict on mm/page_alloc.c....  The change is good,
-though, and shouldn't be lost.  I'd say that either (1) Andrew can pick
-it up and merge it with the other stuff he has, or (2) we can push it
-through after mm has cleared.  Either way, a version based on -mm would
-be a good thing to have.
+When this patch was originally submitted, bugs were discovered in the
+hugetlb_vmdelete_list routine.  So, the patch "Fix bugs in
+hugetlb_vmtruncate_list" was created.
 
-Thanks,
+I have retested the changes in this patch specifically dealing with
+page fault/hole punch race on top of the new hugetlb_vmtruncate_list
+routine.  Everything looks good.
 
-jon
+How would you like to proceed with the patch?
+- Should I create a series with the hugetlb_vmtruncate_list split out?
+- Should I respin with hugetlb_vmtruncate_list patch applied?
+
+Just let me know what is easiest/best for you.
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
