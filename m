@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A0BBA4403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 09:45:25 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id f206so323931437wmf.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 06:45:25 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ex19si127899805wjc.64.2016.01.12.06.45.24
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 36C734403D9
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 09:52:23 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id f206so257177165wmf.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 06:52:23 -0800 (PST)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id 134si28668001wmr.40.2016.01.12.06.52.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 12 Jan 2016 06:45:24 -0800 (PST)
-Date: Tue, 12 Jan 2016 15:45:21 +0100
-From: Michal Hocko <mhocko@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 06:52:22 -0800 (PST)
+Received: by mail-wm0-x22b.google.com with SMTP id f206so324283431wmf.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 06:52:21 -0800 (PST)
+Date: Tue, 12 Jan 2016 16:52:19 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH] mm: fix locking order in mm_take_all_locks()
-Message-ID: <20160112144521.GL25337@dhcp22.suse.cz>
+Message-ID: <20160112145219.GA11419@node.shutemov.name>
 References: <1452510328-93955-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160112144521.GL25337@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1452510328-93955-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20160112144521.GL25337@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon 11-01-16 14:05:28, Kirill A. Shutemov wrote:
-> Dmitry Vyukov has reported[1] possible deadlock (triggered by his syzkaller
-> fuzzer):
+On Tue, Jan 12, 2016 at 03:45:21PM +0100, Michal Hocko wrote:
+> On Mon 11-01-16 14:05:28, Kirill A. Shutemov wrote:
+> > Dmitry Vyukov has reported[1] possible deadlock (triggered by his syzkaller
+> > fuzzer):
+> > 
+> >  Possible unsafe locking scenario:
+> > 
+> >        CPU0                    CPU1
+> >        ----                    ----
+> >   lock(&hugetlbfs_i_mmap_rwsem_key);
+> >                                lock(&mapping->i_mmap_rwsem);
+> >                                lock(&hugetlbfs_i_mmap_rwsem_key);
+> >   lock(&mapping->i_mmap_rwsem);
+> > 
+> > Both traces points to mm_take_all_locks() as a source of the problem.
+> > It doesn't take care about ordering or hugetlbfs_i_mmap_rwsem_key (aka
+> > mapping->i_mmap_rwsem for hugetlb mapping) vs. i_mmap_rwsem.
 > 
->  Possible unsafe locking scenario:
-> 
->        CPU0                    CPU1
->        ----                    ----
->   lock(&hugetlbfs_i_mmap_rwsem_key);
->                                lock(&mapping->i_mmap_rwsem);
->                                lock(&hugetlbfs_i_mmap_rwsem_key);
->   lock(&mapping->i_mmap_rwsem);
-> 
-> Both traces points to mm_take_all_locks() as a source of the problem.
-> It doesn't take care about ordering or hugetlbfs_i_mmap_rwsem_key (aka
-> mapping->i_mmap_rwsem for hugetlb mapping) vs. i_mmap_rwsem.
+> Hmm, but huge_pmd_share is called with mmap_sem held no?
 
-Hmm, but huge_pmd_share is called with mmap_sem held no? At least my
-current cscope claims that huge_pte_alloc is called from
-copy_hugetlb_page_range and hugetlb_fault both of which should be called
-with mmap sem held for write (via dup_mmap) resp. read (via page fault
-resp. gup) while mm_take_all_locks expects mmap_sem for write as well.
+Why does it matter?
 
-> huge_pmd_share() does memory allocation under hugetlbfs_i_mmap_rwsem_key
-> and allocator can take i_mmap_rwsem if it hit reclaim. So we need to
-> take i_mmap_rwsem from all hugetlb VMAs before taking i_mmap_rwsem from
-> rest of VMAs.
-> 
-> The patch also documents locking order for hugetlbfs_i_mmap_rwsem_key.
+Both mappings can be mapped to different processes, so mmap_sem is no good
+here.
 
-The documentation part alone makes sense but I fail to see how this can
-solve any deadlock in the current code.
-
-> [1] http://lkml.kernel.org/r/CACT4Y+Zu95tBs-0EvdiAKzUOsb4tczRRfCRTpLr4bg_OP9HuVg@mail.gmail.com
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
