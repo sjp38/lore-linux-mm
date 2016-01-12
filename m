@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 969E74403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:53:24 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id f206so245115429wmf.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 01:53:24 -0800 (PST)
-Date: Tue, 12 Jan 2016 10:53:19 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 09/13] aio: add support for async openat()
-Message-ID: <20160112095319.GA20597@gmail.com>
-References: <cover.1452549431.git.bcrl@kvack.org>
- <150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
- <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C90A4403DC
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 05:11:33 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so311538562wmf.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 02:11:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wa4si178661825wjc.183.2016.01.12.02.11.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 12 Jan 2016 02:11:32 -0800 (PST)
+Date: Tue, 12 Jan 2016 11:11:29 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v3 22/22] thermal/intel_powerclamp: Convert the kthread
+ to kthread worker API
+Message-ID: <20160112101129.GN731@pathway.suse.cz>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+ <1447853127-3461-23-git-send-email-pmladek@suse.com>
+ <20160107115531.34279a9b@icelake>
+ <20160108164931.GT3178@pathway.suse.cz>
+ <20160111181718.0ace4a58@yairi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
+In-Reply-To: <20160111181718.0ace4a58@yairi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, linux-pm@vger.kernel.org
 
-
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> What do you think? Do you think it might be possible to aim for a generic "do 
-> system call asynchronously" model instead?
+On Mon 2016-01-11 18:17:18, Jacob Pan wrote:
+> On Fri, 8 Jan 2016 17:49:31 +0100
+> Petr Mladek <pmladek@suse.com> wrote:
 > 
-> I'm adding Ingo the to cc, because I think Ingo had a "run this list of system 
-> calls" patch at one point - in order to avoid system call overhead. I don't 
-> think that was very interesting (because system call overhead is seldom all that 
-> noticeable for any interesting system calls), but with the "let's do the list 
-> asynchronously" addition it might be much more intriguing. Ingo, do I remember 
-> correctly that it was you? I might be confused about who wrote that patch, and I 
-> can't find it now.
+> > Is the __preempt_schedule() a problem? It allows to switch the process
+> > when needed. I thought that it was safe because try_to_freeze() might
+> > have slept as well.
+> > 
+> not a problem. i originally thought queue_kthread_work() may add
+> delay but it doesn't since there is no other work on this kthread.
 
-Yeah, it was the whole 'syslets' and 'threadlets' stuff - I had both implemented 
-and prototyped into a 'list directory entries asynchronously' testcase.
+Great.
+ 
+> > > - vulnerable to future changes of queuing work  
+> > 
+> > The question is if it is safe to sleep, freeze, or even migrate
+> > the system between the works. It looks like because of the
+> > try_to_freeze() and schedule_interrupt() calls in the original code.
+> > 
+> > BTW: I wonder if the original code correctly handle freezing after
+> > the schedule_timeout(). It does not call try_to_freeze()
+> > there and the forced idle states might block freezing.
+> > I think that the small overhead of kthread works is worth
+> > solving such bugs. It makes it easier to maintain these
+> > sleeping states.
+> it is in a while loop, so try_to_freeze() gets called. Am I missing
+> something?
 
-Threadlets was pretty close to what you are suggesting now. Here's a very good (as 
-usual!) writeup from LWN:
+But it might take some time until try_to_freeze() is called.
+If I get it correctly. try_to_freeze_tasks() wakes freezable
+tasks to get them into the fridge. If clamp_thread() is waken
+from that schedule_timeout_interruptible(), it still might inject
+the idle state before calling try_to_freeze(). It means that freezer
+needs to wait "quite" some time until the kthread ends up in the
+fridge.
 
-  https://lwn.net/Articles/223899/
+Hmm, even my conversion does not solve this entirely. We might
+need to call freezing(current) in the
 
-Thanks,
+   while (time_before(jiffies, target_jiffies)) {
 
-	Ingo
+cycle. And break injecting the idle state when freezing is requested.
+
+Or do I miss something, please?
+
+Best Regards,
+Petr
+
+
+
+
+
+
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
