@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A0204680F80
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:07:08 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id yy13so237319063pab.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:07:08 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id y73si2865598pfi.218.2016.01.11.17.07.06
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 17:07:07 -0800 (PST)
-Message-ID: <56945142.5040509@huawei.com>
-Date: Tue, 12 Jan 2016 09:05:06 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AEF7F680F81
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:12:27 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id cy9so330092999pac.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:12:27 -0800 (PST)
+Date: Tue, 12 Jan 2016 12:11:28 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160112011128.GC6033@dastard>
+References: <cover.1452549431.git.bcrl@kvack.org>
+ <80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add ratio in slabinfo print
-References: <56932791.3080502@huawei.com> <20160111122553.GB27317@dhcp22.suse.cz> <5693AAD5.6090101@huawei.com> <alpine.DEB.2.10.1601111619120.5824@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1601111619120.5824@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, cl@linux.com, Pekka Enberg <penberg@kernel.org>, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 2016/1/12 8:20, David Rientjes wrote:
+On Mon, Jan 11, 2016 at 05:07:23PM -0500, Benjamin LaHaise wrote:
+> Enable a fully asynchronous fsync and fdatasync operations in aio using
+> the aio thread queuing mechanism.
+> 
+> Signed-off-by: Benjamin LaHaise <ben.lahaise@solacesystems.com>
+> Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
 
-> On Mon, 11 Jan 2016, Xishi Qiu wrote:
-> 
->>> On Mon 11-01-16 11:54:57, Xishi Qiu wrote:
->>>> Add ratio(active_objs/num_objs) in /proc/slabinfo, it is used to show
->>>> the availability factor in each slab.
->>>
->>> What is the reason to add such a new value when it can be trivially
->>> calculated from the userspace?
->>>
->>> Besides that such a change would break existing parsers no?
->>
->> Oh, maybe it is.
->>
-> 
-> If you need the information internally, you could always create a library 
-> around slabinfo and export the information for users who are interested 
-> for your own use.  Doing anything other than appending fields to each line 
-> is too dangerous, however, as a general rule.
-> 
-> 
+Insufficient. Needs the range to be passed through and call
+vfs_fsync_range(), as I implemented here:
 
-OK, I know.
+https://lkml.org/lkml/2015/10/28/878
 
-Thanks,
-Xishi Qiu
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
