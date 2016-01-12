@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4665E4403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 03:16:45 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id f206so306629662wmf.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 00:16:45 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id 201si29362329wml.102.2016.01.12.00.16.43
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BC9C4403D9
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 03:18:00 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id b14so306594483wmb.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 00:18:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fa10si130781038wjd.246.2016.01.12.00.17.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jan 2016 00:16:43 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id b14so30050754wmb.1
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 00:16:43 -0800 (PST)
-Date: Tue, 12 Jan 2016 09:16:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-Message-ID: <20160112081641.GC25337@dhcp22.suse.cz>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
- <1452094975-551-2-git-send-email-mhocko@kernel.org>
- <20160111145455.51e183aed810f7d366ea50a0@linux-foundation.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 12 Jan 2016 00:17:58 -0800 (PST)
+Date: Tue, 12 Jan 2016 09:17:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm,oom: do not loop !__GFP_FS allocation if the OOM
+ killer is disabled.
+Message-ID: <20160112081756.GD25337@dhcp22.suse.cz>
+References: <1452488836-6772-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160111170047.GB32132@cmpxchg.org>
+ <20160111172058.GK27317@dhcp22.suse.cz>
+ <20160111174329.GA377@cmpxchg.org>
+ <20160111174958.GM27317@dhcp22.suse.cz>
+ <201601120630.ICG86454.FFMFVSOOtHJOQL@I-love.SAKURA.ne.jp>
+ <20160111220216.GA5452@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160111145455.51e183aed810f7d366ea50a0@linux-foundation.org>
+In-Reply-To: <20160111220216.GA5452@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org
 
-On Mon 11-01-16 14:54:55, Andrew Morton wrote:
-> On Wed,  6 Jan 2016 16:42:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Mon 11-01-16 17:02:16, Johannes Weiner wrote:
+> On Tue, Jan 12, 2016 at 06:30:15AM +0900, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > Scratch my objection to this patch then. But please do add to/update
+> > > > that XXX comment above that line, or it'll be confusing. Hm?
+> > > > 
+> > > > 			/*
+> > > > 			 * XXX: Page reclaim didn't yield anything,
+> > > > 			 * and the OOM killer can't be invoked, but
+> > > > 			 * keep looping as per tradition. Unless the
+> > > > 			 * system is trying to enter a quiescent state
+> > > > 			 * during suspend and the OOM killer has been
+> > > > 			 * shut off already. Give up like with other
+> > > > 			 * !__GFP_NOFAIL allocations in that case.
+> > > > 			 */
+> > > > 			*did_some_progress = !oom_killer_disabled;
+> > > 
+> > > Yes this makes it more clear IMO.
+> > > 
+> > If you don't want to expose oom_killer_disabled outside of the OOM proper,
+> > can't we move this "if (!(gfp_mask & __GFP_FS)) { ... }" block to before
+> > constraint = constrained_alloc(oc, &totalpages) line in out_of_memory() ?
 > 
-> > - use subsys_initcall instead of module_init - Paul Gortmaker
+> I think your patch is fine as it is.
 > 
-> That's pretty much the only change between what-i-have and
-> what-you-sent, so I'll just do this as a delta:
+> It's better to pull out oom_killer_disabled. We want the logic that
+> filters OOM invocation based on allocation type in one place. And as
+> per the XXX we eventually want to drop that bogus *did_some_progress
+> setting anyway.
 
-Yeah that should be the case, thanks for double checking!
- 
-> --- a/mm/oom_kill.c~mm-oom-introduce-oom-reaper-v4
-> +++ a/mm/oom_kill.c
-> @@ -32,12 +32,11 @@
->  #include <linux/mempolicy.h>
->  #include <linux/security.h>
->  #include <linux/ptrace.h>
-> -#include <linux/delay.h>
->  #include <linux/freezer.h>
->  #include <linux/ftrace.h>
->  #include <linux/ratelimit.h>
->  #include <linux/kthread.h>
-> -#include <linux/module.h>
-> +#include <linux/init.h>
->  
->  #include <asm/tlb.h>
->  #include "internal.h"
-> @@ -542,7 +541,7 @@ static int __init oom_init(void)
->  	}
->  	return 0;
->  }
-> -module_init(oom_init)
-> +subsys_initcall(oom_init)
->  #else
->  static void wake_oom_reaper(struct mm_struct *mm)
->  {
-> _
+Completely agreed.
 
 -- 
 Michal Hocko
