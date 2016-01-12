@@ -1,78 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EB82F680F80
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 22:25:37 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id ba1so425570282obb.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:25:37 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z4si25158637oeq.54.2016.01.11.19.25.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 19:25:37 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
- <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
- <56943D00.7090405@oracle.com>
- <20160111162931.0bea916e.akpm@linux-foundation.org>
- <569458AB.5000102@oracle.com>
- <20160111182010.bc4e171b.akpm@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5694712B.6040705@oracle.com>
-Date: Mon, 11 Jan 2016 19:21:15 -0800
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id F2661680F80
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 22:37:14 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id z14so116436214igp.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:37:14 -0800 (PST)
+Date: Tue, 12 Jan 2016 14:37:08 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160112033708.GE6033@dastard>
+References: <cover.1452549431.git.bcrl@kvack.org>
+ <80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org>
+ <20160112011128.GC6033@dastard>
+ <CA+55aFxtvMqHgHmHCcszV_QKQ2BY0wzenmrvc6BYN+tLFxesMA@mail.gmail.com>
+ <20160112022548.GD6033@dastard>
+ <CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160111182010.bc4e171b.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/11/2016 06:20 PM, Andrew Morton wrote:
-> On Mon, 11 Jan 2016 17:36:43 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, Jan 11, 2016 at 06:38:15PM -0800, Linus Torvalds wrote:
+> On Mon, Jan 11, 2016 at 6:25 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > That's a different interface.
 > 
->>>
->>> I'll mark this patch as "pending, awaiting Mike's go-ahead".
->>>
->>
->> When this patch was originally submitted, bugs were discovered in the
->> hugetlb_vmdelete_list routine.  So, the patch "Fix bugs in
->> hugetlb_vmtruncate_list" was created.
->>
->> I have retested the changes in this patch specifically dealing with
->> page fault/hole punch race on top of the new hugetlb_vmtruncate_list
->> routine.  Everything looks good.
->>
->> How would you like to proceed with the patch?
->> - Should I create a series with the hugetlb_vmtruncate_list split out?
->> - Should I respin with hugetlb_vmtruncate_list patch applied?
->>
->> Just let me know what is easiest/best for you.
+> So is openat. So is readahead.
+>
+> My point is that this idiotic "let's expose special cases" must end.
+> It's broken. It inevitably only exposes a subset of what different
+> people would want.
 > 
-> If you're saying that
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-mempolicy-skip-non-migratable-vmas-when-setting-mpol_mf_lazy.patch
+> Making "aio_read()" and friends a special interface had historical
+> reasons for it. But expanding willy-nilly on that model does not.
 
-That should be,
-http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-fix-bugs-in-hugetlb_vmtruncate_list.patch
+Yes, I heard you the first time, but you haven't acknowledged that
+the aio fsync interface is indeed different because it already
+exists. What's the problem with implementing an AIO call that we've
+advertised as supported for many years now that people are asking us
+to implement it?
 
-> and
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch.patch
-> are the final everything-works versions then we're all good to go now.
-> 
+As for a generic async syscall interface, why not just add
+IOCB_CMD_SYSCALL that encodes the syscall number and parameters
+into the iovec structure and let the existing aio subsystem handle
+demultiplexing it and handing them off to threads/workqueues/etc?
+That was we get contexts, events, signals, completions,
+cancelations, etc from the existing infrastructure, and there's
+really only a dispatch/collection layer that needs to be added?
 
-The only thing that 'might' be an issue is the new reference to
-hugetlb_vmdelete_list() from remove_inode_hugepages().
-hugetlb_vmdelete_list() was after remove_inode_hugepages() in the source
-file.
+If we then provide the userspace interface via the libaio library to
+call the async syscalls with an AIO context handle, then there's
+little more that needs to be done to support just about everything
+as an async syscall...
 
-The original patch moved hugetlb_vmdelete_list() to satisfy the new
-reference.  I can not tell if that was taken into account in the way the
-patches were pulled into your tree.  Will certainly know when it comes
-time to build.
+Cheers,
 
+Dave.
 -- 
-Mike Kravetz
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
