@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F36A680F80
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:37:56 -0500 (EST)
-Received: by mail-oi0-f47.google.com with SMTP id w75so31644707oie.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:37:56 -0800 (PST)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id sa5si2834201obc.69.2016.01.11.16.37.55
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A0204680F80
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:07:08 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id yy13so237319063pab.3
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:07:08 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id y73si2865598pfi.218.2016.01.11.17.07.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 16:37:55 -0800 (PST)
-Received: by mail-oi0-x230.google.com with SMTP id w75so31644563oie.0
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:37:55 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jan 2016 17:07:07 -0800 (PST)
+Message-ID: <56945142.5040509@huawei.com>
+Date: Tue, 12 Jan 2016 09:05:06 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160112002645.GA10179@agluck-desk.sc.intel.com>
-References: <cover.1452297867.git.tony.luck@intel.com> <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
- <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com> <20160112002645.GA10179@agluck-desk.sc.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 11 Jan 2016 16:37:35 -0800
-Message-ID: <CALCETrW3pFjSedmKRdV+a3-_OwgcBLHqfZYesC=pO3-0T3JK4A@mail.gmail.com>
-Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: add ratio in slabinfo print
+References: <56932791.3080502@huawei.com> <20160111122553.GB27317@dhcp22.suse.cz> <5693AAD5.6090101@huawei.com> <alpine.DEB.2.10.1601111619120.5824@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1601111619120.5824@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, cl@linux.com, Pekka Enberg <penberg@kernel.org>, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 11, 2016 at 4:26 PM, Luck, Tony <tony.luck@intel.com> wrote:
-> On Fri, Jan 08, 2016 at 05:49:30PM -0800, Andy Lutomirski wrote:
->> Also, what's the sfence for?  You don't seem to be using any
->> non-temporal operations.
->
-> So I deleted the "sfence" and now I just have a comment
-> at the 100: label.
->
-> 37:
->         shl $6,%ecx
->         lea -48(%ecx,%edx),%edx
->         jmp 100f
-> 38:
->         shl $6,%ecx
->         lea -56(%ecx,%edx),%edx
->         jmp 100f
-> 39:
->         lea (%rdx,%rcx,8),%rdx
->         jmp 100f
-> 40:
->         mov %ecx,%edx
-> 100:
->         /* %rax set the fault number in fixup_exception() */
->         ret
->
-> Should I just change all the "jmp 100f" into "ret"?  There
-> aren't any tools that will be confused that the function
-> has 10 returns, are there?
->
+On 2016/1/12 8:20, David Rientjes wrote:
 
-Given that gcc does that too, it should be fine.
+> On Mon, 11 Jan 2016, Xishi Qiu wrote:
+> 
+>>> On Mon 11-01-16 11:54:57, Xishi Qiu wrote:
+>>>> Add ratio(active_objs/num_objs) in /proc/slabinfo, it is used to show
+>>>> the availability factor in each slab.
+>>>
+>>> What is the reason to add such a new value when it can be trivially
+>>> calculated from the userspace?
+>>>
+>>> Besides that such a change would break existing parsers no?
+>>
+>> Oh, maybe it is.
+>>
+> 
+> If you need the information internally, you could always create a library 
+> around slabinfo and export the information for users who are interested 
+> for your own use.  Doing anything other than appending fields to each line 
+> is too dangerous, however, as a general rule.
+> 
+> 
 
---Andy\
+OK, I know.
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
