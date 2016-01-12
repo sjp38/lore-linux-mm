@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BDA04403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 16:00:42 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id b14so340813953wmb.1
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:00:42 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id kq9si51532100wjc.90.2016.01.12.13.00.38
+	by kanga.kvack.org (Postfix) with ESMTP id E70A0828DF
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 16:26:53 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l65so269159289wmf.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:26:53 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id wx4si178596669wjc.156.2016.01.12.13.26.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jan 2016 13:00:38 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id u188so33314208wmu.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:00:38 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC 3/3] oom: Do not try to sacrifice small children
-Date: Tue, 12 Jan 2016 22:00:25 +0100
-Message-Id: <1452632425-20191-4-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
-References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
+        Tue, 12 Jan 2016 13:26:52 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id l65so269158805wmf.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:26:52 -0800 (PST)
+Date: Tue, 12 Jan 2016 22:26:48 +0100
+From: "Steinar H. Gunderson" <sesse@google.com>
+Subject: Re: [PATCH] Add support for usbfs zerocopy.
+Message-ID: <20160112212644.GA6172@imap.gmail.com>
+References: <20160106144512.GA21737@imap.gmail.com>
+ <Pine.LNX.4.44L0.1601061032000.1579-100000@iolanthe.rowland.org>
+ <20160108094535.GA17286@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160108094535.GA17286@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Alan Stern <stern@rowland.harvard.edu>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Fri, Jan 08, 2016 at 01:45:35AM -0800, Christoph Hellwig wrote:
+> IF it was using mmap for I/O it would read in through the page fault
+> handler an then mark the page dirty for writeback by the VM.  Thats
+> clearly not the case.
+> 
+> Instead it's using mmap on a file as a pecial purpose anonymous
+> memory allocator, bypassing the VM and VM policies, including
+> allowing to pin kernel memory that way.
 
-try_to_sacrifice_child will select the largest child of the selected OOM
-victim to protect it and potentially save some work done by the parent.
-We can however select a small child which has barely touched any memory
-and killing it wouldn't lead to OOM recovery and only prolong the OOM
-condition which is not desirable.
+FWIW, the allocated memory counts against the usbfs limits, so there's
+no unbounded allocation opportunity here.
 
-This patch simply ignores the largest child selection and falls back to
-the parent (original victim) if the child hasn't accumulated even 1MB
-worth of oom score. We are not checking the memory consumption directly
-as we want to honor the oom_score_adj here because this would be the
-only way to protect children from this heuristic in case they are more
-important than the parent.
+How do you suggest we proceed here? If mmap really is the wrong interface
+(which is a bit frustrating after going through so many people :-) ),
+what does the correct interface look like?
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8bca0b1e97f7..b5c0021c6462 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -721,8 +721,16 @@ try_to_sacrifice_child(struct oom_control *oc, struct task_struct *victim,
- 	if (!child_victim)
- 		goto out;
- 
--	put_task_struct(victim);
--	victim = child_victim;
-+	/*
-+	 * Protecting the parent makes sense only if killing the child
-+	 * would release at least some memory (at least 1MB).
-+	 */
-+	if (K(victim_points) >= 1024) {
-+		put_task_struct(victim);
-+		victim = child_victim;
-+	} else {
-+		put_task_struct(child_victim);
-+	}
- 
- out:
- 	return victim;
+/* Steinar */
 -- 
-2.6.4
+Software Engineer, Google Switzerland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
