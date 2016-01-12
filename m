@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 56B83680F84
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:39:29 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id mw1so122177233igb.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:39:29 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e91si4362141ioi.138.2016.01.11.17.39.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 17:39:28 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
- <20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
- <56943D00.7090405@oracle.com>
- <20160111162931.0bea916e.akpm@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <569458AB.5000102@oracle.com>
-Date: Mon, 11 Jan 2016 17:36:43 -0800
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C17C680F85
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:45:21 -0500 (EST)
+Received: by mail-qk0-f182.google.com with SMTP id n135so233664361qka.2
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 17:45:21 -0800 (PST)
+Date: Mon, 11 Jan 2016 20:45:09 -0500
+From: Chris Mason <clm@fb.com>
+Subject: Re: [PATCH 09/13] aio: add support for async openat()
+Message-ID: <20160112014509.z6xefgc2rrkytmvk@ret.masoncoding.com>
+References: <cover.1452549431.git.bcrl@kvack.org>
+ <150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
+ <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160111162931.0bea916e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, Ingo Molnar <mingo@kernel.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/11/2016 04:29 PM, Andrew Morton wrote:
-> On Mon, 11 Jan 2016 15:38:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, Jan 11, 2016 at 04:22:28PM -0800, Linus Torvalds wrote:
+> On Mon, Jan 11, 2016 at 2:07 PM, Benjamin LaHaise <bcrl@kvack.org> wrote:
+> > Another blocking operation used by applications that want aio
+> > functionality is that of opening files that are not resident in memory.
+> > Using the thread based aio helper, add support for IOCB_CMD_OPENAT.
 > 
->> On 01/11/2016 02:35 PM, Andrew Morton wrote:
->>> On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-
-<snip>
-
->>>> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
->>>> remove_inode_hugepages to satisfy the new reference.
->>>>
-
-<snip>
-
+> So I think this is ridiculously ugly.
 > 
-> I'll mark this patch as "pending, awaiting Mike's go-ahead".
+> AIO is a horrible ad-hoc design, with the main excuse being "other,
+> less gifted people, made that design, and we are implementing it for
+> compatibility because database people - who seldom have any shred of
+> taste - actually use it".
 > 
+> But AIO was always really really ugly.
+> 
+> Now you introduce the notion of doing almost arbitrary system calls
+> asynchronously in threads, but then you use that ass-backwards nasty
+> interface to do so.
 
-When this patch was originally submitted, bugs were discovered in the
-hugetlb_vmdelete_list routine.  So, the patch "Fix bugs in
-hugetlb_vmtruncate_list" was created.
+[ ... ]
 
-I have retested the changes in this patch specifically dealing with
-page fault/hole punch race on top of the new hugetlb_vmtruncate_list
-routine.  Everything looks good.
+> I'm adding Ingo the to cc, because I think Ingo had a "run this list
+> of system calls" patch at one point - in order to avoid system call
+> overhead. I don't think that was very interesting (because system call
+> overhead is seldom all that noticeable for any interesting system
+> calls), but with the "let's do the list asynchronously" addition it
+> might be much more intriguing. Ingo, do I remember correctly that it
+> was you? I might be confused about who wrote that patch, and I can't
+> find it now.
 
-How would you like to proceed with the patch?
-- Should I create a series with the hugetlb_vmtruncate_list split out?
-- Should I respin with hugetlb_vmtruncate_list patch applied?
+Zach Brown and Ingo traded a bunch of ideas.  There were chicklets and
+syslets?  A little search, it looks like acall was a slightly different
+iteration, but the patches didn't make it off oss.oracle.com:
 
-Just let me know what is easiest/best for you.
--- 
-Mike Kravetz
+https://lwn.net/Articles/316806/
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
