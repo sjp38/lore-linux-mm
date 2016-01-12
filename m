@@ -1,62 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EEB544403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 10:20:10 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id f206so257034259wmf.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:20:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f15si142357912wjr.53.2016.01.12.07.20.09
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C2F828E5
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 11:05:59 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id mw1so133080680igb.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 08:05:59 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id sa7si26880890igb.13.2016.01.12.08.05.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 12 Jan 2016 07:20:09 -0800 (PST)
-Date: Tue, 12 Jan 2016 16:20:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: fix locking order in mm_take_all_locks()
-Message-ID: <20160112152008.GN25337@dhcp22.suse.cz>
-References: <1452510328-93955-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160112144521.GL25337@dhcp22.suse.cz>
- <20160112145219.GA11419@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 08:05:58 -0800 (PST)
+Subject: LSF/MM 2016: Call for Proposals
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+Date: Tue, 12 Jan 2016 11:05:45 -0500
+Message-ID: <yq14meiye92.fsf@sermon.lab.mkp.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160112145219.GA11419@node.shutemov.name>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-block@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-scsi@vger.kernel.org, xfs@oss.sgi.com
+Cc: lsf-pc@lists.linux-foundation.org
 
-On Tue 12-01-16 16:52:19, Kirill A. Shutemov wrote:
-> On Tue, Jan 12, 2016 at 03:45:21PM +0100, Michal Hocko wrote:
-> > On Mon 11-01-16 14:05:28, Kirill A. Shutemov wrote:
-> > > Dmitry Vyukov has reported[1] possible deadlock (triggered by his syzkaller
-> > > fuzzer):
-> > > 
-> > >  Possible unsafe locking scenario:
-> > > 
-> > >        CPU0                    CPU1
-> > >        ----                    ----
-> > >   lock(&hugetlbfs_i_mmap_rwsem_key);
-> > >                                lock(&mapping->i_mmap_rwsem);
-> > >                                lock(&hugetlbfs_i_mmap_rwsem_key);
-> > >   lock(&mapping->i_mmap_rwsem);
-> > > 
-> > > Both traces points to mm_take_all_locks() as a source of the problem.
-> > > It doesn't take care about ordering or hugetlbfs_i_mmap_rwsem_key (aka
-> > > mapping->i_mmap_rwsem for hugetlb mapping) vs. i_mmap_rwsem.
-> > 
-> > Hmm, but huge_pmd_share is called with mmap_sem held no?
-> 
-> Why does it matter?
-> 
-> Both mappings can be mapped to different processes, so mmap_sem is no good
-> here.
 
-You are right! Then it really makes a differencec.
-Feel free to add
-Reviewed-by: Michal Hocko <mhocko@suse.com>
+The annual Linux Storage, Filesystem and Memory Management Summit for
+2016 will be held on April 18th and 19th at the Raleigh Marriott City
+center, Raleigh, NC.
+
+Like last year, LSF/MM will be colocated with the Linux Foundation Vault
+conference which takes place on April 20th and 21st in the same
+venue. For those that do not know, Vault is designed to be an event
+where open source storage and filesystem practitioners meet storage
+implementors and, as such, it would be of benefit for LSF/MM attendees
+to attend.
+
+	http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
+	http://events.linuxfoundation.org/events/vault
+
+On behalf of the committee I am issuing a call for agenda proposals that
+are suitable for cross-track discussion as well as technical subjects
+for the breakout sessions.
+
+1) Proposals for agenda topics should be sent before February 29th, 2016
+to:
+
+	lsf-pc@lists.linux-foundation.org
+
+and cc the Linux list or lists that are relevant for the topic in
+question:
+
+	ATA:	linux-ide@vger.kernel.org
+	Block:	linux-block@vger.kernel.org
+	FS:	linux-fsdevel@vger.kernel.org
+	MM:	linux-mm@kvack.org
+	SCSI:	linux-scsi@vger.kernel.org
+
+If advance notice is required for visa applications then please send
+proposals before February 11th. The committee will complete the first
+round of selections near that date to accommodate applications.
+
+Please tag your proposal with [LSF/MM TOPIC] to make it easier to
+track. In addition, please make sure to start a new thread for each
+topic rather than following up to an existing one.
+
+Agenda topics and attendees will be selected by the program committee,
+but the final agenda will be formed by consensus of the attendees at the
+summit.
+
+We will try to cap attendance at around 25-30 per track to facilitate
+discussions, although the final numbers will depend on the room sizes at
+the venue.
+
+2) Requests to attend the summit should be sent to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Please summarise what expertise you will bring to the meeting, and what
+you would like to discuss. Please also tag your email with [LSF/MM
+ATTEND] so there is less chance of it getting lost.
+
+Presentations are allowed to guide discussion, but are strongly
+discouraged. There will be no recording or audio bridge. However, we
+expect that written minutes will be published as we did in previous
+years
+
+2015:
+	https://lwn.net/Articles/lsfmm2015/
+
+2014:
+	http://lwn.net/Articles/LSFMM2014/
+
+2013:
+	http://lwn.net/Articles/548089/
+
+3) If you have feedback on last year's meeting that we can use to
+improve this year's, please also send that to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Thank you on behalf of the program committee:
+
+Storage:
+	Jens Axboe (track chair)
+	James Bottomley
+	Christoph Hellwig
+	Martin K. Petersen (program chair)
+
+Filesystems:
+	Josef Bacik
+	Jan Kara
+	Jeff Layton (track chair)
+	Anna Schumaker
+	Theodore Ts'o
+	Ric Wheeler
+
+MM:
+	Mel Gorman
+	Johannes Weiner
+	Rik van Riel (track chair)
+
 -- 
-Michal Hocko
-SUSE Labs
+Martin K. Petersen	Oracle Linux Engineering
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
