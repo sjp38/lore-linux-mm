@@ -1,108 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 78DC14403D8
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 23:03:42 -0500 (EST)
-Received: by mail-io0-f175.google.com with SMTP id 77so340014438ioc.2
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:03:42 -0800 (PST)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D154403D9
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 23:07:10 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id n128so55635644pfn.3
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:07:10 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id u84si2217680pfa.199.2016.01.11.20.07.09
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jan 2016 20:07:09 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm: soft-offline: check return value in second
+ __get_any_page() call
+Date: Tue, 12 Jan 2016 03:29:35 +0000
+Message-ID: <20160112032932.GA8314@hori1.linux.bs1.fc.nec.co.jp>
+References: <1452237748-10822-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20160108075158.GA28640@hori1.linux.bs1.fc.nec.co.jp>
+ <20160108153626.16332573d71cdfcdbc1637cd@linux-foundation.org>
+In-Reply-To: <20160108153626.16332573d71cdfcdbc1637cd@linux-foundation.org>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <BAC5ECFA05E901408EA34BE48A0DD8A6@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160112033708.GE6033@dastard>
-References: <cover.1452549431.git.bcrl@kvack.org>
-	<80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org>
-	<20160112011128.GC6033@dastard>
-	<CA+55aFxtvMqHgHmHCcszV_QKQ2BY0wzenmrvc6BYN+tLFxesMA@mail.gmail.com>
-	<20160112022548.GD6033@dastard>
-	<CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
-	<20160112033708.GE6033@dastard>
-Date: Mon, 11 Jan 2016 20:03:41 -0800
-Message-ID: <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com>
-Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Mon, Jan 11, 2016 at 7:37 PM, Dave Chinner <david@fromorbit.com> wrote:
->
-> Yes, I heard you the first time, but you haven't acknowledged that
-> the aio fsync interface is indeed different because it already
-> exists. What's the problem with implementing an AIO call that we've
-> advertised as supported for many years now that people are asking us
-> to implement it?
+On Fri, Jan 08, 2016 at 03:36:26PM -0800, Andrew Morton wrote:
+> On Fri, 8 Jan 2016 07:51:59 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.=
+com> wrote:
+>=20
+> > >   [   52.600579]  [<ffffffff811bd18c>] SyS_madvise+0x6bc/0x6f0
+> > >   [   52.600579]  [<ffffffff8104d0ac>] ? fpu__restore_sig+0xcc/0x320
+> > >   [   52.600579]  [<ffffffff810a0003>] ? do_sigaction+0x73/0x1b0
+> > >   [   52.600579]  [<ffffffff8109ceb2>] ? __set_task_blocked+0x32/0x70
+> > >   [   52.600579]  [<ffffffff81652757>] entry_SYSCALL_64_fastpath+0x12=
+/0x6a
+> > >   [   52.600579] Code: 8b fc ff ff 5b 5d c3 48 89 df e8 b0 fa ff ff 4=
+8 89 df 31 f6 e8 c6 7d ff ff 5b 5d c3 48 c7 c6 08 54 a2 81 48 89 df e8 a4 c=
+5 01 00 <0f> 0b 66 90 66 66 66 66 90 55 48 89 e5 41 55 41 54 53 48 8b 47
+> > >   [   52.600579] RIP  [<ffffffff8118998c>] put_page+0x5c/0x60
+> > >   [   52.600579]  RSP <ffff88007c213e00>
+> > >=20
+> > > The root cause resides in get_any_page() which retries to get a refco=
+unt of
+> > > the page to be soft-offlined. This function calls put_hwpoison_page()=
+, expecting
+> > > that the target page is putback to LRU list. But it can be also freed=
+ to buddy.
+> > > So the second check need to care about such case.
+> > >=20
+> > > Fixes: af8fae7c0886 ("mm/memory-failure.c: clean up soft_offline_page=
+()")
+> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > Cc: stable@vger.kernel.org # v3.9+
+>=20
+> Please don't top-post.  I manually fixed it here.
 
-Oh, I don't disagree with that. I think it should be exposed, my point
-was that that too was not enough.
+sorry, I keep this rule in mind.
 
-I don't see why you argue. You said "that's not enough". And I jjust
-said that your expansion wasn't sufficient either, and that I think we
-should strive to expand things even more.
+> > Sorry, I forgot to notice that this specific problem is already fixed i=
+n
+> > mmotm with patch "mm: hwpoison: adjust for new thp refcounting", but
+> > considering backporting to -stable, it's easier to handle this separate=
+ly.
+> >=20
+> > So Andrew, could you separate out the code of this patch from
+> > "mm: hwpoison: adjust for new thp refcounting"?
+>=20
+> I don't understand what you're asking for.  Please be very
+> specific and carefully identify patches by filename or Subject:.
 
-And preferably not in some ad-hoc manner. Expand it to *everything* we can do.
+OK, so what I really wanted is that (1) applying this patch just before
+http://ozlabs.org/~akpm/mmots/broken-out/mm-hwpoison-adjust-for-new-thp-ref=
+counting.patch
+and (2) removing the following chunk from the mm-hwpoison-adjust-for-new-th=
+p-refcounting.patch:
 
-> As for a generic async syscall interface, why not just add
-> IOCB_CMD_SYSCALL that encodes the syscall number and parameters
-> into the iovec structure and let the existing aio subsystem handle
-> demultiplexing it and handing them off to threads/workqueues/etc?
+@@ -1575,7 +1540,7 @@ static int get_any_page(struct page *pag
+ 		 * Did it turn free?
+ 		 */
+ 		ret =3D __get_any_page(page, pfn, 0);
+-		if (!PageLRU(page)) {
++		if (ret =3D=3D 1 && !PageLRU(page)) {
+ 			/* Drop page reference which is from __get_any_page() */
+ 			put_hwpoison_page(page);
+ 			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
 
-That would likely be the simplest approach, yes.
-
-There's a few arguments against it, though:
-
- - doing the indirect system call thing does end up being
-architecture-specific, so now you do need the AIO code to call into
-some arch wrapper.
-
-   Not a huge deal, since the arch wrapper will be pretty simple (and
-we can have a default one that just returns ENOSYS, so that we don't
-have to synchronize all architectures)
-
- - the aio interface really is horrible crap. Really really.
-
-   For example, the whole "send signal as a completion model" is so
-f*cking broken that I really don't want to extend the aio interface
-too much. I think it's unfixable.
-
-So I really think we'd be *much* better off with a new interface
-entirely - preferably one that allows the old aio interfaces to fall
-out fairly naturally.
-
-Ben mentioned lio_listio() as a reason for why he wanted to extend the
-AIO interface, but I think it works the other way around: yes, we
-should look at lio_listio(), but we should look at it mainly as a way
-to ask ourselves: "can we implement a new aynchronous system call
-submission model that would also make it possible to implement
-lio_listio() as a user space wrapper around it".
-
-For example, if we had an actual _good_ way to queue up things, you
-could probably make that "struct sigevent" completion for lio_listio()
-just be another asynchronous system call at the end of the list - a
-system call that sends the completion signal.  And the aiocb_list[]
-itself? Maybe those could just be done as normal (individual) aio
-calls (so that you end up having the aiocb that you can wait on with
-aio_suspend() etc).
-
-But then people who do *not* want the crazy aiocb, and do *not* want
-some SIGIO or whatever, could just fire off asynchronous system calls
-without that cruddy interface.
-
-So my argument is really that I think it would be better to at least
-look into maybe creating something less crapulent, and striving to
-make it easy to make the old legacy interfaces be just wrappers around
-a more capable model.
-
-And hey, it may be that in the end nobody cares enough, and the right
-thing (or at least the prudent thing) to do is to just pile the crap
-on deeper and higher, and just add a single IOCB_CMD_SYSCALL
-indirection entry.
-
-So I'm not dismissing that as a solution - I just don't think it's a
-particularly clean one.
-
-It does have the advantage of likely being a fairly simple hack. But
-it smells like a hack.
-
-                Linus
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
