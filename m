@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 845DE828DF
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 17:05:29 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id h5so98538396igh.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 14:05:29 -0800 (PST)
-Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
-        by mx.google.com with SMTP id 66si5560785iop.49.2016.01.12.14.05.28
-        for <linux-mm@kvack.org>;
-        Tue, 12 Jan 2016 14:05:28 -0800 (PST)
-Date: Tue, 12 Jan 2016 17:05:27 -0500 (EST)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: [PATCH] Add support for usbfs zerocopy.
-In-Reply-To: <20160112212644.GA6172@imap.gmail.com>
-Message-ID: <Pine.LNX.4.44L0.1601121702040.1319-100000@iolanthe.rowland.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0292E828DF
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 17:09:41 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id cy9so346416998pac.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 14:09:40 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m68si38809094pfj.133.2016.01.12.14.09.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 14:09:40 -0800 (PST)
+Date: Tue, 12 Jan 2016 14:09:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] mm: soft-offline: check return value in second
+ __get_any_page() call
+Message-Id: <20160112140939.26df8a425422341bb899ee6f@linux-foundation.org>
+In-Reply-To: <20160112032932.GA8314@hori1.linux.bs1.fc.nec.co.jp>
+References: <1452237748-10822-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20160108075158.GA28640@hori1.linux.bs1.fc.nec.co.jp>
+	<20160108153626.16332573d71cdfcdbc1637cd@linux-foundation.org>
+	<20160112032932.GA8314@hori1.linux.bs1.fc.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Steinar H. Gunderson" <sesse@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Tue, 12 Jan 2016, Steinar H. Gunderson wrote:
+On Tue, 12 Jan 2016 03:29:35 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> On Fri, Jan 08, 2016 at 01:45:35AM -0800, Christoph Hellwig wrote:
-> > IF it was using mmap for I/O it would read in through the page fault
-> > handler an then mark the page dirty for writeback by the VM.  Thats
-> > clearly not the case.
-> > 
-> > Instead it's using mmap on a file as a pecial purpose anonymous
-> > memory allocator, bypassing the VM and VM policies, including
-> > allowing to pin kernel memory that way.
+> > I don't understand what you're asking for.  Please be very
+> > specific and carefully identify patches by filename or Subject:.
 > 
-> FWIW, the allocated memory counts against the usbfs limits, so there's
-> no unbounded allocation opportunity here.
+> OK, so what I really wanted is that (1) applying this patch just before
+> http://ozlabs.org/~akpm/mmots/broken-out/mm-hwpoison-adjust-for-new-thp-refcounting.patch
+> and (2) removing the following chunk from the mm-hwpoison-adjust-for-new-thp-refcounting.patch:
 > 
-> How do you suggest we proceed here? If mmap really is the wrong interface
-> (which is a bit frustrating after going through so many people :-) ),
-> what does the correct interface look like?
+> @@ -1575,7 +1540,7 @@ static int get_any_page(struct page *pag
+>  		 * Did it turn free?
+>  		 */
+>  		ret = __get_any_page(page, pfn, 0);
+> -		if (!PageLRU(page)) {
+> +		if (ret == 1 && !PageLRU(page)) {
+>  			/* Drop page reference which is from __get_any_page() */
+>  			put_hwpoison_page(page);
+>  			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
 
-To me (and others on the mailing list), it appears that Christoph was
-thinking of mmap as applied to a normal file, whereas the patch
-concerns mmap applied to a device file.  One need not behave like
-the other, which means the criticism was inappropriate.
-
-Unless there are any other issues connected to this, I'm okay with the 
-current version of the patch.
-
-Alan Stern
+Not a problem, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
