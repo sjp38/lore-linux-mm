@@ -1,130 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D638828DF
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 12:38:37 -0500 (EST)
-Received: by mail-yk0-f181.google.com with SMTP id k129so436920130yke.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 09:38:37 -0800 (PST)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id d81si4389030ywc.22.2016.01.12.09.38.36
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 47A9A828DF
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 14:09:07 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id ho8so83401148pac.2
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 11:09:07 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id z68si37880839pfi.34.2016.01.12.11.09.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 12 Jan 2016 09:38:36 -0800 (PST)
-Message-ID: <56953A18.2070407@citrix.com>
-Date: Tue, 12 Jan 2016 17:38:32 +0000
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 11:09:06 -0800 (PST)
+Received: by mail-pa0-x232.google.com with SMTP id uo6so327831510pac.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 11:09:06 -0800 (PST)
+Date: Tue, 12 Jan 2016 11:09:04 -0800
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v8] fs: clear file privilege bits when mmap writing
+Message-ID: <20160112190903.GA9421@www.outflux.net>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] [PATCH v4 2/2] xen_balloon: support memory auto onlining
- policy
-References: <1452617777-10598-1-git-send-email-vkuznets@redhat.com>
- <1452617777-10598-3-git-send-email-vkuznets@redhat.com>
-In-Reply-To: <1452617777-10598-3-git-send-email-vkuznets@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Kay
- Sievers <kay@vrfy.org>, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, xen-devel@lists.xenproject.org, Igor Mammedov <imammedo@redhat.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Xishi Qiu <qiuxishi@huawei.com>, Dan Williams <dan.j.williams@intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Mel
- Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/01/16 16:56, Vitaly Kuznetsov wrote:
-> Add support for the newly added kernel memory auto onlining policy to Xen
-> ballon driver.
-[...]
-> --- a/drivers/xen/Kconfig
-> +++ b/drivers/xen/Kconfig
-> @@ -37,23 +37,29 @@ config XEN_BALLOON_MEMORY_HOTPLUG
->  
->  	  Memory could be hotplugged in following steps:
->  
-> -	    1) dom0: xl mem-max <domU> <maxmem>
-> +	    1) domU: ensure that memory auto online policy is in effect by
-> +	       checking /sys/devices/system/memory/auto_online_blocks file
-> +	       (should be 'online').
+Normally, when a user can modify a file that has setuid or setgid bits,
+those bits are cleared when they are not the file owner or a member
+of the group. This is enforced when using write and truncate but not
+when writing to a shared mmap on the file. This could allow the file
+writer to gain privileges by changing a binary without losing the
+setuid/setgid/caps bits.
 
-Step 1 applies to dom0 and domUs.
+Changing the bits requires holding inode->i_mutex, so it cannot be done
+during the page fault (due to mmap_sem being held during the fault).
+Instead, clear the bits if PROT_WRITE is being used at mmap open time,
+or added at mprotect time.
 
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -284,7 +284,7 @@ static void release_memory_resource(struct resource *resource)
->  	kfree(resource);
->  }
->  
-> -static enum bp_state reserve_additional_memory(void)
-> +static enum bp_state reserve_additional_memory(bool online)
->  {
->  	long credit;
->  	struct resource *resource;
-> @@ -338,7 +338,18 @@ static enum bp_state reserve_additional_memory(void)
->  	}
->  #endif
->  
-> -	rc = add_memory_resource(nid, resource, false);
-> +	/*
-> +	 * add_memory_resource() will call online_pages() which in its turn
-> +	 * will call xen_online_page() callback causing deadlock if we don't
-> +	 * release balloon_mutex here. It is safe because there can only be
-> +	 * one balloon_process() running at a time and balloon_mutex is
-> +	 * internal to Xen driver, generic memory hotplug code doesn't mess
-> +	 * with it.
+Since we can't do the check in the right place inside mmap (due to
+holding mmap_sem), we have to do it before holding mmap_sem, which
+means duplicating some checks, which have to be available to the non-MMU
+builds too.
 
-There are multiple callers of reserve_additional_memory() and these are
-not all serialized via the balloon process.  Replace the "It is safe..."
-sentence with:
+When walking VMAs during mprotect, we need to drop mmap_sem (while
+holding a file reference) and restart the walk after clearing privileges.
 
-"Unlocking here is safe because the callers drop the mutex before trying
-again."
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+v8:
+- use mmap/mprotect method, with mprotect walk restart, thanks to koct9i
+v7:
+- document and avoid arch-specific O_* values, viro
+v6:
+- clarify ETXTBSY situation in comments, luto
+v5:
+- add to f_flags instead, viro
+- add i_mutex during __fput, jack
+v4:
+- delay removal instead of still needing mmap_sem for mprotect, yalin
+v3:
+- move outside of mmap_sem for real now, fengguang
+- check return code of file_remove_privs, akpm
+v2:
+- move to mmap from fault handler, jack
+---
+ include/linux/mm.h |  1 +
+ mm/mmap.c          | 20 ++++----------------
+ mm/mprotect.c      | 24 ++++++++++++++++++++++++
+ mm/util.c          | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 79 insertions(+), 16 deletions(-)
 
-> +	 */
-> +	mutex_unlock(&balloon_mutex);
-> +	rc = add_memory_resource(nid, resource, online);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 00bad7793788..b264c8be7114 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1912,6 +1912,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+ 
+ extern unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
++extern int do_mmap_shared_checks(struct file *file, unsigned long prot);
+ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+ 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2ce04a649f6b..b3424db0a29e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1320,25 +1320,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 		return -EAGAIN;
+ 
+ 	if (file) {
+-		struct inode *inode = file_inode(file);
++		int err;
+ 
+ 		switch (flags & MAP_TYPE) {
+ 		case MAP_SHARED:
+-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+-				return -EACCES;
+-
+-			/*
+-			 * Make sure we don't allow writing to an append-only
+-			 * file..
+-			 */
+-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+-				return -EACCES;
+-
+-			/*
+-			 * Make sure there are no mandatory locks on the file.
+-			 */
+-			if (locks_verify_locked(file))
+-				return -EAGAIN;
++			err = do_mmap_shared_checks(file, prot);
++			if (err)
++				return err;
+ 
+ 			vm_flags |= VM_SHARED | VM_MAYSHARE;
+ 			if (!(file->f_mode & FMODE_WRITE))
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ef5be8eaab00..2e16eaedbca2 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -12,6 +12,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/shm.h>
+ #include <linux/mman.h>
++#include <linux/file.h>
+ #include <linux/fs.h>
+ #include <linux/highmem.h>
+ #include <linux/security.h>
+@@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 
+ 	vm_flags = calc_vm_prot_bits(prot);
+ 
++restart:
+ 	down_write(&current->mm->mmap_sem);
+ 
+ 	vma = find_vma(current->mm, start);
+@@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 			goto out;
+ 		}
+ 
++		/*
++		 * If we're adding write permissions to a shared file,
++		 * we must clear privileges (like done at mmap time),
++		 * but we have to juggle the locks to avoid holding
++		 * mmap_sem while holding i_mutex.
++		 */
++		if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
++		    (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
++		    !IS_NOSEC(file_inode(vma->vm_file))) {
++			struct file *file = get_file(vma->vm_file);
++
++			start = vma->vm_start;
++			up_write(&current->mm->mmap_sem);
++			mutex_lock(&file_inode(file)->i_mutex);
++			error = file_remove_privs(file);
++			mutex_unlock(&file_inode(file)->i_mutex);
++			fput(file);
++			if (error)
++				return error;
++			goto restart;
++		}
++
+ 		error = security_file_mprotect(vma, reqprot, prot);
+ 		if (error)
+ 			goto out;
+diff --git a/mm/util.c b/mm/util.c
+index 9af1c12b310c..1882eaf33a37 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -283,6 +283,29 @@ int __weak get_user_pages_fast(unsigned long start,
+ }
+ EXPORT_SYMBOL_GPL(get_user_pages_fast);
+ 
++int do_mmap_shared_checks(struct file *file, unsigned long prot)
++{
++	struct inode *inode = file_inode(file);
++
++	if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
++		return -EACCES;
++
++	/*
++	 * Make sure we don't allow writing to an append-only
++	 * file..
++	 */
++	if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
++		return -EACCES;
++
++	/*
++	 * Make sure there are no mandatory locks on the file.
++	 */
++	if (locks_verify_locked(file))
++		return -EAGAIN;
++
++	return 0;
++}
++
+ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long pgoff)
+@@ -291,6 +314,33 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long populate;
+ 
++	/*
++	 * If we must remove privs, we do it here since doing it during
++	 * page fault may be expensive and cannot hold inode->i_mutex,
++	 * since mm->mmap_sem is already held.
++	 */
++	if (file && (flag & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE)) {
++		struct inode *inode = file_inode(file);
++		int err;
++
++		if (!IS_NOSEC(inode)) {
++			/*
++			 * Make sure we can't strip privs from a file that
++			 * wouldn't otherwise be allowed to be mmapped.
++			 */
++			err = do_mmap_shared_checks(file, prot);
++			if (err)
++				return err;
++
++			mutex_lock(&inode->i_mutex);
++			err = file_remove_privs(file);
++			mutex_unlock(&inode->i_mutex);
++
++			if (err)
++				return err;
++		}
++	}
++
+ 	ret = security_mmap_file(file, prot, flag);
+ 	if (!ret) {
+ 		down_write(&mm->mmap_sem);
+-- 
+2.6.3
 
-This should always be memhp_auto_online, because...
 
-> @@ -562,14 +573,11 @@ static void balloon_process(struct work_struct *work)
->  
->  		credit = current_credit();
->  
-> -		if (credit > 0) {
-> -			if (balloon_is_inflated())
-> -				state = increase_reservation(credit);
-> -			else
-> -				state = reserve_additional_memory();
-> -		}
-> -
-> -		if (credit < 0)
-> +		if (credit > 0 && balloon_is_inflated())
-> +			state = increase_reservation(credit);
-> +		else if (credit > 0)
-> +			state = reserve_additional_memory(memhp_auto_online);
-> +		else if (credit < 0)
->  			state = decrease_reservation(-credit, GFP_BALLOON);
-
-I'd have preferred this refactored as:
-
-if (credit > 0) {
-    if (balloon_is_inflated())
-        ...
-    else
-        ...
-} else if (credit < 0) {
-    ...
-}
->  
->  		state = update_schedule(state);
-> @@ -599,7 +607,7 @@ static int add_ballooned_pages(int nr_pages)
->  	enum bp_state st;
->  
->  	if (xen_hotplug_unpopulated) {
-> -		st = reserve_additional_memory();
-> +		st = reserve_additional_memory(false);
-
-... we want to auto-online this memory as well.
-
->  		if (st != BP_ECANCELED) {
->  			mutex_unlock(&balloon_mutex);
->  			wait_event(balloon_wq,
-> 
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
