@@ -1,104 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4A9680F80
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:29:47 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id q63so54276562pfb.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:29:47 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v83si14152456pfi.105.2016.01.11.16.29.46
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id F270E680F80
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:30:39 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id vt7so13567527obb.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:30:39 -0800 (PST)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id b188si1083267oih.29.2016.01.11.16.30.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 16:29:46 -0800 (PST)
-Date: Mon, 11 Jan 2016 16:29:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
- punch
-Message-Id: <20160111162931.0bea916e.akpm@linux-foundation.org>
-In-Reply-To: <56943D00.7090405@oracle.com>
-References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
-	<20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
-	<56943D00.7090405@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 11 Jan 2016 16:30:39 -0800 (PST)
+Received: by mail-oi0-x229.google.com with SMTP id k206so62556442oia.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:30:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160112002645.GA10179@agluck-desk.sc.intel.com>
+References: <cover.1452297867.git.tony.luck@intel.com> <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
+ <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com> <20160112002645.GA10179@agluck-desk.sc.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 11 Jan 2016 16:30:19 -0800
+Message-ID: <CALCETrUoOsh2BHYcOOQ3uh1rqnXdyf-OCGf9mnCn+yGDibv4iQ@mail.gmail.com>
+Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Borislav Petkov <bp@alien8.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Mon, 11 Jan 2016 15:38:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, Jan 11, 2016 at 4:26 PM, Luck, Tony <tony.luck@intel.com> wrote:
+> On Fri, Jan 08, 2016 at 05:49:30PM -0800, Andy Lutomirski wrote:
+>> Also, what's the sfence for?  You don't seem to be using any
+>> non-temporal operations.
+>
+> So I deleted the "sfence" and now I just have a comment
+> at the 100: label.
+>
+> 37:
+>         shl $6,%ecx
+>         lea -48(%ecx,%edx),%edx
+>         jmp 100f
+> 38:
+>         shl $6,%ecx
+>         lea -56(%ecx,%edx),%edx
+>         jmp 100f
+> 39:
+>         lea (%rdx,%rcx,8),%rdx
+>         jmp 100f
+> 40:
+>         mov %ecx,%edx
+> 100:
+>         /* %rax set the fault number in fixup_exception() */
+>         ret
+>
+> Should I just change all the "jmp 100f" into "ret"?  There
+> aren't any tools that will be confused that the function
+> has 10 returns, are there?
+>
 
-> On 01/11/2016 02:35 PM, Andrew Morton wrote:
-> > On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> > 
-> >> Page faults can race with fallocate hole punch.  If a page fault happens
-> >> between the unmap and remove operations, the page is not removed and
-> >> remains within the hole.  This is not the desired behavior.  The race
-> >> is difficult to detect in user level code as even in the non-race
-> >> case, a page within the hole could be faulted back in before fallocate
-> >> returns.  If userfaultfd is expanded to support hugetlbfs in the future,
-> >> this race will be easier to observe.
-> >>
-> >> If this race is detected and a page is mapped, the remove operation
-> >> (remove_inode_hugepages) will unmap the page before removing.  The unmap
-> >> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
-> >> so that no other faults will be processed until the page is removed.
-> >>
-> >> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
-> >> remove_inode_hugepages to satisfy the new reference.
-> >>
-> >> ...
-> >>
-> >> --- a/fs/hugetlbfs/inode.c
-> >> +++ b/fs/hugetlbfs/inode.c
-> >>
-> >> ...
-> >>
-> >> @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
-> >>  							mapping, next, 0);
-> >>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
-> >>  
-> >> -			lock_page(page);
-> >> -			if (likely(!page_mapped(page))) {
-> > 
-> > hm, what are the locking requirements for page_mapped()?
-> 
-> page_mapped is just reading/evaluating an atomic within the struct page
-> which we have a referene on from the pagevec_lookup.  But, I think the
-> question is what prevents page_mapped from changing after we check it?
-> 
-> The patch takes the hugetlb_fault_mutex_table lock before checking
-> page_mapped.  If the page is unmapped and the hugetlb_fault_mutex_table
-> is held, it can not be faulted in and change from unmapped to mapped.
-> 
-> The new comment in the patch about taking hugetlb_fault_mutex_table is
-> right before the check for page_mapped.
+Given that gcc does that too, it should be fine.
 
-OK, thanks.
-
-> > 
-> >> -				bool rsv_on_error = !PagePrivate(page);
-> >> -				/*
-> >> -				 * We must free the huge page and remove
-> >> -				 * from page cache (remove_huge_page) BEFORE
-> >> -				 * removing the region/reserve map
-> >> -				 * (hugetlb_unreserve_pages).  In rare out
-> >> -				 * of memory conditions, removal of the
-> >> -				 * region/reserve map could fail.  Before
-> >> -				 * free'ing the page, note PagePrivate which
-> >> -				 * is used in case of error.
-> >> -				 */
-> >> -				remove_huge_page(page);
-> > 
-> > And remove_huge_page().
-> 
-> The page must be locked before calling remove_huge_page, since it will
-> call delete_from_page_cache.  It currently is locked.  Would you prefer
-> a comment stating this before the call?
-
-No, that doesn't seem nevessary.
-
-I'll mark this patch as "pending, awaiting Mike's go-ahead".
+--Andy\
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
