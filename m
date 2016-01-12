@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D6724403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:27:45 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id g73so185908730ioe.3
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:27:45 -0800 (PST)
-Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
-        by mx.google.com with ESMTPS id z197si17476150iod.89.2016.01.12.04.27.44
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 454234403D9
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:32:53 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id z14so124304074igp.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:32:53 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id ug8si33033508igb.47.2016.01.12.04.32.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jan 2016 04:27:44 -0800 (PST)
-Received: by mail-io0-x22d.google.com with SMTP id q21so381486395iod.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:27:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
-References: <5674A5C3.1050504@oracle.com>
-	<alpine.DEB.2.20.1512210656120.7119@east.gentwo.org>
-	<CAPub148SiOaVQbnA0AHRRDme7nyfeDKjYHEom5kLstqaE8ibZA@mail.gmail.com>
-	<alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
-Date: Tue, 12 Jan 2016 17:57:44 +0530
-Message-ID: <CAPub1494LUuVFW1yJjMm_5ecCTzv1V3DsR=3JTbR54=iWzJdgA@mail.gmail.com>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-From: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 12 Jan 2016 04:32:52 -0800 (PST)
+In-Reply-To: <1452527374-4886-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [V2] mm/powerpc: Fix _PAGE_PTE breaking swapoff
+Message-Id: <20160112123248.B9056140B96@ozlabs.org>
+Date: Tue, 12 Jan 2016 23:32:48 +1100 (AEDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Tue, Jan 12, 2016 at 5:53 PM, Christoph Lameter <cl@linux.com> wrote:
-> Does this fix it? I have not been able to reproduce the issue so far.
+On Mon, 2016-11-01 at 15:49:34 UTC, "Aneesh Kumar K.V" wrote:
+> Core kernel expect swp_entry_t to be consisting of
+> only swap type and swap offset. We should not leak pte bits to
+> swp_entry_t. This breaks swapoff which use the swap type and offset
+> to build a swp_entry_t and later compare that to the swp_entry_t
+> obtained from linux page table pte. Leaking pte bits to swp_entry_t
+> breaks that comparison and results in us looping in try_to_unuse.
+> 
+> The stack trace can be anywhere below try_to_unuse() in mm/swapfile.c,
+> since swapoff is circling around and around that function, reading from
+> each used swap block into a page, then trying to find where that page
+> belongs, looking at every non-file pte of every mm that ever swapped.
+> 
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Suggested-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Hugh Dickins <hughd@google.com>
 
-I too am not able to reproduce. Was just thinking what else can go
-wrong in Sasha's setup.
+Applied to powerpc next, thanks.
 
--- 
-regards
-Shiraz Hashim
+https://git.kernel.org/powerpc/c/44734f23de2465c3c0d39e4a16
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
