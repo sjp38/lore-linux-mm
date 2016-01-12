@@ -1,74 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C26514403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:23:09 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id t15so118785842igr.0
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:23:09 -0800 (PST)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id y9si33012162igf.14.2016.01.12.04.23.09
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6724403D9
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:27:45 -0500 (EST)
+Received: by mail-io0-f170.google.com with SMTP id g73so185908730ioe.3
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:27:45 -0800 (PST)
+Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
+        by mx.google.com with ESMTPS id z197si17476150iod.89.2016.01.12.04.27.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jan 2016 04:23:09 -0800 (PST)
-Date: Tue, 12 Jan 2016 06:23:07 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jan 2016 04:27:44 -0800 (PST)
+Received: by mail-io0-x22d.google.com with SMTP id q21so381486395iod.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:27:44 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
+References: <5674A5C3.1050504@oracle.com>
+	<alpine.DEB.2.20.1512210656120.7119@east.gentwo.org>
+	<CAPub148SiOaVQbnA0AHRRDme7nyfeDKjYHEom5kLstqaE8ibZA@mail.gmail.com>
+	<alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
+Date: Tue, 12 Jan 2016 17:57:44 +0530
+Message-ID: <CAPub1494LUuVFW1yJjMm_5ecCTzv1V3DsR=3JTbR54=iWzJdgA@mail.gmail.com>
 Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-In-Reply-To: <CAPub148SiOaVQbnA0AHRRDme7nyfeDKjYHEom5kLstqaE8ibZA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
-References: <5674A5C3.1050504@oracle.com> <alpine.DEB.2.20.1512210656120.7119@east.gentwo.org> <CAPub148SiOaVQbnA0AHRRDme7nyfeDKjYHEom5kLstqaE8ibZA@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+From: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
+To: Christoph Lameter <cl@linux.com>
 Cc: Sasha Levin <sasha.levin@oracle.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 12 Jan 2016, Shiraz Hashim wrote:
+On Tue, Jan 12, 2016 at 5:53 PM, Christoph Lameter <cl@linux.com> wrote:
+> Does this fix it? I have not been able to reproduce the issue so far.
 
-> > +       refresh_cpu_vm_stats(false);
-> > +       cancel_delayed_work(this_cpu_ptr(&vmstat_work));
-> >
->
-> shouldn't this be cancel_delayed_work_sync ?
+I too am not able to reproduce. Was just thinking what else can go
+wrong in Sasha's setup.
 
-Hmmm... This is executed with preemption off and the work is on the same
-cpu. If it would be able to run concurrently then we would need this.
-
-Ok but it could run from the timer interrupt if that is still on and
-occuring shortly before we go idle. Guess this needs to be similar to
-the code we execute on cpu down in the vmstat notifiers (see
-vmstat_cpuup_callback).
-
-Does this fix it? I have not been able to reproduce the issue so far.
-
-Patch against -next.
-
-
-
-Subject: vmstat: Use delayed work_sync and avoid loop.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -1419,11 +1419,9 @@ void quiet_vmstat(void)
- 	if (system_state != SYSTEM_RUNNING)
- 		return;
-
--	do {
--		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
--			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
--
--	} while (refresh_cpu_vm_stats(false));
-+	refresh_cpu_vm_stats(false);
-+	cancel_delayed_work_sync(this_cpu_ptr(&vmstat_work));
-+	cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
- }
-
- /*
-
-
-
+-- 
+regards
+Shiraz Hashim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
