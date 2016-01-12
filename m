@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id F270E680F80
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:30:39 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id vt7so13567527obb.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:30:39 -0800 (PST)
-Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
-        by mx.google.com with ESMTPS id b188si1083267oih.29.2016.01.11.16.30.39
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F36A680F80
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:37:56 -0500 (EST)
+Received: by mail-oi0-f47.google.com with SMTP id w75so31644707oie.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:37:56 -0800 (PST)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id sa5si2834201obc.69.2016.01.11.16.37.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 16:30:39 -0800 (PST)
-Received: by mail-oi0-x229.google.com with SMTP id k206so62556442oia.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:30:39 -0800 (PST)
+        Mon, 11 Jan 2016 16:37:55 -0800 (PST)
+Received: by mail-oi0-x230.google.com with SMTP id w75so31644563oie.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:37:55 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <20160112002645.GA10179@agluck-desk.sc.intel.com>
 References: <cover.1452297867.git.tony.luck@intel.com> <19f6403f2b04d3448ed2ac958e656645d8b6e70c.1452297867.git.tony.luck@intel.com>
  <CALCETrVqn58pMkMc09vbtNdbU2VFtQ=W8APZ0EqtLCh3JGvxoA@mail.gmail.com> <20160112002645.GA10179@agluck-desk.sc.intel.com>
 From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 11 Jan 2016 16:30:19 -0800
-Message-ID: <CALCETrUoOsh2BHYcOOQ3uh1rqnXdyf-OCGf9mnCn+yGDibv4iQ@mail.gmail.com>
+Date: Mon, 11 Jan 2016 16:37:35 -0800
+Message-ID: <CALCETrW3pFjSedmKRdV+a3-_OwgcBLHqfZYesC=pO3-0T3JK4A@mail.gmail.com>
 Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
