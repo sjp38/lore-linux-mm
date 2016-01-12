@@ -1,43 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3BE828DF
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 15:11:03 -0500 (EST)
-Received: by mail-io0-f179.google.com with SMTP id 77so364675898ioc.2
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 12:11:03 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0136.hostedemail.com. [216.40.44.136])
-        by mx.google.com with ESMTPS id w79si10903937iod.140.2016.01.12.12.11.02
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 46965828DF
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 16:00:37 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id u188so272403070wmu.1
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:00:37 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id m132si33859149wmd.38.2016.01.12.13.00.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jan 2016 12:11:02 -0800 (PST)
-Date: Tue, 12 Jan 2016 15:10:52 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC V5] Add gup trace points support
-Message-ID: <20160112151052.168bba85@gandalf.local.home>
-In-Reply-To: <56955B76.2060503@linaro.org>
-References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
-	<56955B76.2060503@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 12 Jan 2016 13:00:36 -0800 (PST)
+Received: by mail-wm0-f50.google.com with SMTP id f206so270428828wmf.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 13:00:35 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC 0/3] oom: few enahancements
+Date: Tue, 12 Jan 2016 22:00:22 +0100
+Message-Id: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 12 Jan 2016 12:00:54 -0800
-"Shi, Yang" <yang.shi@linaro.org> wrote:
+Hi,
+based on the recent discussions I have accumulated the following three
+patches. I haven't tested them yet but I would like to hear your
+opinion. The first patch only affects sysrq+f OOM killer.  I believe it
+should be relatively uncontroversial.
 
-> Hi Steven,
-> 
-> Any more comments on this series? How should I proceed it?
-> 
+The patch 2 tweaks how we handle children tasks standing for the parent
+oom victim. This should help the test case Tetsuo shown [1].
 
-The tracing part looks fine to me. Now you just need to get the arch
-maintainers to ack each of the arch patches, and I can pull them in for
-4.6. Too late for 4.5. Probably need Andrew Morton's ack for the
-mm/gup.c patch.
+The patch 3 is just a rough idea. I can see objections there but this is
+mainly to start discussion about ho to deal with small children which
+basically do not sit on any memory. Maybe we do not need anything like
+that at all and realy on multiple OOM invocations as a safer option. I
+dunno but I would like to hear your opinions.
 
--- Steve
+---
+[1] http://lkml.kernel.org/r/201512292258.ABF87505.OFOSJLHMFVOQFt%40I-love.SAKURA.ne.jp
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
