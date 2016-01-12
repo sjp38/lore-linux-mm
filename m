@@ -1,96 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 34D154403D9
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 23:07:10 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id n128so55635644pfn.3
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:07:10 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id u84si2217680pfa.199.2016.01.11.20.07.09
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 23AF44403D9
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 23:36:10 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id q63so57681057pfb.1
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 20:36:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tj2si39894187pab.76.2016.01.11.20.36.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jan 2016 20:07:09 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v1] mm: soft-offline: check return value in second
- __get_any_page() call
-Date: Tue, 12 Jan 2016 03:29:35 +0000
-Message-ID: <20160112032932.GA8314@hori1.linux.bs1.fc.nec.co.jp>
-References: <1452237748-10822-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20160108075158.GA28640@hori1.linux.bs1.fc.nec.co.jp>
- <20160108153626.16332573d71cdfcdbc1637cd@linux-foundation.org>
-In-Reply-To: <20160108153626.16332573d71cdfcdbc1637cd@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <BAC5ECFA05E901408EA34BE48A0DD8A6@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jan 2016 20:36:09 -0800 (PST)
+Date: Mon, 11 Jan 2016 20:35:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+ punch
+Message-Id: <20160111203554.cd3990ed.akpm@linux-foundation.org>
+In-Reply-To: <5694712B.6040705@oracle.com>
+References: <1452119824-32715-1-git-send-email-mike.kravetz@oracle.com>
+	<20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org>
+	<56943D00.7090405@oracle.com>
+	<20160111162931.0bea916e.akpm@linux-foundation.org>
+	<569458AB.5000102@oracle.com>
+	<20160111182010.bc4e171b.akpm@linux-foundation.org>
+	<5694712B.6040705@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Fri, Jan 08, 2016 at 03:36:26PM -0800, Andrew Morton wrote:
-> On Fri, 8 Jan 2016 07:51:59 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.=
-com> wrote:
->=20
-> > >   [   52.600579]  [<ffffffff811bd18c>] SyS_madvise+0x6bc/0x6f0
-> > >   [   52.600579]  [<ffffffff8104d0ac>] ? fpu__restore_sig+0xcc/0x320
-> > >   [   52.600579]  [<ffffffff810a0003>] ? do_sigaction+0x73/0x1b0
-> > >   [   52.600579]  [<ffffffff8109ceb2>] ? __set_task_blocked+0x32/0x70
-> > >   [   52.600579]  [<ffffffff81652757>] entry_SYSCALL_64_fastpath+0x12=
-/0x6a
-> > >   [   52.600579] Code: 8b fc ff ff 5b 5d c3 48 89 df e8 b0 fa ff ff 4=
-8 89 df 31 f6 e8 c6 7d ff ff 5b 5d c3 48 c7 c6 08 54 a2 81 48 89 df e8 a4 c=
-5 01 00 <0f> 0b 66 90 66 66 66 66 90 55 48 89 e5 41 55 41 54 53 48 8b 47
-> > >   [   52.600579] RIP  [<ffffffff8118998c>] put_page+0x5c/0x60
-> > >   [   52.600579]  RSP <ffff88007c213e00>
-> > >=20
-> > > The root cause resides in get_any_page() which retries to get a refco=
-unt of
-> > > the page to be soft-offlined. This function calls put_hwpoison_page()=
-, expecting
-> > > that the target page is putback to LRU list. But it can be also freed=
- to buddy.
-> > > So the second check need to care about such case.
-> > >=20
-> > > Fixes: af8fae7c0886 ("mm/memory-failure.c: clean up soft_offline_page=
-()")
-> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Cc: stable@vger.kernel.org # v3.9+
->=20
-> Please don't top-post.  I manually fixed it here.
+On Mon, 11 Jan 2016 19:21:15 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-sorry, I keep this rule in mind.
+> >> Just let me know what is easiest/best for you.
+> > 
+> > If you're saying that
+> > http://ozlabs.org/~akpm/mmots/broken-out/mm-mempolicy-skip-non-migratable-vmas-when-setting-mpol_mf_lazy.patch
+> 
+> That should be,
+> http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-fix-bugs-in-hugetlb_vmtruncate_list.patch
 
-> > Sorry, I forgot to notice that this specific problem is already fixed i=
-n
-> > mmotm with patch "mm: hwpoison: adjust for new thp refcounting", but
-> > considering backporting to -stable, it's easier to handle this separate=
-ly.
-> >=20
-> > So Andrew, could you separate out the code of this patch from
-> > "mm: hwpoison: adjust for new thp refcounting"?
->=20
-> I don't understand what you're asking for.  Please be very
-> specific and carefully identify patches by filename or Subject:.
+yup.
 
-OK, so what I really wanted is that (1) applying this patch just before
-http://ozlabs.org/~akpm/mmots/broken-out/mm-hwpoison-adjust-for-new-thp-ref=
-counting.patch
-and (2) removing the following chunk from the mm-hwpoison-adjust-for-new-th=
-p-refcounting.patch:
+> > and
+> > http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch.patch
+> > are the final everything-works versions then we're all good to go now.
+> > 
+> 
+> The only thing that 'might' be an issue is the new reference to
+> hugetlb_vmdelete_list() from remove_inode_hugepages().
+> hugetlb_vmdelete_list() was after remove_inode_hugepages() in the source
+> file.
+> 
+> The original patch moved hugetlb_vmdelete_list() to satisfy the new
+> reference.  I can not tell if that was taken into account in the way the
+> patches were pulled into your tree.  Will certainly know when it comes
+> time to build.
 
-@@ -1575,7 +1540,7 @@ static int get_any_page(struct page *pag
- 		 * Did it turn free?
- 		 */
- 		ret =3D __get_any_page(page, pfn, 0);
--		if (!PageLRU(page)) {
-+		if (ret =3D=3D 1 && !PageLRU(page)) {
- 			/* Drop page reference which is from __get_any_page() */
- 			put_hwpoison_page(page);
- 			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+um, yes.
 
-Thanks,
-Naoya Horiguchi=
+--- a/fs/hugetlbfs/inode.c~mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch-fix
++++ a/fs/hugetlbfs/inode.c
+@@ -324,6 +324,44 @@ static void remove_huge_page(struct page
+ 	delete_from_page_cache(page);
+ }
+ 
++static void
++hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
++{
++	struct vm_area_struct *vma;
++
++	/*
++	 * end == 0 indicates that the entire range after
++	 * start should be unmapped.
++	 */
++	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
++		unsigned long v_offset;
++		unsigned long v_end;
++
++		/*
++		 * Can the expression below overflow on 32-bit arches?
++		 * No, because the interval tree returns us only those vmas
++		 * which overlap the truncated area starting at pgoff,
++		 * and no vma on a 32-bit arch can span beyond the 4GB.
++		 */
++		if (vma->vm_pgoff < start)
++			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
++		else
++			v_offset = 0;
++
++		if (!end)
++			v_end = vma->vm_end;
++		else {
++			v_end = ((end - vma->vm_pgoff) << PAGE_SHIFT)
++							+ vma->vm_start;
++			if (v_end > vma->vm_end)
++				v_end = vma->vm_end;
++		}
++
++		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end,
++									NULL);
++	}
++}
++
+ /*
+  * remove_inode_hugepages handles two distinct cases: truncation and hole
+  * punch.  There are subtle differences in operation for each case.
+@@ -458,44 +496,6 @@ static void hugetlbfs_evict_inode(struct
+ 	clear_inode(inode);
+ }
+ 
+-static inline void
+-hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+-{
+-	struct vm_area_struct *vma;
+-
+-	/*
+-	 * end == 0 indicates that the entire range after
+-	 * start should be unmapped.
+-	 */
+-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+-		unsigned long v_offset;
+-		unsigned long v_end;
+-
+-		/*
+-		 * Can the expression below overflow on 32-bit arches?
+-		 * No, because the interval tree returns us only those vmas
+-		 * which overlap the truncated area starting at pgoff,
+-		 * and no vma on a 32-bit arch can span beyond the 4GB.
+-		 */
+-		if (vma->vm_pgoff < start)
+-			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+-		else
+-			v_offset = 0;
+-
+-		if (!end)
+-			v_end = vma->vm_end;
+-		else {
+-			v_end = ((end - vma->vm_pgoff) << PAGE_SHIFT)
+-							+ vma->vm_start;
+-			if (v_end > vma->vm_end)
+-				v_end = vma->vm_end;
+-		}
+-
+-		unmap_hugepage_range(vma, vma->vm_start + v_offset, v_end,
+-									NULL);
+-	}
+-}
+-
+ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+ {
+ 	pgoff_t pgoff;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
