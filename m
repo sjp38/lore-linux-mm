@@ -1,50 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1294F4403D9
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:32:54 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id z14so124304327igp.1
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:32:54 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id x1si33049728igl.76.2016.01.12.04.32.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jan 2016 04:32:53 -0800 (PST)
-In-Reply-To: <alpine.LSU.2.11.1601091651130.9808@eggly.anvils>
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [next] powerpc/mm: fix _PAGE_SWP_SOFT_DIRTY breaking swapoff
-Message-Id: <20160112123249.98EBF140A98@ozlabs.org>
-Date: Tue, 12 Jan 2016 23:32:49 +1100 (AEDT)
+Received: from mail-lf0-f43.google.com (mail-lf0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A14954403D9
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2016 07:37:37 -0500 (EST)
+Received: by mail-lf0-f43.google.com with SMTP id m198so86041002lfm.0
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2016 04:37:37 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id w129si3922218lfd.40.2016.01.12.04.37.36
+        for <linux-mm@kvack.org>;
+        Tue, 12 Jan 2016 04:37:36 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: What is oom_killer_disable() for?
+Date: Tue, 12 Jan 2016 13:38:09 +0100
+Message-ID: <2751070.RBiEJZRJTx@vostro.rjw.lan>
+In-Reply-To: <201601121917.IEI30296.OVOFFtQSLFHJOM@I-love.SAKURA.ne.jp>
+References: <1452337485-8273-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20160111144924.GF27317@dhcp22.suse.cz> <201601121917.IEI30296.OVOFFtQSLFHJOM@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, rientjes@google.com, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Sun, 2016-10-01 at 00:54:59 UTC, Hugh Dickins wrote:
-> Swapoff after swapping hangs on the G5, when CONFIG_CHECKPOINT_RESTORE=y
-> but CONFIG_MEM_SOFT_DIRTY is not set.  That's because the non-zero
-> _PAGE_SWP_SOFT_DIRTY bit, added by CONFIG_HAVE_ARCH_SOFT_DIRTY=y, is not
-> discounted when CONFIG_MEM_SOFT_DIRTY is not set: so swap ptes cannot be
-> recognized.
+On Tuesday, January 12, 2016 07:17:19 PM Tetsuo Handa wrote:
+> Michal Hocko write:
+
+[cut]
+
+> > I am not sure I am following you here but how do you detect that the
+> > userspace has corrupted your image or accesses an already (half)
+> > suspended device or something similar?
 > 
-> (I suspect that the peculiar dependence of HAVE_ARCH_SOFT_DIRTY on
-> CHECKPOINT_RESTORE in arch/powerpc/Kconfig comes from an incomplete
-> attempt to solve this problem.)
-> 
-> It's true that the relationship between CONFIG_HAVE_ARCH_SOFT_DIRTY and
-> and CONFIG_MEM_SOFT_DIRTY is too confusing, and it's true that swapoff
-> should be made more robust; but nevertheless, fix up the powerpc ifdefs
-> as x86_64 and s390 (which met the same problem) have them, defining the
-> bits as 0 if CONFIG_MEM_SOFT_DIRTY is not set.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
-> Acked-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> Can't we determine whether the OOM killer might have corrupted our image
+> by checking whether oom_killer_disabled is kept true until the point of
+> final decision?
 
-Applied to powerpc next, thanks.
+The freezing is really not about keeping the image consistent etc.  It is
+not about hibernation specifically even.
 
-https://git.kernel.org/powerpc/c/2f10f1a7884e97a68e52c4b6f7
+> To me, satisfying allocation requests by kernel threads by invoking the
+> OOM killer and aborting suspend operation if the OOM killer was invoked
+> sounds cleaner than forcing !__GFP_NOFAIL allocation requests to fail.
 
-cheers
+What if the suspend is on emergency, like low battery or thermal?
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
