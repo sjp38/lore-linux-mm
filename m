@@ -1,47 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 517FC680F7F
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:20:59 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id uo6so312592218pac.1
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:20:59 -0800 (PST)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id vt4si22518417pab.8.2016.01.11.16.20.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jan 2016 16:20:58 -0800 (PST)
-Received: by mail-pa0-x230.google.com with SMTP id ho8so68556348pac.2
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:20:58 -0800 (PST)
-Date: Mon, 11 Jan 2016 16:20:56 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: add ratio in slabinfo print
-In-Reply-To: <5693AAD5.6090101@huawei.com>
-Message-ID: <alpine.DEB.2.10.1601111619120.5824@chino.kir.corp.google.com>
-References: <56932791.3080502@huawei.com> <20160111122553.GB27317@dhcp22.suse.cz> <5693AAD5.6090101@huawei.com>
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 987DF680F7F
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2016 19:22:29 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id z14so131732411igp.0
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2016 16:22:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
+References: <cover.1452549431.git.bcrl@kvack.org>
+	<150a0b4905f1d7274b4c2c7f5e3f4d8df5dda1d7.1452549431.git.bcrl@kvack.org>
+Date: Mon, 11 Jan 2016 16:22:28 -0800
+Message-ID: <CA+55aFw8j_3Vkb=HVoMwWTPD=5ve8RpNZeL31CcKQZ+HRSbfTA@mail.gmail.com>
+Subject: Re: [PATCH 09/13] aio: add support for async openat()
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>, cl@linux.com, Pekka Enberg <penberg@kernel.org>, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Benjamin LaHaise <bcrl@kvack.org>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 11 Jan 2016, Xishi Qiu wrote:
+On Mon, Jan 11, 2016 at 2:07 PM, Benjamin LaHaise <bcrl@kvack.org> wrote:
+> Another blocking operation used by applications that want aio
+> functionality is that of opening files that are not resident in memory.
+> Using the thread based aio helper, add support for IOCB_CMD_OPENAT.
 
-> > On Mon 11-01-16 11:54:57, Xishi Qiu wrote:
-> >> Add ratio(active_objs/num_objs) in /proc/slabinfo, it is used to show
-> >> the availability factor in each slab.
-> > 
-> > What is the reason to add such a new value when it can be trivially
-> > calculated from the userspace?
-> > 
-> > Besides that such a change would break existing parsers no?
-> 
-> Oh, maybe it is.
-> 
+So I think this is ridiculously ugly.
 
-If you need the information internally, you could always create a library 
-around slabinfo and export the information for users who are interested 
-for your own use.  Doing anything other than appending fields to each line 
-is too dangerous, however, as a general rule.
+AIO is a horrible ad-hoc design, with the main excuse being "other,
+less gifted people, made that design, and we are implementing it for
+compatibility because database people - who seldom have any shred of
+taste - actually use it".
+
+But AIO was always really really ugly.
+
+Now you introduce the notion of doing almost arbitrary system calls
+asynchronously in threads, but then you use that ass-backwards nasty
+interface to do so.
+
+Why?
+
+If you want to do arbitrary asynchronous system calls, just *do* it.
+But do _that_, not "let's extend this horrible interface in arbitrary
+random ways one special system call at a time".
+
+In other words, why is the interface not simply: "do arbitrary system
+call X with arguments A, B, C, D asynchronously using a kernel
+thread".
+
+That's something that a lot of people might use. In fact, if they can
+avoid the nasty AIO interface, maybe they'll even use it for things
+like read() and write().
+
+So I really think it would be a nice thing to allow some kind of
+arbitrary "queue up asynchronous system call" model.
+
+But I do not think the AIO model should be the model used for that,
+even if I think there might be some shared infrastructure.
+
+So I would seriously suggest:
+
+ - how about we add a true "asynchronous system call" interface
+
+ - make it be a list of system calls with a futex completion for each
+list entry, so that you can easily wait for the end result that way.
+
+ - maybe (and this is where it gets really iffy) you could even pass
+in the result of one system call to the next, so that you can do
+things like
+
+       fd = openat(..)
+       ret = read(fd, ..)
+
+   asynchronously and then just wait for the read() to complete.
+
+and let us *not* tie this to the aio interface.
+
+In fact, if we do it well, we can go the other way, and try to
+implement the nasty AIO interface on top of the generic "just do
+things asynchronously".
+
+And I actually think many of your kernel thread parts are good for a
+generic implementation. That whole "AIO_THREAD_NEED_CRED" etc logic
+all makes sense, although I do suspect you could just make it
+unconditional. The cost of a few atomics shouldn't be excessive when
+we're talking "use a thread to do op X".
+
+What do you think? Do you think it might be possible to aim for a
+generic "do system call asynchronously" model instead?
+
+I'm adding Ingo the to cc, because I think Ingo had a "run this list
+of system calls" patch at one point - in order to avoid system call
+overhead. I don't think that was very interesting (because system call
+overhead is seldom all that noticeable for any interesting system
+calls), but with the "let's do the list asynchronously" addition it
+might be much more intriguing. Ingo, do I remember correctly that it
+was you? I might be confused about who wrote that patch, and I can't
+find it now.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
