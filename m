@@ -1,136 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 527D1828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 13:58:05 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id 65so85579067pff.2
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 10:58:05 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id b14si3626259pfd.63.2016.01.13.10.58.04
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jan 2016 10:58:04 -0800 (PST)
-Date: Wed, 13 Jan 2016 11:58:02 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v8 6/9] dax: add support for fsync/msync
-Message-ID: <20160113185802.GB5904@linux.intel.com>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-7-git-send-email-ross.zwisler@linux.intel.com>
- <20160112105716.GT6262@quack.suse.cz>
- <20160113073019.GB30496@linux.intel.com>
- <20160113093525.GD14630@quack.suse.cz>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F117828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 14:00:53 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id f206so387242179wmf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:00:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f15si3943544wjr.53.2016.01.13.11.00.51
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 11:00:52 -0800 (PST)
+Subject: Re: [PATCH 01/31] mm, gup: introduce concept of "foreign"
+ get_user_pages()
+References: <20160107000104.1A105322@viggo.jf.intel.com>
+ <20160107000106.D9135553@viggo.jf.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56969EE1.5060904@suse.cz>
+Date: Wed, 13 Jan 2016 20:00:49 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160113093525.GD14630@quack.suse.cz>
+In-Reply-To: <20160107000106.D9135553@viggo.jf.intel.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com
 
-On Wed, Jan 13, 2016 at 10:35:25AM +0100, Jan Kara wrote:
-> On Wed 13-01-16 00:30:19, Ross Zwisler wrote:
-> > > And secondly: You must write-protect all mappings of the flushed range so
-> > > that you get fault when the sector gets written-to again. We spoke about
-> > > this in the past already but somehow it got lost and I forgot about it as
-> > > well. You need something like rmap_walk_file()...
-> > 
-> > The code that write protected mappings and then cleaned the radix tree entries
-> > did get written, and was part of v2:
-> > 
-> > https://lkml.org/lkml/2015/11/13/759
-> > 
-> > I removed all the code that cleaned PTE entries and radix tree entries for v3.
-> > The reason behind this was that there was a race that I couldn't figure out
-> > how to solve between the cleaning of the PTEs and the cleaning of the radix
-> > tree entries.
-> > 
-> > The race goes like this:
-> > 
-> > Thread 1 (write)			Thread 2 (fsync)
-> > ================			================
-> > wp_pfn_shared()
-> > pfn_mkwrite()
-> > dax_radix_entry()
-> > radix_tree_tag_set(DIRTY)
-> > 					dax_writeback_mapping_range()
-> > 					dax_writeback_one()
-> > 					radix_tag_clear(DIRTY)
-> > 					pgoff_mkclean()
-> > ... return up to wp_pfn_shared()
-> > wp_page_reuse()
-> > pte_mkdirty()
-> > 
-> > After this sequence we end up with a dirty PTE that is writeable, but with a
-> > clean radix tree entry.  This means that users can write to the page, but that
-> > a follow-up fsync or msync won't flush this dirty data to media.
-> > 
-> > The overall issue is that in the write path that goes through wp_pfn_shared(),
-> > the DAX code has control over when the radix tree entry is dirtied but not
-> > when the PTE is made dirty and writeable.  This happens up in wp_page_reuse().
-> > This means that we can't easily add locking, etc. to protect ourselves.
-> > 
-> > I spoke a bit about this with Dave Chinner and with Dave Hansen, but no really
-> > easy solutions presented themselves in the absence of a page lock.  I do have
-> > one idea, but I think it's pretty invasive and will need to wait for another
-> > kernel cycle.
-> > 
-> > The current code that leaves the radix tree entry will give us correct
-> > behavior - it'll just be less efficient because we will have an ever-growing
-> > dirty set to flush.
+On 01/07/2016 01:01 AM, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Ahaa! Somehow I imagined tag_pages_for_writeback() clears DIRTY radix tree
-> tags but it does not (I should have known, I have written that functions
-> few years ago ;). Makes sense. Thanks for clarification.
+> For protection keys, we need to understand whether protections
+> should be enforced in software or not.  In general, we enforce
+> protections when working on our own task, but not when on others.
+> We call these "current" and "foreign" operations.
 > 
-> > > > @@ -791,15 +976,12 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
-> > > >   * dax_pfn_mkwrite - handle first write to DAX page
-> > > >   * @vma: The virtual memory area where the fault occurred
-> > > >   * @vmf: The description of the fault
-> > > > - *
-> > > >   */
-> > > >  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > >  {
-> > > > -	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-> > > > +	struct file *file = vma->vm_file;
-> > > >  
-> > > > -	sb_start_pagefault(sb);
-> > > > -	file_update_time(vma->vm_file);
-> > > > -	sb_end_pagefault(sb);
-> > > > +	dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false, true);
-> > > 
-> > > Why is NO_SECTOR argument correct here?
-> > 
-> > Right - so NO_SECTOR means "I expect there to already be an entry in the radix
-> > tree - just make that entry dirty".  This works because pfn_mkwrite() always
-> > follows a normal __dax_fault() or __dax_pmd_fault() call.  These fault calls
-> > will insert the radix tree entry, regardless of whether the fault was for a
-> > read or a write.  If the fault was for a write, the radix tree entry will also
-> > be made dirty.
-> >
-> > For reads the radix tree entry will be inserted but left clean.  When the
-> > first write happens we will get a pfn_mkwrite() call, which will call
-> > dax_radix_entry() with the NO_SECTOR argument.  This will look up the radix
-> > tree entry & set the dirty tag.
+> This introduces two new get_user_pages() variants:
 > 
-> So the explanation of this should be somewhere so that everyone knows that
-> we must have radix tree entries even for clean mapped blocks. Because upto
-> know that was not clear to me.  Also __dax_pmd_fault() seems to insert
-> entries only for write fault so the assumption doesn't seem to hold there?
+> 	get_current_user_pages()
+> 	get_foreign_user_pages()
+> 
+> get_current_user_pages() is a drop-in replacement for when
+> get_user_pages() was called with (current, current->mm, ...) as
+> arguments.  Using it makes a few of the call sites look a bit
+> nicer.
+> 
+> get_foreign_user_pages() is a replacement for when
+> get_user_pages() is called on non-current tsk/mm.
+> 
+> We leave a stub get_user_pages() around with a __deprecated
+> warning.
 
-Ah, right, sorry, the read fault() -> pfn_mkwrite() sequence only happens for
-4k pages.  You are right about our handling of 2MiB pages - for a read
-followed by a write we will just call into the normal __dax_pmd_fault() code
-again, which will do the get_block() call and insert a dirty radix tree entry.
-Because we have to go all the way through the fault handler again at write
-time there isn't a benefit to inserting a clean radix tree entry on read, so
-we just skip it.
+Hm when replying to previous version I assumed this is because there are many
+get_user_pages() callers remaining. But now I see there are just 3 drivers not
+converted by this patch? In that case I would favor to convert get_user_pages()
+to become what is now get_current_user_pages(). This would be much more
+consistent IMHO. We don't need to cater to out-of-tree modules?
 
-> I'm somewhat uneasy that a bug in this logic can be hidden as a simple race
-> with hole punching. But I guess I can live with that.
+Sorry, I should have looked thoroughly on the previous reply, not just assume.
+
+> This also effectively turns get_user_pages_unlocked() in to
+> get_user_pages_unlocked_current() since it no longer gets a
+> tsk/mm passed in.  I thought that would be too long of a name if
+> we added "_current" on there.  BTW, if someone wants the
+> get_user_pages_unlocked() behavior with a non-current tsk/mm,
+> they just have to use __get_user_pages_unlocked() directly.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: vbabka@suse.cz
+> ---
+
+Also (but moot if you accept my suggestion):
+
+> diff -puN mm/nommu.c~get_current_user_pages mm/nommu.c
+> --- a/mm/nommu.c~get_current_user_pages	2016-01-06 15:50:02.230003599 -0800
+> +++ b/mm/nommu.c	2016-01-06 15:50:02.259004906 -0800
+> @@ -182,7 +182,7 @@ finish_or_fault:
+>   *   slab page or a secondary page from a compound page
+>   * - don't permit access to VMAs that don't support it, such as I/O mappings
+>   */
+> -long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> +long get_foreign_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		    unsigned long start, unsigned long nr_pages,
+>  		    int write, int force, struct page **pages,
+>  		    struct vm_area_struct **vmas)
+> @@ -199,35 +199,41 @@ long get_user_pages(struct task_struct *
+>  }
+>  EXPORT_SYMBOL(get_user_pages);
+
+I think you need to change the export here as you did in gup.c
+
 >  
-> 								Honza
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+> -long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
+> -			   unsigned long start, unsigned long nr_pages,
+> +long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+>  			   int write, int force, struct page **pages,
+>  			   int *locked)
+>  {
+> -	return get_user_pages(tsk, mm, start, nr_pages, write, force,
+> -			      pages, NULL);
+> +	return get_user_pages(current, current->mm, start, nr_pages, write,
+> +			      force, pages, NULL);
+
+Why not use the _current variant here?
+
+>  }
+>  EXPORT_SYMBOL(get_user_pages_locked);
+>  
+> -long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+> -			       unsigned long start, unsigned long nr_pages,
+> +long get_current_user_pages(unsigned long start, unsigned long nr_pages,
+> +		    int write, int force, struct page **pages,
+> +		    struct vm_area_struct **vmas)
+> +{
+> +	return get_foreign_user_pages(current, current->mm, start, nr_pages,
+> +				      write, force, pages, vmas);
+> +}
+> +EXPORT_SYMBOL(get_current_user_pages);
+> +
+> +long __get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+>  			       int write, int force, struct page **pages,
+>  			       unsigned int gup_flags)
+>  {
+>  	long ret;
+> -	down_read(&mm->mmap_sem);
+> -	ret = get_user_pages(tsk, mm, start, nr_pages, write, force,
+> -			     pages, NULL);
+> -	up_read(&mm->mmap_sem);
+> +	down_read(&current->mm->mmap_sem);
+> +	ret = get_current_user_pages(start, nr_pages, write, force,
+> +				     pages, NULL);
+> +	up_read(&current->mm->mmap_sem);
+>  	return ret;
+>  }
+>  EXPORT_SYMBOL(__get_user_pages_unlocked);
+>  
+> -long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+> -			     unsigned long start, unsigned long nr_pages,
+> +long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+>  			     int write, int force, struct page **pages)
+>  {
+> -	return __get_user_pages_unlocked(tsk, mm, start, nr_pages, write,
+> +	return __get_user_pages_unlocked(start, nr_pages, write,
+>  					 force, pages, 0);
+>  }
+>  EXPORT_SYMBOL(get_user_pages_unlocked);
+> diff -puN mm/process_vm_access.c~get_current_user_pages mm/process_vm_access.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
