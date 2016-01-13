@@ -1,90 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 73E29828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 17:01:52 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id f206so312481556wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 14:01:52 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j142si7083777wmg.110.2016.01.13.14.01.51
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F14176B0265
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 17:49:17 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id cy9so365548250pac.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 14:49:17 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t76si4757450pfi.226.2016.01.13.14.49.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 14:01:51 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/2] mm: memcontrol: add "sock" to cgroup2 memory.stat
-Date: Wed, 13 Jan 2016 17:01:09 -0500
-Message-Id: <1452722469-24704-3-git-send-email-hannes@cmpxchg.org>
+        Wed, 13 Jan 2016 14:49:17 -0800 (PST)
+Date: Wed, 13 Jan 2016 14:49:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] mm: memcontrol: cgroup2 memory statistics
+Message-Id: <20160113144916.03f03766e201b6b04a8a47cc@linux-foundation.org>
 In-Reply-To: <1452722469-24704-1-git-send-email-hannes@cmpxchg.org>
 References: <1452722469-24704-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Provide statistics on how much of a cgroup's memory footprint is made
-up of socket buffers from network connections owned by the group.
+On Wed, 13 Jan 2016 17:01:07 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 5 ++++-
- mm/memcontrol.c            | 6 ++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+> Hi Andrew,
+> 
+> these patches add basic memory statistics so that new users of cgroup2
+> have some inkling of what's going on, and are not just confronted with
+> a single number of bytes used.
+> 
+> This is very short-notice, but also straight-forward. It would be cool
+> to get this in along with the lifting of the cgroup2 devel flag.
+> 
+> Michal, Vladimir, what do you think? We'll also have to figure out how
+> we're going to represent and break down the "kmem" consumers.
+> 
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1666617..9ae48d4 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -50,6 +50,9 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_WRITEBACK,	/* # of pages under writeback */
- 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
- 	MEM_CGROUP_STAT_NSTATS,
-+	/* default hierarchy stats */
-+	MEMCG_SOCK,
-+	MEMCG_NR_STAT,
- };
- 
- struct mem_cgroup_reclaim_cookie {
-@@ -87,7 +90,7 @@ enum mem_cgroup_events_target {
- 
- #ifdef CONFIG_MEMCG
- struct mem_cgroup_stat_cpu {
--	long count[MEM_CGROUP_STAT_NSTATS];
-+	long count[MEMCG_NR_STAT];
- 	unsigned long events[MEMCG_NR_EVENTS];
- 	unsigned long nr_page_events;
- 	unsigned long targets[MEM_CGROUP_NTARGETS];
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8645852..6bb23a7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5118,6 +5118,8 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 		   tree_stat(memcg, MEM_CGROUP_STAT_RSS) * PAGE_SIZE);
- 	seq_printf(m, "file %lu\n",
- 		   tree_stat(memcg, MEM_CGROUP_STAT_CACHE) * PAGE_SIZE);
-+	seq_printf(m, "sock %lu\n",
-+		   tree_stat(memcg, MEMCG_SOCK) * PAGE_SIZE);
- 
- 	/* Per-consumer breakdowns */
- 
-@@ -5619,6 +5621,8 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
- 	if (in_softirq())
- 		gfp_mask = GFP_NOWAIT;
- 
-+	this_cpu_add(memcg->stat->count[MEMCG_SOCK], nr_pages);
-+
- 	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
- 		return true;
- 
-@@ -5638,6 +5642,8 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
- 		return;
- 	}
- 
-+	this_cpu_sub(memcg->stat->count[MEMCG_SOCK], nr_pages);
-+
- 	page_counter_uncharge(&memcg->memory, nr_pages);
- 	css_put_many(&memcg->css, nr_pages);
- }
--- 
-2.7.0
+It would be nice to see example output, and a description of why this
+output was chosen: what was included, what was omitted, why it was
+presented this way, what units were chosen for displaying the stats and
+why.  Will the things which are being displayed still be relevant (or
+even available) 10 years from now.  etcetera.
+
+And the interface should be documented at some point.  Doing it now
+will help with the review of the proposed interface.
+
+Because this stuff is forever and we have to get it right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
