@@ -1,95 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 94F9A828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:03:24 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id f206so284841040wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:03:24 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 47015828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:07:35 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id l65so284239948wmf.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:07:35 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 71si37430381wmk.60.2016.01.13.01.03.23
+        by mx.google.com with ESMTPS id v10si566279wjx.223.2016.01.13.01.07.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 01:03:23 -0800 (PST)
-Date: Wed, 13 Jan 2016 10:03:30 +0100
+        Wed, 13 Jan 2016 01:07:34 -0800 (PST)
+Date: Wed, 13 Jan 2016 10:07:34 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
-Message-ID: <20160113090330.GA14630@quack.suse.cz>
-References: <20160112190903.GA9421@www.outflux.net>
+Subject: Re: [PATCH v8 1/9] dax: fix NULL pointer dereference in __dax_dbg()
+Message-ID: <20160113090734.GC14630@quack.suse.cz>
+References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1452230879-18117-2-git-send-email-ross.zwisler@linux.intel.com>
+ <20160112093458.GR6262@quack.suse.cz>
+ <20160113070829.GA30496@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160112190903.GA9421@www.outflux.net>
+In-Reply-To: <20160113070829.GA30496@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-On Tue 12-01-16 11:09:04, Kees Cook wrote:
-> Normally, when a user can modify a file that has setuid or setgid bits,
-> those bits are cleared when they are not the file owner or a member
-> of the group. This is enforced when using write and truncate but not
-> when writing to a shared mmap on the file. This could allow the file
-> writer to gain privileges by changing a binary without losing the
-> setuid/setgid/caps bits.
+On Wed 13-01-16 00:08:29, Ross Zwisler wrote:
+> On Tue, Jan 12, 2016 at 10:34:58AM +0100, Jan Kara wrote:
+> > On Thu 07-01-16 22:27:51, Ross Zwisler wrote:
+> > > In __dax_pmd_fault() we currently assume that get_block() will always set
+> > > bh.b_bdev and we unconditionally dereference it in __dax_dbg().  This
+> > > assumption isn't always true - when called for reads of holes
+> > > ext4_dax_mmap_get_block() returns a buffer head where bh->b_bdev is never
+> > > set.  I hit this BUG while testing the DAX PMD fault path.
+> > > 
+> > > Instead, initialize bh.b_bdev before passing bh into get_block().  It is
+> > > possible that the filesystem's get_block() will update bh.b_bdev, and this
+> > > is fine - we just want to initialize bh.b_bdev to something reasonable so
+> > > that the calls to __dax_dbg() work and print something useful.
+> > > 
+> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > > Cc: Dan Williams <dan.j.williams@intel.com>
+> > 
+> > Looks good. But don't you need to do the same for __dax_fault(),
+> > dax_zero_page_range() and similar places passing bh to dax functions?
+> > 
+> > 								Honza
 > 
-> Changing the bits requires holding inode->i_mutex, so it cannot be done
-> during the page fault (due to mmap_sem being held during the fault).
-> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
-> or added at mprotect time.
+> I don't think we need it anywhere else.  The only reason that we need to
+> initialize the bh.b_bdev manually in the __dax_pmd_fault() path is that if the
+> get_block() call ends up finding a hole (so doesn't fill out b_bdev) we still
+> go through the dax_pmd_dbg() path to print an error message, which uses
+> b_bdev.  I believe that in the other paths where we hit a hole, such as
+> __dax_fault(), we don't use b_bdev because we don't have the same error path
+> prints, and the regular code for handling holes doesn't use b_bdev.
 > 
-> Since we can't do the check in the right place inside mmap (due to
-> holding mmap_sem), we have to do it before holding mmap_sem, which
-> means duplicating some checks, which have to be available to the non-MMU
-> builds too.
-> 
-> When walking VMAs during mprotect, we need to drop mmap_sem (while
-> holding a file reference) and restart the walk after clearing privileges.
+> That being said, if you feel like it's cleaner to initialize it
+> everywhere so everything is consistent and we don't have to worry about
+> it, I'm fine to make the change.
 
-...
-
-> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->  
->  	vm_flags = calc_vm_prot_bits(prot);
->  
-> +restart:
->  	down_write(&current->mm->mmap_sem);
->  
->  	vma = find_vma(current->mm, start);
-> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->  			goto out;
->  		}
->  
-> +		/*
-> +		 * If we're adding write permissions to a shared file,
-> +		 * we must clear privileges (like done at mmap time),
-> +		 * but we have to juggle the locks to avoid holding
-> +		 * mmap_sem while holding i_mutex.
-> +		 */
-> +		if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
-> +		    (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
-> +		    !IS_NOSEC(file_inode(vma->vm_file))) {
-
-This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
-is called. However that is not true for two reasons:
-
-1) When you are root, SUID bit doesn't get cleared and thus you cannot set
-IS_NOSEC.
-
-2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
-never true.
-
-So in these cases you'll loop forever.
-
-You can check SUID bits without i_mutex so that could be done without
-dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
-without i_mutex as that checks extended attributes (IMA) and that needs
-i_mutex to be held to avoid races with someone else changing the attributes
-under you.
-
-Honestly, I don't see a way of implementing this in mprotect() which would
-be reasonably elegant.
+Well, it seems more futureproof to me. In case someone decides to add some
+debug message later on...
 
 								Honza
-
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
