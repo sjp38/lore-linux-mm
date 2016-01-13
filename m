@@ -1,37 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D06E1828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:47:38 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id u188so305888072wmu.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:47:38 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id p1si3190735wjx.81.2016.01.13.08.47.37
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D333D828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:48:19 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id f206so303727964wmf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:48:19 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id mo12si3123391wjc.138.2016.01.13.08.48.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 08:47:37 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id l65so37823905wmf.3
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:47:37 -0800 (PST)
-Date: Wed, 13 Jan 2016 17:47:36 +0100
+        Wed, 13 Jan 2016 08:48:18 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id b14so37931347wmb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:48:18 -0800 (PST)
+Date: Wed, 13 Jan 2016 17:48:17 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/7] mm: memcontrol: replace mem_cgroup_lruvec_online
- with mem_cgroup_online
-Message-ID: <20160113164733.GG17512@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 4/7] swap.h: move memcg related stuff to the end of
+ the file
+Message-ID: <20160113164817.GH17512@dhcp22.suse.cz>
 References: <cover.1450352791.git.vdavydov@virtuozzo.com>
- <d8fc0b5bb025b8b8ab2630aaf3a5cd6dc89a693c.1450352792.git.vdavydov@virtuozzo.com>
+ <77dd7375cd8360829093b4c347db2e557334da21.1450352792.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d8fc0b5bb025b8b8ab2630aaf3a5cd6dc89a693c.1450352792.git.vdavydov@virtuozzo.com>
+In-Reply-To: <77dd7375cd8360829093b4c347db2e557334da21.1450352792.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 17-12-15 15:29:56, Vladimir Davydov wrote:
-> mem_cgroup_lruvec_online() takes lruvec, but it only needs memcg. Since
-> get_scan_count(), which is the only user of this function, now possesses
-> pointer to memcg, let's pass memcg directly to mem_cgroup_online()
-> instead of picking it out of lruvec and rename the function accordingly.
+On Thu 17-12-15 15:29:57, Vladimir Davydov wrote:
+> The following patches will add more functions to the memcg section of
+> include/linux/swap.h. Some of them will need values defined below the
+> current location of the section. So let's move the section to the end of
+> the file. No functional changes intended.
 > 
 > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
@@ -39,79 +39,97 @@ On Thu 17-12-15 15:29:56, Vladimir Davydov wrote:
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  include/linux/memcontrol.h | 27 ++++++++++-----------------
->  mm/vmscan.c                |  2 +-
->  2 files changed, 11 insertions(+), 18 deletions(-)
+>  include/linux/swap.h | 70 ++++++++++++++++++++++++++++------------------------
+>  1 file changed, 38 insertions(+), 32 deletions(-)
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6e0126230878..166661708410 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -355,6 +355,13 @@ static inline bool mem_cgroup_disabled(void)
->  	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 478e7dd038c7..f8fb4e06c4bd 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -350,39 +350,7 @@ extern void check_move_unevictable_pages(struct page **, int nr_pages);
+>  
+>  extern int kswapd_run(int nid);
+>  extern void kswapd_stop(int nid);
+> -#ifdef CONFIG_MEMCG
+> -static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+> -{
+> -	/* root ? */
+> -	if (mem_cgroup_disabled() || !memcg->css.parent)
+> -		return vm_swappiness;
+> -
+> -	return memcg->swappiness;
+> -}
+>  
+> -#else
+> -static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+> -{
+> -	return vm_swappiness;
+> -}
+> -#endif
+> -#ifdef CONFIG_MEMCG_SWAP
+> -extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+> -extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
+> -extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
+> -#else
+> -static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> -{
+> -}
+> -static inline int mem_cgroup_try_charge_swap(struct page *page,
+> -					     swp_entry_t entry)
+> -{
+> -	return 0;
+> -}
+> -static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
+> -{
+> -}
+> -#endif
+>  #ifdef CONFIG_SWAP
+>  /* linux/mm/page_io.c */
+>  extern int swap_readpage(struct page *);
+> @@ -561,5 +529,43 @@ static inline swp_entry_t get_swap_page(void)
 >  }
 >  
-> +static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
+>  #endif /* CONFIG_SWAP */
+> +
+> +#ifdef CONFIG_MEMCG
+> +static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 > +{
-> +	if (mem_cgroup_disabled())
-> +		return true;
-> +	return !!(memcg->css.flags & CSS_ONLINE);
+> +	/* root ? */
+> +	if (mem_cgroup_disabled() || !memcg->css.parent)
+> +		return vm_swappiness;
+> +
+> +	return memcg->swappiness;
 > +}
 > +
->  /*
->   * For memory reclaim.
->   */
-> @@ -363,20 +370,6 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
->  void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
->  		int nr_pages);
->  
-> -static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
-> -{
-> -	struct mem_cgroup_per_zone *mz;
-> -	struct mem_cgroup *memcg;
-> -
-> -	if (mem_cgroup_disabled())
-> -		return true;
-> -
-> -	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
-> -	memcg = mz->memcg;
-> -
-> -	return !!(memcg->css.flags & CSS_ONLINE);
-> -}
-> -
->  static inline
->  unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
->  {
-> @@ -589,13 +582,13 @@ static inline bool mem_cgroup_disabled(void)
->  	return true;
->  }
->  
-> -static inline bool
-> -mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
-> +static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
->  {
->  	return true;
->  }
->  
-> -static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
-> +static inline bool
-> +mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
->  {
->  	return true;
->  }
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index acc6bff84e26..b220e6cda25d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1988,7 +1988,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->  	if (current_is_kswapd()) {
->  		if (!zone_reclaimable(zone))
->  			force_scan = true;
-> -		if (!mem_cgroup_lruvec_online(lruvec))
-> +		if (!mem_cgroup_online(memcg))
->  			force_scan = true;
->  	}
->  	if (!global_reclaim(sc))
+> +#else
+> +static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+> +{
+> +	return vm_swappiness;
+> +}
+> +#endif
+> +
+> +#ifdef CONFIG_MEMCG_SWAP
+> +extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+> +extern int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
+> +extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
+> +#else
+> +static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> +{
+> +}
+> +
+> +static inline int mem_cgroup_try_charge_swap(struct page *page,
+> +					     swp_entry_t entry)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void mem_cgroup_uncharge_swap(swp_entry_t entry)
+> +{
+> +}
+> +#endif
+> +
+>  #endif /* __KERNEL__*/
+>  #endif /* _LINUX_SWAP_H */
 > -- 
 > 2.1.4
 > 
