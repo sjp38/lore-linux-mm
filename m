@@ -1,127 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E6FF8828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:35:18 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id f206so285967683wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:35:18 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g5si739508wjy.168.2016.01.13.01.35.17
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F4136828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:36:04 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id b14so361875226wmb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:36:04 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id cr4si739944wjb.184.2016.01.13.01.36.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 01:35:17 -0800 (PST)
-Date: Wed, 13 Jan 2016 10:35:25 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v8 6/9] dax: add support for fsync/msync
-Message-ID: <20160113093525.GD14630@quack.suse.cz>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-7-git-send-email-ross.zwisler@linux.intel.com>
- <20160112105716.GT6262@quack.suse.cz>
- <20160113073019.GB30496@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jan 2016 01:36:04 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id f206so285995140wmf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:36:03 -0800 (PST)
+Date: Wed, 13 Jan 2016 10:36:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 2/3] oom: Do not sacrifice already OOM killed children
+Message-ID: <20160113093601.GB28942@dhcp22.suse.cz>
+References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
+ <1452632425-20191-3-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1601121644250.28831@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160113073019.GB30496@linux.intel.com>
+In-Reply-To: <alpine.DEB.2.10.1601121644250.28831@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 13-01-16 00:30:19, Ross Zwisler wrote:
-> > And secondly: You must write-protect all mappings of the flushed range so
-> > that you get fault when the sector gets written-to again. We spoke about
-> > this in the past already but somehow it got lost and I forgot about it as
-> > well. You need something like rmap_walk_file()...
+On Tue 12-01-16 16:45:35, David Rientjes wrote:
+> On Tue, 12 Jan 2016, Michal Hocko wrote:
 > 
-> The code that write protected mappings and then cleaned the radix tree entries
-> did get written, and was part of v2:
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 2b9dc5129a89..8bca0b1e97f7 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -671,6 +671,63 @@ static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+> >  }
+> >  
+> >  #define K(x) ((x) << (PAGE_SHIFT-10))
+> > +
+> > +/*
+> > + * If any of victim's children has a different mm and is eligible for kill,
+> > + * the one with the highest oom_badness() score is sacrificed for its
+> > + * parent.  This attempts to lose the minimal amount of work done while
+> > + * still freeing memory.
+> > + */
+> > +static struct task_struct *
+> > +try_to_sacrifice_child(struct oom_control *oc, struct task_struct *victim,
+> > +		       unsigned long totalpages, struct mem_cgroup *memcg)
+> > +{
+> > +	struct task_struct *child_victim = NULL;
+> > +	unsigned int victim_points = 0;
+> > +	struct task_struct *t;
+> > +
+> > +	read_lock(&tasklist_lock);
+> > +	for_each_thread(victim, t) {
+> > +		struct task_struct *child;
+> > +
+> > +		list_for_each_entry(child, &t->children, sibling) {
+> > +			unsigned int child_points;
+> > +
+> > +			/*
+> > +			 * Skip over already OOM killed children as this hasn't
+> > +			 * helped to resolve the situation obviously.
+> > +			 */
+> > +			if (test_tsk_thread_flag(child, TIF_MEMDIE) ||
+> > +					fatal_signal_pending(child) ||
+> > +					task_will_free_mem(child))
+> > +				continue;
+> > +
 > 
-> https://lkml.org/lkml/2015/11/13/759
-> 
-> I removed all the code that cleaned PTE entries and radix tree entries for v3.
-> The reason behind this was that there was a race that I couldn't figure out
-> how to solve between the cleaning of the PTEs and the cleaning of the radix
-> tree entries.
-> 
-> The race goes like this:
-> 
-> Thread 1 (write)			Thread 2 (fsync)
-> ================			================
-> wp_pfn_shared()
-> pfn_mkwrite()
-> dax_radix_entry()
-> radix_tree_tag_set(DIRTY)
-> 					dax_writeback_mapping_range()
-> 					dax_writeback_one()
-> 					radix_tag_clear(DIRTY)
-> 					pgoff_mkclean()
-> ... return up to wp_pfn_shared()
-> wp_page_reuse()
-> pte_mkdirty()
-> 
-> After this sequence we end up with a dirty PTE that is writeable, but with a
-> clean radix tree entry.  This means that users can write to the page, but that
-> a follow-up fsync or msync won't flush this dirty data to media.
-> 
-> The overall issue is that in the write path that goes through wp_pfn_shared(),
-> the DAX code has control over when the radix tree entry is dirtied but not
-> when the PTE is made dirty and writeable.  This happens up in wp_page_reuse().
-> This means that we can't easily add locking, etc. to protect ourselves.
-> 
-> I spoke a bit about this with Dave Chinner and with Dave Hansen, but no really
-> easy solutions presented themselves in the absence of a page lock.  I do have
-> one idea, but I think it's pretty invasive and will need to wait for another
-> kernel cycle.
-> 
-> The current code that leaves the radix tree entry will give us correct
-> behavior - it'll just be less efficient because we will have an ever-growing
-> dirty set to flush.
+> What guarantees that child had time to exit after it has been oom killed 
+> (better yet, what guarantees that it has even scheduled after it has been 
+> oom killed)?  It seems like this would quickly kill many children 
+> unnecessarily.
 
-Ahaa! Somehow I imagined tag_pages_for_writeback() clears DIRTY radix tree
-tags but it does not (I should have known, I have written that functions
-few years ago ;). Makes sense. Thanks for clarification.
-
-> > > @@ -791,15 +976,12 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
-> > >   * dax_pfn_mkwrite - handle first write to DAX page
-> > >   * @vma: The virtual memory area where the fault occurred
-> > >   * @vmf: The description of the fault
-> > > - *
-> > >   */
-> > >  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > >  {
-> > > -	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-> > > +	struct file *file = vma->vm_file;
-> > >  
-> > > -	sb_start_pagefault(sb);
-> > > -	file_update_time(vma->vm_file);
-> > > -	sb_end_pagefault(sb);
-> > > +	dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false, true);
-> > 
-> > Why is NO_SECTOR argument correct here?
-> 
-> Right - so NO_SECTOR means "I expect there to already be an entry in the radix
-> tree - just make that entry dirty".  This works because pfn_mkwrite() always
-> follows a normal __dax_fault() or __dax_pmd_fault() call.  These fault calls
-> will insert the radix tree entry, regardless of whether the fault was for a
-> read or a write.  If the fault was for a write, the radix tree entry will also
-> be made dirty.
->
-> For reads the radix tree entry will be inserted but left clean.  When the
-> first write happens we will get a pfn_mkwrite() call, which will call
-> dax_radix_entry() with the NO_SECTOR argument.  This will look up the radix
-> tree entry & set the dirty tag.
-
-So the explanation of this should be somewhere so that everyone knows that
-we must have radix tree entries even for clean mapped blocks. Because upto
-know that was not clear to me.  Also __dax_pmd_fault() seems to insert
-entries only for write fault so the assumption doesn't seem to hold there?
-
-I'm somewhat uneasy that a bug in this logic can be hidden as a simple race
-with hole punching. But I guess I can live with that.
- 
-								Honza
+If the child hasn't released any memory after all the allocator attempts to
+free a memory, which takes quite some time, then what is the advantage of
+waiting even more and possibly get stuck? This is a heuristic, we should
+have killed the selected victim but we have chosen to reduce the impact by
+selecting the child process instead. If that hasn't led to any
+improvement I believe we should move on rather than looping on
+potentially unresolvable situation _just because_ of the said heuristic.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
