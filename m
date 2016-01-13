@@ -1,130 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 67AD5828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 07:11:45 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id ik10so170065492igb.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:11:45 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id t8si22041814igd.29.2016.01.13.04.11.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 04:11:44 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201601072026.JCJ95845.LHQOFOOSMFtVFJ@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1601121717220.17063@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1601121717220.17063@chino.kir.corp.google.com>
-Message-Id: <201601132111.GIG81705.LFOOHFOtQJSMVF@I-love.SAKURA.ne.jp>
-Date: Wed, 13 Jan 2016 21:11:30 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0E26B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 07:31:46 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id uo6so341881216pac.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:31:46 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id jj2si1801914pac.179.2016.01.13.04.31.45
+        for <linux-mm@kvack.org>;
+        Wed, 13 Jan 2016 04:31:45 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: fix split_huge_page() after mremap() of THP
+Date: Wed, 13 Jan 2016 15:31:40 +0300
+Message-Id: <1452688300-121543-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-David Rientjes wrote:
-> I'm not sure why you are proposing adding both of these in the same patch; 
-> they have very different usecases and semantics.
+Sasha Levin has reported KASAN out-of-bounds bug[1].
+It points to "if (!is_swap_pte(pte[i]))" in unfreeze_page_vma() as a
+problematic access.
 
-Because both of these are for tuning the OOM killer.
+The cause is that split_huge_page() doesn't handle THP correctly if it's
+not allingned to PMD boundary. It can happen after mremap().
 
+Test-case (not always triggers the bug):
 
+	#define _GNU_SOURCE
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <sys/mman.h>
 
-> 
-> oomkiller_holdoff_ms, as indicated by the changelog, seems to be 
-> correcting some deficiency in the oom reaper.
+	#define MB (1024UL*1024)
+	#define SIZE (2*MB)
+	#define BASE ((void *)0x400000000000)
 
-It is not deficiency in the OOM reaper but deficiency in the OOM killer
-or in the page allocator.
+	int main()
+	{
+		char *p;
 
->                                                I haven't reviewed that, 
-> but it seems like something that wouldn't need to be fixed with a 
-> timeout-based solution.
+		p = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
+				MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+				-1, 0);
+		if (p == MAP_FAILED)
+			perror("mmap"), exit(1);
+		p = mremap(BASE, SIZE, SIZE, MREMAP_FIXED | MREMAP_MAYMOVE,
+				BASE + SIZE + 8192);
+		if (p == MAP_FAILED)
+			perror("mremap"), exit(1);
+		system("echo 1 > /sys/kernel/debug/split_huge_pages");
+		return 0;
+	}
 
-The problem is that it takes some amount of time to return memory to
-freelist after memory was reclaimed. Unless we add a callback mechanism
-for notifying that the memory used by TIF_MEMDIE task was reclaimed and
-returned to freelist, there is no means to fix this problem.
+The patch fixes freeze and unfreeze paths to handle page table boundary
+crossing.
 
->                          We either know if we have completed oom reaping 
-> or we haven't, it is something we should easily be able to figure out and 
-> not require heuristics such as this.
-> 
-> This does not seem to have anything to do with current upstream code that 
-> does not have the oom reaper since the oom killer clearly has 
-> synchronization through oom_lock and we carefully defer for TIF_MEMDIE 
-> processes and abort for those that have not yet fully exited to free its 
-> memory.  If patches are going to be proposed on top of the oom reaper, 
-> please explicitly state that.
+It also makes mapcount vs. count check in split_huge_page_to_list()
+stricter:
+ - after freeze we don't expect any subpage mapped as we remove them
+   from rmap when setting up migration entries;
+ - count must be 1, meaning only caller has reference to the page;
 
-The OOM reaper is irrelevant. The OOM reaper is merely an accelerator for
-reclaiming memory earlier than now.
+[1] https://gist.github.com/sashalevin/c67fbea55e7c0576972a
 
-> 
-> I believe any such race described in the changelog could be corrected by 
-> deferring the oom killer entirely until the oom reaper has been able to 
-> free memory or the oom victim has fully exited.  I haven't reviewed that, 
-> so I can't speak definitively, but I think we should avoid _any_ timeout 
-> based solution if possible and there's no indication this is the only way 
-> to solve such a problem.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/huge_memory.c | 72 +++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 51 insertions(+), 21 deletions(-)
 
-The OOM killer can not know when the reclaimed memory is returned to freelist
-(and therefore get_page_from_freelist() might succeed).
-
-Currently timeout is the only way to mitigate this problem.
-
-
-
-> 
-> oomkiller_victim_wait_ms seems to be another manifestation of the same 
-> patch which has been nack'd over and over again.
-
-I believe the situation is changing due to introduction of the OOM reaper.
-
->                                                   It does not address the 
-> situation where there are no additional eligible processes to kill and we 
-> end up panicking the machine when additional access to memory reserves may 
-> have allowed the victim to exit.  Randomly killing additional processes 
-> makes that problem worse since if they cannot exit (which may become more 
-> likely than not if all victims are waiting on a mutex held by an 
-> allocating thread).
-> 
-> My solution for that has always been to grant allocating threads temporary 
-> access to memory reserves in the hope that the mutex be dropped and the 
-> victim may make forward progress.  We have this implemented internally and 
-> I've posted a test module that easily exhibits the problem and how it is 
-> fixed.
-
-Those who use panic_on_oom = 1 expect that the system triggers kernel panic
-rather than stall forever. This is a translation of administrator's wish that
-"Please press SysRq-c on behalf of me if the memory exhausted. In that way,
-I don't need to stand by in front of the console twenty-four seven."
-
-Those who use panic_on_oom = 0 expect that the OOM killer solves OOM condition
-rather than stall forever. This is a translation of administrator's wish that
-"Please press SysRq-f on behalf of me if the memory exhausted. In that way,
-I don't need to stand by in front of the console twenty-four seven."
-
-However, since the OOM killer never presses SysRq-f again until the OOM
-victim terminates, this is annoying administrators.
-
-  Administrator:  "I asked you to press SysRq-f on behalf of me. Why did you
-                   let the system stalled forever?"
-
-  The OOM killer: "I did. The system did not recover from OOM condition."
-
-  Administrator:  "Why you don't try pressing SysRq-f again on behalf of me?"
-
-  The OOM killer: "I am not programmed to do so."
-
-  Administrator:  "You are really inattentive assistant. OK. Here is a patch
-                   that programs you to press SysRq-f again on behalf of me."
-
-What I want to say to the OOM killer is "Please don't toss the OOM killer's
-duty away." when the OOM killer answered "I did something with a hope that
-OOM condition is solved". And MM people are still NACKing administrator's
-innocent wish.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 22385253cd5e..ea1baf9b45b4 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3115,6 +3115,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 		unsigned long address)
+ {
++	unsigned long haddr = address & HPAGE_PMD_MASK;
+ 	spinlock_t *ptl;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+@@ -3136,34 +3137,48 @@ static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 	}
+ 	if (pmd_trans_huge(*pmd)) {
+ 		if (page == pmd_page(*pmd))
+-			__split_huge_pmd_locked(vma, pmd, address, true);
++			__split_huge_pmd_locked(vma, pmd, haddr, true);
+ 		spin_unlock(ptl);
+ 		return;
+ 	}
+ 	spin_unlock(ptl);
+ 
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
+-	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
++	for (i = 0; i < HPAGE_PMD_NR;
++			i++, address += PAGE_SIZE, page++, pte++) {
+ 		pte_t entry, swp_pte;
+ 		swp_entry_t swp_entry;
+ 
+-		if (!pte_present(pte[i]))
++		/*
++		 * We've just crossed page table boundary: need to map next one.
++		 * It can happen if THP was mremaped to non PMD-aligned address.
++		 */
++		if (unlikely(address == haddr + HPAGE_PMD_SIZE)) {
++			pte_unmap_unlock(pte - 1, ptl);
++			pmd = mm_find_pmd(vma->vm_mm, address);
++			if (!pmd)
++				return;
++			pte = pte_offset_map_lock(vma->vm_mm, pmd,
++					address, &ptl);
++		}
++
++		if (!pte_present(*pte))
+ 			continue;
+-		if (page_to_pfn(page) != pte_pfn(pte[i]))
++		if (page_to_pfn(page) != pte_pfn(*pte))
+ 			continue;
+ 		flush_cache_page(vma, address, page_to_pfn(page));
+-		entry = ptep_clear_flush(vma, address, pte + i);
++		entry = ptep_clear_flush(vma, address, pte);
+ 		if (pte_dirty(entry))
+ 			SetPageDirty(page);
+ 		swp_entry = make_migration_entry(page, pte_write(entry));
+ 		swp_pte = swp_entry_to_pte(swp_entry);
+ 		if (pte_soft_dirty(entry))
+ 			swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-		set_pte_at(vma->vm_mm, address, pte + i, swp_pte);
++		set_pte_at(vma->vm_mm, address, pte, swp_pte);
+ 		page_remove_rmap(page, false);
+ 		put_page(page);
+ 	}
+-	pte_unmap_unlock(pte, ptl);
++	pte_unmap_unlock(pte - 1, ptl);
+ }
+ 
+ static void freeze_page(struct anon_vma *anon_vma, struct page *page)
+@@ -3175,14 +3190,13 @@ static void freeze_page(struct anon_vma *anon_vma, struct page *page)
+ 
+ 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff,
+ 			pgoff + HPAGE_PMD_NR - 1) {
+-		unsigned long haddr;
++		unsigned long address = __vma_address(page, avc->vma);
+ 
+-		haddr = __vma_address(page, avc->vma) & HPAGE_PMD_MASK;
+ 		mmu_notifier_invalidate_range_start(avc->vma->vm_mm,
+-				haddr, haddr + HPAGE_PMD_SIZE);
+-		freeze_page_vma(avc->vma, page, haddr);
++				address, address + HPAGE_PMD_SIZE);
++		freeze_page_vma(avc->vma, page, address);
+ 		mmu_notifier_invalidate_range_end(avc->vma->vm_mm,
+-				haddr, haddr + HPAGE_PMD_SIZE);
++				address, address + HPAGE_PMD_SIZE);
+ 	}
+ }
+ 
+@@ -3193,17 +3207,33 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 	pmd_t *pmd;
+ 	pte_t *pte, entry;
+ 	swp_entry_t swp_entry;
++	unsigned long haddr = address & HPAGE_PMD_MASK;
+ 	int i;
+ 
+ 	pmd = mm_find_pmd(vma->vm_mm, address);
+ 	if (!pmd)
+ 		return;
++
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
+-	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
+-		if (!is_swap_pte(pte[i]))
++	for (i = 0; i < HPAGE_PMD_NR;
++			i++, address += PAGE_SIZE, page++, pte++) {
++		/*
++		 * We've just crossed page table boundary: need to map next one.
++		 * It can happen if THP was mremaped to non-PMD aligned address.
++		 */
++		if (unlikely(address == haddr + HPAGE_PMD_SIZE)) {
++			pte_unmap_unlock(pte - 1, ptl);
++			pmd = mm_find_pmd(vma->vm_mm, address);
++			if (!pmd)
++				return;
++			pte = pte_offset_map_lock(vma->vm_mm, pmd,
++					address, &ptl);
++		}
++
++		if (!is_swap_pte(*pte))
+ 			continue;
+ 
+-		swp_entry = pte_to_swp_entry(pte[i]);
++		swp_entry = pte_to_swp_entry(*pte);
+ 		if (!is_migration_entry(swp_entry))
+ 			continue;
+ 		if (migration_entry_to_page(swp_entry) != page)
+@@ -3219,12 +3249,12 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 			entry = maybe_mkwrite(entry, vma);
+ 
+ 		flush_dcache_page(page);
+-		set_pte_at(vma->vm_mm, address, pte + i, entry);
++		set_pte_at(vma->vm_mm, address, pte, entry);
+ 
+ 		/* No need to invalidate - it was non-present before */
+-		update_mmu_cache(vma, address, pte + i);
++		update_mmu_cache(vma, address, pte);
+ 	}
+-	pte_unmap_unlock(pte, ptl);
++	pte_unmap_unlock(pte - 1, ptl);
+ }
+ 
+ static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
+@@ -3430,7 +3460,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	spin_lock(&split_queue_lock);
+ 	count = page_count(head);
+ 	mapcount = total_mapcount(head);
+-	if (mapcount == count - 1) {
++	if (!mapcount && count == 1) {
+ 		if (!list_empty(page_deferred_list(head))) {
+ 			split_queue_len--;
+ 			list_del(page_deferred_list(head));
+@@ -3438,13 +3468,13 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 		spin_unlock(&split_queue_lock);
+ 		__split_huge_page(page, list);
+ 		ret = 0;
+-	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount > count - 1) {
++	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount) {
+ 		spin_unlock(&split_queue_lock);
+ 		pr_alert("total_mapcount: %u, page_count(): %u\n",
+ 				mapcount, count);
+ 		if (PageTail(page))
+ 			dump_page(head, NULL);
+-		dump_page(page, "total_mapcount(head) > page_count(head) - 1");
++		dump_page(page, "total_mapcount(head) > 0");
+ 		BUG();
+ 	} else {
+ 		spin_unlock(&split_queue_lock);
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
