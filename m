@@ -1,87 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F4136828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:36:04 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id b14so361875226wmb.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:36:04 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id cr4si739944wjb.184.2016.01.13.01.36.03
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 810AF828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:40:36 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id l65so285389389wmf.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:40:36 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id g125si2935526wmg.87.2016.01.13.01.40.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 01:36:04 -0800 (PST)
-Received: by mail-wm0-f41.google.com with SMTP id f206so285995140wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:36:03 -0800 (PST)
-Date: Wed, 13 Jan 2016 10:36:02 +0100
+        Wed, 13 Jan 2016 01:40:35 -0800 (PST)
+Received: by mail-wm0-f45.google.com with SMTP id l65so285388884wmf.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:40:35 -0800 (PST)
+Date: Wed, 13 Jan 2016 10:40:34 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 2/3] oom: Do not sacrifice already OOM killed children
-Message-ID: <20160113093601.GB28942@dhcp22.suse.cz>
+Subject: Re: [RFC 3/3] oom: Do not try to sacrifice small children
+Message-ID: <20160113094034.GC28942@dhcp22.suse.cz>
 References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
- <1452632425-20191-3-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1601121644250.28831@chino.kir.corp.google.com>
+ <1452632425-20191-4-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1601121646410.28831@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1601121644250.28831@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1601121646410.28831@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 12-01-16 16:45:35, David Rientjes wrote:
+On Tue 12-01-16 16:51:43, David Rientjes wrote:
 > On Tue, 12 Jan 2016, Michal Hocko wrote:
 > 
 > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 2b9dc5129a89..8bca0b1e97f7 100644
+> > index 8bca0b1e97f7..b5c0021c6462 100644
 > > --- a/mm/oom_kill.c
 > > +++ b/mm/oom_kill.c
-> > @@ -671,6 +671,63 @@ static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
-> >  }
+> > @@ -721,8 +721,16 @@ try_to_sacrifice_child(struct oom_control *oc, struct task_struct *victim,
+> >  	if (!child_victim)
+> >  		goto out;
 > >  
-> >  #define K(x) ((x) << (PAGE_SHIFT-10))
-> > +
-> > +/*
-> > + * If any of victim's children has a different mm and is eligible for kill,
-> > + * the one with the highest oom_badness() score is sacrificed for its
-> > + * parent.  This attempts to lose the minimal amount of work done while
-> > + * still freeing memory.
-> > + */
-> > +static struct task_struct *
-> > +try_to_sacrifice_child(struct oom_control *oc, struct task_struct *victim,
-> > +		       unsigned long totalpages, struct mem_cgroup *memcg)
-> > +{
-> > +	struct task_struct *child_victim = NULL;
-> > +	unsigned int victim_points = 0;
-> > +	struct task_struct *t;
-> > +
-> > +	read_lock(&tasklist_lock);
-> > +	for_each_thread(victim, t) {
-> > +		struct task_struct *child;
-> > +
-> > +		list_for_each_entry(child, &t->children, sibling) {
-> > +			unsigned int child_points;
-> > +
-> > +			/*
-> > +			 * Skip over already OOM killed children as this hasn't
-> > +			 * helped to resolve the situation obviously.
-> > +			 */
-> > +			if (test_tsk_thread_flag(child, TIF_MEMDIE) ||
-> > +					fatal_signal_pending(child) ||
-> > +					task_will_free_mem(child))
-> > +				continue;
-> > +
+> > -	put_task_struct(victim);
+> > -	victim = child_victim;
+> > +	/*
+> > +	 * Protecting the parent makes sense only if killing the child
+> > +	 * would release at least some memory (at least 1MB).
+> > +	 */
+> > +	if (K(victim_points) >= 1024) {
+> > +		put_task_struct(victim);
+> > +		victim = child_victim;
+> > +	} else {
+> > +		put_task_struct(child_victim);
+> > +	}
+> >  
+> >  out:
+> >  	return victim;
 > 
-> What guarantees that child had time to exit after it has been oom killed 
-> (better yet, what guarantees that it has even scheduled after it has been 
-> oom killed)?  It seems like this would quickly kill many children 
-> unnecessarily.
+> The purpose of sacrificing a child has always been to prevent a process 
+> that has been running with a substantial amount of work done from being 
+> terminated and losing all that work if it can be avoided.  This happens a 
+> lot: imagine a long-living front end client forking a child which simply 
+> collects stats and malloc information at a regular intervals and writes 
+> them out to disk or over the network.  These processes may be quite small, 
+> and we're willing to happily sacrifice them if it will save the parent.  
+> This was, and still is, the intent of the sacrifice in the first place.
 
-If the child hasn't released any memory after all the allocator attempts to
-free a memory, which takes quite some time, then what is the advantage of
-waiting even more and possibly get stuck? This is a heuristic, we should
-have killed the selected victim but we have chosen to reduce the impact by
-selecting the child process instead. If that hasn't led to any
-improvement I believe we should move on rather than looping on
-potentially unresolvable situation _just because_ of the said heuristic.
+Yes I understand the intention of the heuristic. I am just contemplating
+about what is way too small to sacrifice because it clearly doesn't make
+much sense to kill a task which is sitting on basically no memory (well
+just few pages backing page tables and stack) because this would just
+prolong the OOM agony.
+
+> We must be able to deal with oom victims that are very small, since 
+> userspace has complete control in prioritizing these processes in the 
+> first place.
+
+Sure the patch is not great but I would like to come up with some
+threshold when children are way too small to be worthwhile considering.
+Or maybe there is other measure we can use.
+
 -- 
 Michal Hocko
 SUSE Labs
