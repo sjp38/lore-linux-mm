@@ -1,80 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E7CDF828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 03:17:34 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id z14so145439962igp.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 00:17:34 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id n1si3235848igv.86.2016.01.13.00.17.34
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F9A828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:03:24 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id f206so284841040wmf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:03:24 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 71si37430381wmk.60.2016.01.13.01.03.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 00:17:34 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH V2] mm: mempolicy: skip non-migratable VMAs when setting
- MPOL_MF_LAZY
-Date: Wed, 13 Jan 2016 08:16:12 +0000
-Message-ID: <20160113081611.GA29313@hori1.linux.bs1.fc.nec.co.jp>
-References: <1452138758-30031-1-git-send-email-liangchen.linux@gmail.com>
-In-Reply-To: <1452138758-30031-1-git-send-email-liangchen.linux@gmail.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <483ADF7CCFA3D747870627E79CC6B656@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 01:03:23 -0800 (PST)
+Date: Wed, 13 Jan 2016 10:03:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
+Message-ID: <20160113090330.GA14630@quack.suse.cz>
+References: <20160112190903.GA9421@www.outflux.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160112190903.GA9421@www.outflux.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Chen <liangchen.linux@gmail.com>
-Cc: "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Gavin Guo <gavin.guo@canonical.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Liang,
+On Tue 12-01-16 11:09:04, Kees Cook wrote:
+> Normally, when a user can modify a file that has setuid or setgid bits,
+> those bits are cleared when they are not the file owner or a member
+> of the group. This is enforced when using write and truncate but not
+> when writing to a shared mmap on the file. This could allow the file
+> writer to gain privileges by changing a binary without losing the
+> setuid/setgid/caps bits.
+> 
+> Changing the bits requires holding inode->i_mutex, so it cannot be done
+> during the page fault (due to mmap_sem being held during the fault).
+> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
+> or added at mprotect time.
+> 
+> Since we can't do the check in the right place inside mmap (due to
+> holding mmap_sem), we have to do it before holding mmap_sem, which
+> means duplicating some checks, which have to be available to the non-MMU
+> builds too.
+> 
+> When walking VMAs during mprotect, we need to drop mmap_sem (while
+> holding a file reference) and restart the walk after clearing privileges.
 
-On Thu, Jan 07, 2016 at 11:52:38AM +0800, Liang Chen wrote:
-> MPOL_MF_LAZY is not visible from userspace since 'commit a720094ded8c
-> ("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")=
-'
-> , but it should still skip non-migratable VMAs such as VM_IO, VM_PFNMAP,
-> and VM_HUGETLB VMAs, and avoid useless overhead of minor faults.
->=20
-> Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
-> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
-> ---
-> Changes since v2:
-> - Add more description into the changelog
->=20
-> We have been evaluating the enablement of MPOL_MF_LAZY again, and found
-> this issue. And we decided to push this patch upstream no matter if we
-> finally determine to propose re-enablement of MPOL_MF_LAZY or not. Since
-> it can be a potential problem even if MPOL_MF_LAZY is not enabled this
-> time.
-> ---
->  mm/mempolicy.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->=20
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 87a1779..436ff411 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -610,7 +610,8 @@ static int queue_pages_test_walk(unsigned long start,=
- unsigned long end,
-> =20
->  	if (flags & MPOL_MF_LAZY) {
->  		/* Similar to task_numa_work, skip inaccessible VMAs */
-> -		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
-> +		if (vma_migratable(vma) &&
-> +			vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
->  			change_prot_numa(vma, start, endvma);
->  		return 1;
->  	}
+...
 
-task_numa_work() does more vma checks before entering change_prot_numa() li=
-ke
-vma_policy_mof(), is_vm_hugetlb_page(), and (vma->vm_flags & VM_MIXEDMAP).
-So is it better to use the same check set to limit the target vmas to auto-=
-numa
-enabled ones?
+> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+>  
+>  	vm_flags = calc_vm_prot_bits(prot);
+>  
+> +restart:
+>  	down_write(&current->mm->mmap_sem);
+>  
+>  	vma = find_vma(current->mm, start);
+> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+>  			goto out;
+>  		}
+>  
+> +		/*
+> +		 * If we're adding write permissions to a shared file,
+> +		 * we must clear privileges (like done at mmap time),
+> +		 * but we have to juggle the locks to avoid holding
+> +		 * mmap_sem while holding i_mutex.
+> +		 */
+> +		if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
+> +		    (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
+> +		    !IS_NOSEC(file_inode(vma->vm_file))) {
 
-Thanks,
-Naoya Horiguchi=
+This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
+is called. However that is not true for two reasons:
+
+1) When you are root, SUID bit doesn't get cleared and thus you cannot set
+IS_NOSEC.
+
+2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
+never true.
+
+So in these cases you'll loop forever.
+
+You can check SUID bits without i_mutex so that could be done without
+dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
+without i_mutex as that checks extended attributes (IMA) and that needs
+i_mutex to be held to avoid races with someone else changing the attributes
+under you.
+
+Honestly, I don't see a way of implementing this in mprotect() which would
+be reasonably elegant.
+
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
