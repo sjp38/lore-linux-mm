@@ -1,105 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C3B89828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 12:32:48 -0500 (EST)
-Received: by mail-qg0-f50.google.com with SMTP id b35so329803273qge.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 09:32:48 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p8si2289678qgp.99.2016.01.13.09.32.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 09:32:48 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: [PATCH v5 2/2] xen_balloon: support memory auto onlining policy
-Date: Wed, 13 Jan 2016 18:32:30 +0100
-Message-Id: <1452706350-21158-3-git-send-email-vkuznets@redhat.com>
-In-Reply-To: <1452706350-21158-1-git-send-email-vkuznets@redhat.com>
-References: <1452706350-21158-1-git-send-email-vkuznets@redhat.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 18385828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 12:54:01 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id cy9so361923178pac.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 09:54:01 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 63si3266789pfi.202.2016.01.13.09.54.00
+        for <linux-mm@kvack.org>;
+        Wed, 13 Jan 2016 09:54:00 -0800 (PST)
+Date: Wed, 13 Jan 2016 09:53:53 -0800
+From: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Subject: Re: [PATCH v3 22/22] thermal/intel_powerclamp: Convert the kthread
+ to kthread worker API
+Message-ID: <20160113095353.5231c28f@yairi>
+In-Reply-To: <20160113101831.GQ731@pathway.suse.cz>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+	<1447853127-3461-23-git-send-email-pmladek@suse.com>
+	<20160107115531.34279a9b@icelake>
+	<20160108164931.GT3178@pathway.suse.cz>
+	<20160111181718.0ace4a58@yairi>
+	<20160112101129.GN731@pathway.suse.cz>
+	<20160112082021.6a28dc66@icelake>
+	<20160113101831.GQ731@pathway.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, linux-pm@vger.kernel.org, jacob.jun.pan@linux.intel.com
 
-Add support for the newly added kernel memory auto onlining policy to Xen
-ballon driver.
+On Wed, 13 Jan 2016 11:18:31 +0100
+Petr Mladek <pmladek@suse.com> wrote:
 
-Suggested-by: Daniel Kiper <daniel.kiper@oracle.com>
-Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
----
-Changes since v4:
-- 'dom0' -> 'control domain', 'domU' -> 'target domain' in Kconfig
-  [David Vrabel]
-- always call add_memory_resource() with memhp_auto_online [David Vrabel]
----
- drivers/xen/Kconfig   | 20 +++++++++++++-------
- drivers/xen/balloon.c | 11 ++++++++++-
- 2 files changed, 23 insertions(+), 8 deletions(-)
+> > unsigned int __read_mostly freeze_timeout_msecs = 20 *
+> > MSEC_PER_SEC;  
+> 
+> You are right. And it does not make sense to add an extra
+> freezer-specific code if not really necessary.
+> 
+> Otherwise, I will keep the conversion into the kthread worker as is
+> for now. Please, let me know if you are strongly against the split
+> into the two works.
+I am fine with the split now.
 
-diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
-index 73708ac..addcb7f 100644
---- a/drivers/xen/Kconfig
-+++ b/drivers/xen/Kconfig
-@@ -37,23 +37,29 @@ config XEN_BALLOON_MEMORY_HOTPLUG
- 
- 	  Memory could be hotplugged in following steps:
- 
--	    1) dom0: xl mem-max <domU> <maxmem>
-+	    1) target domain: ensure that memory auto online policy is in
-+	       effect by checking /sys/devices/system/memory/auto_online_blocks
-+	       file (should be 'online').
-+
-+	    2) control domain: xl mem-max <target-domain> <maxmem>
- 	       where <maxmem> is >= requested memory size,
- 
--	    2) dom0: xl mem-set <domU> <memory>
-+	    3) control domain: xl mem-set <target-domain> <memory>
- 	       where <memory> is requested memory size; alternatively memory
- 	       could be added by writing proper value to
- 	       /sys/devices/system/xen_memory/xen_memory0/target or
- 	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
- 
--	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
--	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
-+	  Alternatively, if memory auto onlining was not requested at step 1
-+	  the newly added memory can be manually onlined in the target domain
-+	  by doing the following:
- 
--	  Memory could be onlined automatically on domU by adding following line to udev rules:
-+		for i in /sys/devices/system/memory/memory*/state; do \
-+		  [ "`cat "$i"`" = offline ] && echo online > "$i"; done
- 
--	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
-+	  or by adding the following line to udev rules:
- 
--	  In that case step 3 should be omitted.
-+	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
- 
- config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
- 	int "Hotplugged memory limit (in GiB) for a PV guest"
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 890c3b5..f8cca0c 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -338,7 +338,16 @@ static enum bp_state reserve_additional_memory(void)
- 	}
- #endif
- 
--	rc = add_memory_resource(nid, resource, false);
-+	/*
-+	 * add_memory_resource() will call online_pages() which in its turn
-+	 * will call xen_online_page() callback causing deadlock if we don't
-+	 * release balloon_mutex here. Unlocking here is safe because the
-+	 * callers drop the mutex before trying again.
-+	 */
-+	mutex_unlock(&balloon_mutex);
-+	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	mutex_lock(&balloon_mutex);
-+
- 	if (rc) {
- 		pr_warn("Cannot add additional memory (%i)\n", rc);
- 		goto err;
--- 
-2.5.0
+Another question, are you planning to convert acpi_pad.c as well? It
+uses kthread similar way.
+
+
+Jacob
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
