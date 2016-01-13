@@ -1,54 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 903E26B026A
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:52:24 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id n128so79553274pfn.3
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:52:24 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u16si1273128pfa.225.2016.01.13.02.52.23
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C78716B026B
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:53:55 -0500 (EST)
+Received: by mail-qk0-f180.google.com with SMTP id q19so211030380qke.3
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:53:55 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i131si797461qhi.26.2016.01.13.02.53.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 02:52:23 -0800 (PST)
-Subject: Re: [PATCH v2] mm,oom: Exclude TIF_MEMDIE processes from candidates.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201601072231.DGG78695.OOFVLHJFFQOStM@I-love.SAKURA.ne.jp>
-	<20160107145841.GN27868@dhcp22.suse.cz>
-	<20160107154436.GO27868@dhcp22.suse.cz>
-	<201601081909.CDJ52685.HLFOFJFOQMVOtS@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1601121626310.28831@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1601121626310.28831@chino.kir.corp.google.com>
-Message-Id: <201601131952.HAJ18298.OQLtSOFOFFMVJH@I-love.SAKURA.ne.jp>
-Date: Wed, 13 Jan 2016 19:52:08 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jan 2016 02:53:55 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [Xen-devel] [PATCH v4 2/2] xen_balloon: support memory auto onlining policy
+References: <1452617777-10598-1-git-send-email-vkuznets@redhat.com>
+	<1452617777-10598-3-git-send-email-vkuznets@redhat.com>
+	<56953A18.2070407@citrix.com>
+Date: Wed, 13 Jan 2016 11:53:47 +0100
+In-Reply-To: <56953A18.2070407@citrix.com> (David Vrabel's message of "Tue, 12
+	Jan 2016 17:38:32 +0000")
+Message-ID: <87k2nd698k.fsf@vitty.brq.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Kay Sievers <kay@vrfy.org>, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, xen-devel@lists.xenproject.org, Igor Mammedov <imammedo@redhat.com>, David Rientjes <rientjes@google.com>, Xishi Qiu <qiuxishi@huawei.com>, Dan Williams <dan.j.williams@intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
 
-David Rientjes wrote:
-> > @@ -171,7 +195,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-> >  	if (oom_unkillable_task(p, memcg, nodemask))
-> >  		return 0;
-> > 
-> > -	p = find_lock_task_mm(p);
-> > +	p = find_lock_non_victim_task_mm(p);
-> >  	if (!p)
-> >  		return 0;
-> > 
-> 
-> I understand how this may make your test case pass, but I simply don't 
-> understand how this could possibly be the correct thing to do.  This would 
-> cause oom_badness() to return 0 for any process where a thread has 
-> TIF_MEMDIE set.  If the oom killer is called from the page allocator, 
-> kills a thread, and it is recalled before that thread may exit, then this 
-> will panic the system if there are no other eligible processes to kill.
-> 
-Why? oom_badness() is called after oom_scan_process_thread() returned OOM_SCAN_OK.
-oom_scan_process_thread() returns OOM_SCAN_ABORT if a thread has TIF_MEMDIE set.
+David Vrabel <david.vrabel@citrix.com> writes:
 
-If the TIF_MEMDIE thread already exited, find_lock_non_victim_task_mm() acts like
-find_lock_task_mm(). Otherwise, oom_scan_process_thread() acts like a blocker.
+> On 12/01/16 16:56, Vitaly Kuznetsov wrote:
+>> Add support for the newly added kernel memory auto onlining policy to Xen
+>> ballon driver.
+> [...]
+>> --- a/drivers/xen/Kconfig
+>> +++ b/drivers/xen/Kconfig
+>> @@ -37,23 +37,29 @@ config XEN_BALLOON_MEMORY_HOTPLUG
+>>  
+>>  	  Memory could be hotplugged in following steps:
+>>  
+>> -	    1) dom0: xl mem-max <domU> <maxmem>
+>> +	    1) domU: ensure that memory auto online policy is in effect by
+>> +	       checking /sys/devices/system/memory/auto_online_blocks file
+>> +	       (should be 'online').
+>
+> Step 1 applies to dom0 and domUs.
+>
+
+domU here (even before my patch) rather means 'the domain we're trying
+to add memory to', not sure how to work it shorter. What about 'target
+domain'?
+
+>> --- a/drivers/xen/balloon.c
+>> +++ b/drivers/xen/balloon.c
+>> @@ -284,7 +284,7 @@ static void release_memory_resource(struct resource *resource)
+>>  	kfree(resource);
+>>  }
+>>  
+>> -static enum bp_state reserve_additional_memory(void)
+>> +static enum bp_state reserve_additional_memory(bool online)
+>>  {
+>>  	long credit;
+>>  	struct resource *resource;
+>> @@ -338,7 +338,18 @@ static enum bp_state reserve_additional_memory(void)
+>>  	}
+>>  #endif
+>>  
+>> -	rc = add_memory_resource(nid, resource, false);
+>> +	/*
+>> +	 * add_memory_resource() will call online_pages() which in its turn
+>> +	 * will call xen_online_page() callback causing deadlock if we don't
+>> +	 * release balloon_mutex here. It is safe because there can only be
+>> +	 * one balloon_process() running at a time and balloon_mutex is
+>> +	 * internal to Xen driver, generic memory hotplug code doesn't mess
+>> +	 * with it.
+>
+> There are multiple callers of reserve_additional_memory() and these are
+> not all serialized via the balloon process.  Replace the "It is safe..."
+> sentence with:
+>
+> "Unlocking here is safe because the callers drop the mutex before trying
+> again."
+>
+>> +	 */
+>> +	mutex_unlock(&balloon_mutex);
+>> +	rc = add_memory_resource(nid, resource, online);
+>
+> This should always be memhp_auto_online, because...
+>
+>> @@ -562,14 +573,11 @@ static void balloon_process(struct work_struct *work)
+>>  
+>>  		credit = current_credit();
+>>  
+>> -		if (credit > 0) {
+>> -			if (balloon_is_inflated())
+>> -				state = increase_reservation(credit);
+>> -			else
+>> -				state = reserve_additional_memory();
+>> -		}
+>> -
+>> -		if (credit < 0)
+>> +		if (credit > 0 && balloon_is_inflated())
+>> +			state = increase_reservation(credit);
+>> +		else if (credit > 0)
+>> +			state = reserve_additional_memory(memhp_auto_online);
+>> +		else if (credit < 0)
+>>  			state = decrease_reservation(-credit, GFP_BALLOON);
+>
+> I'd have preferred this refactored as:
+>
+> if (credit > 0) {
+>     if (balloon_is_inflated())
+
+That's what we had before and what caused the
+'reserve_additional_memory' line to become > 80 chars after adding a
+parameter. But as we'll be always calling add_memory_resource() with
+'memhp_auto_online' the parameter is redundant and we can keep things as
+they are.
+
+>         ...
+>     else
+>         ...
+> } else if (credit < 0) {
+>     ...
+> }
+
+>>  
+>>  		state = update_schedule(state);
+>> @@ -599,7 +607,7 @@ static int add_ballooned_pages(int nr_pages)
+>>  	enum bp_state st;
+>>  
+>>  	if (xen_hotplug_unpopulated) {
+>> -		st = reserve_additional_memory();
+>> +		st = reserve_additional_memory(false);
+>
+> ... we want to auto-online this memory as well.
+>
+>>  		if (st != BP_ECANCELED) {
+>>  			mutex_unlock(&balloon_mutex);
+>>  			wait_event(balloon_wq,
+>> 
+
+-- 
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
