@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A5DA26B0268
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:18:36 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id f206so287530568wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:18:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y18si1006505wjw.104.2016.01.13.02.18.35
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 22DCF828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:26:54 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id b35so320576745qge.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:26:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b23si705277qhc.14.2016.01.13.02.26.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Jan 2016 02:18:35 -0800 (PST)
-Date: Wed, 13 Jan 2016 11:18:31 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v3 22/22] thermal/intel_powerclamp: Convert the kthread
- to kthread worker API
-Message-ID: <20160113101831.GQ731@pathway.suse.cz>
-References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
- <1447853127-3461-23-git-send-email-pmladek@suse.com>
- <20160107115531.34279a9b@icelake>
- <20160108164931.GT3178@pathway.suse.cz>
- <20160111181718.0ace4a58@yairi>
- <20160112101129.GN731@pathway.suse.cz>
- <20160112082021.6a28dc66@icelake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jan 2016 02:26:53 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH v2 2/2] memory-hotplug: keep the request_resource() error code
+References: <1451924251-4189-1-git-send-email-vkuznets@redhat.com>
+	<1451924251-4189-3-git-send-email-vkuznets@redhat.com>
+	<alpine.DEB.2.10.1601121520530.28831@chino.kir.corp.google.com>
+Date: Wed, 13 Jan 2016 11:26:47 +0100
+In-Reply-To: <alpine.DEB.2.10.1601121520530.28831@chino.kir.corp.google.com>
+	(David Rientjes's message of "Tue, 12 Jan 2016 15:25:05 -0800 (PST)")
+Message-ID: <87si216ahk.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160112082021.6a28dc66@icelake>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jacob Pan <jacob.jun.pan@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, linux-pm@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>
 
-On Tue 2016-01-12 08:20:21, Jacob Pan wrote:
-> On Tue, 12 Jan 2016 11:11:29 +0100
-> Petr Mladek <pmladek@suse.com> wrote:
-> 
-> > > > BTW: I wonder if the original code correctly handle freezing after
-> > > > the schedule_timeout(). It does not call try_to_freeze()
-> > > > there and the forced idle states might block freezing.
-> > > > I think that the small overhead of kthread works is worth
-> > > > solving such bugs. It makes it easier to maintain these
-> > > > sleeping states.  
-> > > it is in a while loop, so try_to_freeze() gets called. Am I missing
-> > > something?  
-> > 
-> > But it might take some time until try_to_freeze() is called.
-> > If I get it correctly. try_to_freeze_tasks() wakes freezable
-> > tasks to get them into the fridge. If clamp_thread() is waken
-> > from that schedule_timeout_interruptible(), it still might inject
-> > the idle state before calling try_to_freeze(). It means that freezer
-> > needs to wait "quite" some time until the kthread ends up in the
-> > fridge.
-> > 
-> > Hmm, even my conversion does not solve this entirely. We might
-> > need to call freezing(current) in the
-> > 
-> >    while (time_before(jiffies, target_jiffies)) {
-> > 
-> > cycle. And break injecting the idle state when freezing is requested.
-> 
-> The injection time for each period is very short, default 6ms. While on
-> the other side the default freeze timeout is 20 sec. So I think task
-> freeze can wait :)
-> i.e.
-> unsigned int __read_mostly freeze_timeout_msecs = 20 * MSEC_PER_SEC;
+David Rientjes <rientjes@google.com> writes:
 
-You are right. And it does not make sense to add an extra
-freezer-specific code if not really necessary.
+> On Mon, 4 Jan 2016, Vitaly Kuznetsov wrote:
+>
+>> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+>> index 6b0d3ef..e367e4b 100644
+>> --- a/drivers/acpi/acpi_memhotplug.c
+>> +++ b/drivers/acpi/acpi_memhotplug.c
+>> @@ -232,10 +232,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+>>  
+>>  		/*
+>>  		 * If the memory block has been used by the kernel, add_memory()
+>> -		 * returns -EEXIST. If add_memory() returns the other error, it
+>> +		 * returns -EBUSY. If add_memory() returns the other error, it
+>>  		 * means that this memory block is not used by the kernel.
+>>  		 */
+>> -		if (result && result != -EEXIST)
+>> +		if (result && result != -EBUSY)
+>>  			continue;
+>>  
+>>  		result = acpi_bind_memory_blocks(info, mem_device->device);
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 92f9595..07eab2c 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -130,6 +130,7 @@ void mem_hotplug_done(void)
+>>  static struct resource *register_memory_resource(u64 start, u64 size)
+>>  {
+>>  	struct resource *res;
+>> +	int ret;
+>>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+>>  	if (!res)
+>>  		return ERR_PTR(-ENOMEM);
+>> @@ -138,10 +139,11 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+>>  	res->start = start;
+>>  	res->end = start + size - 1;
+>>  	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+>> -	if (request_resource(&iomem_resource, res) < 0) {
+>> +	ret = request_resource(&iomem_resource, res);
+>> +	if (ret < 0) {
+>>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>>  		kfree(res);
+>> -		return ERR_PTR(-EEXIST);
+>> +		return ERR_PTR(ret);
+>>  	}
+>>  	return res;
+>>  }
+>
+> The result of this change is that add_memory() returns -EBUSY instead of 
+> -EEXIST for overlapping ranges.  This patch breaks hv_mem_hot_add() since 
+> it strictly uses a return value of -EEXIST to indicate a non-transient 
+> failure, so NACK.
 
-Otherwise, I will keep the conversion into the kthread worker as is
-for now. Please, let me know if you are strongly against the split
-into the two works.
+While this is shameful but fixable ...
 
+> It also changes the return value of both the "probe" 
+> and "dlpar" (on ppc) userspace triggers, which I could imagine is tested 
+> from existing userspace scripts.
 
-Best Regards,
-Petr
+this is probably a show-stopper as we're bound by "we don't break
+userspace" rule (and it's not worth it anyway). Thanks for pointing this
+out!
+
+Andrew, please drop this patch from your queue permanently. The patch 1
+of the series is worthwhile (and is acked by David).
+
+Thanks,
+
+-- 
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
