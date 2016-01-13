@@ -1,108 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D8AA2828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:09:11 -0500 (EST)
-Received: by mail-io0-f177.google.com with SMTP id g73so228044178ioe.3
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:09:11 -0800 (PST)
-Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
-        by mx.google.com with ESMTPS id d126si5873822iod.35.2016.01.13.08.09.11
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B1B63828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:26:13 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id u188so305023847wmu.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:26:13 -0800 (PST)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id eg8si3016808wjd.210.2016.01.13.08.26.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 08:09:11 -0800 (PST)
-Received: by mail-io0-x22e.google.com with SMTP id q21so422902149iod.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:09:11 -0800 (PST)
+        Wed, 13 Jan 2016 08:26:12 -0800 (PST)
+Received: by mail-wm0-f44.google.com with SMTP id u188so305023235wmu.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:26:12 -0800 (PST)
+Date: Wed, 13 Jan 2016 17:26:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
+Message-ID: <20160113162610.GD17512@dhcp22.suse.cz>
+References: <201601072026.JCJ95845.LHQOFOOSMFtVFJ@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1601121717220.17063@chino.kir.corp.google.com>
+ <201601132111.GIG81705.LFOOHFOtQJSMVF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20160113090330.GA14630@quack.suse.cz>
-References: <20160112190903.GA9421@www.outflux.net>
-	<20160113090330.GA14630@quack.suse.cz>
-Date: Wed, 13 Jan 2016 08:09:10 -0800
-Message-ID: <CAGXu5jLWk5ymWKYAaW+uQX-5SWQkFmCjesH_H=LPKwX=UVL5oQ@mail.gmail.com>
-Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201601132111.GIG81705.LFOOHFOtQJSMVF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 13, 2016 at 1:03 AM, Jan Kara <jack@suse.cz> wrote:
-> On Tue 12-01-16 11:09:04, Kees Cook wrote:
->> Normally, when a user can modify a file that has setuid or setgid bits,
->> those bits are cleared when they are not the file owner or a member
->> of the group. This is enforced when using write and truncate but not
->> when writing to a shared mmap on the file. This could allow the file
->> writer to gain privileges by changing a binary without losing the
->> setuid/setgid/caps bits.
->>
->> Changing the bits requires holding inode->i_mutex, so it cannot be done
->> during the page fault (due to mmap_sem being held during the fault).
->> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
->> or added at mprotect time.
->>
->> Since we can't do the check in the right place inside mmap (due to
->> holding mmap_sem), we have to do it before holding mmap_sem, which
->> means duplicating some checks, which have to be available to the non-MMU
->> builds too.
->>
->> When walking VMAs during mprotect, we need to drop mmap_sem (while
->> holding a file reference) and restart the walk after clearing privileges.
->
-> ...
->
->> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>
->>       vm_flags = calc_vm_prot_bits(prot);
->>
->> +restart:
->>       down_write(&current->mm->mmap_sem);
->>
->>       vma = find_vma(current->mm, start);
->> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>                       goto out;
->>               }
->>
->> +             /*
->> +              * If we're adding write permissions to a shared file,
->> +              * we must clear privileges (like done at mmap time),
->> +              * but we have to juggle the locks to avoid holding
->> +              * mmap_sem while holding i_mutex.
->> +              */
->> +             if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
->> +                 (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
->> +                 !IS_NOSEC(file_inode(vma->vm_file))) {
->
-> This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
-> is called. However that is not true for two reasons:
->
-> 1) When you are root, SUID bit doesn't get cleared and thus you cannot set
-> IS_NOSEC.
->
-> 2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
-> never true.
->
-> So in these cases you'll loop forever.
+On Wed 13-01-16 21:11:30, Tetsuo Handa wrote:
+[...]
+> Those who use panic_on_oom = 1 expect that the system triggers kernel panic
+> rather than stall forever. This is a translation of administrator's wish that
+> "Please press SysRq-c on behalf of me if the memory exhausted. In that way,
+> I don't need to stand by in front of the console twenty-four seven."
+> 
+> Those who use panic_on_oom = 0 expect that the OOM killer solves OOM condition
+> rather than stall forever. This is a translation of administrator's wish that
+> "Please press SysRq-f on behalf of me if the memory exhausted. In that way,
+> I don't need to stand by in front of the console twenty-four seven."
 
-UUuugh.
+I think you are missing an important point. There is _no reliable_ way
+to resolve the OOM condition in general except to panic the system. Even
+killing all user space tasks might not be sufficient in general because
+they might be blocked by an unkillable context (e.g. kernel thread).
+So if you need a reliable behavior then either use panic_on_oom=1 or
+provide a measure to panic after fixed timeout if the OOM cannot get
+resolved. We have seen patches in that regards but there was no general
+interest in them to merge them.
 
->
-> You can check SUID bits without i_mutex so that could be done without
-> dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
-> without i_mutex as that checks extended attributes (IMA) and that needs
-> i_mutex to be held to avoid races with someone else changing the attributes
-> under you.
-
-Yeah, that's why I changed this from Konstantin's original suggestion.
-
-> Honestly, I don't see a way of implementing this in mprotect() which would
-> be reasonably elegant.
-
-Konstantin, any thoughts here?
-
--Kees
+All we can do is a best effort approach which tries to be optimized to
+reduce the impact of an unexpected SIGKILL sent to a "random" task. And
+this is a reasonable objective IMHO. This works well in 99% of cases.
+You can argue you do care about that 1% and I sympathy with you but
+steps to mitigate those shouldn't involve steps which bring another
+level of non-determinism into an already complicated system. This was
+the biggest issue of the early OOM killer.
 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
