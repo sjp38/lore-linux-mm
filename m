@@ -1,126 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1596B0268
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 10:50:57 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id f206so301381124wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 07:50:57 -0800 (PST)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id t63si39722427wmd.18.2016.01.13.07.50.56
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D8AA2828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 11:09:11 -0500 (EST)
+Received: by mail-io0-f177.google.com with SMTP id g73so228044178ioe.3
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:09:11 -0800 (PST)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id d126si5873822iod.35.2016.01.13.08.09.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 07:50:56 -0800 (PST)
-Received: by mail-wm0-f47.google.com with SMTP id l65so299071625wmf.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 07:50:56 -0800 (PST)
-Date: Wed, 13 Jan 2016 16:50:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: +
- mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim.patch
- added to -mm tree
-Message-ID: <20160113155054.GC17512@dhcp22.suse.cz>
-References: <56956f40.G6t/WcHKY0Tf6XKS%akpm@linux-foundation.org>
+        Wed, 13 Jan 2016 08:09:11 -0800 (PST)
+Received: by mail-io0-x22e.google.com with SMTP id q21so422902149iod.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 08:09:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56956f40.G6t/WcHKY0Tf6XKS%akpm@linux-foundation.org>
+In-Reply-To: <20160113090330.GA14630@quack.suse.cz>
+References: <20160112190903.GA9421@www.outflux.net>
+	<20160113090330.GA14630@quack.suse.cz>
+Date: Wed, 13 Jan 2016 08:09:10 -0800
+Message-ID: <CAGXu5jLWk5ymWKYAaW+uQX-5SWQkFmCjesH_H=LPKwX=UVL5oQ@mail.gmail.com>
+Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, andrea@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, riel@redhat.com, rientjes@google.com, sasha.levin@oracle.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Thanks for having this separately. I agree with David that this is
-_safer_ to route in the same series with the oom reaper but I guess the
-risk to have it separare is quite low if measurable at all.
-
-On Tue 12-01-16 13:25:20, Andrew Morton wrote:
-[...]
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm/oom_kill.c: don't skip PF_EXITING tasks when searching for a victim
-> 
-> When the OOM killer scans tasks and encounters a PF_EXITING one, it
-> force-selects that one regardless of the score. Is there a possibility
-> that the task might hang after it has set PF_EXITING?  In that case the
-> OOM killer should be able to move on to the next task.
+On Wed, Jan 13, 2016 at 1:03 AM, Jan Kara <jack@suse.cz> wrote:
+> On Tue 12-01-16 11:09:04, Kees Cook wrote:
+>> Normally, when a user can modify a file that has setuid or setgid bits,
+>> those bits are cleared when they are not the file owner or a member
+>> of the group. This is enforced when using write and truncate but not
+>> when writing to a shared mmap on the file. This could allow the file
+>> writer to gain privileges by changing a binary without losing the
+>> setuid/setgid/caps bits.
+>>
+>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+>> during the page fault (due to mmap_sem being held during the fault).
+>> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
+>> or added at mprotect time.
+>>
+>> Since we can't do the check in the right place inside mmap (due to
+>> holding mmap_sem), we have to do it before holding mmap_sem, which
+>> means duplicating some checks, which have to be available to the non-MMU
+>> builds too.
+>>
+>> When walking VMAs during mprotect, we need to drop mmap_sem (while
+>> holding a file reference) and restart the walk after clearing privileges.
 >
-> Frankly, I don't even know why we check for exiting tasks in the OOM
-> killer.  We've tried direct reclaim at least 15 times by the time we
-> decide the system is OOM, there was plenty of time to exit and free
-> memory; and a task might exit voluntarily right after we issue a kill. 
-> This is testing pure noise.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Andrea Argangeli <andrea@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ...
+>
+>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+>>
+>>       vm_flags = calc_vm_prot_bits(prot);
+>>
+>> +restart:
+>>       down_write(&current->mm->mmap_sem);
+>>
+>>       vma = find_vma(current->mm, start);
+>> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+>>                       goto out;
+>>               }
+>>
+>> +             /*
+>> +              * If we're adding write permissions to a shared file,
+>> +              * we must clear privileges (like done at mmap time),
+>> +              * but we have to juggle the locks to avoid holding
+>> +              * mmap_sem while holding i_mutex.
+>> +              */
+>> +             if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
+>> +                 (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
+>> +                 !IS_NOSEC(file_inode(vma->vm_file))) {
+>
+> This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
+> is called. However that is not true for two reasons:
+>
+> 1) When you are root, SUID bit doesn't get cleared and thus you cannot set
+> IS_NOSEC.
+>
+> 2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
+> never true.
+>
+> So in these cases you'll loop forever.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+UUuugh.
 
-> ---
-> 
->  mm/oom_kill.c |    3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff -puN mm/oom_kill.c~mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim mm/oom_kill.c
-> --- a/mm/oom_kill.c~mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim
-> +++ a/mm/oom_kill.c
-> @@ -292,9 +292,6 @@ enum oom_scan_t oom_scan_process_thread(
->  	if (oom_task_origin(task))
->  		return OOM_SCAN_SELECT;
->  
-> -	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
-> -		return OOM_SCAN_ABORT;
-> -
->  	return OOM_SCAN_OK;
->  }
->  
-> _
-> 
-> Patches currently in -mm which might be from hannes@cmpxchg.org are
-> 
-> mm-page_alloc-generalize-the-dirty-balance-reserve.patch
-> proc-meminfo-estimate-available-memory-more-conservatively.patch
-> mm-memcontrol-export-root_mem_cgroup.patch
-> net-tcp_memcontrol-properly-detect-ancestor-socket-pressure.patch
-> net-tcp_memcontrol-remove-bogus-hierarchy-pressure-propagation.patch
-> net-tcp_memcontrol-protect-all-tcp_memcontrol-calls-by-jump-label.patch
-> net-tcp_memcontrol-remove-dead-per-memcg-count-of-allocated-sockets.patch
-> net-tcp_memcontrol-simplify-the-per-memcg-limit-access.patch
-> net-tcp_memcontrol-sanitize-tcp-memory-accounting-callbacks.patch
-> net-tcp_memcontrol-simplify-linkage-between-socket-and-page-counter.patch
-> net-tcp_memcontrol-simplify-linkage-between-socket-and-page-counter-fix.patch
-> mm-memcontrol-generalize-the-socket-accounting-jump-label.patch
-> mm-memcontrol-do-not-account-memoryswap-on-unified-hierarchy.patch
-> mm-memcontrol-move-socket-code-for-unified-hierarchy-accounting.patch
-> mm-memcontrol-account-socket-memory-in-unified-hierarchy-memory-controller.patch
-> mm-memcontrol-hook-up-vmpressure-to-socket-pressure.patch
-> mm-memcontrol-switch-to-the-updated-jump-label-api.patch
-> mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim.patch
-> mm-memcontrol-drop-unused-css-argument-in-memcg_init_kmem.patch
-> mm-memcontrol-remove-double-kmem-page_counter-init.patch
-> mm-memcontrol-give-the-kmem-states-more-descriptive-names.patch
-> mm-memcontrol-group-kmem-init-and-exit-functions-together.patch
-> mm-memcontrol-separate-kmem-code-from-legacy-tcp-accounting-code.patch
-> mm-memcontrol-move-kmem-accounting-code-to-config_memcg.patch
-> mm-memcontrol-move-kmem-accounting-code-to-config_memcg-v2.patch
-> mm-memcontrol-move-kmem-accounting-code-to-config_memcg-fix.patch
-> mm-memcontrol-account-kmem-consumers-in-cgroup2-memory-controller.patch
-> mm-memcontrol-introduce-config_memcg_legacy_kmem.patch
-> mm-memcontrol-reign-in-the-config-space-madness.patch
-> mm-memcontrol-flatten-struct-cg_proto.patch
-> mm-memcontrol-clean-up-alloc-online-offline-free-functions.patch
-> mm-memcontrol-clean-up-alloc-online-offline-free-functions-fix.patch
-> 
+>
+> You can check SUID bits without i_mutex so that could be done without
+> dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
+> without i_mutex as that checks extended attributes (IMA) and that needs
+> i_mutex to be held to avoid races with someone else changing the attributes
+> under you.
+
+Yeah, that's why I changed this from Konstantin's original suggestion.
+
+> Honestly, I don't see a way of implementing this in mprotect() which would
+> be reasonably elegant.
+
+Konstantin, any thoughts here?
+
+-Kees
 
 -- 
-Michal Hocko
-SUSE Labs
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
