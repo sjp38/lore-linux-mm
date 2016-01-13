@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9895B828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 12:02:53 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id f206so382144095wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 09:02:53 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id mo12si3208073wjc.138.2016.01.13.09.02.51
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C5805828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 12:32:40 -0500 (EST)
+Received: by mail-qg0-f43.google.com with SMTP id e32so371225988qgf.3
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 09:32:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e67si2295740qkb.67.2016.01.13.09.32.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 09:02:51 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id b14so37999001wmb.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 09:02:51 -0800 (PST)
-Date: Wed, 13 Jan 2016 18:02:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 7/7] Documentation: cgroup: add
- memory.swap.{current,max} description
-Message-ID: <20160113170250.GK17512@dhcp22.suse.cz>
-References: <cover.1450352791.git.vdavydov@virtuozzo.com>
- <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <dbb4bf6bc071997982855c8f7d403c22cea60ffb.1450352792.git.vdavydov@virtuozzo.com>
+        Wed, 13 Jan 2016 09:32:39 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: [PATCH v5 0/2] memory-hotplug: add automatic onlining policy for the newly added memory
+Date: Wed, 13 Jan 2016 18:32:28 +0100
+Message-Id: <1452706350-21158-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
 
-On Thu 17-12-15 15:30:00, Vladimir Davydov wrote:
-> The rationale of separate swap counter is given by Johannes Weiner.
->
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Changes since v4:
+Patch 1:
+- Use memory_block_change_state() through walk_memory_range() instead of
+  online_pages() to correctly handle possible failures [David Rientjes]
+- Minor memory-hotplug.txt changes (keep the old title, explicitly word
+  that we have a global policy here) [David Rientjes, Daniel Kiper]
+Patch2:
+- 'dom0' -> 'control domain', 'domU' -> 'target domain' in Kconfig
+  [David Vrabel]
+- always call add_memory_resource() with memhp_auto_online [David Vrabel]
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Original description:
 
-> ---
-> Changes in v2:
->  - Add rationale of separate swap counter provided by Johannes.
-> 
->  Documentation/cgroup.txt | 33 +++++++++++++++++++++++++++++++++
+Currently, all newly added memory blocks remain in 'offline' state unless
+someone onlines them, some linux distributions carry special udev rules
+like:
 
-this went to Documentation/cgroup-v2.txt with the latest Tejun's pull
-request.
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
 
->  1 file changed, 33 insertions(+)
-> 
-> diff --git a/Documentation/cgroup.txt b/Documentation/cgroup.txt
-> index 31d1f7bf12a1..f441564023e1 100644
-> --- a/Documentation/cgroup.txt
-> +++ b/Documentation/cgroup.txt
-> @@ -819,6 +819,22 @@ PAGE_SIZE multiple when read back.
->  		the cgroup.  This may not exactly match the number of
->  		processes killed but should generally be close.
->  
-> +  memory.swap.current
-> +
-> +	A read-only single value file which exists on non-root
-> +	cgroups.
-> +
-> +	The total amount of swap currently being used by the cgroup
-> +	and its descendants.
-> +
-> +  memory.swap.max
-> +
-> +	A read-write single value file which exists on non-root
-> +	cgroups.  The default is "max".
-> +
-> +	Swap usage hard limit.  If a cgroup's swap usage reaches this
-> +	limit, anonymous meomry of the cgroup will not be swapped out.
-> +
->  
->  5-2-2. General Usage
->  
-> @@ -1291,3 +1307,20 @@ allocation from the slack available in other groups or the rest of the
->  system than killing the group.  Otherwise, memory.max is there to
->  limit this type of spillover and ultimately contain buggy or even
->  malicious applications.
-> +
-> +The combined memory+swap accounting and limiting is replaced by real
-> +control over swap space.
-> +
-> +The main argument for a combined memory+swap facility in the original
-> +cgroup design was that global or parental pressure would always be
-> +able to swap all anonymous memory of a child group, regardless of the
-> +child's own (possibly untrusted) configuration.  However, untrusted
-> +groups can sabotage swapping by other means - such as referencing its
-> +anonymous memory in a tight loop - and an admin can not assume full
-> +swappability when overcommitting untrusted jobs.
-> +
-> +For trusted jobs, on the other hand, a combined counter is not an
-> +intuitive userspace interface, and it flies in the face of the idea
-> +that cgroup controllers should account and limit specific physical
-> +resources.  Swap space is a resource like all others in the system,
-> +and that's why unified hierarchy allows distributing it separately.
-> -- 
-> 2.1.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+to make this happen automatically. This is not a great solution for virtual
+machines where memory hotplug is being used to address high memory pressure
+situations as such onlining is slow and a userspace process doing this
+(udev) has a chance of being killed by the OOM killer as it will probably
+require to allocate some memory.
+
+Introduce default policy for the newly added memory blocks in
+/sys/devices/system/memory/auto_online_blocks file with two possible
+values: "offline" which preserves the current behavior and "online" which
+causes all newly added memory blocks to go online as soon as they're added.
+The default is "offline".
+
+Vitaly Kuznetsov (2):
+  memory-hotplug: add automatic onlining policy for the newly added
+    memory
+  xen_balloon: support memory auto onlining policy
+
+ Documentation/memory-hotplug.txt | 20 +++++++++++++++++---
+ drivers/base/memory.c            | 34 +++++++++++++++++++++++++++++++++-
+ drivers/xen/Kconfig              | 20 +++++++++++++-------
+ drivers/xen/balloon.c            | 11 ++++++++++-
+ include/linux/memory.h           |  3 +++
+ include/linux/memory_hotplug.h   |  4 +++-
+ mm/memory_hotplug.c              | 17 +++++++++++++++--
+ 7 files changed, 94 insertions(+), 15 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
