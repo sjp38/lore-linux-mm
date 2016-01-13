@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 22DCF828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:26:54 -0500 (EST)
-Received: by mail-qg0-f44.google.com with SMTP id b35so320576745qge.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:26:54 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b23si705277qhc.14.2016.01.13.02.26.53
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 903E26B026A
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 05:52:24 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id n128so79553274pfn.3
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 02:52:24 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u16si1273128pfa.225.2016.01.13.02.52.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 02:26:53 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [PATCH v2 2/2] memory-hotplug: keep the request_resource() error code
-References: <1451924251-4189-1-git-send-email-vkuznets@redhat.com>
-	<1451924251-4189-3-git-send-email-vkuznets@redhat.com>
-	<alpine.DEB.2.10.1601121520530.28831@chino.kir.corp.google.com>
-Date: Wed, 13 Jan 2016 11:26:47 +0100
-In-Reply-To: <alpine.DEB.2.10.1601121520530.28831@chino.kir.corp.google.com>
-	(David Rientjes's message of "Tue, 12 Jan 2016 15:25:05 -0800 (PST)")
-Message-ID: <87si216ahk.fsf@vitty.brq.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 02:52:23 -0800 (PST)
+Subject: Re: [PATCH v2] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201601072231.DGG78695.OOFVLHJFFQOStM@I-love.SAKURA.ne.jp>
+	<20160107145841.GN27868@dhcp22.suse.cz>
+	<20160107154436.GO27868@dhcp22.suse.cz>
+	<201601081909.CDJ52685.HLFOFJFOQMVOtS@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1601121626310.28831@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1601121626310.28831@chino.kir.corp.google.com>
+Message-Id: <201601131952.HAJ18298.OQLtSOFOFFMVJH@I-love.SAKURA.ne.jp>
+Date: Wed, 13 Jan 2016 19:52:08 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dan Williams <dan.j.williams@intel.com>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>
+To: rientjes@google.com
+Cc: mhocko@kernel.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-David Rientjes <rientjes@google.com> writes:
+David Rientjes wrote:
+> > @@ -171,7 +195,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> >  	if (oom_unkillable_task(p, memcg, nodemask))
+> >  		return 0;
+> > 
+> > -	p = find_lock_task_mm(p);
+> > +	p = find_lock_non_victim_task_mm(p);
+> >  	if (!p)
+> >  		return 0;
+> > 
+> 
+> I understand how this may make your test case pass, but I simply don't 
+> understand how this could possibly be the correct thing to do.  This would 
+> cause oom_badness() to return 0 for any process where a thread has 
+> TIF_MEMDIE set.  If the oom killer is called from the page allocator, 
+> kills a thread, and it is recalled before that thread may exit, then this 
+> will panic the system if there are no other eligible processes to kill.
+> 
+Why? oom_badness() is called after oom_scan_process_thread() returned OOM_SCAN_OK.
+oom_scan_process_thread() returns OOM_SCAN_ABORT if a thread has TIF_MEMDIE set.
 
-> On Mon, 4 Jan 2016, Vitaly Kuznetsov wrote:
->
->> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
->> index 6b0d3ef..e367e4b 100644
->> --- a/drivers/acpi/acpi_memhotplug.c
->> +++ b/drivers/acpi/acpi_memhotplug.c
->> @@ -232,10 +232,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->>  
->>  		/*
->>  		 * If the memory block has been used by the kernel, add_memory()
->> -		 * returns -EEXIST. If add_memory() returns the other error, it
->> +		 * returns -EBUSY. If add_memory() returns the other error, it
->>  		 * means that this memory block is not used by the kernel.
->>  		 */
->> -		if (result && result != -EEXIST)
->> +		if (result && result != -EBUSY)
->>  			continue;
->>  
->>  		result = acpi_bind_memory_blocks(info, mem_device->device);
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 92f9595..07eab2c 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -130,6 +130,7 @@ void mem_hotplug_done(void)
->>  static struct resource *register_memory_resource(u64 start, u64 size)
->>  {
->>  	struct resource *res;
->> +	int ret;
->>  	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
->>  	if (!res)
->>  		return ERR_PTR(-ENOMEM);
->> @@ -138,10 +139,11 @@ static struct resource *register_memory_resource(u64 start, u64 size)
->>  	res->start = start;
->>  	res->end = start + size - 1;
->>  	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
->> -	if (request_resource(&iomem_resource, res) < 0) {
->> +	ret = request_resource(&iomem_resource, res);
->> +	if (ret < 0) {
->>  		pr_debug("System RAM resource %pR cannot be added\n", res);
->>  		kfree(res);
->> -		return ERR_PTR(-EEXIST);
->> +		return ERR_PTR(ret);
->>  	}
->>  	return res;
->>  }
->
-> The result of this change is that add_memory() returns -EBUSY instead of 
-> -EEXIST for overlapping ranges.  This patch breaks hv_mem_hot_add() since 
-> it strictly uses a return value of -EEXIST to indicate a non-transient 
-> failure, so NACK.
-
-While this is shameful but fixable ...
-
-> It also changes the return value of both the "probe" 
-> and "dlpar" (on ppc) userspace triggers, which I could imagine is tested 
-> from existing userspace scripts.
-
-this is probably a show-stopper as we're bound by "we don't break
-userspace" rule (and it's not worth it anyway). Thanks for pointing this
-out!
-
-Andrew, please drop this patch from your queue permanently. The patch 1
-of the series is worthwhile (and is acked by David).
-
-Thanks,
-
--- 
-  Vitaly
+If the TIF_MEMDIE thread already exited, find_lock_non_victim_task_mm() acts like
+find_lock_task_mm(). Otherwise, oom_scan_process_thread() acts like a blocker.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
