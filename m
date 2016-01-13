@@ -1,130 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 246DE828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 03:15:25 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id yy13so261856909pab.3
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 00:15:25 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id cm4si367293pad.81.2016.01.13.00.15.24
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E7CDF828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 03:17:34 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id z14so145439962igp.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 00:17:34 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id n1si3235848igv.86.2016.01.13.00.17.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 00:15:24 -0800 (PST)
-Date: Wed, 13 Jan 2016 09:14:57 +0100
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [Xen-devel] [PATCH v4 2/2] xen_balloon: support memory auto
- onlining policy
-Message-ID: <20160113081457.GX3485@olila.local.net-space.pl>
-References: <1452617777-10598-1-git-send-email-vkuznets@redhat.com>
- <1452617777-10598-3-git-send-email-vkuznets@redhat.com>
- <56953A18.2070407@citrix.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 00:17:34 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH V2] mm: mempolicy: skip non-migratable VMAs when setting
+ MPOL_MF_LAZY
+Date: Wed, 13 Jan 2016 08:16:12 +0000
+Message-ID: <20160113081611.GA29313@hori1.linux.bs1.fc.nec.co.jp>
+References: <1452138758-30031-1-git-send-email-liangchen.linux@gmail.com>
+In-Reply-To: <1452138758-30031-1-git-send-email-liangchen.linux@gmail.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <483ADF7CCFA3D747870627E79CC6B656@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56953A18.2070407@citrix.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david.vrabel@citrix.com, vkuznets@redhat.com
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kay Sievers <kay@vrfy.org>, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, xen-devel@lists.xenproject.org, Igor Mammedov <imammedo@redhat.com>, David Rientjes <rientjes@google.com>, Xishi Qiu <qiuxishi@huawei.com>, Dan Williams <dan.j.williams@intel.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+To: Liang Chen <liangchen.linux@gmail.com>
+Cc: "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Gavin Guo <gavin.guo@canonical.com>
 
-On Tue, Jan 12, 2016 at 05:38:32PM +0000, David Vrabel wrote:
-> On 12/01/16 16:56, Vitaly Kuznetsov wrote:
-> > Add support for the newly added kernel memory auto onlining policy to Xen
-> > ballon driver.
-> [...]
-> > --- a/drivers/xen/Kconfig
-> > +++ b/drivers/xen/Kconfig
-> > @@ -37,23 +37,29 @@ config XEN_BALLOON_MEMORY_HOTPLUG
-> >
-> >  	  Memory could be hotplugged in following steps:
-> >
-> > -	    1) dom0: xl mem-max <domU> <maxmem>
-> > +	    1) domU: ensure that memory auto online policy is in effect by
-> > +	       checking /sys/devices/system/memory/auto_online_blocks file
-> > +	       (should be 'online').
->
-> Step 1 applies to dom0 and domUs.
->
-> > --- a/drivers/xen/balloon.c
-> > +++ b/drivers/xen/balloon.c
-> > @@ -284,7 +284,7 @@ static void release_memory_resource(struct resource *resource)
-> >  	kfree(resource);
-> >  }
-> >
-> > -static enum bp_state reserve_additional_memory(void)
-> > +static enum bp_state reserve_additional_memory(bool online)
-> >  {
-> >  	long credit;
-> >  	struct resource *resource;
-> > @@ -338,7 +338,18 @@ static enum bp_state reserve_additional_memory(void)
-> >  	}
-> >  #endif
-> >
-> > -	rc = add_memory_resource(nid, resource, false);
-> > +	/*
-> > +	 * add_memory_resource() will call online_pages() which in its turn
-> > +	 * will call xen_online_page() callback causing deadlock if we don't
-> > +	 * release balloon_mutex here. It is safe because there can only be
-> > +	 * one balloon_process() running at a time and balloon_mutex is
-> > +	 * internal to Xen driver, generic memory hotplug code doesn't mess
-> > +	 * with it.
->
-> There are multiple callers of reserve_additional_memory() and these are
-> not all serialized via the balloon process.  Replace the "It is safe..."
-> sentence with:
->
-> "Unlocking here is safe because the callers drop the mutex before trying
-> again."
->
-> > +	 */
-> > +	mutex_unlock(&balloon_mutex);
-> > +	rc = add_memory_resource(nid, resource, online);
->
-> This should always be memhp_auto_online, because...
->
-> > @@ -562,14 +573,11 @@ static void balloon_process(struct work_struct *work)
-> >
-> >  		credit = current_credit();
-> >
-> > -		if (credit > 0) {
-> > -			if (balloon_is_inflated())
-> > -				state = increase_reservation(credit);
-> > -			else
-> > -				state = reserve_additional_memory();
-> > -		}
-> > -
-> > -		if (credit < 0)
-> > +		if (credit > 0 && balloon_is_inflated())
-> > +			state = increase_reservation(credit);
-> > +		else if (credit > 0)
-> > +			state = reserve_additional_memory(memhp_auto_online);
-> > +		else if (credit < 0)
-> >  			state = decrease_reservation(-credit, GFP_BALLOON);
->
-> I'd have preferred this refactored as:
->
-> if (credit > 0) {
->     if (balloon_is_inflated())
->         ...
->     else
->         ...
-> } else if (credit < 0) {
->     ...
-> }
-> >
-> >  		state = update_schedule(state);
-> > @@ -599,7 +607,7 @@ static int add_ballooned_pages(int nr_pages)
-> >  	enum bp_state st;
-> >
-> >  	if (xen_hotplug_unpopulated) {
-> > -		st = reserve_additional_memory();
-> > +		st = reserve_additional_memory(false);
->
-> ... we want to auto-online this memory as well.
+Hello Liang,
 
-Ugh... It looks that David is right. So, please forget everything which
-I said about reserve_additional_memory() earlier. Sorry for confusion.
+On Thu, Jan 07, 2016 at 11:52:38AM +0800, Liang Chen wrote:
+> MPOL_MF_LAZY is not visible from userspace since 'commit a720094ded8c
+> ("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")=
+'
+> , but it should still skip non-migratable VMAs such as VM_IO, VM_PFNMAP,
+> and VM_HUGETLB VMAs, and avoid useless overhead of minor faults.
+>=20
+> Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
+> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
+> ---
+> Changes since v2:
+> - Add more description into the changelog
+>=20
+> We have been evaluating the enablement of MPOL_MF_LAZY again, and found
+> this issue. And we decided to push this patch upstream no matter if we
+> finally determine to propose re-enablement of MPOL_MF_LAZY or not. Since
+> it can be a potential problem even if MPOL_MF_LAZY is not enabled this
+> time.
+> ---
+>  mm/mempolicy.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+>=20
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 87a1779..436ff411 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -610,7 +610,8 @@ static int queue_pages_test_walk(unsigned long start,=
+ unsigned long end,
+> =20
+>  	if (flags & MPOL_MF_LAZY) {
+>  		/* Similar to task_numa_work, skip inaccessible VMAs */
+> -		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
+> +		if (vma_migratable(vma) &&
+> +			vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
+>  			change_prot_numa(vma, start, endvma);
+>  		return 1;
+>  	}
 
-Daniel
+task_numa_work() does more vma checks before entering change_prot_numa() li=
+ke
+vma_policy_mof(), is_vm_hugetlb_page(), and (vma->vm_flags & VM_MIXEDMAP).
+So is it better to use the same check set to limit the target vmas to auto-=
+numa
+enabled ones?
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
