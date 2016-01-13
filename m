@@ -1,85 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 810AF828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:40:36 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l65so285389389wmf.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:40:36 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id g125si2935526wmg.87.2016.01.13.01.40.35
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C65936B0267
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 04:44:03 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id b14so362207257wmb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:44:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r62si37565001wmg.121.2016.01.13.01.44.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 01:40:35 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id l65so285388884wmf.1
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 01:40:35 -0800 (PST)
-Date: Wed, 13 Jan 2016 10:40:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 3/3] oom: Do not try to sacrifice small children
-Message-ID: <20160113094034.GC28942@dhcp22.suse.cz>
-References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
- <1452632425-20191-4-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1601121646410.28831@chino.kir.corp.google.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 01:44:02 -0800 (PST)
+Date: Wed, 13 Jan 2016 10:44:11 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8 4/9] dax: support dirty DAX entries in radix tree
+Message-ID: <20160113094411.GA17057@quack.suse.cz>
+References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1452230879-18117-5-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1601121646410.28831@chino.kir.corp.google.com>
+In-Reply-To: <1452230879-18117-5-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-On Tue 12-01-16 16:51:43, David Rientjes wrote:
-> On Tue, 12 Jan 2016, Michal Hocko wrote:
+On Thu 07-01-16 22:27:54, Ross Zwisler wrote:
+> Add support for tracking dirty DAX entries in the struct address_space
+> radix tree.  This tree is already used for dirty page writeback, and it
+> already supports the use of exceptional (non struct page*) entries.
 > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 8bca0b1e97f7..b5c0021c6462 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -721,8 +721,16 @@ try_to_sacrifice_child(struct oom_control *oc, struct task_struct *victim,
-> >  	if (!child_victim)
-> >  		goto out;
-> >  
-> > -	put_task_struct(victim);
-> > -	victim = child_victim;
-> > +	/*
-> > +	 * Protecting the parent makes sense only if killing the child
-> > +	 * would release at least some memory (at least 1MB).
-> > +	 */
-> > +	if (K(victim_points) >= 1024) {
-> > +		put_task_struct(victim);
-> > +		victim = child_victim;
-> > +	} else {
-> > +		put_task_struct(child_victim);
-> > +	}
-> >  
-> >  out:
-> >  	return victim;
+> In order to properly track dirty DAX pages we will insert new exceptional
+> entries into the radix tree that represent dirty DAX PTE or PMD pages.
+> These exceptional entries will also contain the writeback sectors for the
+> PTE or PMD faults that we can use at fsync/msync time.
 > 
-> The purpose of sacrificing a child has always been to prevent a process 
-> that has been running with a substantial amount of work done from being 
-> terminated and losing all that work if it can be avoided.  This happens a 
-> lot: imagine a long-living front end client forking a child which simply 
-> collects stats and malloc information at a regular intervals and writes 
-> them out to disk or over the network.  These processes may be quite small, 
-> and we're willing to happily sacrifice them if it will save the parent.  
-> This was, and still is, the intent of the sacrifice in the first place.
+> There are currently two types of exceptional entries (shmem and shadow)
+> that can be placed into the radix tree, and this adds a third.  We rely on
+> the fact that only one type of exceptional entry can be found in a given
+> radix tree based on its usage.  This happens for free with DAX vs shmem but
+> we explicitly prevent shadow entries from being added to radix trees for
+> DAX mappings.
+> 
+> The only shadow entries that would be generated for DAX radix trees would
+> be to track zero page mappings that were created for holes.  These pages
+> would receive minimal benefit from having shadow entries, and the choice
+> to have only one type of exceptional entry in a given radix tree makes the
+> logic simpler both in clear_exceptional_entry() and in the rest of DAX.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
 
-Yes I understand the intention of the heuristic. I am just contemplating
-about what is way too small to sacrifice because it clearly doesn't make
-much sense to kill a task which is sitting on basically no memory (well
-just few pages backing page tables and stack) because this would just
-prolong the OOM agony.
+I have realized there's one issue with this code. See below:
 
-> We must be able to deal with oom victims that are very small, since 
-> userspace has complete control in prioritizing these processes in the 
-> first place.
+> @@ -34,31 +35,39 @@ static void clear_exceptional_entry(struct address_space *mapping,
+>  		return;
+>  
+>  	spin_lock_irq(&mapping->tree_lock);
+> -	/*
+> -	 * Regular page slots are stabilized by the page lock even
+> -	 * without the tree itself locked.  These unlocked entries
+> -	 * need verification under the tree lock.
+> -	 */
+> -	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
+> -		goto unlock;
+> -	if (*slot != entry)
+> -		goto unlock;
+> -	radix_tree_replace_slot(slot, NULL);
+> -	mapping->nrshadows--;
+> -	if (!node)
+> -		goto unlock;
+> -	workingset_node_shadows_dec(node);
+> -	/*
+> -	 * Don't track node without shadow entries.
+> -	 *
+> -	 * Avoid acquiring the list_lru lock if already untracked.
+> -	 * The list_empty() test is safe as node->private_list is
+> -	 * protected by mapping->tree_lock.
+> -	 */
+> -	if (!workingset_node_shadows(node) &&
+> -	    !list_empty(&node->private_list))
+> -		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+> -	__radix_tree_delete_node(&mapping->page_tree, node);
+> +
+> +	if (dax_mapping(mapping)) {
+> +		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
+> +			mapping->nrexceptional--;
 
-Sure the patch is not great but I would like to come up with some
-threshold when children are way too small to be worthwhile considering.
-Or maybe there is other measure we can use.
+So when you punch hole in a file, you can delete a PMD entry from a radix
+tree which covers part of the file which still stays. So in this case you
+have to split the PMD entry into PTE entries (probably that needs to happen
+up in truncate_inode_pages_range()) or something similar...
 
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
