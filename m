@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CAFB828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 23:40:12 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id f206so323866097wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 20:40:12 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id mo12si6758750wjc.138.2016.01.13.20.40.10
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jan 2016 20:40:10 -0800 (PST)
-Date: Thu, 14 Jan 2016 05:39:56 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
-Message-ID: <20160114043956.GA8496@pd.tnic>
-References: <CA+8MBbL5Cwxjr_vtfE5n+XHPknFK4QMC3QNwaif5RvWo-eZATQ@mail.gmail.com>
- <CALCETrVQ_NxcnDr4N-VqROrMJ2hUzMKgmxjxAZu9TFbznqSDcg@mail.gmail.com>
- <CA+8MBbLUtVh3E4RqcHbZ165v+fURGYPm=ejOn2cOPq012BwLSg@mail.gmail.com>
- <CAPcyv4hAenpeqPsj7Rd0Un_SgDpm+CjqH3EK72ho-=zZFvG7wA@mail.gmail.com>
- <CALCETrVRgaWS86wq4B6oZbEY5_ODb3Nh5OeE9vvdGdds6j_pYg@mail.gmail.com>
- <CAPcyv4iCbp0oR_V+XCTduLd1t2UxyFwaoJVk0_vwk8aO2Uh=bQ@mail.gmail.com>
- <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
- <20160110112635.GC22896@pd.tnic>
- <20160111104425.GA29448@gmail.com>
- <CA+8MBbJpFWdkwC-yvmDFdFuLrchv2-XhPd3fk8A_hqOOyzm5og@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CA+8MBbJpFWdkwC-yvmDFdFuLrchv2-XhPd3fk8A_hqOOyzm5og@mail.gmail.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DE1E5828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 00:24:26 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id uo6so354974671pac.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 21:24:26 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id 29si6901299pfk.107.2016.01.13.21.24.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jan 2016 21:24:26 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id gi1so35229176pac.2
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 21:24:26 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 00/16] mm/slab: introduce new freed objects management way, OBJFREELIST_SLAB
+Date: Thu, 14 Jan 2016 14:24:13 +0900
+Message-Id: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 13, 2016 at 03:22:58PM -0800, Tony Luck wrote:
-> Are there some examples of synthetic CPUID bits?
+Hello,
 
-X86_FEATURE_ALWAYS is one. The others got renamed into X86_BUG_* ones,
-the remaining mechanism is the same, though.
+This patchset implements new freed object management way, that is,
+OBJFREELIST_SLAB. Purpose of it is to reduce memory overhead in SLAB.
+
+SLAB needs a array to manage freed objects in a slab. If there is
+leftover after objects are packed into a slab, we can use it as
+a management array, and, in this case, there is no memory waste.
+But, in the other cases, we need to allocate extra memory for
+a management array or utilize dedicated internal memory in a slab for it.
+Both cases causes memory waste so it's not good.
+
+With this patchset, freed object itself can be used for a management
+array. So, memory waste could be reduced. Detailed idea and numbers
+are described in last patch's commit description. Please refer it.
+
+In fact, I tested another idea implementing OBJFREELIST_SLAB with
+extendable linked array through another freed object. It can remove
+memory waste completely but it causes more computational overhead
+in critical lock path and it seems that overhead outweigh benefit.
+So, this patchset doesn't include it. I will attach prototype just for
+a reference.
+
+This patchset is based on next-20151231.
+
+Thanks.
+
+Joonsoo Kim (16):
+  mm/slab: fix stale code comment
+  mm/slab: remove useless structure define
+  mm/slab: remove the checks for slab implementation bug
+  mm/slab: activate debug_pagealloc in SLAB when it is actually enabled
+  mm/slab: use more appropriate condition check for debug_pagealloc
+  mm/slab: clean-up DEBUG_PAGEALLOC processing code
+  mm/slab: alternative implementation for DEBUG_SLAB_LEAK
+  mm/slab: remove object status buffer for DEBUG_SLAB_LEAK
+  mm/slab: put the freelist at the end of slab page
+  mm/slab: align cache size first before determination of OFF_SLAB
+    candidate
+  mm/slab: clean-up cache type determination
+  mm/slab: do not change cache size if debug pagealloc isn't possible
+  mm/slab: make criteria for off slab determination robust and simple
+  mm/slab: factor out slab list fixup code
+  mm/slab: factor out debugging initialization in cache_init_objs()
+  mm/slab: introduce new slab management type, OBJFREELIST_SLAB
+
+ include/linux/slab_def.h |   3 +
+ mm/slab.c                | 620 ++++++++++++++++++++++++++---------------------
+ 2 files changed, 350 insertions(+), 273 deletions(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
