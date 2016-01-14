@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A53F2828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 10:23:44 -0500 (EST)
-Received: by mail-io0-f174.google.com with SMTP id g73so261840110ioe.3
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:23:44 -0800 (PST)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id g74si13391766ioi.70.2016.01.14.07.23.44
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D8471828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 10:26:38 -0500 (EST)
+Received: by mail-ig0-f181.google.com with SMTP id mw1so171153775igb.1
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:26:38 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id sd6si13345282igb.19.2016.01.14.07.26.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jan 2016 07:23:44 -0800 (PST)
-Date: Thu, 14 Jan 2016 09:23:43 -0600 (CST)
+        Thu, 14 Jan 2016 07:26:38 -0800 (PST)
+Date: Thu, 14 Jan 2016 09:26:37 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 03/16] mm/slab: remove the checks for slab implementation
- bug
-In-Reply-To: <1452749069-15334-4-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.20.1601140923150.2145@east.gentwo.org>
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 09/16] mm/slab: put the freelist at the end of slab
+ page
+In-Reply-To: <1452749069-15334-10-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.20.1601140924520.2145@east.gentwo.org>
+References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-10-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,12 +24,24 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
 On Thu, 14 Jan 2016, Joonsoo Kim wrote:
 
-> Some of "#if DEBUG" are for reporting slab implementation bug
-> rather than user usecase bug. It's not really needed because slab
-> is stable for a quite long time and it makes code too dirty. This
-> patch remove it.
+> Currently, the freelist is at the front of slab page. This requires
+> extra space to meet object alignment requirement. If we put the freelist
+> at the end of slab page, object could start at page boundary and will
+> be at correct alignment. This is possible because freelist has
+> no alignment constraint itself.
+>
+> This gives us two benefits. It removes extra memory space
+> for the freelist alignment and remove complex calculation
+> at cache initialization step. I can't think notable drawback here.
 
-Maybe better convert them to VM_BUG_ON() or so?
+
+The third one is that the padding space at the end of the slab could
+actually be used for the freelist if it fits.
+
+The drawback may be that the location of the freelist at the beginning of
+the page is more cache effective because the cache prefetcher may be able
+to get the following cachelines and effectively hit the first object.
+However, this is rather dubious speculation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
