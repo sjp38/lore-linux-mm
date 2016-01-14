@@ -1,93 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BA62D828DF
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 22:49:57 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id e65so92548369pfe.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 19:49:57 -0800 (PST)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id a76si6398417pfj.116.2016.01.13.19.49.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 19:49:56 -0800 (PST)
-Received: by mail-pf0-x233.google.com with SMTP id 65so92296140pff.2
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 19:49:56 -0800 (PST)
-Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
- <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
- <5679ACE9.70701@labbott.name>
- <CAGXu5jJQKaA1qgLEV9vXEVH4QBC__Vg141BX22ZsZzW6p9yk4Q@mail.gmail.com>
- <568C8741.4040709@labbott.name>
- <alpine.DEB.2.20.1601071020570.28979@east.gentwo.org>
- <568F0F75.4090101@labbott.name>
- <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org>
-From: Laura Abbott <laura@labbott.name>
-Message-ID: <56971AE1.1020706@labbott.name>
-Date: Wed, 13 Jan 2016 19:49:53 -0800
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CAFB828DF
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2016 23:40:12 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id f206so323866097wmf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 20:40:12 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id mo12si6758750wjc.138.2016.01.13.20.40.10
+        for <linux-mm@kvack.org>;
+        Wed, 13 Jan 2016 20:40:10 -0800 (PST)
+Date: Thu, 14 Jan 2016 05:39:56 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
+Message-ID: <20160114043956.GA8496@pd.tnic>
+References: <CA+8MBbL5Cwxjr_vtfE5n+XHPknFK4QMC3QNwaif5RvWo-eZATQ@mail.gmail.com>
+ <CALCETrVQ_NxcnDr4N-VqROrMJ2hUzMKgmxjxAZu9TFbznqSDcg@mail.gmail.com>
+ <CA+8MBbLUtVh3E4RqcHbZ165v+fURGYPm=ejOn2cOPq012BwLSg@mail.gmail.com>
+ <CAPcyv4hAenpeqPsj7Rd0Un_SgDpm+CjqH3EK72ho-=zZFvG7wA@mail.gmail.com>
+ <CALCETrVRgaWS86wq4B6oZbEY5_ODb3Nh5OeE9vvdGdds6j_pYg@mail.gmail.com>
+ <CAPcyv4iCbp0oR_V+XCTduLd1t2UxyFwaoJVk0_vwk8aO2Uh=bQ@mail.gmail.com>
+ <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
+ <20160110112635.GC22896@pd.tnic>
+ <20160111104425.GA29448@gmail.com>
+ <CA+8MBbJpFWdkwC-yvmDFdFuLrchv2-XhPd3fk8A_hqOOyzm5og@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CA+8MBbJpFWdkwC-yvmDFdFuLrchv2-XhPd3fk8A_hqOOyzm5og@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Kees Cook <keescook@chromium.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Tony Luck <tony.luck@gmail.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On 1/8/16 6:07 AM, Christoph Lameter wrote:
-> On Thu, 7 Jan 2016, Laura Abbott wrote:
->
->> The slub_debug=P not only poisons it enables other consistency checks on the
->> slab as well, assuming my understanding of what check_object does is correct.
->> My hope was to have the poison part only and none of the consistency checks in
->> an attempt to mitigate performance issues. I misunderstood when the checks
->> actually run and how SLUB_DEBUG was used.
->
-> Ok I see that there pointer check is done without checking the
-> corresponding debug flag. Patch attached thar fixes it.
->
->> Another option would be to have a flag like SLAB_NO_SANITY_CHECK.
->> sanitization enablement would just be that and SLAB_POISON
->> in the debug options. The disadvantage to this approach would be losing
->> the sanitization for ->ctor caches (the grsecurity version works around this
->> by re-initializing with ->ctor, I haven't heard any feedback if this actually
->> acceptable) and not having some of the fast paths enabled
->> (assuming I'm understanding the code path correctly.) which would also
->> be a performance penalty
->
-> I think we simply need to fix the missing check there. There is already a
-> flag SLAB_DEBUG_FREE for the pointer checks.
->
->
+On Wed, Jan 13, 2016 at 03:22:58PM -0800, Tony Luck wrote:
+> Are there some examples of synthetic CPUID bits?
 
-The patch improves performance but the overall performance of these full
-sanitization patches is still significantly better than slub_debug=P. I'll
-put some effort into seeing if I can figure out where the slow down is
-coming from.
+X86_FEATURE_ALWAYS is one. The others got renamed into X86_BUG_* ones,
+the remaining mechanism is the same, though.
 
-Thanks,
-Laura
+-- 
+Regards/Gruss,
+    Boris.
 
->
-> Subject: slub: Only perform pointer checks in check_object when SLAB_DEBUG_FREE is set
->
-> Seems that check_object() always checks for pointer issues currently.
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
->
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c
-> +++ linux/mm/slub.c
-> @@ -848,6 +848,9 @@ static int check_object(struct kmem_cach
->   		 */
->   		return 1;
->
-> +	if (!(s->flags & SLAB_DEBUG_FREE))
-> +		return 1;
-> +
->   	/* Check free pointer validity */
->   	if (!check_valid_pointer(s, page, get_freepointer(s, p))) {
->   		object_err(s, page, p, "Freepointer corrupt");
->
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
