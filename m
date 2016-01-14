@@ -1,157 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 462F0828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 17:58:28 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id e65so107220380pfe.0
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 14:58:28 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id fi15si11944339pac.191.2016.01.14.14.58.27
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C049F828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 17:59:33 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id f206so365618554wmf.0
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 14:59:33 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id x5si12869071wja.161.2016.01.14.14.59.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jan 2016 14:58:27 -0800 (PST)
-Received: by mail-pa0-x22e.google.com with SMTP id uo6so368607164pac.1
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 14:58:27 -0800 (PST)
-Date: Thu, 14 Jan 2016 14:58:25 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] mm, oom: rework oom detection
-In-Reply-To: <1450203586-10959-2-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1601141436410.22665@chino.kir.corp.google.com>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <1450203586-10959-2-git-send-email-mhocko@kernel.org>
+        Thu, 14 Jan 2016 14:59:32 -0800 (PST)
+Date: Thu, 14 Jan 2016 17:58:50 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
+Message-ID: <20160114225850.GA23382@cmpxchg.org>
+References: <alpine.DEB.2.10.1601121717220.17063@chino.kir.corp.google.com>
+ <201601132111.GIG81705.LFOOHFOtQJSMVF@I-love.SAKURA.ne.jp>
+ <20160113162610.GD17512@dhcp22.suse.cz>
+ <20160113165609.GA21950@cmpxchg.org>
+ <20160113180147.GL17512@dhcp22.suse.cz>
+ <201601142026.BHI87005.FSOFJVFQMtHOOL@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1601141400170.16227@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1601141400170.16227@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 15 Dec 2015, Michal Hocko wrote:
+On Thu, Jan 14, 2016 at 02:01:45PM -0800, David Rientjes wrote:
+> On Thu, 14 Jan 2016, Tetsuo Handa wrote:
+> > I know. What I'm proposing is try to recover by killing more OOM-killable
+> > tasks because I think impact of crashing the kernel is larger than impact
+> > of killing all OOM-killable tasks. We should at least try OOM-kill all
+> > OOM-killable processes before crashing the kernel. Some servers take many
+> > minutes to reboot whereas restarting OOM-killed services takes only a few
+> > seconds. Also, SysRq-i is inconvenient because it kills OOM-unkillable ssh
+> > daemon process.
+> 
+> This is where me and you disagree; the goal should not be to continue to 
+> oom kill more and more processes since there is no guarantee that further 
+> kills will result in forward progress.  These additional kills can result 
+> in the same livelock that is already problematic, and killing additional 
+> processes has made the situation worse since memory reserves are more 
+> depleted.
+> 
+> I believe what is better is to exhaust reclaim, check if the page 
+> allocator is constantly looping due to waiting for the same victim to 
+> exit, and then allowing that allocation with memory reserves, see the 
+> attached patch which I have proposed before.
 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 457181844b6e..738ae2206635 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -316,6 +316,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
->  						struct vm_area_struct *vma);
->  
->  /* linux/mm/vmscan.c */
-> +extern unsigned long zone_reclaimable_pages(struct zone *zone);
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
->  extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index e267faad4649..f77e283fb8c6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2984,6 +2984,75 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
->  	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
->  }
->  
-> +/*
-> + * Maximum number of reclaim retries without any progress before OOM killer
-> + * is consider as the only way to move forward.
-> + */
-> +#define MAX_RECLAIM_RETRIES 16
-> +
-> +/*
-> + * Checks whether it makes sense to retry the reclaim to make a forward progress
-> + * for the given allocation request.
-> + * The reclaim feedback represented by did_some_progress (any progress during
-> + * the last reclaim round), pages_reclaimed (cumulative number of reclaimed
-> + * pages) and no_progress_loops (number of reclaim rounds without any progress
-> + * in a row) is considered as well as the reclaimable pages on the applicable
-> + * zone list (with a backoff mechanism which is a function of no_progress_loops).
-> + *
-> + * Returns true if a retry is viable or false to enter the oom path.
-> + */
-> +static inline bool
-> +should_reclaim_retry(gfp_t gfp_mask, unsigned order,
-> +		     struct alloc_context *ac, int alloc_flags,
-> +		     bool did_some_progress, unsigned long pages_reclaimed,
-> +		     int no_progress_loops)
-> +{
-> +	struct zone *zone;
-> +	struct zoneref *z;
-> +
-> +	/*
-> +	 * Make sure we converge to OOM if we cannot make any progress
-> +	 * several times in the row.
-> +	 */
-> +	if (no_progress_loops > MAX_RECLAIM_RETRIES)
-> +		return false;
-> +
-> +	/* Do not retry high order allocations unless they are __GFP_REPEAT */
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER) {
-> +		if (!(gfp_mask & __GFP_REPEAT) || pages_reclaimed >= (1<<order))
-> +			return false;
-> +
-> +		if (did_some_progress)
-> +			return true;
-> +	}
-> +
-> +	/*
-> +	 * Keep reclaiming pages while there is a chance this will lead somewhere.
-> +	 * If none of the target zones can satisfy our allocation request even
-> +	 * if all reclaimable pages are considered then we are screwed and have
-> +	 * to go OOM.
-> +	 */
-> +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
-> +		unsigned long available;
-> +
-> +		available = zone_reclaimable_pages(zone);
-> +		available -= DIV_ROUND_UP(no_progress_loops * available, MAX_RECLAIM_RETRIES);
-> +		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
-> +
-> +		/*
-> +		 * Would the allocation succeed if we reclaimed the whole available?
-> +		 */
-> +		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> +				ac->high_zoneidx, alloc_flags, available)) {
-> +			/* Wait for some write requests to complete then retry */
-> +			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
-> +			return true;
-> +		}
-> +	}
+If giving the reserves to another OOM victim is bad, how is giving
+them to the *allocating* task supposed to be better? Which path is
+more likely to release memory? That doesn't seem to follow.
 
-Tetsuo's log of an early oom in this thread shows that this check is 
-wrong.  The allocation in question is an order-2 GFP_KERNEL on a system 
-with only ZONE_DMA and ZONE_DMA32:
+We need to make the OOM killer conclude in a fixed amount of time, no
+matter what happens. If the system is irrecoverably deadlocked on
+memory it needs to panic (and reboot) so we can get on with it. And
+it's silly to panic while there are still killable tasks available.
 
-	zone=DMA32 reclaimable=308907 available=312734 no_progress_loops=0 did_some_progress=50
-	zone=DMA reclaimable=2 available=1728 no_progress_loops=0 did_some_progress=50
-
-and the watermarks:
-
-	Node 0 DMA free:6908kB min:44kB low:52kB high:64kB ...
-	lowmem_reserve[]: 0 1714 1714 1714
-	Node 0 DMA32 free:17996kB min:5172kB low:6464kB high:7756kB  ...
-	lowmem_reserve[]: 0 0 0 0
-
-and the scary thing is that this triggers when no_progress_loops == 0, so 
-this is the first time trying the allocation after progress has been made.
-
-Watermarks clearly indicate that memory is available, the problem is 
-fragmentation for the order-2 allocation.  This is not a situation where 
-we want to immediately call the oom killer to solve since we have no 
-guarantee it is going to free contiguous memory (in fact it wouldn't be 
-used at all for PAGE_ALLOC_COSTLY_ORDER).
-
-There is order-2 memory available however:
-
-	Node 0 DMA32: 1113*4kB (UME) 1400*8kB (UME) 116*16kB (UM) 15*32kB (UM) 1*64kB (M) 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 18052kB
-
-The failure for ZONE_DMA makes sense for the lowmem_reserve ratio, it's 
-oom for this allocation.  ZONE_DMA32 is not, however.
-
-I'm wondering if this has to do with the z->nr_reserved_highatomic 
-estimate.  ZONE_DMA32 present pages is 2080640kB, so this would be limited 
-to 1%, or 20806kB.  That failure would make sense if free is 17996kB.
-
-Tetsuo, would it be possible to try your workload with just this match and 
-also show z->nr_reserved_highatomic?
-
-This patch would need to at least have knowledge of the heuristics used by 
-__zone_watermark_ok() since it's making an inference on reclaimability 
-based on numbers that include pageblocks that are reserved from usage.
+Hence my proposal to wait a decaying amount of time after each OOM
+victim before moving on, until we killed everything in the system and
+panic (and reboot). What else is there we can do once out of memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
