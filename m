@@ -1,39 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC59828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 05:24:39 -0500 (EST)
-Received: by mail-qk0-f176.google.com with SMTP id x1so9261339qkc.1
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 02:24:39 -0800 (PST)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id q143si3923252ywg.258.2016.01.14.02.24.38
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FFC4828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 05:26:35 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id vt7so79370445obb.1
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 02:26:35 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x12si6433046oix.96.2016.01.14.02.26.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 14 Jan 2016 02:24:38 -0800 (PST)
-Message-ID: <56977759.7080806@citrix.com>
-Date: Thu, 14 Jan 2016 10:24:25 +0000
-From: David Vrabel <david.vrabel@citrix.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/2] xen_balloon: support memory auto onlining policy
-References: <1452706350-21158-1-git-send-email-vkuznets@redhat.com>
- <1452706350-21158-3-git-send-email-vkuznets@redhat.com>
-In-Reply-To: <1452706350-21158-3-git-send-email-vkuznets@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jan 2016 02:26:33 -0800 (PST)
+Subject: Re: [PATCH v2] mm,oom: Exclude TIF_MEMDIE processes from candidates.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160107154436.GO27868@dhcp22.suse.cz>
+	<201601081909.CDJ52685.HLFOFJFOQMVOtS@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1601121626310.28831@chino.kir.corp.google.com>
+	<201601131952.HAJ18298.OQLtSOFOFFMVJH@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1601131653420.3847@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1601131653420.3847@chino.kir.corp.google.com>
+Message-Id: <201601141926.JHG56933.OFFHOFOLQMtJSV@I-love.SAKURA.ne.jp>
+Date: Thu, 14 Jan 2016 19:26:19 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org
-Cc: Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan
- Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
+To: rientjes@google.com
+Cc: mhocko@kernel.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 13/01/16 17:32, Vitaly Kuznetsov wrote:
-> Add support for the newly added kernel memory auto onlining policy to Xen
-> ballon driver.
+David Rientjes wrote:
+> On Wed, 13 Jan 2016, Tetsuo Handa wrote:
+> 
+> > David Rientjes wrote:
+> > > > @@ -171,7 +195,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> > > >  	if (oom_unkillable_task(p, memcg, nodemask))
+> > > >  		return 0;
+> > > > 
+> > > > -	p = find_lock_task_mm(p);
+> > > > +	p = find_lock_non_victim_task_mm(p);
+> > > >  	if (!p)
+> > > >  		return 0;
+> > > > 
+> > > 
+> > > I understand how this may make your test case pass, but I simply don't 
+> > > understand how this could possibly be the correct thing to do.  This would 
+> > > cause oom_badness() to return 0 for any process where a thread has 
+> > > TIF_MEMDIE set.  If the oom killer is called from the page allocator, 
+> > > kills a thread, and it is recalled before that thread may exit, then this 
+> > > will panic the system if there are no other eligible processes to kill.
+> > > 
+> > Why? oom_badness() is called after oom_scan_process_thread() returned OOM_SCAN_OK.
+> > oom_scan_process_thread() returns OOM_SCAN_ABORT if a thread has TIF_MEMDIE set.
+> > 
+> 
+> oom_scan_process_thread() checks for TIF_MEMDIE on p, not on p's threads.
+> If one of p's threads has TIF_MEMDIE set and p does not, we actually want 
+> to set TIF_MEMDIE for p.  That's the current behavior since it will lead 
+> to p->mm memory freeing.  Your patch is excluding such processes entirely 
+> and selecting another process to kill unnecessarily.
+> 
 
-Acked-by: David Vrabel <david.vrabel@citrix.com>
+I think p's threads are checked by oom_scan_process_thread() for TIF_MEMDIE
+even if p does not have TIF_MEMDIE. What am I misunderstanding about what
+for_each_process_thread(g, p) is doing?
 
-Thanks.
+  #define for_each_process_thread(p, t) for_each_process(p) for_each_thread(p, t)
 
-David
+  select_bad_process() {
+    for_each_process_thread(g, p) {
+      oom_scan_process_thread(oc, p, totalpages));
+      oom_badness(p);
+    }
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
