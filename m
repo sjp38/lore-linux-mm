@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D8471828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 10:26:38 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id mw1so171153775igb.1
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:26:38 -0800 (PST)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id sd6si13345282igb.19.2016.01.14.07.26.38
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8953C828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 10:32:21 -0500 (EST)
+Received: by mail-io0-f177.google.com with SMTP id 1so409369387ion.1
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:32:21 -0800 (PST)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id c1si9465208igx.104.2016.01.14.07.32.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jan 2016 07:26:38 -0800 (PST)
-Date: Thu, 14 Jan 2016 09:26:37 -0600 (CST)
+        Thu, 14 Jan 2016 07:32:20 -0800 (PST)
+Date: Thu, 14 Jan 2016 09:32:19 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 09/16] mm/slab: put the freelist at the end of slab
- page
-In-Reply-To: <1452749069-15334-10-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.20.1601140924520.2145@east.gentwo.org>
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-10-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 16/16] mm/slab: introduce new slab management type,
+ OBJFREELIST_SLAB
+In-Reply-To: <1452749069-15334-17-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.20.1601140929280.2145@east.gentwo.org>
+References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-17-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,24 +24,23 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
 On Thu, 14 Jan 2016, Joonsoo Kim wrote:
 
-> Currently, the freelist is at the front of slab page. This requires
-> extra space to meet object alignment requirement. If we put the freelist
-> at the end of slab page, object could start at page boundary and will
-> be at correct alignment. This is possible because freelist has
-> no alignment constraint itself.
->
-> This gives us two benefits. It removes extra memory space
-> for the freelist alignment and remove complex calculation
-> at cache initialization step. I can't think notable drawback here.
+> SLAB needs a array to manage freed objects in a slab. It is only used
+> if some objects are freed so we can use free object itself as this array.
+> This requires additional branch in somewhat critical lock path to check
+> if it is first freed object or not but that's all we need. Benefits is
+> that we can save extra memory usage and reduce some computational
+> overhead by allocating a management array when new slab is created.
 
+Hmmm... But then you need to have an offset in the page struct to
+figure out where the freelist starts. One additional level of indirection.
+Seems to have some negative impact on performance.
 
-The third one is that the padding space at the end of the slab could
-actually be used for the freelist if it fits.
+> In my system, without enabling CONFIG_DEBUG_SLAB, Almost caches become
+> OBJFREELIST_SLAB and NORMAL_SLAB (using leftover) which doesn't waste
+> memory. Following is the result of number of caches with specific slab
+> management type.
 
-The drawback may be that the location of the freelist at the beginning of
-the page is more cache effective because the cache prefetcher may be able
-to get the following cachelines and effectively hit the first object.
-However, this is rather dubious speculation.
+Sounds good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
