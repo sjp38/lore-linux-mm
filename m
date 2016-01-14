@@ -1,128 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9025B6B0256
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 02:35:19 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id f206so329765304wmf.0
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 23:35:19 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id o6si7593264wjz.221.2016.01.13.23.35.18
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 64B736B0256
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 02:45:07 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id b14so413537861wmb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 23:45:07 -0800 (PST)
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
+        by mx.google.com with ESMTPS id hw8si7691237wjb.80.2016.01.13.23.45.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jan 2016 23:35:18 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id f206so41426065wmf.2
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2016 23:35:18 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jan 2016 23:45:06 -0800 (PST)
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Thu, 14 Jan 2016 07:45:05 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id D16E6219004D
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:44:51 +0000 (GMT)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0E7j3VO63176822
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:45:03 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0E7j26q013147
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 02:45:02 -0500
+Date: Thu, 14 Jan 2016 08:45:00 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH v5 5/7] s390: mm/gup: add gup trace points
+Message-ID: <20160114074500.GA4073@osiris>
+References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
+ <1449696151-4195-6-git-send-email-yang.shi@linaro.org>
+ <56969389.9060703@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKt4GmOcC9WJyV9sDVOPDG+ViUDWd5PDOjm7Pe0RSLgEg@mail.gmail.com>
-References: <20160112190903.GA9421@www.outflux.net>
-	<20160113090330.GA14630@quack.suse.cz>
-	<CAGXu5jLWk5ymWKYAaW+uQX-5SWQkFmCjesH_H=LPKwX=UVL5oQ@mail.gmail.com>
-	<CALYGNiMg73Zs7eNHvnaqYbW9kbk_r-kmSJj6mqwdhuTbZXSsfw@mail.gmail.com>
-	<CAGXu5jKt4GmOcC9WJyV9sDVOPDG+ViUDWd5PDOjm7Pe0RSLgEg@mail.gmail.com>
-Date: Thu, 14 Jan 2016 10:35:17 +0300
-Message-ID: <CALYGNiNn7m=AS9Zopa1g+TT5key=bEi7pKzGz3LzazQfm28qUw@mail.gmail.com>
-Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56969389.9060703@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: akpm@linux-foundation.org, rostedt@goodmis.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-s390@vger.kernel.org
 
-On Wed, Jan 13, 2016 at 11:33 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Wed, Jan 13, 2016 at 12:23 PM, Konstantin Khlebnikov
-> <koct9i@gmail.com> wrote:
->> On Wed, Jan 13, 2016 at 7:09 PM, Kees Cook <keescook@chromium.org> wrote:
->>> On Wed, Jan 13, 2016 at 1:03 AM, Jan Kara <jack@suse.cz> wrote:
->>>> On Tue 12-01-16 11:09:04, Kees Cook wrote:
->>>>> Normally, when a user can modify a file that has setuid or setgid bits,
->>>>> those bits are cleared when they are not the file owner or a member
->>>>> of the group. This is enforced when using write and truncate but not
->>>>> when writing to a shared mmap on the file. This could allow the file
->>>>> writer to gain privileges by changing a binary without losing the
->>>>> setuid/setgid/caps bits.
->>>>>
->>>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
->>>>> during the page fault (due to mmap_sem being held during the fault).
->>>>> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
->>>>> or added at mprotect time.
->>>>>
->>>>> Since we can't do the check in the right place inside mmap (due to
->>>>> holding mmap_sem), we have to do it before holding mmap_sem, which
->>>>> means duplicating some checks, which have to be available to the non-MMU
->>>>> builds too.
->>>>>
->>>>> When walking VMAs during mprotect, we need to drop mmap_sem (while
->>>>> holding a file reference) and restart the walk after clearing privileges.
->>>>
->>>> ...
->>>>
->>>>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>>>>
->>>>>       vm_flags = calc_vm_prot_bits(prot);
->>>>>
->>>>> +restart:
->>>>>       down_write(&current->mm->mmap_sem);
->>>>>
->>>>>       vma = find_vma(current->mm, start);
->>>>> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>>>>                       goto out;
->>>>>               }
->>>>>
->>>>> +             /*
->>>>> +              * If we're adding write permissions to a shared file,
->>>>> +              * we must clear privileges (like done at mmap time),
->>>>> +              * but we have to juggle the locks to avoid holding
->>>>> +              * mmap_sem while holding i_mutex.
->>>>> +              */
->>>>> +             if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
->>>>> +                 (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
->>>>> +                 !IS_NOSEC(file_inode(vma->vm_file))) {
->>>>
->>>> This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
->>>> is called. However that is not true for two reasons:
->>>>
->>>> 1) When you are root, SUID bit doesn't get cleared and thus you cannot set
->>>> IS_NOSEC.
->>>>
->>>> 2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
->>>> never true.
->>>>
->>>> So in these cases you'll loop forever.
->>>
->>> UUuugh.
->>>
->>>>
->>>> You can check SUID bits without i_mutex so that could be done without
->>>> dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
->>>> without i_mutex as that checks extended attributes (IMA) and that needs
->>>> i_mutex to be held to avoid races with someone else changing the attributes
->>>> under you.
->>>
->>> Yeah, that's why I changed this from Konstantin's original suggestion.
->>>
->>>> Honestly, I don't see a way of implementing this in mprotect() which would
->>>> be reasonably elegant.
->>>
->>> Konstantin, any thoughts here?
->>
->> Getxattr works fine without i_mutex: sys_getxattr/vfs_getxattr doesn't lock it.
->> If somebody changes xattrs under us we'll end up in race anyway.
->> But this still safe: setxattrs are sychronized.
->
-> So I can swap my IS_NOSEC for your original file_needs_remove_privs()?
-> Are the LSM hooks expecting to be called under mm_sem? (Looks like
-> only common_caps implements that, though.)
+On Wed, Jan 13, 2016 at 10:12:25AM -0800, Shi, Yang wrote:
+> Hi folks,
+> 
+> Any comment for this one? The tracing part review has been done.
+> 
+> Thanks,
+> Yang
 
-getxattr should nests inside mmap_sem safely: it has sort of
-"readpage" semantics,
-actually ext4 uses it when inlines content of tiny files into xattr.
+If the rest of this series has been acked by the appropriate maintainers
+please feel free to add an
 
->
-> -Kees
->
-> --
-> Kees Cook
-> Chrome OS & Brillo Security
+Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+
+for this specific patch.
+
+> 
+> On 12/9/2015 1:22 PM, Yang Shi wrote:
+> >Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> >Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> >Cc: linux-s390@vger.kernel.org
+> >Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> >---
+> >  arch/s390/mm/gup.c | 5 +++++
+> >  1 file changed, 5 insertions(+)
+> >
+> >diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
+> >index 12bbf0e..a1d5db7 100644
+> >--- a/arch/s390/mm/gup.c
+> >+++ b/arch/s390/mm/gup.c
+> >@@ -12,6 +12,8 @@
+> >  #include <linux/rwsem.h>
+> >  #include <asm/pgtable.h>
+> >
+> >+#include <trace/events/gup.h>
+> >+
+> >  /*
+> >   * The performance critical leaf functions are made noinline otherwise gcc
+> >   * inlines everything into a single function which results in too much
+> >@@ -188,6 +190,9 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> >  	end = start + len;
+> >  	if ((end <= start) || (end > TASK_SIZE))
+> >  		return 0;
+> >+
+> >+	trace_gup_get_user_pages_fast(start, nr_pages);
+> >+
+> >  	/*
+> >  	 * local_irq_save() doesn't prevent pagetable teardown, but does
+> >  	 * prevent the pagetables from being freed on s390.
+> >
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
