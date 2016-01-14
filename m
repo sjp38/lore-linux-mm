@@ -1,66 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E727828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 09:40:20 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id h5so129200358igh.0
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 06:40:20 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0147.hostedemail.com. [216.40.44.147])
-        by mx.google.com with ESMTPS id m76si13175910iod.36.2016.01.14.06.40.19
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3504E828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 10:22:18 -0500 (EST)
+Received: by mail-io0-f181.google.com with SMTP id 77so424718345ioc.2
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 07:22:18 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id ft1si13319707igb.81.2016.01.14.07.22.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jan 2016 06:40:19 -0800 (PST)
-Date: Thu, 14 Jan 2016 09:40:07 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC V5] Add gup trace points support
-Message-ID: <20160114094007.5b5c6e4d@gandalf.local.home>
-In-Reply-To: <56969400.6020805@linaro.org>
-References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
-	<56955B76.2060503@linaro.org>
-	<20160112151052.168bba85@gandalf.local.home>
-	<56969400.6020805@linaro.org>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jan 2016 07:22:17 -0800 (PST)
+Date: Thu, 14 Jan 2016 09:22:15 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 01/16] mm/slab: fix stale code comment
+In-Reply-To: <1452749069-15334-2-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.20.1601140921500.2145@east.gentwo.org>
+References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-2-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: "Shi, Yang" <yang.shi@linaro.org>, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Thu, 14 Jan 2016, Joonsoo Kim wrote:
 
-Andrew,
+> We use freelist_idx_t type for free object management whose size
+> would be smaller than size of unsigned int. Fix it.
 
-Do you want to pull in this series? You can add my Acked-by to the whole
-set.
-
--- Steve
-
-
-On Wed, 13 Jan 2016 10:14:24 -0800
-"Shi, Yang" <yang.shi@linaro.org> wrote:
-
-> On 1/12/2016 12:10 PM, Steven Rostedt wrote:
-> > On Tue, 12 Jan 2016 12:00:54 -0800
-> > "Shi, Yang" <yang.shi@linaro.org> wrote:
-> >  
-> >> Hi Steven,
-> >>
-> >> Any more comments on this series? How should I proceed it?
-> >>  
-> >
-> > The tracing part looks fine to me. Now you just need to get the arch
-> > maintainers to ack each of the arch patches, and I can pull them in for
-> > 4.6. Too late for 4.5. Probably need Andrew Morton's ack for the
-> > mm/gup.c patch.  
-> 
-> Thanks Steven. Already sent email to x86, s390 and sparc maintainers. 
-> Ralf already acked the MIPS part since v1.
-> 
-> Regards,
-> Yang
-> 
-> >
-> > -- Steve
-> >  
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
