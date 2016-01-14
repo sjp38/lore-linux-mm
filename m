@@ -1,121 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CDD22828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 16:06:20 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id is5so94019785obc.0
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 13:06:20 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e10si9395610oey.40.2016.01.14.13.06.19
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id CC39D828DF
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 16:22:05 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id yy13so290208995pab.3
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 13:22:05 -0800 (PST)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id xu3si11499136pab.94.2016.01.14.13.22.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jan 2016 13:06:20 -0800 (PST)
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-References: <5674A5C3.1050504@oracle.com>
- <alpine.DEB.2.20.1512210656120.7119@east.gentwo.org>
- <CAPub148SiOaVQbnA0AHRRDme7nyfeDKjYHEom5kLstqaE8ibZA@mail.gmail.com>
- <alpine.DEB.2.20.1601120603250.4490@east.gentwo.org>
- <CAPub14_fh0vZDZ+dHP1Jihi1_x0k54p_rO4NL2TqXGXGia9qYA@mail.gmail.com>
-From: Sasha Levin <sasha.levin@oracle.com>
-Message-ID: <56980DC7.908@oracle.com>
-Date: Thu, 14 Jan 2016 16:06:15 -0500
+        Thu, 14 Jan 2016 13:22:04 -0800 (PST)
+Received: by mail-pf0-x234.google.com with SMTP id n128so105759374pfn.3
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 13:22:04 -0800 (PST)
+Date: Thu, 14 Jan 2016 13:22:01 -0800
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v9] fs: clear file privilege bits when mmap writing
+Message-ID: <20160114212201.GA28910@www.outflux.net>
 MIME-Version: 1.0
-In-Reply-To: <CAPub14_fh0vZDZ+dHP1Jihi1_x0k54p_rO4NL2TqXGXGia9qYA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shiraz Hashim <shiraz.linux.kernel@gmail.com>, Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <koct9i@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/13/2016 06:36 AM, Shiraz Hashim wrote:
-> Hi Sasha,
-> 
-> On Tue, Jan 12, 2016 at 5:53 PM, Christoph Lameter <cl@linux.com> wrote:
->> On Tue, 12 Jan 2016, Shiraz Hashim wrote:
->>
->>>> +       refresh_cpu_vm_stats(false);
->>>> +       cancel_delayed_work(this_cpu_ptr(&vmstat_work));
->>>>
->>>
->>> shouldn't this be cancel_delayed_work_sync ?
->>
->> Hmmm... This is executed with preemption off and the work is on the same
->> cpu. If it would be able to run concurrently then we would need this.
->>
->> Ok but it could run from the timer interrupt if that is still on and
->> occuring shortly before we go idle. Guess this needs to be similar to
->> the code we execute on cpu down in the vmstat notifiers (see
->> vmstat_cpuup_callback).
->>
->> Does this fix it? I have not been able to reproduce the issue so far.
->>
->> Patch against -next.
->>
->>
->>
->> Subject: vmstat: Use delayed work_sync and avoid loop.
->>
->> Signed-off-by: Christoph Lameter <cl@linux.com>
->>
->> Index: linux/mm/vmstat.c
->> ===================================================================
->> --- linux.orig/mm/vmstat.c
->> +++ linux/mm/vmstat.c
->> @@ -1419,11 +1419,9 @@ void quiet_vmstat(void)
->>         if (system_state != SYSTEM_RUNNING)
->>                 return;
->>
->> -       do {
->> -               if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
->> -                       cancel_delayed_work(this_cpu_ptr(&vmstat_work));
->> -
->> -       } while (refresh_cpu_vm_stats(false));
->> +       refresh_cpu_vm_stats(false);
->> +       cancel_delayed_work_sync(this_cpu_ptr(&vmstat_work));
->> +       cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
->>  }
->>
->>  /*
-> 
-> Can you please give it a try, seems it is reproducing easily at your end.
-> 
+Normally, when a user can modify a file that has setuid or setgid bits,
+those bits are cleared when they are not the file owner or a member
+of the group. This is enforced when using write and truncate but not
+when writing to a shared mmap on the file. This could allow the file
+writer to gain privileges by changing a binary without losing the
+setuid/setgid/caps bits.
 
-I'm seeing:
+Changing the bits requires holding inode->i_mutex, so it cannot be done
+during the page fault (due to mmap_sem being held during the fault).
+Instead, clear the bits if PROT_WRITE is being used at mmap open time,
+or added at mprotect time.
 
-[3637853.902081] BUG: sleeping function called from invalid context at kernel/workqueue.c:2725
-[3637853.904291] in_atomic(): 1, irqs_disabled(): 0, pid: 0, name: swapper/0
-[3637853.905488] no locks held by swapper/0/0.
-[3637853.906387] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-next-20160114-sasha-00021-gf1273d1-dirty #2797
-[3637853.908369]  1ffffffff5dc0f42 0f76d753b1b5b625 ffffffffaee07a90 ffffffffa2433eee
-[3637853.909561]  0000000041b58ab3 ffffffffae960c30 ffffffffa2433e26 ffffffffaee49bc0
-[3637853.911601]  0000000000000000 0000000000000000 0000000000000000 ffffffffaee07a78
-[3637853.913281] Call Trace:
-[3637853.913775]  [<ffffffffa2433eee>] dump_stack+0xc8/0x12a
-[3637853.914649]  [<ffffffffa2433e26>] ? _atomic_dec_and_lock+0x106/0x106
-[3637853.915824]  [<ffffffffa0440125>] ___might_sleep+0x2c5/0x480
-[3637853.917056]  [<ffffffffa044033b>] __might_sleep+0x5b/0x260
-[3637853.918310]  [<ffffffffa040a890>] flush_work+0xe0/0x820
-[3637853.919270]  [<ffffffffa040a7b0>] ? __queue_delayed_work+0x460/0x460
-[3637853.921561]  [<ffffffffa040a7b0>] ? __queue_delayed_work+0x460/0x460
-[3637853.922898]  [<ffffffffa054d367>] ? del_timer+0x107/0x170
-[3637853.924395]  [<ffffffffa054d260>] ? lock_timer_base+0x220/0x220
-[3637853.925827]  [<ffffffffa0411445>] ? try_to_grab_pending+0x115/0x680
-[3637853.926924]  [<ffffffffa0411b87>] ? __cancel_work_timer+0x1d7/0x5f0
-[3637853.928215]  [<ffffffffa04d4b58>] ? mark_held_locks+0x1a8/0x220
-[3637853.929075]  [<ffffffffa0411bdb>] __cancel_work_timer+0x22b/0x5f0
-[3637853.930765]  [<ffffffffa04119b0>] ? try_to_grab_pending+0x680/0x680
-[3637853.931642]  [<ffffffffa075fb60>] ? fill_contig_page_info+0x2e0/0x2e0
-[3637853.932774]  [<ffffffffa0411fda>] cancel_delayed_work_sync+0x1a/0x20
-[3637853.933897]  [<ffffffffa0766754>] quiet_vmstat+0x74/0x140
-[3637853.934991]  [<ffffffffa04c20eb>] cpu_startup_entry+0x12b/0x6d0
-[3637853.936174]  [<ffffffffa04c1fc0>] ? call_cpuidle+0x160/0x160
-[3637853.937420]  [<ffffffffabfe3816>] rest_init+0x1d6/0x1e0
-[3637853.938799]  [<ffffffffbb7e4c2a>] start_kernel+0x66c/0x6a6
-[3637853.940742]  [<ffffffffbb7e45be>] ? thread_info_cache_init+0xb/0xb
-[3637853.942416]  [<ffffffffbb9b0ae7>] ? memblock_reserve+0x59/0x5e
-[3637853.943880]  [<ffffffffbb7e3120>] ? early_idt_handler_array+0x120/0x120
-[3637853.945161]  [<ffffffffbb7e33c4>] x86_64_start_reservations+0x2a/0x2c
-[3637853.946005]  [<ffffffffbb7e351d>] x86_64_start_kernel+0x157/0x17a
+Since we can't do the check in the right place inside mmap (due to
+holding mmap_sem), we have to do it before holding mmap_sem, which
+means duplicating some checks, which have to be available to the non-MMU
+builds too.
+
+When walking VMAs during mprotect, we need to drop mmap_sem (while
+holding a file reference) and restart the walk after clearing privileges.
+
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+v9:
+- use file_needs_remove_privs, jack & koct9i
+v8:
+- use mmap/mprotect method, with mprotect walk restart, thanks to koct9i
+v7:
+- document and avoid arch-specific O_* values, viro
+v6:
+- clarify ETXTBSY situation in comments, luto
+v5:
+- add to f_flags instead, viro
+- add i_mutex during __fput, jack
+v4:
+- delay removal instead of still needing mmap_sem for mprotect, yalin
+v3:
+- move outside of mmap_sem for real now, fengguang
+- check return code of file_remove_privs, akpm
+v2:
+- move to mmap from fault handler, jack
+---
+ include/linux/mm.h |  1 +
+ mm/mmap.c          | 20 ++++----------------
+ mm/mprotect.c      | 24 ++++++++++++++++++++++++
+ mm/util.c          | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 79 insertions(+), 16 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 00bad7793788..b264c8be7114 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1912,6 +1912,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+ 
+ extern unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
++extern int do_mmap_shared_checks(struct file *file, unsigned long prot);
+ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+ 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2ce04a649f6b..b3424db0a29e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1320,25 +1320,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 		return -EAGAIN;
+ 
+ 	if (file) {
+-		struct inode *inode = file_inode(file);
++		int err;
+ 
+ 		switch (flags & MAP_TYPE) {
+ 		case MAP_SHARED:
+-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+-				return -EACCES;
+-
+-			/*
+-			 * Make sure we don't allow writing to an append-only
+-			 * file..
+-			 */
+-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+-				return -EACCES;
+-
+-			/*
+-			 * Make sure there are no mandatory locks on the file.
+-			 */
+-			if (locks_verify_locked(file))
+-				return -EAGAIN;
++			err = do_mmap_shared_checks(file, prot);
++			if (err)
++				return err;
+ 
+ 			vm_flags |= VM_SHARED | VM_MAYSHARE;
+ 			if (!(file->f_mode & FMODE_WRITE))
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ef5be8eaab00..57cb81c11668 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -12,6 +12,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/shm.h>
+ #include <linux/mman.h>
++#include <linux/file.h>
+ #include <linux/fs.h>
+ #include <linux/highmem.h>
+ #include <linux/security.h>
+@@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 
+ 	vm_flags = calc_vm_prot_bits(prot);
+ 
++restart:
+ 	down_write(&current->mm->mmap_sem);
+ 
+ 	vma = find_vma(current->mm, start);
+@@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 			goto out;
+ 		}
+ 
++		/*
++		 * If we're adding write permissions to a shared file,
++		 * we must clear privileges (like done at mmap time),
++		 * but we have to juggle the locks to avoid holding
++		 * mmap_sem while holding i_mutex.
++		 */
++		if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
++		    (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
++		    file_needs_remove_privs(vma->vm_file)) {
++			struct file *file = get_file(vma->vm_file);
++
++			start = vma->vm_start;
++			up_write(&current->mm->mmap_sem);
++			mutex_lock(&file_inode(file)->i_mutex);
++			error = file_remove_privs(file);
++			mutex_unlock(&file_inode(file)->i_mutex);
++			fput(file);
++			if (error)
++				return error;
++			goto restart;
++		}
++
+ 		error = security_file_mprotect(vma, reqprot, prot);
+ 		if (error)
+ 			goto out;
+diff --git a/mm/util.c b/mm/util.c
+index 9af1c12b310c..1882eaf33a37 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -283,6 +283,29 @@ int __weak get_user_pages_fast(unsigned long start,
+ }
+ EXPORT_SYMBOL_GPL(get_user_pages_fast);
+ 
++int do_mmap_shared_checks(struct file *file, unsigned long prot)
++{
++	struct inode *inode = file_inode(file);
++
++	if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
++		return -EACCES;
++
++	/*
++	 * Make sure we don't allow writing to an append-only
++	 * file..
++	 */
++	if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
++		return -EACCES;
++
++	/*
++	 * Make sure there are no mandatory locks on the file.
++	 */
++	if (locks_verify_locked(file))
++		return -EAGAIN;
++
++	return 0;
++}
++
+ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long pgoff)
+@@ -291,6 +314,33 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long populate;
+ 
++	/*
++	 * If we must remove privs, we do it here since doing it during
++	 * page fault may be expensive and cannot hold inode->i_mutex,
++	 * since mm->mmap_sem is already held.
++	 */
++	if (file && (flag & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE)) {
++		struct inode *inode = file_inode(file);
++		int err;
++
++		if (!IS_NOSEC(inode)) {
++			/*
++			 * Make sure we can't strip privs from a file that
++			 * wouldn't otherwise be allowed to be mmapped.
++			 */
++			err = do_mmap_shared_checks(file, prot);
++			if (err)
++				return err;
++
++			mutex_lock(&inode->i_mutex);
++			err = file_remove_privs(file);
++			mutex_unlock(&inode->i_mutex);
++
++			if (err)
++				return err;
++		}
++	}
++
+ 	ret = security_mmap_file(file, prot, flag);
+ 	if (!ret) {
+ 		down_write(&mm->mmap_sem);
+-- 
+2.6.3
+
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
