@@ -1,78 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FE4828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 10:49:47 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id l65so25489354wmf.1
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 07:49:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ha10si18152355wjc.117.2016.01.15.07.49.45
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 39310828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 11:16:34 -0500 (EST)
+Received: by mail-lb0-f180.google.com with SMTP id x4so61019841lbm.0
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:16:34 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ot1si6046814lbb.79.2016.01.15.08.16.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Jan 2016 07:49:46 -0800 (PST)
-Subject: Re: [PATCH v2] zsmalloc: fix migrate_zspage-zs_free race condition
-References: <1452843551-4464-1-git-send-email-junil0814.lee@lge.com>
- <20160115143434.GA25332@blaptop.local>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56991514.9000609@suse.cz>
-Date: Fri, 15 Jan 2016 16:49:40 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jan 2016 08:16:32 -0800 (PST)
+Subject: Re: [linux-next:master 11446/11650]
+ drivers/pwm/pwm-atmel-hlcdc.c:75:55: warning: 'clk_period_ns' may be used
+ uninitialized in this function
+References: <201601151603.wGuE709l%fengguang.wu@intel.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <56991B91.1050105@virtuozzo.com>
+Date: Fri, 15 Jan 2016 19:17:21 +0300
 MIME-Version: 1.0
-In-Reply-To: <20160115143434.GA25332@blaptop.local>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <201601151603.wGuE709l%fengguang.wu@intel.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Junil Lee <junil0814.lee@lge.com>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 01/15/2016 03:34 PM, Minchan Kim wrote:
-> On Fri, Jan 15, 2016 at 04:39:11PM +0900, Junil Lee wrote:
->>
->> Signed-off-by: Junil Lee <junil0814.lee@lge.com>
->
-> Acked-by: Minchan Kim <minchan@kernel.org>
->
-> Below comment.
->
->> ---
->>   mm/zsmalloc.c | 2 ++
->>   1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
->> index e7414ce..a24ccb1 100644
->> --- a/mm/zsmalloc.c
->> +++ b/mm/zsmalloc.c
->> @@ -1635,6 +1635,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
->>   		free_obj = obj_malloc(d_page, class, handle);
->>   		zs_object_copy(free_obj, used_obj, class);
->>   		index++;
->> +		/* Must not unlock before unpin_tag() */
->
-> I want to make comment more clear.
->
-> /*
->   * record_obj updates handle's value to free_obj and it will invalidate
->   * lock bit(ie, HANDLE_PIN_BIT) of handle, which breaks synchronization
->   * using pin_tag(e,g, zs_free) so let's keep the lock bit.
->   */
->
-> Thanks.
+On 01/15/2016 11:56 AM, kbuild test robot wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   39750fe2d360d6f1ccdc6b33d0a5cb624c97a5fd
+> commit: df423af30988b62df3905601742b8948bbbce329 [11446/11650] UBSAN: run-time undefined behavior sanity checker
+> config: x86_64-randconfig-s5-01151613 (attached as .config)
+> reproduce:
+>         git checkout df423af30988b62df3905601742b8948bbbce329
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
+> http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
+> 
 
-Could you please also help making the changelog more clear?
-
->
->> +		free_obj |= BIT(HANDLE_PIN_BIT);
->>   		record_obj(handle, free_obj);
-
-I think record_obj() should use WRITE_ONCE() or something like that.
-Otherwise the compiler is IMHO allowed to reorder this, i.e. first to 
-assign free_obj to handle, and then add the PIN bit there.
-
->>   		unpin_tag(handle);
->>   		obj_free(pool, class, used_obj);
->> --
->> 2.6.2
->>
->
+Hmm.. UBSAN (and KASAN too) causes some maybe-uninitialized false positives.
+I'm not in favor of mucking different subsystems and initializing these variables as it brings some runtime overhead.
+So, perhaps we need turn off UBSAN/KASAN in all[yes|mod]config builds plus build with -Wno-maybe-uninitilized if any of those options enabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
