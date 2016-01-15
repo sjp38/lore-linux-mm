@@ -1,111 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DAF36B0266
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 14:03:46 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id uo6so383730178pac.1
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 11:03:46 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id wg10si18136885pac.23.2016.01.15.11.03.45
-        for <linux-mm@kvack.org>;
-        Fri, 15 Jan 2016 11:03:45 -0800 (PST)
-Date: Fri, 15 Jan 2016 12:03:42 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v8 4/9] dax: support dirty DAX entries in radix tree
-Message-ID: <20160115190342.GA20168@linux.intel.com>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-5-git-send-email-ross.zwisler@linux.intel.com>
- <20160113094411.GA17057@quack.suse.cz>
- <20160113184832.GA5904@linux.intel.com>
- <20160115132249.GL15950@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160115132249.GL15950@quack.suse.cz>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 614EB6B0267
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 14:06:05 -0500 (EST)
+Received: by mail-qg0-f53.google.com with SMTP id e32so426753329qgf.3
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 11:06:05 -0800 (PST)
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com. [129.33.205.208])
+        by mx.google.com with ESMTPS id 205si14598680qhr.99.2016.01.15.11.06.04
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Jan 2016 11:06:04 -0800 (PST)
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Fri, 15 Jan 2016 14:06:04 -0500
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 155A238C803B
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 14:06:01 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0FJ605J27132136
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 19:06:00 GMT
+Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0FJ5ql3027944
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 14:06:00 -0500
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: [PATCH] Fix: PowerNV crash with 4.4.0-rc8 at sched_init_numa
+Date: Sat, 16 Jan 2016 00:31:23 +0530
+Message-Id: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: mingo@redhat.com, peterz@infradead.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org
+Cc: jstancek@redhat.com, gkurz@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, raghavendra.kt@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jan 15, 2016 at 02:22:49PM +0100, Jan Kara wrote:
-> On Wed 13-01-16 11:48:32, Ross Zwisler wrote:
-> > On Wed, Jan 13, 2016 at 10:44:11AM +0100, Jan Kara wrote:
-> > > On Thu 07-01-16 22:27:54, Ross Zwisler wrote:
-> > > > Add support for tracking dirty DAX entries in the struct address_space
-> > > > radix tree.  This tree is already used for dirty page writeback, and it
-> > > > already supports the use of exceptional (non struct page*) entries.
-> > > > 
-> > > > In order to properly track dirty DAX pages we will insert new exceptional
-> > > > entries into the radix tree that represent dirty DAX PTE or PMD pages.
-> > > > These exceptional entries will also contain the writeback sectors for the
-> > > > PTE or PMD faults that we can use at fsync/msync time.
-> > > > 
-> > > > There are currently two types of exceptional entries (shmem and shadow)
-> > > > that can be placed into the radix tree, and this adds a third.  We rely on
-> > > > the fact that only one type of exceptional entry can be found in a given
-> > > > radix tree based on its usage.  This happens for free with DAX vs shmem but
-> > > > we explicitly prevent shadow entries from being added to radix trees for
-> > > > DAX mappings.
-> > > > 
-> > > > The only shadow entries that would be generated for DAX radix trees would
-> > > > be to track zero page mappings that were created for holes.  These pages
-> > > > would receive minimal benefit from having shadow entries, and the choice
-> > > > to have only one type of exceptional entry in a given radix tree makes the
-> > > > logic simpler both in clear_exceptional_entry() and in the rest of DAX.
-> > > > 
-> > > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > > Reviewed-by: Jan Kara <jack@suse.cz>
-> > > 
-> > > I have realized there's one issue with this code. See below:
-> > > 
-> > > > @@ -34,31 +35,39 @@ static void clear_exceptional_entry(struct address_space *mapping,
-> > > >  		return;
-> > > >  
-> > > >  	spin_lock_irq(&mapping->tree_lock);
-> > > > -	/*
-> > > > -	 * Regular page slots are stabilized by the page lock even
-> > > > -	 * without the tree itself locked.  These unlocked entries
-> > > > -	 * need verification under the tree lock.
-> > > > -	 */
-> > > > -	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
-> > > > -		goto unlock;
-> > > > -	if (*slot != entry)
-> > > > -		goto unlock;
-> > > > -	radix_tree_replace_slot(slot, NULL);
-> > > > -	mapping->nrshadows--;
-> > > > -	if (!node)
-> > > > -		goto unlock;
-> > > > -	workingset_node_shadows_dec(node);
-> > > > -	/*
-> > > > -	 * Don't track node without shadow entries.
-> > > > -	 *
-> > > > -	 * Avoid acquiring the list_lru lock if already untracked.
-> > > > -	 * The list_empty() test is safe as node->private_list is
-> > > > -	 * protected by mapping->tree_lock.
-> > > > -	 */
-> > > > -	if (!workingset_node_shadows(node) &&
-> > > > -	    !list_empty(&node->private_list))
-> > > > -		list_lru_del(&workingset_shadow_nodes, &node->private_list);
-> > > > -	__radix_tree_delete_node(&mapping->page_tree, node);
-> > > > +
-> > > > +	if (dax_mapping(mapping)) {
-> > > > +		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
-> > > > +			mapping->nrexceptional--;
-> > > 
-> > > So when you punch hole in a file, you can delete a PMD entry from a radix
-> > > tree which covers part of the file which still stays. So in this case you
-> > > have to split the PMD entry into PTE entries (probably that needs to happen
-> > > up in truncate_inode_pages_range()) or something similar...
-> > 
-> > I think (and will verify) that the DAX code just unmaps the entire PMD range
-> > when we receive a hole punch request inside of the PMD.  If this is true then
-> > I think the radix tree code should behave the same way and just remove the PMD
-> > entry in the radix tree.
-> 
-> But you cannot just remove it if it is dirty... You have to keep somewhere
-> information that part of the PMD range is still dirty (or write that range
-> out before removing the radix tree entry).
+Commit c118baf80256 ("arch/powerpc/mm/numa.c: do not allocate bootmem
+memory for non existing nodes") avoided bootmem memory allocation for
+non existent nodes.
 
-Yep, agreed.
+When DEBUG_PER_CPU_MAPS enabled, powerNV system failed to boot because
+in sched_init_numa, cpumask_or operation was done on unallocated nodes.
+Fix that by making cpumask_or operation only on existing nodes.
+
+[ Tested with and w/o DEBUG_PER_CPU_MAPS on x86 and powerpc ]
+
+Reported-by: Jan Stancek <jstancek@redhat.com>
+Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+---
+ kernel/sched/core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 44253ad..474658b 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -6840,7 +6840,7 @@ static void sched_init_numa(void)
+ 
+ 			sched_domains_numa_masks[i][j] = mask;
+ 
+-			for (k = 0; k < nr_node_ids; k++) {
++			for_each_node(k) {
+ 				if (node_distance(j, k) > sched_domains_numa_distance[i])
+ 					continue;
+ 
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
