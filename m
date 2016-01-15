@@ -1,38 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EE201828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 11:49:34 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id mw1so13830873igb.1
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:49:34 -0800 (PST)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id m9si6259827ige.60.2016.01.15.08.49.34
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C241A828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 11:59:02 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id 6so433326998qgy.1
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:59:02 -0800 (PST)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id k9si14149425qge.20.2016.01.15.08.59.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Jan 2016 08:49:34 -0800 (PST)
-Date: Fri, 15 Jan 2016 10:49:33 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-In-Reply-To: <20160115091051.03715530@redhat.com>
-Message-ID: <alpine.DEB.2.20.1601151047420.2707@east.gentwo.org>
-References: <yq14meiye92.fsf@sermon.lab.mkp.net> <20160115091051.03715530@redhat.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jan 2016 08:59:02 -0800 (PST)
+Received: by mail-qk0-x244.google.com with SMTP id y67so4649237qkc.1
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:59:01 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <5693A77E.4020809@linux.intel.com>
+References: <1447247184-27939-1-git-send-email-sakari.ailus@linux.intel.com>
+	<20151202162558.d0465f11746ff94114c5d987@linux-foundation.org>
+	<5693A77E.4020809@linux.intel.com>
+Date: Fri, 15 Jan 2016 08:59:01 -0800
+Message-ID: <CAA9_cmeneVE_VvCz_6=oOL6+_ZzFscv9P9b9nO8GkR=QpwgW_g@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: EXPORT_SYMBOL_GPL(find_vm_area);
+From: Dan Williams <dan.j.williams@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sakari Ailus <sakari.ailus@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On Fri, 15 Jan 2016, Jesper Dangaard Brouer wrote:
+On Mon, Jan 11, 2016 at 5:00 AM, Sakari Ailus
+<sakari.ailus@linux.intel.com> wrote:
+> Hi Andrew,
+>
+> Andrew Morton wrote:
+>> On Wed, 11 Nov 2015 15:06:24 +0200 Sakari Ailus <sakari.ailus@linux.intel.com> wrote:
+>>
+>>> find_vm_area() is needed in implementing the DMA mapping API as a module.
+>>> Device specific IOMMUs with associated DMA mapping implementations should be
+>>> buildable as modules.
+>>>
+>>> ...
+>>>
+>>> --- a/mm/vmalloc.c
+>>> +++ b/mm/vmalloc.c
+>>> @@ -1416,6 +1416,7 @@ struct vm_struct *find_vm_area(const void *addr)
+>>>
+>>>      return NULL;
+>>>  }
+>>> +EXPORT_SYMBOL_GPL(find_vm_area);
+>>
+>> Confused.  Who is setting CONFIG_HAS_DMA=m?
+>>
+>
+> Apologies for the late reply --- CONFIG_HAS_DMA isn't configured as a
+> module, but some devices are not DMA coherent even on x86. The existing
+> x86 DMA mapping implementation doesn't quite work for those at the
+> moment, and nothing prevents using another one (and as a module, in
+> which case this patch is required).
 
-> I've over the last year optimized the SLAB+SLUB allocators,
-> specifically by introducing a bulking API.  This work is almost
-> complete, but I have some more ideas in the MM-area that I would like
-> to discuss with people.
-
-I think this is pretty good work which can help a lot for subsystems
-dealing with large amounts of objects. Given that network speeds and
-memory increases we may have to look increasingly at bulk allocation to
-make further strides in MM performance by rewriting subsystems to take
-advantage of these features.
+Why not teach the DMA mapping api how to do cache management for such
+devices?  Why would you need find_vm_area() exported?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
