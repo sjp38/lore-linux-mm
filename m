@@ -1,83 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CCD7D828DF
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 21:33:11 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id 77so442149036ioc.2
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 18:33:11 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id e5si1060647igg.38.2016.01.14.18.33.09
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id A17386B026E
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2016 22:26:03 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id e65so110695148pfe.0
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 19:26:03 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id u73si13343262pfi.160.2016.01.14.19.26.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 14 Jan 2016 18:33:10 -0800 (PST)
-Date: Fri, 15 Jan 2016 11:35:18 +0900
-From: Minchan Kim <minchan@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Jan 2016 19:26:03 -0800 (PST)
+Received: by mail-pa0-x233.google.com with SMTP id uo6so372144245pac.1
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 19:26:02 -0800 (PST)
+Date: Fri, 15 Jan 2016 12:27:12 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH] zsmalloc: fix migrate_zspage-zs_free race condition
-Message-ID: <20160115023518.GA10843@bbox>
+Message-ID: <20160115032712.GC1993@swordfish>
 References: <1452818184-2994-1-git-send-email-junil0814.lee@lge.com>
+ <20160115023518.GA10843@bbox>
 MIME-Version: 1.0
-In-Reply-To: <1452818184-2994-1-git-send-email-junil0814.lee@lge.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160115023518.GA10843@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Junil Lee <junil0814.lee@lge.com>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Junil Lee <junil0814.lee@lge.com>, Andrew Morton <akpm@linux-foundation.org>, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Junil,
+Cc Andrew,
 
-On Fri, Jan 15, 2016 at 09:36:24AM +0900, Junil Lee wrote:
-> To prevent unlock at the not correct situation, tagging the new obj to
-> assure lock in migrate_zspage() before right unlock path.
+On (01/15/16 11:35), Minchan Kim wrote:
+[..]
+> > Signed-off-by: Junil Lee <junil0814.lee@lge.com>
+> > ---
+> >  mm/zsmalloc.c | 1 +
+> >  1 file changed, 1 insertion(+)
+> > 
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index e7414ce..bb459ef 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -1635,6 +1635,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+> >  		free_obj = obj_malloc(d_page, class, handle);
+> >  		zs_object_copy(free_obj, used_obj, class);
+> >  		index++;
+> > +		free_obj |= BIT(HANDLE_PIN_BIT);
+> >  		record_obj(handle, free_obj);
 > 
-> Two functions are in race condition by tag which set 1 on last bit of
-> obj, however unlock succrently when update new obj to handle before call
-> unpin_tag() which is right unlock path.
+> I think record_obj should store free_obj to *handle with masking off least bit.
+> IOW, how about this?
 > 
-> summarize this problem by call flow as below:
-> 
-> 		CPU0								CPU1
-> migrate_zspage
-> find_alloced_obj()
-> 	trypin_tag() -- obj |= HANDLE_PIN_BIT
-> obj_malloc() -- new obj is not set			zs_free
-> record_obj() -- unlock and break sync		pin_tag() -- get lock
-> unpin_tag()
+> record_obj(handle, obj)
+> {
+>         *(unsigned long)handle = obj & ~(1<<HANDLE_PIN_BIT);
+> }
 
-It's really good catch!
-I think it should be stable material. For that, we should know this
-patch fixes what kinds of problem.
+[just a wild idea]
 
-What do you see problem? I mean please write down the oops you saw and
-verify that the patch fixes your problem. :)
+or zs_free() can take spin_lock(&class->lock) earlier, it cannot free the
+object until the class is locked anyway, and migration is happening with
+the locked class. extending class->lock scope in zs_free() thus should
+not affect the perfomance. so it'll be either zs_free() is touching the
+object or the migration, not both.
 
-Minor nit below
-
-> 
-> Signed-off-by: Junil Lee <junil0814.lee@lge.com>
-> ---
->  mm/zsmalloc.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index e7414ce..bb459ef 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1635,6 +1635,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
->  		free_obj = obj_malloc(d_page, class, handle);
->  		zs_object_copy(free_obj, used_obj, class);
->  		index++;
-> +		free_obj |= BIT(HANDLE_PIN_BIT);
->  		record_obj(handle, free_obj);
-
-I think record_obj should store free_obj to *handle with masking off least bit.
-IOW, how about this?
-
-record_obj(handle, obj)
-{
-        *(unsigned long)handle = obj & ~(1<<HANDLE_PIN_BIT);
-}
-
-Thanks a lot!
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
