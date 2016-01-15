@@ -1,310 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A07C66B026D
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 01:36:11 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id x4so53200204lbm.0
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 22:36:11 -0800 (PST)
-Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
-        by mx.google.com with ESMTPS id s73si4939059lfs.236.2016.01.14.22.36.10
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 89B19828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 02:39:23 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id mw1so5551209igb.1
+        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 23:39:23 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id rs3si3023679igb.23.2016.01.14.23.39.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jan 2016 22:36:10 -0800 (PST)
-Received: by mail-lb0-x241.google.com with SMTP id dx9so3857598lbc.2
-        for <linux-mm@kvack.org>; Thu, 14 Jan 2016 22:36:10 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 14 Jan 2016 23:39:22 -0800 (PST)
+From: Junil Lee <junil0814.lee@lge.com>
+Subject: [PATCH v2] zsmalloc: fix migrate_zspage-zs_free race condition
+Date: Fri, 15 Jan 2016 16:39:11 +0900
+Message-ID: <1452843551-4464-1-git-send-email-junil0814.lee@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrVtCvLgtC2E9r2gRikdivxDC_GkHKVjPF=tYg+6SVyYoQ@mail.gmail.com>
-References: <20160114212201.GA28910@www.outflux.net>
-	<CALYGNiNN+QYpd-FhM+4WXd=-1UYrhR7kpefbN8mpjh4gSbDO4A@mail.gmail.com>
-	<CALCETrVtCvLgtC2E9r2gRikdivxDC_GkHKVjPF=tYg+6SVyYoQ@mail.gmail.com>
-Date: Fri, 15 Jan 2016 09:36:09 +0300
-Message-ID: <CALYGNiMtW39ZroOC_YorBNQD2NOski+zgunzMFHP0dj6Q3QRCg@mail.gmail.com>
-Subject: Re: [PATCH v9] fs: clear file privilege bits when mmap writing
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: minchan@kernel.org, ngupta@vflare.org
+Cc: sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Junil Lee <junil0814.lee@lge.com>
 
-On Fri, Jan 15, 2016 at 9:18 AM, Andy Lutomirski <luto@amacapital.net> wrote:
-> On Thu, Jan 14, 2016 at 9:55 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->> On Fri, Jan 15, 2016 at 12:22 AM, Kees Cook <keescook@chromium.org> wrote:
->>> Normally, when a user can modify a file that has setuid or setgid bits,
->>> those bits are cleared when they are not the file owner or a member
->>> of the group. This is enforced when using write and truncate but not
->>> when writing to a shared mmap on the file. This could allow the file
->>> writer to gain privileges by changing a binary without losing the
->>> setuid/setgid/caps bits.
->>>
->>> Changing the bits requires holding inode->i_mutex, so it cannot be done
->>> during the page fault (due to mmap_sem being held during the fault).
->>> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
->>> or added at mprotect tLooks good to me.ime.
->>>
->>> Since we can't do the check in the right place inside mmap (due to
->>> holding mmap_sem), we have to do it before holding mmap_sem, which
->>> means duplicating some checks, which have to be available to the non-MMU
->>> builds too.
->>>
->>> When walking VMAs during mprotect, we need to drop mmap_sem (while
->>> holding a file reference) and restart the walk after clearing privileges.
->>>
->>> Signed-off-by: Kees Cook <keescook@chromium.org>
->>
->> Looks good. Ack.
->
-> While we're at it:
->
-> int should_remove_suid(struct dentry *dentry)
-> {
->         umode_t mode = d_inode(dentry)->i_mode;
->         int kill = 0;
->
->         /* suid always must be killed */
->         if (unlikely(mode & S_ISUID))
->                 kill = ATTR_KILL_SUID;
->
->         /*
->          * sgid without any exec bits is just a mandatory locking mark; leave
->          * it alone.  If some exec bits are set, it's a real sgid; kill it.
->          */
->         if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
->                 kill |= ATTR_KILL_SGID;
->
->         if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
->                 return kill;
->
->         return 0;
-> }
-> EXPORT_SYMBOL(should_remove_suid);
->
-> Oh wait, is that an implicit use of current_cred in vfs_write?  No, it
-> couldn't be.  Kernel developers *never* make that mistake.
->
-> This is, of course, totally fucked because this function doesn't have
-> access to a struct file and therefore can't see f_cred.  I'm not going
-> to look in to this right now, but I swear I saw an exploit that took
-> advantage of this bug recently.  Anyone want to try to fix it?
+To prevent unlock at the not correct situation, tagging the new obj to
+assure lock in migrate_zspage() before right unlock path.
 
-Good point. it's here since 2.3.43.
-As I see file->f_cred is reachable in all places.
+Two functions are in race condition by tag which set 1 on last bit of
+obj, however unlock succrently when update new obj to handle before call
+unpin_tag() which is right unlock path.
 
->
-> FWIW, posix says (man 3p write):
->
->        Upon  successful  completion,  where  nbyte  is greater than 0, write()
->        shall mark for update the last data modification and last  file  status
->        change  timestamps  of the file, and if the file is a regular file, the
->        S_ISUID and S_ISGID bits of the file mode may be cleared.
->
-> so maybe the thing to do is just drop the capable check entirely and
-> cross our fingers that nothing was relying on it.
->
-> --Andy
->
->>
->>> ---
->>> v9:
->>> - use file_needs_remove_privs, jack & koct9i
->>> v8:
->>> - use mmap/mprotect method, with mprotect walk restart, thanks to koct9i
->>> v7:
->>> - document and avoid arch-specific O_* values, viro
->>> v6:
->>> - clarify ETXTBSY situation in comments, luto
->>> v5:
->>> - add to f_flags instead, viro
->>> - add i_mutex during __fput, jack
->>> v4:
->>> - delay removal instead of still needing mmap_sem for mprotect, yalin
->>> v3:
->>> - move outside of mmap_sem for real now, fengguang
->>> - check return code of file_remove_privs, akpm
->>> v2:
->>> - move to mmap from fault handler, jack
->>> ---
->>>  include/linux/mm.h |  1 +
->>>  mm/mmap.c          | 20 ++++----------------
->>>  mm/mprotect.c      | 24 ++++++++++++++++++++++++
->>>  mm/util.c          | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>>  4 files changed, 79 insertions(+), 16 deletions(-)
->>>
->>> diff --git a/include/linux/mm.h b/include/linux/mm.h
->>> index 00bad7793788..b264c8be7114 100644
->>> --- a/include/linux/mm.h
->>> +++ b/include/linux/mm.h
->>> @@ -1912,6 +1912,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
->>>
->>>  extern unsigned long mmap_region(struct file *file, unsigned long addr,
->>>         unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
->>> +extern int do_mmap_shared_checks(struct file *file, unsigned long prot);
->>>  extern unsigned long do_mmap(struct file *file, unsigned long addr,
->>>         unsigned long len, unsigned long prot, unsigned long flags,
->>>         vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
->>> diff --git a/mm/mmap.c b/mm/mmap.c
->>> index 2ce04a649f6b..b3424db0a29e 100644
->>> --- a/mm/mmap.c
->>> +++ b/mm/mmap.c
->>> @@ -1320,25 +1320,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
->>>                 return -EAGAIN;
->>>
->>>         if (file) {
->>> -               struct inode *inode = file_inode(file);
->>> +               int err;
->>>
->>>                 switch (flags & MAP_TYPE) {
->>>                 case MAP_SHARED:
->>> -                       if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
->>> -                               return -EACCES;
->>> -
->>> -                       /*
->>> -                        * Make sure we don't allow writing to an append-only
->>> -                        * file..
->>> -                        */
->>> -                       if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
->>> -                               return -EACCES;
->>> -
->>> -                       /*
->>> -                        * Make sure there are no mandatory locks on the file.
->>> -                        */
->>> -                       if (locks_verify_locked(file))
->>> -                               return -EAGAIN;
->>> +                       err = do_mmap_shared_checks(file, prot);
->>> +                       if (err)
->>> +                               return err;
->>>
->>>                         vm_flags |= VM_SHARED | VM_MAYSHARE;
->>>                         if (!(file->f_mode & FMODE_WRITE))
->>> diff --git a/mm/mprotect.c b/mm/mprotect.c
->>> index ef5be8eaab00..57cb81c11668 100644
->>> --- a/mm/mprotect.c
->>> +++ b/mm/mprotect.c
->>> @@ -12,6 +12,7 @@
->>>  #include <linux/hugetlb.h>
->>>  #include <linux/shm.h>
->>>  #include <linux/mman.h>
->>> +#include <linux/file.h>
->>>  #include <linux/fs.h>
->>>  #include <linux/highmem.h>
->>>  #include <linux/security.h>
->>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>>
->>>         vm_flags = calc_vm_prot_bits(prot);
->>>
->>> +restart:
->>>         down_write(&current->mm->mmap_sem);
->>>
->>>         vma = find_vma(current->mm, start);
->>> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
->>>                         goto out;
->>>                 }
->>>
->>> +               /*
->>> +                * If we're adding write permissions to a shared file,
->>> +                * we must clear privileges (like done at mmap time),
->>> +                * but we have to juggle the locks to avoid holding
->>> +                * mmap_sem while holding i_mutex.
->>> +                */
->>> +               if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
->>> +                   (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
->>> +                   file_needs_remove_privs(vma->vm_file)) {
->>> +                       struct file *file = get_file(vma->vm_file);
->>> +
->>> +                       start = vma->vm_start;
->>> +                       up_write(&current->mm->mmap_sem);
->>> +                       mutex_lock(&file_inode(file)->i_mutex);
->>> +                       error = file_remove_privs(file);
->>> +                       mutex_unlock(&file_inode(file)->i_mutex);
->>> +                       fput(file);
->>> +                       if (error)
->>> +                               return error;
->>> +                       goto restart;
->>> +               }
->>> +
->>>                 error = security_file_mprotect(vma, reqprot, prot);
->>>                 if (error)
->>>                         goto out;
->>> diff --git a/mm/util.c b/mm/util.c
->>> index 9af1c12b310c..1882eaf33a37 100644
->>> --- a/mm/util.c
->>> +++ b/mm/util.c
->>> @@ -283,6 +283,29 @@ int __weak get_user_pages_fast(unsigned long start,
->>>  }
->>>  EXPORT_SYMBOL_GPL(get_user_pages_fast);
->>>
->>> +int do_mmap_shared_checks(struct file *file, unsigned long prot)
->>> +{
->>> +       struct inode *inode = file_inode(file);
->>> +
->>> +       if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
->>> +               return -EACCES;
->>> +
->>> +       /*
->>> +        * Make sure we don't allow writing to an append-only
->>> +        * file..
->>> +        */
->>> +       if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
->>> +               return -EACCES;
->>> +
->>> +       /*
->>> +        * Make sure there are no mandatory locks on the file.
->>> +        */
->>> +       if (locks_verify_locked(file))
->>> +               return -EAGAIN;
->>> +
->>> +       return 0;
->>> +}
->>> +
->>>  unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
->>>         unsigned long len, unsigned long prot,
->>>         unsigned long flag, unsigned long pgoff)
->>> @@ -291,6 +314,33 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
->>>         struct mm_struct *mm = current->mm;
->>>         unsigned long populate;
->>>
->>> +       /*
->>> +        * If we must remove privs, we do it here since doing it during
->>> +        * page fault may be expensive and cannot hold inode->i_mutex,
->>> +        * since mm->mmap_sem is already held.
->>> +        */
->>> +       if (file && (flag & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE)) {
->>> +               struct inode *inode = file_inode(file);
->>> +               int err;
->>> +
->>> +               if (!IS_NOSEC(inode)) {
->>> +                       /*
->>> +                        * Make sure we can't strip privs from a file that
->>> +                        * wouldn't otherwise be allowed to be mmapped.
->>> +                        */
->>> +                       err = do_mmap_shared_checks(file, prot);
->>> +                       if (err)
->>> +                               return err;
->>> +
->>> +                       mutex_lock(&inode->i_mutex);
->>> +                       err = file_remove_privs(file);
->>> +                       mutex_unlock(&inode->i_mutex);
->>> +
->>> +                       if (err)
->>> +                               return err;
->>> +               }
->>> +       }
->>> +
->>>         ret = security_mmap_file(file, prot, flag);
->>>         if (!ret) {
->>>                 down_write(&mm->mmap_sem);
->>> --
->>> 2.6.3
->>>
->>>
->>> --
->>> Kees Cook
->>> Chrome OS & Brillo Security
->
->
->
-> --
-> Andy Lutomirski
-> AMA Capital Management, LLC
+summarize this problem by call flow as below:
+
+		CPU0								CPU1
+migrate_zspage
+find_alloced_obj()
+	trypin_tag() -- obj |= HANDLE_PIN_BIT
+obj_malloc() -- new obj is not set			zs_free
+record_obj() -- unlock and break sync		pin_tag() -- get lock
+unpin_tag()
+
+Before code make crash as below:
+	Unable to handle kernel NULL pointer dereference at virtual address 00000000
+	CPU: 0 PID: 19001 Comm: CookieMonsterCl Tainted:
+	PC is at get_zspage_mapping+0x0/0x24
+	LR is at obj_free.isra.22+0x64/0x128
+	Call trace:
+		[<ffffffc0001a3aa8>] get_zspage_mapping+0x0/0x24
+		[<ffffffc0001a4918>] zs_free+0x88/0x114
+		[<ffffffc00053ae54>] zram_free_page+0x64/0xcc
+		[<ffffffc00053af4c>] zram_slot_free_notify+0x90/0x108
+		[<ffffffc000196638>] swap_entry_free+0x278/0x294
+		[<ffffffc000199008>] free_swap_and_cache+0x38/0x11c
+		[<ffffffc0001837ac>] unmap_single_vma+0x480/0x5c8
+		[<ffffffc000184350>] unmap_vmas+0x44/0x60
+		[<ffffffc00018a53c>] exit_mmap+0x50/0x110
+		[<ffffffc00009e408>] mmput+0x58/0xe0
+		[<ffffffc0000a2854>] do_exit+0x320/0x8dc
+		[<ffffffc0000a3cb4>] do_group_exit+0x44/0xa8
+		[<ffffffc0000ae1bc>] get_signal+0x538/0x580
+		[<ffffffc000087e44>] do_signal+0x98/0x4b8
+		[<ffffffc00008843c>] do_notify_resume+0x14/0x5c
+
+and for test, print obj value after pin_tag() in zs_free().
+Sometimes obj is even number means break synchronization.
+
+After patched, crash is not occurred and obj is only odd number in same
+situation.
+
+Signed-off-by: Junil Lee <junil0814.lee@lge.com>
+---
+ mm/zsmalloc.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index e7414ce..a24ccb1 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1635,6 +1635,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		free_obj = obj_malloc(d_page, class, handle);
+ 		zs_object_copy(free_obj, used_obj, class);
+ 		index++;
++		/* Must not unlock before unpin_tag() */
++		free_obj |= BIT(HANDLE_PIN_BIT);
+ 		record_obj(handle, free_obj);
+ 		unpin_tag(handle);
+ 		obj_free(pool, class, used_obj);
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
