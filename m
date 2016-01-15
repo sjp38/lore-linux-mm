@@ -1,49 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 15 Jan 2016 15:21:31 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
-Message-ID: <20160115202131.GH6330@kvack.org>
-References: <cover.1452549431.git.bcrl@kvack.org> <80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org> <20160112011128.GC6033@dastard> <CA+55aFxtvMqHgHmHCcszV_QKQ2BY0wzenmrvc6BYN+tLFxesMA@mail.gmail.com> <20160112022548.GD6033@dastard> <CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com> <20160112033708.GE6033@dastard> <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com> <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
-Mime-Version: 1.0
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B4CD9828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 15:31:42 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id b14so41963679wmb.1
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 12:31:42 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id e18si19800891wjn.112.2016.01.15.12.31.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jan 2016 12:31:41 -0800 (PST)
+Date: Fri, 15 Jan 2016 15:30:59 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/2] mm: memcontrol: cgroup2 memory statistics
+Message-ID: <20160115203059.GA25092@cmpxchg.org>
+References: <1452722469-24704-1-git-send-email-hannes@cmpxchg.org>
+ <20160113144916.03f03766e201b6b04a8a47cc@linux-foundation.org>
+ <20160114202408.GA20218@cmpxchg.org>
+ <20160115095834.GP30160@esperanza>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
+In-Reply-To: <20160115095834.GP30160@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jan 11, 2016 at 08:48:23PM -0800, Linus Torvalds wrote:
-> On Mon, Jan 11, 2016 at 8:03 PM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> >
-> > So my argument is really that I think it would be better to at least
-> > look into maybe creating something less crapulent, and striving to
-> > make it easy to make the old legacy interfaces be just wrappers around
-> > a more capable model.
+On Fri, Jan 15, 2016 at 12:58:34PM +0300, Vladimir Davydov wrote:
+> With the follow-up it looks good to me. All exported counters look
+> justified enough and the format follows that of other cgroup2
+> controllers (cpu, blkio). Thanks!
 > 
-> Hmm. Thinking more about this makes me worry about all the system call
-> versioning and extra work done by libc.
+> Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+Thanks Vladimir.
+
+> One addition though. May be, we could add 'total' field which would show
+> memory.current? Yeah, this would result in a little redundancy, but I
+> think that from userspace pov it's much more convenient to read the
+> only file and get all stat counters than having them spread throughout
+> several files.
+
+I am not fully convinced that a total value or even memory.current
+will be looked at that often in practice, because in all but a few
+cornercases that value will be pegged to the configured limit. In
+those instances I think it should be okay to check another file.
+
+> Come to think of it, do we really need separate memory.events file?
+> Can't these counters live in memory.stat either?
+
+I think it sits at a different level of the interface. The events file
+indicates cgroup-specific dynamics between configuration and memory
+footprint, and so it sits on the same level as low, high, max, and
+current. These are the parts involved in the most basic control loop
+between the kernel and the job scheduler--monitor and adjust or notify
+the admin. It's for the entity that allocates and manages the system.
+
+The memory.stat file on the other hand is geared toward analyzing and
+understanding workload-specific performance (whether by humans or with
+some automated heuristics) and if necessary correcting the config file
+that describes the application's requirements to the job scheduler.
+
+I think it makes sense to not conflate these two interfaces.
+
+> Yeah, this file
+> generates events, but IMHO it's not very useful the way it is currently
+> implemented:
 > 
-> At least glibc has traditionally decided to munge and extend on kernel
-> system call interfaces, to the point where even fairly core data
-> structures (like "struct stat") may not always look the same to the
-> kernel as they do to user space.
-> 
-> So with that worry, I have to admit that maybe a limited interface -
-> rather than allowing arbitrary generic async system calls - might have
-> advantages. Less room for mismatches.
-> 
-> I'll have to think about this some more.
+> Suppose, a user wants to receive notifications about OOM or LOW events,
+> which are rather rare normally and might require immediate action. The
+> only way to do that is to listen to memory.events, but this file can
+> generate tons of MAX/HIGH when the cgroup is performing normally. The
+> userspace app will have to wake up every time the cgroup performs
+> reclaim and check memory.events just to ensure no OOM happened and this
+> all will result in wasting cpu time.
 
-Any further thoughts on this after a few days worth of pondering?
+Under optimal system load there is no limit reclaim, and memory
+pressure comes exclusively from a shortage of physical pages that
+global reclaim balances based on memory.low. If groups run into their
+own limits, it means that there are idle resources left on the table.
 
-		-ben
+So events only happen when the machine is over or under utilized, and
+as per above, the events file is mainly meant for something like a job
+scheduler tasked with allocating the machine's resources. It's hard to
+imagine a job scheduler scenario where the long-term goal is anything
+other than optimal utilization.
 
->                   Linus
+There are reasonable cases in which memory could be temporarily left
+idle, say to keep startup latency of new jobs low. In those it's true
+that the max and high notifications might become annoying. But do you
+really think that could become problematic in practice? In that case
+it should be enough if we ratelimit the file-changed notifications.
 
--- 
-"Thought is the essence of where you are now."
+> May be, we could generate LOW/HIGH/MAX events on memory.low/high/max?
+> This would look natural IMO. Don't know where OOM events should go in
+> this case though.
+
+Without a natural place for OOM notifications, it probably makes sense
+to stick with memory.events.
+
+Thanks,
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
