@@ -1,140 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id AF29F828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:10:23 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id f206so19754801wmf.0
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:10:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s197si4948258wmb.1.2016.01.15.05.10.22
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 532F4828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:14:00 -0500 (EST)
+Received: by mail-qk0-f170.google.com with SMTP id s5so5101465qkd.0
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:14:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d32si6118507qgd.67.2016.01.15.05.13.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Jan 2016 05:10:22 -0800 (PST)
-Date: Fri, 15 Jan 2016 14:10:32 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v8 6/9] dax: add support for fsync/msync
-Message-ID: <20160115131032.GK15950@quack.suse.cz>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-7-git-send-email-ross.zwisler@linux.intel.com>
- <20160112105716.GT6262@quack.suse.cz>
- <20160113073019.GB30496@linux.intel.com>
- <20160113093525.GD14630@quack.suse.cz>
- <20160113185802.GB5904@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jan 2016 05:13:59 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH v4 1/2] memory-hotplug: add automatic onlining policy for the newly added memory
+References: <1452617777-10598-1-git-send-email-vkuznets@redhat.com>
+	<1452617777-10598-2-git-send-email-vkuznets@redhat.com>
+	<alpine.DEB.2.10.1601121535150.28831@chino.kir.corp.google.com>
+	<87fuy168wa.fsf@vitty.brq.redhat.com>
+	<alpine.DEB.2.10.1601131648550.3847@chino.kir.corp.google.com>
+	<87pox44kbs.fsf@vitty.brq.redhat.com>
+	<alpine.DEB.2.10.1601141345430.16227@chino.kir.corp.google.com>
+Date: Fri, 15 Jan 2016 14:13:50 +0100
+In-Reply-To: <alpine.DEB.2.10.1601141345430.16227@chino.kir.corp.google.com>
+	(David Rientjes's message of "Thu, 14 Jan 2016 13:46:22 -0800 (PST)")
+Message-ID: <87io2v0yup.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160113185802.GB5904@linux.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
 
-On Wed 13-01-16 11:58:02, Ross Zwisler wrote:
-> On Wed, Jan 13, 2016 at 10:35:25AM +0100, Jan Kara wrote:
-> > On Wed 13-01-16 00:30:19, Ross Zwisler wrote:
-> > > > And secondly: You must write-protect all mappings of the flushed range so
-> > > > that you get fault when the sector gets written-to again. We spoke about
-> > > > this in the past already but somehow it got lost and I forgot about it as
-> > > > well. You need something like rmap_walk_file()...
-> > > 
-> > > The code that write protected mappings and then cleaned the radix tree entries
-> > > did get written, and was part of v2:
-> > > 
-> > > https://lkml.org/lkml/2015/11/13/759
-> > > 
-> > > I removed all the code that cleaned PTE entries and radix tree entries for v3.
-> > > The reason behind this was that there was a race that I couldn't figure out
-> > > how to solve between the cleaning of the PTEs and the cleaning of the radix
-> > > tree entries.
-> > > 
-> > > The race goes like this:
-> > > 
-> > > Thread 1 (write)			Thread 2 (fsync)
-> > > ================			================
-> > > wp_pfn_shared()
-> > > pfn_mkwrite()
-> > > dax_radix_entry()
-> > > radix_tree_tag_set(DIRTY)
-> > > 					dax_writeback_mapping_range()
-> > > 					dax_writeback_one()
-> > > 					radix_tag_clear(DIRTY)
-> > > 					pgoff_mkclean()
-> > > ... return up to wp_pfn_shared()
-> > > wp_page_reuse()
-> > > pte_mkdirty()
-> > > 
-> > > After this sequence we end up with a dirty PTE that is writeable, but with a
-> > > clean radix tree entry.  This means that users can write to the page, but that
-> > > a follow-up fsync or msync won't flush this dirty data to media.
-> > > 
-> > > The overall issue is that in the write path that goes through wp_pfn_shared(),
-> > > the DAX code has control over when the radix tree entry is dirtied but not
-> > > when the PTE is made dirty and writeable.  This happens up in wp_page_reuse().
-> > > This means that we can't easily add locking, etc. to protect ourselves.
-> > > 
-> > > I spoke a bit about this with Dave Chinner and with Dave Hansen, but no really
-> > > easy solutions presented themselves in the absence of a page lock.  I do have
-> > > one idea, but I think it's pretty invasive and will need to wait for another
-> > > kernel cycle.
-> > > 
-> > > The current code that leaves the radix tree entry will give us correct
-> > > behavior - it'll just be less efficient because we will have an ever-growing
-> > > dirty set to flush.
-> > 
-> > Ahaa! Somehow I imagined tag_pages_for_writeback() clears DIRTY radix tree
-> > tags but it does not (I should have known, I have written that functions
-> > few years ago ;). Makes sense. Thanks for clarification.
-> > 
-> > > > > @@ -791,15 +976,12 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
-> > > > >   * dax_pfn_mkwrite - handle first write to DAX page
-> > > > >   * @vma: The virtual memory area where the fault occurred
-> > > > >   * @vmf: The description of the fault
-> > > > > - *
-> > > > >   */
-> > > > >  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > > >  {
-> > > > > -	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-> > > > > +	struct file *file = vma->vm_file;
-> > > > >  
-> > > > > -	sb_start_pagefault(sb);
-> > > > > -	file_update_time(vma->vm_file);
-> > > > > -	sb_end_pagefault(sb);
-> > > > > +	dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false, true);
-> > > > 
-> > > > Why is NO_SECTOR argument correct here?
-> > > 
-> > > Right - so NO_SECTOR means "I expect there to already be an entry in the radix
-> > > tree - just make that entry dirty".  This works because pfn_mkwrite() always
-> > > follows a normal __dax_fault() or __dax_pmd_fault() call.  These fault calls
-> > > will insert the radix tree entry, regardless of whether the fault was for a
-> > > read or a write.  If the fault was for a write, the radix tree entry will also
-> > > be made dirty.
-> > >
-> > > For reads the radix tree entry will be inserted but left clean.  When the
-> > > first write happens we will get a pfn_mkwrite() call, which will call
-> > > dax_radix_entry() with the NO_SECTOR argument.  This will look up the radix
-> > > tree entry & set the dirty tag.
-> > 
-> > So the explanation of this should be somewhere so that everyone knows that
-> > we must have radix tree entries even for clean mapped blocks. Because upto
-> > know that was not clear to me.  Also __dax_pmd_fault() seems to insert
-> > entries only for write fault so the assumption doesn't seem to hold there?
-> 
-> Ah, right, sorry, the read fault() -> pfn_mkwrite() sequence only happens for
-> 4k pages.  You are right about our handling of 2MiB pages - for a read
-> followed by a write we will just call into the normal __dax_pmd_fault() code
-> again, which will do the get_block() call and insert a dirty radix tree entry.
-> Because we have to go all the way through the fault handler again at write
-> time there isn't a benefit to inserting a clean radix tree entry on read, so
-> we just skip it.
+David Rientjes <rientjes@google.com> writes:
 
-Ouch, I wasn't aware of this asymetry between PMD and PTE faults. OK, so
-please just document this all somewhere because I'm pretty sure casual
-reader won't be able to figure this all out just from the code.
+> On Thu, 14 Jan 2016, Vitaly Kuznetsov wrote:
+>
+>> > My suggestion is to just simply document that auto-onlining can add the 
+>> > memory but fail to online it and the failure is silent to userspace.  If 
+>> > userspace cares, it can check the online status of the added memory blocks 
+>> > itself.
+>> 
+>> The problem is not only that it's silent, but also that
+>> /sys/devices/system/memory/*/state will lie as we create all memory
+>> blocks in MEM_ONLINE state and from online_pages() error we can't figure
+>> out which particular block failed. 'v5' which I sent yesterday is
+>> supposed to fix the issue (blocks are onlined with
+>> memory_block_change_state() which handles failures.
+>> 
+>
+> Would you mind documenting that in the memory-hotplug.txt as an add-on 
+> patch to your v5, which appears ready to go?
 
-								Honza
+Sure,
+
+I'll mention possible failures diring automatic onlining. It seems v5
+wasn't picked by Andrew and I also have one nitpick in PATCH 2 to
+address so I'll send v6.
+
+Thanks,
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
