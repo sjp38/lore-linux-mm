@@ -1,50 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6B1828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:12:23 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id cy9so392795191pac.0
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 02:12:23 -0800 (PST)
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com. [209.85.192.172])
-        by mx.google.com with ESMTPS id xp4si15665717pab.1.2016.01.15.02.12.22
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 11996828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:17:52 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id f206so17176040wmf.0
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 02:17:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id et14si16301019wjc.67.2016.01.15.02.17.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jan 2016 02:12:22 -0800 (PST)
-Received: by mail-pf0-f172.google.com with SMTP id n128so115644387pfn.3
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 02:12:22 -0800 (PST)
-Date: Fri, 15 Jan 2016 11:12:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/3] oom, sysrq: Skip over oom victims and killed tasks
-Message-ID: <20160115101218.GB14112@dhcp22.suse.cz>
-References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
- <1452632425-20191-2-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com>
- <20160113093046.GA28942@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601131633550.3406@chino.kir.corp.google.com>
- <20160114110037.GC29943@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 15 Jan 2016 02:17:50 -0800 (PST)
+Date: Fri, 15 Jan 2016 11:17:59 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8] fs: clear file privilege bits when mmap writing
+Message-ID: <20160115101759.GC15950@quack.suse.cz>
+References: <20160112190903.GA9421@www.outflux.net>
+ <20160113090330.GA14630@quack.suse.cz>
+ <CAGXu5jLWk5ymWKYAaW+uQX-5SWQkFmCjesH_H=LPKwX=UVL5oQ@mail.gmail.com>
+ <CALYGNiMg73Zs7eNHvnaqYbW9kbk_r-kmSJj6mqwdhuTbZXSsfw@mail.gmail.com>
+ <CAGXu5jKt4GmOcC9WJyV9sDVOPDG+ViUDWd5PDOjm7Pe0RSLgEg@mail.gmail.com>
+ <CALYGNiNn7m=AS9Zopa1g+TT5key=bEi7pKzGz3LzazQfm28qUw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com>
+In-Reply-To: <CALYGNiNn7m=AS9Zopa1g+TT5key=bEi7pKzGz3LzazQfm28qUw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Kees Cook <keescook@chromium.org>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mfasheh@suse.de, ocfs2-devel@oss.oracle.com
 
-On Thu 14-01-16 13:51:16, David Rientjes wrote:
-> I think it's time to kill sysrq+F and I'll send those two patches
-> unless there is a usecase I'm not aware of.
+On Thu 14-01-16 10:35:17, Konstantin Khlebnikov wrote:
+> On Wed, Jan 13, 2016 at 11:33 PM, Kees Cook <keescook@chromium.org> wrote:
+> > On Wed, Jan 13, 2016 at 12:23 PM, Konstantin Khlebnikov
+> > <koct9i@gmail.com> wrote:
+> >> On Wed, Jan 13, 2016 at 7:09 PM, Kees Cook <keescook@chromium.org> wrote:
+> >>> On Wed, Jan 13, 2016 at 1:03 AM, Jan Kara <jack@suse.cz> wrote:
+> >>>> On Tue 12-01-16 11:09:04, Kees Cook wrote:
+> >>>>> Normally, when a user can modify a file that has setuid or setgid bits,
+> >>>>> those bits are cleared when they are not the file owner or a member
+> >>>>> of the group. This is enforced when using write and truncate but not
+> >>>>> when writing to a shared mmap on the file. This could allow the file
+> >>>>> writer to gain privileges by changing a binary without losing the
+> >>>>> setuid/setgid/caps bits.
+> >>>>>
+> >>>>> Changing the bits requires holding inode->i_mutex, so it cannot be done
+> >>>>> during the page fault (due to mmap_sem being held during the fault).
+> >>>>> Instead, clear the bits if PROT_WRITE is being used at mmap open time,
+> >>>>> or added at mprotect time.
+> >>>>>
+> >>>>> Since we can't do the check in the right place inside mmap (due to
+> >>>>> holding mmap_sem), we have to do it before holding mmap_sem, which
+> >>>>> means duplicating some checks, which have to be available to the non-MMU
+> >>>>> builds too.
+> >>>>>
+> >>>>> When walking VMAs during mprotect, we need to drop mmap_sem (while
+> >>>>> holding a file reference) and restart the walk after clearing privileges.
+> >>>>
+> >>>> ...
+> >>>>
+> >>>>> @@ -375,6 +376,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+> >>>>>
+> >>>>>       vm_flags = calc_vm_prot_bits(prot);
+> >>>>>
+> >>>>> +restart:
+> >>>>>       down_write(&current->mm->mmap_sem);
+> >>>>>
+> >>>>>       vma = find_vma(current->mm, start);
+> >>>>> @@ -416,6 +418,28 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+> >>>>>                       goto out;
+> >>>>>               }
+> >>>>>
+> >>>>> +             /*
+> >>>>> +              * If we're adding write permissions to a shared file,
+> >>>>> +              * we must clear privileges (like done at mmap time),
+> >>>>> +              * but we have to juggle the locks to avoid holding
+> >>>>> +              * mmap_sem while holding i_mutex.
+> >>>>> +              */
+> >>>>> +             if ((vma->vm_flags & VM_SHARED) && vma->vm_file &&
+> >>>>> +                 (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE) &&
+> >>>>> +                 !IS_NOSEC(file_inode(vma->vm_file))) {
+> >>>>
+> >>>> This code assumes that IS_NOSEC gets set for inode once file_remove_privs()
+> >>>> is called. However that is not true for two reasons:
+> >>>>
+> >>>> 1) When you are root, SUID bit doesn't get cleared and thus you cannot set
+> >>>> IS_NOSEC.
+> >>>>
+> >>>> 2) Some filesystems do not have MS_NOSEC set and for those IS_NOSEC is
+> >>>> never true.
+> >>>>
+> >>>> So in these cases you'll loop forever.
+> >>>
+> >>> UUuugh.
+> >>>
+> >>>>
+> >>>> You can check SUID bits without i_mutex so that could be done without
+> >>>> dropping mmap_sem but you cannot easily call security_inode_need_killpriv()
+> >>>> without i_mutex as that checks extended attributes (IMA) and that needs
+> >>>> i_mutex to be held to avoid races with someone else changing the attributes
+> >>>> under you.
+> >>>
+> >>> Yeah, that's why I changed this from Konstantin's original suggestion.
+> >>>
+> >>>> Honestly, I don't see a way of implementing this in mprotect() which would
+> >>>> be reasonably elegant.
+> >>>
+> >>> Konstantin, any thoughts here?
+> >>
+> >> Getxattr works fine without i_mutex: sys_getxattr/vfs_getxattr doesn't lock it.
+> >> If somebody changes xattrs under us we'll end up in race anyway.
+> >> But this still safe: setxattrs are sychronized.
+> >
+> > So I can swap my IS_NOSEC for your original file_needs_remove_privs()?
+> > Are the LSM hooks expecting to be called under mm_sem? (Looks like
+> > only common_caps implements that, though.)
+> 
+> getxattr should nests inside mmap_sem safely: it has sort of
+> "readpage" semantics,
+> actually ext4 uses it when inlines content of tiny files into xattr.
 
-I have described one in the part you haven't quoted here. Let me repeat:
-: Your system might be trashing to the point you are not able to log in
-: and resolve the situation in a reasonable time yet you are still not
-: OOM. sysrq+f is your only choice then.
+First, sorry Kees for misleading you. Somehow I missed that i_mutex is not
+actually acquired for getxattr() calls.
 
-Could you clarify why it is better to ditch a potentially usefull
-emergency tool rather than to make it work reliably and predictably?
+I have checked and lots of filesystems have dedicated xattr semaphore which
+should be safe to nest inside mmap_sem. There are filesystems like ocfs2 or
+gfs2 which use their equivalent of i_mutex for xattr locking so there we
+would create lock inversion when calling file_needs_remove_privs() from
+under mmap_sem.
+
+That being said at least OCFS2 has other issues with this xattr locking
+scheme and they are working on changing things AFAIK. Mark can you perhaps
+comment?
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
