@@ -1,98 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 61439828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 07:54:09 -0500 (EST)
-Received: by mail-oi0-f52.google.com with SMTP id w75so103350954oie.0
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 04:54:09 -0800 (PST)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id m133si13298163oia.143.2016.01.15.04.54.08
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AF29F828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:10:23 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id f206so19754801wmf.0
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:10:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s197si4948258wmb.1.2016.01.15.05.10.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jan 2016 04:54:08 -0800 (PST)
-Received: by mail-oi0-x242.google.com with SMTP id j3so8378545oig.0
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 04:54:08 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 15 Jan 2016 05:10:22 -0800 (PST)
+Date: Fri, 15 Jan 2016 14:10:32 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8 6/9] dax: add support for fsync/msync
+Message-ID: <20160115131032.GK15950@quack.suse.cz>
+References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1452230879-18117-7-git-send-email-ross.zwisler@linux.intel.com>
+ <20160112105716.GT6262@quack.suse.cz>
+ <20160113073019.GB30496@linux.intel.com>
+ <20160113093525.GD14630@quack.suse.cz>
+ <20160113185802.GB5904@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160113081611.GA29313@hori1.linux.bs1.fc.nec.co.jp>
-References: <1452138758-30031-1-git-send-email-liangchen.linux@gmail.com>
-	<20160113081611.GA29313@hori1.linux.bs1.fc.nec.co.jp>
-Date: Fri, 15 Jan 2016 20:54:08 +0800
-Message-ID: <CAKhg4tLTYeBusZojA3ebmBw+_6PaXnS0Dcrgx=LCGpFJBTpRAw@mail.gmail.com>
-Subject: Re: [PATCH V2] mm: mempolicy: skip non-migratable VMAs when setting MPOL_MF_LAZY
-From: Liang Chen <liangchen.linux@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160113185802.GB5904@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Gavin Guo <gavin.guo@canonical.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
 
-Hi Naoya,
+On Wed 13-01-16 11:58:02, Ross Zwisler wrote:
+> On Wed, Jan 13, 2016 at 10:35:25AM +0100, Jan Kara wrote:
+> > On Wed 13-01-16 00:30:19, Ross Zwisler wrote:
+> > > > And secondly: You must write-protect all mappings of the flushed range so
+> > > > that you get fault when the sector gets written-to again. We spoke about
+> > > > this in the past already but somehow it got lost and I forgot about it as
+> > > > well. You need something like rmap_walk_file()...
+> > > 
+> > > The code that write protected mappings and then cleaned the radix tree entries
+> > > did get written, and was part of v2:
+> > > 
+> > > https://lkml.org/lkml/2015/11/13/759
+> > > 
+> > > I removed all the code that cleaned PTE entries and radix tree entries for v3.
+> > > The reason behind this was that there was a race that I couldn't figure out
+> > > how to solve between the cleaning of the PTEs and the cleaning of the radix
+> > > tree entries.
+> > > 
+> > > The race goes like this:
+> > > 
+> > > Thread 1 (write)			Thread 2 (fsync)
+> > > ================			================
+> > > wp_pfn_shared()
+> > > pfn_mkwrite()
+> > > dax_radix_entry()
+> > > radix_tree_tag_set(DIRTY)
+> > > 					dax_writeback_mapping_range()
+> > > 					dax_writeback_one()
+> > > 					radix_tag_clear(DIRTY)
+> > > 					pgoff_mkclean()
+> > > ... return up to wp_pfn_shared()
+> > > wp_page_reuse()
+> > > pte_mkdirty()
+> > > 
+> > > After this sequence we end up with a dirty PTE that is writeable, but with a
+> > > clean radix tree entry.  This means that users can write to the page, but that
+> > > a follow-up fsync or msync won't flush this dirty data to media.
+> > > 
+> > > The overall issue is that in the write path that goes through wp_pfn_shared(),
+> > > the DAX code has control over when the radix tree entry is dirtied but not
+> > > when the PTE is made dirty and writeable.  This happens up in wp_page_reuse().
+> > > This means that we can't easily add locking, etc. to protect ourselves.
+> > > 
+> > > I spoke a bit about this with Dave Chinner and with Dave Hansen, but no really
+> > > easy solutions presented themselves in the absence of a page lock.  I do have
+> > > one idea, but I think it's pretty invasive and will need to wait for another
+> > > kernel cycle.
+> > > 
+> > > The current code that leaves the radix tree entry will give us correct
+> > > behavior - it'll just be less efficient because we will have an ever-growing
+> > > dirty set to flush.
+> > 
+> > Ahaa! Somehow I imagined tag_pages_for_writeback() clears DIRTY radix tree
+> > tags but it does not (I should have known, I have written that functions
+> > few years ago ;). Makes sense. Thanks for clarification.
+> > 
+> > > > > @@ -791,15 +976,12 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
+> > > > >   * dax_pfn_mkwrite - handle first write to DAX page
+> > > > >   * @vma: The virtual memory area where the fault occurred
+> > > > >   * @vmf: The description of the fault
+> > > > > - *
+> > > > >   */
+> > > > >  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+> > > > >  {
+> > > > > -	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+> > > > > +	struct file *file = vma->vm_file;
+> > > > >  
+> > > > > -	sb_start_pagefault(sb);
+> > > > > -	file_update_time(vma->vm_file);
+> > > > > -	sb_end_pagefault(sb);
+> > > > > +	dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false, true);
+> > > > 
+> > > > Why is NO_SECTOR argument correct here?
+> > > 
+> > > Right - so NO_SECTOR means "I expect there to already be an entry in the radix
+> > > tree - just make that entry dirty".  This works because pfn_mkwrite() always
+> > > follows a normal __dax_fault() or __dax_pmd_fault() call.  These fault calls
+> > > will insert the radix tree entry, regardless of whether the fault was for a
+> > > read or a write.  If the fault was for a write, the radix tree entry will also
+> > > be made dirty.
+> > >
+> > > For reads the radix tree entry will be inserted but left clean.  When the
+> > > first write happens we will get a pfn_mkwrite() call, which will call
+> > > dax_radix_entry() with the NO_SECTOR argument.  This will look up the radix
+> > > tree entry & set the dirty tag.
+> > 
+> > So the explanation of this should be somewhere so that everyone knows that
+> > we must have radix tree entries even for clean mapped blocks. Because upto
+> > know that was not clear to me.  Also __dax_pmd_fault() seems to insert
+> > entries only for write fault so the assumption doesn't seem to hold there?
+> 
+> Ah, right, sorry, the read fault() -> pfn_mkwrite() sequence only happens for
+> 4k pages.  You are right about our handling of 2MiB pages - for a read
+> followed by a write we will just call into the normal __dax_pmd_fault() code
+> again, which will do the get_block() call and insert a dirty radix tree entry.
+> Because we have to go all the way through the fault handler again at write
+> time there isn't a benefit to inserting a clean radix tree entry on read, so
+> we just skip it.
 
-Yeah. Thanks for the reminding=EF=BC=81
+Ouch, I wasn't aware of this asymetry between PMD and PTE faults. OK, so
+please just document this all somewhere because I'm pretty sure casual
+reader won't be able to figure this all out just from the code.
 
-vma_policy_mof doesn't need to be checked because with MPOL_MF_LAZY
-do_mbind always sets the MPOL_F_MOF flag.
-VM_HUGETLB and VM_MIXEDMAP vma should be excluded to avoid compound
-pages being marked for migration and unexpected COWs when handling
-hugetlb fault.
-
-I will send a patch to add these check soon.
-
-Thanks,
-Liang
-
-On Wed, Jan 13, 2016 at 4:16 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> Hello Liang,
->
-> On Thu, Jan 07, 2016 at 11:52:38AM +0800, Liang Chen wrote:
->> MPOL_MF_LAZY is not visible from userspace since 'commit a720094ded8c
->> ("mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now"=
-)'
->> , but it should still skip non-migratable VMAs such as VM_IO, VM_PFNMAP,
->> and VM_HUGETLB VMAs, and avoid useless overhead of minor faults.
->>
->> Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
->> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
->> ---
->> Changes since v2:
->> - Add more description into the changelog
->>
->> We have been evaluating the enablement of MPOL_MF_LAZY again, and found
->> this issue. And we decided to push this patch upstream no matter if we
->> finally determine to propose re-enablement of MPOL_MF_LAZY or not. Since
->> it can be a potential problem even if MPOL_MF_LAZY is not enabled this
->> time.
->> ---
->>  mm/mempolicy.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index 87a1779..436ff411 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -610,7 +610,8 @@ static int queue_pages_test_walk(unsigned long start=
-, unsigned long end,
->>
->>       if (flags & MPOL_MF_LAZY) {
->>               /* Similar to task_numa_work, skip inaccessible VMAs */
->> -             if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
->> +             if (vma_migratable(vma) &&
->> +                     vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
->>                       change_prot_numa(vma, start, endvma);
->>               return 1;
->>       }
->
-> task_numa_work() does more vma checks before entering change_prot_numa() =
-like
-> vma_policy_mof(), is_vm_hugetlb_page(), and (vma->vm_flags & VM_MIXEDMAP)=
-.
-> So is it better to use the same check set to limit the target vmas to aut=
-o-numa
-> enabled ones?
->
-> Thanks,
-> Naoya Horiguchi
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
