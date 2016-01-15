@@ -1,107 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B86F828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:31:02 -0500 (EST)
-Received: by mail-qk0-f172.google.com with SMTP id x1so38191619qkc.1
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:31:02 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q7si13343594qgd.110.2016.01.15.05.31.01
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B9FF828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 09:34:54 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id n128so118558256pfn.3
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 06:34:54 -0800 (PST)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id dg7si16832983pad.75.2016.01.15.06.34.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jan 2016 05:31:01 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: [PATCH v6 2/2] xen_balloon: support memory auto onlining policy
-Date: Fri, 15 Jan 2016 14:30:45 +0100
-Message-Id: <1452864645-27778-3-git-send-email-vkuznets@redhat.com>
-In-Reply-To: <1452864645-27778-1-git-send-email-vkuznets@redhat.com>
-References: <1452864645-27778-1-git-send-email-vkuznets@redhat.com>
+        Fri, 15 Jan 2016 06:34:53 -0800 (PST)
+Received: by mail-pf0-x241.google.com with SMTP id e65so8631900pfe.0
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 06:34:53 -0800 (PST)
+Date: Fri, 15 Jan 2016 23:34:34 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] zsmalloc: fix migrate_zspage-zs_free race condition
+Message-ID: <20160115143434.GA25332@blaptop.local>
+References: <1452843551-4464-1-git-send-email-junil0814.lee@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1452843551-4464-1-git-send-email-junil0814.lee@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
+To: Junil Lee <junil0814.lee@lge.com>
+Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add support for the newly added kernel memory auto onlining policy to Xen
-ballon driver.
+On Fri, Jan 15, 2016 at 04:39:11PM +0900, Junil Lee wrote:
+> To prevent unlock at the not correct situation, tagging the new obj to
+> assure lock in migrate_zspage() before right unlock path.
+> 
+> Two functions are in race condition by tag which set 1 on last bit of
+> obj, however unlock succrently when update new obj to handle before call
+> unpin_tag() which is right unlock path.
+> 
+> summarize this problem by call flow as below:
+> 
+> 		CPU0								CPU1
+> migrate_zspage
+> find_alloced_obj()
+> 	trypin_tag() -- obj |= HANDLE_PIN_BIT
+> obj_malloc() -- new obj is not set			zs_free
+> record_obj() -- unlock and break sync		pin_tag() -- get lock
+> unpin_tag()
+> 
+> Before code make crash as below:
+> 	Unable to handle kernel NULL pointer dereference at virtual address 00000000
+> 	CPU: 0 PID: 19001 Comm: CookieMonsterCl Tainted:
+> 	PC is at get_zspage_mapping+0x0/0x24
+> 	LR is at obj_free.isra.22+0x64/0x128
+> 	Call trace:
+> 		[<ffffffc0001a3aa8>] get_zspage_mapping+0x0/0x24
+> 		[<ffffffc0001a4918>] zs_free+0x88/0x114
+> 		[<ffffffc00053ae54>] zram_free_page+0x64/0xcc
+> 		[<ffffffc00053af4c>] zram_slot_free_notify+0x90/0x108
+> 		[<ffffffc000196638>] swap_entry_free+0x278/0x294
+> 		[<ffffffc000199008>] free_swap_and_cache+0x38/0x11c
+> 		[<ffffffc0001837ac>] unmap_single_vma+0x480/0x5c8
+> 		[<ffffffc000184350>] unmap_vmas+0x44/0x60
+> 		[<ffffffc00018a53c>] exit_mmap+0x50/0x110
+> 		[<ffffffc00009e408>] mmput+0x58/0xe0
+> 		[<ffffffc0000a2854>] do_exit+0x320/0x8dc
+> 		[<ffffffc0000a3cb4>] do_group_exit+0x44/0xa8
+> 		[<ffffffc0000ae1bc>] get_signal+0x538/0x580
+> 		[<ffffffc000087e44>] do_signal+0x98/0x4b8
+> 		[<ffffffc00008843c>] do_notify_resume+0x14/0x5c
+> 
+> and for test, print obj value after pin_tag() in zs_free().
+> Sometimes obj is even number means break synchronization.
+> 
+> After patched, crash is not occurred and obj is only odd number in same
+> situation.
 
-Suggested-by: Daniel Kiper <daniel.kiper@oracle.com>
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
-Acked-by: David Vrabel <david.vrabel@citrix.com>
-Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
----
-Changes since v5:
-- Change the last 'domU' -> 'target domain' in Kconfig [Daniel Kiper]
----
- drivers/xen/Kconfig   | 23 +++++++++++++++--------
- drivers/xen/balloon.c | 11 ++++++++++-
- 2 files changed, 25 insertions(+), 9 deletions(-)
+If you verified it solved your problem, we should mark this patch
+as stable.
 
-diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
-index 73708ac..979a8317 100644
---- a/drivers/xen/Kconfig
-+++ b/drivers/xen/Kconfig
-@@ -37,23 +37,30 @@ config XEN_BALLOON_MEMORY_HOTPLUG
- 
- 	  Memory could be hotplugged in following steps:
- 
--	    1) dom0: xl mem-max <domU> <maxmem>
-+	    1) target domain: ensure that memory auto online policy is in
-+	       effect by checking /sys/devices/system/memory/auto_online_blocks
-+	       file (should be 'online').
-+
-+	    2) control domain: xl mem-max <target-domain> <maxmem>
- 	       where <maxmem> is >= requested memory size,
- 
--	    2) dom0: xl mem-set <domU> <memory>
-+	    3) control domain: xl mem-set <target-domain> <memory>
- 	       where <memory> is requested memory size; alternatively memory
- 	       could be added by writing proper value to
- 	       /sys/devices/system/xen_memory/xen_memory0/target or
--	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
-+	       /sys/devices/system/xen_memory/xen_memory0/target_kb on the
-+	       target domain.
- 
--	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
--	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
-+	  Alternatively, if memory auto onlining was not requested at step 1
-+	  the newly added memory can be manually onlined in the target domain
-+	  by doing the following:
- 
--	  Memory could be onlined automatically on domU by adding following line to udev rules:
-+		for i in /sys/devices/system/memory/memory*/state; do \
-+		  [ "`cat "$i"`" = offline ] && echo online > "$i"; done
- 
--	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
-+	  or by adding the following line to udev rules:
- 
--	  In that case step 3 should be omitted.
-+	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
- 
- config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
- 	int "Hotplugged memory limit (in GiB) for a PV guest"
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 890c3b5..f8cca0c 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -338,7 +338,16 @@ static enum bp_state reserve_additional_memory(void)
- 	}
- #endif
- 
--	rc = add_memory_resource(nid, resource, false);
-+	/*
-+	 * add_memory_resource() will call online_pages() which in its turn
-+	 * will call xen_online_page() callback causing deadlock if we don't
-+	 * release balloon_mutex here. Unlocking here is safe because the
-+	 * callers drop the mutex before trying again.
-+	 */
-+	mutex_unlock(&balloon_mutex);
-+	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	mutex_lock(&balloon_mutex);
-+
- 	if (rc) {
- 		pr_warn("Cannot add additional memory (%i)\n", rc);
- 		goto err;
+> 
+> Signed-off-by: Junil Lee <junil0814.lee@lge.com>
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Below comment.
+
+> ---
+>  mm/zsmalloc.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index e7414ce..a24ccb1 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -1635,6 +1635,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+>  		free_obj = obj_malloc(d_page, class, handle);
+>  		zs_object_copy(free_obj, used_obj, class);
+>  		index++;
+> +		/* Must not unlock before unpin_tag() */
+
+I want to make comment more clear.
+
+/*
+ * record_obj updates handle's value to free_obj and it will invalidate
+ * lock bit(ie, HANDLE_PIN_BIT) of handle, which breaks synchronization
+ * using pin_tag(e,g, zs_free) so let's keep the lock bit.
+ */
+
+Thanks.
+
+> +		free_obj |= BIT(HANDLE_PIN_BIT);
+>  		record_obj(handle, free_obj);
+>  		unpin_tag(handle);
+>  		obj_free(pool, class, used_obj);
+> -- 
+> 2.6.2
+> 
+
 -- 
-2.5.0
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
