@@ -1,122 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E32B828DF
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:22:38 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l65so20106043wmf.1
-        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:22:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z129si4348432wmb.37.2016.01.15.05.22.37
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 99FDF828DF
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2016 08:30:53 -0500 (EST)
+Received: by mail-qk0-f178.google.com with SMTP id x1so38189970qkc.1
+        for <linux-mm@kvack.org>; Fri, 15 Jan 2016 05:30:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x130si13317839qhc.103.2016.01.15.05.30.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Jan 2016 05:22:37 -0800 (PST)
-Date: Fri, 15 Jan 2016 14:22:49 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v8 4/9] dax: support dirty DAX entries in radix tree
-Message-ID: <20160115132249.GL15950@quack.suse.cz>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-5-git-send-email-ross.zwisler@linux.intel.com>
- <20160113094411.GA17057@quack.suse.cz>
- <20160113184832.GA5904@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160113184832.GA5904@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jan 2016 05:30:52 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: [PATCH v6 0/2] memory-hotplug: add automatic onlining policy for the newly added memory
+Date: Fri, 15 Jan 2016 14:30:43 +0100
+Message-Id: <1452864645-27778-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: linux-mm@kvack.org
+Cc: Jonathan Corbet <corbet@lwn.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, "K. Y. Srinivasan" <kys@microsoft.com>, Igor Mammedov <imammedo@redhat.com>, Kay Sievers <kay@vrfy.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
 
-On Wed 13-01-16 11:48:32, Ross Zwisler wrote:
-> On Wed, Jan 13, 2016 at 10:44:11AM +0100, Jan Kara wrote:
-> > On Thu 07-01-16 22:27:54, Ross Zwisler wrote:
-> > > Add support for tracking dirty DAX entries in the struct address_space
-> > > radix tree.  This tree is already used for dirty page writeback, and it
-> > > already supports the use of exceptional (non struct page*) entries.
-> > > 
-> > > In order to properly track dirty DAX pages we will insert new exceptional
-> > > entries into the radix tree that represent dirty DAX PTE or PMD pages.
-> > > These exceptional entries will also contain the writeback sectors for the
-> > > PTE or PMD faults that we can use at fsync/msync time.
-> > > 
-> > > There are currently two types of exceptional entries (shmem and shadow)
-> > > that can be placed into the radix tree, and this adds a third.  We rely on
-> > > the fact that only one type of exceptional entry can be found in a given
-> > > radix tree based on its usage.  This happens for free with DAX vs shmem but
-> > > we explicitly prevent shadow entries from being added to radix trees for
-> > > DAX mappings.
-> > > 
-> > > The only shadow entries that would be generated for DAX radix trees would
-> > > be to track zero page mappings that were created for holes.  These pages
-> > > would receive minimal benefit from having shadow entries, and the choice
-> > > to have only one type of exceptional entry in a given radix tree makes the
-> > > logic simpler both in clear_exceptional_entry() and in the rest of DAX.
-> > > 
-> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > Reviewed-by: Jan Kara <jack@suse.cz>
-> > 
-> > I have realized there's one issue with this code. See below:
-> > 
-> > > @@ -34,31 +35,39 @@ static void clear_exceptional_entry(struct address_space *mapping,
-> > >  		return;
-> > >  
-> > >  	spin_lock_irq(&mapping->tree_lock);
-> > > -	/*
-> > > -	 * Regular page slots are stabilized by the page lock even
-> > > -	 * without the tree itself locked.  These unlocked entries
-> > > -	 * need verification under the tree lock.
-> > > -	 */
-> > > -	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
-> > > -		goto unlock;
-> > > -	if (*slot != entry)
-> > > -		goto unlock;
-> > > -	radix_tree_replace_slot(slot, NULL);
-> > > -	mapping->nrshadows--;
-> > > -	if (!node)
-> > > -		goto unlock;
-> > > -	workingset_node_shadows_dec(node);
-> > > -	/*
-> > > -	 * Don't track node without shadow entries.
-> > > -	 *
-> > > -	 * Avoid acquiring the list_lru lock if already untracked.
-> > > -	 * The list_empty() test is safe as node->private_list is
-> > > -	 * protected by mapping->tree_lock.
-> > > -	 */
-> > > -	if (!workingset_node_shadows(node) &&
-> > > -	    !list_empty(&node->private_list))
-> > > -		list_lru_del(&workingset_shadow_nodes, &node->private_list);
-> > > -	__radix_tree_delete_node(&mapping->page_tree, node);
-> > > +
-> > > +	if (dax_mapping(mapping)) {
-> > > +		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
-> > > +			mapping->nrexceptional--;
-> > 
-> > So when you punch hole in a file, you can delete a PMD entry from a radix
-> > tree which covers part of the file which still stays. So in this case you
-> > have to split the PMD entry into PTE entries (probably that needs to happen
-> > up in truncate_inode_pages_range()) or something similar...
-> 
-> I think (and will verify) that the DAX code just unmaps the entire PMD range
-> when we receive a hole punch request inside of the PMD.  If this is true then
-> I think the radix tree code should behave the same way and just remove the PMD
-> entry in the radix tree.
+Changes since v5:
+Patch 1:
+- Mention possible failures during automatic onlining in memory-hotplug.txt
+  [David Rientjes]
+- Add Daniel's Reviewed-by: (hope it stands)
 
-But you cannot just remove it if it is dirty... You have to keep somewhere
-information that part of the PMD range is still dirty (or write that range
-out before removing the radix tree entry).
+Patch2:
+- Change the last 'domU' -> 'target domain' in Kconfig [Daniel Kiper]
+- Add Daniel's Reviewed-by:
+- Add David's Acked-by:
 
-> This will cause new accesses that used to land in the PMD range to get new
-> page faults.  These faults will call get_blocks(), where presumably the
-> filesystem will tell us that we don't have a contiguous 2MiB range anymore, so
-> we will fall back to PTE faults.  These PTEs will fill in both the radix tree
-> and the page tables.
-> 
-> So, I think the work here is to verify the behavior of DAX wrt hole punches
-> for PMD ranges, and make the radix tree code match that behavior.  Sound good?
+Original description:
 
-								Honza
+Currently, all newly added memory blocks remain in 'offline' state unless
+someone onlines them, some linux distributions carry special udev rules
+like:
+
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+
+to make this happen automatically. This is not a great solution for virtual
+machines where memory hotplug is being used to address high memory pressure
+situations as such onlining is slow and a userspace process doing this
+(udev) has a chance of being killed by the OOM killer as it will probably
+require to allocate some memory.
+
+Introduce default policy for the newly added memory blocks in
+/sys/devices/system/memory/auto_online_blocks file with two possible
+values: "offline" which preserves the current behavior and "online" which
+causes all newly added memory blocks to go online as soon as they're added.
+The default is "offline".
+
+Vitaly Kuznetsov (2):
+  memory-hotplug: add automatic onlining policy for the newly added
+    memory
+  xen_balloon: support memory auto onlining policy
+
+ Documentation/memory-hotplug.txt | 23 ++++++++++++++++++++---
+ drivers/base/memory.c            | 34 +++++++++++++++++++++++++++++++++-
+ drivers/xen/Kconfig              | 23 +++++++++++++++--------
+ drivers/xen/balloon.c            | 11 ++++++++++-
+ include/linux/memory.h           |  3 +++
+ include/linux/memory_hotplug.h   |  4 +++-
+ mm/memory_hotplug.c              | 17 +++++++++++++++--
+ 7 files changed, 99 insertions(+), 16 deletions(-)
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
