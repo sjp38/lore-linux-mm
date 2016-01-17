@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF2D6B0269
-	for <linux-mm@kvack.org>; Sat, 16 Jan 2016 13:00:14 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id q63so138487154pfb.1
-        for <linux-mm@kvack.org>; Sat, 16 Jan 2016 10:00:14 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id o4si25393695pap.178.2016.01.16.10.00.13
-        for <linux-mm@kvack.org>;
-        Sat, 16 Jan 2016 10:00:13 -0800 (PST)
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
- <1447181081-30056-2-git-send-email-aarcange@redhat.com>
- <alpine.LSU.2.11.1601141356080.13199@eggly.anvils>
- <20160116174953.GU31137@redhat.com>
-From: Arjan van de Ven <arjan@linux.intel.com>
-Message-ID: <569A852B.6050209@linux.intel.com>
-Date: Sat, 16 Jan 2016 10:00:11 -0800
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 523396B0009
+	for <linux-mm@kvack.org>; Sun, 17 Jan 2016 05:02:54 -0500 (EST)
+Received: by mail-ig0-f181.google.com with SMTP id mw1so33458296igb.1
+        for <linux-mm@kvack.org>; Sun, 17 Jan 2016 02:02:54 -0800 (PST)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id 82si11755872ioi.171.2016.01.17.02.02.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Jan 2016 02:02:53 -0800 (PST)
+Received: by mail-ig0-x234.google.com with SMTP id mw1so33458223igb.1
+        for <linux-mm@kvack.org>; Sun, 17 Jan 2016 02:02:53 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160116174953.GU31137@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5698866F.1070802@nextfour.com>
+References: <5698866F.1070802@nextfour.com>
+Date: Sun, 17 Jan 2016 12:02:53 +0200
+Message-ID: <CAOJsxLFXts1USPU827A1zaZsggER7CVzZah7TGKzNHzqF8Ttsg@mail.gmail.com>
+Subject: Re: [PATCH] mm: make apply_to_page_range more robust
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
+To: =?UTF-8?Q?Mika_Penttil=C3=A4?= <mika.penttila@nextfour.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 1/16/2016 9:49 AM, Andrea Arcangeli wrote:
-> In short I don't see the KSM sharing limit ever going to be obsolete
-> unless the whole pagetable format changes and we don't deal with
-> pagetables anymore.
+On Fri, Jan 15, 2016 at 7:41 AM, Mika Penttil=C3=A4
+<mika.penttila@nextfour.com> wrote:
+> Recent changes (4.4.0+) in module loader triggered oops on ARM. While
+> loading a module, size in :
+>
+> apply_to_page_range(struct mm_struct *mm, unsigned long addr,   unsigned
+> long size, pte_fn_t fn, void *data);
+>
+> can be 0 triggering the bug  BUG_ON(addr >=3D end);.
+>
+> Fix by letting call with zero size succeed.
+>
+> --Mika
+>
+> Signed-off-by: mika.penttila@nextfour.com
 
-just to put some weight behind Andrea's arguments: this is not theoretical.
-We're running 3500 - 7000 virtual machines on a single server quite easily nowadays
-and there's quite a bit of memory that KSM will share between them (often
-even multiple times)..  so your N in O(N) is 7000 to many multiples there of
-in real environments.
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
-And the long hang do happen... once you start getting a bit of memory pressure
-(say you go from 7000 to 7200 VMs and you only have memory for 7150) then you
-are hitting the long delays *for every page* the VM inspects, and it will inspect
-many... since initially they all (all 200Gb of them) are active. My machine was
-just completely "out" in this for 24 hours before I decided to just reboot it instead.
+We could also replace that BUG_ON() with a WARN_ON() and return -EINVAL.
 
-Now, you can make it 2x faster (reboot in 12 hours? ;-) ) but there's really a much
-higher order reduction of the "long chain" problem needed...
-I'm with Andrea that prevention of super long chains is the way to go, we can argue about 250
-or 500 or 1000. Numbers will speak there... but from a KSM user perspective, at some point
-you reduced the cost of a page by 250x or 500x or 1000x... it's hitting diminishing returns.
-
+> ---
+>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index c387430..c3d1a2e 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1884,6 +1884,9 @@ int apply_to_page_range(struct mm_struct *mm,
+> unsigned long addr,
+>         unsigned long end =3D addr + size;
+>         int err;
+>
+> +       if (!size)
+> +               return 0;
+> +
+>         BUG_ON(addr >=3D end);
+>         pgd =3D pgd_offset(mm, addr);
+>         do {
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
