@@ -1,52 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C236B0009
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 15:56:30 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id u188so118989244wmu.1
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 12:56:30 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
-        by mx.google.com with ESMTPS id j10si40859161wje.70.2016.01.18.12.56.29
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E61A6B0009
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 17:14:55 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id 123so69210212wmz.0
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 14:14:55 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id v188si28225638wmg.123.2016.01.18.14.14.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jan 2016 12:56:29 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm: avoid uninitialized variable in tracepoint
-Date: Mon, 18 Jan 2016 21:50:26 +0100
-Message-ID: <4117363.Ys1FTDH7Wz@wuerfel>
+        Mon, 18 Jan 2016 14:14:54 -0800 (PST)
+Date: Mon, 18 Jan 2016 17:14:27 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/1] mmzone: code cleanup for LRU stats.
+Message-ID: <20160118221427.GA8657@cmpxchg.org>
+References: <1453101492-37125-1-git-send-email-maninder1.s@samsung.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1453101492-37125-1-git-send-email-maninder1.s@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, dan.carpenter@oracle.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Maninder Singh <maninder1.s@samsung.com>
+Cc: mhocko@kernel.org, vdavydov@virtuozzo.com, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, ajeet.y@samsung.com, pankaj.m@samsung.com, Vaneet Narang <v.narang@samsung.com>
 
-A newly added tracepoint in the hugepage code uses a variable in the
-error handling that is not initialized at that point:
+On Mon, Jan 18, 2016 at 12:48:12PM +0530, Maninder Singh wrote:
+> Replacing hardcoded values with enum lru_stats for LRU stats.
+> 
+> Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
+> Signed-off-by: Vaneet Narang <v.narang@samsung.com>
 
-include/trace/events/huge_memory.h:81:230: error: 'isolated' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+I don't think the code is hard to understand, it always says 'anon' or
+'file' or similar for every context where it's important to understand
+what the magic array index means.
 
-The result is relatively harmless, as the trace data will in rare
-cases contain incorrect data.
-
-This works around the problem by adding an explicit initialization.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: 7d2eba0557c1 ("mm: add tracepoint for scanning pages")
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b2db98136af9..bb3b763b1829 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2320,7 +2320,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	pgtable_t pgtable;
- 	struct page *new_page;
- 	spinlock_t *pmd_ptl, *pte_ptl;
--	int isolated, result = 0;
-+	int isolated = 0, result = 0;
- 	unsigned long hstart, hend;
- 	struct mem_cgroup *memcg;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
+And this patch makes the lines too long and unwieldy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
