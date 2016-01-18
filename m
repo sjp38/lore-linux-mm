@@ -1,201 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 12FD16B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 04:46:09 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id q63so159940897pfb.1
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 01:46:09 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id z68si38671062pfi.34.2016.01.18.01.46.08
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 86AC46B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 04:55:09 -0500 (EST)
+Received: by mail-io0-f180.google.com with SMTP id 1so497366534ion.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 01:55:09 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id k20si28381875iok.56.2016.01.18.01.55.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jan 2016 01:46:08 -0800 (PST)
-Received: by mail-pa0-x235.google.com with SMTP id uo6so417345340pac.1
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 01:46:08 -0800 (PST)
-Date: Mon, 18 Jan 2016 01:45:59 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-In-Reply-To: <alpine.LSU.2.11.1601180014320.1538@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1601180133050.5730@eggly.anvils>
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com> <1447181081-30056-2-git-send-email-aarcange@redhat.com> <alpine.LSU.2.11.1601141356080.13199@eggly.anvils> <20160116174953.GU31137@redhat.com>
- <alpine.LSU.2.11.1601180014320.1538@eggly.anvils>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Jan 2016 01:55:08 -0800 (PST)
+From: Junil Lee <junil0814.lee@lge.com>
+Subject: [PATCH v4] zsmalloc: fix migrate_zspage-zs_free race condition
+Date: Mon, 18 Jan 2016 18:55:03 +0900
+Message-ID: <1453110903-11394-1-git-send-email-junil0814.lee@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>
+To: minchan@kernel.org, ngupta@vflare.org
+Cc: sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, Junil Lee <junil0814.lee@lge.com>
 
-On Mon, 18 Jan 2016, Hugh Dickins wrote:
-> On Sat, 16 Jan 2016, Andrea Arcangeli wrote:
-> > On Thu, Jan 14, 2016 at 03:36:56PM -0800, Hugh Dickins wrote:
-> > > 
-> > > You've got me fired up.  Mel's recent 72b252aed506 "mm: send one IPI per
-> > > CPU to TLB flush all entries after unmapping pages" and nearby commits
-> > > are very much to the point here; but because his first draft was unsafe
-> > > in the page migration area, he dropped that, and ended up submitting
-> > > for page reclaim alone.
-> > > 
-> > > That's the first low-hanging fruit: we should apply Mel's batching
-> > > to page migration; and it's become clear enough in my mind, that I'm
-> > > now impatient to try it myself (but maybe Mel will respond if he has
-> > > a patch for it already).  If I can't post a patch for that early next
-> > > week, someone else take over (or preempt me); yes, there's all kinds
-> > > of other things I should be doing instead, but this is too tempting.
-> > > 
-> > > That can help, not just KSM's long chains, but most other migration of
-> > > mapped pages too.  (The KSM case is particularly easy, because those
-> > > pages are known to be mapped write-protected, and its long chains can
-> > > benefit just from batching on the single page; but in general, I
-> > > believe we want to batch across pages there too, when we can.)
-> 
-> I'll send that, but I wasn't able to take it as far as I'd hoped,
-> not for the file-backed pages anyway.
+record_obj() in migrate_zspage() does not preserve handle's
+HANDLE_PIN_BIT, set by find_aloced_obj()->trypin_tag(), and implicitly
+(accidentally) un-pins the handle, while migrate_zspage() still performs
+an explicit unpin_tag() on the that handle.
+This additional explicit unpin_tag() introduces a race condition with
+zs_free(), which can pin that handle by this time, so the handle becomes
+un-pinned.
 
-Here's what I did against v4.4, haven't looked at current git yet.
-And there's an XXX where I found the MR_MEMORY_FAILURE case a little
-confusing, so didn't yet add back the necessary variant code for that.
-But I was probably too excited above, overestimating the significance
-of the IPIs here.
+Schematically, it goes like this:
 
---- v4.4/mm/migrate.c	2016-01-10 15:01:32.000000000 -0800
-+++ linux/mm/migrate.c	2016-01-18 01:28:26.861853142 -0800
-@@ -887,8 +887,21 @@ static int __unmap_and_move(struct page
- 		/* Establish migration ptes */
- 		VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma,
- 				page);
--		try_to_unmap(page,
-+		try_to_unmap(page, TTU_BATCH_FLUSH|
- 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+		/*
-+		 * We must flush TLBs before copying the page if a pte was
-+		 * dirty, because otherwise further mods could be made to page
-+		 * without faulting, and never copied to newpage.  That's true
-+		 * of anon and file pages; but it's even worse for a file page,
-+		 * because once newpage is unlocked, it can be written via the
-+		 * pagecache, and those mods must be visible through its ptes.
-+		 * We could hold newpage lock for longer, but how much longer?
-+		 */
-+		if (PageAnon(page))
-+			try_to_unmap_flush_dirty();
-+		else
-+			try_to_unmap_flush();
- 		page_was_mapped = 1;
- 	}
- 
-@@ -927,8 +940,7 @@ out:
- static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 				   free_page_t put_new_page,
- 				   unsigned long private, struct page *page,
--				   int force, enum migrate_mode mode,
--				   enum migrate_reason reason)
-+				   int force, enum migrate_mode mode)
- {
- 	int rc = MIGRATEPAGE_SUCCESS;
- 	int *result = NULL;
-@@ -950,27 +962,7 @@ static ICE_noinline int unmap_and_move(n
- 	rc = __unmap_and_move(page, newpage, force, mode);
- 	if (rc == MIGRATEPAGE_SUCCESS)
- 		put_new_page = NULL;
--
- out:
--	if (rc != -EAGAIN) {
--		/*
--		 * A page that has been migrated has all references
--		 * removed and will be freed. A page that has not been
--		 * migrated will have kepts its references and be
--		 * restored.
--		 */
--		list_del(&page->lru);
--		dec_zone_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
--		/* Soft-offlined page shouldn't go through lru cache list */
--		if (reason == MR_MEMORY_FAILURE) {
--			put_page(page);
--			if (!test_set_page_hwpoison(page))
--				num_poisoned_pages_inc();
--		} else
--			putback_lru_page(page);
--	}
--
- 	/*
- 	 * If migration was not successful and there's a freeing callback, use
- 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
-@@ -1029,10 +1021,8 @@ static int unmap_and_move_huge_page(new_
- 	 * tables or check whether the hugepage is pmd-based or not before
- 	 * kicking migration.
- 	 */
--	if (!hugepage_migration_supported(page_hstate(hpage))) {
--		putback_active_hugepage(hpage);
-+	if (!hugepage_migration_supported(page_hstate(hpage)))
- 		return -ENOSYS;
--	}
- 
- 	new_hpage = get_new_page(hpage, private, &result);
- 	if (!new_hpage)
-@@ -1051,8 +1041,9 @@ static int unmap_and_move_huge_page(new_
- 		goto put_anon;
- 
- 	if (page_mapped(hpage)) {
--		try_to_unmap(hpage,
-+		try_to_unmap(hpage, TTU_BATCH_FLUSH|
- 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+		try_to_unmap_flush();
- 		page_was_mapped = 1;
- 	}
- 
-@@ -1076,9 +1067,6 @@ put_anon:
- 
- 	unlock_page(hpage);
- out:
--	if (rc != -EAGAIN)
--		putback_active_hugepage(hpage);
--
- 	/*
- 	 * If migration was not successful and there's a freeing callback, use
- 	 * it.  Otherwise, put_page() will drop the reference grabbed during
-@@ -1123,6 +1111,7 @@ int migrate_pages(struct list_head *from
- 		free_page_t put_new_page, unsigned long private,
- 		enum migrate_mode mode, int reason)
- {
-+	LIST_HEAD(putback_pages);
- 	int retry = 1;
- 	int nr_failed = 0;
- 	int nr_succeeded = 0;
-@@ -1147,8 +1136,20 @@ int migrate_pages(struct list_head *from
- 						pass > 2, mode);
- 			else
- 				rc = unmap_and_move(get_new_page, put_new_page,
--						private, page, pass > 2, mode,
--						reason);
-+						private, page, pass > 2, mode);
-+
-+			if (rc != -EAGAIN) {
-+				/*
-+				 * A page that has been migrated has had all
-+				 * references removed and will be freed once
-+				 * TLBs have been flushed. A page that has not
-+				 * been migrated will have kept its references
-+				 * and been restored.
-+				 *
-+				 * XXX: Get the MR_MEMORY_FAILURE case right.
-+				 */
-+				list_move_tail(&page->lru, &putback_pages);
-+			}
- 
- 			switch(rc) {
- 			case -ENOMEM:
-@@ -1183,6 +1184,10 @@ out:
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
- 
-+	try_to_unmap_flush();
-+	putback_movable_pages(&putback_pages);
-+	/* But our caller has to putback the -EAGAIN pages left on from list */
-+
- 	return rc;
+CPU0					CPU1
+migrate_zspage
+  find_alloced_obj
+    trypin_tag
+      set HANDLE_PIN_BIT			zs_free()
+						  pin_tag()
+  obj_malloc() -- new object, no tag
+  record_obj() -- remove HANDLE_PIN_BIT	    set HANDLE_PIN_BIT
+  unpin_tag()  -- remove zs_free's HANDLE_PIN_BIT
+
+The race condition may result in a NULL pointer dereference:
+	Unable to handle kernel NULL pointer dereference at virtual address 00000000
+	CPU: 0 PID: 19001 Comm: CookieMonsterCl Tainted:
+	PC is at get_zspage_mapping+0x0/0x24
+	LR is at obj_free.isra.22+0x64/0x128
+	Call trace:
+		[<ffffffc0001a3aa8>] get_zspage_mapping+0x0/0x24
+		[<ffffffc0001a4918>] zs_free+0x88/0x114
+		[<ffffffc00053ae54>] zram_free_page+0x64/0xcc
+		[<ffffffc00053af4c>] zram_slot_free_notify+0x90/0x108
+		[<ffffffc000196638>] swap_entry_free+0x278/0x294
+		[<ffffffc000199008>] free_swap_and_cache+0x38/0x11c
+		[<ffffffc0001837ac>] unmap_single_vma+0x480/0x5c8
+		[<ffffffc000184350>] unmap_vmas+0x44/0x60
+		[<ffffffc00018a53c>] exit_mmap+0x50/0x110
+		[<ffffffc00009e408>] mmput+0x58/0xe0
+		[<ffffffc0000a2854>] do_exit+0x320/0x8dc
+		[<ffffffc0000a3cb4>] do_group_exit+0x44/0xa8
+		[<ffffffc0000ae1bc>] get_signal+0x538/0x580
+		[<ffffffc000087e44>] do_signal+0x98/0x4b8
+		[<ffffffc00008843c>] do_notify_resume+0x14/0x5c
+
+Fix the race by removing explicit unpin_tag() from migrate_zspage().
+
+Signed-off-by: Junil Lee <junil0814.lee@lge.com>
+---
+ mm/zsmalloc.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index e7414ce..cb54ce3 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -307,9 +307,24 @@ static void free_handle(struct zs_pool *pool, unsigned long handle)
+ 	kmem_cache_free(pool->handle_cachep, (void *)handle);
  }
  
++
++/*
++ * record_obj updates handle's value to free_obj and it shouldn't
++ * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, otherwise
++ * it breaks synchronization using pin_tag(e,g, zs_free) so let's
++ * keep the lock bit.
++ */
+ static void record_obj(unsigned long handle, unsigned long obj)
+ {
+-	*(unsigned long *)handle = obj;
++	int locked = (*(unsigned long *)handle) & (1 << HANDLE_PIN_BIT);
++	unsigned long val = obj | locked;
++
++	/*
++	 * WRITE_ONCE could prevent store tearing like below
++	 * *(unsigned long *)handle = free_obj
++	 * *(unsigned long *)handle |= locked;
++	 */
++	WRITE_ONCE(*(unsigned long *)handle, val);
+ }
+ 
+ /* zpool driver */
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
