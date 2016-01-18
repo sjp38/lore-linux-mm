@@ -1,106 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 86AC46B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 04:55:09 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id 1so497366534ion.1
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 01:55:09 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id k20si28381875iok.56.2016.01.18.01.55.07
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 209086B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 05:09:01 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id mw1so45554719igb.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 02:09:01 -0800 (PST)
+Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
+        by mx.google.com with ESMTPS id om7si25413277igb.3.2016.01.18.02.09.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Jan 2016 01:55:08 -0800 (PST)
-From: Junil Lee <junil0814.lee@lge.com>
-Subject: [PATCH v4] zsmalloc: fix migrate_zspage-zs_free race condition
-Date: Mon, 18 Jan 2016 18:55:03 +0900
-Message-ID: <1453110903-11394-1-git-send-email-junil0814.lee@lge.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jan 2016 02:09:00 -0800 (PST)
+Received: by mail-io0-x22c.google.com with SMTP id g73so352343797ioe.3
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 02:09:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+Date: Mon, 18 Jan 2016 11:09:00 +0100
+Message-ID: <CAMuHMdX--N2GBxLapCJLe1vXQaNL8JPEihw5ENeO+8b3y84p0Q@mail.gmail.com>
+Subject: BUILD_BUG() in smaps_account() (was: Re: [PATCHv12 01/37] mm, proc:
+ adjust PSS calculation)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org
-Cc: sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, Junil Lee <junil0814.lee@lge.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-record_obj() in migrate_zspage() does not preserve handle's
-HANDLE_PIN_BIT, set by find_aloced_obj()->trypin_tag(), and implicitly
-(accidentally) un-pins the handle, while migrate_zspage() still performs
-an explicit unpin_tag() on the that handle.
-This additional explicit unpin_tag() introduces a race condition with
-zs_free(), which can pin that handle by this time, so the handle becomes
-un-pinned.
+Hi Kirill,
 
-Schematically, it goes like this:
+On Tue, Oct 6, 2015 at 5:23 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> With new refcounting all subpages of the compound page are not necessary
+> have the same mapcount. We need to take into account mapcount of every
+> sub-page.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Jerome Marchand <jmarchan@redhat.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  fs/proc/task_mmu.c | 47 +++++++++++++++++++++++++++++++----------------
+>  1 file changed, 31 insertions(+), 16 deletions(-)
+>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index bd167675a06f..ace02a4a07db 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -454,9 +454,10 @@ struct mem_size_stats {
+>  };
+>
+>  static void smaps_account(struct mem_size_stats *mss, struct page *page,
+> -               unsigned long size, bool young, bool dirty)
+> +               bool compound, bool young, bool dirty)
+>  {
+> -       int mapcount;
+> +       int i, nr = compound ? HPAGE_PMD_NR : 1;
 
-CPU0					CPU1
-migrate_zspage
-  find_alloced_obj
-    trypin_tag
-      set HANDLE_PIN_BIT			zs_free()
-						  pin_tag()
-  obj_malloc() -- new object, no tag
-  record_obj() -- remove HANDLE_PIN_BIT	    set HANDLE_PIN_BIT
-  unpin_tag()  -- remove zs_free's HANDLE_PIN_BIT
+If CONFIG_TRANSPARENT_HUGEPAGE is not set, we have:
 
-The race condition may result in a NULL pointer dereference:
-	Unable to handle kernel NULL pointer dereference at virtual address 00000000
-	CPU: 0 PID: 19001 Comm: CookieMonsterCl Tainted:
-	PC is at get_zspage_mapping+0x0/0x24
-	LR is at obj_free.isra.22+0x64/0x128
-	Call trace:
-		[<ffffffc0001a3aa8>] get_zspage_mapping+0x0/0x24
-		[<ffffffc0001a4918>] zs_free+0x88/0x114
-		[<ffffffc00053ae54>] zram_free_page+0x64/0xcc
-		[<ffffffc00053af4c>] zram_slot_free_notify+0x90/0x108
-		[<ffffffc000196638>] swap_entry_free+0x278/0x294
-		[<ffffffc000199008>] free_swap_and_cache+0x38/0x11c
-		[<ffffffc0001837ac>] unmap_single_vma+0x480/0x5c8
-		[<ffffffc000184350>] unmap_vmas+0x44/0x60
-		[<ffffffc00018a53c>] exit_mmap+0x50/0x110
-		[<ffffffc00009e408>] mmput+0x58/0xe0
-		[<ffffffc0000a2854>] do_exit+0x320/0x8dc
-		[<ffffffc0000a3cb4>] do_group_exit+0x44/0xa8
-		[<ffffffc0000ae1bc>] get_signal+0x538/0x580
-		[<ffffffc000087e44>] do_signal+0x98/0x4b8
-		[<ffffffc00008843c>] do_notify_resume+0x14/0x5c
+    #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+    #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+    #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 
-Fix the race by removing explicit unpin_tag() from migrate_zspage().
+Depending on compiler version and optimization level, the BUILD_BUG() may be
+optimized away (smaps_account() is always called with compound = false if
+CONFIG_TRANSPARENT_HUGEPAGE=n), or lead to a build failure:
 
-Signed-off-by: Junil Lee <junil0814.lee@lge.com>
----
- mm/zsmalloc.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+    fs/built-in.o: In function `smaps_account':
+    task_mmu.c:(.text+0x4f8fa): undefined reference to
+`__compiletime_assert_471'
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e7414ce..cb54ce3 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -307,9 +307,24 @@ static void free_handle(struct zs_pool *pool, unsigned long handle)
- 	kmem_cache_free(pool->handle_cachep, (void *)handle);
- }
- 
-+
-+/*
-+ * record_obj updates handle's value to free_obj and it shouldn't
-+ * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, otherwise
-+ * it breaks synchronization using pin_tag(e,g, zs_free) so let's
-+ * keep the lock bit.
-+ */
- static void record_obj(unsigned long handle, unsigned long obj)
- {
--	*(unsigned long *)handle = obj;
-+	int locked = (*(unsigned long *)handle) & (1 << HANDLE_PIN_BIT);
-+	unsigned long val = obj | locked;
-+
-+	/*
-+	 * WRITE_ONCE could prevent store tearing like below
-+	 * *(unsigned long *)handle = free_obj
-+	 * *(unsigned long *)handle |= locked;
-+	 */
-+	WRITE_ONCE(*(unsigned long *)handle, val);
- }
- 
- /* zpool driver */
--- 
-2.6.2
+Seen with m68k/allmodconfig or allyesconfig and gcc version 4.1.2 20061115
+(prerelease) (Ubuntu 4.1.1-21).
+Not seen when compiling the affected file with gcc 4.6.3 or 4.9.0, or with the
+m68k defconfigs.
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
