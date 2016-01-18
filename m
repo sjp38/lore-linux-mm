@@ -1,38 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 95E436B0255
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 17:24:52 -0500 (EST)
-Received: by mail-oi0-f45.google.com with SMTP id p187so164698151oia.2
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 14:24:52 -0800 (PST)
-Received: from mail-ob0-x229.google.com (mail-ob0-x229.google.com. [2607:f8b0:4003:c01::229])
-        by mx.google.com with ESMTPS id p9si28624337oev.77.2016.01.18.14.24.52
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E4D6B0009
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 18:03:27 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id l65so117239934wmf.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 15:03:27 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id 5si28562714wmx.6.2016.01.18.15.03.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jan 2016 14:24:52 -0800 (PST)
-Received: by mail-ob0-x229.google.com with SMTP id py5so204657910obc.2
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 14:24:52 -0800 (PST)
+        Mon, 18 Jan 2016 15:03:26 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id b14so144836355wmb.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 15:03:26 -0800 (PST)
+Date: Tue, 19 Jan 2016 01:03:24 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: avoid uninitialized variable in tracepoint
+Message-ID: <20160118230324.GF14531@node.shutemov.name>
+References: <4117363.Ys1FTDH7Wz@wuerfel>
 MIME-Version: 1.0
-In-Reply-To: <1452516679-32040-3-git-send-email-aryabinin@virtuozzo.com>
-References: <20160110185916.GD22896@pd.tnic> <1452516679-32040-1-git-send-email-aryabinin@virtuozzo.com>
- <1452516679-32040-3-git-send-email-aryabinin@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 18 Jan 2016 14:24:32 -0800
-Message-ID: <CALCETrV7un=EBF8HZLdbuB6qoyKfSRz_O1DbNugqytJNWvoV7g@mail.gmail.com>
-Subject: Re: [PATCH 2/2] x86/kasan: write protect kasan zero shadow
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4117363.Ys1FTDH7Wz@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, dan.carpenter@oracle.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Mon, Jan 11, 2016 at 4:51 AM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
-> After kasan_init() executed, no one is allowed to write to kasan_zero_page,
-> so write protect it.
+On Mon, Jan 18, 2016 at 09:50:26PM +0100, Arnd Bergmann wrote:
+> A newly added tracepoint in the hugepage code uses a variable in the
+> error handling that is not initialized at that point:
+> 
+> include/trace/events/huge_memory.h:81:230: error: 'isolated' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> 
+> The result is relatively harmless, as the trace data will in rare
+> cases contain incorrect data.
+> 
+> This works around the problem by adding an explicit initialization.
+> 
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: 7d2eba0557c1 ("mm: add tracepoint for scanning pages")
 
-This seems to work for me.
+There's the same patch in mm tree, but it got lost on the way to Linus'
+tree:
 
---Andy
+https://ozlabs.org/~akpm/mmots/broken-out/mm-make-optimistic-check-for-swapin-readahead-fix.patch
+
+Andrew?
+
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index b2db98136af9..bb3b763b1829 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2320,7 +2320,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	pgtable_t pgtable;
+>  	struct page *new_page;
+>  	spinlock_t *pmd_ptl, *pte_ptl;
+> -	int isolated, result = 0;
+> +	int isolated = 0, result = 0;
+>  	unsigned long hstart, hend;
+>  	struct mem_cgroup *memcg;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+> 
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
