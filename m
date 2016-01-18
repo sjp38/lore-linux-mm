@@ -1,70 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DBBD6B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 09:43:43 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id n128so158815151pfn.3
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 06:43:43 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id e71si40182052pfd.76.2016.01.18.06.43.42
-        for <linux-mm@kvack.org>;
-        Mon, 18 Jan 2016 06:43:42 -0800 (PST)
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
- <1447181081-30056-2-git-send-email-aarcange@redhat.com>
- <alpine.LSU.2.11.1601141356080.13199@eggly.anvils>
- <20160116174953.GU31137@redhat.com> <569A852B.6050209@linux.intel.com>
- <alpine.LSU.2.11.1601172345340.1538@eggly.anvils>
-From: Arjan van de Ven <arjan@linux.intel.com>
-Message-ID: <569CFA1D.4030401@linux.intel.com>
-Date: Mon, 18 Jan 2016 06:43:41 -0800
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4D76B0009
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 09:56:54 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id z14so56949774igp.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 06:56:54 -0800 (PST)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id z1si26722316igl.72.2016.01.18.06.56.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jan 2016 06:56:53 -0800 (PST)
+Received: by mail-io0-x22e.google.com with SMTP id 77so520027280ioc.2
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 06:56:53 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1601172345340.1538@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160118114043.GA14531@node.shutemov.name>
+References: <CAMuHMdX--N2GBxLapCJLe1vXQaNL8JPEihw5ENeO+8b3y84p0Q@mail.gmail.com>
+	<20160118114043.GA14531@node.shutemov.name>
+Date: Mon, 18 Jan 2016 15:56:53 +0100
+Message-ID: <CAMuHMdXnQwKwxKJy+bpPDSw12+jteHmHD6gnMfPgynmbBK70ug@mail.gmail.com>
+Subject: Re: BUILD_BUG() in smaps_account() (was: Re: [PATCHv12 01/37] mm,
+ proc: adjust PSS calculation)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
+Hi Kirill,
+
+On Mon, Jan 18, 2016 at 12:40 PM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Mon, Jan 18, 2016 at 11:09:00AM +0100, Geert Uytterhoeven wrote:
+>>     fs/built-in.o: In function `smaps_account':
+>>     task_mmu.c:(.text+0x4f8fa): undefined reference to
+>> `__compiletime_assert_471'
 >>
->> And the long hang do happen... once you start getting a bit of memory
->> pressure
->> (say you go from 7000 to 7200 VMs and you only have memory for 7150) then you
->> are hitting the long delays *for every page* the VM inspects, and it will
+>> Seen with m68k/allmodconfig or allyesconfig and gcc version 4.1.2 20061115
+>> (prerelease) (Ubuntu 4.1.1-21).
+>> Not seen when compiling the affected file with gcc 4.6.3 or 4.9.0, or with the
+>> m68k defconfigs.
 >
-> I don't understand "*for every page*": why for *every* page?
-> I won't dispute "for many pages, many more than is bearable".
+> Ughh.
+>
+> Please, test this:
+>
+> From 5ac27019f886eef033e84c9579e09099469ccbf9 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Mon, 18 Jan 2016 14:32:49 +0300
+> Subject: [PATCH] mm, proc: add workaround for old compilers
+>
+> For THP=n, HPAGE_PMD_NR in smaps_account() expands to BUILD_BUG().
+> That's fine since this codepath is eliminated by modern compilers.
+>
+> But older compilers have not that efficient dead code elimination.
+> It causes problem at least with gcc 4.1.2 on m68k.
+>
+> Let's replace HPAGE_PMD_NR with 1 << compound_order(page).
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
 
-for every page the VM inspects; the VM tries to free memory and goes on trying
-to free stuff, but (I'm guessing here) skipping active pages, but to know and clear
-active, you need to walk the whole chain. for each page.
+Thanks, that fixes it!
 
->> Now, you can make it 2x faster (reboot in 12 hours? ;-) ) but there's really
->> a much
->> higher order reduction of the "long chain" problem needed...
->> I'm with Andrea that prevention of super long chains is the way to go, we can
->> argue about 250
->> or 500 or 1000. Numbers will speak there... but from a KSM user perspective,
->> at some point
->> you reduced the cost of a page by 250x or 500x or 1000x... it's hitting
->> diminishing returns.
->
-> I'm not for a moment denying that there's a problem to be solved,
-> just questioning what's the right solution.
->
-> The reclaim case you illustrate does not persuade me, I already suggested
-> an easier way to handle that (don't waste time on pages of high mapcount).
->
-> Or are you saying that in your usage, the majority of pages start out with
-> high mapcount?  That would defeat my suggestion, I think,  But it's the
-> compaction case I want to think more about, that may persuade me also.
+Tested-by: Geert Uytterhoeven <geert@linux-m68k.org>
 
+Gr{oetje,eeting}s,
 
-well in most servers that host VMs, of the, say 128Gb to 240Gb, all but a few hundred MB
-is allocated to VMs, and VM memory is generally shared. So yes a big chunk
-of memory will have a high map count of some sorts.
->
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
