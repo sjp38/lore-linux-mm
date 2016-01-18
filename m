@@ -1,85 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ED1B6B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 06:07:03 -0500 (EST)
-Received: by mail-qk0-f173.google.com with SMTP id o6so10423916qkc.2
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 03:07:03 -0800 (PST)
-Received: from mx5-phx2.redhat.com (mx5-phx2.redhat.com. [209.132.183.37])
-        by mx.google.com with ESMTPS id a8si30492815qkj.103.2016.01.18.03.07.01
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A802E6B0009
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 06:07:41 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id e65so156834670pfe.0
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 03:07:41 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id 63si39193212pft.41.2016.01.18.03.07.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jan 2016 03:07:02 -0800 (PST)
-Date: Mon, 18 Jan 2016 06:06:22 -0500 (EST)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <969916137.9009700.1453115182823.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-References: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Fix: PowerNV crash with 4.4.0-rc8 at sched_init_numa
+        Mon, 18 Jan 2016 03:07:41 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id yy13so32478600pab.1
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 03:07:40 -0800 (PST)
+Date: Mon, 18 Jan 2016 20:08:52 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] zsmalloc: fix migrate_zspage-zs_free race condition
+Message-ID: <20160118110852.GB30668@swordfish>
+References: <1453095596-44055-1-git-send-email-junil0814.lee@lge.com>
+ <20160118063611.GC7453@bbox>
+ <20160118065434.GB459@swordfish>
+ <20160118071157.GD7453@bbox>
+ <20160118073939.GA30668@swordfish>
+ <569C9A1F.2020303@suse.cz>
+ <20160118082000.GA20244@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160118082000.GA20244@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: mingo@redhat.com, peterz@infradead.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org, gkurz@linux.vnet.ibm.com, grant likely <grant.likely@linaro.org>, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Junil Lee <junil0814.lee@lge.com>, ngupta@vflare.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-
-
------ Original Message -----
-> From: "Raghavendra K T" <raghavendra.kt@linux.vnet.ibm.com>
-> To: mingo@redhat.com, peterz@infradead.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au,
-> anton@samba.org, akpm@linux-foundation.org
-> Cc: jstancek@redhat.com, gkurz@linux.vnet.ibm.com, "grant likely" <grant.likely@linaro.org>,
-> nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, "raghavendra kt" <raghavendra.kt@linux.vnet.ibm.com>,
-> linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-> Sent: Friday, 15 January, 2016 8:01:23 PM
-> Subject: [PATCH] Fix: PowerNV crash with 4.4.0-rc8 at sched_init_numa
+On (01/18/16 17:20), Minchan Kim wrote:
+[..]
+> > > oh... good find! lost release semantic of unpin_tag()...
+> > 
+> > Ah, release semantic, good point indeed. OK then we need the v2 approach again,
+> > with WRITE_ONCE() in record_obj(). Or some kind of record_obj_release() with
+> > release semantic, which would be a bit more effective, but I guess migration is
+> > not that critical path to be worth introducing it.
 > 
-> Commit c118baf80256 ("arch/powerpc/mm/numa.c: do not allocate bootmem
-> memory for non existing nodes") avoided bootmem memory allocation for
-> non existent nodes.
+> WRITE_ONCE in record_obj would add more memory operations in obj_malloc
+> but I don't feel it's too heavy in this phase so,
 > 
-> When DEBUG_PER_CPU_MAPS enabled, powerNV system failed to boot because
-> in sched_init_numa, cpumask_or operation was done on unallocated nodes.
-> Fix that by making cpumask_or operation only on existing nodes.
+> How about this? Junil, Could you resend patch if others agree this?
+> Thanks.
 > 
-> [ Tested with and w/o DEBUG_PER_CPU_MAPS on x86 and powerpc ]
-> 
-> Reported-by: Jan Stancek <jstancek@redhat.com>
+> +/*
+> + * record_obj updates handle's value to free_obj and it shouldn't
+> + * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, otherwise
+> + * it breaks synchronization using pin_tag(e,g, zs_free) so let's
+> + * keep the lock bit.
+> + */
+>  static void record_obj(unsigned long handle, unsigned long obj)
+>  {
+> -	*(unsigned long *)handle = obj;
+> +	int locked = (*(unsigned long *)handle) & (1<<HANDLE_PIN_BIT);
+> +	unsigned long val = obj | locked;
+> +
+> +	/*
+> +	 * WRITE_ONCE could prevent store tearing like below
+> +	 * *(unsigned long *)handle = free_obj
+> +	 * *(unsigned long *)handle |= locked;
+> +	 */
+> +	WRITE_ONCE(*(unsigned long *)handle, val);
+>  }
 
-Tested-by: Jan Stancek <jstancek@redhat.com>
+given that memory barriers are also compiler barriers, wouldn't
 
-I also verified with my setup, that this made the crash go away.
-Report mail thread for reference:
-  https://lists.ozlabs.org/pipermail/linuxppc-dev/2016-January/137691.html
+	record_obj()
+	{
+		barrier
+		*(unsigned long *)handle) = new
+	}
 
-Regards,
-Jan
+suffice?
 
-> Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> ---
->  kernel/sched/core.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 44253ad..474658b 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -6840,7 +6840,7 @@ static void sched_init_numa(void)
->  
->  			sched_domains_numa_masks[i][j] = mask;
->  
-> -			for (k = 0; k < nr_node_ids; k++) {
-> +			for_each_node(k) {
->  				if (node_distance(j, k) > sched_domains_numa_distance[i])
->  					continue;
->  
-> --
-> 1.7.11.7
-> 
-> 
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
