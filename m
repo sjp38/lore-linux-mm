@@ -1,43 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1915F6B0005
-	for <linux-mm@kvack.org>; Sun, 17 Jan 2016 20:15:44 -0500 (EST)
-Received: by mail-io0-f181.google.com with SMTP id g73so342718248ioe.3
-        for <linux-mm@kvack.org>; Sun, 17 Jan 2016 17:15:44 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id pi9si22674019igb.76.2016.01.17.17.15.42
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5330C6B0005
+	for <linux-mm@kvack.org>; Sun, 17 Jan 2016 23:13:31 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id ho8so166121691pac.2
+        for <linux-mm@kvack.org>; Sun, 17 Jan 2016 20:13:31 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id gy5si36721368pac.83.2016.01.17.20.13.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 17 Jan 2016 17:15:43 -0800 (PST)
-From: Junil Lee <junil0814.lee@lge.com>
-Subject: [PATCH v3] zsmalloc: fix migrate_zspage-zs_free race condition
-Date: Mon, 18 Jan 2016 10:15:32 +0900
-Message-ID: <1453079732-44198-1-git-send-email-junil0814.lee@lge.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Jan 2016 20:13:30 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id gi1so39428539pac.2
+        for <linux-mm@kvack.org>; Sun, 17 Jan 2016 20:13:30 -0800 (PST)
+Date: Mon, 18 Jan 2016 13:14:40 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] zsmalloc: fix migrate_zspage-zs_free race condition
+Message-ID: <20160118041440.GA415@swordfish>
+References: <1453079732-44198-1-git-send-email-junil0814.lee@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1453079732-44198-1-git-send-email-junil0814.lee@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org
-Cc: sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Junil Lee <junil0814.lee@lge.com>
+To: Junil Lee <junil0814.lee@lge.com>
+Cc: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky@gmail.com, Vlastimil Babka <vbabka@suse.cz>
 
-To prevent unlock at the not correct situation, tagging the new obj to
-assure lock in migrate_zspage() before right unlock path.
+Cc Vlastimil,
 
-Two functions are in race condition by tag which set 1 on last bit of
-obj, however unlock succrently when update new obj to handle before call
-unpin_tag() which is right unlock path.
 
-summarize this problem by call flow as below:
+Hello,
 
-		CPU0								CPU1
+On (01/18/16 10:15), Junil Lee wrote:
+> To prevent unlock at the not correct situation, tagging the new obj to
+> assure lock in migrate_zspage() before right unlock path.
+> 
+> Two functions are in race condition by tag which set 1 on last bit of
+> obj, however unlock succrently when update new obj to handle before call
+> unpin_tag() which is right unlock path.
+> 
+> summarize this problem by call flow as below:
+> 
+> 		CPU0								CPU1
+> migrate_zspage
+> find_alloced_obj()
+> 	trypin_tag() -- obj |= HANDLE_PIN_BIT
+> obj_malloc() -- new obj is not set			zs_free
+> record_obj() -- unlock and break sync		pin_tag() -- get lock
+> unpin_tag()
+
+Junil, can something like this be a bit simpler problem description?
+
+---
+
+record_obj() in migrate_zspage() does not preserve handle's
+HANDLE_PIN_BIT, set by find_alloced_obj()->trypin_tag(), and
+implicitly (accidentally) un-pins the handle, while migrate_zspage()
+still performs an explicit unpin_tag() on the that handle.
+This additional explicit unpin_tag() introduces a race condition
+with zs_free(), which can pin that handle by this time, so the handle
+becomes un-pinned. Schematically, it goes like this:
+
+CPU0							CPU1
 migrate_zspage
-find_alloced_obj()
-	trypin_tag() -- obj |= HANDLE_PIN_BIT
-obj_malloc() -- new obj is not set			zs_free
-record_obj() -- unlock and break sync		pin_tag() -- get lock
-unpin_tag()
+  find_alloced_obj
+    trypin_tag
+      set HANDLE_PIN_BIT				zs_free()
+							  pin_tag()
+  obj_malloc() -- new object, no tag
+  record_obj() -- remove HANDLE_PIN_BIT			   set HANDLE_PIN_BIT
+  unpin_tag()  -- remove zs_free's HANDLE_PIN_BIT
 
-Before code make crash as below:
+The race condition may result in a NULL pointer dereference:
 	Unable to handle kernel NULL pointer dereference at virtual address 00000000
 	CPU: 0 PID: 19001 Comm: CookieMonsterCl Tainted:
 	PC is at get_zspage_mapping+0x0/0x24
@@ -59,33 +92,53 @@ Before code make crash as below:
 		[<ffffffc000087e44>] do_signal+0x98/0x4b8
 		[<ffffffc00008843c>] do_notify_resume+0x14/0x5c
 
-and for test, print obj value after pin_tag() in zs_free().
-Sometimes obj is even number means break synchronization.
+Fix the race by removing explicit unpin_tag() from migrate_zspage().
 
-After patched, crash is not occurred and obj is only odd number in same
-situation.
-
-Signed-off-by: Junil Lee <junil0814.lee@lge.com>
 ---
- mm/zsmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e7414ce..0acfa20 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1635,8 +1635,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 		free_obj = obj_malloc(d_page, class, handle);
- 		zs_object_copy(free_obj, used_obj, class);
- 		index++;
-+		/* This also effectively unpins the handle */
- 		record_obj(handle, free_obj);
--		unpin_tag(handle);
- 		obj_free(pool, class, used_obj);
- 	}
- 
--- 
-2.6.2
+
+> and for test, print obj value after pin_tag() in zs_free().
+> Sometimes obj is even number means break synchronization.
+> 
+> After patched, crash is not occurred and obj is only odd number in same
+> situation.
+> 
+> Signed-off-by: Junil Lee <junil0814.lee@lge.com>
+
+I believe Vlastimil deserves a credit here (at least Suggested-by)
+Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+
+
+now, can the compiler re-order
+
+	record_obj(handle, free_obj);
+	obj_free(pool, class, used_obj);
+
+?
+
+	-ss
+
+> ---
+>  mm/zsmalloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index e7414ce..0acfa20 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -1635,8 +1635,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+>  		free_obj = obj_malloc(d_page, class, handle);
+>  		zs_object_copy(free_obj, used_obj, class);
+>  		index++;
+> +		/* This also effectively unpins the handle */
+>  		record_obj(handle, free_obj);
+> -		unpin_tag(handle);
+>  		obj_free(pool, class, used_obj);
+>  	}
+>  
+> -- 
+> 2.6.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
