@@ -1,153 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 699B26B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 08:38:56 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id u188so104429626wmu.1
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 05:38:56 -0800 (PST)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id b1si25393713wmi.42.2016.01.18.05.38.55
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7516B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2016 08:59:16 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id yy13so341924295pab.3
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 05:59:16 -0800 (PST)
+Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
+        by mx.google.com with ESMTPS id ue3si2609723pab.154.2016.01.18.05.59.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jan 2016 05:38:55 -0800 (PST)
-Received: by mail-wm0-x22b.google.com with SMTP id 123so52793467wmz.0
-        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 05:38:55 -0800 (PST)
-Date: Mon, 18 Jan 2016 15:38:52 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected in
- split_huge_page_to_list
-Message-ID: <20160118133852.GC14531@node.shutemov.name>
-References: <CACT4Y+ayDrEmn31qyoVdnq6vpSbL=XzFWPM5_Ee4GH=Waf27eA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+ayDrEmn31qyoVdnq6vpSbL=XzFWPM5_Ee4GH=Waf27eA@mail.gmail.com>
+        Mon, 18 Jan 2016 05:59:15 -0800 (PST)
+Received: by mail-pf0-x233.google.com with SMTP id 65so158328373pff.2
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2016 05:59:14 -0800 (PST)
+From: gavin.guo@canonical.com
+Subject: [PATCH] sched/numa: Fix use-after-free bug in the task_numa_compare
+Date: Mon, 18 Jan 2016 21:59:08 +0800
+Message-Id: <1453125548-2762-1-git-send-email-gavin.guo@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, jmarchan@redhat.com, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, jay.vosburgh@canonical.com, liang.chen@canonical.com, mgorman@suse.de, mingo@redhat.com, peterz@infradead.org, riel@redhat.com
 
-On Mon, Jan 18, 2016 at 02:08:15PM +0100, Dmitry Vyukov wrote:
-> Hello,
-> 
-> While running syzkaller fuzzer I've hit the following report.
-> 
-> Looks like cause by the recent commit
-> e9b61f19858a5d6c42ce2298cf138279375d0d9b "thp: reintroduce
-> split_huge_page()".
-> 
-> ======================================================
-> [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> 4.4.0+ #259 Tainted: G        W
-> ------------------------------------------------------
-> syz-executor/18183 [HC0[0]:SC0[2]:HE0:SE0] is trying to acquire:
->  (split_queue_lock){+.+...}, at: [<ffffffff817847d4>]
-> free_transhuge_page+0x24/0x90 mm/huge_memory.c:3436
-> 
-> and this task is already holding:
->  (slock-AF_INET){+.-...}, at: [<     inline     >] spin_lock_bh
-> include/linux/spinlock.h:307
->  (slock-AF_INET){+.-...}, at: [<ffffffff851c4fe5>]
-> lock_sock_fast+0x45/0x120 net/core/sock.c:2462
-> which would create a new lock dependency:
->  (slock-AF_INET){+.-...} -> (split_queue_lock){+.+...}
-> 
-> but this new dependency connects a SOFTIRQ-irq-safe lock:
->  (slock-AF_INET){+.-...}
-> ... which became SOFTIRQ-irq-safe at:
->   [<     inline     >] mark_irqflags kernel/locking/lockdep.c:2799
->   [<ffffffff81454718>] __lock_acquire+0xfd8/0x4700 kernel/locking/lockdep.c:3162
->   [<ffffffff8145a28c>] lock_acquire+0x1dc/0x430 kernel/locking/lockdep.c:3585
->   [<     inline     >] __raw_spin_lock include/linux/spinlock_api_smp.h:144
->   [<ffffffff863248d3>] _raw_spin_lock+0x33/0x50 kernel/locking/spinlock.c:151
->   [<     inline     >] spin_lock include/linux/spinlock.h:302
->   [<ffffffff855e3df1>] udp_queue_rcv_skb+0x781/0x1550 net/ipv4/udp.c:1680
->   [<ffffffff855e4c10>] flush_stack+0x50/0x330 net/ipv6/udp.c:799
->   [<ffffffff855e5584>] __udp4_lib_mcast_deliver+0x694/0x7f0 net/ipv4/udp.c:1798
->   [<ffffffff855e6ebc>] __udp4_lib_rcv+0x17dc/0x23e0 net/ipv4/udp.c:1888
->   [<ffffffff855e9021>] udp_rcv+0x21/0x30 net/ipv4/udp.c:2108
->   [<ffffffff85513b33>] ip_local_deliver_finish+0x2b3/0xa50
-> net/ipv4/ip_input.c:216
->   [<     inline     >] NF_HOOK_THRESH include/linux/netfilter.h:226
->   [<     inline     >] NF_HOOK include/linux/netfilter.h:249
->   [<ffffffff855149d4>] ip_local_deliver+0x1c4/0x2f0 net/ipv4/ip_input.c:257
->   [<     inline     >] dst_input include/net/dst.h:498
->   [<ffffffff8551273c>] ip_rcv_finish+0x5ec/0x1730 net/ipv4/ip_input.c:365
->   [<     inline     >] NF_HOOK_THRESH include/linux/netfilter.h:226
->   [<     inline     >] NF_HOOK include/linux/netfilter.h:249
->   [<ffffffff85515463>] ip_rcv+0x963/0x1080 net/ipv4/ip_input.c:455
->   [<ffffffff8521b410>] __netif_receive_skb_core+0x1620/0x2f80
-> net/core/dev.c:4154
->   [<ffffffff8521cd9a>] __netif_receive_skb+0x2a/0x160 net/core/dev.c:4189
->   [<ffffffff85220795>] netif_receive_skb_internal+0x1b5/0x390
-> net/core/dev.c:4217
->   [<     inline     >] napi_skb_finish net/core/dev.c:4542
->   [<ffffffff85224c9d>] napi_gro_receive+0x2bd/0x3c0 net/core/dev.c:4572
->   [<ffffffff83a2f142>] e1000_clean_rx_irq+0x4e2/0x1100
-> drivers/net/ethernet/intel/e1000e/netdev.c:1038
->   [<ffffffff83a2c1f8>] e1000_clean+0xa08/0x24a0
-> drivers/net/ethernet/intel/e1000/e1000_main.c:3819
->   [<     inline     >] napi_poll net/core/dev.c:5074
->   [<ffffffff8522285b>] net_rx_action+0x7eb/0xdf0 net/core/dev.c:5139
->   [<ffffffff81361c0a>] __do_softirq+0x26a/0x920 kernel/softirq.c:273
->   [<     inline     >] invoke_softirq kernel/softirq.c:350
->   [<ffffffff8136264f>] irq_exit+0x18f/0x1d0 kernel/softirq.c:391
->   [<     inline     >] exiting_irq ./arch/x86/include/asm/apic.h:659
->   [<ffffffff811a9a66>] do_IRQ+0x86/0x1a0 arch/x86/kernel/irq.c:252
->   [<ffffffff863264cc>] ret_from_intr+0x0/0x20 arch/x86/entry/entry_64.S:520
->   [<     inline     >] arch_safe_halt ./arch/x86/include/asm/paravirt.h:117
->   [<ffffffff811bdd42>] default_idle+0x52/0x2e0 arch/x86/kernel/process.c:304
->   [<ffffffff811bf37a>] arch_cpu_idle+0xa/0x10 arch/x86/kernel/process.c:295
->   [<ffffffff81439f48>] default_idle_call+0x48/0xa0 kernel/sched/idle.c:92
->   [<     inline     >] cpuidle_idle_call kernel/sched/idle.c:156
->   [<     inline     >] cpu_idle_loop kernel/sched/idle.c:252
->   [<ffffffff8143a604>] cpu_startup_entry+0x554/0x710 kernel/sched/idle.c:300
->   [<ffffffff86301262>] rest_init+0x192/0x1a0 init/main.c:412
->   [<ffffffff882fa780>] start_kernel+0x678/0x69e init/main.c:683
->   [<ffffffff882f9342>] x86_64_start_reservations+0x2a/0x2c
-> arch/x86/kernel/head64.c:195
->   [<ffffffff882f949c>] x86_64_start_kernel+0x158/0x167
-> arch/x86/kernel/head64.c:184
-> 
-> to a SOFTIRQ-irq-unsafe lock:
->  (split_queue_lock){+.+...}
-> ... which became SOFTIRQ-irq-unsafe at:
-> ...  [<     inline     >] mark_irqflags kernel/locking/lockdep.c:2817
-> ...  [<ffffffff81454bae>] __lock_acquire+0x146e/0x4700
-> kernel/locking/lockdep.c:3162
->   [<ffffffff8145a28c>] lock_acquire+0x1dc/0x430 kernel/locking/lockdep.c:3585
->   [<     inline     >] __raw_spin_lock include/linux/spinlock_api_smp.h:144
->   [<ffffffff863248d3>] _raw_spin_lock+0x33/0x50 kernel/locking/spinlock.c:151
->   [<     inline     >] spin_lock include/linux/spinlock.h:302
->   [<ffffffff81782320>] split_huge_page_to_list+0xcc0/0x1c50
-> mm/huge_memory.c:3399
->   [<     inline     >] split_huge_page include/linux/huge_mm.h:99
->   [<ffffffff8174a4e8>] queue_pages_pte_range+0xa38/0xef0 mm/mempolicy.c:507
->   [<     inline     >] walk_pmd_range mm/pagewalk.c:50
->   [<     inline     >] walk_pud_range mm/pagewalk.c:90
->   [<     inline     >] walk_pgd_range mm/pagewalk.c:116
->   [<ffffffff8171d4f3>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
->   [<ffffffff8171dc6e>] walk_page_range+0xfe/0x2b0 mm/pagewalk.c:281
->   [<ffffffff81746e7b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:687
->   [<     inline     >] migrate_to_node mm/mempolicy.c:1004
->   [<ffffffff8174c340>] do_migrate_pages+0x370/0x4e0 mm/mempolicy.c:1109
->   [<     inline     >] SYSC_migrate_pages mm/mempolicy.c:1453
->   [<ffffffff8174cc10>] SyS_migrate_pages+0x640/0x730 mm/mempolicy.c:1374
->   [<ffffffff863259b6>] entry_SYSCALL_64_fastpath+0x16/0x7a
-> arch/x86/entry/entry_64.S:185
-> 
-> other info that might help us debug this:
-> 
->  Possible interrupt unsafe locking scenario:
-> 
->        CPU0                    CPU1
->        ----                    ----
->   lock(split_queue_lock);
->                                local_irq_disable();
->                                lock(slock-AF_INET);
->                                lock(split_queue_lock);
->   <Interrupt>
->     lock(slock-AF_INET);
+From: Gavin Guo <gavin.guo@canonical.com>
 
-Thanks for report.
+The following message can be observed on the Ubuntu v3.13.0-65 with KASan
+backported:
 
-I think this should fix the issue:
+==================================================================
+BUG: KASan: use after free in task_numa_find_cpu+0x64c/0x890 at addr ffff880dd393ecd8
+Read of size 8 by task qemu-system-x86/3998900
+=============================================================================
+BUG kmalloc-128 (Tainted: G    B        ): kasan: bad access detected
+-----------------------------------------------------------------------------
+
+INFO: Allocated in task_numa_fault+0xc1b/0xed0 age=41980 cpu=18 pid=3998890
+	__slab_alloc+0x4f8/0x560
+	__kmalloc+0x1eb/0x280
+	task_numa_fault+0xc1b/0xed0
+	do_numa_page+0x192/0x200
+	handle_mm_fault+0x808/0x1160
+	__do_page_fault+0x218/0x750
+	do_page_fault+0x1a/0x70
+	page_fault+0x28/0x30
+	SyS_poll+0x66/0x1a0
+	system_call_fastpath+0x1a/0x1f
+INFO: Freed in task_numa_free+0x1d2/0x200 age=62 cpu=18 pid=0
+	__slab_free+0x2ab/0x3f0
+	kfree+0x161/0x170
+	task_numa_free+0x1d2/0x200
+	finish_task_switch+0x1d2/0x210
+	__schedule+0x5d4/0xc60
+	schedule_preempt_disabled+0x40/0xc0
+	cpu_startup_entry+0x2da/0x340
+	start_secondary+0x28f/0x360
+INFO: Slab 0xffffea00374e4f00 objects=37 used=17 fp=0xffff880dd393ecb0 flags=0x6ffff0000004080
+INFO: Object 0xffff880dd393ecb0 @offset=11440 fp=0xffff880dd393f700
+
+Bytes b4 ffff880dd393eca0: 0c 00 00 00 18 00 00 00 af 63 3a 04 01 00 00 00  .........c:.....
+Object ffff880dd393ecb0: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ecc0: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ecd0: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ece0: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ecf0: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ed00: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ed10: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+Object ffff880dd393ed20: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
+CPU: 61 PID: 3998900 Comm: qemu-system-x86 Tainted: G    B         3.13.0-65-generic #105
+Hardware name: Supermicro X8QB6/X8QB6, BIOS 2.0c    06/11/2
+ ffffea00374e4f00 ffff8816c572b420 ffffffff81a6ce35 ffff88045f00f500
+ ffff8816c572b450 ffffffff81244aed ffff88045f00f500 ffffea00374e4f00
+ ffff880dd393ecb0 0000000000000012 ffff8816c572b478 ffffffff8124ac36
+Call Trace:
+ [<ffffffff81a6ce35>] dump_stack+0x45/0x56
+ [<ffffffff81244aed>] print_trailer+0xfd/0x170
+ [<ffffffff8124ac36>] object_err+0x36/0x40
+ [<ffffffff8124cbf9>] kasan_report_error+0x1e9/0x3a0
+ [<ffffffff8124d260>] kasan_report+0x40/0x50
+ [<ffffffff810dda7c>] ? task_numa_find_cpu+0x64c/0x890
+ [<ffffffff8124bee9>] __asan_load8+0x69/0xa0
+ [<ffffffff814f5c38>] ? find_next_bit+0xd8/0x120
+ [<ffffffff810dda7c>] task_numa_find_cpu+0x64c/0x890
+ [<ffffffff810de16c>] task_numa_migrate+0x4ac/0x7b0
+ [<ffffffff810de523>] numa_migrate_preferred+0xb3/0xc0
+ [<ffffffff810e0b88>] task_numa_fault+0xb88/0xed0
+ [<ffffffff8120ef02>] do_numa_page+0x192/0x200
+ [<ffffffff81211038>] handle_mm_fault+0x808/0x1160
+ [<ffffffff810d7dbd>] ? sched_clock_cpu+0x10d/0x160
+ [<ffffffff81068c52>] ? native_load_tls+0x82/0xa0
+ [<ffffffff81a7bd68>] __do_page_fault+0x218/0x750
+ [<ffffffff810c2186>] ? hrtimer_try_to_cancel+0x76/0x160
+ [<ffffffff81a6f5e7>] ? schedule_hrtimeout_range_clock.part.24+0xf7/0x1c0
+ [<ffffffff81a7c2ba>] do_page_fault+0x1a/0x70
+ [<ffffffff81a772e8>] page_fault+0x28/0x30
+ [<ffffffff8128cbd4>] ? do_sys_poll+0x1c4/0x6d0
+ [<ffffffff810e64f6>] ? enqueue_task_fair+0x4b6/0xaa0
+ [<ffffffff810233c9>] ? sched_clock+0x9/0x10
+ [<ffffffff810cf70a>] ? resched_task+0x7a/0xc0
+ [<ffffffff810d0663>] ? check_preempt_curr+0xb3/0x130
+ [<ffffffff8128b5c0>] ? poll_select_copy_remaining+0x170/0x170
+ [<ffffffff810d3bc0>] ? wake_up_state+0x10/0x20
+ [<ffffffff8112a28f>] ? drop_futex_key_refs.isra.14+0x1f/0x90
+ [<ffffffff8112d40e>] ? futex_requeue+0x3de/0xba0
+ [<ffffffff8112e49e>] ? do_futex+0xbe/0x8f0
+ [<ffffffff81022c89>] ? read_tsc+0x9/0x20
+ [<ffffffff8111bd9d>] ? ktime_get_ts+0x12d/0x170
+ [<ffffffff8108f699>] ? timespec_add_safe+0x59/0xe0
+ [<ffffffff8128d1f6>] SyS_poll+0x66/0x1a0
+ [<ffffffff81a830dd>] system_call_fastpath+0x1a/0x1f
+Memory state around the buggy address:
+ ffff880dd393eb80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+ ffff880dd393ec00: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+>ffff880dd393ec80: fc fc fc fc fc fc fb fb fb fb fb fb fb fb fb fb
+                                                    ^
+ ffff880dd393ed00: fb fb fb fb fb fb fc fc fc fc fc fc fc fc fc fc
+ ffff880dd393ed80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+==================================================================
+
+As commit 1effd9f19324 ("sched/numa: Fix unsafe get_task_struct() in
+task_numa_assign()") points out, the rcu_read_lock() cannot protect the
+task_struct from being freed in the finish_task_switch(). And the bug
+happens in the process of calculation of imp which requires the access of
+p->numa_faults being freed in the following path:
+
+do_exit()
+        current->flags |= PF_EXITING;
+    release_task()
+        ~~delayed_put_task_struct()~~
+    schedule()
+    ...
+    ...
+rq->curr = next;
+    context_switch()
+        finish_task_switch()
+            put_task_struct()
+                __put_task_struct()
+		    task_numa_free()
+
+The fix here to get_task_struct() early before end of dst_rq->lock to
+protect the calculation process and also put_task_struct() in the
+corresponding point if finally the dst_rq->curr somehow cannot be
+assigned.
+
+BugLink: https://bugs.launchpad.net/bugs/1527643
+Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
+Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
+---
+Currently, the bug still haven't been observed on the upstream kernel with
+KASan enabled.  However, even in the Ubuntu v3.13.0-65, we took about 1
+week or more to reproduce the bug. After comparing the source between
+v3.13.0-65 and latest mainline kernel, there seems not much difference in
+the logic of task_numa_compare. So, it has possibilities to happen in the
+tricky case.
+---
+ kernel/sched/fair.c | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1926606..6ef4033 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1220,8 +1220,6 @@ static void task_numa_assign(struct task_numa_env *env,
+ {
+ 	if (env->best_task)
+ 		put_task_struct(env->best_task);
+-	if (p)
+-		get_task_struct(p);
+ 
+ 	env->best_task = p;
+ 	env->best_imp = imp;
+@@ -1289,20 +1287,29 @@ static void task_numa_compare(struct task_numa_env *env,
+ 	long imp = env->p->numa_group ? groupimp : taskimp;
+ 	long moveimp = imp;
+ 	int dist = env->dist;
++	bool assigned = false;
+ 
+ 	rcu_read_lock();
+ 
+ 	raw_spin_lock_irq(&dst_rq->lock);
+ 	cur = dst_rq->curr;
+ 	/*
+-	 * No need to move the exiting task, and this ensures that ->curr
+-	 * wasn't reaped and thus get_task_struct() in task_numa_assign()
+-	 * is safe under RCU read lock.
+-	 * Note that rcu_read_lock() itself can't protect from the final
+-	 * put_task_struct() after the last schedule().
++	 * No need to move the exiting task or idle task.
+ 	 */
+ 	if ((cur->flags & PF_EXITING) || is_idle_task(cur))
+ 		cur = NULL;
++	else
++		/*
++		 * The task_struct must be protected here to protect the
++		 * p->numa_faults access in the task_weight since the
++		 * numa_faults could already be freed in the following path:
++		 * finish_task_switch()
++		 *     --> put_task_struct()
++		 *         --> __put_task_struct()
++		 *             --> task_numa_free()
++		 */
++		get_task_struct(cur);
++
+ 	raw_spin_unlock_irq(&dst_rq->lock);
+ 
+ 	/*
+@@ -1386,6 +1393,7 @@ balance:
+ 		 */
+ 		if (!load_too_imbalanced(src_load, dst_load, env)) {
+ 			imp = moveimp - 1;
++			put_task_struct(cur);
+ 			cur = NULL;
+ 			goto assign;
+ 		}
+@@ -1411,9 +1419,16 @@ balance:
+ 		env->dst_cpu = select_idle_sibling(env->p, env->dst_cpu);
+ 
+ assign:
++	assigned = true;
+ 	task_numa_assign(env, cur, imp);
+ unlock:
+ 	rcu_read_unlock();
++	/*
++	 * The dst_rq->curr isn't assigned. The protection for task_struct is
++	 * finished.
++	 */
++	if (cur && !assigned)
++		put_task_struct(cur);
+ }
+ 
+ static void task_numa_find_cpu(struct task_numa_env *env,
+-- 
+2.0.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
