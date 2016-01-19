@@ -1,77 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EA586B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 17:17:06 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id cy9so458435721pac.0
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 14:17:06 -0800 (PST)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id wo9si10169050pab.235.2016.01.19.14.17.05
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CFA76B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 17:21:30 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id cy9so458489010pac.0
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 14:21:30 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id 67si50254740pfc.15.2016.01.19.14.21.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jan 2016 14:17:05 -0800 (PST)
-Received: by mail-pa0-x232.google.com with SMTP id cy9so458435584pac.0
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 14:17:05 -0800 (PST)
-Date: Tue, 19 Jan 2016 14:17:03 -0800 (PST)
+        Tue, 19 Jan 2016 14:21:29 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id n128so182350692pfn.3
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 14:21:29 -0800 (PST)
+Date: Tue, 19 Jan 2016 14:21:27 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: avoid uninitialized variable in tracepoint
-In-Reply-To: <20160118230324.GF14531@node.shutemov.name>
-Message-ID: <alpine.DEB.2.10.1601191415480.7346@chino.kir.corp.google.com>
-References: <4117363.Ys1FTDH7Wz@wuerfel> <20160118230324.GF14531@node.shutemov.name>
+Subject: Re: [PATCH] mm: make apply_to_page_range more robust
+In-Reply-To: <5698866F.1070802@nextfour.com>
+Message-ID: <alpine.DEB.2.10.1601191420030.7346@chino.kir.corp.google.com>
+References: <5698866F.1070802@nextfour.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-944296575-1453242064=:7346"
+Content-ID: <alpine.DEB.2.10.1601191421060.7346@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, dan.carpenter@oracle.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: =?UTF-8?Q?Mika_Penttil=C3=A4?= <mika.penttila@nextfour.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, 19 Jan 2016, Kirill A. Shutemov wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> > A newly added tracepoint in the hugepage code uses a variable in the
-> > error handling that is not initialized at that point:
-> > 
-> > include/trace/events/huge_memory.h:81:230: error: 'isolated' may be used uninitialized in this function [-Werror=maybe-uninitialized]
-> > 
-> > The result is relatively harmless, as the trace data will in rare
-> > cases contain incorrect data.
-> > 
-> > This works around the problem by adding an explicit initialization.
-> > 
-> > Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> > Fixes: 7d2eba0557c1 ("mm: add tracepoint for scanning pages")
+--397176738-944296575-1453242064=:7346
+Content-Type: TEXT/PLAIN; CHARSET=UTF-8
+Content-Transfer-Encoding: 8BIT
+Content-ID: <alpine.DEB.2.10.1601191421061.7346@chino.kir.corp.google.com>
+
+On Fri, 15 Jan 2016, Mika PenttilA? wrote:
+
+> Recent changes (4.4.0+) in module loader triggered oops on ARM. While
+> loading a module, size in :
 > 
-> There's the same patch in mm tree, but it got lost on the way to Linus'
-> tree:
+> apply_to_page_range(struct mm_struct *mm, unsigned long addr,   unsigned
+> long size, pte_fn_t fn, void *data);
 > 
-> https://ozlabs.org/~akpm/mmots/broken-out/mm-make-optimistic-check-for-swapin-readahead-fix.patch
+> can be 0 triggering the bug  BUG_ON(addr >= end);.
 > 
-> Andrew?
+> Fix by letting call with zero size succeed.
 > 
+> --Mika
+> 
+> Signed-off-by: mika.penttila@nextfour.com
+> ---
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index c387430..c3d1a2e 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1884,6 +1884,9 @@ int apply_to_page_range(struct mm_struct *mm,
+> unsigned long addr,
+>         unsigned long end = addr + size;
+>         int err;
+> 
+> +       if (!size)
+> +               return 0;
+> +
+>         BUG_ON(addr >= end);
+>         pgd = pgd_offset(mm, addr);
+>         do {
 
-Looks like the patch got the wrong title, 
-mm-make-optimistic-check-for-swapin-readahead-fix.patch, since the subject 
-is "khugepaged: avoid usage of uninitialized variable 'isolated'".
+What is calling apply_to_page_range() with size == 0?  I'm not sure we 
+should be adding "robust"ness here and that size == 0 is actually an 
+indication of a bug somewhere else that we want to know about.
 
-Anyway, feel free to add
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-to either patch.
-
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index b2db98136af9..bb3b763b1829 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -2320,7 +2320,7 @@ static void collapse_huge_page(struct mm_struct *mm,
-> >  	pgtable_t pgtable;
-> >  	struct page *new_page;
-> >  	spinlock_t *pmd_ptl, *pte_ptl;
-> > -	int isolated, result = 0;
-> > +	int isolated = 0, result = 0;
-> >  	unsigned long hstart, hend;
-> >  	struct mem_cgroup *memcg;
-> >  	unsigned long mmun_start;	/* For mmu_notifiers */
-> > 
+Btw, your patch is line-wrapped and your sign-off-line doesn't include 
+your full name.
+--397176738-944296575-1453242064=:7346--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
