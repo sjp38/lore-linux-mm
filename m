@@ -1,104 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7906B0009
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 04:35:40 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id l65so130129432wmf.1
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 01:35:40 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 9si31892800wmi.71.2016.01.19.01.35.39
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C328C6B0009
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 05:29:45 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id z14so74119802igp.1
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 02:29:45 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l8si33579104igv.85.2016.01.19.02.29.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jan 2016 01:35:39 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id 123so14740394wmz.2
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 01:35:39 -0800 (PST)
-Date: Tue, 19 Jan 2016 10:35:35 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH V2] sched/numa: Fix use-after-free bug in the
- task_numa_compare
-Message-ID: <20160119093535.GA2458@gmail.com>
-References: <20160118143345.GQ6357@twins.programming.kicks-ass.net>
- <1453130661-16573-1-git-send-email-gavin.guo@canonical.com>
- <20160118171328.GT6357@twins.programming.kicks-ass.net>
- <CA+eFSM1AUYLeGmmBgEzz8PCFMgsmCuztQpOSy3OiT1_3453ozg@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jan 2016 02:29:44 -0800 (PST)
+Subject: Re: [BUG] oom hangs the system, NMI backtrace shows most CPUs in
+ shrink_slab
+References: <569D06F8.4040209@redhat.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <569E1010.2070806@I-love.SAKURA.ne.jp>
+Date: Tue, 19 Jan 2016 19:29:36 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+eFSM1AUYLeGmmBgEzz8PCFMgsmCuztQpOSy3OiT1_3453ozg@mail.gmail.com>
+In-Reply-To: <569D06F8.4040209@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Guo <gavin.guo@canonical.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jay Vosburgh <jay.vosburgh@canonical.com>, Liang Chen <liang.chen@canonical.com>, mgorman@suse.de, mingo@redhat.com, riel@redhat.com
+To: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
+Cc: ltp@lists.linux.it
 
+Jan Stancek wrote:
+> I'm seeing system occasionally hanging after "oom01" testcase
+> from LTP triggers OOM.
+>
+> Here's a console log obtained from v4.4-8606 (shows oom, followed
+> by blocked task messages, followed by me triggering sysrq-t):
+>   http://jan.stancek.eu/tmp/oom_hangs/oom_hang_v4.4-8606.txt
+>   http://jan.stancek.eu/tmp/oom_hangs/config-v4.4-8606.txt
 
-* Gavin Guo <gavin.guo@canonical.com> wrote:
+I think this console log reports an OOM livelock.
 
-> Hi Peter,
-> 
-> On Tue, Jan 19, 2016 at 1:13 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Mon, Jan 18, 2016 at 11:24:21PM +0800, gavin.guo@canonical.com wrote:
-> >> From: Gavin Guo <gavin.guo@canonical.com>
-> >>
-> >> The following message can be observed on the Ubuntu v3.13.0-65 with KASan
-> >> backported:
-> >
-> > <snip>
-> >
-> >> As commit 1effd9f19324 ("sched/numa: Fix unsafe get_task_struct() in
-> >> task_numa_assign()") points out, the rcu_read_lock() cannot protect the
-> >> task_struct from being freed in the finish_task_switch(). And the bug
-> >> happens in the process of calculation of imp which requires the access of
-> >> p->numa_faults being freed in the following path:
-> >>
-> >> do_exit()
-> >>         current->flags |= PF_EXITING;
-> >>     release_task()
-> >>         ~~delayed_put_task_struct()~~
-> >>     schedule()
-> >>     ...
-> >>     ...
-> >> rq->curr = next;
-> >>     context_switch()
-> >>         finish_task_switch()
-> >>             put_task_struct()
-> >>                 __put_task_struct()
-> >>                   task_numa_free()
-> >>
-> >> The fix here to get_task_struct() early before end of dst_rq->lock to
-> >> protect the calculation process and also put_task_struct() in the
-> >> corresponding point if finally the dst_rq->curr somehow cannot be
-> >> assigned.
-> >>
-> >> v1->v2:
-> >> - Fix coding style suggested by Peter Zijlstra.
-> >>
-> >> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
-> >> Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
-> >
-> > Argh, sorry for not noticing before; this SoB chain is not valid.
-> >
-> > Gavin wrote (per From) and send me the patch (per actual email headers),
-> > so Liang never touched it.
-> >
-> > Should that be a reviewed-by for him?
-> 
-> Liang is also the co-author of the original patch, we figured out the code
-> by parallel programming, part of the idea was came from him. If SoB is
-> not valid, can I change the line to the following?
-> 
-> Co-authored-by: Liang Chen <liangchen.linux@gmail.com>
+dump_tasks() shows that there are 2 oom1 tasks (10482 and 10528) but
+show_state() shows that there are 8 oom1 tasks whose parent is 10482
+(10528 10529 10530 10531 10532 10533 10534 10535). Thus, I guess oom1
+process called fork() and the child process created 7 threads.
 
-So unless you guys shared the same keyboard at the same time, there's at least 
-line granular authorship, right?
+----------
+[  495.322098] [10482]     0 10482     2692       10      11       3       27             0 oom01
+[  495.341231] [10528]     0 10528  8667787  3731327   11002      28  1890661             0 oom01
+[ 1736.414809] oom01           S ffff880453dd3e48 13008 10482  10479 0x00000080
+[ 1737.025258] oom01           x ffff88044ff9bc98 13080 10528  10482 0x00000084
+[ 1737.129553] oom01           R  running task    11616 10529  10482 0x00000084
+[ 1737.309520] oom01           R  running task    11544 10530  10482 0x00000084
+[ 1737.417212] oom01           R  running task    11616 10531  10482 0x00000084
+[ 1737.551904] oom01           R  running task    11616 10532  10482 0x00000084
+[ 1737.725174] oom01           R  running task    11616 10533  10482 0x00000084
+[ 1737.898452] oom01           R  running task    11616 10534  10482 0x00000084
+[ 1738.078431] oom01           R  running task    11616 10535  10482 0x00000084
+----------
 
-The main author (the guy who wrote the most code and comments) should be the 
-'From' author - additional help can be credited in the changelog. If of one you 
-wrote an initial version that the other one used, you can use something like:
+10528 got both SIGKILL and TIF_MEMDIE at uptime = 495 and has exited by uptime = 1737.
 
- Originally-From: ...
+----------
+[  495.350845] Out of memory: Kill process 10528 (oom01) score 952 or sacrifice child
+[  495.359301] Killed process 10528 (oom01) total-vm:34671148kB, anon-rss:14925308kB, file-rss:0kB, shmem-rss:0kB
+----------
 
-Thanks,
+Since 10529 to 10535 got only SIGKILL, all of them are looping inside __alloc_pages_slowpath().
 
-	Ingo
+----------
+[ 1737.129553] oom01           R  running task    11616 10529  10482 0x00000084
+[ 1737.172049]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.178072]  [<ffffffff811e6daf>] shrink_slab.part.42+0x2cf/0x540
+[ 1737.184873]  [<ffffffff811176ae>] ? rcu_read_lock_held+0x5e/0x70
+[ 1737.191577]  [<ffffffff811ec4ba>] shrink_zone+0x30a/0x330
+[ 1737.197602]  [<ffffffff811ec884>] do_try_to_free_pages+0x174/0x440
+[ 1737.204499]  [<ffffffff811ecc50>] try_to_free_pages+0x100/0x2c0
+[ 1737.211107]  [<ffffffff81268ae0>] __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1737.309520] oom01           R  running task    11544 10530  10482 0x00000084
+[ 1737.352024]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.358049]  [<ffffffff81268b12>] __alloc_pages_slowpath.constprop.85+0x3f8/0x74a
+[ 1737.417212] oom01           R  running task    11616 10531  10482 0x00000084
+[ 1737.459715]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.465739]  [<ffffffff811e6daf>] shrink_slab.part.42+0x2cf/0x540
+[ 1737.472540]  [<ffffffff811176ae>] ? rcu_read_lock_held+0x5e/0x70
+[ 1737.479242]  [<ffffffff811ec4ba>] shrink_zone+0x30a/0x330
+[ 1737.485266]  [<ffffffff811ec884>] do_try_to_free_pages+0x174/0x440
+[ 1737.492162]  [<ffffffff811ecc50>] try_to_free_pages+0x100/0x2c0
+[ 1737.498768]  [<ffffffff81268ae0>] __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1737.551904] oom01           R  running task    11616 10532  10482 0x00000084
+[ 1737.594403]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.600428]  [<ffffffff811e6cf0>] shrink_slab.part.42+0x210/0x540
+[ 1737.607228]  [<ffffffff811ec4ba>] shrink_zone+0x30a/0x330
+[ 1737.613252]  [<ffffffff811ec884>] do_try_to_free_pages+0x174/0x440
+[ 1737.620150]  [<ffffffff811ecc50>] try_to_free_pages+0x100/0x2c0
+[ 1737.626755]  [<ffffffff81268ae0>] __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1737.725174] oom01           R  running task    11616 10533  10482 0x00000084
+[ 1737.767682]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.773705]  [<ffffffff811e6cf0>] shrink_slab.part.42+0x210/0x540
+[ 1737.780506]  [<ffffffff811ec4ba>] shrink_zone+0x30a/0x330
+[ 1737.786532]  [<ffffffff811ec884>] do_try_to_free_pages+0x174/0x440
+[ 1737.793428]  [<ffffffff811ecc50>] try_to_free_pages+0x100/0x2c0
+[ 1737.800037]  [<ffffffff81268ae0>] __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1737.898452] oom01           R  running task    11616 10534  10482 0x00000084
+[ 1737.940961]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1737.946985]  [<ffffffff811e6daf>] shrink_slab.part.42+0x2cf/0x540
+[ 1737.953785]  [<ffffffff811176ae>] ? rcu_read_lock_held+0x5e/0x70
+[ 1737.960488]  [<ffffffff811ec4ba>] shrink_zone+0x30a/0x330
+[ 1737.966512]  [<ffffffff811ec884>] do_try_to_free_pages+0x174/0x440
+[ 1737.973408]  [<ffffffff811ecc50>] try_to_free_pages+0x100/0x2c0
+[ 1737.980015]  [<ffffffff81268ae0>] __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1738.078431] oom01           R  running task    11616 10535  10482 0x00000084
+[ 1738.120938]  [<ffffffff81778a8c>] _cond_resched+0x1c/0x30
+[ 1738.126961]  [<ffffffff81268b12>] __alloc_pages_slowpath.constprop.85+0x3f8/0x74a
+----------
+
+As a result, 10482 remains sleeping at wait().
+
+----------
+[ 1736.414809] oom01           S ffff880453dd3e48 13008 10482  10479 0x00000080
+[ 1736.450320]  [<ffffffff817787ec>] schedule+0x3c/0x90
+[ 1736.455859]  [<ffffffff8109ba93>] do_wait+0x213/0x2f0
+[ 1736.461495]  [<ffffffff8109ce60>] SyS_wait4+0x80/0x100
+----------
+
+Also, 10519 is a typical trace which is looping inside __alloc_pages_slowpath()
+which can be observed when we hit OOM livelock. Since this allocation request
+includes neither __GFP_NOFAIL nor __GFP_FS, out_of_memory() cannot be called.
+
+----------
+[ 1736.716427] kworker/2:1     R  running task    12616 10519      2 0x00000088
+[ 1736.724319] Workqueue: events_freezable_power_ disk_events_workfn
+[ 1736.731128]  00000000ca948786 ffff88035997b8e8 0000000000000000 0000000000000000
+[ 1736.739427]  0000000000000000 0000000000000000 ffff88035997b850 ffffffff811ec4ba
+[ 1736.747725]  ffff88035997b9d0 0000000000000000 0000000000000000 0001000000000000
+[ 1736.756022] Call Trace:
+[ 1736.758749]  [<ffffffff811ec4ba>] ? shrink_zone+0x30a/0x330
+[ 1736.764969]  [<ffffffff811ec884>] ? do_try_to_free_pages+0x174/0x440
+[ 1736.772060]  [<ffffffff811ecc50>] ? try_to_free_pages+0x100/0x2c0
+[ 1736.778861]  [<ffffffff81268ae0>] ? __alloc_pages_slowpath.constprop.85+0x3c6/0x74a
+[ 1736.787408]  [<ffffffff811dc666>] ? __alloc_pages_nodemask+0x456/0x460
+[ 1736.794690]  [<ffffffff810f51e4>] ? __lock_is_held+0x54/0x70
+[ 1736.801004]  [<ffffffff81231c17>] ? alloc_pages_current+0x97/0x1b0
+[ 1736.807902]  [<ffffffff8137ebd9>] ? bio_copy_kern+0xc9/0x180
+[ 1736.814217]  [<ffffffff8138db15>] ? blk_rq_map_kern+0x75/0x130
+[ 1736.820726]  [<ffffffff815269e2>] ? scsi_execute+0x132/0x160
+[ 1736.827041]  [<ffffffff81528f7e>] ? scsi_execute_req_flags+0x8e/0xf0
+[ 1736.834133]  [<ffffffffa01956e7>] ? sr_check_events+0xb7/0x2a0 [sr_mod]
+[ 1736.841514]  [<ffffffffa00d7058>] ? cdrom_check_events+0x18/0x30 [cdrom]
+[ 1736.848992]  [<ffffffffa0195b2a>] ? sr_block_check_events+0x2a/0x30 [sr_mod]
+[ 1736.856859]  [<ffffffff81399bb0>] ? disk_check_events+0x60/0x170
+[ 1736.863561]  [<ffffffff81399cdc>] ? disk_events_workfn+0x1c/0x20
+[ 1736.870264]  [<ffffffff810b7055>] ? process_one_work+0x215/0x650
+[ 1736.876967]  [<ffffffff810b6fc1>] ? process_one_work+0x181/0x650
+[ 1736.883671]  [<ffffffff810b75b5>] ? worker_thread+0x125/0x4a0
+[ 1736.890082]  [<ffffffff810b7490>] ? process_one_work+0x650/0x650
+[ 1736.896785]  [<ffffffff810be191>] ? kthread+0x101/0x120
+[ 1736.902615]  [<ffffffff810f8c19>] ? trace_hardirqs_on_caller+0xf9/0x1c0
+[ 1736.909997]  [<ffffffff810be090>] ? kthread_create_on_node+0x250/0x250
+[ 1736.917281]  [<ffffffff8177ef9f>] ? ret_from_fork+0x3f/0x70
+[ 1736.923499]  [<ffffffff810be090>] ? kthread_create_on_node+0x250/0x250
+----------
+
+What is strange is, 10529 to 10535 should be able to get TIF_MEMDIE and exit
+__alloc_pages_slowpath(). There are three possibilities. First is that they are
+too unlucky to take oom_lock mutex which is needed for calling out_of_memory(),
+but it should not continue failing to take oom_lock mutex for such long time.
+Second is that their allocation requests include neither __GFP_NOFAIL nor
+__GFP_FS which is needed for calling out_of_memory(). Third is that, although I
+couldn't find evidence that mlock() and madvice() are related with this hangup,
+something is preventing __GFP_NOFAIL or __GFP_FS allocation requests from
+calling out_of_memory(). If you can reproduce with kmallocwd patch at
+https://lkml.kernel.org/r/201511250024.AAE78692.QVOtFFOSFOMLJH@I-love.SAKURA.ne.jp
+applied, I think you will be able to know which possibility you are hitting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
