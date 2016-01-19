@@ -1,183 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FEBF6B0257
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 09:25:56 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id yy13so359549088pab.3
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 06:25:56 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id pg10si3296620pac.16.2016.01.19.06.25.44
-        for <linux-mm@kvack.org>;
-        Tue, 19 Jan 2016 06:25:45 -0800 (PST)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 5/8] radix_tree: Tag all internal tree nodes as indirect pointers
-Date: Tue, 19 Jan 2016 09:25:30 -0500
-Message-Id: <1453213533-6040-6-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6259E828E4
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 09:25:58 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id z14so78309919igp.1
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 06:25:58 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 7si32614106ioc.113.2016.01.19.06.25.46
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jan 2016 06:25:47 -0800 (PST)
+Subject: Re: Mlocked pages statistics shows bogus value.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201601191936.HAI26031.HOtJQLOMFFFVOS@I-love.SAKURA.ne.jp>
+	<20160119122101.GA20260@node.shutemov.name>
+	<201601192146.IFE86479.VMHLOFtQSOFFJO@I-love.SAKURA.ne.jp>
+	<20160119130137.GA20984@node.shutemov.name>
+In-Reply-To: <20160119130137.GA20984@node.shutemov.name>
+Message-Id: <201601192238.CEH73964.MOtFFLJVOOSHQF@I-love.SAKURA.ne.jp>
+Date: Tue, 19 Jan 2016 22:38:50 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: kirill@shutemov.name
+Cc: walken@google.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-From: Matthew Wilcox <willy@linux.intel.com>
+Kirill A. Shutemov wrote:
+> On Tue, Jan 19, 2016 at 09:46:21PM +0900, Tetsuo Handa wrote:
+> > Kirill A. Shutemov wrote:
+> > > Oh. Looks like a bug from 2013...
+> > > 
+> > > Thanks for report.
+> > > 
+> > > From 6f80a79dc5f65f29899e396942d40f727cd36480 Mon Sep 17 00:00:00 2001
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > Date: Tue, 19 Jan 2016 14:59:19 +0300
+> > > Subject: [PATCH] mm: fix mlock accouting
+> > > 
+> > > Tetsuo Handa reported underflow of NR_MLOCK on munlock.
+> > > 
+> > > Testcase:
+> > > 	#include <stdio.h>
+> > > 	#include <stdlib.h>
+> > > 	#include <sys/mman.h>
+> > > 
+> > > 	#define BASE ((void *)0x400000000000)
+> > > 	#define SIZE (1UL << 21)
+> > > 
+> > > 	int main(int argc, char *argv[])
+> > > 	{
+> > > 		void *addr;
+> > > 
+> > > 		system("grep Mlocked /proc/meminfo");
+> > > 		addr = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
+> > > 				MAP_ANONYMOUS | MAP_PRIVATE | MAP_LOCKED | MAP_FIXED,
+> > > 				-1, 0);
+> > > 		if (addr == MAP_FAILED)
+> > > 			printf("mmap() failed\n"), exit(1);
+> > > 		munmap(addr, SIZE);
+> > > 		system("grep Mlocked /proc/meminfo");
+> > > 		return 0;
+> > > 	}
+> > > 
+> > > It happens on munlock_vma_page() due to unfortunate choice of nr_pages
+> > > data type:
+> > > 
+> > > 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
+> > > 
+> > > For unsigned int nr_pages, implicitly casted to long in
+> > > __mod_zone_page_state(), it becomes something around UINT_MAX.
+> > > 
+> > > munlock_vma_page() usually called for THP as small pages go though
+> > > pagevec.
+> > > 
+> > > Let's make nr_pages singed int.
+> > > 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Fixes: ff6a6da60b89 ("mm: accelerate munlock() treatment of THP pages")
+> > > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Cc: Michel Lespinasse <walken@google.com>
+> > > ---
+> > >  mm/mlock.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/mlock.c b/mm/mlock.c
+> > > index e1e2b1207bf2..96f001041928 100644
+> > > --- a/mm/mlock.c
+> > > +++ b/mm/mlock.c
+> > > @@ -175,7 +175,7 @@ static void __munlock_isolation_failed(struct page *page)
+> > >   */
+> > >  unsigned int munlock_vma_page(struct page *page)
+> > >  {
+> > > -	unsigned int nr_pages;
+> > > +	int nr_pages;
+> > >  	struct zone *zone = page_zone(page);
+> > >  
+> > >  	/* For try_to_munlock() and to serialize with page migration */
+> > > -- 
+> > >  Kirill A. Shutemov
+> > > 
 
-Set the 'indirect_ptr' bit on all the pointers to internal nodes, not
-just on the root node.  This enables the following patches to support
-multi-order entries in the radix tree.  This patch is split out for ease
-of bisection.
+I tested your patch on Linux 4.4 and confirmed that your patch fixed this bug.
+Please also send to stable.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
----
- lib/radix-tree.c                | 24 ++++++++++++++++++------
- tools/testing/radix-tree/test.c |  5 +++--
- 2 files changed, 21 insertions(+), 8 deletions(-)
+Cc: <stable@vger.kernel.org>  [4.4+]
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 7a984ad..422a92a 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -360,9 +360,10 @@ static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
- 		node->count = 1;
- 		node->parent = NULL;
- 		slot = root->rnode;
--		if (newheight > 1) {
-+		if (radix_tree_is_indirect_ptr(slot) && newheight > 1) {
- 			slot = indirect_to_ptr(slot);
- 			slot->parent = node;
-+			slot = ptr_to_indirect(slot);
- 		}
- 		node->slots[0] = slot;
- 		node = ptr_to_indirect(node);
-@@ -418,17 +419,20 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
- 			slot->path = height;
- 			slot->parent = node;
- 			if (node) {
--				rcu_assign_pointer(node->slots[offset], slot);
-+				rcu_assign_pointer(node->slots[offset],
-+							ptr_to_indirect(slot));
- 				node->count++;
- 				slot->path |= offset << RADIX_TREE_HEIGHT_SHIFT;
- 			} else
--				rcu_assign_pointer(root->rnode, ptr_to_indirect(slot));
-+				rcu_assign_pointer(root->rnode,
-+							ptr_to_indirect(slot));
- 		}
- 
- 		/* Go a level down */
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 		node = slot;
- 		slot = node->slots[offset];
-+		slot = indirect_to_ptr(slot);
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
- 	}
-@@ -526,6 +530,7 @@ void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
- 		node = rcu_dereference_raw(*slot);
- 		if (node == NULL)
- 			return NULL;
-+		node = indirect_to_ptr(node);
- 
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
-@@ -612,6 +617,7 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
- 			tag_set(slot, tag, offset);
- 		slot = slot->slots[offset];
- 		BUG_ON(slot == NULL);
-+		slot = indirect_to_ptr(slot);
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
- 	}
-@@ -651,11 +657,12 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
- 		goto out;
- 
- 	shift = height * RADIX_TREE_MAP_SHIFT;
--	slot = indirect_to_ptr(root->rnode);
-+	slot = root->rnode;
- 
- 	while (shift) {
- 		if (slot == NULL)
- 			goto out;
-+		slot = indirect_to_ptr(slot);
- 
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-@@ -731,6 +738,7 @@ int radix_tree_tag_get(struct radix_tree_root *root,
- 
- 		if (node == NULL)
- 			return 0;
-+		node = indirect_to_ptr(node);
- 
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 		if (!tag_get(node, tag, offset))
-@@ -831,6 +839,7 @@ restart:
- 		node = rcu_dereference_raw(node->slots[offset]);
- 		if (node == NULL)
- 			goto restart;
-+		node = indirect_to_ptr(node);
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 	}
-@@ -932,6 +941,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
- 			shift -= RADIX_TREE_MAP_SHIFT;
- 			node = slot;
- 			slot = slot->slots[offset];
-+			slot = indirect_to_ptr(slot);
- 			continue;
- 		}
- 
-@@ -1181,6 +1191,7 @@ static unsigned long __locate(struct radix_tree_node *slot, void *item,
- 		slot = rcu_dereference_raw(slot->slots[i]);
- 		if (slot == NULL)
- 			goto out;
-+		slot = indirect_to_ptr(slot);
- 	}
- 
- 	/* Bottom level: check items */
-@@ -1264,7 +1275,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
- 		 */
- 		if (to_free->count != 1)
- 			break;
--		if (!to_free->slots[0])
-+		slot = to_free->slots[0];
-+		if (!slot)
- 			break;
- 
- 		/*
-@@ -1274,8 +1286,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
- 		 * (to_free->slots[0]), it will be safe to dereference the new
- 		 * one (root->rnode) as far as dependent read barriers go.
- 		 */
--		slot = to_free->slots[0];
- 		if (root->height > 1) {
-+			slot = indirect_to_ptr(slot);
- 			slot->parent = NULL;
- 			slot = ptr_to_indirect(slot);
- 		}
-diff --git a/tools/testing/radix-tree/test.c b/tools/testing/radix-tree/test.c
-index c9b0bd7..2bebf34 100644
---- a/tools/testing/radix-tree/test.c
-+++ b/tools/testing/radix-tree/test.c
-@@ -142,6 +142,8 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
- 	int i;
- 	int j;
- 
-+	slot = indirect_to_ptr(slot);
-+
- 	/* Verify consistency at this level */
- 	for (i = 0; i < RADIX_TREE_TAG_LONGS; i++) {
- 		if (slot->tags[tag][i]) {
-@@ -184,8 +186,7 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
- {
- 	if (!root->height)
- 		return;
--	verify_node(indirect_to_ptr(root->rnode),
--			tag, root->height, !!root_tag_get(root, tag));
-+	verify_node(root->rnode, tag, root->height, !!root_tag_get(root, tag));
- }
- 
- void item_kill_tree(struct radix_tree_root *root)
--- 
-2.7.0.rc3
+> > 
+> > Don't we want to use "long" than "int" for all variables that count number
+> > of pages, for recently commit 6cdb18ad98a49f7e9b95d538a0614cde827404b8
+> > "mm/vmstat: fix overflow in mod_zone_page_state()" changed to use "long" ?
+> 
+> Potentially, yes. But here we count number of small pages in the compound
+> page. We're far from being able to allocate 8 terabyte pages ;)
+
+That commit says "we have a 9TB system with only one node".
+You might encounter such machines in near future. ;-)
+
+> 
+> Anyway, it's out-of-scope for this bug fix.
+> 
+> My "Fixes:" is probably misleading, since we don't have bug visible until
+> 6cdb18ad98a4.
+> 
+> -- 
+>  Kirill A. Shutemov
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
