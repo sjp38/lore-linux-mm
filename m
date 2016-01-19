@@ -1,63 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6995E6B0253
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 18:01:46 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id n128so182849782pfn.3
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 15:01:46 -0800 (PST)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id 2si50532733pfj.77.2016.01.19.15.01.45
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 096FA6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 18:13:49 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id n128so183002302pfn.3
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 15:13:49 -0800 (PST)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id tl10si2630004pac.177.2016.01.19.15.13.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jan 2016 15:01:45 -0800 (PST)
-Received: by mail-pf0-x234.google.com with SMTP id n128so182849656pfn.3
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 15:01:45 -0800 (PST)
-Date: Tue, 19 Jan 2016 15:01:44 -0800 (PST)
+        Tue, 19 Jan 2016 15:13:48 -0800 (PST)
+Received: by mail-pf0-x236.google.com with SMTP id e65so183572180pfe.0
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 15:13:48 -0800 (PST)
+Date: Tue, 19 Jan 2016 15:13:46 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC 1/3] oom, sysrq: Skip over oom victims and killed tasks
-In-Reply-To: <20160115153721.7d363aef@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.DEB.2.10.1601191458100.7346@chino.kir.corp.google.com>
-References: <1452632425-20191-1-git-send-email-mhocko@kernel.org> <1452632425-20191-2-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com> <20160113093046.GA28942@dhcp22.suse.cz> <alpine.DEB.2.10.1601131633550.3406@chino.kir.corp.google.com>
- <20160114110037.GC29943@dhcp22.suse.cz> <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com> <20160115101218.GB14112@dhcp22.suse.cz> <20160115153721.7d363aef@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
+In-Reply-To: <201601151936.IJJ09362.OOFLtVFJHSFQMO@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1601191502230.7346@chino.kir.corp.google.com>
+References: <20160113180147.GL17512@dhcp22.suse.cz> <201601142026.BHI87005.FSOFJVFQMtHOOL@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1601141400170.16227@chino.kir.corp.google.com> <20160114225850.GA23382@cmpxchg.org> <alpine.DEB.2.10.1601141500370.22665@chino.kir.corp.google.com>
+ <201601151936.IJJ09362.OOFLtVFJHSFQMO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 15 Jan 2016, One Thousand Gnomes wrote:
+On Fri, 15 Jan 2016, Tetsuo Handa wrote:
 
-> > > I think it's time to kill sysrq+F and I'll send those two patches
-> > > unless there is a usecase I'm not aware of.
-> > 
-> > I have described one in the part you haven't quoted here. Let me repeat:
-> > : Your system might be trashing to the point you are not able to log in
-> > : and resolve the situation in a reasonable time yet you are still not
-> > : OOM. sysrq+f is your only choice then.
-> > 
-> > Could you clarify why it is better to ditch a potentially usefull
-> > emergency tool rather than to make it work reliably and predictably?
-> 
-> Even if it doesn't work reliably and predictably it is *still* better
-> than removing it as it works currently. Today we have "might save you a
-> reboot", the removal turns it into "you'll have to reboot". That's a
-> regression.
+> Leaving a system OOM-livelocked forever is very very annoying thing.
+
+Agreed.
+
+> My goal is to ask the OOM killer not to toss the OOM killer's duty away.
+> What is important for me is that the OOM killer takes next action when
+> current action did not solve the OOM situation.
 > 
 
-Under what circumstance are you supposing to use sysrq+f in your 
-hypothetical?  If you have access to the shell, then you can kill any 
-process at random (and you may even be able to make better realtime 
-decisions than the oom killer) and it will gain access to memory reserves 
-immediately under my proposal when it tries to allocate memory.  The net 
-result is that calling the oom killer is no better than you issuing the 
-SIGKILL yourself.
+What is the "next action" when there are no more processes on your system, 
+or attached to your memcg hierarchy, that are killable?
 
-This doesn't work if your are supposing to use sysrq+f without the ability 
-to get access to the shell.  That's the point, I believe, that Michal has 
-raised in this thread.  I'd like to address that issue directly rather 
-than requiring human intervention to fix.  If you have deployed a very 
-large number of machines to your datacenters, you don't possibly have the 
-resources to do this.
+Of course your proposal offers no solution for that.  Extend it further: 
+what is the "next action" when the process holding the mutex needed by the 
+victim is oom disabled?
+
+I don't think it's in the best interest of the user to randomly kill 
+processes until one exits and implicitly hoping that one of your 
+selections will be able to do so (your notion of "pick and pray").
+
+> >                                         These additional kills can result
+> > in the same livelock that is already problematic, and killing additional
+> > processes has made the situation worse since memory reserves are more
+> > depleted.
+> 
+> Why are you still assuming that memory reserves are more depleted if we kill
+> additional processes? We are introducing the OOM reaper which can compensate
+> memory reserves if we kill additional processes. We can make the OOM reaper
+> update oom priority of all processes that use a mm the OOM killer chose
+> ( http://lkml.kernel.org/r/201601131915.BCI35488.FHSFQtVMJOOOLF@I-love.SAKURA.ne.jp )
+> so that we can help the OOM reaper compensate memory reserves by helping
+> the OOM killer to select a different mm.
+> 
+
+We are not adjusting the selection heuristic, which is already 
+determinisitic and people use to fine tune through procfs, for what the 
+oom reaper can free.
+
+Even if you can free memory immediately, there is no guarantee that a 
+process holding a mutex needed for the victim to exit will be able to 
+allocate from that memory.  Continuing to kill more and more processes may 
+eventually solve the situation which simply granting access to memory 
+reserves temporarily would have also solved, but at the cost of, well, 
+many processes.
+
+The final solution may combine both approaches, which are the only real 
+approaches on how to make forward progress.  We could first try allowing 
+temporary access to memory reserves when a livelock has been detected, 
+similar to my patch, and then fallback to killing additional processes 
+since the oom reaper should be able to at least free some of that memory 
+immediately, if it fails.
+
+However, I think the best course of action at the moment is to review and 
+get the oom reaper merged, if applicable, since it should greatly aid this 
+issue and then look at livelock issues as they arise once it is deployed.  
+I'm not enthusiastic about adding additional heuristics and tunables for 
+theoretical issues that may arise, especially considering the oom reaper 
+is not even upstream.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
