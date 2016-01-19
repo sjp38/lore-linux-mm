@@ -1,104 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0495C6B0009
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 08:25:48 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id vt7so186562052obb.1
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 05:25:48 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v135si32307059oia.99.2016.01.19.05.25.46
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EF1D6B0009
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 08:39:00 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id mw1so67649994igb.1
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 05:39:00 -0800 (PST)
+Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id n38si36455186ioe.157.2016.01.19.05.38.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jan 2016 05:25:46 -0800 (PST)
-Subject: Re: Mlocked pages statistics shows bogus value.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201601191936.HAI26031.HOtJQLOMFFFVOS@I-love.SAKURA.ne.jp>
-	<20160119122101.GA20260@node.shutemov.name>
-In-Reply-To: <20160119122101.GA20260@node.shutemov.name>
-Message-Id: <201601192146.IFE86479.VMHLOFtQSOFFJO@I-love.SAKURA.ne.jp>
-Date: Tue, 19 Jan 2016 21:46:21 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jan 2016 05:38:58 -0800 (PST)
+Date: Tue, 19 Jan 2016 05:38:13 -0800
+From: tip-bot for Raghavendra K T <tipbot@zytor.com>
+Message-ID: <tip-9c03ee147193645be4c186d3688232fa438c57c7@git.kernel.org>
+Reply-To: tglx@linutronix.de, mingo@kernel.org, linux-mm@kvack.org,
+        mpe@ellerman.id.au, hpa@zytor.com, nikunj@linux.vnet.ibm.com,
+        linuxppc-dev@lists.ozlabs.org, peterz@infradead.org,
+        vdavydov@parallels.com, gkurz@linux.vnet.ibm.com,
+        linux-kernel@vger.kernel.org, raghavendra.kt@linux.vnet.ibm.com,
+        jstancek@redhat.com, benh@kernel.crashing.org, anton@samba.org,
+        grant.likely@linaro.org, paulus@samba.org
+In-Reply-To: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+References: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+Subject: [tip:sched/urgent] sched: Fix crash in sched_init_numa()
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill@shutemov.name, walken@google.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: linux-tip-commits@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, gkurz@linux.vnet.ibm.com, raghavendra.kt@linux.vnet.ibm.com, vdavydov@parallels.com, mpe@ellerman.id.au, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, peterz@infradead.org, hpa@zytor.com, nikunj@linux.vnet.ibm.com, tglx@linutronix.de, mingo@kernel.org, paulus@samba.org, grant.likely@linaro.org, jstancek@redhat.com, benh@kernel.crashing.org, anton@samba.org
 
-Kirill A. Shutemov wrote:
-> Oh. Looks like a bug from 2013...
-> 
-> Thanks for report.
-> 
-> From 6f80a79dc5f65f29899e396942d40f727cd36480 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Tue, 19 Jan 2016 14:59:19 +0300
-> Subject: [PATCH] mm: fix mlock accouting
-> 
-> Tetsuo Handa reported underflow of NR_MLOCK on munlock.
-> 
-> Testcase:
-> 	#include <stdio.h>
-> 	#include <stdlib.h>
-> 	#include <sys/mman.h>
-> 
-> 	#define BASE ((void *)0x400000000000)
-> 	#define SIZE (1UL << 21)
-> 
-> 	int main(int argc, char *argv[])
-> 	{
-> 		void *addr;
-> 
-> 		system("grep Mlocked /proc/meminfo");
-> 		addr = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
-> 				MAP_ANONYMOUS | MAP_PRIVATE | MAP_LOCKED | MAP_FIXED,
-> 				-1, 0);
-> 		if (addr == MAP_FAILED)
-> 			printf("mmap() failed\n"), exit(1);
-> 		munmap(addr, SIZE);
-> 		system("grep Mlocked /proc/meminfo");
-> 		return 0;
-> 	}
-> 
-> It happens on munlock_vma_page() due to unfortunate choice of nr_pages
-> data type:
-> 
-> 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
-> 
-> For unsigned int nr_pages, implicitly casted to long in
-> __mod_zone_page_state(), it becomes something around UINT_MAX.
-> 
-> munlock_vma_page() usually called for THP as small pages go though
-> pagevec.
-> 
-> Let's make nr_pages singed int.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: ff6a6da60b89 ("mm: accelerate munlock() treatment of THP pages")
-> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michel Lespinasse <walken@google.com>
-> ---
->  mm/mlock.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index e1e2b1207bf2..96f001041928 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -175,7 +175,7 @@ static void __munlock_isolation_failed(struct page *page)
->   */
->  unsigned int munlock_vma_page(struct page *page)
->  {
-> -	unsigned int nr_pages;
-> +	int nr_pages;
->  	struct zone *zone = page_zone(page);
->  
->  	/* For try_to_munlock() and to serialize with page migration */
-> -- 
->  Kirill A. Shutemov
-> 
+Commit-ID:  9c03ee147193645be4c186d3688232fa438c57c7
+Gitweb:     http://git.kernel.org/tip/9c03ee147193645be4c186d3688232fa438c57c7
+Author:     Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+AuthorDate: Sat, 16 Jan 2016 00:31:23 +0530
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Tue, 19 Jan 2016 08:42:20 +0100
 
-Don't we want to use "long" than "int" for all variables that count number
-of pages, for recently commit 6cdb18ad98a49f7e9b95d538a0614cde827404b8
-"mm/vmstat: fix overflow in mod_zone_page_state()" changed to use "long" ?
+sched: Fix crash in sched_init_numa()
+
+The following PowerPC commit:
+
+  c118baf80256 ("arch/powerpc/mm/numa.c: do not allocate bootmem memory for non existing nodes")
+
+avoids allocating bootmem memory for non existent nodes.
+
+But when DEBUG_PER_CPU_MAPS=y is enabled, my powerNV system failed to boot
+because in sched_init_numa(), cpumask_or() operation was done on
+unallocated nodes.
+
+Fix that by making cpumask_or() operation only on existing nodes.
+
+[ Tested with and w/o DEBUG_PER_CPU_MAPS=y on x86 and PowerPC. ]
+
+Reported-by: Jan Stancek <jstancek@redhat.com>
+Tested-by: Jan Stancek <jstancek@redhat.com>
+Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: <gkurz@linux.vnet.ibm.com>
+Cc: <grant.likely@linaro.org>
+Cc: <nikunj@linux.vnet.ibm.com>
+Cc: <vdavydov@parallels.com>
+Cc: <linuxppc-dev@lists.ozlabs.org>
+Cc: <linux-mm@kvack.org>
+Cc: <peterz@infradead.org>
+Cc: <benh@kernel.crashing.org>
+Cc: <paulus@samba.org>
+Cc: <mpe@ellerman.id.au>
+Cc: <anton@samba.org>
+Link: http://lkml.kernel.org/r/1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ kernel/sched/core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 44253ad..474658b 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -6840,7 +6840,7 @@ static void sched_init_numa(void)
+ 
+ 			sched_domains_numa_masks[i][j] = mask;
+ 
+-			for (k = 0; k < nr_node_ids; k++) {
++			for_each_node(k) {
+ 				if (node_distance(j, k) > sched_domains_numa_distance[i])
+ 					continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
