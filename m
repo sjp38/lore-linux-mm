@@ -1,353 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 416C16B0009
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 03:32:41 -0500 (EST)
-Received: by mail-qk0-f172.google.com with SMTP id b66so26851584qkf.3
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 00:32:41 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id v140si36347836qka.56.2016.01.19.00.32.38
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 72CC36B0009
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2016 04:25:54 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id mw1so63964509igb.1
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 01:25:54 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id f4si33153652igo.66.2016.01.19.01.25.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jan 2016 00:32:40 -0800 (PST)
-Message-ID: <569DF3D7.3040203@huawei.com>
-Date: Tue, 19 Jan 2016 16:29:11 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jan 2016 01:25:53 -0800 (PST)
+Subject: Re: [BUG]: commit a1c34a3bf00a breaks an out-of-tree MIPS platform
+References: <569C88AD.9080607@gentoo.org> <569D344D.50405@labbott.name>
+From: Joshua Kinard <kumba@gentoo.org>
+Message-ID: <569E011E.50908@gentoo.org>
+Date: Tue, 19 Jan 2016 04:25:50 -0500
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/compaction: speed up pageblock_pfn_to_page() when
- zone is contiguous
-References: <1450678432-16593-1-git-send-email-iamjoonsoo.kim@lge.com> <1450678432-16593-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1450678432-16593-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <569D344D.50405@labbott.name>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel
- Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Laura Abbott <laura@labbott.name>, Linux/MIPS <linux-mips@linux-mips.org>, linux-mm@kvack.org
+Cc: Tony Luck <tony.luck@intel.com>
 
-On 2015/12/21 14:13, Joonsoo Kim wrote:
-> There is a performance drop report due to hugepage allocation and in there
-> half of cpu time are spent on pageblock_pfn_to_page() in compaction [1].
-> In that workload, compaction is triggered to make hugepage but most of
-> pageblocks are un-available for compaction due to pageblock type and
-> skip bit so compaction usually fails. Most costly operations in this case
-> is to find valid pageblock while scanning whole zone range. To check
-> if pageblock is valid to compact, valid pfn within pageblock is required
-> and we can obtain it by calling pageblock_pfn_to_page(). This function
-> checks whether pageblock is in a single zone and return valid pfn
-> if possible. Problem is that we need to check it every time before
-> scanning pageblock even if we re-visit it and this turns out to
-> be very expensive in this workload.
+On 01/18/2016 13:51, Laura Abbott wrote:
+> On 1/17/16 10:39 PM, Joshua Kinard wrote:
+>> Hi,
+>>
+>> I recently discovered that commit a1c34a3bf00a (mm: Don't offset memmap for
+>> flatmem) broke an out-of-tree MIPS platform, the IP30 (SGI Octane, a ~late
+>> 1990's graphics workstation).  Booting up, I get an "unhandled kernel unaligned
+>> access" when registering one of the IP30-specific serial UART drivers (which
+>> hangs off of the IOC3 PCI metadevice).
+>>
+>> It seems that the specific hunk causing the is this one:
+>> @@ -5452,9 +5455,9 @@ static void __init_refok alloc_node_mem_map(struct
+>> pglist_data *pgdat)
+>>   	 */
+>>   	if (pgdat == NODE_DATA(0)) {
+>>   		mem_map = NODE_DATA(0)->node_mem_map;
+>> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>> +#if defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) || defined(CONFIG_FLATMEM)
+>>   		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+>> -			mem_map -= (pgdat->node_start_pfn - ARCH_PFN_OFFSET);
+>> +			mem_map -= offset;
+>>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>>   	}
+>>   #endif
+>>
+>>
+>> I copied down the Oops message, which is:
+>> [    2.460398] Unhandled kernel unaligned access[#1]:
+>> [    2.460715] CPU: 1 PID: 14 Comm: kdevtmpfs Not tainted
+>> 4.4.0-mipsgit-20160110 #42
+>> [    2.461079] task: a800000060181f00 ti: a800000060190000 task.ti:
+>> a800000060190000
+>> [    2.461437] $ 0   : 0000000000000000 0000000020009fe0 0000000000000000
+>> 0000000000000000
+>> [    2.461914] $ 4   : 0000000020223e30 a800000060190000 0000000000000001
+>> 0000000000000000
+>> [    2.462386] $ 8   : a80000006019fc40 0000000000000003 0000000000000001
+>> a80000006044db80
+>> [    2.462852] $12   : ffffffff9404dce0 000000001000001e 0000000000000000
+>> ffffffffffffff80
+>> [    2.463320] $16   : a80000006019faa0 ffffffffdc500000 0000000000000000
+>> a800000020062664
+>> [    2.463786] $20   : 28000000205a0400 a800000020062a2c 0000000000000000
+>> a800000060023280
+>> [    2.464251] $24   : a80000006044db40 0000000000000000
+>> [    2.464716] $28   : a800000060190000 a80000006019fa50 0000000000000000
+>> a800000020009fe0
+>> [    2.465183] Hi    : fffffffff832db7f
+>> [    2.465363] Lo    : 000000003f9f7ce5
+>> [    2.465563] epc   : a800000020012ebc do_ade+0x57c/0x8b0
+>> [    2.465823] ra    : a800000020009fe0 ret_from_exception+0x0/0x18
+>> [    2.466107] Status: 9404dce2*KX SX UX KERNEL EXL
+>> [    2.466446] Cause : 00000010 (ExcCode 04)
+>> [    2.466642] BadVA : 28000000205a0400
+>> [    2.466822] PrId  : 00000f24 (R14000)
+>> [    2.467011] Process kdevtmpfs (pid: 14, threadinfo=a800000060190000,
+>> task=a800000060181f00, tls=0000000000000000
+>> [    2.467483] Stack : 0000000000000000 ffffffff00000000 a8000000205a03f8
+>> a8000000205a0400
+>> *  a80000006019fc40 a800000060018580 a800000020382310 0000000000000001
+>> *  0000000000000000 a800000020009fe0 0000000000000000 ffffffff9404dce0
+>> *  28000000205a0400 0000000000010000 a8000000205a03f8 0000000000000003
+>> *  0000000000000001 0000000000000000 a80000006019fc40 0000000000000003
+>> *  0000000000000001 a80000006044db80 ffffffffffff0000 000000000000007f
+>> *  0000000000000000 ffffffffffffff80 a8000000205a03f8 a8000000205a0400
+>> *  a80000006019fc40 a800000060018580 a800000020382310 0000000000000001
+>> *  0000000000000000 a800000060023280 a80000006044db40 0000000000000000
+>> *  ffffffffffff0000 000000000000007f a800000060190000 a80000006019fbd0
+>> *  ...
+>> [    2.540485] Call Trace:
+>> [    2.551852] [<a800000020012ebc>] do_ade+0x57c/0x8b0
+>> [    2.563244] [<a800000020009fe0>] ret_from_exception+0x0/0x18
+>> [    2.574590] [<a800000020062660>] __wake_up_common+0x30/0xd0
+>> [    2.586006] [<a800000020062a2c>] __wake_up+0x44/0x68
+>> [    2.597483] [<a800000020063018>] __wake_up_bit+0x38/0x48
+>> [    2.608856] [<a80000002010498c>] evict+0x10c/0x1a8
+>> [    2.620112] [<a8000000200f89d8>] vfs_unlink+0x150/0x188
+>> [    2.631473] [<a800000020203eb0>] handle_remove+0x1f0/0x358
+>> [    2.642846] [<a800000020204468>] devtmpfsd+0x1c8/0x258
+>> [    2.654123] [<a80000002004112c>] kthread+0x10c/0x128
+>> [    2.665231] [<a80000002000a048>] ret_from_kernel_thread+0x14/0x1c
+>> [    2.676326]
+>> [    2.687315]
+>> Code: 00431024  1440ff12  00000000 <6a960000> 6e960007  24020000  1440ff53
+>> 00000000  bfb40000
+>> [    2.709740] ---[ end trace d8580deb2e1d1d4a ]---
+>> [    2.721069] Fatal exception: panic in 5 seconds
+>>
+>>
+>> The key problem is that BadVA specifies an address of 0x28000000205a0400, which
+>> is inside the "unused" address space on 64-bit MIPS platforms.  That address
+>> should really be 0xa8000000205a0400 (which is visible in the stack dump), so
+>> something is getting mistranslated here it seems.
+>>
+>> I'm not really sure what ARCH_PFN_OFFSET is used for, but for IP30 systems, it
+>> seems important. Reverting both commit b0aeba741b2d (Fix alloc_node_mem_map()
+>> to work on ia64 again) and this one allows IP30 systems to boot Linux-4.4.0.
+>> However, I don't think that is the right fix, because it's too high up in
+>> generic code, and the other SGI platforms (at least SGI IP32/O2 and SGI
+>> IP27/Origin/Onyx) don't seem to be affected. I'm wondering if there's something
+>> in the MIPS core code that I probably need to make use of, or probably a change
+>> within IP30's platform code.
+>>
+>> IP30 support in Linux does have some known issues with the current memory
+>> setup, namely that all memory is currently being assigned to the "DMA" zone,
+>> and nothing for "Normal" or "DMA32".  IP30 also has an oddity where System RAM
+>> physically starts 512MB in on the address space.  I am not sure if either has
+>> any bearing on this specific problem.
+>>
+>> Any advice on fixing this properly would be appreciated.
+>>
+>> Thanks!
+>>
 > 
-> Although we have no way to skip this pageblock check in the system
-> where hole exists at arbitrary position, we can use cached value for
-> zone continuity and just do pfn_to_page() in the system where hole doesn't
-> exist. This optimization considerably speeds up in above workload.
+> What the patch was going for is to make sure that pfn 0 on the system
+> corresponds to mem_map[0] when pfn <-> page translation functions are
+> invoked. I'm guessing something is different on this system so the
+> code is not generating that properly which is giving the BadVA.
 > 
-> Before vs After
-> Max: 1096 MB/s vs 1325 MB/s
-> Min: 635 MB/s 1015 MB/s
-> Avg: 899 MB/s 1194 MB/s
+> I suspect there is a disconnect between node_start_pfn and ARCH_PFN_OFFSET.
+> Can you share the platform code and .config you are using and also use
+> this debugging patch to get a bit more info?
 > 
-> Avg is improved by roughly 30% [2].
+> Thanks,
+> Laura
+
+I've placed several files at this location, since I'm not sure which will be
+the most helpful (sorry, don't track this stuff directly in a public git just yet):
+http://dev.gentoo.org/~kumba/ip30/4.4.0/
+
+- 5401_ip30-diffstat.txt
+diffstat of the primary IP30 patch (contains core code), so you can see what
+files are actually changed.
+
+- IP30-config
+.config for IP30/Octane
+
+- IP30-dmesg
+output of 'dmesg'
+
+- linux-4.4.0-20160116.ip30/
+unpacked linux tree created by the 'mips-sources' package in Gentoo if
+USE="ip30".  This is the tree I built my most recent kernel out of (after
+running make clean).  Excludes your debugging patch, and has both commits
+b0aeba741b2d & a1c34a3bf00a reverted.  The main IP30 code is in:
+  * arch/mips/sgi-ip30
+  * arch/mips/include/asm/mach-ip30
+  * arch/mips/pci/pci-ip30.c
+
+- linux-4.4.0-20160116.ip30.tar.xz
+xztar of the above directory
+
+- mips-patches-4.4.0/
+unpacked directory of the "mips-patches" applied by mips-sources.
+
+- mips-sources-4.4.0-patches-v1.tar.xz
+xztar of above
+
+
+> -----8<-----
 > 
-> [1]: http://www.spinics.net/lists/linux-mm/msg97378.html
-> [2]: https://lkml.org/lkml/2015/12/9/23
-> 
-> v2
-> o checking zone continuity after initialization
-> o handle memory-hotplug case
-> 
-> Reported and Tested-by: Aaron Lu <aaron.lu@intel.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  include/linux/gfp.h            |  6 ---
->  include/linux/memory_hotplug.h |  3 ++
->  include/linux/mmzone.h         |  2 +
->  mm/compaction.c                | 43 ---------------------
->  mm/internal.h                  | 12 ++++++
->  mm/memory_hotplug.c            | 10 +++++
->  mm/page_alloc.c                | 85 +++++++++++++++++++++++++++++++++++++++++-
->  7 files changed, 111 insertions(+), 50 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 91f74e7..6eb3eca 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -515,13 +515,7 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
->  void drain_all_pages(struct zone *zone);
->  void drain_local_pages(struct zone *zone);
->  
-> -#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
->  void page_alloc_init_late(void);
-> -#else
-> -static inline void page_alloc_init_late(void)
-> -{
-> -}
-> -#endif
->  
->  /*
->   * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 2ea574f..18c2676 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -196,6 +196,9 @@ void put_online_mems(void);
->  void mem_hotplug_begin(void);
->  void mem_hotplug_done(void);
->  
-> +extern void set_zone_contiguous(struct zone *zone);
-> +extern void clear_zone_contiguous(struct zone *zone);
-> +
->  #else /* ! CONFIG_MEMORY_HOTPLUG */
->  /*
->   * Stub functions for when hotplug is off
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 68cc063..eb5d88e 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -523,6 +523,8 @@ struct zone {
->  	bool			compact_blockskip_flush;
->  #endif
->  
-> +	bool			contiguous;
-> +
->  	ZONE_PADDING(_pad3_)
->  	/* Zone statistics */
->  	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 56fa321..9c89d46 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -71,49 +71,6 @@ static inline bool migrate_async_suitable(int migratetype)
->  	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
->  }
->  
-> -/*
-> - * Check that the whole (or subset of) a pageblock given by the interval of
-> - * [start_pfn, end_pfn) is valid and within the same zone, before scanning it
-> - * with the migration of free compaction scanner. The scanners then need to
-> - * use only pfn_valid_within() check for arches that allow holes within
-> - * pageblocks.
-> - *
-> - * Return struct page pointer of start_pfn, or NULL if checks were not passed.
-> - *
-> - * It's possible on some configurations to have a setup like node0 node1 node0
-> - * i.e. it's possible that all pages within a zones range of pages do not
-> - * belong to a single zone. We assume that a border between node0 and node1
-> - * can occur within a single pageblock, but not a node0 node1 node0
-> - * interleaving within a single pageblock. It is therefore sufficient to check
-> - * the first and last page of a pageblock and avoid checking each individual
-> - * page in a pageblock.
-> - */
-> -static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
-> -				unsigned long end_pfn, struct zone *zone)
-> -{
-> -	struct page *start_page;
-> -	struct page *end_page;
-> -
-> -	/* end_pfn is one past the range we are checking */
-> -	end_pfn--;
-> -
-> -	if (!pfn_valid(start_pfn) || !pfn_valid(end_pfn))
-> -		return NULL;
-> -
-> -	start_page = pfn_to_page(start_pfn);
-> -
-> -	if (page_zone(start_page) != zone)
-> -		return NULL;
-> -
-> -	end_page = pfn_to_page(end_pfn);
-> -
-> -	/* This gives a shorter code than deriving page_zone(end_page) */
-> -	if (page_zone_id(start_page) != page_zone_id(end_page))
-> -		return NULL;
-> -
-> -	return start_page;
-> -}
-> -
->  #ifdef CONFIG_COMPACTION
->  
->  /* Do not skip compaction more than 64 times */
-> diff --git a/mm/internal.h b/mm/internal.h
-> index d01a41c..bc9d337 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -137,6 +137,18 @@ __find_buddy_index(unsigned long page_idx, unsigned int order)
->  	return page_idx ^ (1 << order);
->  }
->  
-> +extern struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-> +				unsigned long end_pfn, struct zone *zone);
-> +
-> +static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
-> +				unsigned long end_pfn, struct zone *zone)
-> +{
-> +	if (zone->contiguous)
-> +		return pfn_to_page(start_pfn);
-> +
-> +	return __pageblock_pfn_to_page(start_pfn, end_pfn, zone);
-> +}
-> +
->  extern int __isolate_free_page(struct page *page, unsigned int order);
->  extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
->  					unsigned int order);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index d8016a2..f7b6e6b 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -505,6 +505,9 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
->  	unsigned long i;
->  	int err = 0;
->  	int start_sec, end_sec;
-> +
-> +	clear_zone_contiguous(zone);
-> +
->  	/* during initialize mem_map, align hot-added range to section */
->  	start_sec = pfn_to_section_nr(phys_start_pfn);
->  	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
-> @@ -523,6 +526,8 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
->  	}
->  	vmemmap_populate_print_last();
->  
-> +	set_zone_contiguous(zone);
-> +
->  	return err;
->  }
->  EXPORT_SYMBOL_GPL(__add_pages);
-> @@ -770,6 +775,8 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->  	resource_size_t start, size;
->  	int ret = 0;
->  
-> +	clear_zone_contiguous(zone);
-> +
->  	/*
->  	 * We can only remove entire sections
->  	 */
-> @@ -796,6 +803,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->  		if (ret)
->  			break;
->  	}
-> +
-> +	set_zone_contiguous(zone);
-> +
->  	return ret;
->  }
->  EXPORT_SYMBOL_GPL(__remove_pages);
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bac8842..4f5ad2b 100644
+> index 9d666df..fb353c9 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -1271,9 +1271,13 @@ free_range:
->  	pgdat_init_report_one_done();
->  	return 0;
->  }
-> +#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
->  
->  void __init page_alloc_init_late(void)
->  {
-> +	struct zone *zone;
-> +
-> +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
->  	int nid;
->  
->  	/* There will be num_node_state(N_MEMORY) threads */
-> @@ -1287,8 +1291,87 @@ void __init page_alloc_init_late(void)
->  
->  	/* Reinit limits that are based on free pages after the kernel is up */
->  	files_maxfiles_init();
-> +#endif
-> +
-> +	for_each_populated_zone(zone)
-> +		set_zone_contiguous(zone);
-> +}
-> +
-> +/*
-> + * Check that the whole (or subset of) a pageblock given by the interval of
-> + * [start_pfn, end_pfn) is valid and within the same zone, before scanning it
-> + * with the migration of free compaction scanner. The scanners then need to
-> + * use only pfn_valid_within() check for arches that allow holes within
-> + * pageblocks.
-> + *
-> + * Return struct page pointer of start_pfn, or NULL if checks were not passed.
-> + *
-> + * It's possible on some configurations to have a setup like node0 node1 node0
-> + * i.e. it's possible that all pages within a zones range of pages do not
-> + * belong to a single zone. We assume that a border between node0 and node1
-> + * can occur within a single pageblock, but not a node0 node1 node0
-> + * interleaving within a single pageblock. It is therefore sufficient to check
-> + * the first and last page of a pageblock and avoid checking each individual
-> + * page in a pageblock.
-> + */
-> +struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-> +				unsigned long end_pfn, struct zone *zone)
-> +{
-> +	struct page *start_page;
-> +	struct page *end_page;
-> +
-> +	/* end_pfn is one past the range we are checking */
-> +	end_pfn--;
-> +
-> +	if (!pfn_valid(start_pfn) || !pfn_valid(end_pfn))
-> +		return NULL;
-> +
-> +	start_page = pfn_to_page(start_pfn);
-> +
-> +	if (page_zone(start_page) != zone)
-> +		return NULL;
-> +
-> +	end_page = pfn_to_page(end_pfn);
-> +
-> +	/* This gives a shorter code than deriving page_zone(end_page) */
-> +	if (page_zone_id(start_page) != page_zone_id(end_page))
-> +		return NULL;
-> +
-> +	return start_page;
-> +}
-> +
-> +void set_zone_contiguous(struct zone *zone)
-> +{
-> +	unsigned long block_start_pfn = zone->zone_start_pfn;
-> +	unsigned long block_end_pfn;
-> +	unsigned long pfn;
-> +
-> +	block_end_pfn = ALIGN(block_start_pfn + 1, pageblock_nr_pages);
-> +	for (; block_start_pfn < zone_end_pfn(zone);
-> +		block_start_pfn = block_end_pfn,
-> +		block_end_pfn += pageblock_nr_pages) {
-> +
-> +		block_end_pfn = min(block_end_pfn, zone_end_pfn(zone));
-> +
-> +		if (!__pageblock_pfn_to_page(block_start_pfn,
-> +					block_end_pfn, zone))
-> +			return;
-> +
-> +		/* Check validity of pfn within pageblock */
-> +		for (pfn = block_start_pfn; pfn < block_end_pfn; pfn++) {
-> +			if (!pfn_valid_within(pfn))
-> +				return;
-> +		}
-> +	}
-> +
-> +	/* We confirm that there is no hole */
-> +	zone->contiguous = true;
-> +}
-pfn_valid_within just to check whether the page frame have a valid
-section. buf if this section have a hole, it will not work.
+> @@ -5307,6 +5307,10 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+>                          mem_map -= offset;
+>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>          }
+> +       pr_info(">>> ARCH_PFN_OFFSET %lx\n", ARCH_PFN_OFFSET);
+> +       pr_info(">>> pgdat->node_start_pfn %lx\n", pgdat->node_start_pfn);
+> +       pr_info(">>> offset %lx\n", offset);
+> +       pr_info(">>> first pfn %lx\n", page_to_pfn(mem_map));
+>   #endif
+>   #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+>   }
 
-Thanks
-zhongjiang
+I ran this once with your (and Todd's) patches applied, then reverted both and
+ran it again:
+
+With both b0aeba741b2d & a1c34a3bf00a:
+>>> ARCH_PFN_OFFSET 0
+>>> pgdat->node_start_pfn 2000
+>>> offset 0
+>>> first pfn 0
+
+Without (dropped the 'offset' pr_info, since that var doesn't exist):
+>>> ARCH_PFN_OFFSET 0
+>>> pgdat->node_start_pfn 2000
+>>> first pfn 0
+
+So in both instances, the values are effectively the same...odd.
+
+IP30/Octane is very close, hardware-wise, to the IP27/Origin line, the first
+NUMA-capable machine added to Linux all those years ago.  But Octane itself is
+effectively a non-NUMA platform (not too dissimilar from a single-node Origin
+unit).  That's why it doesn't use any of the MEMBLOCK stuff...which seems to
+only be for NUMA machines.
+
+Octane also has its memory laid out fairly contiguously, starting at that 512MB
+offset, so it uses CONFIG_FLATMEM since I don't think CONFIG_SPARSEMEM really
+helps it out any.  I did rewrite the memory detection code a while back, though
+I don't think that should be an issue....but one never knows.
+
+Let me know if you need anything else.  Thanks!
 
 
-> +void clear_zone_contiguous(struct zone *zone)
-> +{
-> +	zone->contiguous = false;
->  }
-> -#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
->  
->  #ifdef CONFIG_CMA
->  /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+-- 
+Joshua Kinard
+Gentoo/MIPS
+kumba@gentoo.org
+6144R/F5C6C943 2015-04-27
+177C 1972 1FB8 F254 BAD0 3E72 5C63 F4E3 F5C6 C943
 
+"The past tempts us, the present confuses us, the future frightens us.  And our
+lives slip away, moment by moment, lost in that vast, terrible in-between."
+
+--Emperor Turhan, Centauri Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
