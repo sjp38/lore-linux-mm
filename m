@@ -1,82 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DAF076B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 04:49:40 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id b14so19841780wmb.1
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:49:40 -0800 (PST)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id b2si52363754wjy.233.2016.01.20.01.49.39
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EEED6B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 04:59:56 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id r129so123939770wmr.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:59:56 -0800 (PST)
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com. [195.75.94.101])
+        by mx.google.com with ESMTPS id 12si52527257wjy.50.2016.01.20.01.59.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 01:49:39 -0800 (PST)
-Received: by mail-wm0-f43.google.com with SMTP id r129so123592895wmr.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:49:39 -0800 (PST)
-Date: Wed, 20 Jan 2016 10:49:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/3] oom, sysrq: Skip over oom victims and killed tasks
-Message-ID: <20160120094938.GB14187@dhcp22.suse.cz>
-References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
- <1452632425-20191-2-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com>
- <20160113093046.GA28942@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601131633550.3406@chino.kir.corp.google.com>
- <20160114110037.GC29943@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com>
- <20160115101218.GB14112@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601191454160.7346@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Jan 2016 01:59:55 -0800 (PST)
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Wed, 20 Jan 2016 09:59:54 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4BE331B0804B
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 09:59:56 +0000 (GMT)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0K9xpgb1048980
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 09:59:51 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0K9xoP0003772
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 02:59:51 -0700
+Date: Wed, 20 Jan 2016 10:59:49 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: Mlocked pages statistics shows bogus value.
+Message-ID: <20160120095949.GE3395@osiris>
+References: <201601191936.HAI26031.HOtJQLOMFFFVOS@I-love.SAKURA.ne.jp>
+ <20160119122101.GA20260@node.shutemov.name>
+ <201601192146.IFE86479.VMHLOFtQSOFFJO@I-love.SAKURA.ne.jp>
+ <20160119130137.GA20984@node.shutemov.name>
+ <201601192238.CEH73964.MOtFFLJVOOSHQF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1601191454160.7346@chino.kir.corp.google.com>
+In-Reply-To: <201601192238.CEH73964.MOtFFLJVOOSHQF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: kirill@shutemov.name, walken@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, "Huang, Ying" <ying.huang@intel.com>
 
-On Tue 19-01-16 14:57:33, David Rientjes wrote:
-> On Fri, 15 Jan 2016, Michal Hocko wrote:
+(added "Huang, Ying" <ying.huang@intel.com> to cc.)
+
+On Tue, Jan 19, 2016 at 10:38:50PM +0900, Tetsuo Handa wrote:
+> Kirill A. Shutemov wrote:
+> > On Tue, Jan 19, 2016 at 09:46:21PM +0900, Tetsuo Handa wrote:
+> > > Kirill A. Shutemov wrote:
+> > > > Oh. Looks like a bug from 2013...
+> > > > 
+> > > > Thanks for report.
+> > > > For unsigned int nr_pages, implicitly casted to long in
+> > > > __mod_zone_page_state(), it becomes something around UINT_MAX.
+> > > > 
+> > > > munlock_vma_page() usually called for THP as small pages go though
+> > > > pagevec.
+> > > > 
+> > > > Let's make nr_pages singed int.
+> > > > 
+> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > Fixes: ff6a6da60b89 ("mm: accelerate munlock() treatment of THP pages")
+> > > > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > Cc: Michel Lespinasse <walken@google.com>
+> > > > ---
+> > > >  mm/mlock.c | 2 +-
+> > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > > 
+> > > > diff --git a/mm/mlock.c b/mm/mlock.c
+> > > > index e1e2b1207bf2..96f001041928 100644
+> > > > --- a/mm/mlock.c
+> > > > +++ b/mm/mlock.c
+> > > > @@ -175,7 +175,7 @@ static void __munlock_isolation_failed(struct page *page)
+> > > >   */
+> > > >  unsigned int munlock_vma_page(struct page *page)
+> > > >  {
+> > > > -	unsigned int nr_pages;
+> > > > +	int nr_pages;
+> > > >  	struct zone *zone = page_zone(page);
+> > > >  
+> > > >  	/* For try_to_munlock() and to serialize with page migration */
+> > > > -- 
+> > > >  Kirill A. Shutemov
+> > > > 
 > 
-> > > I think it's time to kill sysrq+F and I'll send those two patches
-> > > unless there is a usecase I'm not aware of.
+> I tested your patch on Linux 4.4 and confirmed that your patch fixed this bug.
+> Please also send to stable.
+> 
+> Cc: <stable@vger.kernel.org>  [4.4+]
+> 
+> > > Don't we want to use "long" than "int" for all variables that count number
+> > > of pages, for recently commit 6cdb18ad98a49f7e9b95d538a0614cde827404b8
+> > > "mm/vmstat: fix overflow in mod_zone_page_state()" changed to use "long" ?
 > > 
-> > I have described one in the part you haven't quoted here. Let me repeat:
-> > : Your system might be trashing to the point you are not able to log in
-> > : and resolve the situation in a reasonable time yet you are still not
-> > : OOM. sysrq+f is your only choice then.
+> > Potentially, yes. But here we count number of small pages in the compound
+> > page. We're far from being able to allocate 8 terabyte pages ;)
+> 
+> That commit says "we have a 9TB system with only one node".
+> You might encounter such machines in near future. ;-)
+> 
 > > 
-> > Could you clarify why it is better to ditch a potentially usefull
-> > emergency tool rather than to make it work reliably and predictably?
-> 
-> I'm concerned about your usecase where the kernel requires admin 
-> intervention to resolve such an issue and there is nothing in the VM we 
-> can do to fix it.
-> 
-> If you have a specific test that demonstrates when your usecase is needed, 
-> please provide it so we can address the issue that it triggers.
+> > Anyway, it's out-of-scope for this bug fix.
+> > 
+> > My "Fixes:" is probably misleading, since we don't have bug visible until
+> > 6cdb18ad98a4.
 
-No, I do not have a specific load in mind. But let's be realistic. There
-will _always_ be corner cases where the VM cannot react properly or in a
-timely fashion.
+Please also mention 6cdb18ad98a4 in the changelog. I didn't request to add
+my "obviously correct" ;) patch to be added to -stable.
+But just in case somebody backports it..
 
-> I'd prefer to fix the issue in the VM rather than require human
-> intervention, especially when we try to keep a very large number of
-> machines running in our datacenters.
+There was also a performance regression reported that was introduced with
+6cdb18ad98a4. However I couldn't make any sense of it. Maybe this patch
+fixes it also?
 
-It is always preferable to resolve the mm related issue automagically,
-of course. We should strive for robustness as much as possible but that
-doesn't mean we should get the only emergency tool out of administrator
-hands.
-
-To be honest I really fail to understand your line of argumentation
-here. Just that you think that sysrq+f might be not helpful in large
-datacenters which you seem to care about, doesn't mean that it is not
-helpful in other setups.
-
-Removing the functionality is out of question IMHO so can we please
-start discussing how to make it more predictable please?
--- 
-Michal Hocko
-SUSE Labs
+See https://lkml.org/lkml/2016/1/5/1103
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
