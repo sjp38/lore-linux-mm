@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 463766B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:48:43 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id ho8so204292937pac.2
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 22:48:43 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s137si53043891pfs.11.2016.01.19.22.48.42
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 418B86B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:57:53 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id yy13so372498944pab.3
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 22:57:53 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id f7si14355507pat.97.2016.01.19.22.57.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jan 2016 22:48:42 -0800 (PST)
-Date: Tue, 19 Jan 2016 22:48:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mm: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected in
- split_huge_page_to_list
-Message-Id: <20160119224841.8c16ea03.akpm@linux-foundation.org>
-In-Reply-To: <87powwvm6b.fsf@linux.vnet.ibm.com>
-References: <CACT4Y+ayDrEmn31qyoVdnq6vpSbL=XzFWPM5_Ee4GH=Waf27eA@mail.gmail.com>
-	<20160118133852.GC14531@node.shutemov.name>
-	<87powwvm6b.fsf@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 19 Jan 2016 22:57:52 -0800 (PST)
+Date: Wed, 20 Jan 2016 16:00:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: fix migrate_zspage-zs_free race condition
+Message-ID: <20160120070019.GC12293@bbox>
+References: <1452818184-2994-1-git-send-email-junil0814.lee@lge.com>
+ <20160115023518.GA10843@bbox>
+ <20160115032712.GC1993@swordfish>
+ <20160115044916.GB11203@bbox>
+ <20160115050722.GE1993@swordfish>
+ <CAGfvh60CYegQ1fRMzuWbRNsv5eYEEiXtXFSBr_CbnJHuYMs5pQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGfvh60CYegQ1fRMzuWbRNsv5eYEEiXtXFSBr_CbnJHuYMs5pQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dmitry Vyukov <dvyukov@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, jmarchan@redhat.com, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: Russell Knize <rknize@motorola.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Junil Lee <junil0814.lee@lge.com>, Andrew Morton <akpm@linux-foundation.org>, ngupta@vflare.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, 20 Jan 2016 11:15:32 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+Hello Russ,
 
-> >
-> > I think this should fix the issue:
-> >
-> > From 10859758dadfa249616870f63c1636ec9857c501 Mon Sep 17 00:00:00 2001
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Date: Mon, 18 Jan 2016 16:28:12 +0300
-> > Subject: [PATCH] thp: fix interrupt unsafe locking in split_huge_page()
-> >
-> > split_queue_lock can be taken from interrupt context in some cases, but
-> > I forgot to convert locking in split_huge_page() to interrupt-safe
-> > primitives.
-> >
-> > Let's fix this.
-> 
-> Can you add the stack trace from the problem reported to the commit
-> message ?
+On Tue, Jan 19, 2016 at 09:47:12AM -0600, Russell Knize wrote:
+>    Just wanted to ack this, as we have been seeing the same problem (weird
+>    race conditions during compaction) and fixed it in the same way a few
+>    weeks ago (resetting the pin bit before recording the obj).
+>    Russ
 
-I have already done this.
+First of all, thanks for your comment.
+
+The patch you tested have a problem although it's really subtle(ie,
+it doesn't do store tearing when I disassemble ARM{32|64}) but it
+could have a problem potentially for other architecutres or future ARM.
+For right fix, I sent v5 - https://lkml.org/lkml/2016/1/18/263.
+If you can prove it fixes your problem, please Tested-by to the thread.
+It's really valuable to do testing for stable material.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
