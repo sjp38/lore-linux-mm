@@ -1,39 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC8D6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 10:12:54 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id 77so22469920ioc.2
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 07:12:54 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id y20si18616034igr.26.2016.01.20.07.12.54
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E536B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 10:14:07 -0500 (EST)
+Received: by mail-io0-f182.google.com with SMTP id 77so22510998ioc.2
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 07:14:07 -0800 (PST)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id 73si3652463ion.23.2016.01.20.07.14.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jan 2016 07:12:54 -0800 (PST)
-Date: Wed, 20 Jan 2016 09:12:52 -0600 (CST)
+        Wed, 20 Jan 2016 07:14:06 -0800 (PST)
+Date: Wed, 20 Jan 2016 09:14:06 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat: make vmstat_updater deferrable again and shut down on
- idle
-In-Reply-To: <CAPub148GRFho0oS9Vf0UdX+2Q84+031DE7jKj6Nxc0o0ZqWEmA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1601200910480.21388@east.gentwo.org>
-References: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org> <CAPub148GRFho0oS9Vf0UdX+2Q84+031DE7jKj6Nxc0o0ZqWEmA@mail.gmail.com>
+Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
+In-Reply-To: <20160120143719.GF14187@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1601200913250.21388@east.gentwo.org>
+References: <5674A5C3.1050504@oracle.com> <20160120143719.GF14187@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 20 Jan 2016, Shiraz Hashim wrote:
+On Wed, 20 Jan 2016, Michal Hocko wrote:
 
-> The patch makes vmstat_shepherd deferable which if is quiesed
-> would not schedule vmstat update on other cpus. Wouldn't this
-> aggravate the problem of vmstat for rest cpus not gettng updated.
+> [CCing Andrew]
+>
+> I am just reading through this old discussion again because "vmstat:
+> make vmstat_updater deferrable again and shut down on idle" which seems
+> to be the culprit AFAIU has been merged as 0eb77e988032 and I do not see
+> any follow up fix merged to linus tree
 
-Its only "deferred" in order to make it at the next tick and not cause an
-extra event. This means that vmstat will run periodically from tick
-processing. It merely causes a synching so that we have one interruption
-that does both.
-
-On idle we fold counters immediately. So there is no loss of accuracy.
+Is there any way to reproce this issue? This is running through trinity
+right? Can we please get the exact syscall that causes this to occur?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
