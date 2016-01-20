@@ -1,51 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 418B86B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:57:53 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id yy13so372498944pab.3
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2016 22:57:53 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id f7si14355507pat.97.2016.01.19.22.57.51
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DAF076B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 04:49:40 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id b14so19841780wmb.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:49:40 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id b2si52363754wjy.233.2016.01.20.01.49.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Jan 2016 22:57:52 -0800 (PST)
-Date: Wed, 20 Jan 2016 16:00:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: fix migrate_zspage-zs_free race condition
-Message-ID: <20160120070019.GC12293@bbox>
-References: <1452818184-2994-1-git-send-email-junil0814.lee@lge.com>
- <20160115023518.GA10843@bbox>
- <20160115032712.GC1993@swordfish>
- <20160115044916.GB11203@bbox>
- <20160115050722.GE1993@swordfish>
- <CAGfvh60CYegQ1fRMzuWbRNsv5eYEEiXtXFSBr_CbnJHuYMs5pQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jan 2016 01:49:39 -0800 (PST)
+Received: by mail-wm0-f43.google.com with SMTP id r129so123592895wmr.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 01:49:39 -0800 (PST)
+Date: Wed, 20 Jan 2016 10:49:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 1/3] oom, sysrq: Skip over oom victims and killed tasks
+Message-ID: <20160120094938.GB14187@dhcp22.suse.cz>
+References: <1452632425-20191-1-git-send-email-mhocko@kernel.org>
+ <1452632425-20191-2-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com>
+ <20160113093046.GA28942@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1601131633550.3406@chino.kir.corp.google.com>
+ <20160114110037.GC29943@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com>
+ <20160115101218.GB14112@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1601191454160.7346@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGfvh60CYegQ1fRMzuWbRNsv5eYEEiXtXFSBr_CbnJHuYMs5pQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1601191454160.7346@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell Knize <rknize@motorola.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Junil Lee <junil0814.lee@lge.com>, Andrew Morton <akpm@linux-foundation.org>, ngupta@vflare.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-Hello Russ,
+On Tue 19-01-16 14:57:33, David Rientjes wrote:
+> On Fri, 15 Jan 2016, Michal Hocko wrote:
+> 
+> > > I think it's time to kill sysrq+F and I'll send those two patches
+> > > unless there is a usecase I'm not aware of.
+> > 
+> > I have described one in the part you haven't quoted here. Let me repeat:
+> > : Your system might be trashing to the point you are not able to log in
+> > : and resolve the situation in a reasonable time yet you are still not
+> > : OOM. sysrq+f is your only choice then.
+> > 
+> > Could you clarify why it is better to ditch a potentially usefull
+> > emergency tool rather than to make it work reliably and predictably?
+> 
+> I'm concerned about your usecase where the kernel requires admin 
+> intervention to resolve such an issue and there is nothing in the VM we 
+> can do to fix it.
+> 
+> If you have a specific test that demonstrates when your usecase is needed, 
+> please provide it so we can address the issue that it triggers.
 
-On Tue, Jan 19, 2016 at 09:47:12AM -0600, Russell Knize wrote:
->    Just wanted to ack this, as we have been seeing the same problem (weird
->    race conditions during compaction) and fixed it in the same way a few
->    weeks ago (resetting the pin bit before recording the obj).
->    Russ
+No, I do not have a specific load in mind. But let's be realistic. There
+will _always_ be corner cases where the VM cannot react properly or in a
+timely fashion.
 
-First of all, thanks for your comment.
+> I'd prefer to fix the issue in the VM rather than require human
+> intervention, especially when we try to keep a very large number of
+> machines running in our datacenters.
 
-The patch you tested have a problem although it's really subtle(ie,
-it doesn't do store tearing when I disassemble ARM{32|64}) but it
-could have a problem potentially for other architecutres or future ARM.
-For right fix, I sent v5 - https://lkml.org/lkml/2016/1/18/263.
-If you can prove it fixes your problem, please Tested-by to the thread.
-It's really valuable to do testing for stable material.
+It is always preferable to resolve the mm related issue automagically,
+of course. We should strive for robustness as much as possible but that
+doesn't mean we should get the only emergency tool out of administrator
+hands.
 
-Thanks!
+To be honest I really fail to understand your line of argumentation
+here. Just that you think that sysrq+f might be not helpful in large
+datacenters which you seem to care about, doesn't mean that it is not
+helpful in other setups.
+
+Removing the functionality is out of question IMHO so can we please
+start discussing how to make it more predictable please?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
