@@ -1,125 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A516B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 14:30:57 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l65so192653830wmf.1
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 11:30:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a4si42530904wmi.32.2016.01.20.11.30.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 20 Jan 2016 11:30:56 -0800 (PST)
-Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
-References: <20160120173504.59300BEC@viggo.jf.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <569FE069.6080205@suse.cz>
-Date: Wed, 20 Jan 2016 20:30:49 +0100
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 891B5828DF
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 15:00:03 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id z14so108556801igp.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 12:00:03 -0800 (PST)
+Date: Thu, 21 Jan 2016 06:59:57 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160120195957.GV6033@dastard>
+References: <80934665e0dd2360e2583522c7c7569e5a92be0e.1452549431.git.bcrl@kvack.org>
+ <20160112011128.GC6033@dastard>
+ <CA+55aFxtvMqHgHmHCcszV_QKQ2BY0wzenmrvc6BYN+tLFxesMA@mail.gmail.com>
+ <20160112022548.GD6033@dastard>
+ <CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
+ <20160112033708.GE6033@dastard>
+ <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com>
+ <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
+ <20160115202131.GH6330@kvack.org>
+ <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160120173504.59300BEC@viggo.jf.intel.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, jack@suse.cz
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin LaHaise <bcrl@kvack.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/20/2016 06:35 PM, Dave Hansen wrote:
-> Here's another revision taking Vlastimil's suggestions about
-> keeping __get_user_pages_unlocked() as-is in to account.
-> This does, indeed, look nicer.  Now, all the "__" variants
-> take a full tsk/mm and flags.
+On Tue, Jan 19, 2016 at 07:59:35PM -0800, Linus Torvalds wrote:
+> On Fri, Jan 15, 2016 at 12:21 PM, Benjamin LaHaise <bcrl@kvack.org> wrote:
+> >>
+> >> I'll have to think about this some more.
+> >
+> > Any further thoughts on this after a few days worth of pondering?
 > 
-> He also noted that the two sites where we called gup with
-> tsk=NULL were probably incorrectly changing behavior with respect
-> to fault accounting.  Long-term, I wonder if we should just add
-> a "FOLL_" flag to make that more explicit, but for now, I've
-> fixed up those sites.
+> Sorry about the delay, with the merge window and me being sick for a
+> couple of days I didn't get around to this.
 > 
-> ---
+> After thinking it over some more, I guess I'm ok with your approach.
+> The table-driven patch makes me a bit happier, and I guess not very
+> many people end up ever wanting to do async system calls anyway.
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> For protection keys, we need to understand whether protections
-> should be enforced in software or not.  In general, we enforce
-> protections when working on our own task, but not when on others.
-> We call these "current" and "foreign" operations.
-> 
-> This patch introduces a new get_user_pages() variant:
-> 
-> 	get_user_pages_foreign()
-> 
-> The plain get_user_pages() can no longer be used on mm/tasks
-> other than 'current/current->mm', which is by far the most common
-> way it is called.  Using it makes a few of the call sites look a
-> bit nicer.
-> 
-> In other words, get_user_pages_foreign() is a replacement for
-> when get_user_pages() is called on non-current tsk/mm.
-> 
-> This also switches get_user_pages_(un)locked() over to be like
-> get_user_pages() and not take a tsk/mm.  There is no
-> get_user_pages_foreign_(un)locked().  If someone wants that
-> behavior they just have to use "__" variant and pass in
-> FOLL_FOREIGN explicitly.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: vbabka@suse.cz
-> Cc: jack@suse.cz
-> ---
-> 
+> Are there other users outside of Solace? It would be good to get comments..
 
-After you fix up the nommu version of __get_user_pages_unlocked() below to match
-the mmu one,
+I know of quite a few storage/db products that use AIO. The most
+recent high profile project that have been reporting issues with AIO
+on XFS is http://www.scylladb.com/. That project is architected
+around non-blocking AIO for scalability reasons...
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Cheers,
 
-> diff -puN mm/nommu.c~get_current_user_pages mm/nommu.c
-> --- a/mm/nommu.c~get_current_user_pages	2016-01-19 15:48:31.794063748 -0800
-> +++ b/mm/nommu.c	2016-01-19 15:48:31.835065603 -0800
-
-[...]
-
-> -long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-> -			       unsigned long start, unsigned long nr_pages,
-> +long get_user_pages(unsigned long start, unsigned long nr_pages,
-> +		    int write, int force, struct page **pages,
-> +		    struct vm_area_struct **vmas)
-> +{
-> +	return get_user_pages_foreign(current, current->mm, start, nr_pages,
-> +				      write, force, pages, vmas);
-> +}
-> +EXPORT_SYMBOL(get_user_pages);
-> +
-> +long __get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
->  			       int write, int force, struct page **pages,
->  			       unsigned int gup_flags)
->  {
->  	long ret;
-> -	down_read(&mm->mmap_sem);
-> -	ret = get_user_pages(tsk, mm, start, nr_pages, write, force,
-> -			     pages, NULL);
-> -	up_read(&mm->mmap_sem);
-> +	down_read(&current->mm->mmap_sem);
-> +	ret = get_user_pages(start, nr_pages, write, force, pages, NULL);
-> +	up_read(&current->mm->mmap_sem);
->  	return ret;
->  }
->  EXPORT_SYMBOL(__get_user_pages_unlocked);
->  
-> -long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-> -			     unsigned long start, unsigned long nr_pages,
-> +long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
->  			     int write, int force, struct page **pages)
->  {
-> -	return __get_user_pages_unlocked(tsk, mm, start, nr_pages, write,
-> +	return __get_user_pages_unlocked(start, nr_pages, write,
->  					 force, pages, 0);
->  }
->  EXPORT_SYMBOL(get_user_pages_unlocked);
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
