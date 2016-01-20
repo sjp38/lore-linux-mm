@@ -1,129 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CAD6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 08:44:02 -0500 (EST)
-Received: by mail-oi0-f50.google.com with SMTP id w75so5188372oie.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 05:44:02 -0800 (PST)
-Received: from mail-ob0-x229.google.com (mail-ob0-x229.google.com. [2607:f8b0:4003:c01::229])
-        by mx.google.com with ESMTPS id c67si37540912oig.1.2016.01.20.05.44.00
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id AA84D6B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 08:52:10 -0500 (EST)
+Received: by mail-io0-f172.google.com with SMTP id 1so19953112ion.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 05:52:10 -0800 (PST)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id d1si43252012igc.46.2016.01.20.05.52.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 05:44:00 -0800 (PST)
-Received: by mail-ob0-x229.google.com with SMTP id py5so6862203obc.2
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 05:44:00 -0800 (PST)
+        Wed, 20 Jan 2016 05:52:10 -0800 (PST)
+Received: by mail-io0-x22a.google.com with SMTP id 1so19952870ion.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 05:52:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAEjAshocB0U90TU5kpm+woWcf=1=NmhbXpPs_iT_fz5R8PoczA@mail.gmail.com>
-References: <1453125834-16546-1-git-send-email-liangchen.linux@gmail.com>
-	<alpine.DEB.2.10.1601191005350.2469@hxeon>
-	<CA+eFSM0Nh4e0VjzDoaSEfbQNQwuHEnHkSmfsQCQmfgRUcOoofg@mail.gmail.com>
-	<CAEjAshocB0U90TU5kpm+woWcf=1=NmhbXpPs_iT_fz5R8PoczA@mail.gmail.com>
-Date: Wed, 20 Jan 2016 21:44:00 +0800
-Message-ID: <CAKhg4t+20HjZ_AO2Kkjc2-erRL4nvJN35e3NRUo7tViDTba0KQ@mail.gmail.com>
-Subject: Re: [PATCH] mm:mempolicy: skip VM_HUGETLB and VM_MIXEDMAP VMA for
- lazy mbind
-From: Liang Chen <liangchen.linux@gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org>
+References: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org>
+Date: Wed, 20 Jan 2016 19:22:09 +0530
+Message-ID: <CAPub148GRFho0oS9Vf0UdX+2Q84+031DE7jKj6Nxc0o0ZqWEmA@mail.gmail.com>
+Subject: Re: vmstat: make vmstat_updater deferrable again and shut down on idle
+From: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SeongJae Park <sj38.park@gmail.com>
-Cc: Gavin Guo <gavin.guo@canonical.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp
 
-Thanks a lot for the checking and discussion. So I will just leave it
-as it was:)
+Hi Christoph,
 
-Thanks,
-Liang
+On Fri, Dec 11, 2015 at 2:15 AM, Christoph Lameter <cl@linux.com> wrote:
+> Currently the vmstat updater is not deferrable as a result of commit
+> ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+> interruptions of the applications because the vmstat updater may run at
+> different times than tick processing. No good.
+>
+> Make vmstate_update deferrable again and provide a function that
+> folds the differentials when the processor is going to idle mode thus
+> addressing the issue of the above commit in a clean way.
+>
 
-On Tue, Jan 19, 2016 at 11:00 AM, SeongJae Park <sj38.park@gmail.com> wrote:
-> Hi Gavin,
->
->
-> On Tue, Jan 19, 2016 at 11:43 AM, Gavin Guo <gavin.guo@canonical.com> wrote:
->> Hi SeongJae,
->>
->> On Tue, Jan 19, 2016 at 9:12 AM, SeongJae Park <sj38.park@gmail.com> wrote:
->>> Hello Liang,
->>>
->>> Just trivial comment below.
->>>
->>> On Mon, 18 Jan 2016, Liang Chen wrote:
->>>
->>>> VM_HUGETLB and VM_MIXEDMAP vma needs to be excluded to avoid compound
->>>> pages being marked for migration and unexpected COWs when handling
->>>> hugetlb fault.
->>>>
->>>> Thanks to Naoya Horiguchi for reminding me on these checks.
->>>>
->>>> Signed-off-by: Liang Chen <liangchen.linux@gmail.com>
->>>> Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
->>>> ---
->>>> mm/mempolicy.c | 5 +++--
->>>> 1 file changed, 3 insertions(+), 2 deletions(-)
->>>>
->>>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->>>> index 436ff411..415de70 100644
->>>> --- a/mm/mempolicy.c
->>>> +++ b/mm/mempolicy.c
->>>> @@ -610,8 +610,9 @@ static int queue_pages_test_walk(unsigned long start,
->>>> unsigned long end,
->>>>
->>>>         if (flags & MPOL_MF_LAZY) {
->>>>                 /* Similar to task_numa_work, skip inaccessible VMAs */
->>>> -               if (vma_migratable(vma) &&
->>>> -                       vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
->>>> +               if (vma_migratable(vma) && !is_vm_hugetlb_page(vma) &&
->>>> +                       (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
->>>> &&
->>>> +                       !(vma->vm_flags & VM_MIXEDMAP))
->>>
->>>
->>> Isn't there exists few unnecessary parenthesis? IMHO, it makes me hard to
->>> read the code.
->>>
->>> How about below code, instead?
->>>
->>> +             if (vma_migratable(vma) && !is_vm_hugetlb_page(vma) &&
->>> +                     vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE) &&
->>
->> Thanks for your suggestion, it's good for the above. However, it should be
->> a typo for the following and I think you mean:
->>
->>         ~vma->vm_flags & VM_MIXEDMAP
->>
->> Even though the result is correct, I feel it's a bit of ambiguous for
->> people to understand and away from it's original meaning.
->
-> Ah, you're right. That's my fault. Thanks for noting that.
->
-> BTW, now I think the line could be expressed in this way:
->          vma->vm_flags & ~VM_MIXEDMAP
->
-> I feel this is sufficiently explicit and follows the meaning well.
-> However, I agree that Liang's first one is good enough, too.
->
-> Thanks,
-> SeongJae Park.
->
->>
->>> +                     !vma->vm_flags & VM_MIXEDMAP)
->>>
->>>
->>> Thanks,
->>> SeongJae Park.
->>>
->>>>                         change_prot_numa(vma, start, endvma);
->>>>                 return 1;
->>>>         }
->>>> --
->>>> 1.9.1
->>>>
->>>> --
->>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>>> see: http://www.linux-mm.org/ .
->>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>>
->>>
+The patch makes vmstat_shepherd deferable which if is quiesed
+would not schedule vmstat update on other cpus. Wouldn't this
+aggravate the problem of vmstat for rest cpus not gettng updated.
+
+regards
+Shiraz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
