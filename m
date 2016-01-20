@@ -1,155 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id ED62A6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:05:36 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id e65so10684156pfe.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:05:36 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p13si57429448pfi.234.2016.01.20.13.05.35
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B30FD6B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:28:10 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id b14so50591888wmb.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:28:10 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id uc9si55990678wjc.194.2016.01.20.13.28.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 13:05:36 -0800 (PST)
-Date: Wed, 20 Jan 2016 13:05:34 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] kernel/hung_task.c: use timeout diff when timeout is
- updated
-Message-Id: <20160120130534.57e4f7d8c33549a6e473d475@linux-foundation.org>
-In-Reply-To: <20151221134545.cb0558878932913e348656e9@linux-foundation.org>
-References: <201512172123.DFJ69220.SFFOLOJtVHOQMF@I-love.SAKURA.ne.jp>
-	<20151217141805.f418cf9b137da08656504001@linux-foundation.org>
-	<201512212045.HHC00516.SQOJVHLFFtMOOF@I-love.SAKURA.ne.jp>
-	<20151221134545.cb0558878932913e348656e9@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 20 Jan 2016 13:28:09 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id 123so149898748wmz.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:28:09 -0800 (PST)
+Date: Wed, 20 Jan 2016 22:28:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
+Message-ID: <20160120212806.GA26965@dhcp22.suse.cz>
+References: <5674A5C3.1050504@oracle.com>
+ <20160120143719.GF14187@dhcp22.suse.cz>
+ <569FA01A.4070200@oracle.com>
+ <20160120151007.GG14187@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1601200919520.21490@east.gentwo.org>
+ <569FAC90.5030407@oracle.com>
+ <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, oleg@redhat.com, atomlin@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 21 Dec 2015 13:45:45 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Mon, 21 Dec 2015 20:45:23 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> > > 
-> > > And it would be helpful to add a comment to hung_timeout_jiffies()
-> > > which describes the behaviour and explains the reasons for it.
-> > 
-> > But before doing it, I'd like to confirm hung task maintainer's will.
-> > 
-> > The reason I proposed this patch is that I want to add a watchdog task
-> > which emits warning messages when memory allocations are stalling.
-> > http://lkml.kernel.org/r/201512130033.ABH90650.FtFOMOFLVOJHQS@I-love.SAKURA.ne.jp
-> > 
-> > But concurrently emitting multiple backtraces is problematic. Concurrent
-> > emitting by hung task watchdog and memory allocation stall watchdog is very
-> > likely to occur, for it is likely that other task is also stuck in
-> > uninterruptible sleep when one task got stuck at memory allocation.
-> > 
-> > Therefore, I started trying to use same thread for both watchdogs.
-> > A draft patch is at
-> > http://lkml.kernel.org/r/201512170011.IAC73451.FLtFMSJHOQFVOO@I-love.SAKURA.ne.jp .
-> > 
-> > If you prefer current hang task behavior, I'll try to preseve current
-> > behavior. Instead, I might use two threads and try to mutex both watchdogs
-> > using console_lock() or something like that.
-> > 
-> > So, may I ask what your preference is?
+On Wed 20-01-16 09:55:22, Christoph Lameter wrote:
+[...]
+> Subject: vmstat: Remove BUG_ON from vmstat_update
 > 
-> I've added linux-mm to Cc.  Please never forget that.
+> If we detect that there is nothing to do just set the flag and do not check
+> if it was already set before. Races really do not matter. If the flag is
+> set by any code then the shepherd will start dealing with the situation
+> and reenable the vmstat workers when necessary again.
 > 
-> The general topic here is "add more diagnostics around an out-of-memory
-> event".  Clearly we need this, but Michal is working on the same thing
-> as part of his "OOM detection rework v4" work, so can we please do the
-> appropriate coordination and review there?
+> Concurrent actions could be onlining and offlining of processors or be a
+> result of concurrency issues when updating the cpumask from multiple
+> processors.
+
+Now that 7e988032 ("vmstat: make vmstat_updater deferrable again and
+shut down on idle) is merged the VM_BUG_ON is simply bogus because
+vmstat_update might "race" with quiet_vmstat. The changelog should
+reflect that. What about the following wording?
+
+"
+Since 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
+shut down on idle") quiet_vmstat might update cpu_stat_off and mark a
+particular cpu to be handled by vmstat_shepherd. This might trigger
+a VM_BUG_ON in vmstat_update because the work item might have been
+sleeping during the idle period and see the cpu_stat_off updated after
+the wake up. The VM_BUG_ON is therefore misleading and no more
+appropriate. Moreover it doesn't really suite any protection from real
+bugs because vmstat_shepherd will simply reschedule the vmstat_work
+anytime it sees a particular cpu set or vmstat_update would do the same
+from the worker context directly. Even when the two would race the
+result wouldn't be incorrect as the counters update is fully idempotent.
+
+Fixes: 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
+shut down on idle")
+CC: stable # 4.4+
+"
+
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 > 
-> Preventing watchdog-triggered backtraces from messing each other up is
-> of course a good idea.  Your malloc watchdog patch adds a surprising
-> amount of code and adding yet another kernel thread is painful but
-> perhaps it's all worth it.  It's a matter of people reviewing, testing
-> and using the code in realistic situations and that process has hardly
-> begun, alas.
-> 
-> Sorry, that was waffly but I don't feel able to be more definite at
-> this time.
+> Index: linux/mm/vmstat.c
+> ===================================================================
+> --- linux.orig/mm/vmstat.c
+> +++ linux/mm/vmstat.c
+> @@ -1408,17 +1408,7 @@ static void vmstat_update(struct work_st
+>  		 * Defer the checking for differentials to the
+>  		 * shepherd thread on a different processor.
+>  		 */
+> -		int r;
+> -		/*
+> -		 * Shepherd work thread does not race since it never
+> -		 * changes the bit if its zero but the cpu
+> -		 * online / off line code may race if
+> -		 * worker threads are still allowed during
+> -		 * shutdown / startup.
+> -		 */
+> -		r = cpumask_test_and_set_cpu(smp_processor_id(),
+> -			cpu_stat_off);
+> -		VM_BUG_ON(r);
+> +		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
+>  	}
+>  }
 
-So this patch is rather stuck in place. 
-
-Can we please work out how to proceed?  I don't like hanging onto
-limbopatches for ages.
-
-
-
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: kernel/hung_task.c: use timeout diff when timeout is updated
-
-When new timeout is written to /proc/sys/kernel/hung_task_timeout_secs,
-khungtaskd is interrupted and again sleeps for full timeout duration.
-
-This means that hang task will not be checked if new timeout is written
-periodically within old timeout duration and/or checking of hang task will
-be delayed for up to previous timeout duration.  Fix this by remembering
-last time khungtaskd checked hang task.
-
-This change will allow other watchdog tasks (if any) to share khungtaskd
-by sleeping for minimal timeout diff of all watchdog tasks.  Doing more
-watchdog tasks from khungtaskd will reduce the possibility of printk()
-collisions by multiple watchdog threads.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Aaron Tomlin <atomlin@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- kernel/hung_task.c |   21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
-
-diff -puN kernel/hung_task.c~kernel-hung_taskc-use-timeout-diff-when-timeout-is-updated kernel/hung_task.c
---- a/kernel/hung_task.c~kernel-hung_taskc-use-timeout-diff-when-timeout-is-updated
-+++ a/kernel/hung_task.c
-@@ -185,10 +185,12 @@ static void check_hung_uninterruptible_t
- 	rcu_read_unlock();
- }
- 
--static unsigned long timeout_jiffies(unsigned long timeout)
-+static long hung_timeout_jiffies(unsigned long last_checked,
-+				 unsigned long timeout)
- {
- 	/* timeout of 0 will disable the watchdog */
--	return timeout ? timeout * HZ : MAX_SCHEDULE_TIMEOUT;
-+	return timeout ? last_checked - jiffies + timeout * HZ :
-+		MAX_SCHEDULE_TIMEOUT;
- }
- 
- /*
-@@ -224,18 +226,21 @@ EXPORT_SYMBOL_GPL(reset_hung_task_detect
-  */
- static int watchdog(void *dummy)
- {
-+	unsigned long hung_last_checked = jiffies;
-+
- 	set_user_nice(current, 0);
- 
- 	for ( ; ; ) {
- 		unsigned long timeout = sysctl_hung_task_timeout_secs;
-+		long t = hung_timeout_jiffies(hung_last_checked, timeout);
- 
--		while (schedule_timeout_interruptible(timeout_jiffies(timeout)))
--			timeout = sysctl_hung_task_timeout_secs;
--
--		if (atomic_xchg(&reset_hung_task, 0))
-+		if (t <= 0) {
-+			if (!atomic_xchg(&reset_hung_task, 0))
-+				check_hung_uninterruptible_tasks(timeout);
-+			hung_last_checked = jiffies;
- 			continue;
--
--		check_hung_uninterruptible_tasks(timeout);
-+		}
-+		schedule_timeout_interruptible(t);
- 	}
- 
- 	return 0;
-_
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
