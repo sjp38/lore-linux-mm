@@ -1,100 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B30FD6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:28:10 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id b14so50591888wmb.1
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:28:10 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id uc9si55990678wjc.194.2016.01.20.13.28.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 13:28:09 -0800 (PST)
-Received: by mail-wm0-f41.google.com with SMTP id 123so149898748wmz.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:28:09 -0800 (PST)
-Date: Wed, 20 Jan 2016 22:28:07 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-Message-ID: <20160120212806.GA26965@dhcp22.suse.cz>
-References: <5674A5C3.1050504@oracle.com>
- <20160120143719.GF14187@dhcp22.suse.cz>
- <569FA01A.4070200@oracle.com>
- <20160120151007.GG14187@dhcp22.suse.cz>
- <alpine.DEB.2.20.1601200919520.21490@east.gentwo.org>
- <569FAC90.5030407@oracle.com>
- <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 019A86B0009
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:46:21 -0500 (EST)
+Received: by mail-io0-f180.google.com with SMTP id g73so35154127ioe.3
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 13:46:20 -0800 (PST)
+Date: Thu, 21 Jan 2016 08:45:46 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160120214546.GX6033@dastard>
+References: <20160112022548.GD6033@dastard>
+ <CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
+ <20160112033708.GE6033@dastard>
+ <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com>
+ <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
+ <20160115202131.GH6330@kvack.org>
+ <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
+ <20160120195957.GV6033@dastard>
+ <CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com>
+ <20160120204449.GC12249@kvack.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
+In-Reply-To: <20160120204449.GC12249@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 20-01-16 09:55:22, Christoph Lameter wrote:
-[...]
-> Subject: vmstat: Remove BUG_ON from vmstat_update
+On Wed, Jan 20, 2016 at 03:44:49PM -0500, Benjamin LaHaise wrote:
+> On Wed, Jan 20, 2016 at 12:29:32PM -0800, Linus Torvalds wrote:
+> > On Wed, Jan 20, 2016 at 11:59 AM, Dave Chinner <david@fromorbit.com> wrote:
+> > >>
+> > >> Are there other users outside of Solace? It would be good to get comments..
+> > >
+> > > I know of quite a few storage/db products that use AIO. The most
+> > > recent high profile project that have been reporting issues with AIO
+> > > on XFS is http://www.scylladb.com/. That project is architected
+> > > around non-blocking AIO for scalability reasons...
+> > 
+> > I was more wondering about the new interfaces, making sure that the
+> > feature set actually matches what people want to do..
 > 
-> If we detect that there is nothing to do just set the flag and do not check
-> if it was already set before. Races really do not matter. If the flag is
-> set by any code then the shepherd will start dealing with the situation
-> and reenable the vmstat workers when necessary again.
+> I suspect this will be an ongoing learning exercise as people start to use 
+> the new functionality and find gaps in terms of what is needed.  Certainly 
+> there is a bunch of stuff we need to add to cover the cases where disk i/o 
+> is required.  getdents() is one example, but the ABI issues we have with it 
+> are somewhat more complicated given the history associated with that 
+> interface.
 > 
-> Concurrent actions could be onlining and offlining of processors or be a
-> result of concurrency issues when updating the cpumask from multiple
-> processors.
-
-Now that 7e988032 ("vmstat: make vmstat_updater deferrable again and
-shut down on idle) is merged the VM_BUG_ON is simply bogus because
-vmstat_update might "race" with quiet_vmstat. The changelog should
-reflect that. What about the following wording?
-
-"
-Since 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
-shut down on idle") quiet_vmstat might update cpu_stat_off and mark a
-particular cpu to be handled by vmstat_shepherd. This might trigger
-a VM_BUG_ON in vmstat_update because the work item might have been
-sleeping during the idle period and see the cpu_stat_off updated after
-the wake up. The VM_BUG_ON is therefore misleading and no more
-appropriate. Moreover it doesn't really suite any protection from real
-bugs because vmstat_shepherd will simply reschedule the vmstat_work
-anytime it sees a particular cpu set or vmstat_update would do the same
-from the worker context directly. Even when the two would race the
-result wouldn't be incorrect as the counters update is fully idempotent.
-
-Fixes: 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
-shut down on idle")
-CC: stable # 4.4+
-"
-
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> > That said, I also agree that it would be interesting to hear what the
+> > performance impact is for existing performance-sensitive users. Could
+> > we make that "aio_may_use_threads()" case be unconditional, making
+> > things simpler?
 > 
-> Index: linux/mm/vmstat.c
-> ===================================================================
-> --- linux.orig/mm/vmstat.c
-> +++ linux/mm/vmstat.c
-> @@ -1408,17 +1408,7 @@ static void vmstat_update(struct work_st
->  		 * Defer the checking for differentials to the
->  		 * shepherd thread on a different processor.
->  		 */
-> -		int r;
-> -		/*
-> -		 * Shepherd work thread does not race since it never
-> -		 * changes the bit if its zero but the cpu
-> -		 * online / off line code may race if
-> -		 * worker threads are still allowed during
-> -		 * shutdown / startup.
-> -		 */
-> -		r = cpumask_test_and_set_cpu(smp_processor_id(),
-> -			cpu_stat_off);
-> -		VM_BUG_ON(r);
-> +		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
->  	}
->  }
+> Making it unconditional is a goal, but some work is required before that 
+> can be the case.  The O_DIRECT issue is one such matter -- it requires some 
+> changes to the filesystems to ensure that they adhere to the non-blocking 
+> nature of the new interface (ie taking i_mutex is a Bad Thing that users 
+> really do not want to be exposed to; if taking it blocks, the code should 
+> punt to a helper thread).
 
+Filesystems *must take locks* in the IO path. We have to serialise
+against truncate and other operations at some point in the IO path
+(e.g. block mapping vs concurrent allocation and/or removal), and
+that can only be done sanely with sleeping locks.  There is no way
+of knowing in advance if we are going to block, and so either we
+always use threads for IO submission or we accept that occasionally
+the AIO submission will block.
+
+Cheers,
+
+Dave.
 -- 
-Michal Hocko
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
