@@ -1,101 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8726B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 17:20:12 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id uo6so11650449pac.1
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 14:20:12 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f7si57714552pfd.188.2016.01.20.14.20.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 14:20:11 -0800 (PST)
-Date: Wed, 20 Jan 2016 17:20:00 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] cleancache: constify cleancache_ops structure
-Message-ID: <20160120222000.GA6765@char.us.oracle.com>
-References: <1450904784-17139-1-git-send-email-Julia.Lawall@lip6.fr>
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FDE16B0009
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 18:07:27 -0500 (EST)
+Received: by mail-io0-f181.google.com with SMTP id q21so36420409iod.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 15:07:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1450904784-17139-1-git-send-email-Julia.Lawall@lip6.fr>
+In-Reply-To: <20160120214546.GX6033@dastard>
+References: <20160112022548.GD6033@dastard>
+	<CA+55aFzxSrLhOyV3VtO=Cv_J+npD8ubEP74CCF+rdt=CRipzxA@mail.gmail.com>
+	<20160112033708.GE6033@dastard>
+	<CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com>
+	<CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
+	<20160115202131.GH6330@kvack.org>
+	<CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
+	<20160120195957.GV6033@dastard>
+	<CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com>
+	<20160120204449.GC12249@kvack.org>
+	<20160120214546.GX6033@dastard>
+Date: Wed, 20 Jan 2016 15:07:26 -0800
+Message-ID: <CA+55aFzA8cdvYyswW6QddM60EQ8yocVfT4+mYJSoKW9HHf3rHQ@mail.gmail.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=089e0112d074afd1c50529cc0c44
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julia Lawall <Julia.Lawall@lip6.fr>
-Cc: linux-mm@kvack.org, kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Benjamin LaHaise <bcrl@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, Dec 23, 2015 at 10:06:24PM +0100, Julia Lawall wrote:
-> The cleancache_ops structure is never modified, so declare it as const.
-> 
-> This also removes the __read_mostly declaration on the cleancache_ops
-> variable declaration, since it seems redundant with const.
-> 
-> Done with the help of Coccinelle.
-> 
-> Signed-off-by: Julia Lawall <Julia.Lawall@lip6.fr>
-> 
-> ---
-> 
-> Not sure that the __read_mostly change is correct.  Does it apply to the
-> variable, or to what the variable points to?
+--089e0112d074afd1c50529cc0c44
+Content-Type: text/plain; charset=UTF-8
 
-It should just put the structure in the right section (.rodata).
+On Jan 20, 2016 1:46 PM, "Dave Chinner" <david@fromorbit.com> wrote:
+> >
+> > > That said, I also agree that it would be interesting to hear what the
+> > > performance impact is for existing performance-sensitive users. Could
+> > > we make that "aio_may_use_threads()" case be unconditional, making
+> > > things simpler?
+> >
+> > Making it unconditional is a goal, but some work is required before that
+> > can be the case.  The O_DIRECT issue is one such matter -- it requires
+some
+> > changes to the filesystems to ensure that they adhere to the
+non-blocking
+> > nature of the new interface (ie taking i_mutex is a Bad Thing that users
+> > really do not want to be exposed to; if taking it blocks, the code
+should
+> > punt to a helper thread).
+>
+> Filesystems *must take locks* in the IO path.
 
-Thanks for the patch!
-> 
->  drivers/xen/tmem.c         |    2 +-
->  include/linux/cleancache.h |    2 +-
->  mm/cleancache.c            |    4 ++--
->  3 files changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/cleancache.h b/include/linux/cleancache.h
-> index bda5ec0b4..cb3e142 100644
-> --- a/include/linux/cleancache.h
-> +++ b/include/linux/cleancache.h
-> @@ -37,7 +37,7 @@ struct cleancache_ops {
->  	void (*invalidate_fs)(int);
->  };
->  
-> -extern int cleancache_register_ops(struct cleancache_ops *ops);
-> +extern int cleancache_register_ops(const struct cleancache_ops *ops);
->  extern void __cleancache_init_fs(struct super_block *);
->  extern void __cleancache_init_shared_fs(struct super_block *);
->  extern int  __cleancache_get_page(struct page *);
-> diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-> index 945fc43..4ac2ca8 100644
-> --- a/drivers/xen/tmem.c
-> +++ b/drivers/xen/tmem.c
-> @@ -242,7 +242,7 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
->  	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
->  }
->  
-> -static struct cleancache_ops tmem_cleancache_ops = {
-> +static const struct cleancache_ops tmem_cleancache_ops = {
->  	.put_page = tmem_cleancache_put_page,
->  	.get_page = tmem_cleancache_get_page,
->  	.invalidate_page = tmem_cleancache_flush_page,
-> diff --git a/mm/cleancache.c b/mm/cleancache.c
-> index 8fc5081..c6356d6 100644
-> --- a/mm/cleancache.c
-> +++ b/mm/cleancache.c
-> @@ -22,7 +22,7 @@
->   * cleancache_ops is set by cleancache_register_ops to contain the pointers
->   * to the cleancache "backend" implementation functions.
->   */
-> -static struct cleancache_ops *cleancache_ops __read_mostly;
-> +static const struct cleancache_ops *cleancache_ops;
->  
->  /*
->   * Counters available via /sys/kernel/debug/cleancache (if debugfs is
-> @@ -49,7 +49,7 @@ static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
->  /*
->   * Register operations for cleancache. Returns 0 on success.
->   */
-> -int cleancache_register_ops(struct cleancache_ops *ops)
-> +int cleancache_register_ops(const struct cleancache_ops *ops)
->  {
->  	if (cmpxchg(&cleancache_ops, NULL, ops))
->  		return -EBUSY;
-> 
+I agree.
+
+I also would prefer to make the aio code have as little interaction and
+magic flags with the filesystem code as humanly possible.
+
+I wonder if we could make the rough rule be that the only synchronous case
+the aio code ever has is more or less entirely in the generic vfs caches?
+IOW, could we possibly aim to make the rule be that if we call down to the
+filesystem layer, we do that within a thread?
+
+We could do things like that for the name loopkup for openat() too, where
+we could handle the successful RCU loopkup synchronously, but then if we
+fall out of RCU mode we'd do the thread.
+
+    Linus
+
+--089e0112d074afd1c50529cc0c44
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<p dir=3D"ltr"><br>
+On Jan 20, 2016 1:46 PM, &quot;Dave Chinner&quot; &lt;<a href=3D"mailto:dav=
+id@fromorbit.com">david@fromorbit.com</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; That said, I also agree that it would be interesting to hear=
+ what the<br>
+&gt; &gt; &gt; performance impact is for existing performance-sensitive use=
+rs. Could<br>
+&gt; &gt; &gt; we make that &quot;aio_may_use_threads()&quot; case be uncon=
+ditional, making<br>
+&gt; &gt; &gt; things simpler?<br>
+&gt; &gt;<br>
+&gt; &gt; Making it unconditional is a goal, but some work is required befo=
+re that<br>
+&gt; &gt; can be the case.=C2=A0 The O_DIRECT issue is one such matter -- i=
+t requires some<br>
+&gt; &gt; changes to the filesystems to ensure that they adhere to the non-=
+blocking<br>
+&gt; &gt; nature of the new interface (ie taking i_mutex is a Bad Thing tha=
+t users<br>
+&gt; &gt; really do not want to be exposed to; if taking it blocks, the cod=
+e should<br>
+&gt; &gt; punt to a helper thread).<br>
+&gt;<br>
+&gt; Filesystems *must take locks* in the IO path.</p>
+<p dir=3D"ltr">I agree.</p>
+<p dir=3D"ltr">I also would prefer to make the aio code have as little inte=
+raction and magic flags with the filesystem code as humanly possible.</p>
+<p dir=3D"ltr">I wonder if we could make the rough rule be that the only sy=
+nchronous case the aio code ever has is more or less entirely in the generi=
+c vfs caches? IOW, could we possibly aim to make the rule be that if we cal=
+l down to the filesystem layer, we do that within a thread?</p>
+<p dir=3D"ltr">We could do things like that for the name loopkup for openat=
+() too, where we could handle the successful RCU loopkup synchronously, but=
+ then if we fall out of RCU mode we&#39;d do the thread.</p>
+<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0 Linus</p>
+
+--089e0112d074afd1c50529cc0c44--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
