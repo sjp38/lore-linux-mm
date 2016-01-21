@@ -1,84 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7520A6B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 12:38:48 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id z14so130907808igp.1
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 09:38:48 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id p9si6007381ioe.174.2016.01.21.09.38.47
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B15E16B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 12:44:14 -0500 (EST)
+Received: by mail-io0-f182.google.com with SMTP id q21so62138855iod.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 09:44:14 -0800 (PST)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id rh6si52011510igc.2.2016.01.21.09.44.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jan 2016 09:38:47 -0800 (PST)
-Date: Thu, 21 Jan 2016 11:38:46 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-In-Reply-To: <20160121165148.GF29520@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1601211130580.7741@east.gentwo.org>
-References: <20160120143719.GF14187@dhcp22.suse.cz> <569FA01A.4070200@oracle.com> <20160120151007.GG14187@dhcp22.suse.cz> <alpine.DEB.2.20.1601200919520.21490@east.gentwo.org> <569FAC90.5030407@oracle.com> <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
- <20160120212806.GA26965@dhcp22.suse.cz> <alpine.DEB.2.20.1601201552590.26496@east.gentwo.org> <20160121082402.GA29520@dhcp22.suse.cz> <alpine.DEB.2.20.1601210941540.7063@east.gentwo.org> <20160121165148.GF29520@dhcp22.suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jan 2016 09:44:07 -0800 (PST)
+Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
+	by mailout.nyi.internal (Postfix) with ESMTP id 02AD0202AD
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 12:44:03 -0500 (EST)
+Message-Id: <1453398243.2408446.498798962.17B9E6CB@webmail.messagingengine.com>
+From: suse.dev@fea.st
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: kernel 4.4.0 OOPS: "x86/mm: Found insecure W+X mapping at address ..."
+Date: Thu, 21 Jan 2016 09:44:03 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-On Thu, 21 Jan 2016, Michal Hocko wrote:
+I'm booting kernel 4.4.x + xen 4.6 -- recently upgraded from kernel 4.3.x,
 
-> It goes like this:
-> CPU0:						CPU1
-> vmstat_update
->   cpumask_test_and_set_cpu (0->1)
-> [...]
-> 						vmstat_shepherd
-> <enter idle>					  cpumask_test_and_clear_cpu(CPU0) (1->0)
-> quiet_vmstat
->   cpumask_test_and_set_cpu (0->1)
->   						  queue_delayed_work_on(CPU0)
-> refresh_cpu_vm_stats()
-> [...]
-> vmstat_update
->   nothing_to_do
->   cpumask_test_and_set_cpu (1->1)
->   VM_BUG_ON
->
-> Or am I missing something?
+	uname -rm
+		4.4.0-3.g0567b9b-default x86_64
 
-Ok then the following should fix it:
+kernel pkgs are from opensuse repos @
 
+	http://download.opensuse.org/repositories/Kernel:/stable/standard
 
+Post-upgrade, I'm seeing the following OOPS on boot; apparently non-fatal, as the system _does_ subsequently complete boot.
 
-Subject: vmstat: Queue work before clearing cpu_stat_off
+There are a couple of prior mentions on LKML, as yet unaddressed
 
-There is a race between vmstat_shepherd and quiet_vmstat() because
-the responsibility for checking for counter updates changes depending
-on the state of teh bit in cpu_stat_off. So queue the work before
-changing state of the bit in vmstat_shepherd. That way quiet_vmstat
-is guaranteed to remove the work request when clearing the bit and the
-bug in vmstat_update wont trigger anymore.
+	https://lkml.org/lkml/2015/11/7/57
+	https://lkml.org/lkml/2016/1/19/134
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+as well as on Xen ML
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -1480,12 +1480,14 @@ static void vmstat_shepherd(struct work_
- 	get_online_cpus();
- 	/* Check processors whose vmstat worker threads have been disabled */
- 	for_each_cpu(cpu, cpu_stat_off)
--		if (need_update(cpu) &&
--			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
-+		if (need_update(cpu)) {
+	http://lists.xen.org/archives/html/xen-devel/2015-11/msg00514.html
 
- 			queue_delayed_work_on(cpu, vmstat_wq,
- 				&per_cpu(vmstat_work, cpu), 0);
+Here's the trace,
 
-+			cpumask_clear_cpu(smp_processor_id(), cpu_stat_off);
-+		}
-+
- 	put_online_cpus();
+	Jan 20 17:43:49 x001 kernel: ------------[ cut here ]------------
+	Jan 20 17:43:49 x001 kernel: WARNING: CPU: 0 PID: 1 at ../arch/x86/mm/dump_pagetables.c:225 note_page+0x5e1/0x780()
+	Jan 20 17:43:49 x001 kernel: x86/mm: Found insecure W+X mapping at address ffff880000000000/0xffff880000000000
+	Jan 20 17:43:49 x001 kernel: Modules linked in:
+	Jan 20 17:43:49 x001 kernel: CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.4.0-3.g0567b9b-default #1
+	Jan 20 17:43:49 x001 kernel: Hardware name: Supermicro X10SAT/X10SAT, BIOS 3.0 05/26/2015
+	Jan 20 17:43:49 x001 kernel:  ffffffff81a44e20 ffff880169f57d58 ffffffff8137f639 ffff880169f57da0
+	Jan 20 17:43:49 x001 kernel:  ffff880169f57d90 ffffffff8107d132 ffff880169f57e98 0010000000000027
+	Jan 20 17:43:49 x001 kernel:  0000000000000004 0000000000000000 0000000000000000 ffff880169f57df0
+	Jan 20 17:43:49 x001 kernel: Call Trace:
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a095>] try_stack_unwind+0x175/0x190
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff81018fe9>] dump_trace+0x69/0x3a0
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a0fb>] show_trace_log_lvl+0x4b/0x60
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101942c>] show_stack_log_lvl+0x10c/0x180
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a195>] show_stack+0x25/0x50
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8137f639>] dump_stack+0x4b/0x72
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8107d132>] warn_slowpath_common+0x82/0xc0
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8107d1bc>] warn_slowpath_fmt+0x4c/0x50
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e2b1>] note_page+0x5e1/0x780
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e73e>] ptdump_walk_pgd_level_core+0x2ee/0x420
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e8a7>] ptdump_walk_pgd_level_checkwx+0x17/0x20
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff81064b2f>] mark_rodata_ro+0xef/0x100
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8169d72d>] kernel_init+0x1d/0xe0
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff816aa40f>] ret_from_fork+0x3f/0x70
+	Jan 20 17:43:49 x001 kernel: DWARF2 unwinder stuck at ret_from_fork+0x3f/0x70
+	Jan 20 17:43:49 x001 kernel:
+	Jan 20 17:43:49 x001 kernel: Leftover inexact backtrace:
+	Jan 20 17:43:49 x001 kernel:  [<ffffffff8169d710>] ? rest_init+0x90/0x90
+	Jan 20 17:43:49 x001 kernel: ---[ end trace 3cc91a447d30cdcf ]---
+	Jan 20 17:43:49 x001 kernel: x86/mm: Checked W+X mappings: FAILED, 4090 W+X pages found.
 
- 	schedule_delayed_work(&shepherd,
+No sure what additional info's helpful; let me know specific, and I can provide.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
