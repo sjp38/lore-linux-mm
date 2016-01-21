@@ -1,91 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id ED3AD6B0253
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:47:52 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id u188so231848731wmu.1
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 07:47:52 -0800 (PST)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id hq2si2502502wjb.240.2016.01.21.07.47.51
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6149B6B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 11:17:00 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id r129so178828235wmr.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 08:17:00 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id uu9si2709246wjc.63.2016.01.21.08.16.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jan 2016 07:47:51 -0800 (PST)
-Date: Thu, 21 Jan 2016 16:47:29 +0100 (CET)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: [Xen-devel] [PATCH v2] cleancache: constify cleancache_ops
- structure
-In-Reply-To: <56A0B6E7.9040201@citrix.com>
-Message-ID: <alpine.DEB.2.10.1601211646580.2530@hadrien>
-References: <1450904784-17139-1-git-send-email-Julia.Lawall@lip6.fr> <56A0B6E7.9040201@citrix.com>
+        Thu, 21 Jan 2016 08:16:58 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id u188so11950633wmu.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 08:16:58 -0800 (PST)
+Date: Thu, 21 Jan 2016 18:16:56 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
+Message-ID: <20160121161656.GA16564@node.shutemov.name>
+References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: linux-mm@kvack.org, kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Nalorokk <nalorokk@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stefan Strogin <s.strogin@partner.samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, oleksandr@natalenko.name
 
-The cleancache_ops structure is never modified, so declare it as const.
+On Fri, Jan 22, 2016 at 12:28:10AM +1000, Nalorokk wrote:
+> It appears that kernels newer than 4.1 have kswapd-related bug resulting in
+> high CPU usage. CPU 100% usage could last for several minutes or several
+> days, with CPU being busy entirely with serving kswapd. It happens usually
+> after server being mostly idle, sometimes after days, sometimes after weeks
+> of uptime. But the issue appears much sooner if the machine is loaded with
+> something like building a kernel.
+> 
+> Here are the graphs of CPU load: first
+> <http://i.piccy.info/i9/9ee6c0620c9481a974908484b2a52a0f/1453384595/44012/994698/cpu_month.png>,
+> second
+> <http://i.piccy.info/i9/7c97c2f39620bb9d7ea93096312dbbb6/1453384649/41222/994698/cpu_year.png>.
+> Perf top output is here <http://pastebin.com/aRzTjb2x>as well.
+> 
+> To find the cause of this problem I've started with the fact that the issue
+> appeared after 4.1 kernel update. Then I performed longterm test of 3.18,
+> and discovered that 3.18 is unaffected by this bug. Then I did some tests
+> of 4.0 to confirm that this version behaves well too.
+> 
+> Then I performed git bisect from tag v4.0 to v4.1-rc1 and found exact
+> commits that seem to be reason of high CPU usage.
+> 
+> The first really "bad" commit is 79553da293d38d63097278de13e28a3b371f43c1.
+> 2 previous commits cause weird behavior as well resulting in kswapd
+> consuming more CPU than unaffected kernels, but not that much as the commit
+> pointed above. I believe those commits are related to the same mm tree
+> merge.
+> 
+> I tried to add transparent_hugepage=never to kernel boot parameters, but it
+> did not change anything. Changing allocator to SLAB from SLUB alters
+> behavior and makes CPU load lower, but don't solve a problem at all.
+> 
+> Here <https://bugzilla.kernel.org/show_bug.cgi?id=110501>is kernel bugzilla
+> bugreport as well.
+> 
+> Ideas? a??
 
-Done with the help of Coccinelle.
+Could you try to insert "late_initcall(set_recommended_min_free_kbytes);"
+back and check if makes any difference.
 
-Signed-off-by: Julia Lawall <Julia.Lawall@lip6.fr>
-
----
-
-v2: put back the read mostly
-
- drivers/xen/tmem.c         |    2 +-
- include/linux/cleancache.h |    2 +-
- mm/cleancache.c            |    4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/cleancache.h b/include/linux/cleancache.h
-index bda5ec0b4..cb3e142 100644
---- a/include/linux/cleancache.h
-+++ b/include/linux/cleancache.h
-@@ -37,7 +37,7 @@ struct cleancache_ops {
- 	void (*invalidate_fs)(int);
- };
-
--extern int cleancache_register_ops(struct cleancache_ops *ops);
-+extern int cleancache_register_ops(const struct cleancache_ops *ops);
- extern void __cleancache_init_fs(struct super_block *);
- extern void __cleancache_init_shared_fs(struct super_block *);
- extern int  __cleancache_get_page(struct page *);
-diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-index 945fc43..4ac2ca8 100644
---- a/drivers/xen/tmem.c
-+++ b/drivers/xen/tmem.c
-@@ -242,7 +242,7 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
- 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
- }
-
--static struct cleancache_ops tmem_cleancache_ops = {
-+static const struct cleancache_ops tmem_cleancache_ops = {
- 	.put_page = tmem_cleancache_put_page,
- 	.get_page = tmem_cleancache_get_page,
- 	.invalidate_page = tmem_cleancache_flush_page,
-diff --git a/mm/cleancache.c b/mm/cleancache.c
-index 8fc5081..c6356d6 100644
---- a/mm/cleancache.c
-+++ b/mm/cleancache.c
-@@ -22,7 +22,7 @@
-  * cleancache_ops is set by cleancache_register_ops to contain the pointers
-  * to the cleancache "backend" implementation functions.
-  */
--static struct cleancache_ops *cleancache_ops __read_mostly;
-+static const struct cleancache_ops *cleancache_ops __read_mostly;
-
- /*
-  * Counters available via /sys/kernel/debug/cleancache (if debugfs is
-@@ -49,7 +49,7 @@ static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
- /*
-  * Register operations for cleancache. Returns 0 on success.
-  */
--int cleancache_register_ops(struct cleancache_ops *ops)
-+int cleancache_register_ops(const struct cleancache_ops *ops)
- {
- 	if (cmpxchg(&cleancache_ops, NULL, ops))
- 		return -EBUSY;
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
