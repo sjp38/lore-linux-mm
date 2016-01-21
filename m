@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4619B6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 22:35:11 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id n128so15615399pfn.3
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 19:35:11 -0800 (PST)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id v25si59532411pfa.157.2016.01.20.19.35.08
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2A96B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 00:11:15 -0500 (EST)
+Received: by mail-io0-f176.google.com with SMTP id 1so43169940ion.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 21:11:15 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id c18si47974801igr.73.2016.01.20.21.11.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 19:35:09 -0800 (PST)
-Received: by mail-pf0-x233.google.com with SMTP id 65so15665663pff.2
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 19:35:08 -0800 (PST)
-Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
-References: <1450755641-7856-1-git-send-email-laura@labbott.name>
- <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
- <5679ACE9.70701@labbott.name>
- <CAGXu5jJQKaA1qgLEV9vXEVH4QBC__Vg141BX22ZsZzW6p9yk4Q@mail.gmail.com>
- <568C8741.4040709@labbott.name>
- <alpine.DEB.2.20.1601071020570.28979@east.gentwo.org>
- <568F0F75.4090101@labbott.name>
- <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org>
- <56971AE1.1020706@labbott.name>
-From: Laura Abbott <laura@labbott.name>
-Message-ID: <56A051EA.8080003@labbott.name>
-Date: Wed, 20 Jan 2016 19:35:06 -0800
+        Wed, 20 Jan 2016 21:11:14 -0800 (PST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH v2] mm: make apply_to_page_range more robust
+In-Reply-To: <alpine.DEB.2.10.1601201536040.18155@chino.kir.corp.google.com>
+References: <569F184D.8020602@nextfour.com> <alpine.DEB.2.10.1601201536040.18155@chino.kir.corp.google.com>
+Date: Thu, 21 Jan 2016 15:28:18 +1030
+Message-ID: <87egdby1ed.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-In-Reply-To: <56971AE1.1020706@labbott.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Kees Cook <keescook@chromium.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: David Rientjes <rientjes@google.com>, Mika =?utf-8?Q?Penttil=C3=A4?= <mika.penttila@nextfour.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
 
-On 1/13/16 7:49 PM, Laura Abbott wrote:
-> On 1/8/16 6:07 AM, Christoph Lameter wrote:
->> On Thu, 7 Jan 2016, Laura Abbott wrote:
->>
->>> The slub_debug=P not only poisons it enables other consistency checks on the
->>> slab as well, assuming my understanding of what check_object does is correct.
->>> My hope was to have the poison part only and none of the consistency checks in
->>> an attempt to mitigate performance issues. I misunderstood when the checks
->>> actually run and how SLUB_DEBUG was used.
->>
->> Ok I see that there pointer check is done without checking the
->> corresponding debug flag. Patch attached thar fixes it.
->>
->>> Another option would be to have a flag like SLAB_NO_SANITY_CHECK.
->>> sanitization enablement would just be that and SLAB_POISON
->>> in the debug options. The disadvantage to this approach would be losing
->>> the sanitization for ->ctor caches (the grsecurity version works around this
->>> by re-initializing with ->ctor, I haven't heard any feedback if this actually
->>> acceptable) and not having some of the fast paths enabled
->>> (assuming I'm understanding the code path correctly.) which would also
->>> be a performance penalty
->>
->> I think we simply need to fix the missing check there. There is already a
->> flag SLAB_DEBUG_FREE for the pointer checks.
->>
->>
+David Rientjes <rientjes@google.com> writes:
+> On Wed, 20 Jan 2016, Mika Penttil=C3=A4 wrote:
 >
-> The patch improves performance but the overall performance of these full
-> sanitization patches is still significantly better than slub_debug=P. I'll
-> put some effort into seeing if I can figure out where the slow down is
-> coming from.
+>> Recent changes (4.4.0+) in module loader triggered oops on ARM.=20
+>>=20=20=20=20=20
+>> can be 0 triggering the bug  BUG_ON(addr >=3D end);.
+>>=20
+>> The call path is SyS_init_module()->set_memory_xx()->apply_to_page_range=
+(),
+>> and apply_to_page_range gets zero length resulting in triggering :
+>>=20=20=20=20
+>>   BUG_ON(addr >=3D end)
+>>=20
+>> This is a consequence of changes in module section handling (Rusty CC:ed=
+).
+>> This may be triggable only with certain modules and/or gcc versions.=20
+>>=20
 >
+> Well, what module are you loading to cause this crash?  Why would it be=20
+> passing size =3D=3D 0 to apply_to_page_range()?  Again, that sounds like =
+a=20
+> problem that we _want_ to know about since it is probably the result of=20
+> buggy code and this patch would be covering it up.
 
-There are quite a few other checks which need to be skipped over as well,
-but I don't think skipping those are going to be sufficient to give an
-acceptable performance; a quick 'hackbench -g 20 -l 1000' shows at least
-a 3.5 second difference between just skipping all the checks+slab_debug=P
-and this series.
-
-The SLAB_DEBUG flags force everything to skip the CPU caches which is
-causing the slow down. I experimented with allowing the debugging to
-happen with CPU caches but I'm not convinced it's possible to do the
-checking on the fast path in a consistent manner without adding
-locking. Is it worth refactoring the debugging to be able to be used
-on cpu caches or should I take the approach here of having the clear
-be separate from free_debug_processing?
+Yes, I'm curious too.  It's certainly possible, since I expected a
+zero-length range to do nothing, but let's make sure we're not papering
+over some other screwup of mine.
 
 Thanks,
-Laura
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
