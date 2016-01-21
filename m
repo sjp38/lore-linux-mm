@@ -1,85 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B15E16B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 12:44:14 -0500 (EST)
-Received: by mail-io0-f182.google.com with SMTP id q21so62138855iod.0
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 09:44:14 -0800 (PST)
-Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id rh6si52011510igc.2.2016.01.21.09.44.06
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2D46B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 13:38:22 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id n5so95478126wmn.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:38:22 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id lv3si3395498wjb.54.2016.01.21.10.38.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jan 2016 09:44:07 -0800 (PST)
-Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
-	by mailout.nyi.internal (Postfix) with ESMTP id 02AD0202AD
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 12:44:03 -0500 (EST)
-Message-Id: <1453398243.2408446.498798962.17B9E6CB@webmail.messagingengine.com>
-From: suse.dev@fea.st
+        Thu, 21 Jan 2016 10:38:20 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id b14so12667762wmb.1
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:38:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain
-Subject: kernel 4.4.0 OOPS: "x86/mm: Found insecure W+X mapping at address ..."
-Date: Thu, 21 Jan 2016 09:44:03 -0800
+In-Reply-To: <1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+Date: Thu, 21 Jan 2016 10:38:20 -0800
+Message-ID: <CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
+Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX documentation
+From: Jared Hulbert <jaredeh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Chris Brandt <Chris.Brandt@renesas.com>
 
-I'm booting kernel 4.4.x + xen 4.6 -- recently upgraded from kernel 4.3.x,
+HI!  I've been out of the community for a while, but I'm trying to
+step back in here and catch up with some of my old areas of specialty.
+Couple questions, sorry to drag up such old conversations.
 
-	uname -rm
-		4.4.0-3.g0567b9b-default x86_64
+The DAX documentation that made it into kernel 4.0 has the following
+line  "The DAX code does not work correctly on architectures which
+have virtually mapped caches such as ARM, MIPS and SPARC."
 
-kernel pkgs are from opensuse repos @
+1) It really doesn't support ARM.....!!!!?  I never had problems with
+the old filemap_xip.c stuff on ARM, what changed?
+2) Is there a thread discussing this?
 
-	http://download.opensuse.org/repositories/Kernel:/stable/standard
-
-Post-upgrade, I'm seeing the following OOPS on boot; apparently non-fatal, as the system _does_ subsequently complete boot.
-
-There are a couple of prior mentions on LKML, as yet unaddressed
-
-	https://lkml.org/lkml/2015/11/7/57
-	https://lkml.org/lkml/2016/1/19/134
-
-as well as on Xen ML
-
-	http://lists.xen.org/archives/html/xen-devel/2015-11/msg00514.html
-
-Here's the trace,
-
-	Jan 20 17:43:49 x001 kernel: ------------[ cut here ]------------
-	Jan 20 17:43:49 x001 kernel: WARNING: CPU: 0 PID: 1 at ../arch/x86/mm/dump_pagetables.c:225 note_page+0x5e1/0x780()
-	Jan 20 17:43:49 x001 kernel: x86/mm: Found insecure W+X mapping at address ffff880000000000/0xffff880000000000
-	Jan 20 17:43:49 x001 kernel: Modules linked in:
-	Jan 20 17:43:49 x001 kernel: CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.4.0-3.g0567b9b-default #1
-	Jan 20 17:43:49 x001 kernel: Hardware name: Supermicro X10SAT/X10SAT, BIOS 3.0 05/26/2015
-	Jan 20 17:43:49 x001 kernel:  ffffffff81a44e20 ffff880169f57d58 ffffffff8137f639 ffff880169f57da0
-	Jan 20 17:43:49 x001 kernel:  ffff880169f57d90 ffffffff8107d132 ffff880169f57e98 0010000000000027
-	Jan 20 17:43:49 x001 kernel:  0000000000000004 0000000000000000 0000000000000000 ffff880169f57df0
-	Jan 20 17:43:49 x001 kernel: Call Trace:
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a095>] try_stack_unwind+0x175/0x190
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff81018fe9>] dump_trace+0x69/0x3a0
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a0fb>] show_trace_log_lvl+0x4b/0x60
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101942c>] show_stack_log_lvl+0x10c/0x180
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8101a195>] show_stack+0x25/0x50
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8137f639>] dump_stack+0x4b/0x72
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8107d132>] warn_slowpath_common+0x82/0xc0
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8107d1bc>] warn_slowpath_fmt+0x4c/0x50
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e2b1>] note_page+0x5e1/0x780
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e73e>] ptdump_walk_pgd_level_core+0x2ee/0x420
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8106e8a7>] ptdump_walk_pgd_level_checkwx+0x17/0x20
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff81064b2f>] mark_rodata_ro+0xef/0x100
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8169d72d>] kernel_init+0x1d/0xe0
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff816aa40f>] ret_from_fork+0x3f/0x70
-	Jan 20 17:43:49 x001 kernel: DWARF2 unwinder stuck at ret_from_fork+0x3f/0x70
-	Jan 20 17:43:49 x001 kernel:
-	Jan 20 17:43:49 x001 kernel: Leftover inexact backtrace:
-	Jan 20 17:43:49 x001 kernel:  [<ffffffff8169d710>] ? rest_init+0x90/0x90
-	Jan 20 17:43:49 x001 kernel: ---[ end trace 3cc91a447d30cdcf ]---
-	Jan 20 17:43:49 x001 kernel: x86/mm: Checked W+X mappings: FAILED, 4090 W+X pages found.
-
-No sure what additional info's helpful; let me know specific, and I can provide.
-
-Thanks.
+On Fri, Oct 24, 2014 at 2:20 PM, Matthew Wilcox
+<matthew.r.wilcox@intel.com> wrote:
+> From: Matthew Wilcox <willy@linux.intel.com>
+>
+> Based on the original XIP documentation, this documents the current
+> state of affairs, and includes instructions on how users can enable DAX
+> if their devices and kernel support it.
+>
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
+> ---
+>  Documentation/filesystems/00-INDEX |  5 ++-
+>  Documentation/filesystems/dax.txt  | 89 ++++++++++++++++++++++++++++++++++++++
+>  Documentation/filesystems/xip.txt  | 71 ------------------------------
+>  3 files changed, 92 insertions(+), 73 deletions(-)
+>  create mode 100644 Documentation/filesystems/dax.txt
+>  delete mode 100644 Documentation/filesystems/xip.txt
+>
+> diff --git a/Documentation/filesystems/00-INDEX b/Documentation/filesystems/00-INDEX
+> index ac28149..9922939 100644
+> --- a/Documentation/filesystems/00-INDEX
+> +++ b/Documentation/filesystems/00-INDEX
+> @@ -34,6 +34,9 @@ configfs/
+>         - directory containing configfs documentation and example code.
+>  cramfs.txt
+>         - info on the cram filesystem for small storage (ROMs etc).
+> +dax.txt
+> +       - info on avoiding the page cache for files stored on CPU-addressable
+> +         storage devices.
+>  debugfs.txt
+>         - info on the debugfs filesystem.
+>  devpts.txt
+> @@ -154,5 +157,3 @@ xfs-self-describing-metadata.txt
+>         - info on XFS Self Describing Metadata.
+>  xfs.txt
+>         - info and mount options for the XFS filesystem.
+> -xip.txt
+> -       - info on execute-in-place for file mappings.
+> diff --git a/Documentation/filesystems/dax.txt b/Documentation/filesystems/dax.txt
+> new file mode 100644
+> index 0000000..635adaa
+> --- /dev/null
+> +++ b/Documentation/filesystems/dax.txt
+> @@ -0,0 +1,89 @@
+> +Direct Access for files
+> +-----------------------
+> +
+> +Motivation
+> +----------
+> +
+> +The page cache is usually used to buffer reads and writes to files.
+> +It is also used to provide the pages which are mapped into userspace
+> +by a call to mmap.
+> +
+> +For block devices that are memory-like, the page cache pages would be
+> +unnecessary copies of the original storage.  The DAX code removes the
+> +extra copy by performing reads and writes directly to the storage device.
+> +For file mappings, the storage device is mapped directly into userspace.
+> +
+> +
+> +Usage
+> +-----
+> +
+> +If you have a block device which supports DAX, you can make a filesystem
+> +on it as usual.  When mounting it, use the -o dax option manually
+> +or add 'dax' to the options in /etc/fstab.
+> +
+> +
+> +Implementation Tips for Block Driver Writers
+> +--------------------------------------------
+> +
+> +To support DAX in your block driver, implement the 'direct_access'
+> +block device operation.  It is used to translate the sector number
+> +(expressed in units of 512-byte sectors) to a page frame number (pfn)
+> +that identifies the physical page for the memory.  It also returns a
+> +kernel virtual address that can be used to access the memory.
+> +
+> +The direct_access method takes a 'size' parameter that indicates the
+> +number of bytes being requested.  The function should return the number
+> +of bytes that can be contiguously accessed at that offset.  It may also
+> +return a negative errno if an error occurs.
+> +
+> +In order to support this method, the storage must be byte-accessible by
+> +the CPU at all times.  If your device uses paging techniques to expose
+> +a large amount of memory through a smaller window, then you cannot
+> +implement direct_access.  Equally, if your device can occasionally
+> +stall the CPU for an extended period, you should also not attempt to
+> +implement direct_access.
+> +
+> +These block devices may be used for inspiration:
+> +- axonram: Axon DDR2 device driver
+> +- brd: RAM backed block device driver
+> +- dcssblk: s390 dcss block device driver
+> +
+> +
+> +Implementation Tips for Filesystem Writers
+> +------------------------------------------
+> +
+> +Filesystem support consists of
+> +- adding support to mark inodes as being DAX by setting the S_DAX flag in
+> +  i_flags
+> +- implementing the direct_IO address space operation, and calling
+> +  dax_do_io() instead of blockdev_direct_IO() if S_DAX is set
+> +- implementing an mmap file operation for DAX files which sets the
+> +  VM_MIXEDMAP flag on the VMA, and setting the vm_ops to include handlers
+> +  for fault and page_mkwrite (which should probably call dax_fault() and
+> +  dax_mkwrite(), passing the appropriate get_block() callback)
+> +- calling dax_truncate_page() instead of block_truncate_page() for DAX files
+> +- ensuring that there is sufficient locking between reads, writes,
+> +  truncates and page faults
+> +
+> +The get_block() callback passed to the DAX functions may return
+> +uninitialised extents.  If it does, it must ensure that simultaneous
+> +calls to get_block() (for example by a page-fault racing with a read()
+> +or a write()) work correctly.
+> +
+> +These filesystems may be used for inspiration:
+> +- ext2: the second extended filesystem, see Documentation/filesystems/ext2.txt
+> +
+> +
+> +Shortcomings
+> +------------
+> +
+> +Even if the kernel or its modules are stored on a filesystem that supports
+> +DAX on a block device that supports DAX, they will still be copied into RAM.
+> +
+> +Calling get_user_pages() on a range of user memory that has been mmaped
+> +from a DAX file will fail as there are no 'struct page' to describe
+> +those pages.  This problem is being worked on.  That means that O_DIRECT
+> +reads/writes to those memory ranges from a non-DAX file will fail (note
+> +that O_DIRECT reads/writes _of a DAX file_ do work, it is the memory
+> +that is being accessed that is key here).  Other things that will not
+> +work include RDMA, sendfile() and splice().
+> diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
+> deleted file mode 100644
+> index b774729..0000000
+> --- a/Documentation/filesystems/xip.txt
+> +++ /dev/null
+> @@ -1,71 +0,0 @@
+> -Execute-in-place for file mappings
+> -----------------------------------
+> -
+> -Motivation
+> -----------
+> -File mappings are performed by mapping page cache pages to userspace. In
+> -addition, read&write type file operations also transfer data from/to the page
+> -cache.
+> -
+> -For memory backed storage devices that use the block device interface, the page
+> -cache pages are in fact copies of the original storage. Various approaches
+> -exist to work around the need for an extra copy. The ramdisk driver for example
+> -does read the data into the page cache, keeps a reference, and discards the
+> -original data behind later on.
+> -
+> -Execute-in-place solves this issue the other way around: instead of keeping
+> -data in the page cache, the need to have a page cache copy is eliminated
+> -completely. With execute-in-place, read&write type operations are performed
+> -directly from/to the memory backed storage device. For file mappings, the
+> -storage device itself is mapped directly into userspace.
+> -
+> -This implementation was initially written for shared memory segments between
+> -different virtual machines on s390 hardware to allow multiple machines to
+> -share the same binaries and libraries.
+> -
+> -Implementation
+> ---------------
+> -Execute-in-place is implemented in three steps: block device operation,
+> -address space operation, and file operations.
+> -
+> -A block device operation named direct_access is used to translate the
+> -block device sector number to a page frame number (pfn) that identifies
+> -the physical page for the memory.  It also returns a kernel virtual
+> -address that can be used to access the memory.
+> -
+> -The direct_access method takes a 'size' parameter that indicates the
+> -number of bytes being requested.  The function should return the number
+> -of bytes that can be contiguously accessed at that offset.  It may also
+> -return a negative errno if an error occurs.
+> -
+> -The block device operation is optional, these block devices support it as of
+> -today:
+> -- dcssblk: s390 dcss block device driver
+> -
+> -An address space operation named get_xip_mem is used to retrieve references
+> -to a page frame number and a kernel address. To obtain these values a reference
+> -to an address_space is provided. This function assigns values to the kmem and
+> -pfn parameters. The third argument indicates whether the function should allocate
+> -blocks if needed.
+> -
+> -This address space operation is mutually exclusive with readpage&writepage that
+> -do page cache read/write operations.
+> -The following filesystems support it as of today:
+> -- ext2: the second extended filesystem, see Documentation/filesystems/ext2.txt
+> -
+> -A set of file operations that do utilize get_xip_page can be found in
+> -mm/filemap_xip.c . The following file operation implementations are provided:
+> -- aio_read/aio_write
+> -- readv/writev
+> -- sendfile
+> -
+> -The generic file operations do_sync_read/do_sync_write can be used to implement
+> -classic synchronous IO calls.
+> -
+> -Shortcomings
+> -------------
+> -This implementation is limited to storage devices that are cpu addressable at
+> -all times (no highmem or such). It works well on rom/ram, but enhancements are
+> -needed to make it work with flash in read+write mode.
+> -Putting the Linux kernel and/or its modules on a xip filesystem does not mean
+> -they are not copied.
+> --
+> 2.1.1
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
