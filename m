@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8993E6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 18:49:28 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id e65so12707332pfe.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 15:49:28 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id qw9si5673231pab.126.2016.01.20.15.49.27
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6E86B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 19:01:56 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id 65so12789173pff.2
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:01:56 -0800 (PST)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id e29si58370032pfj.102.2016.01.20.16.01.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 15:49:27 -0800 (PST)
-Received: by mail-pa0-x22c.google.com with SMTP id cy9so12503363pac.0
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 15:49:27 -0800 (PST)
-Date: Wed, 20 Jan 2016 15:49:26 -0800 (PST)
+        Wed, 20 Jan 2016 16:01:56 -0800 (PST)
+Received: by mail-pf0-x234.google.com with SMTP id e65so12869106pfe.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 16:01:55 -0800 (PST)
+Date: Wed, 20 Jan 2016 16:01:54 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
-In-Reply-To: <201601202336.BJC04687.FOFVOQJOLSFtMH@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1601201538070.18155@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1601141400170.16227@chino.kir.corp.google.com> <20160114225850.GA23382@cmpxchg.org> <alpine.DEB.2.10.1601141500370.22665@chino.kir.corp.google.com> <201601151936.IJJ09362.OOFLtVFJHSFQMO@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1601191502230.7346@chino.kir.corp.google.com> <201601202336.BJC04687.FOFVOQJOLSFtMH@I-love.SAKURA.ne.jp>
+Subject: Re: [RFC 1/3] oom, sysrq: Skip over oom victims and killed tasks
+In-Reply-To: <20160120094938.GB14187@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1601201550060.18155@chino.kir.corp.google.com>
+References: <1452632425-20191-1-git-send-email-mhocko@kernel.org> <1452632425-20191-2-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com> <20160113093046.GA28942@dhcp22.suse.cz> <alpine.DEB.2.10.1601131633550.3406@chino.kir.corp.google.com>
+ <20160114110037.GC29943@dhcp22.suse.cz> <alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com> <20160115101218.GB14112@dhcp22.suse.cz> <alpine.DEB.2.10.1601191454160.7346@chino.kir.corp.google.com> <20160120094938.GB14187@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 20 Jan 2016, Tetsuo Handa wrote:
+On Wed, 20 Jan 2016, Michal Hocko wrote:
 
-> > > My goal is to ask the OOM killer not to toss the OOM killer's duty away.
-> > > What is important for me is that the OOM killer takes next action when
-> > > current action did not solve the OOM situation.
-> > > 
-> > 
-> > What is the "next action" when there are no more processes on your system, 
-> 
-> Just call panic(), as with select_bad_process() from out_of_memory() returned
-> NULL.
+> No, I do not have a specific load in mind. But let's be realistic. There
+> will _always_ be corner cases where the VM cannot react properly or in a
+> timely fashion.
 > 
 
-No way is that a possible solution for a system-wide oom condition.  We 
-could have megabytes of memory available in memory reserves and a simple 
-allocation succeeding could fix the livelock quite easily (and can be 
-demonstrated with my testcase).  A panic is never better than allowing an 
-allocation to succeed through the use of available memory reserves.
+Then let's identify it and fix it, like we do with any other bug?  I'm 99% 
+certain you are not advocating that human intervention is the ideal 
+solution to prevent lengthy stalls or livelocks.
 
-For the memcg case, we wouldn't panic() when there are no more killable 
-processes, and this livelock problem can easily be exhibited in memcg 
-hierarchy oom conditions as well (and quite easier since it's in 
-isolation and doesn't get interferred with by external process freeing 
-elsewhere on the system).  So, again, your approach offers no solution to 
-this case and you presumably suggest that we should leave the hierarchy 
-livelocked forever.  Again, not a possible solution.
+I can't speak for all possible configurations and workloads; the only 
+thing we use sysrq+f for is automated testing of the oom killer itself.  
+It would help to know of any situations when people actually need to use 
+this to solve issues and then fix those issues rather than insisting that 
+this is the ideal solution.
 
-> If we can agree on combining both approaches, I'm OK with it. That will keep
-> the OOM reaper simple, for the OOM reaper will not need to clear TIF_MEMDIE
-> flag which is unfriendly for wait_event() in oom_killer_disable(), and the
-> OOM reaper will not need to care about situations where TIF_MEMDIE flag is
-> set when it is not safe to reap.
+> To be honest I really fail to understand your line of argumentation
+> here. Just that you think that sysrq+f might be not helpful in large
+> datacenters which you seem to care about, doesn't mean that it is not
+> helpful in other setups.
 > 
 
-Please, allow us to review and get the oom reaper merged first and then 
-evaluate the problem afterwards.
+This type of message isn't really contributing anything.  You don't have a 
+specific load in mind, you can't identify a pending bug that people have 
+complained about, you presumably can't show a testcase that demonstrates 
+how it's required, yet you're arguing that we should keep a debugging tool 
+around because you think somebody somewhere sometime might use it.
+
+ [ I would imagine that users would be unhappy they have to kill processes 
+   already, and would have reported how ridiculous it is that they had to
+   use sysrq+f, but I haven't seen those bug reports. ]
+
+I want the VM to be responsive, I don't want it to thrash forever, and I 
+want it to not require root to trigger a sysrq to have the kernel kill a 
+process for the VM to work properly.  We either need to fix the issue that 
+causes the unresponsiveness or oom kill processes earlier.  This is very 
+simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
