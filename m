@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B93F46B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 20:22:42 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id 6so21063223qgy.1
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 17:22:42 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 75si46766648qkz.111.2016.01.20.17.22.41
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4619B6B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2016 22:35:11 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id n128so15615399pfn.3
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 19:35:11 -0800 (PST)
+Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
+        by mx.google.com with ESMTPS id v25si59532411pfa.157.2016.01.20.19.35.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jan 2016 17:22:41 -0800 (PST)
-Date: Thu, 21 Jan 2016 02:22:37 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCHv12 34/37] thp: introduce deferred_split_huge_page()
-Message-ID: <20160121012237.GE7119@redhat.com>
-References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1444145044-72349-35-git-send-email-kirill.shutemov@linux.intel.com>
+        Wed, 20 Jan 2016 19:35:09 -0800 (PST)
+Received: by mail-pf0-x233.google.com with SMTP id 65so15665663pff.2
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 19:35:08 -0800 (PST)
+Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
+References: <1450755641-7856-1-git-send-email-laura@labbott.name>
+ <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org>
+ <5679ACE9.70701@labbott.name>
+ <CAGXu5jJQKaA1qgLEV9vXEVH4QBC__Vg141BX22ZsZzW6p9yk4Q@mail.gmail.com>
+ <568C8741.4040709@labbott.name>
+ <alpine.DEB.2.20.1601071020570.28979@east.gentwo.org>
+ <568F0F75.4090101@labbott.name>
+ <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org>
+ <56971AE1.1020706@labbott.name>
+From: Laura Abbott <laura@labbott.name>
+Message-ID: <56A051EA.8080003@labbott.name>
+Date: Wed, 20 Jan 2016 19:35:06 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444145044-72349-35-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <56971AE1.1020706@labbott.name>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Kees Cook <keescook@chromium.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Hello Kirill,
+On 1/13/16 7:49 PM, Laura Abbott wrote:
+> On 1/8/16 6:07 AM, Christoph Lameter wrote:
+>> On Thu, 7 Jan 2016, Laura Abbott wrote:
+>>
+>>> The slub_debug=P not only poisons it enables other consistency checks on the
+>>> slab as well, assuming my understanding of what check_object does is correct.
+>>> My hope was to have the poison part only and none of the consistency checks in
+>>> an attempt to mitigate performance issues. I misunderstood when the checks
+>>> actually run and how SLUB_DEBUG was used.
+>>
+>> Ok I see that there pointer check is done without checking the
+>> corresponding debug flag. Patch attached thar fixes it.
+>>
+>>> Another option would be to have a flag like SLAB_NO_SANITY_CHECK.
+>>> sanitization enablement would just be that and SLAB_POISON
+>>> in the debug options. The disadvantage to this approach would be losing
+>>> the sanitization for ->ctor caches (the grsecurity version works around this
+>>> by re-initializing with ->ctor, I haven't heard any feedback if this actually
+>>> acceptable) and not having some of the fast paths enabled
+>>> (assuming I'm understanding the code path correctly.) which would also
+>>> be a performance penalty
+>>
+>> I think we simply need to fix the missing check there. There is already a
+>> flag SLAB_DEBUG_FREE for the pointer checks.
+>>
+>>
+>
+> The patch improves performance but the overall performance of these full
+> sanitization patches is still significantly better than slub_debug=P. I'll
+> put some effort into seeing if I can figure out where the slow down is
+> coming from.
+>
 
-On Tue, Oct 06, 2015 at 06:24:01PM +0300, Kirill A. Shutemov wrote:
-> +static unsigned long deferred_split_scan(struct shrinker *shrink,
-> +		struct shrink_control *sc)
-> +{
-> +	unsigned long flags;
-> +	LIST_HEAD(list), *pos, *next;
-> +	struct page *page;
-> +	int split = 0;
-> +
-> +	spin_lock_irqsave(&split_queue_lock, flags);
-> +	list_splice_init(&split_queue, &list);
-> +
-> +	/* Take pin on all head pages to avoid freeing them under us */
-> +	list_for_each_safe(pos, next, &list) {
-> +		page = list_entry((void *)pos, struct page, mapping);
-> +		page = compound_head(page);
-> +		/* race with put_compound_page() */
-> +		if (!get_page_unless_zero(page)) {
-> +			list_del_init(page_deferred_list(page));
-> +			split_queue_len--;
-> +		}
-> +	}
-> +	spin_unlock_irqrestore(&split_queue_lock, flags);
+There are quite a few other checks which need to be skipped over as well,
+but I don't think skipping those are going to be sufficient to give an
+acceptable performance; a quick 'hackbench -g 20 -l 1000' shows at least
+a 3.5 second difference between just skipping all the checks+slab_debug=P
+and this series.
 
-While rebasing I noticed this loop looks a bit too heavy. There's no
-lockbreak and no cap on the list size, and million of THP pages could
-have been partially unmapped but not be entirely freed yet, and sit
-there for a while (there are other scenarios but this is the one that
-could more realistically happen with certain allocators). Then as
-result of random memory pressure we'd be calling millions of
-get_page_unless_zero across multiple NUMA nodes thrashing cachelines
-at every list entry, with irq disabled too for the whole period.
-
-I haven't verified it, but I guess that in some large NUMA (i.e. 4TiB)
-system that could take down a CPU for a second or more with irq
-disabled.
-
-I think it needs to isolate a certain number of pages, not splice
-(userland programs can invoke the shrinker through direct reclaim too
-and they can't stuck there for too long) and perhaps use
-sc->nr_to_scan to achieve that.
-
-The split_queue can also be moved from global to the "struct
-pglist_data" and then you can do NODE_DATA(sc->nid)->split_queue, same
-for the spinlock. That will make it more scalable for the lock and
-more efficient in freeing memory so we don't split THP from nodes
-reclaim isn't currently interested about (reclaim will later try again
-on the zones in the other nodes by itself if needed).
+The SLAB_DEBUG flags force everything to skip the CPU caches which is
+causing the slow down. I experimented with allowing the debugging to
+happen with CPU caches but I'm not convinced it's possible to do the
+checking on the fast path in a consistent manner without adding
+locking. Is it worth refactoring the debugging to be able to be used
+on cpu caches or should I take the approach here of having the clear
+be separate from free_debug_processing?
 
 Thanks,
-Andrea
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
