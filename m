@@ -1,66 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 613A56B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 09:37:09 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id r129so174828388wmr.0
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 06:37:09 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id h62si4588042wmh.51.2016.01.21.06.37.07
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 42A106B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:39:22 -0500 (EST)
+Received: by mail-io0-f175.google.com with SMTP id 77so57772208ioc.2
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 07:39:22 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id u31si5421899ioi.133.2016.01.21.07.39.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jan 2016 06:37:08 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id u188so11333358wmu.0
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 06:37:07 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
-References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
-Date: Fri, 22 Jan 2016 00:37:07 +1000
-Message-ID: <CAPKbV48YOF4OSMqWpeUUM6MPGCXG5NSgVTc51cmd28UZO_f3vw@mail.gmail.com>
-Subject: Fwd: [REGRESSION] [BISECTED] kswapd high CPU usage
-From: Nalorokk <nalorokk@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jan 2016 07:39:21 -0800 (PST)
+Date: Thu, 21 Jan 2016 09:39:19 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/7] Sanitization of slabs based on grsecurity/PaX
+In-Reply-To: <56A051EA.8080003@labbott.name>
+Message-ID: <alpine.DEB.2.20.1601210937540.7063@east.gentwo.org>
+References: <1450755641-7856-1-git-send-email-laura@labbott.name> <alpine.DEB.2.20.1512220952350.2114@east.gentwo.org> <5679ACE9.70701@labbott.name> <CAGXu5jJQKaA1qgLEV9vXEVH4QBC__Vg141BX22ZsZzW6p9yk4Q@mail.gmail.com> <568C8741.4040709@labbott.name>
+ <alpine.DEB.2.20.1601071020570.28979@east.gentwo.org> <568F0F75.4090101@labbott.name> <alpine.DEB.2.20.1601080806020.4128@east.gentwo.org> <56971AE1.1020706@labbott.name> <56A051EA.8080003@labbott.name>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stefan Strogin <s.strogin@partner.samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, oleksandr@natalenko.name
+To: Laura Abbott <laura@labbott.name>
+Cc: Kees Cook <keescook@chromium.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-It appears that kernels newer than 4.1 have kswapd-related bug
-resulting in high CPU usage. CPU 100% usage could last for several
-minutes or several days, with CPU being busy entirely with serving
-kswapd. It happens usually after server being mostly idle, sometimes
-after days, sometimes after weeks of uptime. But the issue appears
-much sooner if the machine is loaded with something like building a
-kernel.
+n Wed, 20 Jan 2016, Laura Abbott wrote:
 
-Here are the graphs of CPU load: first [1], second [2]. Perf top
-output is here [3] as well.
+> The SLAB_DEBUG flags force everything to skip the CPU caches which is
+> causing the slow down. I experimented with allowing the debugging to
+> happen with CPU caches but I'm not convinced it's possible to do the
+> checking on the fast path in a consistent manner without adding
+> locking. Is it worth refactoring the debugging to be able to be used
+> on cpu caches or should I take the approach here of having the clear
+> be separate from free_debug_processing?
 
-To find the cause of this problem I've started with the fact that the
-issue appeared after 4.1 kernel update. Then I performed longterm test
-of 3.18, and discovered that 3.18 is unaffected by this bug. Then I
-did some tests of 4.0 to confirm that this version behaves well too.
+At least posioning would benefit from such work. I think both
+sanitization and posoning should be done by the same logic. Remove
+poisoning if necessary.
 
-Then I performed git bisect from tag v4.0 to v4.1-rc1 and found exact
-commits that seem to be reason of high CPU usage.
-
-The first really "bad" commit is
-79553da293d38d63097278de13e28a3b371f43c1. 2 previous commits cause
-weird behavior as well resulting in kswapd consuming more CPU than
-unaffected kernels, but not that much as the commit pointed above. I
-believe those commits are related to the same mm tree merge.
-
-I tried to add transparent_hugepage=never to kernel boot parameters,
-but it did not change anything. Changing allocator to SLAB from SLUB
-alters behavior and makes CPU load lower, but don't solve a problem at
-all.
-
-Here [4] is kernel bugzilla bugreport as well.
-
-Ideas?
-
-[1] http://i.piccy.info/i9/9ee6c0620c9481a974908484b2a52a0f/1453384595/44012/994698/cpu_month.png
-[2] http://i.piccy.info/i9/7c97c2f39620bb9d7ea93096312dbbb6/1453384649/41222/994698/cpu_year.png
-[3] http://pastebin.com/aRzTjb2x
-[4] https://bugzilla.kernel.org/show_bug.cgi?id=110501
+Note though that this security stuff should not have a significant impact
+on the general case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
