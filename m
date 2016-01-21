@@ -1,185 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B2941828DF
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 01:33:06 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id g73so45628607ioe.3
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 22:33:06 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id c8si2599151ioj.142.2016.01.20.22.33.05
-        for <linux-mm@kvack.org>;
-        Wed, 20 Jan 2016 22:33:06 -0800 (PST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v5 5/5] x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when booting.
-Date: Thu, 21 Jan 2016 14:32:38 +0800
-Message-ID: <1453357958-26941-6-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C66F6B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 02:01:02 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id ho8so18292356pac.2
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 23:01:02 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id bx1si2249436pab.57.2016.01.20.23.01.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jan 2016 23:01:01 -0800 (PST)
+Received: by mail-pa0-x22d.google.com with SMTP id uo6so18763051pac.1
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 23:01:01 -0800 (PST)
+Date: Thu, 21 Jan 2016 18:00:53 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: [RFC][PATCH] KVM-PPC: Migrate Pinned Pages out of CMA
+Message-ID: <20160121070053.GA4319@cotter.ozlabs.ibm.com>
+Reply-To: bsingharora@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com
-Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+Cc: akpm@linux-foundation.org, aik@ozlabs.ru, paulus@samba.org
 
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+From: Balbir Singh <bsingharora@gmail.com>
 
-The whole patch-set aims at making cpuid <-> nodeid mapping persistent. So that,
-when node online/offline happens, cache based on cpuid <-> nodeid mapping such as
-wq_numa_possible_cpumask will not cause any problem.
-It contains 4 steps:
-1. Enable apic registeration flow to handle both enabled and disabled cpus.
-2. Introduce a new array storing all possible cpuid <-> apicid mapping.
-3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
-4. Establish all possible cpuid <-> nodeid mapping.
+When PCI/Device pass through is enabled via VFIO, KVM-PPC will
+pin pages using get_user_pages_fast(). One of the downsides of
+the pinning is that the page could be in CMA region. The CMA
+region is used for other allocations like the hash page table.
+Ideally we want the pinned pages to be from non CMA region.
 
-This patch finishes step 4.
+This patch (currently only for KVM PPC with VFIO) forcefully
+migrates the pages out (huge pages are ommitted for the moment).
+There are more efficient ways of doing this, but that might
+be elaborate and might impact a larger audience beyond just
+the kvm ppc implementation.
 
-This patch set the persistent cpuid <-> nodeid mapping for all enabled/disabled
-processors at boot time via an additional acpi namespace walk for processors.
+The magic is in new_iommu_non_cma_page() which allocates the
+new page from a non CMA region.
 
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+I've tested the patches lightly at my end, but there might be bugs
+For example if after lru_add_drain(), the page is not isolated
+is this a BUG?
+
+Second question - is mm_iommu_move_page_from_cma() generic enough
+to be used as helper ourside of KVM-PPC?
+
+Previous discussion was at
+http://permalink.gmane.org/gmane.linux.kernel.mm/136738
+
+Signed-off-by: Balbir Singh <bsingharora@gmail.com>
 ---
- arch/ia64/kernel/acpi.c       |  2 +-
- arch/x86/kernel/acpi/boot.c   |  2 +-
- drivers/acpi/bus.c            |  3 ++
- drivers/acpi/processor_core.c | 65 +++++++++++++++++++++++++++++++++++++++++++
- include/linux/acpi.h          |  2 ++
- 5 files changed, 72 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/mmu_context.h |  1 +
+ arch/powerpc/mm/mmu_context_iommu.c    | 80 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 77 insertions(+), 4 deletions(-)
 
-diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
-index b1698bc..7db5563 100644
---- a/arch/ia64/kernel/acpi.c
-+++ b/arch/ia64/kernel/acpi.c
-@@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
-  *  ACPI based hotplug CPU support
-  */
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
--static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-+int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
- {
- #ifdef CONFIG_ACPI_NUMA
- 	/*
-diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index 0ce06ee..7d45261 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ b/arch/x86/kernel/acpi/boot.c
-@@ -696,7 +696,7 @@ static void __init acpi_set_irq_model_ioapic(void)
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
- #include <acpi/processor.h>
+diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
+index 878c277..2ef72aa 100644
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -18,6 +18,7 @@ extern void destroy_context(struct mm_struct *mm);
+ #ifdef CONFIG_SPAPR_TCE_IOMMU
+ struct mm_iommu_table_group_mem_t;
  
--static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-+void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
- {
- #ifdef CONFIG_ACPI_NUMA
- 	int nid;
-diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
-index 891c42d..d92f45f 100644
---- a/drivers/acpi/bus.c
-+++ b/drivers/acpi/bus.c
-@@ -1096,6 +1096,9 @@ static int __init acpi_init(void)
- 	acpi_sleep_proc_init();
- 	acpi_wakeup_device_init();
- 	acpi_debugger_init();
-+#ifdef CONFIG_ACPI_HOTPLUG_CPU
-+	acpi_set_processor_mapping();
-+#endif
- 	return 0;
++extern int isolate_lru_page(struct page *page);	/* internal.h */
+ extern bool mm_iommu_preregistered(void);
+ extern long mm_iommu_get(unsigned long ua, unsigned long entries,
+ 		struct mm_iommu_table_group_mem_t **pmem);
+diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+index da6a216..ad843a5 100644
+--- a/arch/powerpc/mm/mmu_context_iommu.c
++++ b/arch/powerpc/mm/mmu_context_iommu.c
+@@ -15,6 +15,9 @@
+ #include <linux/rculist.h>
+ #include <linux/vmalloc.h>
+ #include <linux/mutex.h>
++#include <linux/migrate.h>
++#include <linux/hugetlb.h>
++#include <linux/swap.h>
+ #include <asm/mmu_context.h>
+ 
+ static DEFINE_MUTEX(mem_list_mutex);
+@@ -72,6 +75,54 @@ bool mm_iommu_preregistered(void)
  }
+ EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
  
-diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
-index 824b98b..45580ff 100644
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -261,6 +261,71 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
- }
- EXPORT_SYMBOL_GPL(acpi_get_cpuid);
- 
-+#ifdef CONFIG_ACPI_HOTPLUG_CPU
-+static bool map_processor(acpi_handle handle, int *phys_id, int *cpuid)
++/*
++ * Taken from alloc_migrate_target with changes to remove CMA allocations
++ */
++struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
++					int **resultp)
 +{
-+	int type;
-+	u32 acpi_id;
-+	acpi_status status;
-+	acpi_object_type acpi_type;
-+	unsigned long long tmp;
-+	union acpi_object object = { 0 };
-+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
++	gfp_t gfp_mask = GFP_USER;
++	struct page *new_page;
 +
-+	status = acpi_get_type(handle, &acpi_type);
-+	if (ACPI_FAILURE(status))
-+		return false;
++	if (PageHuge(page) || PageTransHuge(page))
++		return NULL;
 +
-+	switch (acpi_type) {
-+	case ACPI_TYPE_PROCESSOR:
-+		status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-+		if (ACPI_FAILURE(status))
-+			return false;
-+		acpi_id = object.processor.proc_id;
-+		break;
-+	case ACPI_TYPE_DEVICE:
-+		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
-+		if (ACPI_FAILURE(status))
-+			return false;
-+		acpi_id = tmp;
-+		break;
-+	default:
-+		return false;
++	if (PageHighMem(page))
++		gfp_mask |= __GFP_HIGHMEM;
++
++	/*
++	 * We don't want the allocation to force an OOM if possibe
++	 */
++	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
++	return new_page;
++}
++
++static int mm_iommu_move_page_from_cma(struct page *page)
++{
++	int ret;
++	LIST_HEAD(cma_migrate_pages);
++
++	/* Ignore huge/THP pages for now */
++	if (PageHuge(page) || PageTransHuge(page))
++		return -EBUSY;
++
++	lru_add_drain();
++	ret = isolate_lru_page(page);
++	if (ret)
++		get_page(page); /* Potential BUG? */
++
++	list_add(&page->lru, &cma_migrate_pages);
++	put_page(page); /* Drop the gup reference */
++
++	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
++				NULL, 0, MIGRATE_SYNC, MR_CMA);
++	if (ret) {
++		if (!list_empty(&cma_migrate_pages))
++			putback_movable_pages(&cma_migrate_pages);
 +	}
-+
-+	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
-+
-+	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
-+	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
-+	if (*cpuid == -1)
-+		return false;
-+
-+	return true;
++	return 0;
 +}
 +
-+static acpi_status __init
-+set_processor_node_mapping(acpi_handle handle, u32 lvl, void *context,
-+			   void **rv)
-+{
-+	u32 apic_id;
-+	int cpu_id;
-+
-+	if (!map_processor(handle, &apic_id, &cpu_id))
-+		return AE_ERROR;
-+
-+	acpi_map_cpu2node(handle, cpu_id, apic_id);
-+	return AE_OK;
-+}
-+
-+void __init acpi_set_processor_mapping(void)
-+{
-+	/* Set persistent cpu <-> node mapping for all processors. */
-+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-+			    ACPI_UINT32_MAX, set_processor_node_mapping,
-+			    NULL, NULL, NULL);
-+}
-+#endif
-+
- #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
- static int get_ioapic_id(struct acpi_subtable_header *entry, u32 gsi_base,
- 			 u64 *phys_addr, int *ioapic_id)
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 06ed7e5..080755a 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -265,6 +265,8 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
- /* Arch dependent functions for cpu hotplug support */
- int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
- int acpi_unmap_cpu(int cpu);
-+void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
-+void __init acpi_set_processor_mapping(void);
- #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+ long mm_iommu_get(unsigned long ua, unsigned long entries,
+ 		struct mm_iommu_table_group_mem_t **pmem)
+ {
+@@ -124,15 +175,36 @@ long mm_iommu_get(unsigned long ua, unsigned long entries,
+ 	for (i = 0; i < entries; ++i) {
+ 		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+ 					1/* pages */, 1/* iswrite */, &page)) {
++			ret = -EFAULT;
+ 			for (j = 0; j < i; ++j)
+-				put_page(pfn_to_page(
+-						mem->hpas[j] >> PAGE_SHIFT));
++				put_page(pfn_to_page(mem->hpas[j] >>
++						PAGE_SHIFT));
+ 			vfree(mem->hpas);
+ 			kfree(mem);
+-			ret = -EFAULT;
+ 			goto unlock_exit;
+ 		}
+-
++		/*
++		 * If we get a page from the CMA zone, since we are going to
++		 * be pinning these entries, we might as well move them out
++		 * of the CMA zone if possible. NOTE: faulting in + migration
++		 * can be expensive. Batching can be considered later
++		 */
++		if (get_pageblock_migratetype(page) == MIGRATE_CMA) {
++			if (mm_iommu_move_page_from_cma(page))
++				goto populate;
++			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
++						1/* pages */, 1/* iswrite */,
++						&page)) {
++				ret = -EFAULT;
++				for (j = 0; j < i; ++j)
++					put_page(pfn_to_page(mem->hpas[j] >>
++								PAGE_SHIFT));
++				vfree(mem->hpas);
++				kfree(mem);
++				goto unlock_exit;
++			}
++		}
++populate:
+ 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
+ 	}
  
- #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 -- 
-1.9.3
-
-
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
