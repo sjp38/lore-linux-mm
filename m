@@ -1,40 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0284A6B0253
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:41:31 -0500 (EST)
-Received: by mail-io0-f174.google.com with SMTP id g73so59305365ioe.3
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 07:41:30 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id lp5si31681602igb.64.2016.01.21.07.41.30
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8989C6B0253
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 10:45:13 -0500 (EST)
+Received: by mail-io0-f169.google.com with SMTP id q21so58210404iod.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 07:45:13 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id hy7si5424095igb.71.2016.01.21.07.45.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jan 2016 07:41:30 -0800 (PST)
-Date: Thu, 21 Jan 2016 09:41:28 -0600 (CST)
+        Thu, 21 Jan 2016 07:45:12 -0800 (PST)
+Date: Thu, 21 Jan 2016 09:45:12 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat: make vmstat_updater deferrable again and shut down on
- idle
-In-Reply-To: <CAPub14_S6swU_SPzZjx_OwyWhPBzXsfaoQ4Xc4qAKTDbtmjPSA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1601210940030.7063@east.gentwo.org>
-References: <alpine.DEB.2.20.1512101441140.19122@east.gentwo.org> <CAPub148GRFho0oS9Vf0UdX+2Q84+031DE7jKj6Nxc0o0ZqWEmA@mail.gmail.com> <alpine.DEB.2.20.1601200910480.21388@east.gentwo.org>
- <CAPub14_S6swU_SPzZjx_OwyWhPBzXsfaoQ4Xc4qAKTDbtmjPSA@mail.gmail.com>
+Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
+In-Reply-To: <20160121082402.GA29520@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1601210941540.7063@east.gentwo.org>
+References: <5674A5C3.1050504@oracle.com> <20160120143719.GF14187@dhcp22.suse.cz> <569FA01A.4070200@oracle.com> <20160120151007.GG14187@dhcp22.suse.cz> <alpine.DEB.2.20.1601200919520.21490@east.gentwo.org> <569FAC90.5030407@oracle.com>
+ <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org> <20160120212806.GA26965@dhcp22.suse.cz> <alpine.DEB.2.20.1601201552590.26496@east.gentwo.org> <20160121082402.GA29520@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 21 Jan 2016, Shiraz Hashim wrote:
+On Thu, 21 Jan 2016, Michal Hocko wrote:
 
-> > On idle we fold counters immediately. So there is no loss of accuracy.
+> > > Since 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
+> > > shut down on idle") quiet_vmstat might update cpu_stat_off and mark a
+> > > particular cpu to be handled by vmstat_shepherd. This might trigger
+> > > a VM_BUG_ON in vmstat_update because the work item might have been
+> > > sleeping during the idle period and see the cpu_stat_off updated after
+> > > the wake up. The VM_BUG_ON is therefore misleading and no more
+> > > appropriate. Moreover it doesn't really suite any protection from real
+> > > bugs because vmstat_shepherd will simply reschedule the vmstat_work
+> > > anytime it sees a particular cpu set or vmstat_update would do the same
+> > > from the worker context directly. Even when the two would race the
+> > > result wouldn't be incorrect as the counters update is fully idempotent.
+> >
+> >
+> > Hmmm... the vmstat_update can be interrupted while running and the cpu put
+> > into idle mode? If vmstat_update is running then the cpu is not idle but
+> > running code. If this is really going on then there is other stuff wrong
+> > with the idling logic.
 >
-> vmstat is scheduled by shepherd or by itself (conditionally). In case shepherd
-> is deferred and vmstat doesn't schedule itself, then vmstat needs to wait
-> for shepherd to be up and then schedule it. This may end up in delayed status
-> update for all live cpus. Isn't it ?
+> The vmstat update might be still waiting for its timer, idle mode started
+> and kick vmstat_update which might cpumask_test_and_set_cpu. Once the
+> idle terminates and the originally schedule vmstate_update executes it
+> sees the bit set and BUG_ON.
 
-The shepherd runs on a processor with an active tick and thus should do
-its duty every 2 seconds as scheduled. Small milisecond range deferrals do
-not matter much.
+Ok so we are going into idle mode and the vmstat_update timer is pending.
+Then the timer will not fire since going idle switches preemption off.
+quiet_vmstat will run without the chance of running vmstat_update
+
+We could be going idle and not have disabled preemption yet. Then
+vmstat_update will run. On return to the idling operation preemption will
+be disabled and quiet_vmstat() will be run.
+
+I do not see how these two things could race.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
