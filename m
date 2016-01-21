@@ -1,23 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 043086B0009
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 01:32:52 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id 77so44533246ioc.2
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 22:32:52 -0800 (PST)
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FED6828DF
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 01:32:54 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id t15so119084814igr.0
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2016 22:32:54 -0800 (PST)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id 17si2625624iop.69.2016.01.20.22.32.50
+        by mx.google.com with ESMTP id 17si2625624iop.69.2016.01.20.22.32.51
         for <linux-mm@kvack.org>;
-        Wed, 20 Jan 2016 22:32:51 -0800 (PST)
+        Wed, 20 Jan 2016 22:32:52 -0800 (PST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v5 0/5] Make cpuid <-> nodeid mapping persistent.
-Date: Thu, 21 Jan 2016 14:32:33 +0800
-Message-ID: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v5 2/5] x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at boot time.
+Date: Thu, 21 Jan 2016 14:32:35 +0800
+Message-ID: <1453357958-26941-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com
-Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 
 [Problem]
 
@@ -98,7 +102,6 @@ static struct worker *alloc_worker(int node)
         return worker;
 }
 
-
 [Solution]
 
 There are four mappings in the kernel:
@@ -144,55 +147,93 @@ MADT (Multiple APIC Description Table). So we finish the job in the following st
 4. Establish all possible cpuid <-> nodeid mapping.
    This is done via an additional acpi namespace walk for processors.
 
+This patch finished step 1.
 
-For previous discussion, please refer to:
-https://lkml.org/lkml/2015/2/27/145
-https://lkml.org/lkml/2015/3/25/989
-https://lkml.org/lkml/2015/5/14/244
-https://lkml.org/lkml/2015/7/7/200
-https://lkml.org/lkml/2015/9/27/209
+Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/kernel/apic/apic.c | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)
 
-Change log v4 -> v5:
-1. Remove useless code in patch 1.
-2. Small improvement of commit message.
-
-Change log v3 -> v4:
-1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
-   before per cpu areas were initialized.
-
-Change log v2 -> v3:
-1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
-2. Build zonelists for memory-less nodes so that memory allocator will fall 
-   back to proper nodes automatically.
-
-Change log v1 -> v2:
-1. Split code movement and actual changes. Add patch 1.
-2. Synchronize best near online node record when node hotplug happens. In patch 2.
-3. Fix some comment.
-
-Gu Zheng (4):
-  x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
-    boot time.
-  x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
-    persistent cpuid <-> apicid mapping.
-  x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
-  x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
-    booting.
-
-Tang Chen (1):
-  x86, memhp, numa: Online memory-less nodes at boot time.
-
- arch/ia64/kernel/acpi.c       |   2 +-
- arch/x86/include/asm/mpspec.h |   1 +
- arch/x86/kernel/acpi/boot.c   |   8 ++-
- arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++----
- arch/x86/mm/numa.c            |  27 +++++-----
- drivers/acpi/acpi_processor.c |   5 +-
- drivers/acpi/bus.c            |   3 ++
- drivers/acpi/processor_core.c | 122 ++++++++++++++++++++++++++++++++++--------
- include/linux/acpi.h          |   2 +
- 9 files changed, 204 insertions(+), 51 deletions(-)
-
+diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
+index 8a5cdda..1625778 100644
+--- a/arch/x86/kernel/apic/apic.c
++++ b/arch/x86/kernel/apic/apic.c
+@@ -1998,7 +1998,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
+ 	apic_write(APIC_LVT1, value);
+ }
+ 
+-int generic_processor_info(int apicid, int version)
++static int __generic_processor_info(int apicid, int version, bool enabled)
+ {
+ 	int cpu, max = nr_cpu_ids;
+ 	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
+@@ -2032,7 +2032,8 @@ int generic_processor_info(int apicid, int version)
+ 			   " Processor %d/0x%x ignored.\n",
+ 			   thiscpu, apicid);
+ 
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -ENODEV;
+ 	}
+ 
+@@ -2049,7 +2050,8 @@ int generic_processor_info(int apicid, int version)
+ 			" reached. Keeping one slot for boot cpu."
+ 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+ 
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -ENODEV;
+ 	}
+ 
+@@ -2060,11 +2062,14 @@ int generic_processor_info(int apicid, int version)
+ 			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+ 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+ 
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -EINVAL;
+ 	}
+ 
+-	num_processors++;
++	if (enabled)
++		num_processors++;
++
+ 	if (apicid == boot_cpu_physical_apicid) {
+ 		/*
+ 		 * x86_bios_cpu_apicid is required to have processors listed
+@@ -2092,7 +2097,8 @@ int generic_processor_info(int apicid, int version)
+ 			apic_version[boot_cpu_physical_apicid], cpu, version);
+ 	}
+ 
+-	physid_set(apicid, phys_cpu_present_map);
++	if (enabled)
++		physid_set(apicid, phys_cpu_present_map);
+ 	if (apicid > max_physical_apicid)
+ 		max_physical_apicid = apicid;
+ 
+@@ -2105,11 +2111,17 @@ int generic_processor_info(int apicid, int version)
+ 		apic->x86_32_early_logical_apicid(cpu);
+ #endif
+ 	set_cpu_possible(cpu, true);
+-	set_cpu_present(cpu, true);
++	if (enabled)
++		set_cpu_present(cpu, true);
+ 
+ 	return cpu;
+ }
+ 
++int generic_processor_info(int apicid, int version)
++{
++	return __generic_processor_info(apicid, version, true);
++}
++
+ int hard_smp_processor_id(void)
+ {
+ 	return read_apic_id();
 -- 
 1.9.3
 
