@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 56D056B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:49:07 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l65so263997475wmf.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:49:07 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2D76B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:58:11 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id r129so216584975wmr.0
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:58:11 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p1si8809632wjx.81.2016.01.22.06.49.06
+        by mx.google.com with ESMTPS id 134si4825785wmr.40.2016.01.22.06.58.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 06:49:06 -0800 (PST)
-Date: Fri, 22 Jan 2016 09:48:54 -0500
+        Fri, 22 Jan 2016 06:58:09 -0800 (PST)
+Date: Fri, 22 Jan 2016 09:57:58 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: PROBLEM: BUG when using memory.kmem.limit_in_bytes
-Message-ID: <20160122144854.GA14432@cmpxchg.org>
-References: <CAKB58ikDkzc8REt31WBkD99+hxNzjK4+FBmhkgS+NVrC9vjMSg@mail.gmail.com>
- <20160122135042.GF26192@esperanza>
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
+Message-ID: <20160122145758.GB14432@cmpxchg.org>
+References: <alpine.DEB.2.10.1601191502230.7346@chino.kir.corp.google.com>
+ <201601202336.BJC04687.FOFVOQJOLSFtMH@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1601201538070.18155@chino.kir.corp.google.com>
+ <201601212044.AFD30275.OSFFOFJHMVLOQt@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1601211513550.9813@chino.kir.corp.google.com>
+ <201601222259.GJB90663.MLOJtFFOQFVHSO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160122135042.GF26192@esperanza>
+In-Reply-To: <201601222259.GJB90663.MLOJtFFOQFVHSO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Brian Christiansen <brian.o.christiansen@gmail.com>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 22, 2016 at 04:50:42PM +0300, Vladimir Davydov wrote:
-> From first glance, it looks like the bug was triggered, because
-> mem_cgroup_css_offline was run for a child cgroup earlier than for its
-> parent. This couldn't happen for sure before the cgroup was switched to
-> percpu_ref, because cgroup_destroy_wq has always had max_active == 1.
-> Now, however, it looks like this is perfectly possible for
-> css_killed_ref_fn is called from an rcu callback - see kill_css ->
-> percpu_ref_kill_and_confirm. This breaks kmemcg assumptions.
+On Fri, Jan 22, 2016 at 10:59:10PM +0900, Tetsuo Handa wrote:
+> David Rientjes wrote:
+> > On Thu, 21 Jan 2016, Tetsuo Handa wrote:
+> > 
+> > > I consider phases for managing system-wide OOM events as follows.
+> > > 
+> > >   (1) Design and use a system with appropriate memory capacity in mind.
+> > > 
+> > >   (2) When (1) failed, the OOM killer is invoked. The OOM killer selects
+> > >       an OOM victim and allow that victim access to memory reserves by
+> > >       setting TIF_MEMDIE to it.
+> > > 
+> > >   (3) When (2) did not solve the OOM condition, start allowing all tasks
+> > >       access to memory reserves by your approach.
+> > > 
+> > >   (4) When (3) did not solve the OOM condition, start selecting more OOM
+> > >       victims by my approach.
+> > > 
+> > >   (5) When (4) did not solve the OOM condition, trigger the kernel panic.
+> > > 
+> > 
+> > This was all mentioned previously, and I suggested that the panic only 
+> > occur when memory reserves have been depleted, otherwise there is still 
+> > the potential for the livelock to be solved.  That is a patch that would 
+> > apply today, before any of this work, since we never want to loop 
+> > endlessly in the page allocator when memory reserves are fully depleted.
+> > 
+> > This is all really quite simple.
 > 
-> I'll take a look what can be done about that.
+> So, David is OK with above approach, right?
+> Then, Michal and Johannes, are you OK with above approach?
 
-It's an acknowledged problem in the cgroup core then, and not an issue
-with kmemcg. Tejun sent a fix to correct the offlining order here:
-
-https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1056544.html
+Yes, that order of events sounds reasonable to me. Personally, I'm not
+entirely sure whether it's better to give out the last reserves to the
+allocating task or subsequent OOM victims, but it's likely not even
+that important. The most important part is to guarantee a predictable
+and reasonable decision time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
