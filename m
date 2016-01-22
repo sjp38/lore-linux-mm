@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 21F716B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 11:07:03 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id mw1so57355930igb.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:07:03 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id k131si12996362iof.120.2016.01.22.08.07.02
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E6D7E6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 11:12:05 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id b14so139839757wmb.1
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:12:05 -0800 (PST)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id j13si5135137wmd.85.2016.01.22.08.12.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jan 2016 08:07:02 -0800 (PST)
-Date: Fri, 22 Jan 2016 10:07:01 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jan 2016 08:12:04 -0800 (PST)
+Received: by mail-wm0-f49.google.com with SMTP id n5so139746616wmn.0
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:12:04 -0800 (PST)
+Date: Fri, 22 Jan 2016 17:12:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-In-Reply-To: <20160122140418.GB19465@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1601220950290.17929@east.gentwo.org>
-References: <20160120151007.GG14187@dhcp22.suse.cz> <alpine.DEB.2.20.1601200919520.21490@east.gentwo.org> <569FAC90.5030407@oracle.com> <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org> <20160120212806.GA26965@dhcp22.suse.cz>
- <alpine.DEB.2.20.1601201552590.26496@east.gentwo.org> <20160121082402.GA29520@dhcp22.suse.cz> <alpine.DEB.2.20.1601210941540.7063@east.gentwo.org> <20160121165148.GF29520@dhcp22.suse.cz> <alpine.DEB.2.20.1601211130580.7741@east.gentwo.org>
+Message-ID: <20160122161201.GC19465@dhcp22.suse.cz>
+References: <569FAC90.5030407@oracle.com>
+ <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
+ <20160120212806.GA26965@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1601201552590.26496@east.gentwo.org>
+ <20160121082402.GA29520@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1601210941540.7063@east.gentwo.org>
+ <20160121165148.GF29520@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1601211130580.7741@east.gentwo.org>
  <20160122140418.GB19465@dhcp22.suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+ <alpine.DEB.2.20.1601220950290.17929@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1601220950290.17929@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 22 Jan 2016, Michal Hocko wrote:
+On Fri 22-01-16 10:07:01, Christoph Lameter wrote:
+> On Fri, 22 Jan 2016, Michal Hocko wrote:
+> 
+> > Wouldn't it be much more easier and simply get rid of the VM_BUG_ON?
+> > What is the point of keeping it in the first place. The code can
+> > perfectly cope with the race.
+> 
+> Ok then lets do that.
 
-> Wouldn't it be much more easier and simply get rid of the VM_BUG_ON?
-> What is the point of keeping it in the first place. The code can
-> perfectly cope with the race.
+Could you repost the patch with the updated description?
 
-Ok then lets do that.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
