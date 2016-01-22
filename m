@@ -1,89 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8CB828DF
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:19:38 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id n5so134471559wmn.0
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:19:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u131si4622251wmb.69.2016.01.22.06.19.36
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 662EA828DF
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:31:31 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id e32so58629845qgf.3
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:31:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j71si7349564qhc.93.2016.01.22.06.31.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 22 Jan 2016 06:19:37 -0800 (PST)
-Date: Fri, 22 Jan 2016 15:19:48 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-Message-ID: <20160122141948.GG16898@quack.suse.cz>
-References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
- <20160122201707.1271a279@cotter.ozlabs.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jan 2016 06:31:30 -0800 (PST)
+Date: Fri, 22 Jan 2016 15:31:27 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/3] thp: change deferred_split_count() to return number
+ of THP in queue
+Message-ID: <20160122143127.GI7119@redhat.com>
+References: <20160121012237.GE7119@redhat.com>
+ <1453378163-133609-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1453378163-133609-3-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160122201707.1271a279@cotter.ozlabs.ibm.com>
+In-Reply-To: <1453378163-133609-3-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 22-01-16 20:17:07, Balbir Singh wrote:
-> On Fri, 22 Jan 2016 10:11:12 +0530
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> 
-> > Hi,
-> > 
-> > I would like to attend LSF/MM this year (2016).
-> > 
-> > My main interest is in MM related topics although I am also interested
-> > in the btrfs status discussion (particularly related to subpage size block
-> > size topic), if we are having one. Most of my recent work in the kernel is
-> > related to adding ppc64 support for different MM features. My current focus
-> > is on adding Linux support for the new radix MMU model of Power9.
-> > 
-> > Topics of interest include:
-> > 
-> > * CMA allocator issues:
-> >   (1) order zero allocation failures:
-> >       We are observing order zero non-movable allocation failures in kernel
-> > with CMA configured. We don't start a reclaim because our free memory check
-> > does not consider free_cma. Hence the reclaim code assume we have enough free
-> > pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
-> > like to discuss the challenges in getting this merged upstream.
-> > https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
-> > 
-> > Others needed for the discussion:
-> > Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> >   (2) CMA allocation failures due to pinned pages in the region:
-> >       We allow only movable allocation from the CMA region to enable us
-> > to migrate those pages later when we get a CMA allocation request. But
-> > if we pin those movable pages, we will fail the migration which can result
-> > in CMA allocation failure. One such report can be found here.
-> > http://article.gmane.org/gmane.linux.kernel.mm/136738
-> > 
-> > Peter Zijlstra's VM_PINNED patch series should help in fixing the issue. I would
-> > like to discuss what needs to be done to get this patch series merged upstream
-> > https://lkml.org/lkml/2014/5/26/345 (VM_PINNED)
-> > 
-> > Others needed for the discussion:
-> > Peter Zijlstra <peterz@infradead.org>
-> 
-> +1
-> 
-> I agree CMA design is a concern. I also noticed that today all CMA pages come
-> from one node. On a NUMA box you'll see cross traffic going to that region -
-> although from kernel only text. It should be discussed at the summit and Aneesh
-> would be a good representative
+On Thu, Jan 21, 2016 at 03:09:22PM +0300, Kirill A. Shutemov wrote:
+> @@ -3511,7 +3506,7 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+>  	list_splice_tail(&list, &pgdata->split_queue);
+>  	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
+>  
+> -	return split * HPAGE_PMD_NR / 2;
+> +	return split;
+>  }
 
-I'm not really an mm guy but CMA has been discussed already last year, and
-I think even the year before... Are we moving somewhere? So if this is
-about hashing out what blocks VM_PINNED series (I think it may be just a
-lack of Peter's persistence in pushing it ;) then that looks like a
-sensible goal. Some other CMA architecture discussions need IMHO a more
-concrete proposals...
+Looking further at how the caller processes this "split" retval, if
+the list has been fully shrunk by the page freeing, between the
+split_count and split_scan, the caller seems to ignore a 0 value
+returned above and it'll keep calling even if sc->nr_to_scan isn't
+decreasing. The caller won't even check sc->nr_to_scan to notice that
+it isn't decreasing anymore, it's write-only as far as the caller is
+concerned.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+It's also weird we can't return the number of freed pages and break
+the loop with just one invocation of the split_scan, but that's a
+slight inefficiency in the caller interface. The caller also seems to
+forget to set total_scan to 0 if SHRINK_STOP was returned but perhaps
+that's on purpose, however for our purpose it'd be better off if it
+did.
+
+The split_queue.next is going to be hot in the CPU cache anyway, so
+unless we change the caller, it should be worth it to add a list_empty
+check and return SHRINK_STOP if it was empty. Doing it at the start or
+end doesn't make much difference, at the end lockless it'll deal with
+the split failures too if any.
+
+	return split ? : list_empty(&pgdat->split_queue) ? SPLIT_STOP : 0;
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
