@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 237636B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 13:51:25 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id uo6so46715257pac.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:51:25 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id v86si11165666pfi.16.2016.01.22.10.51.24
-        for <linux-mm@kvack.org>;
-        Fri, 22 Jan 2016 10:51:24 -0800 (PST)
-Subject: [PATCH v2] phys_to_pfn_t: use phys_addr_t
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 22 Jan 2016 10:50:57 -0800
-Message-ID: <20160122185056.38786.5705.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <20160122184626.GF2948@linux.intel.com>
-References: <20160122184626.GF2948@linux.intel.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 794A86B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 14:42:17 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id r129so226205169wmr.0
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 11:42:17 -0800 (PST)
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
+        by mx.google.com with ESMTPS id w2si10067052wjf.153.2016.01.22.11.42.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jan 2016 11:42:16 -0800 (PST)
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Fri, 22 Jan 2016 19:42:15 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id AAB5017D8059
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 19:42:19 +0000 (GMT)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0MJgDaB6029658
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 19:42:13 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0MJgC4L028086
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:42:12 -0700
+Subject: Re: [PATCH RFC] mm: Rework virtual memory accounting
+References: <20151228211015.GL2194@uranus>
+ <CA+55aFzxT02gGCAokDFich=kjsf1VtvL=i315Uk9p=HRrCAY5Q@mail.gmail.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Message-ID: <56A28613.5070104@de.ibm.com>
+Date: Fri, 22 Jan 2016 20:42:11 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CA+55aFzxT02gGCAokDFich=kjsf1VtvL=i315Uk9p=HRrCAY5Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Andrew Morton <akpm@linuxfoundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-A dma_addr_t is potentially smaller than a phys_addr_t on some archs.
-Don't truncate the address when doing the pfn conversion.
+On 12/28/2015 11:22 PM, Linus Torvalds wrote:
+> On Mon, Dec 28, 2015 at 1:10 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+>> Really sorry for delays. Konstantin, I slightly updated the
+>> changelog (to point where problem came from). Linus are you
+>> fine with accounting not only anonymous memory in VmData?
+> 
+> The patch looks ok to me. I guess if somebody relies on old behavior
+> we may have to tweak it a bit, but on the whole this looks sane and
+> I'd be happy to merge it in the 4.5 merge window (and maybe even have
+> it marked for stable if it works out)
+> 
 
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reported-by: Matthew Wilcox <willy@linux.intel.com>
-[willy: fix pfn_t_to_phys as well]
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/pfn_t.h             |    4 ++--
- kernel/memremap.c                 |    2 +-
- tools/testing/nvdimm/test/iomap.c |    2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+Just want to mention that this patch breaks older versions of valgrind 
+(including the current release)
+https://bugs.kde.org/show_bug.cgi?id=357833
+It is fixed in trunk (and even triggered some good cleanups, so the valgrind
+developers do NOT want it to get reverted). Rawhide already has the valgrind
+fix, others might not, so if we consider this for stable, things might break
+here and there, but in general this looks like a good cleanup.
 
-diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-index 0703b5360d31..37448ab5fb5c 100644
---- a/include/linux/pfn_t.h
-+++ b/include/linux/pfn_t.h
-@@ -29,7 +29,7 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
- 	return __pfn_to_pfn_t(pfn, 0);
- }
- 
--extern pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags);
-+extern pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
- 
- static inline bool pfn_t_has_page(pfn_t pfn)
- {
-@@ -48,7 +48,7 @@ static inline struct page *pfn_t_to_page(pfn_t pfn)
- 	return NULL;
- }
- 
--static inline dma_addr_t pfn_t_to_phys(pfn_t pfn)
-+static inline phys_addr_t pfn_t_to_phys(pfn_t pfn)
- {
- 	return PFN_PHYS(pfn_t_to_pfn(pfn));
- }
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index e517a16cb426..7f6d08f41d72 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -150,7 +150,7 @@ void devm_memunmap(struct device *dev, void *addr)
- }
- EXPORT_SYMBOL(devm_memunmap);
- 
--pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
-+pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
- {
- 	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
- }
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index 7ec7df9e7fc7..0c1a7e65bb81 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -113,7 +113,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
- }
- EXPORT_SYMBOL(__wrap_devm_memremap_pages);
- 
--pfn_t __wrap_phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
-+pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
- {
- 	struct nfit_test_resource *nfit_res = get_nfit_res(addr);
- 
+Christian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
