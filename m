@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 662EA828DF
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:31:31 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id e32so58629845qgf.3
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:31:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j71si7349564qhc.93.2016.01.22.06.31.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 06:31:30 -0800 (PST)
-Date: Fri, 22 Jan 2016 15:31:27 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/3] thp: change deferred_split_count() to return number
- of THP in queue
-Message-ID: <20160122143127.GI7119@redhat.com>
-References: <20160121012237.GE7119@redhat.com>
- <1453378163-133609-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1453378163-133609-3-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CFA86B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:39:04 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id 65so43205301pff.2
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:39:04 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id z12si9922850pas.77.2016.01.22.06.39.02
+        for <linux-mm@kvack.org>;
+        Fri, 22 Jan 2016 06:39:03 -0800 (PST)
+Date: Fri, 22 Jan 2016 09:39:00 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX
+ documentation
+Message-ID: <20160122143900.GE2948@linux.intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+ <CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
+ <100D68C7BA14664A8938383216E40DE0421657C5@fmsmsx111.amr.corp.intel.com>
+ <HK2PR06MB05610F968A8B0E5E0E6BCDC98AC40@HK2PR06MB0561.apcprd06.prod.outlook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1453378163-133609-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <HK2PR06MB05610F968A8B0E5E0E6BCDC98AC40@HK2PR06MB0561.apcprd06.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Brandt <Chris.Brandt@renesas.com>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Jared Hulbert <jaredeh@gmail.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>
 
-On Thu, Jan 21, 2016 at 03:09:22PM +0300, Kirill A. Shutemov wrote:
-> @@ -3511,7 +3506,7 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
->  	list_splice_tail(&list, &pgdata->split_queue);
->  	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
->  
-> -	return split * HPAGE_PMD_NR / 2;
-> +	return split;
->  }
+On Fri, Jan 22, 2016 at 01:48:08PM +0000, Chris Brandt wrote:
+> I believe the motivation for the new DAX code was being able to
+> read/write data directly to specific physical memory. However, with
+> the AXFS file system, XIP file mapping was mostly beneficial for direct
+> access to executable code pages, not data. Code pages were XIP-ed, and
+> data pages were copied to RAM as normal. This results in a significant
+> reduction in system RAM, especially when used with an XIP_KERNEL. In
+> some systems, most of your RAM is eaten up by lots of code pages from
+> big bloated shared libraries, not R/W data. (of course I'm talking about
+> smaller embedded system here)
 
-Looking further at how the caller processes this "split" retval, if
-the list has been fully shrunk by the page freeing, between the
-split_count and split_scan, the caller seems to ignore a 0 value
-returned above and it'll keep calling even if sc->nr_to_scan isn't
-decreasing. The caller won't even check sc->nr_to_scan to notice that
-it isn't decreasing anymore, it's write-only as far as the caller is
-concerned.
+OK, I can't construct a failure case for read-only usages.  If you want
+to put together a patch-set that re-enables DAX in a read-only way on
+those architectures, I'm fine with that.
 
-It's also weird we can't return the number of freed pages and break
-the loop with just one invocation of the split_scan, but that's a
-slight inefficiency in the caller interface. The caller also seems to
-forget to set total_scan to 0 if SHRINK_STOP was returned but perhaps
-that's on purpose, however for our purpose it'd be better off if it
-did.
-
-The split_queue.next is going to be hot in the CPU cache anyway, so
-unless we change the caller, it should be worth it to add a list_empty
-check and return SHRINK_STOP if it was empty. Doing it at the start or
-end doesn't make much difference, at the end lockless it'll deal with
-the split failures too if any.
-
-	return split ? : list_empty(&pgdat->split_queue) ? SPLIT_STOP : 0;
-
-Thanks,
-Andrea
+I think your time would be better spent fixing the read-write problems;
+once we see persistent memory on the embedded platforms, we'll need that
+code anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
