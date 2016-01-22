@@ -1,87 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D626B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:50:53 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id uo6so43039043pac.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 05:50:53 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id k67si9732885pfb.171.2016.01.22.05.50.52
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F8156B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:59:25 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id k206so48145613oia.1
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 05:59:25 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z3si5861239oby.74.2016.01.22.05.59.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 05:50:52 -0800 (PST)
-Date: Fri, 22 Jan 2016 16:50:42 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: PROBLEM: BUG when using memory.kmem.limit_in_bytes
-Message-ID: <20160122135042.GF26192@esperanza>
-References: <CAKB58ikDkzc8REt31WBkD99+hxNzjK4+FBmhkgS+NVrC9vjMSg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAKB58ikDkzc8REt31WBkD99+hxNzjK4+FBmhkgS+NVrC9vjMSg@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jan 2016 05:59:24 -0800 (PST)
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.10.1601191502230.7346@chino.kir.corp.google.com>
+	<201601202336.BJC04687.FOFVOQJOLSFtMH@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1601201538070.18155@chino.kir.corp.google.com>
+	<201601212044.AFD30275.OSFFOFJHMVLOQt@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1601211513550.9813@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1601211513550.9813@chino.kir.corp.google.com>
+Message-Id: <201601222259.GJB90663.MLOJtFFOQFVHSO@I-love.SAKURA.ne.jp>
+Date: Fri, 22 Jan 2016 22:59:10 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Christiansen <brian.o.christiansen@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: rientjes@google.com, hannes@cmpxchg.org, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Brian,
+David Rientjes wrote:
+> On Thu, 21 Jan 2016, Tetsuo Handa wrote:
+> 
+> > I consider phases for managing system-wide OOM events as follows.
+> > 
+> >   (1) Design and use a system with appropriate memory capacity in mind.
+> > 
+> >   (2) When (1) failed, the OOM killer is invoked. The OOM killer selects
+> >       an OOM victim and allow that victim access to memory reserves by
+> >       setting TIF_MEMDIE to it.
+> > 
+> >   (3) When (2) did not solve the OOM condition, start allowing all tasks
+> >       access to memory reserves by your approach.
+> > 
+> >   (4) When (3) did not solve the OOM condition, start selecting more OOM
+> >       victims by my approach.
+> > 
+> >   (5) When (4) did not solve the OOM condition, trigger the kernel panic.
+> > 
+> 
+> This was all mentioned previously, and I suggested that the panic only 
+> occur when memory reserves have been depleted, otherwise there is still 
+> the potential for the livelock to be solved.  That is a patch that would 
+> apply today, before any of this work, since we never want to loop 
+> endlessly in the page allocator when memory reserves are fully depleted.
+> 
+> This is all really quite simple.
+> 
 
-Thanks for the report.
+So, David is OK with above approach, right?
+Then, Michal and Johannes, are you OK with above approach?
 
-I managed to reproduce the bug on the latest mmotm kernel using the
-script you attached, so it isn't ubuntu-specific:
 
-: kernel BUG at mm/memcontrol.c:2929!
-: invalid opcode: 0000 [#1] SMP
-: CPU: 0 PID: 4441 Comm: kworker/0:2 Not tainted 4.4.0-mm1+ #256
-: Workqueue: cgroup_destroy css_killed_work_fn
-: task: ffff8800aaddd880 ti: ffff8800369b0000 task.ti: ffff8800369b0000
-: RIP: 0010:[<ffffffff81220551>]  [<ffffffff81220551>] memcg_offline_kmem+0xd1/0xe0
-: RSP: 0018:ffff8800369b3b08  EFLAGS: 00010293
-: RAX: ffff8800a9cba800 RBX: ffff8800ab1c7000 RCX: 0000000000000003
-: RDX: ffff8800a9cba850 RSI: ffff8800ab1c7060 RDI: ffff8800ab1c1000
-: RBP: ffff8800369b3b28 R08: 0000000000000001 R09: 0000000000000000
-: R10: 0000000000000000 R11: 0000000000000000 R12: ffff8800ab1c5000
-: R13: 0000000000000000 R14: ffff8800ab1c7650 R15: ffff8800ab1c7640
-: FS:  0000000000000000(0000) GS:ffff88014ae00000(0000) knlGS:0000000000000000
-: CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-: CR2: 00007f3ad9d3b090 CR3: 0000000148d61000 CR4: 00000000000006f0
-: Stack:
-:  ffff8800369b3b28 ffff8800ab1c7640 ffff8800ab1c7640 ffff8800ab1c7000
-:  ffff8800369b3b88 ffffffff81220601 0000000000000001 0000000000000000
-:  0000000000000002 ffff8800aaddd880 ffff8800369b3b88 ffff8800ab1c7090
-: Call Trace:
-:  [<ffffffff81220601>] mem_cgroup_css_offline+0xa1/0xc0
-:  [<ffffffff81124b5c>] css_killed_work_fn+0x5c/0x170
-:  [<ffffffff8109ea30>] process_one_work+0x200/0x560
-:  [<ffffffff8109e99f>] ? process_one_work+0x16f/0x560
-:  [<ffffffff810d2bb2>] ? __lock_acquire+0x1a2/0x440
-:  [<ffffffff8109f6d4>] ? worker_thread+0x204/0x530
-:  [<ffffffff8109f6c7>] ? worker_thread+0x1f7/0x530
-:  [<ffffffff8109f63e>] worker_thread+0x16e/0x530
-:  [<ffffffff816f2eb4>] ? __schedule+0x354/0x900
-:  [<ffffffff810b2e22>] ? default_wake_function+0x12/0x20
-:  [<ffffffff810ca356>] ? __wake_up_common+0x56/0x90
-:  [<ffffffff8109f4d0>] ? maybe_create_worker+0x110/0x110
-:  [<ffffffff816f3567>] ? schedule+0x47/0xc0
-:  [<ffffffff8109f4d0>] ? maybe_create_worker+0x110/0x110
-:  [<ffffffff810a4ac9>] kthread+0xe9/0x110
-:  [<ffffffff810af22e>] ? schedule_tail+0x1e/0xd0
-:  [<ffffffff810a49e0>] ? __init_kthread_worker+0x70/0x70
-:  [<ffffffff816f92cf>] ret_from_fork+0x3f/0x70
-:  [<ffffffff810a49e0>] ? __init_kthread_worker+0x70/0x70
 
->From first glance, it looks like the bug was triggered, because
-mem_cgroup_css_offline was run for a child cgroup earlier than for its
-parent. This couldn't happen for sure before the cgroup was switched to
-percpu_ref, because cgroup_destroy_wq has always had max_active == 1.
-Now, however, it looks like this is perfectly possible for
-css_killed_ref_fn is called from an rcu callback - see kill_css ->
-percpu_ref_kill_and_confirm. This breaks kmemcg assumptions.
+What I'm not sure about above approach are handling of !__GFP_NOFAIL &&
+!__GFP_FS allocation requests and use of ALLOC_NO_WATERMARKS without
+TIF_MEMDIE.
 
-I'll take a look what can be done about that.
+Basically, we want to make small allocation requests success unless
+__GFP_NORETRY is given. Currently such allocation requests do not fail
+unless TIF_MEMDIE is given by the OOM killer. But how hard do we want to
+continue looping when we reach (3) by timeout for waiting for TIF_MEMDIE
+task at (2) expires?
 
-Thanks,
-Vladimir
+Should we give up waiting for TIF_MEMDIE task and make !__GFP_NOFAIL allocation
+requests fail (as with OOM condition after oom_killer_disable() is called)?
+If our answer is "yes", there is no need to open the memory reserves.
+Therefore, I guess our answer is "no".
+
+Now, we open the memory reserves at (3). Since currently !__GFP_NOFAIL &&
+!__GFP_FS allocation requests do not call out_of_memory(), current version
+of "mm, oom: add global access to memory reserves on livelock" does not
+allow such allocation requests access to memory reserves on OOM livelock.
+
+If the cause of OOM livelock is an OOM victim is waiting for a lock which is
+held by somebody else which is doing !__GFP_NOFAIL && !__GFP_FS allocation
+requests to be released, we will fully deplete memory reserves because only
+__GFP_NOFAIL || __GFP_FS allocation requests (e.g. page fault by memory hog
+processes) can access memory reserves. To handle this case, what do we want
+to do?
+
+Should we allow !__GFP_NOFAIL && !__GFP_FS allocation requests access to
+memory reserves by allowing them to call out_of_memory() in order to avoid
+needlessly deplete memory reserves? Or, we don't care at all because we
+can reach (4) anyway?
+
+----------
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6463426..2299374 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2743,16 +2743,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		/* The OOM killer does not needlessly kill tasks for lowmem */
+ 		if (ac->high_zoneidx < ZONE_NORMAL)
+ 			goto out;
+-		/* The OOM killer does not compensate for IO-less reclaim */
+-		if (!(gfp_mask & __GFP_FS)) {
+-			/*
+-			 * XXX: Page reclaim didn't yield anything,
+-			 * and the OOM killer can't be invoked, but
+-			 * keep looping as per tradition.
+-			 */
+-			*did_some_progress = 1;
+-			goto out;
+-		}
+ 		if (pm_suspended_storage())
+ 			goto out;
+ 		/* The OOM killer may not free memory on a specific node */
+----------
+
+Regardless of our answer, we need to decide whether to continue looping, for
+there is no guarantee that memory reserves is sufficient to solve OOM livelock.
+
+Should we give up waiting for TIF_MEMDIE task and make !__GFP_NOFAIL allocation
+requests fail (as if TIF_MEMDIE was already given by the OOM killer because
+we used ALLOC_NO_WATERMARKS)?
+If our answer is "yes", there is no need to choose next OOM victim.
+Therefore, I guess our answer is "no".
+
+Regardless of our answer, we need to prepare for reaching (4), for it might be
+__GFP_NOFAIL allocation request. What is the requirement for choosing next OOM
+victim at (4)? An allocating task sees a TIF_MEMDIE task again after
+get_page_from_freelist(ALLOC_NO_WATERMARKS) failed after timeout for waiting for
+that task at (2) expires? Then, it would kill all tasks immediately because
+reaping OOM victim's memory needs some time. We will want to check for another
+timeout.
+
+
+
+Finally, we will automatically reach (5) after all OOM-killable tasks are
+chosen as OOM victims at (4). Here is just an idea for (5). If we change
+the OOM killer not to call panic() when there is no more OOM-killable tasks,
+it will allow us not to give up immediately after TIF_MEMDIE was given by the
+OOM killer. This will increase possibility of making small allocation requests
+by TIF_MEMDIE tasks success, for it is almost impossibly unlikely case that
+we reach (5).
+
+----------
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 6ebc0351..de22c44 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -884,8 +884,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	}
+ 
+ 	p = select_bad_process(oc, &points, totalpages);
+-	/* Found nothing?!?! Either we hang forever, or we panic. */
++	/* Found nothing?!?! Either we fail the allocation, or we panic. */
+ 	if (!p && !is_sysrq_oom(oc)) {
++		if (!(oc->gfp_mask & __GFP_NOFAIL))
++			return false;
+ 		dump_header(oc, NULL, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6463426..798fd68 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3181,10 +3171,6 @@ retry:
+ 		goto nopage;
+ 	}
+ 
+-	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+-		goto nopage;
+-
+ 	/*
+ 	 * Try direct compaction. The first pass is asynchronous. Subsequent
+ 	 * attempts after direct reclaim are synchronous
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
