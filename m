@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1326C6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:51:07 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id b35so60055160qge.0
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 07:51:07 -0800 (PST)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id 78si7705101qge.4.2016.01.22.07.51.06
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE7A6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:56:18 -0500 (EST)
+Received: by mail-qk0-f177.google.com with SMTP id s68so30082722qkh.3
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 07:56:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u144si7683280qka.104.2016.01.22.07.56.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 07:51:06 -0800 (PST)
-Received: by mail-qg0-x22f.google.com with SMTP id 6so60007029qgy.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 07:51:06 -0800 (PST)
-Date: Fri, 22 Jan 2016 10:51:04 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: PROBLEM: BUG when using memory.kmem.limit_in_bytes
-Message-ID: <20160122155104.GG32380@htj.duckdns.org>
-References: <CAKB58ikDkzc8REt31WBkD99+hxNzjK4+FBmhkgS+NVrC9vjMSg@mail.gmail.com>
- <20160122135042.GF26192@esperanza>
- <20160122144854.GA14432@cmpxchg.org>
+        Fri, 22 Jan 2016 07:56:17 -0800 (PST)
+From: Rik van Riel <riel@redhat.com>
+Subject: [LSF/MM TOPIC] VM containers
+Message-ID: <56A2511F.1080900@redhat.com>
+Date: Fri, 22 Jan 2016 10:56:15 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160122144854.GA14432@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Brian Christiansen <brian.o.christiansen@gmail.com>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: lsf-pc@lists.linuxfoundation.org
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>
 
-On Fri, Jan 22, 2016 at 09:48:54AM -0500, Johannes Weiner wrote:
-> On Fri, Jan 22, 2016 at 04:50:42PM +0300, Vladimir Davydov wrote:
-> > From first glance, it looks like the bug was triggered, because
-> > mem_cgroup_css_offline was run for a child cgroup earlier than for its
-> > parent. This couldn't happen for sure before the cgroup was switched to
-> > percpu_ref, because cgroup_destroy_wq has always had max_active == 1.
-> > Now, however, it looks like this is perfectly possible for
-> > css_killed_ref_fn is called from an rcu callback - see kill_css ->
-> > percpu_ref_kill_and_confirm. This breaks kmemcg assumptions.
-> > 
-> > I'll take a look what can be done about that.
-> 
-> It's an acknowledged problem in the cgroup core then, and not an issue
-> with kmemcg. Tejun sent a fix to correct the offlining order here:
-> 
-> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1056544.html
+Hi,
 
-Patche descriptions updated and applied to cgroup/for-4.5-fixes.
+I am trying to gauge interest in discussing VM containers at the LSF/MM
+summit this year. Projects like ClearLinux, Qubes, and others are all
+trying to use virtual machines as better isolated containers.
 
- http://lkml.kernel.org/g/20160122154503.GD32380@htj.duckdns.org
- http://lkml.kernel.org/g/20160122154552.GE32380@htj.duckdns.org
+That changes some of the goals the memory management subsystem has,
+from "use all the resources effectively" to "use as few resources as
+necessary, in case the host needs the memory for something else".
 
-Thanks.
+These VMs could be as small as running just one application, so this
+goes a little further than simply trying to squeeze more virtual
+machines into a system with frontswap and cleancache.
+
+Single-application VM sandboxes could also get their data differently,
+using (partial) host filesystem passthrough, instead of a virtual
+block device. This may change the relative utility of caching data
+inside the guest page cache, versus freeing up that memory and
+allowing the host to use it to cache things.
+
+Are people interested in discussing this at LSF/MM, or is it better
+saved for a different forum?
 
 -- 
-tejun
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
