@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CFA86B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:39:04 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id 65so43205301pff.2
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:39:04 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id z12si9922850pas.77.2016.01.22.06.39.02
-        for <linux-mm@kvack.org>;
-        Fri, 22 Jan 2016 06:39:03 -0800 (PST)
-Date: Fri, 22 Jan 2016 09:39:00 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX
- documentation
-Message-ID: <20160122143900.GE2948@linux.intel.com>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
- <1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
- <CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
- <100D68C7BA14664A8938383216E40DE0421657C5@fmsmsx111.amr.corp.intel.com>
- <HK2PR06MB05610F968A8B0E5E0E6BCDC98AC40@HK2PR06MB0561.apcprd06.prod.outlook.com>
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 56D056B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 09:49:07 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l65so263997475wmf.1
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 06:49:07 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p1si8809632wjx.81.2016.01.22.06.49.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jan 2016 06:49:06 -0800 (PST)
+Date: Fri, 22 Jan 2016 09:48:54 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: PROBLEM: BUG when using memory.kmem.limit_in_bytes
+Message-ID: <20160122144854.GA14432@cmpxchg.org>
+References: <CAKB58ikDkzc8REt31WBkD99+hxNzjK4+FBmhkgS+NVrC9vjMSg@mail.gmail.com>
+ <20160122135042.GF26192@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <HK2PR06MB05610F968A8B0E5E0E6BCDC98AC40@HK2PR06MB0561.apcprd06.prod.outlook.com>
+In-Reply-To: <20160122135042.GF26192@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Brandt <Chris.Brandt@renesas.com>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Jared Hulbert <jaredeh@gmail.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Brian Christiansen <brian.o.christiansen@gmail.com>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jan 22, 2016 at 01:48:08PM +0000, Chris Brandt wrote:
-> I believe the motivation for the new DAX code was being able to
-> read/write data directly to specific physical memory. However, with
-> the AXFS file system, XIP file mapping was mostly beneficial for direct
-> access to executable code pages, not data. Code pages were XIP-ed, and
-> data pages were copied to RAM as normal. This results in a significant
-> reduction in system RAM, especially when used with an XIP_KERNEL. In
-> some systems, most of your RAM is eaten up by lots of code pages from
-> big bloated shared libraries, not R/W data. (of course I'm talking about
-> smaller embedded system here)
+On Fri, Jan 22, 2016 at 04:50:42PM +0300, Vladimir Davydov wrote:
+> From first glance, it looks like the bug was triggered, because
+> mem_cgroup_css_offline was run for a child cgroup earlier than for its
+> parent. This couldn't happen for sure before the cgroup was switched to
+> percpu_ref, because cgroup_destroy_wq has always had max_active == 1.
+> Now, however, it looks like this is perfectly possible for
+> css_killed_ref_fn is called from an rcu callback - see kill_css ->
+> percpu_ref_kill_and_confirm. This breaks kmemcg assumptions.
+> 
+> I'll take a look what can be done about that.
 
-OK, I can't construct a failure case for read-only usages.  If you want
-to put together a patch-set that re-enables DAX in a read-only way on
-those architectures, I'm fine with that.
+It's an acknowledged problem in the cgroup core then, and not an issue
+with kmemcg. Tejun sent a fix to correct the offlining order here:
 
-I think your time would be better spent fixing the read-write problems;
-once we see persistent memory on the embedded platforms, we'll need that
-code anyway.
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1056544.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
