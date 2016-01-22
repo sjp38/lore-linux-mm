@@ -1,74 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6959C6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 11:38:12 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id b14so141053535wmb.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:38:12 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m64si5236391wma.122.2016.01.22.08.38.11
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD2A6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 11:46:16 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id ik10so14651621igb.1
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 08:46:16 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id i15si13175675iod.68.2016.01.22.08.46.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 08:38:11 -0800 (PST)
-Date: Fri, 22 Jan 2016 11:38:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-Message-ID: <20160122163801.GA16668@cmpxchg.org>
-References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87k2n2usyf.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jan 2016 08:46:15 -0800 (PST)
+Date: Fri, 22 Jan 2016 10:46:14 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
+In-Reply-To: <20160122161201.GC19465@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1601221046020.17984@east.gentwo.org>
+References: <569FAC90.5030407@oracle.com> <alpine.DEB.2.20.1601200954420.23983@east.gentwo.org> <20160120212806.GA26965@dhcp22.suse.cz> <alpine.DEB.2.20.1601201552590.26496@east.gentwo.org> <20160121082402.GA29520@dhcp22.suse.cz> <alpine.DEB.2.20.1601210941540.7063@east.gentwo.org>
+ <20160121165148.GF29520@dhcp22.suse.cz> <alpine.DEB.2.20.1601211130580.7741@east.gentwo.org> <20160122140418.GB19465@dhcp22.suse.cz> <alpine.DEB.2.20.1601220950290.17929@east.gentwo.org> <20160122161201.GC19465@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Peter Zijlstra <peterz@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+On Fri, 22 Jan 2016, Michal Hocko wrote:
 
-On Fri, Jan 22, 2016 at 10:11:12AM +0530, Aneesh Kumar K.V wrote:
-> * CMA allocator issues:
->   (1) order zero allocation failures:
->       We are observing order zero non-movable allocation failures in kernel
-> with CMA configured. We don't start a reclaim because our free memory check
-> does not consider free_cma. Hence the reclaim code assume we have enough free
-> pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
-> like to discuss the challenges in getting this merged upstream.
-> https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
+> Could you repost the patch with the updated description?
 
-The exclusion of cma pages from the watermark checks means that
-reclaim is happening too early, not too late, which leaves memory
-underutilized. That's what ZONE_CMA set out to fix.
+Subject: vmstat: Remove BUG_ON from vmstat_update
 
-But unmovable allocations can still fail when the only free memory is
-inside CMA regions. I don't see how ZONE_CMA would fix that.
+If we detect that there is nothing to do just set the flag and do not check
+if it was already set before. Races really do not matter. If the flag is
+set by any code then the shepherd will start dealing with the situation
+and reenable the vmstat workers when necessary again.
 
-CC Joonsoo
+Since 0eb77e988032 ("vmstat: make vmstat_updater deferrable again and
+shut down on idle") quiet_vmstat might update cpu_stat_off and mark a
+particular cpu to be handled by vmstat_shepherd. This might trigger
+a VM_BUG_ON in vmstat_update because the work item might have been
+sleeping during the idle period and see the cpu_stat_off updated after
+the wake up. The VM_BUG_ON is therefore misleading and no more
+appropriate. Moreover it doesn't really suite any protection from real
+bugs because vmstat_shepherd will simply reschedule the vmstat_work
+anytime it sees a particular cpu set or vmstat_update would do the same
+from the worker context directly. Even when the two would race the
+result wouldn't be incorrect as the counters update is fully idempotent.
 
-But as Jan said, we discussed ZONE_CMA before, so it's not clear
-whether rehashing it without new data points would be too useful.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-> Others needed for the discussion:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
->   (2) CMA allocation failures due to pinned pages in the region:
->       We allow only movable allocation from the CMA region to enable us
-> to migrate those pages later when we get a CMA allocation request. But
-> if we pin those movable pages, we will fail the migration which can result
-> in CMA allocation failure. One such report can be found here.
-> http://article.gmane.org/gmane.linux.kernel.mm/136738
-> 
-> Peter Zijlstra's VM_PINNED patch series should help in fixing the issue. I would
-> like to discuss what needs to be done to get this patch series merged upstream
-> https://lkml.org/lkml/2014/5/26/345 (VM_PINNED)
-> 
-> Others needed for the discussion:
-> Peter Zijlstra <peterz@infradead.org>
-
-There was no consensus whether this specific implementation would work
-well for all sources of pinning. Giving this some time in the MM track
-could be useful.
-
-CC Peter
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -1408,17 +1408,7 @@ static void vmstat_update(struct work_st
+ 		 * Defer the checking for differentials to the
+ 		 * shepherd thread on a different processor.
+ 		 */
+-		int r;
+-		/*
+-		 * Shepherd work thread does not race since it never
+-		 * changes the bit if its zero but the cpu
+-		 * online / off line code may race if
+-		 * worker threads are still allowed during
+-		 * shutdown / startup.
+-		 */
+-		r = cpumask_test_and_set_cpu(smp_processor_id(),
+-			cpu_stat_off);
+-		VM_BUG_ON(r);
++		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
