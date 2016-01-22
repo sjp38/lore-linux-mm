@@ -1,112 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB656B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 22:25:09 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id 77so75602623ioc.2
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 19:25:09 -0800 (PST)
-Received: from mail-io0-x235.google.com (mail-io0-x235.google.com. [2607:f8b0:4001:c06::235])
-        by mx.google.com with ESMTPS id iq7si1881765igb.92.2016.01.21.19.25.08
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BEC66B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 23:41:19 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id n128so35207482pfn.3
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 20:41:19 -0800 (PST)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
+        by mx.google.com with ESMTPS id gy5si6782613pac.83.2016.01.21.20.41.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jan 2016 19:25:08 -0800 (PST)
-Received: by mail-io0-x235.google.com with SMTP id 77so75602431ioc.2
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 19:25:08 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jan 2016 20:41:18 -0800 (PST)
+Received: from localhost
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 22 Jan 2016 10:11:15 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0M4fD7c44892252
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:11:14 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0M4fDqg026753
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:11:13 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
+Date: Fri, 22 Jan 2016 10:11:12 +0530
+Message-ID: <87k2n2usyf.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20151209151326.f7efba4e5697e1b0f212ea34@linux-foundation.org>
-References: <1449588624-9220-1-git-send-email-hannes@cmpxchg.org>
-	<2564892.qO1q7YJ6Nb@wuerfel>
-	<7343206.sFybcLLUN2@wuerfel>
-	<20151209185858.GA2342@cmpxchg.org>
-	<20151209142836.e81260567879110f319c01a4@linux-foundation.org>
-	<20151209230505.GA16610@cmpxchg.org>
-	<20151209151326.f7efba4e5697e1b0f212ea34@linux-foundation.org>
-Date: Fri, 22 Jan 2016 12:25:08 +0900
-Message-ID: <CALLJCT2wHo3jJb7emyG8bWR5=zC7aEo_05JfHsnKHhjgHArCcA@mail.gmail.com>
-Subject: Re: [PATCH] mm: memcontrol: only manage socket pressure for CONFIG_INET
-From: Masanari Iida <standby24x7@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, netdev@vger.kernel.org, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+
 
 Hi,
-I hit this while I was testing 4.5-rc1 with randconfig during merger period.
-And now I noticed that it was fixed after Linus merged akpm branch.
 
-commit eae21770b4fed5597623aad0d618190fa60426ff
-Merge: e9f57eb 9f273c2
-Author: Linus Torvalds <torvalds@linux-foundation.org>
-Date:   Thu Jan 21 12:32:08 2016 -0800
+I would like to attend LSF/MM this year (2016).
 
-    Merge branch 'akpm' (patches from Andrew)
+My main interest is in MM related topics although I am also interested
+in the btrfs status discussion (particularly related to subpage size block
+size topic), if we are having one. Most of my recent work in the kernel is
+related to adding ppc64 support for different MM features. My current focus
+is on adding Linux support for the new radix MMU model of Power9.
 
-Try one commit before this (commit e9f57ebcba563e0cd532926cab83c92bb4d79360 )
-DOES have an issue.
-So I believe it was fixed for now.
-Thanks
+Topics of interest include:
 
-Masanari
+* CMA allocator issues:
+  (1) order zero allocation failures:
+      We are observing order zero non-movable allocation failures in kernel
+with CMA configured. We don't start a reclaim because our free memory check
+does not consider free_cma. Hence the reclaim code assume we have enough fr=
+ee
+pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
+like to discuss the challenges in getting this merged upstream.
+https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
 
+Others needed for the discussion:
+Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Dec 10, 2015 at 8:13 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 9 Dec 2015 18:05:05 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
->
->> On Wed, Dec 09, 2015 at 02:28:36PM -0800, Andrew Morton wrote:
->> > On Wed, 9 Dec 2015 13:58:58 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
->> > > The calls to tcp_init_cgroup() appear earlier in the series than "mm:
->> > > memcontrol: hook up vmpressure to socket pressure". However, they get
->> > > moved around a few times so fixing it earlier means respinning the
->> > > series. Andrew, it's up to you whether we take the bisectability hit
->> > > for !CONFIG_INET && CONFIG_MEMCG (how common is this?) or whether you
->> > > want me to resend the series.
->> >
->> > hm, drat, I was suspecting dependency issues here, but a test build
->> > said it was OK.
->> >
->> > Actually, I was expecting this patch series to depend on the linux-next
->> > cgroup2 changes, but that doesn't appear to be the case.  *should* this
->> > series be staged after the cgroup2 code?
->>
->> Code-wise they are independent. My stuff is finishing up the new memcg
->> control knobs, the cgroup2 stuff is changing how and when those knobs
->> are exposed from within the cgroup core. I'm not relying on any recent
->> changes in the cgroup core AFAICS, so the order shouldn't matter here.
->
-> OK, thanks.
->
->> > Regarding this particular series: yes, I think we can live with a
->> > bisection hole for !CONFIG_INET && CONFIG_MEMCG users.  But I'm not
->> > sure why we're discussing bisection issues, because Arnd's build
->> > failure occurs with everything applied?
->>
->> Arnd's patches apply to the top of the stack, but they address issues
->> introduced early in the series and the problematic code gets touched a
->> lot in subsequent patches. E.g. the first build breakage is in ("net:
->> tcp_memcontrol: simplify linkage between socket and page counter")
->> when the tcp_init_cgroup() and tcp_destroy_cgroup() function calls get
->> moved around and lose the CONFIG_INET protection.
->
-> Yeah, this is a pain.  I think I'll fold Arnd's fix into
-> mm-memcontrol-introduce-config_memcg_legacy_kmem.patch (which is staged
-> after all the other MM patches and after linux-next) and will pretend I
-> didn't know about the issue ;)
->
->> Anyway, if we can live with the bisection caveat then Arnd's fixes on
->> top of the kmem series look good to me. Depending on what Vladimir
->> thinks we might want to replace the CONFIG_SLOB fix with something
->> else later on, but that shouldn't be a problem, either.
->
-> I don't have a fix for the CONFIG_SLOB&&CONFIG_MEMCG issue yet.  I
-> agree that it would be best to make the combination work correctly
-> rather than banning it, but that does require a bit of runtime testing.
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+  (2) CMA allocation failures due to pinned pages in the region:
+      We allow only movable allocation from the CMA region to enable us
+to migrate those pages later when we get a CMA allocation request. But
+if we pin those movable pages, we will fail the migration which can result
+in CMA allocation failure. One such report can be found here.
+http://article.gmane.org/gmane.linux.kernel.mm/136738
+
+Peter Zijlstra's VM_PINNED patch series should help in fixing the issue. I =
+would
+like to discuss what needs to be done to get this patch series merged upstr=
+eam
+https://lkml.org/lkml/2014/5/26/345 (VM_PINNED)
+
+Others needed for the discussion:
+Peter Zijlstra <peterz@infradead.org>
+
+* Improvements to tlb flush
+    Archiectures like ppc64 can do range based tlb flush and for that we ne=
+ed
+to know the page size used to map the virtual address range. I would like
+to discuss changes to mmu gather and tlb flush api that will help in effici=
+ent
+implementation of tlb flush for ppc64.
+   (1) MMU gather improvements
+       https://github.com/kvaneesh/linux/commit/215b9c7c03bb8d742349e2aefaa=
+dcf8cc0c04dd8
+       https://github.com/kvaneesh/linux/commit/43bd9e91a841bbc9e3c6ee56a4d=
+12ed00019718c
+   (2) different APIs to flush hugepage tlb mappings.
+       https://github.com/kvaneesh/linux/commit/b8a78933fea93cb0b2978868e59=
+a0a4b12eb92eb
+       https://github.com/kvaneesh/linux/commit/049d361a59a3342c2ce5a4feae6=
+1dce4974af226
+
+NOTE: I haven't posted these changes yet to the list because of dependent p=
+atches getting reviewed. But should
+have them available on the list before LSF/MM.
+
+* HMM status (Heterogeneous Memory Management)
+
+  I would like to discuss the roadblocks w.r.t merging HMM patchset upstrea=
+m.
+http://article.gmane.org/gmane.linux.kernel.mm/140229
+
+Others needed for the discussion:
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
