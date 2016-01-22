@@ -1,62 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B946B0255
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 15:30:32 -0500 (EST)
-Received: by mail-io0-f182.google.com with SMTP id 77so99644500ioc.2
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:30:32 -0800 (PST)
-Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
-        by mx.google.com with ESMTPS id sb8si7231851igb.39.2016.01.22.12.30.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 12:30:32 -0800 (PST)
-Received: by mail-io0-x243.google.com with SMTP id k127so8489441iok.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:30:32 -0800 (PST)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C18876B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 16:31:16 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id yy13so47407638pab.3
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 13:31:16 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id r70si11924479pfr.123.2016.01.22.13.31.15
+        for <linux-mm@kvack.org>;
+        Fri, 22 Jan 2016 13:31:15 -0800 (PST)
+Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
+References: <201601230229.C4kUiPa1%fengguang.wu@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56A29FA2.5090409@intel.com>
+Date: Fri, 22 Jan 2016 13:31:14 -0800
 MIME-Version: 1.0
-In-Reply-To: <56A28613.5070104@de.ibm.com>
-References: <20151228211015.GL2194@uranus>
-	<CA+55aFzxT02gGCAokDFich=kjsf1VtvL=i315Uk9p=HRrCAY5Q@mail.gmail.com>
-	<56A28613.5070104@de.ibm.com>
-Date: Fri, 22 Jan 2016 12:30:31 -0800
-Message-ID: <CA+55aFwPeMhGj47DLvD7BsUd66TjxmX4_Aw9SHihmmqZue-GeA@mail.gmail.com>
-Subject: Re: [PATCH RFC] mm: Rework virtual memory accounting
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <201601230229.C4kUiPa1%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Andrew Morton <akpm@linuxfoundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, srikar@linux.vnet.ibm.com, vbabka@suse.cz, jack@suse.cz
 
-On Fri, Jan 22, 2016 at 11:42 AM, Christian Borntraeger
-<borntraeger@de.ibm.com> wrote:
->
-> Just want to mention that this patch breaks older versions of valgrind
-> (including the current release)
-> https://bugs.kde.org/show_bug.cgi?id=357833
+On 01/22/2016 10:16 AM, kbuild test robot wrote:
+> [auto build test ERROR on next-20160122]
+> [also build test ERROR on v4.4]
+> [cannot apply to drm/drm-next linuxtv-media/master v4.4-rc8 v4.4-rc7 v4.4-rc6]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
 
-Ugh. Looks like valgrind is doing something that fundamentally can't
-be "tweaked" around in the algorithm. Setting the data limit to zero
-will never work with any model that starts accounting any mmap, so we
-can't just tweak things a bit..
+Heh, good job lkp. :)
 
-> It is fixed in trunk (and even triggered some good cleanups, so the valgrind
-> developers do NOT want it to get reverted).
-
-Hmm. If we start getting complaints from users, I suspect we'll just
-have to revert. The fact that the valgrind developers are ok with the
-change doesn't much matter - all that matters is whether users are ok
-with it.
-
-The only saving grace is that valgrind is fairly specialized, so it's
-not like it breaks some core workflow. But I could easily see people
-who run valgrind as part of some regression suite having their
-day-to-day work broken.
-
-So I'll let it slide for now, but if I start seeing complaints, I
-think we'll just have to revert and wait for fixed valgrind versions
-to actually percolate out to people and re-do it later.. (The
-"percolate out to people" tends to take a _loong_ time, though).
-
-                 Linus
+For the others on this thread, my build testing was screwed up and I was
+missing the nommu builds.  Should be fixed up from here on out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
