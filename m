@@ -1,109 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BEC66B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 23:41:19 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id n128so35207482pfn.3
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 20:41:19 -0800 (PST)
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
-        by mx.google.com with ESMTPS id gy5si6782613pac.83.2016.01.21.20.41.17
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF6E6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 00:39:16 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id vt7so54452203obb.1
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 21:39:16 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0071.outbound.protection.outlook.com. [104.47.2.71])
+        by mx.google.com with ESMTPS id j5si4214937obz.28.2016.01.21.21.39.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jan 2016 20:41:18 -0800 (PST)
-Received: from localhost
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 22 Jan 2016 10:11:15 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0M4fD7c44892252
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:11:14 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0M4fDqg026753
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 10:11:13 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-Date: Fri, 22 Jan 2016 10:11:12 +0530
-Message-ID: <87k2n2usyf.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 21 Jan 2016 21:39:15 -0800 (PST)
+Subject: Re: [PATCH, REGRESSION v3] mm: make apply_to_page_range more robust
+References: <56A06EC7.9060106@nextfour.com>
+ <alpine.DEB.2.10.1601211511230.9813@chino.kir.corp.google.com>
+From: =?UTF-8?Q?Mika_Penttil=c3=a4?= <mika.penttila@nextfour.com>
+Message-ID: <56A1C074.6040602@nextfour.com>
+Date: Fri, 22 Jan 2016 07:39:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <alpine.DEB.2.10.1601211511230.9813@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+
+On 01/22/2016 01:12 AM, David Rientjes wrote:
+> On Thu, 21 Jan 2016, Mika PenttilA? wrote:
+> 
+>> Recent changes (4.4.0+) in module loader triggered oops on ARM : 
+>>
+>> The module in question is in-tree module :
+>> drivers/misc/ti-st/st_drv.ko
+>>
+>> The BUG is here :
+>>
+>> [ 53.638335] ------------[ cut here ]------------
+>> [ 53.642967] kernel BUG at mm/memory.c:1878!
+>> [ 53.647153] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+>> [ 53.652987] Modules linked in:
+>> [ 53.656061] CPU: 0 PID: 483 Comm: insmod Not tainted 4.4.0 #3
+>> [ 53.661808] Hardware name: Freescale i.MX6 Quad/DualLite (Device Tree)
+>> [ 53.668338] task: a989d400 ti: 9e6a2000 task.ti: 9e6a2000
+>> [ 53.673751] PC is at apply_to_page_range+0x204/0x224
+>> [ 53.678723] LR is at change_memory_common+0x90/0xdc
+>> [ 53.683604] pc : [<800ca0ec>] lr : [<8001d668>] psr: 600b0013
+>> [ 53.683604] sp : 9e6a3e38 ip : 8001d6b4 fp : 7f0042fc
+>> [ 53.695082] r10: 00000000 r9 : 9e6a3e90 r8 : 00000080
+>> [ 53.700309] r7 : 00000000 r6 : 7f008000 r5 : 7f008000 r4 : 7f008000
+>> [ 53.706837] r3 : 8001d5a4 r2 : 7f008000 r1 : 7f008000 r0 : 80b8d3c0
+>> [ 53.713368] Flags: nZCv IRQs on FIQs on Mode SVC_32 ISA ARM Segment user
+>> [ 53.720504] Control: 10c5387d Table: 2e6b804a DAC: 00000055
+>> [ 53.726252] Process insmod (pid: 483, stack limit = 0x9e6a2210)
+>> [ 53.732173] Stack: (0x9e6a3e38 to 0x9e6a4000)
+>> [ 53.736532] 3e20: 7f007fff 7f008000
+>> [ 53.744714] 3e40: 80b8d3c0 80b8d3c0 00000000 7f007000 7f00426c 7f008000 00000000 7f008000
+>> [ 53.752895] 3e60: 7f004140 7f008000 00000000 00000080 00000000 00000000 7f0042fc 8001d668
+>> [ 53.761076] 3e80: 9e6a3e90 00000000 8001d6b4 7f00426c 00000080 00000000 9e6a3f58 7f004140
+>> [ 53.769257] 3ea0: 7f004240 7f00414c 00000000 8008bbe0 00000000 7f000000 00000000 00000000
+>> [ 53.777438] 3ec0: a8b12f00 0001cfd4 7f004250 7f004240 80b8159c 00000000 000000e0 7f0042fc
+>> [ 53.785619] 3ee0: c183d000 000074f8 000018fd 00000000 0b30000c 00000000 00000000 7f002024
+>> [ 53.793800] 3f00: 00000002 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+>> [ 53.801980] 3f20: 00000000 00000000 00000000 00000000 00000040 00000000 00000003 0001cfd4
+>> [ 53.810161] 3f40: 0000017b 8000f7e4 9e6a2000 00000000 00000002 8008c498 c183d000 000074f8
+>> [ 53.818342] 3f60: c1841588 c1841409 c1842950 00005000 000052a0 00000000 00000000 00000000
+>> [ 53.826523] 3f80: 00000023 00000024 0000001a 0000001e 00000016 00000000 00000000 00000000
+>> [ 53.834703] 3fa0: 003e3d60 8000f640 00000000 00000000 00000003 0001cfd4 00000000 003e3d60
+>> [ 53.842884] 3fc0: 00000000 00000000 003e3d60 0000017b 003e3d20 7eabc9d4 76f2c000 00000002
+>> [ 53.851065] 3fe0: 7eabc990 7eabc980 00016320 76e81d00 600b0010 00000003 00000000 00000000
+>> [ 53.859256] [<800ca0ec>] (apply_to_page_range) from [<8001d668>] (change_memory_common+0x90/0xdc)
+>> [ 53.868139] [<8001d668>] (change_memory_common) from [<8008bbe0>] (load_module+0x194c/0x2068)
+>> [ 53.876671] [<8008bbe0>] (load_module) from [<8008c498>] (SyS_finit_module+0x64/0x74)
+>> [ 53.884512] [<8008c498>] (SyS_finit_module) from [<8000f640>] (ret_fast_syscall+0x0/0x34)
+>> [ 53.892694] Code: e0834104 eaffffbc e51a1008 eaffffac (e7f001f2)
+>> [ 53.898792] ---[ end trace fe43fc78ebde29a3 ]---
+>>
+> 
+> NACK to your patch as it is just covering up buggy code silently.  The 
+> problem needs to be addressed in change_memory_common() to return if there 
+> is no size to change (numpages == 0).  It's a two line fix to that 
+> function.
+> 
+
+That surely would make this particular problem disappear on ARM. But, we probably get similar behavior on other arches too (arm64 at least).
+
+Also, you are suggesting it is ok to call set_memory_xx() with numpages==0, but bug to call apply_to_page_range() with size==0 ? 
+I think these are similar apis with a size type of argument. Functions taking a range [start, end) are a different story and should be illegal to call start==end.
+
+Also, taking a fast look at all call sites of apply_to_page_range not all are checking for !size (some Xen code for instance) and could trigger a kernel BUG (potentially triggerable from user code). So something that was meant to help finding buggy code could be turned into an easy way to DOS. 
+
+Thanks,
+--Mika
 
 
-Hi,
 
-I would like to attend LSF/MM this year (2016).
-
-My main interest is in MM related topics although I am also interested
-in the btrfs status discussion (particularly related to subpage size block
-size topic), if we are having one. Most of my recent work in the kernel is
-related to adding ppc64 support for different MM features. My current focus
-is on adding Linux support for the new radix MMU model of Power9.
-
-Topics of interest include:
-
-* CMA allocator issues:
-  (1) order zero allocation failures:
-      We are observing order zero non-movable allocation failures in kernel
-with CMA configured. We don't start a reclaim because our free memory check
-does not consider free_cma. Hence the reclaim code assume we have enough fr=
-ee
-pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
-like to discuss the challenges in getting this merged upstream.
-https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
-
-Others needed for the discussion:
-Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-  (2) CMA allocation failures due to pinned pages in the region:
-      We allow only movable allocation from the CMA region to enable us
-to migrate those pages later when we get a CMA allocation request. But
-if we pin those movable pages, we will fail the migration which can result
-in CMA allocation failure. One such report can be found here.
-http://article.gmane.org/gmane.linux.kernel.mm/136738
-
-Peter Zijlstra's VM_PINNED patch series should help in fixing the issue. I =
-would
-like to discuss what needs to be done to get this patch series merged upstr=
-eam
-https://lkml.org/lkml/2014/5/26/345 (VM_PINNED)
-
-Others needed for the discussion:
-Peter Zijlstra <peterz@infradead.org>
-
-* Improvements to tlb flush
-    Archiectures like ppc64 can do range based tlb flush and for that we ne=
-ed
-to know the page size used to map the virtual address range. I would like
-to discuss changes to mmu gather and tlb flush api that will help in effici=
-ent
-implementation of tlb flush for ppc64.
-   (1) MMU gather improvements
-       https://github.com/kvaneesh/linux/commit/215b9c7c03bb8d742349e2aefaa=
-dcf8cc0c04dd8
-       https://github.com/kvaneesh/linux/commit/43bd9e91a841bbc9e3c6ee56a4d=
-12ed00019718c
-   (2) different APIs to flush hugepage tlb mappings.
-       https://github.com/kvaneesh/linux/commit/b8a78933fea93cb0b2978868e59=
-a0a4b12eb92eb
-       https://github.com/kvaneesh/linux/commit/049d361a59a3342c2ce5a4feae6=
-1dce4974af226
-
-NOTE: I haven't posted these changes yet to the list because of dependent p=
-atches getting reviewed. But should
-have them available on the list before LSF/MM.
-
-* HMM status (Heterogeneous Memory Management)
-
-  I would like to discuss the roadblocks w.r.t merging HMM patchset upstrea=
-m.
-http://article.gmane.org/gmane.linux.kernel.mm/140229
-
-Others needed for the discussion:
-J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-
--aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
