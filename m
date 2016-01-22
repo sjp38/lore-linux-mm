@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f48.google.com (mail-lf0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FD2F6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 15:20:12 -0500 (EST)
-Received: by mail-lf0-f48.google.com with SMTP id m198so54112381lfm.0
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:20:11 -0800 (PST)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id j8si3369014lfd.169.2016.01.22.12.20.10
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A8146B0254
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 15:21:08 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id cy9so46843730pac.0
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:21:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id yu1si11564778pac.9.2016.01.22.12.21.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jan 2016 12:20:10 -0800 (PST)
-Received: by mail-lf0-x241.google.com with SMTP id n70so4695845lfn.1
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 12:20:10 -0800 (PST)
-Date: Fri, 22 Jan 2016 23:20:07 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
+        Fri, 22 Jan 2016 12:21:07 -0800 (PST)
+Date: Fri, 22 Jan 2016 12:21:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH RFC] mm: Rework virtual memory accounting
-Message-ID: <20160122202007.GG2262@uranus>
-References: <20151228211015.GL2194@uranus>
- <CA+55aFzxT02gGCAokDFich=kjsf1VtvL=i315Uk9p=HRrCAY5Q@mail.gmail.com>
- <56A28613.5070104@de.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20160122122106.c4e85c4501a049ad123e6153@linux-foundation.org>
 In-Reply-To: <56A28613.5070104@de.ibm.com>
+References: <20151228211015.GL2194@uranus>
+	<CA+55aFzxT02gGCAokDFich=kjsf1VtvL=i315Uk9p=HRrCAY5Q@mail.gmail.com>
+	<56A28613.5070104@de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Andrew Morton <akpm@linuxfoundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Vegard Nossum <vegard.nossum@oracle.com>, Andrew Morton <akpm@linuxfoundation.org>, Willy Tarreau <w@1wt.eu>, Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, stable@vger.kernel.org, Greg KH <greg@kroah.com>
 
-On Fri, Jan 22, 2016 at 08:42:11PM +0100, Christian Borntraeger wrote:
+On Fri, 22 Jan 2016 20:42:11 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+
 > On 12/28/2015 11:22 PM, Linus Torvalds wrote:
 > > On Mon, Dec 28, 2015 at 1:10 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 > >> Really sorry for delays. Konstantin, I slightly updated the
@@ -48,12 +47,13 @@ On Fri, Jan 22, 2016 at 08:42:11PM +0100, Christian Borntraeger wrote:
 > fix, others might not, so if we consider this for stable, things might break
 > here and there, but in general this looks like a good cleanup.
 > 
-> Christian
 
-Thanks a huge for the report, Christian. I think this won't go for stable
-for now, lets see if there are other tools which do the same trick setting
-up zero to rlimit data. If indeed this would make more problems than solve
-it, we might need to find a way for backward compatibility.
+OK, thanks - that sounds reasonable, although a bit worrisome - what
+other userspace was affected?  In some cases people won't find out for
+years...
+
+84638335900f199 ("mm: rework virtual memory accounting") did not have
+the cc:stable tag so it should avoid the -stable dragnet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
