@@ -1,37 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C18876B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 16:31:16 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id yy13so47407638pab.3
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 13:31:16 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id r70si11924479pfr.123.2016.01.22.13.31.15
-        for <linux-mm@kvack.org>;
-        Fri, 22 Jan 2016 13:31:15 -0800 (PST)
-Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
-References: <201601230229.C4kUiPa1%fengguang.wu@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <56A29FA2.5090409@intel.com>
-Date: Fri, 22 Jan 2016 13:31:14 -0800
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7A26B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 16:50:01 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id 65so48365132pff.2
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 13:50:01 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id d66si12004358pfj.173.2016.01.22.13.50.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jan 2016 13:50:00 -0800 (PST)
+Received: by mail-pa0-x22e.google.com with SMTP id yy13so47604139pab.3
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 13:50:00 -0800 (PST)
+Date: Fri, 22 Jan 2016 13:49:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH, REGRESSION v4] mm: make apply_to_page_range more
+ robust
+In-Reply-To: <56A1E147.9050803@nextfour.com>
+Message-ID: <alpine.DEB.2.10.1601221347080.27098@chino.kir.corp.google.com>
+References: <56A1E147.9050803@nextfour.com>
 MIME-Version: 1.0
-In-Reply-To: <201601230229.C4kUiPa1%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-1958869735-1453499398=:27098"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, srikar@linux.vnet.ibm.com, vbabka@suse.cz, jack@suse.cz
+To: =?UTF-8?Q?Mika_Penttil=C3=A4?= <mika.penttila@nextfour.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
 
-On 01/22/2016 10:16 AM, kbuild test robot wrote:
-> [auto build test ERROR on next-20160122]
-> [also build test ERROR on v4.4]
-> [cannot apply to drm/drm-next linuxtv-media/master v4.4-rc8 v4.4-rc7 v4.4-rc6]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Heh, good job lkp. :)
+--397176738-1958869735-1453499398=:27098
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-For the others on this thread, my build testing was screwed up and I was
-missing the nommu builds.  Should be fixed up from here on out.
+On Fri, 22 Jan 2016, Mika PenttilA? wrote:
+
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 30991f8..9178ee6 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1871,7 +1871,9 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+>         unsigned long end = addr + size;
+>         int err;
+>  
+> -       BUG_ON(addr >= end);
+> +       if (WARN_ON(addr >= end))
+> +               return -EINVAL;
+> +
+>         pgd = pgd_offset(mm, addr);
+>         do {
+>                 next = pgd_addr_end(addr, end);
+
+This would be fine as a second patch in a 2-patch series.  The first patch 
+should fix change_memory_common() for numpages == 0 by returning without 
+ever calling this function and triggering the WARN_ON().  Let's fix the 
+problem.
+--397176738-1958869735-1453499398=:27098--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
