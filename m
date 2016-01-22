@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 646506B0009
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 18:15:38 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id e65so31150593pfe.0
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 15:15:38 -0800 (PST)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id qc8si4958221pac.39.2016.01.21.15.15.37
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D1FA76B0009
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2016 19:28:43 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id cy9so31532772pac.0
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 16:28:43 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c20si5342148pfj.65.2016.01.21.16.28.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jan 2016 15:15:37 -0800 (PST)
-Received: by mail-pf0-x235.google.com with SMTP id q63so31959436pfb.1
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2016 15:15:37 -0800 (PST)
-Date: Thu, 21 Jan 2016 15:15:35 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timers.
-In-Reply-To: <201601212044.AFD30275.OSFFOFJHMVLOQt@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1601211513550.9813@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1601141500370.22665@chino.kir.corp.google.com> <201601151936.IJJ09362.OOFLtVFJHSFQMO@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1601191502230.7346@chino.kir.corp.google.com> <201601202336.BJC04687.FOFVOQJOLSFtMH@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1601201538070.18155@chino.kir.corp.google.com> <201601212044.AFD30275.OSFFOFJHMVLOQt@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 21 Jan 2016 16:28:43 -0800 (PST)
+Date: Thu, 21 Jan 2016 16:28:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/8] Support multi-order entries in the radix tree
+Message-Id: <20160121162841.9116af529b6ce0ce6b00aefc@linux-foundation.org>
+In-Reply-To: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Shuah Khan <shuahkh@osg.samsung.com>
 
-On Thu, 21 Jan 2016, Tetsuo Handa wrote:
+On Tue, 19 Jan 2016 09:25:25 -0500 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
 
-> I consider phases for managing system-wide OOM events as follows.
-> 
->   (1) Design and use a system with appropriate memory capacity in mind.
-> 
->   (2) When (1) failed, the OOM killer is invoked. The OOM killer selects
->       an OOM victim and allow that victim access to memory reserves by
->       setting TIF_MEMDIE to it.
-> 
->   (3) When (2) did not solve the OOM condition, start allowing all tasks
->       access to memory reserves by your approach.
-> 
->   (4) When (3) did not solve the OOM condition, start selecting more OOM
->       victims by my approach.
-> 
->   (5) When (4) did not solve the OOM condition, trigger the kernel panic.
-> 
+> Before diving into the important modifications, I add Andrew Morton's
+> radix tree test harness to the tree in patches 1 & 2.  It was absolutely
+> invaluable in catching some of my bugs.
 
-This was all mentioned previously, and I suggested that the panic only 
-occur when memory reserves have been depleted, otherwise there is still 
-the potential for the livelock to be solved.  That is a patch that would 
-apply today, before any of this work, since we never want to loop 
-endlessly in the page allocator when memory reserves are fully depleted.
+(cc Shuah for tools/testing/selftests)
 
-This is all really quite simple.
+Cool, thanks for doing that.  I think a lot of this came from Nick Piggin
+a long time ago, but I was bad about attributing it.
+
+I wonder how good the coverage is - I don't think it's been seriously
+updated since 2010 and presumably it isn't hitting on later-added
+features.  Doesn't matter - someone will add things later if needed. 
+And when I bug them to update the test harness ;) 
+
+I don't think it will link on my system - I have no liburcu by default.
+I wonder if this will break lots of people's "make kselftest".
+
+I'll get all this into -next tomorrow.  Hopefully Ross will have time
+to go through it sometime (non-urgently - it's 4.6 stuff).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
