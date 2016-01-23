@@ -1,150 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EFDC6B0009
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 15:52:36 -0500 (EST)
-Received: by mail-lf0-f53.google.com with SMTP id m198so65359352lfm.0
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 12:52:36 -0800 (PST)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id p2si5905635lfb.55.2016.01.23.12.52.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Jan 2016 12:52:34 -0800 (PST)
-Received: by mail-lf0-x244.google.com with SMTP id n70so5891778lfn.1
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 12:52:34 -0800 (PST)
-Subject: [PATCH v3] mm: warn about VmData over RLIMIT_DATA
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 23 Jan 2016 23:52:29 +0300
-Message-ID: <145358234948.18573.2681359119037889087.stgit@zurg>
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 26E6E6B0253
+	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 17:23:03 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id ik10so13129920igb.1
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 14:23:03 -0800 (PST)
+Date: Sun, 24 Jan 2016 09:22:57 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160123222257.GG6033@dastard>
+References: <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
+ <20160115202131.GH6330@kvack.org>
+ <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
+ <20160120195957.GV6033@dastard>
+ <CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com>
+ <20160120204449.GC12249@kvack.org>
+ <20160120214546.GX6033@dastard>
+ <20160120215630.GD12249@kvack.org>
+ <20160123042449.GE6033@dastard>
+ <20160123045024.GA32488@kvack.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160123045024.GA32488@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linuxfoundation.org>, linux-kernel@vger.kernel.org
-Cc: Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-This patch fixes 84638335900f ("mm: rework virtual memory accounting")
+On Fri, Jan 22, 2016 at 11:50:24PM -0500, Benjamin LaHaise wrote:
+> On Sat, Jan 23, 2016 at 03:24:49PM +1100, Dave Chinner wrote:
+> > On Wed, Jan 20, 2016 at 04:56:30PM -0500, Benjamin LaHaise wrote:
+> > > On Thu, Jan 21, 2016 at 08:45:46AM +1100, Dave Chinner wrote:
+> > > > Filesystems *must take locks* in the IO path. We have to serialise
+> > > > against truncate and other operations at some point in the IO path
+> > > > (e.g. block mapping vs concurrent allocation and/or removal), and
+> > > > that can only be done sanely with sleeping locks.  There is no way
+> > > > of knowing in advance if we are going to block, and so either we
+> > > > always use threads for IO submission or we accept that occasionally
+> > > > the AIO submission will block.
+> > > 
+> > > I never said we don't take locks.  Still, we can be more intelligent 
+> > > about when and where we do so.  With the nonblocking pread() and pwrite() 
+> > > changes being proposed elsewhere, we can do the part of the I/O that 
+> > > doesn't block in the submitter, which is a huge win when possible.
+> > > 
+> > > As it stands today, *every* buffered write takes i_mutex immediately 
+> > > on entering ->write().  That one issue alone accounts for a nearly 10x 
+> > > performance difference between an O_SYNC write and an O_DIRECT write, 
+> > 
+> > Yes, that locking is for correct behaviour, not for performance
+> > reasons.  The i_mutex is providing the required semantics for POSIX
+> > write(2) functionality - writes must serialise against other reads
+> > and writes so that they are completed atomically w.r.t. other IO.
+> > i.e. writes to the same offset must not interleave, not should reads
+> > be able to see partial data from a write in progress.
+> 
+> No, the locks are not *required* for POSIX semantics, they are a legacy
+> of how Linux filesystem code has been implemented and how we ensure the
+> necessary internal consistency needed inside our filesystems is
+> provided.
 
-Before that commit RLIMIT_DATA have control only over size of the brk region.
-But that change have caused problems with all existing versions of valgrind,
-because it set RLIMIT_DATA to zero.
+That may be the case, but I really don't see how you can provide
+such required functionality without some kind of exclusion barrier
+in place. No matter how you implement that exclusion, it can be seen
+effectively as a lock.
 
-This patch fixes rlimit check (limit actually in bytes, not pages)
-and by default turns it into warning which prints at first VmData misuse:
-"mmap: top (795): VmData 516096 exceed data ulimit 512000. Will be forbidden soon."
+Even if the filesystem doesn't use the i_mutex for exclusion to the
+page cache, it has to use some kind of lock as that IO still needs
+to be serialised against any truncate, hole punch or other extent
+manipulation that is currently in progress on the inode...
 
-Behavior is controlled by boot param ignore_rlimit_data=y/n and by sysfs
-/sys/module/kernel/parameters/ignore_rlimit_data. For now it set to "y".
+> There are other ways to achieve the required semantics that
+> do not involve a single giant lock for the entire file/inode.
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-Link: http://lkml.kernel.org/r/20151228211015.GL2194@uranus
-Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
- Documentation/kernel-parameters.txt |    5 +++++
- mm/internal.h                       |   16 ++++++++++++++++
- mm/mmap.c                           |   23 +++++++++++++++++------
- 3 files changed, 38 insertions(+), 6 deletions(-)
+Most performant filesystems don't have a "single giant lock"
+anymore. The problem is that the VFS expects the i_mutex to be held
+for certain operations in the IO path and the VFS lock order
+heirarchy makes it impossible to do anything but "get i_mutex
+first".  That's the problem that needs to be solved - the VFS
+enforces the "one giant lock" model, even when underlying
+filesystems do not require it.
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index cfb2c0f1a4a8..e3507c2e14b0 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1461,6 +1461,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			could change it dynamically, usually by
- 			/sys/module/printk/parameters/ignore_loglevel.
- 
-+	ignore_rlimit_data
-+			Ignore RLIMIT_DATA setting for data mappings,
-+			print warning at first misuse. Could be changed by
-+			/sys/module/kernel/parameters/ignore_rlimit_data.
-+
- 	ihash_entries=	[KNL]
- 			Set number of hash buckets for inode cache.
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index ed8b5ffcf9b1..6e976302ddd8 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -216,6 +216,22 @@ static inline bool is_cow_mapping(vm_flags_t flags)
- 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
- }
- 
-+static inline bool is_exec_mapping(vm_flags_t flags)
-+{
-+	return (flags & (VM_EXEC | VM_WRITE)) == VM_EXEC;
-+}
-+
-+static inline bool is_stack_mapping(vm_flags_t flags)
-+{
-+	return (flags & (VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN))) != 0;
-+}
-+
-+static inline bool is_data_mapping(vm_flags_t flags)
-+{
-+	return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
-+					VM_WRITE | VM_SHARED)) == VM_WRITE;
-+}
-+
- /* mm/util.c */
- void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
- 		struct vm_area_struct *prev, struct rb_node *rb_parent);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 84b12624ceb0..cfc0cdca421e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -42,6 +42,7 @@
- #include <linux/memory.h>
- #include <linux/printk.h>
- #include <linux/userfaultfd_k.h>
-+#include <linux/moduleparam.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -69,6 +70,8 @@ const int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
- int mmap_rnd_compat_bits __read_mostly = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
- #endif
- 
-+static bool ignore_rlimit_data = true;
-+core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
- 
- static void unmap_region(struct mm_struct *mm,
- 		struct vm_area_struct *vma, struct vm_area_struct *prev,
-@@ -2982,9 +2985,17 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
- 	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
- 		return false;
- 
--	if ((flags & (VM_WRITE | VM_SHARED | (VM_STACK_FLAGS &
--				(VM_GROWSUP | VM_GROWSDOWN)))) == VM_WRITE)
--		return mm->data_vm + npages <= rlimit(RLIMIT_DATA);
-+	if (is_data_mapping(flags) &&
-+	    mm->data_vm + npages > rlimit(RLIMIT_DATA) >> PAGE_SHIFT) {
-+		if (ignore_rlimit_data)
-+			pr_warn_once("%s (%d): VmData %lu exceed data ulimit "
-+				     "%lu. Will be forbidden soon.\n",
-+				     current->comm, current->pid,
-+				     (mm->data_vm + npages) << PAGE_SHIFT,
-+				     rlimit(RLIMIT_DATA));
-+		else
-+			return false;
-+	}
- 
- 	return true;
- }
-@@ -2993,11 +3004,11 @@ void vm_stat_account(struct mm_struct *mm, vm_flags_t flags, long npages)
- {
- 	mm->total_vm += npages;
- 
--	if ((flags & (VM_EXEC | VM_WRITE)) == VM_EXEC)
-+	if (is_exec_mapping(flags))
- 		mm->exec_vm += npages;
--	else if (flags & (VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)))
-+	else if (is_stack_mapping(flags))
- 		mm->stack_vm += npages;
--	else if ((flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
-+	else if (is_data_mapping(flags))
- 		mm->data_vm += npages;
- }
- 
+i.e. we could quite happily remove the i_mutex completely from the XFS
+buffered IO path without breaking anything, but we can't because
+that results in the VFS throwing warnings that we don't hold the
+i_mutex (e.g like when removing the SUID bits on write). So there's
+lots of VFS functionality that needs to be turned on it's head
+before the i_mutex can be removed from the IO path.
+
+> And no, I
+> am not saying that doing this is simple or easy to do.
+
+Sure. That's always been the problem. Even when a split IO/metadata
+locking strategy like what XFS uses (and other modern filesystems
+are moving to internally) is suggested as a model for solving
+these problems, the usual response instant dismissal with
+"no way, that's unworkable" and so nothing ever changes...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
