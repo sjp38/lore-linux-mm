@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 854A36B0009
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 10:47:58 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id ik10so9881242igb.1
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 07:47:58 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p67si19965618iop.77.2016.01.23.07.47.57
+Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5F46B0009
+	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 11:00:07 -0500 (EST)
+Received: by mail-lf0-f45.google.com with SMTP id m198so63259975lfm.0
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 08:00:07 -0800 (PST)
+Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
+        by mx.google.com with ESMTPS id l76si5352420lfe.241.2016.01.23.08.00.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 23 Jan 2016 07:47:57 -0800 (PST)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm,oom: make oom_killer_disable() killable.
-Date: Sun, 24 Jan 2016 00:47:20 +0900
-Message-Id: <1453564040-7492-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Sat, 23 Jan 2016 08:00:05 -0800 (PST)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1aN0bc-0006WZ-4y
+	for linux-mm@kvack.org; Sat, 23 Jan 2016 17:00:04 +0100
+Received: from host.my-tss.com ([host.my-tss.com])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 17:00:04 +0100
+Received: from hugh by host.my-tss.com with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 17:00:04 +0100
+From: Hugh Greenberg <hugh@galliumos.org>
+Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
+Date: Sat, 23 Jan 2016 15:57:21 +0000 (UTC)
+Message-ID: <loom.20160123T165232-709@post.gmane.org>
+References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com> <20160121161656.GA16564@node.shutemov.name>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-While oom_killer_disable() is called by freeze_processes() after all user
-threads except the current thread are frozen, it is possible that kernel
-threads invoke the OOM killer and sends SIGKILL to the current thread due
-to sharing the thawed victim's memory. Therefore, checking for SIGKILL is
-preferable than TIF_MEMDIE.
+Kirill A. Shutemov <kirill <at> shutemov.name> writes:
+> 
+> Could you try to insert "late_initcall(set_recommended_min_free_kbytes);"
+> back and check if makes any difference.
+> 
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6ebc0351..914451a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -613,15 +613,11 @@ void exit_oom_victim(struct task_struct *tsk)
- bool oom_killer_disable(void)
- {
- 	/*
--	 * Make sure to not race with an ongoing OOM killer
--	 * and that the current is not the victim.
-+	 * Make sure to not race with an ongoing OOM killer. Check that the
-+	 * current is not killed (possibly due to sharing the victim's memory).
- 	 */
--	mutex_lock(&oom_lock);
--	if (test_thread_flag(TIF_MEMDIE)) {
--		mutex_unlock(&oom_lock);
-+	if (mutex_lock_killable(&oom_lock))
- 		return false;
--	}
--
- 	oom_killer_disabled = true;
- 	mutex_unlock(&oom_lock);
- 
--- 
-1.8.3.1
+We tested adding late_initcall(set_recommended_min_free_kbytes); 
+back in 4.1.14 and it made a huge difference. We aren't sure if the
+issue is 100% fixed, but it could be. We will keep testing it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
