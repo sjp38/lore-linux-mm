@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 680086B0253
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 10:07:47 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id ba1so86370515obb.3
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 07:07:47 -0800 (PST)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0053.outbound.protection.outlook.com. [157.55.234.53])
-        by mx.google.com with ESMTPS id o10si10067114obm.41.2016.01.23.07.07.46
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D95326B0009
+	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 10:39:31 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id yy13so57088716pab.3
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 07:39:31 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id af6si18018966pad.226.2016.01.23.07.39.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 23 Jan 2016 07:07:46 -0800 (PST)
-From: <mika.penttila@nextfour.com>
-Subject: [PATCH 4/4] make apply_to_page_range() more robust.
-Date: Sat, 23 Jan 2016 17:05:43 +0200
-Message-ID: <1453561543-14756-5-git-send-email-mika.penttila@nextfour.com>
-In-Reply-To: <1453561543-14756-1-git-send-email-mika.penttila@nextfour.com>
-References: <1453561543-14756-1-git-send-email-mika.penttila@nextfour.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 23 Jan 2016 07:39:30 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm,oom: do not loop !__GFP_FS allocation if the OOM killer is disabled.
+Date: Sun, 24 Jan 2016 00:38:51 +0900
+Message-Id: <1453563531-4831-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, linux@arm.linux.org.uk, =?UTF-8?q?Mika=20Penttil=C3=A4?= <mika.penttila@nextfour.com>
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>
 
-From: Mika PenttilA? <mika.penttila@nextfour.com>
+After the OOM killer is disabled during suspend operation,
+any !__GFP_NOFAIL && __GFP_FS allocations are forced to fail.
+Thus, any !__GFP_NOFAIL && !__GFP_FS allocations should be
+forced to fail as well.
 
-
-Now the arm/arm64 don't trigger this BUG_ON() any more,
-but WARN_ON() is here enough to catch buggy callers
-but still let potential other !size callers pass with warning.
-
-Signed-off-by: Mika PenttilA? mika.penttila@nextfour.com
-
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: David Rientjes <rientjes@google.com>
 ---
- mm/memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 30991f8..9178ee6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1871,7 +1871,9 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- 	unsigned long end = addr + size;
- 	int err;
- 
--	BUG_ON(addr >= end);
-+	if (WARN_ON(addr >= end))
-+		return -EINVAL;
-+
- 	pgd = pgd_offset(mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6463426..2f71caa 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2749,8 +2749,12 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 			 * XXX: Page reclaim didn't yield anything,
+ 			 * and the OOM killer can't be invoked, but
+ 			 * keep looping as per tradition.
++			 *
++			 * But do not keep looping if oom_killer_disable()
++			 * was already called, for the system is trying to
++			 * enter a quiescent state during suspend.
+ 			 */
+-			*did_some_progress = 1;
++			*did_some_progress = !oom_killer_disabled;
+ 			goto out;
+ 		}
+ 		if (pm_suspended_storage())
 -- 
-1.9.1
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
