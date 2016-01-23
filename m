@@ -1,102 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ADF86B0005
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 05:00:40 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id x4so53471786lbm.0
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 02:00:40 -0800 (PST)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id pp7si4757680lbc.46.2016.01.23.02.00.38
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E796B0009
+	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 10:06:16 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id is5so85208088obc.0
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 07:06:16 -0800 (PST)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0096.outbound.protection.outlook.com. [157.55.234.96])
+        by mx.google.com with ESMTPS id l5si1768029oed.99.2016.01.23.07.06.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Jan 2016 02:00:39 -0800 (PST)
-Received: by mail-lf0-x244.google.com with SMTP id z62so5353223lfd.0
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 02:00:38 -0800 (PST)
-Subject: [PATCH v2] mm: warn about VmData over RLIMIT_DATA
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 23 Jan 2016 13:00:34 +0300
-Message-ID: <145354323486.16567.6251495688050187292.stgit@zurg>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 23 Jan 2016 07:06:15 -0800 (PST)
+From: <mika.penttila@nextfour.com>
+Subject: [PATCH 0/4] set_memory_xx fixes
+Date: Sat, 23 Jan 2016 17:05:39 +0200
+Message-ID: <1453561543-14756-1-git-send-email-mika.penttila@nextfour.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linuxfoundation.org>, linux-kernel@vger.kernel.org
-Cc: Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, linux@arm.linux.org.uk
 
-This patch fixes 84638335900f ("mm: rework virtual memory accounting")
+Recent changes (4.4.0+) in module loader triggered oops on ARM.
 
-Before that commit RLIMIT_DATA have control only over size of the brk region.
-But that change have caused problems with all existing versions of valgrind,
-because it set RLIMIT_DATA to zero.
+The module in question is in-tree module :
+drivers/misc/ti-st/st_drv.ko
 
-This patch fixes RLIMIT_DATA check (limit actually in bytes, not pages)
-and by default turns it into warning which prints at first VmData misuse.
-Like: "VmData 516096 exceeds RLIMIT_DATA 512000"
+The BUG is here :
 
-Behavior is controlled by boot param ignore_rlimit_data=y/n and by sysfs
-/sys/module/kernel/parameters/ignore_rlimit_data. For now it set to "y".
+[ 53.638335] ------------[ cut here ]------------
+[ 53.642967] kernel BUG at mm/memory.c:1878!
+[ 53.647153] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+[ 53.652987] Modules linked in:
+[ 53.656061] CPU: 0 PID: 483 Comm: insmod Not tainted 4.4.0 #3
+[ 53.661808] Hardware name: Freescale i.MX6 Quad/DualLite (Device Tree)
+[ 53.668338] task: a989d400 ti: 9e6a2000 task.ti: 9e6a2000
+[ 53.673751] PC is at apply_to_page_range+0x204/0x224
+[ 53.678723] LR is at change_memory_common+0x90/0xdc
+[ 53.683604] pc : [<800ca0ec>] lr : [<8001d668>] psr: 600b0013
+[ 53.683604] sp : 9e6a3e38 ip : 8001d6b4 fp : 7f0042fc
+[ 53.695082] r10: 00000000 r9 : 9e6a3e90 r8 : 00000080
+[ 53.700309] r7 : 00000000 r6 : 7f008000 r5 : 7f008000 r4 : 7f008000
+[ 53.706837] r3 : 8001d5a4 r2 : 7f008000 r1 : 7f008000 r0 : 80b8d3c0
+[ 53.713368] Flags: nZCv IRQs on FIQs on Mode SVC_32 ISA ARM Segment user
+[ 53.720504] Control: 10c5387d Table: 2e6b804a DAC: 00000055
+[ 53.726252] Process insmod (pid: 483, stack limit = 0x9e6a2210)
+[ 53.732173] Stack: (0x9e6a3e38 to 0x9e6a4000)
+[ 53.736532] 3e20: 7f007fff 7f008000
+[ 53.744714] 3e40: 80b8d3c0 80b8d3c0 00000000 7f007000 7f00426c 7f008000 00000000 7f008000
+[ 53.752895] 3e60: 7f004140 7f008000 00000000 00000080 00000000 00000000 7f0042fc 8001d668
+[ 53.761076] 3e80: 9e6a3e90 00000000 8001d6b4 7f00426c 00000080 00000000 9e6a3f58 7f004140
+[ 53.769257] 3ea0: 7f004240 7f00414c 00000000 8008bbe0 00000000 7f000000 00000000 00000000
+[ 53.777438] 3ec0: a8b12f00 0001cfd4 7f004250 7f004240 80b8159c 00000000 000000e0 7f0042fc
+[ 53.785619] 3ee0: c183d000 000074f8 000018fd 00000000 0b30000c 00000000 00000000 7f002024
+[ 53.793800] 3f00: 00000002 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[ 53.801980] 3f20: 00000000 00000000 00000000 00000000 00000040 00000000 00000003 0001cfd4
+[ 53.810161] 3f40: 0000017b 8000f7e4 9e6a2000 00000000 00000002 8008c498 c183d000 000074f8
+[ 53.818342] 3f60: c1841588 c1841409 c1842950 00005000 000052a0 00000000 00000000 00000000
+[ 53.826523] 3f80: 00000023 00000024 0000001a 0000001e 00000016 00000000 00000000 00000000
+[ 53.834703] 3fa0: 003e3d60 8000f640 00000000 00000000 00000003 0001cfd4 00000000 003e3d60
+[ 53.842884] 3fc0: 00000000 00000000 003e3d60 0000017b 003e3d20 7eabc9d4 76f2c000 00000002
+[ 53.851065] 3fe0: 7eabc990 7eabc980 00016320 76e81d00 600b0010 00000003 00000000 00000000
+[ 53.859256] [<800ca0ec>] (apply_to_page_range) from [<8001d668>] (change_memory_common+0x90/0xdc)
+[ 53.868139] [<8001d668>] (change_memory_common) from [<8008bbe0>] (load_module+0x194c/0x2068)
+[ 53.876671] [<8008bbe0>] (load_module) from [<8008c498>] (SyS_finit_module+0x64/0x74)
+[ 53.884512] [<8008c498>] (SyS_finit_module) from [<8000f640>] (ret_fast_syscall+0x0/0x34)
+[ 53.892694] Code: e0834104 eaffffbc e51a1008 eaffffac (e7f001f2)
+[ 53.898792] ---[ end trace fe43fc78ebde29a3 ]---
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-Link: http://lkml.kernel.org/r/20151228211015.GL2194@uranus
-Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
- Documentation/kernel-parameters.txt |    5 +++++
- mm/mmap.c                           |   12 +++++++++---
- 2 files changed, 14 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index cfb2c0f1a4a8..d728caf7aa52 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1461,6 +1461,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			could change it dynamically, usually by
- 			/sys/module/printk/parameters/ignore_loglevel.
- 
-+	ignore_rlimit_data
-+			Ignore RLIMIT_DATA setting for private mappings,
-+			print warning at first misuse. Could be changed by
-+			/sys/module/kernel/parameters/ignore_rlimit_data.
-+
- 	ihash_entries=	[KNL]
- 			Set number of hash buckets for inode cache.
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 84b12624ceb0..46d2ed6cb0df 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -42,6 +42,7 @@
- #include <linux/memory.h>
- #include <linux/printk.h>
- #include <linux/userfaultfd_k.h>
-+#include <linux/moduleparam.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -69,6 +70,8 @@ const int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
- int mmap_rnd_compat_bits __read_mostly = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
- #endif
- 
-+static bool ignore_rlimit_data = true;
-+core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
- 
- static void unmap_region(struct mm_struct *mm,
- 		struct vm_area_struct *vma, struct vm_area_struct *prev,
-@@ -2982,9 +2985,12 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
- 	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
- 		return false;
- 
--	if ((flags & (VM_WRITE | VM_SHARED | (VM_STACK_FLAGS &
--				(VM_GROWSUP | VM_GROWSDOWN)))) == VM_WRITE)
--		return mm->data_vm + npages <= rlimit(RLIMIT_DATA);
-+	if ((flags & (VM_WRITE | VM_SHARED |
-+		(VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)))) == VM_WRITE &&
-+	    mm->data_vm + npages > rlimit(RLIMIT_DATA) >> PAGE_SHIFT &&
-+	    !WARN_ONCE(ignore_rlimit_data, "VmData %lu exceeds RLIMIT_DATA %lu",
-+		       (mm->data_vm + npages)<<PAGE_SHIFT, rlimit(RLIMIT_DATA)))
-+		return false;
- 
- 	return true;
- }
+apply_to_page_range gets zero length resulting in triggering :
+
+  BUG_ON(addr >= end)
+
+This is regression and a consequence of changes in module section handling.
+
+Fix by making arm and arm64 check for zero size update in change_memory_common(),
+letting set_memory_xx(addr, 0); succeed. This makes behavior similar to x86.
+
+Also, BUG_ON() in apply_to_page_range is too strong, make it WARN_ON()
+and return -EINVAL instead. There may be other caller expecting !size
+to succeed.
+
+Patch 1/4 fixes an unrelated but wrong check in the same codepath.
+
+--Mika
+
+
+[PATCH 1/4] arm: Fix wrong bounds check.
+[PATCH 2/4] arm: let set_memory_xx(addr, 0) succeed.
+[PATCH 3/4] arm64: let set_memory_xx(addr, 0) succeed.
+[PATCH 4/4] make apply_to_page_range() more robust.
+
+ arch/arm/mm/pageattr.c   | 5 ++++-
+ arch/arm64/mm/pageattr.c | 3 +++
+ mm/memory.c              | 4 +++-
+ 3 files changed, 10 insertions(+), 2 deletions(-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
