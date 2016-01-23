@@ -1,92 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 710386B0253
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2016 23:39:41 -0500 (EST)
-Received: by mail-io0-f174.google.com with SMTP id g73so109889408ioe.3
-        for <linux-mm@kvack.org>; Fri, 22 Jan 2016 20:39:41 -0800 (PST)
-Date: Sat, 23 Jan 2016 15:39:22 +1100
-From: Dave Chinner <david@fromorbit.com>
+Date: Fri, 22 Jan 2016 23:50:24 -0500
+From: Benjamin LaHaise <bcrl@kvack.org>
 Subject: Re: [PATCH 07/13] aio: enabled thread based async fsync
-Message-ID: <20160123043922.GF6033@dastard>
-References: <20160112033708.GE6033@dastard>
- <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com>
- <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com>
- <20160115202131.GH6330@kvack.org>
- <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com>
- <20160120195957.GV6033@dastard>
- <CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com>
- <20160120204449.GC12249@kvack.org>
- <20160120214546.GX6033@dastard>
- <CA+55aFzA8cdvYyswW6QddM60EQ8yocVfT4+mYJSoKW9HHf3rHQ@mail.gmail.com>
-MIME-Version: 1.0
+Message-ID: <20160123045024.GA32488@kvack.org>
+References: <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com> <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com> <20160115202131.GH6330@kvack.org> <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com> <20160120195957.GV6033@dastard> <CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com> <20160120204449.GC12249@kvack.org> <20160120214546.GX6033@dastard> <20160120215630.GD12249@kvack.org> <20160123042449.GE6033@dastard>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzA8cdvYyswW6QddM60EQ8yocVfT4+mYJSoKW9HHf3rHQ@mail.gmail.com>
+In-Reply-To: <20160123042449.GE6033@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Benjamin LaHaise <bcrl@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-aio@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jan 20, 2016 at 03:07:26PM -0800, Linus Torvalds wrote:
-> On Jan 20, 2016 1:46 PM, "Dave Chinner" <david@fromorbit.com> wrote:
-> > >
-> > > > That said, I also agree that it would be interesting to hear what the
-> > > > performance impact is for existing performance-sensitive users. Could
-> > > > we make that "aio_may_use_threads()" case be unconditional, making
-> > > > things simpler?
-> > >
-> > > Making it unconditional is a goal, but some work is required before that
-> > > can be the case.  The O_DIRECT issue is one such matter -- it requires
-> some
-> > > changes to the filesystems to ensure that they adhere to the
-> non-blocking
-> > > nature of the new interface (ie taking i_mutex is a Bad Thing that users
-> > > really do not want to be exposed to; if taking it blocks, the code
-> should
-> > > punt to a helper thread).
-> >
-> > Filesystems *must take locks* in the IO path.
+On Sat, Jan 23, 2016 at 03:24:49PM +1100, Dave Chinner wrote:
+> On Wed, Jan 20, 2016 at 04:56:30PM -0500, Benjamin LaHaise wrote:
+> > On Thu, Jan 21, 2016 at 08:45:46AM +1100, Dave Chinner wrote:
+> > > Filesystems *must take locks* in the IO path. We have to serialise
+> > > against truncate and other operations at some point in the IO path
+> > > (e.g. block mapping vs concurrent allocation and/or removal), and
+> > > that can only be done sanely with sleeping locks.  There is no way
+> > > of knowing in advance if we are going to block, and so either we
+> > > always use threads for IO submission or we accept that occasionally
+> > > the AIO submission will block.
+> > 
+> > I never said we don't take locks.  Still, we can be more intelligent 
+> > about when and where we do so.  With the nonblocking pread() and pwrite() 
+> > changes being proposed elsewhere, we can do the part of the I/O that 
+> > doesn't block in the submitter, which is a huge win when possible.
+> > 
+> > As it stands today, *every* buffered write takes i_mutex immediately 
+> > on entering ->write().  That one issue alone accounts for a nearly 10x 
+> > performance difference between an O_SYNC write and an O_DIRECT write, 
 > 
-> I agree.
+> Yes, that locking is for correct behaviour, not for performance
+> reasons.  The i_mutex is providing the required semantics for POSIX
+> write(2) functionality - writes must serialise against other reads
+> and writes so that they are completed atomically w.r.t. other IO.
+> i.e. writes to the same offset must not interleave, not should reads
+> be able to see partial data from a write in progress.
+
+No, the locks are not *required* for POSIX semantics, they are a legacy
+of how Linux filesystem code has been implemented and how we ensure the
+necessary internal consistency needed inside our filesystems is
+provided.  There are other ways to achieve the required semantics that
+do not involve a single giant lock for the entire file/inode.  And no, I
+am not saying that doing this is simple or easy to do.
+
+		-ben
+
+> Direct IO does not conform to POSIX concurrency standards, so we
+> don't have to serialise concurrent IO against each other.
 > 
-> I also would prefer to make the aio code have as little interaction and
-> magic flags with the filesystem code as humanly possible.
+> > and using O_SYNC writes is a legitimate use-case for users who want 
+> > caching of data by the kernel (duplicating that functionality is a huge 
+> > amount of work for an application, plus if you want the cache to be 
+> > persistent between runs of an app, you have to get the kernel to do it).
 > 
-> I wonder if we could make the rough rule be that the only synchronous case
-> the aio code ever has is more or less entirely in the generic vfs caches?
-> IOW, could we possibly aim to make the rule be that if we call down to the
-> filesystem layer, we do that within a thread?
+> Yes, but you take what you get given. Buffered IO sucks in many ways;
+> this is just one of them.
+> 
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
 
-We have to go through the filesystem layer locking even on page
-cache hits, and even if we get into the page cache copy-in/copy-out
-code we can still get stuck on things like page locks and page
-faults. Even if hte pages are cached, we can still get caught on
-deeper filesystem locks for block mapping. e.g. read from a hole,
-get zeros back, page cache is populated. Write data into range,
-fetch page, realise it's unmapped, need to do block/delayed
-allocation which requires filesystem locks and potentially
-transactions and IO....
-
-> We could do things like that for the name loopkup for openat() too, where
-> we could handle the successful RCU loopkup synchronously, but then if we
-> fall out of RCU mode we'd do the thread.
-
-We'd have to do quite a bit of work to unwind back out to the AIO
-layer before we can dispatch the open operation again in a thread,
-wouldn't we?
-
-So I'm not convinced that conditional thread dispatch makes sense. I
-think the simplest thing to do is make all AIO use threads/
-workqueues by default, and if the application is smart enough to
-only do things that minimise blocking they can turn off the threaded
-dispatch and get the same behaviour they get now.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
