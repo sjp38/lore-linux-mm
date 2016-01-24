@@ -1,51 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E10A96B0253
-	for <linux-mm@kvack.org>; Sun, 24 Jan 2016 11:57:12 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id t15so21266116igr.0
-        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 08:57:12 -0800 (PST)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id c1si19540703igx.68.2016.01.24.08.57.12
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 799116B0009
+	for <linux-mm@kvack.org>; Sun, 24 Jan 2016 12:07:08 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id r129so38517541wmr.0
+        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 09:07:08 -0800 (PST)
+Received: from lxorguk.ukuu.org.uk (lxorguk.ukuu.org.uk. [81.2.110.251])
+        by mx.google.com with ESMTPS id 2si22854928wjr.171.2016.01.24.09.07.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Jan 2016 08:57:12 -0800 (PST)
-Received: by mail-ig0-x22f.google.com with SMTP id h5so17962733igh.0
-        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 08:57:12 -0800 (PST)
+        Sun, 24 Jan 2016 09:07:07 -0800 (PST)
+Date: Sun, 24 Jan 2016 17:06:56 +0000
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: [LSF/MM TOPIC] VM containers
+Message-ID: <20160124170656.6c5460a3@lxorguk.ukuu.org.uk>
+In-Reply-To: <439BF796-53D3-48C9-8578-A0733DDE8001@intel.com>
+References: <56A2511F.1080900@redhat.com>
+	<439BF796-53D3-48C9-8578-A0733DDE8001@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1601221046020.17984@east.gentwo.org>
-References: <569FAC90.5030407@oracle.com>
-	<alpine.DEB.2.20.1601200954420.23983@east.gentwo.org>
-	<20160120212806.GA26965@dhcp22.suse.cz>
-	<alpine.DEB.2.20.1601201552590.26496@east.gentwo.org>
-	<20160121082402.GA29520@dhcp22.suse.cz>
-	<alpine.DEB.2.20.1601210941540.7063@east.gentwo.org>
-	<20160121165148.GF29520@dhcp22.suse.cz>
-	<alpine.DEB.2.20.1601211130580.7741@east.gentwo.org>
-	<20160122140418.GB19465@dhcp22.suse.cz>
-	<alpine.DEB.2.20.1601220950290.17929@east.gentwo.org>
-	<20160122161201.GC19465@dhcp22.suse.cz>
-	<alpine.DEB.2.20.1601221046020.17984@east.gentwo.org>
-Date: Sun, 24 Jan 2016 08:57:11 -0800
-Message-ID: <CA+55aFwHzFMoZzXypH4t_3kgn3=mihP9ViNHQOu-e2jrTro65A@mail.gmail.com>
-Subject: Re: mm, vmstat: kernel BUG at mm/vmstat.c:1408!
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Nakajima, Jun" <jun.nakajima@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, "lsf-pc@lists.linuxfoundation.org" <lsf-pc@lists.linuxfoundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>
 
-On Fri, Jan 22, 2016 at 8:46 AM, Christoph Lameter <cl@linux.com> wrote:
->
-> Subject: vmstat: Remove BUG_ON from vmstat_update
->
-> If we detect that there is nothing to do just set the flag and do not check
-> if it was already set before. [..]
+> > That changes some of the goals the memory management subsystem has,
+> > from "use all the resources effectively" to "use as few resources as
+> > necessary, in case the host needs the memory for something else".
 
-Ok, I am assuming this is in Andrew's queue already, but this bug hit
-my machine overnight, so I'm applying it directly..
+Also "and take guidance/provide telemetry" - because you want to tune the
+VM behaviours based upon policy and to learn from them for when you re-run
+that container.
 
-                Linus
+> Beyond memory consumption, I would be interested whether we can harden the kernel by the paravirt interfaces for memory protection in VMs (if any). For example, the hypervisor could write-protect part of the page tables or kernel data structures in VMs, and does it help?
+
+There are four behaviours I can think of, some of which you see in
+various hypervisors and security hardening systems
+
+- die on write (a write here causes a security trap and termination after
+  the guest has marked the page range die on write, and it cannot be
+  unmarked). The guest OS at boot can for example mark all it's code as
+  die-on-write.
+- irrevocably read only (VM never allows page to be rewritten by guest
+  after the guest marks the page range irrevocably r/o)
+- asynchronous faulting (pages the guest thinks are in it's memory but
+  are in fact on the hosts swap cause a subscribable fault in the guest
+  so that it can (where possible) be context switched
+- free if needed - marking pages as freed up and either you get a page
+  back as it was or a fault and a zeroed page
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
