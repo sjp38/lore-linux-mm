@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E53256B0009
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2016 23:31:52 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id yy13so62669727pab.3
-        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 20:31:52 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id sb2si6383555pac.161.2016.01.23.20.31.51
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B6816B0009
+	for <linux-mm@kvack.org>; Sun, 24 Jan 2016 00:22:57 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id q63so66013497pfb.1
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2016 21:22:57 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id vv1si22762595pab.34.2016.01.23.21.22.55
         for <linux-mm@kvack.org>;
-        Sat, 23 Jan 2016 20:31:52 -0800 (PST)
-Date: Sun, 24 Jan 2016 12:33:34 +0800
+        Sat, 23 Jan 2016 21:22:56 -0800 (PST)
+Date: Sun, 24 Jan 2016 13:24:37 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: include/linux/sched.h:2157:56: warning: 'noio_flag' may be used
- uninitialized in this function
-Message-ID: <201601241230.92gIML1v%fengguang.wu@intel.com>
+Subject: lib/raid6/int8.c:328:1: warning: the frame size of 1276 bytes is
+ larger than 1024 bytes
+Message-ID: <201601241336.PSNZ2H60%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="azLHFNyN32YCQGCU"
+Content-Type: multipart/mixed; boundary="mP3DRpeJDSE+ciuQ"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,7 +22,7 @@ To: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---azLHFNyN32YCQGCU
+--mP3DRpeJDSE+ciuQ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -38,89 +38,21 @@ reproduce:
 
 All warnings (new ones prefixed by >>):
 
-   In file included from arch/x86/include/asm/xor_32.h:544:0,
-                    from arch/x86/include/asm/xor.h:491,
-                    from crypto/xor.c:25:
-   include/asm-generic/xor.h: In function 'xor_32regs_p_5':
->> include/asm-generic/xor.h:678:1: warning: the frame size of 1604 bytes is larger than 1024 bytes [-Wframe-larger-than=]
+   lib/raid6/int8.c: In function 'raid6_int8_xor_syndrome':
+>> lib/raid6/int8.c:328:1: warning: the frame size of 1276 bytes is larger than 1024 bytes [-Wframe-larger-than=]
     }
     ^
-   include/asm-generic/xor.h: In function 'xor_32regs_p_4':
-   include/asm-generic/xor.h:599:1: warning: the frame size of 1340 bytes is larger than 1024 bytes [-Wframe-larger-than=]
-    }
-    ^
-   include/asm-generic/xor.h: In function 'xor_32regs_p_3':
-   include/asm-generic/xor.h:531:1: warning: the frame size of 1068 bytes is larger than 1024 bytes [-Wframe-larger-than=]
-    }
-    ^
-   include/asm-generic/xor.h: In function 'xor_8regs_p_5':
-   include/asm-generic/xor.h:429:1: warning: the frame size of 1604 bytes is larger than 1024 bytes [-Wframe-larger-than=]
-    }
-    ^
-   include/asm-generic/xor.h: In function 'xor_8regs_p_4':
-   include/asm-generic/xor.h:392:1: warning: the frame size of 1340 bytes is larger than 1024 bytes [-Wframe-larger-than=]
-    }
-    ^
-   include/asm-generic/xor.h: In function 'xor_8regs_p_3':
-   include/asm-generic/xor.h:358:1: warning: the frame size of 1068 bytes is larger than 1024 bytes [-Wframe-larger-than=]
-    }
-    ^
---
-   In file included from include/linux/blkdev.h:4:0,
-                    from drivers/md/dm-bufio.h:12,
-                    from drivers/md/dm-bufio.c:9:
-   drivers/md/dm-bufio.c: In function 'alloc_buffer':
->> include/linux/sched.h:2157:56: warning: 'noio_flag' may be used uninitialized in this function [-Wmaybe-uninitialized]
-     current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
-                                                           ^
-   drivers/md/dm-bufio.c:389:11: note: 'noio_flag' was declared here
-     unsigned noio_flag;
-              ^
-
-vim +/noio_flag +2157 include/linux/sched.h
-
-21caf2fc Ming Lei   2013-02-22  2141  static inline gfp_t memalloc_noio_flags(gfp_t flags)
-21caf2fc Ming Lei   2013-02-22  2142  {
-21caf2fc Ming Lei   2013-02-22  2143  	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
-934f3072 Junxiao Bi 2014-10-09  2144  		flags &= ~(__GFP_IO | __GFP_FS);
-21caf2fc Ming Lei   2013-02-22  2145  	return flags;
-21caf2fc Ming Lei   2013-02-22  2146  }
-21caf2fc Ming Lei   2013-02-22  2147  
-21caf2fc Ming Lei   2013-02-22  2148  static inline unsigned int memalloc_noio_save(void)
-21caf2fc Ming Lei   2013-02-22  2149  {
-21caf2fc Ming Lei   2013-02-22  2150  	unsigned int flags = current->flags & PF_MEMALLOC_NOIO;
-21caf2fc Ming Lei   2013-02-22  2151  	current->flags |= PF_MEMALLOC_NOIO;
-21caf2fc Ming Lei   2013-02-22  2152  	return flags;
-21caf2fc Ming Lei   2013-02-22  2153  }
-21caf2fc Ming Lei   2013-02-22  2154  
-21caf2fc Ming Lei   2013-02-22  2155  static inline void memalloc_noio_restore(unsigned int flags)
-21caf2fc Ming Lei   2013-02-22  2156  {
-21caf2fc Ming Lei   2013-02-22 @2157  	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
-21caf2fc Ming Lei   2013-02-22  2158  }
-21caf2fc Ming Lei   2013-02-22  2159  
-1d4457f9 Kees Cook  2014-05-21  2160  /* Per-process atomic flags. */
-a2b86f77 Zefan Li   2014-09-25  2161  #define PFA_NO_NEW_PRIVS 0	/* May not gain new privileges. */
-2ad654bc Zefan Li   2014-09-25  2162  #define PFA_SPREAD_PAGE  1      /* Spread page cache over cpuset */
-2ad654bc Zefan Li   2014-09-25  2163  #define PFA_SPREAD_SLAB  2      /* Spread some slab caches over cpuset */
-2ad654bc Zefan Li   2014-09-25  2164  
-1d4457f9 Kees Cook  2014-05-21  2165  
-
-:::::: The code at line 2157 was first introduced by commit
-:::::: 21caf2fc1931b485483ddd254b634fa8f0099963 mm: teach mm by current context info to not do I/O during memory allocation
-
-:::::: TO: Ming Lei <ming.lei@canonical.com>
-:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---azLHFNyN32YCQGCU
+--mP3DRpeJDSE+ciuQ
 Content-Type: application/octet-stream
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICBVTpFYAAy5jb25maWcAjFxbc9s4sn6fX6HKnIfdh0x8iydbp/wAkaCEEUEwAChbfmF5
+H4sICGJdpFYAAy5jb25maWcAjFxbc9s4sn6fX6HKnIfdh0x8iydbp/wAkaCEEUEwAChbfmF5
 bGXGtY6d9WU2+fenGyBFAGpoTl5SQjcuBBrdX1/gn3/6ecbeXp++3rze3948PPyY/bF93D7f
 vG7vZl/uH7b/OyvVrFF2xkthfwHm+v7x7fuH+9NP57OzX85+OZqtts+P24dZ8fT45f6PN+h5
 //T408/AWaimEov+/Gwu7Oz+Zfb49Dp72b7+NLRffTrvT08ufgS/px+iMVZ3hRWq6UteqJLr
@@ -508,7 +440,7 @@ Z7mnLma0Y9vBc0IbTHAb6Lv5B2Q9fj0ODUJv/xywJLqo8UeNTmQVFrC49Rlu3WXhX8wRaWuT
 eBjzOHcZSfujojTEUd75fp/6gOX5PECnCunZ5EXhNdz0EhMNl90vs6oITI4Bo59q9tLQ9Qpo
 yEnCdJiqKdIdCyD/D1kty3sMPwEA
 
---azLHFNyN32YCQGCU--
+--mP3DRpeJDSE+ciuQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
