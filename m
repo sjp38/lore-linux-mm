@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B244D6B0253
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:33:55 -0500 (EST)
-Received: by mail-oi0-f52.google.com with SMTP id k206so93107487oia.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:33:55 -0800 (PST)
-Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com. [2607:f8b0:4003:c01::235])
-        by mx.google.com with ESMTPS id j6si18352919oem.25.2016.01.25.09.33.55
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 37CF16B0254
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:35:57 -0500 (EST)
+Received: by mail-ob0-f177.google.com with SMTP id vt7so121963972obb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:35:57 -0800 (PST)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id li7si18383577oeb.50.2016.01.25.09.35.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 09:33:55 -0800 (PST)
-Received: by mail-ob0-x235.google.com with SMTP id zv1so20561399obb.2
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:33:55 -0800 (PST)
+        Mon, 25 Jan 2016 09:35:56 -0800 (PST)
+Received: by mail-oi0-x22f.google.com with SMTP id p187so92052684oia.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:35:56 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1453742717-10326-2-git-send-email-matthew.r.wilcox@intel.com>
-References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com> <1453742717-10326-2-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1453742717-10326-3-git-send-email-matthew.r.wilcox@intel.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com> <1453742717-10326-3-git-send-email-matthew.r.wilcox@intel.com>
 From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 25 Jan 2016 09:33:35 -0800
-Message-ID: <CALCETrWNx=H=u2R+JKM6Dr3oMqeiBSS+hdrYrGT=BJ-JrEyL+w@mail.gmail.com>
-Subject: Re: [PATCH 1/3] x86: Honour passed pgprot in track_pfn_insert() and track_pfn_remap()
+Date: Mon, 25 Jan 2016 09:35:36 -0800
+Message-ID: <CALCETrWQdJFBMz+O3TtVfMwAapY1tJFg3PE+-Gjp7fOWkzrAAA@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: Convert vm_insert_pfn_prot to vmf_insert_pfn_prot
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -28,20 +28,46 @@ On Mon, Jan 25, 2016 at 9:25 AM, Matthew Wilcox
 <matthew.r.wilcox@intel.com> wrote:
 > From: Matthew Wilcox <willy@linux.intel.com>
 >
-> track_pfn_insert() overwrites the pgprot that is passed in with a value
-> based on the VMA's page_prot.  This is a problem for people trying to
-> do clever things with the new vm_insert_pfn_prot() as it will simply
-> overwrite the passed protection flags.  If we use the current value of
-> the pgprot as the base, then it will behave as people are expecting.
+> Other than the name, the vmf_ version takes a pfn_t parameter, and
+> returns a VM_FAULT_ code suitable for returning from a fault handler.
 >
-> Also fix track_pfn_remap() in the same way.
+> This patch also prevents vm_insert_pfn() from returning -EBUSY.
+> This is a good thing as several callers handled it incorrectly (and
+> none intentionally treat -EBUSY as a different case from 0).
+>
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> ---
+>  arch/x86/entry/vdso/vma.c |  6 +++---
+>  include/linux/mm.h        |  4 ++--
+>  mm/memory.c               | 31 ++++++++++++++++++-------------
+>  3 files changed, 23 insertions(+), 18 deletions(-)
+>
+> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+> index 7c912fe..660bb69 100644
+> --- a/arch/x86/entry/vdso/vma.c
+> +++ b/arch/x86/entry/vdso/vma.c
+> @@ -9,6 +9,7 @@
+>  #include <linux/sched.h>
+>  #include <linux/slab.h>
+>  #include <linux/init.h>
+> +#include <linux/pfn_t.h>
+>  #include <linux/random.h>
+>  #include <linux/elf.h>
+>  #include <linux/cpu.h>
+> @@ -131,10 +132,9 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+>         } else if (sym_offset == image->sym_hpet_page) {
+>  #ifdef CONFIG_HPET_TIMER
+>                 if (hpet_address && vclock_was_used(VCLOCK_HPET)) {
+> -                       ret = vm_insert_pfn_prot(
+> -                               vma,
+> +                       return vmf_insert_pfn_prot(vma,
+>                                 (unsigned long)vmf->virtual_address,
+> -                               hpet_address >> PAGE_SHIFT,
+> +                               phys_to_pfn_t(hpet_address, PFN_DEV),
+>                                 pgprot_noncached(PAGE_READONLY));
+>                 }
 
-Well that's embarrassing.  Presumably it worked for me because I only
-overrode the cacheability bits and lookup_memtype did the right thing.
-
-But shouldn't the PAT code change the memtype if vm_insert_pfn_prot
-requests it?  Or are there no callers that actually need that?  (HPET
-doesn't, because there's a plain old ioremapped mapping.)
+This would be even nicer if you added vmf_insert_pfn as well :)
 
 --Andy
 
