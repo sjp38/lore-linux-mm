@@ -1,76 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9AB6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:16:55 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id e65so87466961pfe.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:16:55 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hb8si11424690pac.55.2016.01.25.12.16.54
-        for <linux-mm@kvack.org>;
-        Mon, 25 Jan 2016 12:16:54 -0800 (PST)
-Subject: Re: [kernel-hardening] [RFC][PATCH 3/3] mm/page_poisoning.c: Allow
- for zero poisoning
-References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
- <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <56A682B5.8000603@intel.com>
-Date: Mon, 25 Jan 2016 12:16:53 -0800
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3716B0009
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 16:18:57 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id n5so100923868wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:18:57 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id lg10si31011343wjc.20.2016.01.25.13.18.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jan 2016 13:18:56 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id 123so13708574wmz.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:18:55 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160125165209.GH2948@linux.intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+	<CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
+	<100D68C7BA14664A8938383216E40DE0421657C5@fmsmsx111.amr.corp.intel.com>
+	<CA+ZsKJ4EMKRgdFQzUjRJOE48=tTJzHf66-60PnVRj7pxvmNgVg@mail.gmail.com>
+	<20160125165209.GH2948@linux.intel.com>
+Date: Mon, 25 Jan 2016 13:18:55 -0800
+Message-ID: <CA+ZsKJ5dRTtmqj-ErKn=hx8xqornAZ3i2kHWWNfLubrCQkZTiA@mail.gmail.com>
+Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX documentation
+From: Jared Hulbert <jaredeh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>
-Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Chris Brandt <Chris.Brandt@renesas.com>
 
-Thanks for doing this!  It all looks pretty straightforward.
+On Mon, Jan 25, 2016 at 8:52 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
+> On Sun, Jan 24, 2016 at 01:03:49AM -0800, Jared Hulbert wrote:
+>> I our defense we didn't know we were sinning at the time.
+>
+> Fair enough.  Cache flushing is Hard.
+>
+>> Can you walk me through the cache flushing hole?  How is it okay on
+>> X86 but not VIVT archs?  I'm missing something obvious here.
+>>
+>> I thought earlier that vm_insert_mixed() handled the necessary
+>> flushing.  Is that even the part you are worried about?
+>
+> No, that part should be fine.  My concern is about write() calls to files
+> which are also mmaped.  See Documentation/cachetlb.txt around line 229,
+> starting with "There exists another whole class of cpu cache issues" ...
 
-On 01/25/2016 08:55 AM, Laura Abbott wrote:
-> By default, page poisoning uses a poison value (0xaa) on free. If this
-> is changed to 0, the page is not only sanitized but zeroing on alloc
-> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
-> corruption from the poisoning is harder to detect. This feature also
-> cannot be used with hibernation since pages are not guaranteed to be
-> zeroed after hibernation.
+oh wow.  So aren't all the copy_to/from_user() variants specifically
+supposed to handle such cases?
 
-Ugh, that's a good point about hibernation.  I'm not sure how widely it
-gets used but it does look pretty widely enabled in distribution kernels.
+>> What flushing functions would you call if you did have a cache page.
+>
+> Well, that's the problem; they don't currently exist.
+>
+>> There are all kinds of cache flushing functions that work without a
+>> struct page. If nothing else the specialized ASM instructions that do
+>> the various flushes don't use struct page as a parameter.  This isn't
+>> the first I've run into the lack of a sane cache API.  Grep for
+>> inval_cache in the mtd drivers, should have been much easier.  Isn't
+>> the proper solution to fix update_mmu_cache() or build out a pageless
+>> cache flushing API?
+>>
+>> I don't get the explicit mapping solution.  What are you mapping
+>> where?  What addresses would be SHMLBA?  Phys, kernel, userspace?
+>
+> The problem comes in dax_io() where the kernel stores to an alias of the
+> user address (or reads from an alias of the user address).  Theoretically,
+> we should flush user addresses before we read from the kernel's alias,
+> and flush the kernel's alias after we store to it.
 
-Is this something that's fixable?  It seems like we could have the
-hibernation code run through and zero all the free lists.  Or, we could
-just disable the optimization at runtime when a hibernation is done.
+Reasoning this out loud here.  Please correct.
 
-Not that we _have_ to do any of this now, but if a runtime knob (like a
-sysctl) could be fun too.  I would be nice for folks to turn it on and
-off if they wanted the added security of "real" poisoning vs. the
-potential performance boost from this optimization.
+For the dax read case:
+- kernel virt is mapped to pfn
+- data is memcpy'd from kernel virt
 
-> +static inline bool should_zero(void)
-> +{
-> +	return !IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) ||
-> +		!page_poisoning_enabled();
-> +}
+For the dax write case:
+- kernel virt is mapped to pfn
+- data is memcpy'd to kernel virt
+- user virt map to pfn attempts to read
 
-I wonder if calling this "free_pages_prezeroed()" would make things a
-bit more clear when we use it in prep_new_page().
+Is that right?  I see the x86 does a nocache copy_to/from operation,
+I'm not familiar with the semantics of that call and it would take me
+a while to understand the assembly but I assume it's doing some magic
+opcodes that forces the writes down to physical memory with each
+load/store.  Does the the caching model of the x86 arch update the
+cache entries tied to the physical memory on update?
 
->  static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
->  								int alloc_flags)
->  {
-> @@ -1401,7 +1407,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
->  	kernel_map_pages(page, 1 << order, 1);
->  	kasan_alloc_pages(page, order);
->  
-> -	if (gfp_flags & __GFP_ZERO)
-> +	if (should_zero() && gfp_flags & __GFP_ZERO)
->  		for (i = 0; i < (1 << order); i++)
->  			clear_highpage(page + i);
+For architectures that don't do auto coherency magic...
 
-It's probably also worth pointing out that this can be a really nice
-feature to have in virtual machines where memory is being deduplicated.
- As it stands now, the free lists end up with gunk in them and tend not
-to be easy to deduplicate.  This patch would fix that.
+For reads:
+- User dcaches need flushing before kernel virtual mapping to ensure
+kernel reads latest data.  If the user has unflushed data in the
+dcache it would not be reflected in the read copy.
+This failure mode only is a problem if the filesystem is RW.
+
+For writes:
+- Unlike the read case we don't need up to date data for the user's
+mapping of a pfn.  However, the user will need to caches invalidated
+to get fresh data, so we should make sure to writeback any affected
+lines in the user caches so they don't get lost if we do an
+invalidate.  I suppose uncommitted data might corrupt the new data
+written from the kernel mapping if the cachelines get flushed later.
+- After the data is memcpy'ed to the kernel virt map the cache, and
+possibly the write buffers, should be flushed.  Without this flush the
+data might not ever get to the user mapped versions.
+- Assuming the user maps were all flushed at the outset they should be
+reloaded with fresh data on access.
+
+Do I get it more or less?
+
+> But if we create a new address for the kernel to use which lands on the
+> same cache line as the user's address (and this is what SHMLBA is used
+> to indicate), there is no incoherency between the kernel's view and the
+> user's view.  And no new cache flushing API is needed.
+
+So... how exactly would one force the kernel address to be at the
+SHMLBA boundary?
+
+> Is that clearer?  I'm not always good at explaining these things in a
+> way which makes sense to other people :-(
+
+Yeah.  I think I'm at 80% comprehension here.  Or at least I think I
+am.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
