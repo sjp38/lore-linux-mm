@@ -1,78 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id ACB366B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:08:48 -0500 (EST)
-Received: by mail-io0-f182.google.com with SMTP id g73so157708120ioe.3
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:08:48 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id d1si34011687ioe.179.2016.01.25.07.08.47
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B7EE6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:46:50 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id 123so70940738wmz.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:46:50 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
+        by mx.google.com with ESMTPS id lq9si29199117wjb.51.2016.01.25.07.46.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 07:08:47 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] proposals for topics
-References: <20160125133357.GC23939@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <56A63A6C.9070301@I-love.SAKURA.ne.jp>
-Date: Tue, 26 Jan 2016 00:08:28 +0900
-MIME-Version: 1.0
-In-Reply-To: <20160125133357.GC23939@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jan 2016 07:46:48 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm/memcontrol: avoid a spurious gcc warning
+Date: Mon, 25 Jan 2016 16:45:50 +0100
+Message-Id: <1453736756-1959377-3-git-send-email-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-arm-kernel@lists.infradead.org, Arnd Bergmann <arnd@arndb.de>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
->   Another issue is that GFP_NOFS is quite often used without any obvious
->   reason. It is not clear which lock is held and could be taken from
->   the reclaim path. Wouldn't it be much better if the no-recursion
->   behavior was bound to the lock scope rather than particular allocation
->   request? We already have something like this for PM
->   pm_res{trict,tore}_gfp_mask resp. memalloc_noio_{save,restore}. It
->   would be great if we could unify this and use the context based NOFS
->   in the FS.
+When CONFIG_DEBUG_VM is set, the various VM_BUG_ON() confuse gcc to
+the point where it cannot remember that 'memcg' is known to be initialized:
 
-Yes, I do want it. I think some of LSM hooks are called from GFP_NOFS context
-but it is too difficult for me to tell whether we are using GFP_NOFS correctly.
+mm/memcontrol.c: In function 'mem_cgroup_can_attach':
+mm/memcontrol.c:4791:9: warning: 'memcg' may be used uninitialized in this function [-Wmaybe-uninitialized]
 
->   First we shouldn't retry endlessly and rather fail the allocation and
->   allow the FS to handle the error. As per my experiments most FS cope
->   with that quite reasonably. Btrfs unfortunately handles many of those
->   failures by BUG_ON which is really unfortunate.
+On ARM gcc-5.1, the above happens when any two or more of the VM_BUG_ON()
+are active, but not when I remove most or all of them. This is clearly
+random behavior and the only way I've found to shut up the warning is
+to add an explicit initialization.
 
-If it turned out that we are using GFP_NOFS from LSM hooks correctly,
-I'd expect such GFP_NOFS allocations retry unless SIGKILL is pending.
-Filesystems might be able to handle GFP_NOFS allocation failures. But
-userspace might not be able to handle system call failures caused by
-GFP_NOFS allocation failures; OOM-unkillable processes might unexpectedly
-terminate as if they are OOM-killed. Would you please add GFP_KILLABLE
-to list of the topics?
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/memcontrol.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-> - OOM killer has been discussed a lot throughout this year. We have
->   discussed this topic the last year at LSF and there has been quite some
->   progress since then. We have async memory tear down for the OOM victim
->   [2] which should help in many corner cases. We are still waiting
->   to make mmap_sem for write killable which would help in some other
->   classes of corner cases. Whatever we do, however, will not work in
->   100% cases. So the primary question is how far are we willing to go to
->   support different corner cases. Do we want to have a
->   panic_after_timeout global knob, allow multiple OOM victims after
->   a timeout?
-
-A sequence for handling any corner case (as long as OOM killer is
-invoked) was proposal at
-http://lkml.kernel.org/r/201601222259.GJB90663.MLOJtFFOQFVHSO@I-love.SAKURA.ne.jp .
-
-> - sysrq+f to trigger the oom killer follows some heuristics used by the
->   OOM killer invoked by the system which means that it is unreliable
->   and it might skip to kill any task without any explanation why. The
->   semantic of the knob doesn't seem to clear and it has been even
->   suggested [3] to remove it altogether as an unuseful debugging aid. Is
->   this really a general consensus?
-
-Even if we remove SysRq-f from future kernels, please give us a fix for
-current kernels. ;-)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d06cae2de783..9340eb981653 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4762,6 +4762,7 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
+ 	 * multiple.
+ 	 */
+ 	p = NULL;
++	memcg = NULL;
+ 	cgroup_taskset_for_each_leader(leader, css, tset) {
+ 		WARN_ON_ONCE(p);
+ 		p = leader;
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
