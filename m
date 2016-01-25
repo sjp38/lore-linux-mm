@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 63849828E2
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:48:19 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l65so69425146wmf.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:48:19 -0800 (PST)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id BC00E828E2
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:48:22 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id b14so86759570wmb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:48:22 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gk5si29191533wjb.9.2016.01.25.07.48.18
+        by mx.google.com with ESMTPS id et14si29183269wjc.67.2016.01.25.07.48.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 07:48:18 -0800 (PST)
+        Mon, 25 Jan 2016 07:48:21 -0800 (PST)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v4 16/22] kmemleak: Convert kmemleak kthread into kthread worker API
-Date: Mon, 25 Jan 2016 16:45:05 +0100
-Message-Id: <1453736711-6703-17-git-send-email-pmladek@suse.com>
+Subject: [PATCH v4 17/22] ipmi: Convert kipmi kthread into kthread worker API
+Date: Mon, 25 Jan 2016 16:45:06 +0100
+Message-Id: <1453736711-6703-18-git-send-email-pmladek@suse.com>
 In-Reply-To: <1453736711-6703-1-git-send-email-pmladek@suse.com>
 References: <1453736711-6703-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
 Kthreads are currently implemented as an infinite loop. Each
 has its own variant of checks for terminating, freezing,
@@ -36,173 +36,234 @@ single thread for the work. It helps to make sure that it is
 available when needed. Also it allows a better control, e.g.
 define a scheduling priority.
 
-This patch converts the kmemleak kthread into the kthread worker
-API because it modifies the scheduling priority.
+This patch converts kipmi kthread into the kthread worker API because
+it modifies the scheduling priority. The change is quite straightforward.
 
-The result is a simple self-queuing work that just calls kmemleak_scan().
+First, we move the per-thread variable "busy_until" into the per-thread
+structure struct smi_info. As a side effect, we could omit one parameter
+in ipmi_thread_busy_wait(). On the other hand, the structure could not
+longer be passed with the const qualifier.
 
-The info messages and set_user_nice() are moved to the functions that
-start and stop the worker. These are also renamed to mention worker
-instead of thread.
+The value of "busy_until" is initialized when the kthread is created.
+Also the scheduling priority is set there. This helps to avoid an extra
+init work.
 
-We do not longer need to handle a spurious wakeup and count the remaining
-timeout. It is handled by the worker. The delayed work is queued after
-the full timeout passes.
+One iteration of the kthread cycle is moved to a delayed work function.
+The different delays between the cycles are solved the following way:
 
-Finally, the initial delay is done only when the kthread is started
-during the boot. For this we added a parameter to the start function.
+  + immediate cycle (nope) is converted into goto within the same work
+
+  + immediate cycle with a possible reschedule is converted into
+    re-queuing with a zero delay
+
+  + schedule_timeout() is converted into re-queuing with the given
+    delay
+
+  + interruptible sleep is converted into nothing; The work
+    will get queued again from the check_start_timer_thread().
+    By other words the external wakeup_up_process() will get
+    replaced by queuing with a zero delay.
+
+Probably the most tricky change is when the worker is being stopped.
+We need to explicitly cancel the work to prevent it from re-queuing.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
-CC: Catalin Marinas <catalin.marinas@arm.com>
+Reviewed-by: Corey Minyard <cminyard@mvista.com>
 ---
- mm/kmemleak.c | 87 +++++++++++++++++++++++++++++------------------------------
- 1 file changed, 43 insertions(+), 44 deletions(-)
+ drivers/char/ipmi/ipmi_si_intf.c | 121 ++++++++++++++++++++++-----------------
+ 1 file changed, 69 insertions(+), 52 deletions(-)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 25c0ad36fe38..16f1a7bb1697 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -216,7 +216,8 @@ static int kmemleak_error;
- static unsigned long min_addr = ULONG_MAX;
- static unsigned long max_addr;
+diff --git a/drivers/char/ipmi/ipmi_si_intf.c b/drivers/char/ipmi/ipmi_si_intf.c
+index 9fda22e3387e..84d4e8158e92 100644
+--- a/drivers/char/ipmi/ipmi_si_intf.c
++++ b/drivers/char/ipmi/ipmi_si_intf.c
+@@ -303,7 +303,9 @@ struct smi_info {
+ 	/* Counters and things for the proc filesystem. */
+ 	atomic_t stats[SI_NUM_STATS];
  
--static struct task_struct *scan_thread;
-+static struct kthread_worker *kmemleak_scan_worker;
-+static struct delayed_kthread_work kmemleak_scan_work;
- /* used to avoid reporting of recently allocated objects */
- static unsigned long jiffies_min_age;
- static unsigned long jiffies_last_scan;
-@@ -1470,54 +1471,48 @@ static void kmemleak_scan(void)
+-	struct task_struct *thread;
++	struct kthread_worker *worker;
++	struct delayed_kthread_work work;
++	struct timespec64 busy_until;
+ 
+ 	struct list_head link;
+ 	union ipmi_smi_info_union addr_info;
+@@ -428,8 +430,8 @@ static void start_new_msg(struct smi_info *smi_info, unsigned char *msg,
+ {
+ 	smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+ 
+-	if (smi_info->thread)
+-		wake_up_process(smi_info->thread);
++	if (smi_info->worker)
++		mod_delayed_kthread_work(smi_info->worker, &smi_info->work, 0);
+ 
+ 	smi_info->handlers->start_transaction(smi_info->si_sm, msg, size);
+ }
+@@ -952,8 +954,9 @@ static void check_start_timer_thread(struct smi_info *smi_info)
+ 	if (smi_info->si_state == SI_NORMAL && smi_info->curr_msg == NULL) {
+ 		smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+ 
+-		if (smi_info->thread)
+-			wake_up_process(smi_info->thread);
++		if (smi_info->worker)
++			mod_delayed_kthread_work(smi_info->worker,
++						 &smi_info->work, 0);
+ 
+ 		start_next_msg(smi_info);
+ 		smi_event_handler(smi_info, 0);
+@@ -1031,10 +1034,10 @@ static inline int ipmi_si_is_busy(struct timespec64 *ts)
  }
  
- /*
-- * Thread function performing automatic memory scanning. Unreferenced objects
-- * at the end of a memory scan are reported but only the first time.
-+ * Kthread worker function performing automatic memory scanning.
-+ * Unreferenced objects at the end of a memory scan are reported
-+ * but only the first time.
-  */
--static int kmemleak_scan_thread(void *arg)
-+static void kmemleak_scan_func(struct kthread_work *dummy)
+ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
+-					const struct smi_info *smi_info,
+-					struct timespec64 *busy_until)
++					struct smi_info *smi_info)
  {
--	static int first_run = 1;
--
--	pr_info("Automatic memory scanning thread started\n");
--	set_user_nice(current, 10);
--
--	/*
--	 * Wait before the first scan to allow the system to fully initialize.
--	 */
--	if (first_run) {
--		first_run = 0;
--		ssleep(SECS_FIRST_SCAN);
--	}
--
+ 	unsigned int max_busy_us = 0;
++	struct timespec64 *busy_until = &smi_info->busy_until;
+ 
+ 	if (smi_info->intf_num < num_max_busy_us)
+ 		max_busy_us = kipmid_max_busy_us[smi_info->intf_num];
+@@ -1065,53 +1068,49 @@ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
+  * (if that is enabled).  See the paragraph on kimid_max_busy_us in
+  * Documentation/IPMI.txt for details.
+  */
+-static int ipmi_thread(void *data)
++static void ipmi_kthread_worker_func(struct kthread_work *work)
+ {
+-	struct smi_info *smi_info = data;
++	struct smi_info *smi_info = container_of(work, struct smi_info,
++						 work.work);
+ 	unsigned long flags;
+ 	enum si_sm_result smi_result;
+-	struct timespec64 busy_until;
++	int busy_wait;
+ 
+-	ipmi_si_set_not_busy(&busy_until);
+-	set_user_nice(current, MAX_NICE);
 -	while (!kthread_should_stop()) {
--		signed long timeout = jiffies_scan_wait;
--
--		mutex_lock(&scan_mutex);
--		kmemleak_scan();
--		mutex_unlock(&scan_mutex);
--
--		/* wait before the next scan */
--		while (timeout && !kthread_should_stop())
--			timeout = schedule_timeout_interruptible(timeout);
--	}
--
--	pr_info("Automatic memory scanning thread ended\n");
-+	mutex_lock(&scan_mutex);
-+	kmemleak_scan();
-+	mutex_unlock(&scan_mutex);
+-		int busy_wait;
++next:
++	spin_lock_irqsave(&(smi_info->si_lock), flags);
++	smi_result = smi_event_handler(smi_info, 0);
  
--	return 0;
-+	queue_delayed_kthread_work(kmemleak_scan_worker, &kmemleak_scan_work,
-+				   jiffies_scan_wait);
- }
- 
- /*
-  * Start the automatic memory scanning thread. This function must be called
-  * with the scan_mutex held.
-  */
--static void start_scan_thread(void)
-+static void start_scan_thread(bool boot)
- {
--	if (scan_thread)
-+	unsigned long timeout = 0;
-+
-+	if (kmemleak_scan_worker)
- 		return;
--	scan_thread = kthread_run(kmemleak_scan_thread, NULL, "kmemleak");
--	if (IS_ERR(scan_thread)) {
--		pr_warning("Failed to create the scan thread\n");
--		scan_thread = NULL;
-+
-+	init_delayed_kthread_work(&kmemleak_scan_work, kmemleak_scan_func);
-+	kmemleak_scan_worker = create_kthread_worker(0, "kmemleak");
-+	if (IS_ERR(kmemleak_scan_worker)) {
-+		pr_warn("Failed to create the memory scan worker\n");
-+		kmemleak_scan_worker = NULL;
- 	}
-+	pr_info("Automatic memory scanning thread started\n");
-+	set_user_nice(kmemleak_scan_worker->task, 10);
-+
+-		spin_lock_irqsave(&(smi_info->si_lock), flags);
+-		smi_result = smi_event_handler(smi_info, 0);
 +	/*
-+	 * Wait before the first scan to allow the system to fully initialize.
++	 * If the driver is doing something, there is a possible
++	 * race with the timer.  If the timer handler see idle,
++	 * and the thread here sees something else, the timer
++	 * handler won't restart the timer even though it is
++	 * required.  So start it here if necessary.
 +	 */
-+	if (boot)
-+		timeout = msecs_to_jiffies(SECS_FIRST_SCAN * MSEC_PER_SEC);
++	if (smi_result != SI_SM_IDLE && !smi_info->timer_running)
++		smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+ 
+-		/*
+-		 * If the driver is doing something, there is a possible
+-		 * race with the timer.  If the timer handler see idle,
+-		 * and the thread here sees something else, the timer
+-		 * handler won't restart the timer even though it is
+-		 * required.  So start it here if necessary.
+-		 */
+-		if (smi_result != SI_SM_IDLE && !smi_info->timer_running)
+-			smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+-
+-		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
+-		busy_wait = ipmi_thread_busy_wait(smi_result, smi_info,
+-						  &busy_until);
+-		if (smi_result == SI_SM_CALL_WITHOUT_DELAY)
+-			; /* do nothing */
+-		else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait)
+-			schedule();
+-		else if (smi_result == SI_SM_IDLE) {
+-			if (atomic_read(&smi_info->need_watch)) {
+-				schedule_timeout_interruptible(100);
+-			} else {
+-				/* Wait to be woken up when we are needed. */
+-				__set_current_state(TASK_INTERRUPTIBLE);
+-				schedule();
+-			}
+-		} else
+-			schedule_timeout_interruptible(1);
++	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
++	busy_wait = ipmi_thread_busy_wait(smi_result, smi_info);
 +
-+	queue_delayed_kthread_work(kmemleak_scan_worker, &kmemleak_scan_work,
-+				   timeout);
++	if (smi_result == SI_SM_CALL_WITHOUT_DELAY)
++		goto next;
++	if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait) {
++		queue_delayed_kthread_work(smi_info->worker,
++					   &smi_info->work, 0);
++	} else if (smi_result == SI_SM_IDLE) {
++		if (atomic_read(&smi_info->need_watch)) {
++			queue_delayed_kthread_work(smi_info->worker,
++						   &smi_info->work, 100);
++		} else {
++			/* Nope. Wait to be queued when we are needed. */
++		}
++	} else {
++		queue_delayed_kthread_work(smi_info->worker,
++					   &smi_info->work, 1);
+ 	}
+-	return 0;
  }
  
- /*
-@@ -1526,10 +1521,14 @@ static void start_scan_thread(void)
-  */
- static void stop_scan_thread(void)
+-
+ static void poll(void *send_info)
  {
--	if (scan_thread) {
--		kthread_stop(scan_thread);
--		scan_thread = NULL;
--	}
-+	if (!kmemleak_scan_worker)
-+		return;
+ 	struct smi_info *smi_info = send_info;
+@@ -1252,17 +1251,30 @@ static int smi_start_processing(void       *send_info,
+ 		enable = 1;
+ 
+ 	if (enable) {
+-		new_smi->thread = kthread_run(ipmi_thread, new_smi,
+-					      "kipmi%d", new_smi->intf_num);
+-		if (IS_ERR(new_smi->thread)) {
++		struct kthread_worker *worker;
 +
-+	cancel_delayed_kthread_work_sync(&kmemleak_scan_work);
-+	destroy_kthread_worker(kmemleak_scan_worker);
-+	kmemleak_scan_worker = NULL;
++		worker = create_kthread_worker(0, "kipmi%d",
++					       new_smi->intf_num);
 +
-+	pr_info("Automatic memory scanning thread ended\n");
++		if (IS_ERR(worker)) {
+ 			dev_notice(new_smi->dev, "Could not start"
+ 				   " kernel thread due to error %ld, only using"
+ 				   " timers to drive the interface\n",
+-				   PTR_ERR(new_smi->thread));
+-			new_smi->thread = NULL;
++				   PTR_ERR(worker));
++			goto out;
+ 		}
++
++		ipmi_si_set_not_busy(&new_smi->busy_until);
++		set_user_nice(worker->task, MAX_NICE);
++
++		init_delayed_kthread_work(&new_smi->work,
++					  ipmi_kthread_worker_func);
++		queue_delayed_kthread_work(worker, &new_smi->work, 0);
++
++		new_smi->worker = worker;
+ 	}
+ 
++out:
+ 	return 0;
  }
  
- /*
-@@ -1726,7 +1725,7 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 	else if (strncmp(buf, "stack=off", 9) == 0)
- 		kmemleak_stack_scan = 0;
- 	else if (strncmp(buf, "scan=on", 7) == 0)
--		start_scan_thread();
-+		start_scan_thread(false);
- 	else if (strncmp(buf, "scan=off", 8) == 0)
- 		stop_scan_thread();
- 	else if (strncmp(buf, "scan=", 5) == 0) {
-@@ -1738,7 +1737,7 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 		stop_scan_thread();
- 		if (secs) {
- 			jiffies_scan_wait = msecs_to_jiffies(secs * 1000);
--			start_scan_thread();
-+			start_scan_thread(false);
- 		}
- 	} else if (strncmp(buf, "scan", 4) == 0)
- 		kmemleak_scan();
-@@ -1962,7 +1961,7 @@ static int __init kmemleak_late_init(void)
- 	if (!dentry)
- 		pr_warning("Failed to create the debugfs kmemleak file\n");
- 	mutex_lock(&scan_mutex);
--	start_scan_thread();
-+	start_scan_thread(true);
- 	mutex_unlock(&scan_mutex);
+@@ -3440,8 +3452,13 @@ static void check_for_broken_irqs(struct smi_info *smi_info)
  
- 	pr_info("Kernel memory leak detector initialized\n");
+ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
+ {
+-	if (smi_info->thread != NULL)
+-		kthread_stop(smi_info->thread);
++	if (smi_info->worker != NULL) {
++		struct kthread_worker *worker = smi_info->worker;
++
++		smi_info->worker = NULL;
++		cancel_delayed_kthread_work_sync(&smi_info->work);
++		destroy_kthread_worker(worker);
++	}
+ 	if (smi_info->timer_running)
+ 		del_timer_sync(&smi_info->si_timer);
+ }
 -- 
 1.8.5.6
 
