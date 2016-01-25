@@ -1,44 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CDB76B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 01:11:42 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id z14so27935813igp.0
-        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 22:11:42 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id z15si23892495igp.102.2016.01.24.22.11.41
-        for <linux-mm@kvack.org>;
-        Sun, 24 Jan 2016 22:11:41 -0800 (PST)
-Message-ID: <56A5BC9C.9090604@cn.fujitsu.com>
-Date: Mon, 25 Jan 2016 14:11:40 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id DA99B6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 02:08:10 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id vt7so108973358obb.1
+        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 23:08:10 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id rx2si15909439oeb.11.2016.01.24.23.08.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 24 Jan 2016 23:08:10 -0800 (PST)
+Received: by mail-oi0-x22c.google.com with SMTP id w75so82008584oie.0
+        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 23:08:10 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 0/5] Make cpuid <-> nodeid mapping persistent.
-References: <1453357958-26941-1-git-send-email-tangchen@cn.fujitsu.com> <20160121212651.GI5157@mtj.duckdns.org>
-In-Reply-To: <20160121212651.GI5157@mtj.duckdns.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160122163801.GA16668@cmpxchg.org>
+References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
+	<20160122163801.GA16668@cmpxchg.org>
+Date: Mon, 25 Jan 2016 16:08:09 +0900
+Message-ID: <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: cl@linux.com, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Peter Zijlstra <peterz@infradead.org>
 
-Hi tj,
+Hello,
 
-I have resent the patch-set and to Rafael and Len.
+2016-01-23 1:38 GMT+09:00 Johannes Weiner <hannes@cmpxchg.org>:
+> Hi,
+>
+> On Fri, Jan 22, 2016 at 10:11:12AM +0530, Aneesh Kumar K.V wrote:
+>> * CMA allocator issues:
+>>   (1) order zero allocation failures:
+>>       We are observing order zero non-movable allocation failures in kernel
+>> with CMA configured. We don't start a reclaim because our free memory check
+>> does not consider free_cma. Hence the reclaim code assume we have enough free
+>> pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
+>> like to discuss the challenges in getting this merged upstream.
+>> https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
+
+As far as I know, there is no disagreement on this patchset in last year LSF/MM.
+Problem may be due to my laziness... Sorry about that. I will handle it soon.
+Is there anything more that you concern?
+
+> The exclusion of cma pages from the watermark checks means that
+> reclaim is happening too early, not too late, which leaves memory
+> underutilized. That's what ZONE_CMA set out to fix.
+>
+> But unmovable allocations can still fail when the only free memory is
+> inside CMA regions. I don't see how ZONE_CMA would fix that.
+>
+> CC Joonsoo
+
+I understand what Aneesh's problem is.
+
+Assume that
+
+X = non movable free page
+Y = movable free page
+Z = cma free page
+
+X < min watermark
+X + Y > high watermark
+Z > high watermark
+
+If there are bunch of consecutive movable allocation requests,
+Y will decrease. After some time, Y will be exhausted. At that
+time, there is enough Z so movable allocation request still can be
+handled in fastpath and kswapd isn't waked up. In that situation,
+if atomic non-movable page allocation for order-0 comes,
+it would be failed.
+
+Although it isn't mentioned on ZONE_CMA patchset, it is also
+fixed by that patchset because with that patchset, all CMA pages
+are in CMA zone so freepage calculation is always precise.
 
 Thanks.
-
-
-On 01/22/2016 05:26 AM, Tejun Heo wrote:
-> Hello,
->
-> Most changes being in ACPI, I think it probably would be a good idea
-> to cc Rafael and Len Brown.
->
-> Thanks.
->
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
