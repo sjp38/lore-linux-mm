@@ -1,129 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8B96B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:50:28 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id b14so97699553wmb.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:50:28 -0800 (PST)
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
-        by mx.google.com with ESMTPS id i7si406152wmf.59.2016.01.25.11.50.26
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 11:50:27 -0800 (PST)
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Mon, 25 Jan 2016 19:50:26 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 033D017D8056
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 19:50:33 +0000 (GMT)
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PJoPk09503110
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 19:50:25 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PJoOOp007456
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:50:24 -0700
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v3] mm/debug_pagealloc: Ask users for default setting of debug_pagealloc
-Date: Mon, 25 Jan 2016 20:50:46 +0100
-Message-Id: <1453751446-97135-1-git-send-email-borntraeger@de.ibm.com>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D9AB6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:16:55 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id e65so87466961pfe.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:16:55 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hb8si11424690pac.55.2016.01.25.12.16.54
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jan 2016 12:16:54 -0800 (PST)
+Subject: Re: [kernel-hardening] [RFC][PATCH 3/3] mm/page_poisoning.c: Allow
+ for zero poisoning
+References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
+ <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56A682B5.8000603@intel.com>
+Date: Mon, 25 Jan 2016 12:16:53 -0800
+MIME-Version: 1.0
+In-Reply-To: <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: peterz@infradead.org, heiko.carstens@de.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Dave Jones <davej@codemonkey.org.uk>, Christian Borntraeger <borntraeger@de.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: kernel-hardening@lists.openwall.com, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>
+Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
 
-since commit 031bc5743f158 ("mm/debug-pagealloc: make debug-pagealloc
-boottime configurable") CONFIG_DEBUG_PAGEALLOC is by default not
-adding any page debugging.
+Thanks for doing this!  It all looks pretty straightforward.
 
-This resulted in several unnoticed bugs, e.g.
+On 01/25/2016 08:55 AM, Laura Abbott wrote:
+> By default, page poisoning uses a poison value (0xaa) on free. If this
+> is changed to 0, the page is not only sanitized but zeroing on alloc
+> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
+> corruption from the poisoning is harder to detect. This feature also
+> cannot be used with hibernation since pages are not guaranteed to be
+> zeroed after hibernation.
 
-https://lkml.kernel.org/g/<569F5E29.3090107@de.ibm.com>
-or
-https://lkml.kernel.org/g/<56A20F30.4050705@de.ibm.com>
+Ugh, that's a good point about hibernation.  I'm not sure how widely it
+gets used but it does look pretty widely enabled in distribution kernels.
 
-as this behaviour change was not even documented in Kconfig.
+Is this something that's fixable?  It seems like we could have the
+hibernation code run through and zero all the free lists.  Or, we could
+just disable the optimization at runtime when a hibernation is done.
 
-Let's provide a new Kconfig symbol that allows to change the default
-back to enabled, e.g. for debug kernels. This also makes the change
-obvious to kernel packagers.
+Not that we _have_ to do any of this now, but if a runtime knob (like a
+sysctl) could be fun too.  I would be nice for folks to turn it on and
+off if they wanted the added security of "real" poisoning vs. the
+potential performance boost from this optimization.
 
-Let's also change the Kconfig description for CONFIG_DEBUG_PAGEALLOC,
-to indicate that there are two stages of overhead.
+> +static inline bool should_zero(void)
+> +{
+> +	return !IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) ||
+> +		!page_poisoning_enabled();
+> +}
 
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
-v2 -> v3: tab/whitespace, off->n (Paul Bolle)
-	remove "If unsure say no."
-v1 -> v2: change Kconfig help to indicate, that CONFIG_DEBUG_PAGEALLOC
-	is not for free, even if disabled
+I wonder if calling this "free_pages_prezeroed()" would make things a
+bit more clear when we use it in prep_new_page().
 
- mm/Kconfig.debug | 18 ++++++++++++++++--
- mm/page_alloc.c  |  6 +++++-
- 2 files changed, 21 insertions(+), 3 deletions(-)
+>  static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>  								int alloc_flags)
+>  {
+> @@ -1401,7 +1407,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>  	kernel_map_pages(page, 1 << order, 1);
+>  	kasan_alloc_pages(page, order);
+>  
+> -	if (gfp_flags & __GFP_ZERO)
+> +	if (should_zero() && gfp_flags & __GFP_ZERO)
+>  		for (i = 0; i < (1 << order); i++)
+>  			clear_highpage(page + i);
 
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 957d3da..a0c136a 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -16,8 +16,8 @@ config DEBUG_PAGEALLOC
- 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	---help---
- 	  Unmap pages from the kernel linear mapping after free_pages().
--	  This results in a large slowdown, but helps to find certain types
--	  of memory corruption.
-+	  Depending on runtime enablement, this results in a small or large
-+	  slowdown, but helps to find certain types of memory corruption.
- 
- 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
- 	  fill the pages with poison patterns after free_pages() and verify
-@@ -26,5 +26,19 @@ config DEBUG_PAGEALLOC
- 	  that would result in incorrect warnings of memory corruption after
- 	  a resume because free pages are not saved to the suspend image.
- 
-+	  By default this option will have a small overhead, e.g. by not
-+	  allowing the kernel mapping to be backed by large pages on some
-+	  architectures. Even bigger overhead comes when the debugging is
-+	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
-+	  command line parameter.
-+
-+config DEBUG_PAGEALLOC_ENABLE_DEFAULT
-+	bool "Enable debug page memory allocations by default?"
-+	default n
-+	depends on DEBUG_PAGEALLOC
-+	---help---
-+	  Enable debug page memory allocations by default? This value
-+	  can be overridden by debug_pagealloc=off|on.
-+
- config PAGE_POISONING
- 	bool
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d666df..933def7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -479,7 +479,8 @@ void prep_compound_page(struct page *page, unsigned int order)
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- unsigned int _debug_guardpage_minorder;
--bool _debug_pagealloc_enabled __read_mostly;
-+bool _debug_pagealloc_enabled __read_mostly
-+			= IS_ENABLED(CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT);
- bool _debug_guardpage_enabled __read_mostly;
- 
- static int __init early_debug_pagealloc(char *buf)
-@@ -490,6 +491,9 @@ static int __init early_debug_pagealloc(char *buf)
- 	if (strcmp(buf, "on") == 0)
- 		_debug_pagealloc_enabled = true;
- 
-+	if (strcmp(buf, "off") == 0)
-+		_debug_pagealloc_enabled = false;
-+
- 	return 0;
- }
- early_param("debug_pagealloc", early_debug_pagealloc);
--- 
-2.3.0
+It's probably also worth pointing out that this can be a really nice
+feature to have in virtual machines where memory is being deduplicated.
+ As it stands now, the free lists end up with gunk in them and tend not
+to be easy to deduplicate.  This patch would fix that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
