@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CBBD6B0259
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:19:13 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id cy9so85243957pac.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:19:13 -0800 (PST)
-Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
-        by mx.google.com with ESMTPS id wc6si35401725pab.33.2016.01.25.11.19.12
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id F296C6B0257
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:21:13 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id q63so88793864pfb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:21:13 -0800 (PST)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id bx1si7959945pab.57.2016.01.25.11.21.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 11:19:12 -0800 (PST)
-Received: by mail-pa0-x243.google.com with SMTP id pv5so6911259pac.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:19:12 -0800 (PST)
-Date: Mon, 25 Jan 2016 14:19:09 -0500
+        Mon, 25 Jan 2016 11:21:13 -0800 (PST)
+Received: by mail-pa0-x241.google.com with SMTP id gi1so6982204pac.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:21:13 -0800 (PST)
+Date: Mon, 25 Jan 2016 14:21:11 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v4 10/22] kthread: Allow to modify delayed kthread work
-Message-ID: <20160125191909.GF3628@mtj.duckdns.org>
+Subject: Re: [PATCH v4 11/22] kthread: Better support freezable kthread
+ workers
+Message-ID: <20160125192111.GG3628@mtj.duckdns.org>
 References: <1453736711-6703-1-git-send-email-pmladek@suse.com>
- <1453736711-6703-11-git-send-email-pmladek@suse.com>
+ <1453736711-6703-12-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1453736711-6703-11-git-send-email-pmladek@suse.com>
+In-Reply-To: <1453736711-6703-12-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 25, 2016 at 04:44:59PM +0100, Petr Mladek wrote:
-> +bool mod_delayed_kthread_work(struct kthread_worker *worker,
-> +			      struct delayed_kthread_work *dwork,
-> +			      unsigned long delay)
-> +{
-> +	struct kthread_work *work = &dwork->work;
-> +	unsigned long flags;
-> +	int ret = 0;
-> +
-> +try_again:
-> +	spin_lock_irqsave(&worker->lock, flags);
-> +	WARN_ON_ONCE(work->worker && work->worker != worker);
-> +
-> +	if (work->canceling)
-> +		goto out;
-> +
-> +	ret = try_to_cancel_kthread_work(work, &worker->lock, &flags);
-> +	if (ret == -EAGAIN)
-> +		goto try_again;
-> +
-> +	if (work->canceling)
+On Mon, Jan 25, 2016 at 04:45:00PM +0100, Petr Mladek wrote:
+> @@ -556,6 +556,7 @@ void __init_kthread_worker(struct kthread_worker *worker,
+>  				const char *name,
+>  				struct lock_class_key *key)
+>  {
+> +	worker->flags = 0;
+>  	spin_lock_init(&worker->lock);
+>  	lockdep_set_class_and_name(&worker->lock, key, name);
+>  	INIT_LIST_HEAD(&worker->work_list);
 
-Does this test need to be repeated?  How would ->canceling change
-while worker->lock is held?
+Maybe memset the thing and drop 0, NULL inits?
+
+> @@ -638,7 +643,8 @@ repeat:
+>  EXPORT_SYMBOL_GPL(kthread_worker_fn);
+>  
+>  static struct kthread_worker *
+> -__create_kthread_worker(int cpu, const char namefmt[], va_list args)
+> +__create_kthread_worker(unsigned int flags, int cpu,
+> +			const char namefmt[], va_list args)
+
+Wouldn't @cpu, @flags be less confusing?  You would end up with, (A,
+B, C) and (B, C) instead of (A, B, C) and (A, C).
 
 Thanks.
 
