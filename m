@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A24F66B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:50:51 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id ba1so117236288obb.3
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:50:51 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q9si17358498oih.89.2016.01.25.05.50.50
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C39A6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:05:10 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id b14so81600973wmb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:05:10 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id hn8si28661619wjb.93.2016.01.25.06.05.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 05:50:50 -0800 (PST)
-Subject: Re: [LSF/MM ATTEND] Huge Page Futures
-References: <56A580F8.4060301@oracle.com>
- <20160125110137.GB11541@node.shutemov.name>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56A62837.7010105@oracle.com>
-Date: Mon, 25 Jan 2016 05:50:47 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 06:05:08 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 55E0298B71
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:05:08 +0000 (UTC)
+Date: Mon, 25 Jan 2016 14:05:06 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm: filemap: Avoid unnecessary calls to lock_page
+ when waiting for IO to complete during a read
+Message-ID: <20160125140506.GF3162@techsingularity.net>
+References: <1453716204-20409-1-git-send-email-mgorman@techsingularity.net>
+ <1453716204-20409-3-git-send-email-mgorman@techsingularity.net>
+ <20160125113513.GE20933@quack.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160125110137.GB11541@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160125113513.GE20933@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 01/25/2016 03:01 AM, Kirill A. Shutemov wrote:
-> On Sun, Jan 24, 2016 at 05:57:12PM -0800, Mike Kravetz wrote:
->> In a search of the archives, it appears huge page support in one form or
->> another has been a discussion topic in almost every LSF/MM gathering. Based
->> on patches submitted this past year, huge pages is still an area of active
->> development.  And, it appears this level of activity will  continue in the
->> coming year.
->>
->> I propose a "Huge Page Futures" session to discuss large works in progress
->> as well as work people are considering for 2016.  Areas of discussion would
->> minimally include:
->>
->> - Krill Shutemov's THP new refcounting code and the push for huge page
->>   support in the page cache.
+On Mon, Jan 25, 2016 at 12:35:13PM +0100, Jan Kara wrote:
 > 
-> s/Krill/Kirill/ :]
-
-Sorry!
-
-> 
-> I work on huge pages in tmpfs first and will look on huge pages for real
-> filesystems later.
-> 
->>
->> - Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
->>   more interesting is the desire for supporting PUD pages.  This seems to
->>   beg the question of supporting transparent PUD pages elsewhere.
->>
->> - Other suggestions?
->>
->> My interest in attending also revolves around huge pages.  This past year
->> I have added functionality to hugetlbfs.  hugetlbfs is not dead, and is
->> very much in use by some DB implementations.  Proposed future work I will
->> be attempting includes:
->> - Adding userfaultfd support to hugetlbfs
->> - Adding shared page table (PMD) support to DAX much like that which exists
->>   for hugetlbfs
-> 
-> Shared page tables for hugetlbfs is rather ugly hack.
-> 
-> Do you have any thoughts how it's going to be implemented? It would be
-> nice to have some design overview or better proof-of-concept patch before
-> the summit to be able analyze implications for the kernel.
+> Reviewed-by: Jan Kara <jack@suse.cz>
 > 
 
-Good to know the hugetlbfs implementation is considered a hack.  I just
-started looking at this, and was going to use hugetlbfs as a starting
-point.  I'll reconsider that decision.
+Thanks!
 
-BTW, this request comes from the same DB people taking advantage of shared
-page tables today.  This will be as important (if not more) with the larger
-sizes of pmem.
+> > ---
+> >  mm/filemap.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+> >  1 file changed, 49 insertions(+)
+> > 
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index aa38593d0cd5..235ee2b0b5da 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -1649,6 +1649,15 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+> >  					index, last_index - index);
+> >  		}
+> >  		if (!PageUptodate(page)) {
+> > +			/*
+> > +			 * See comment in do_read_cache_page on why
+> > +			 * wait_on_page_locked is used to avoid unnecessarily
+> > +			 * serialisations and why it's safe.
+> > +			 */
+> > +			wait_on_page_locked(page);
+> > +			if (PageUptodate(page))
+> > +				goto page_ok;
+> > +
+> 
+> We want a wait_on_page_locked_killable() here to match the
+> lock_page_killable() later in do_generic_file_read()?
+> 
+
+Yes, I'll fix it in v2.
 
 -- 
-Mike Kravetz
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
