@@ -1,426 +1,188 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 06/17] arch: Set IORESOURCE_SYSTEM_RAM to System RAM
-Date: Sun, 24 Jan 2016 19:00:57 +0100
-Message-ID: <20160124180057.GC26879@pd.tnic>
-References: <1452020081-26534-1-git-send-email-toshi.kani@hpe.com>
- <1452020081-26534-6-git-send-email-toshi.kani@hpe.com>
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v5 RESEND 0/5] Make cpuid <-> nodeid mapping persistent
+Date: Mon, 25 Jan 2016 14:08:15 +0800
+Message-ID: <1453702100-2597-1-git-send-email-tangchen@cn.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-mips-bounce@linux-mips.org>
-Content-Disposition: inline
-In-Reply-To: <1452020081-26534-6-git-send-email-toshi.kani@hpe.com>
-Sender: linux-mips-bounce@linux-mips.org
-Errors-to: linux-mips-bounce@linux-mips.org
-List-help: <mailto:ecartis@linux-mips.org?Subject=help>
-List-unsubscribe: <mailto:ecartis@linux-mips.org?subject=unsubscribe%20linux-mips>
-List-software: Ecartis version 1.0.0
-List-subscribe: <mailto:ecartis@linux-mips.org?subject=subscribe%20linux-mips>
-List-owner: <mailto:ralf@linux-mips.org>
-List-post: <mailto:linux-mips@linux-mips.org>
-List-archive: <http://www.linux-mips.org/archives/linux-mips/>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+Content-Type: text/plain
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: cl@linux.com, tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com
+Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Adding the respective arch MLs to CC, as an FYI.
+[Problem]
 
-On Tue, Jan 05, 2016 at 11:54:30AM -0700, Toshi Kani wrote:
-> Set IORESOURCE_SYSTEM_RAM to 'flags' of resource ranges with
-> "System RAM", "Kernel code", "Kernel data", and "Kernel bss".
-> 
-> Note that:
->  - IORESOURCE_SYSRAM (i.e. modifier bit) is set to 'flags'
->    when IORESOURCE_MEM is already set.  IORESOURCE_SYSTEM_RAM
->    is defined as (IORESOURCE_MEM|IORESOURCE_SYSRAM).
->  - Some archs do not set 'flags' for children nodes, such as
->    "Kernel code".  This patch does not change 'flags' in this
->    case.
-> 
-> Cc: linux-arch@vger.kernel.org
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> ---
->  arch/arm/kernel/setup.c       |    6 +++---
->  arch/arm64/kernel/setup.c     |    6 +++---
->  arch/avr32/kernel/setup.c     |    6 +++---
->  arch/m32r/kernel/setup.c      |    4 ++--
->  arch/mips/kernel/setup.c      |   10 ++++++----
->  arch/parisc/mm/init.c         |    6 +++---
->  arch/powerpc/mm/mem.c         |    2 +-
->  arch/s390/kernel/setup.c      |    8 ++++----
->  arch/score/kernel/setup.c     |    2 +-
->  arch/sh/kernel/setup.c        |    8 ++++----
->  arch/sparc/mm/init_64.c       |    8 ++++----
->  arch/tile/kernel/setup.c      |   11 ++++++++---
->  arch/unicore32/kernel/setup.c |    6 +++---
->  13 files changed, 45 insertions(+), 38 deletions(-)
-> 
-> diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-> index 20edd34..ae44e09 100644
-> --- a/arch/arm/kernel/setup.c
-> +++ b/arch/arm/kernel/setup.c
-> @@ -173,13 +173,13 @@ static struct resource mem_res[] = {
->  		.name = "Kernel code",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	},
->  	{
->  		.name = "Kernel data",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	}
->  };
->  
-> @@ -781,7 +781,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
->  		res->name  = "System RAM";
->  		res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
->  		res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
-> -		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  
->  		request_resource(&iomem_resource, res);
->  
-> diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-> index 8119479..450987d 100644
-> --- a/arch/arm64/kernel/setup.c
-> +++ b/arch/arm64/kernel/setup.c
-> @@ -73,13 +73,13 @@ static struct resource mem_res[] = {
->  		.name = "Kernel code",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	},
->  	{
->  		.name = "Kernel data",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	}
->  };
->  
-> @@ -210,7 +210,7 @@ static void __init request_standard_resources(void)
->  		res->name  = "System RAM";
->  		res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
->  		res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
-> -		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  
->  		request_resource(&iomem_resource, res);
->  
-> diff --git a/arch/avr32/kernel/setup.c b/arch/avr32/kernel/setup.c
-> index 209ae5a..e692889 100644
-> --- a/arch/avr32/kernel/setup.c
-> +++ b/arch/avr32/kernel/setup.c
-> @@ -49,13 +49,13 @@ static struct resource __initdata kernel_data = {
->  	.name	= "Kernel data",
->  	.start	= 0,
->  	.end	= 0,
-> -	.flags	= IORESOURCE_MEM,
-> +	.flags	= IORESOURCE_SYSTEM_RAM,
->  };
->  static struct resource __initdata kernel_code = {
->  	.name	= "Kernel code",
->  	.start	= 0,
->  	.end	= 0,
-> -	.flags	= IORESOURCE_MEM,
-> +	.flags	= IORESOURCE_SYSTEM_RAM,
->  	.sibling = &kernel_data,
->  };
->  
-> @@ -134,7 +134,7 @@ add_physical_memory(resource_size_t start, resource_size_t end)
->  	new->start = start;
->  	new->end = end;
->  	new->name = "System RAM";
-> -	new->flags = IORESOURCE_MEM;
-> +	new->flags = IORESOURCE_SYSTEM_RAM;
->  
->  	*pprev = new;
->  }
-> diff --git a/arch/m32r/kernel/setup.c b/arch/m32r/kernel/setup.c
-> index 0392112..5f62ff0 100644
-> --- a/arch/m32r/kernel/setup.c
-> +++ b/arch/m32r/kernel/setup.c
-> @@ -70,14 +70,14 @@ static struct resource data_resource = {
->  	.name   = "Kernel data",
->  	.start  = 0,
->  	.end    = 0,
-> -	.flags  = IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags  = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  static struct resource code_resource = {
->  	.name   = "Kernel code",
->  	.start  = 0,
->  	.end    = 0,
-> -	.flags  = IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags  = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  unsigned long memory_start;
-> diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-> index 66aac55..c385af1 100644
-> --- a/arch/mips/kernel/setup.c
-> +++ b/arch/mips/kernel/setup.c
-> @@ -732,21 +732,23 @@ static void __init resource_init(void)
->  			end = HIGHMEM_START - 1;
->  
->  		res = alloc_bootmem(sizeof(struct resource));
-> +
-> +		res->start = start;
-> +		res->end = end;
-> +		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +
->  		switch (boot_mem_map.map[i].type) {
->  		case BOOT_MEM_RAM:
->  		case BOOT_MEM_INIT_RAM:
->  		case BOOT_MEM_ROM_DATA:
->  			res->name = "System RAM";
-> +			res->flags |= IORESOURCE_SYSRAM;
->  			break;
->  		case BOOT_MEM_RESERVED:
->  		default:
->  			res->name = "reserved";
->  		}
->  
-> -		res->start = start;
-> -		res->end = end;
-> -
-> -		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
->  		request_resource(&iomem_resource, res);
->  
->  		/*
-> diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
-> index 1b366c4..3c07d6b 100644
-> --- a/arch/parisc/mm/init.c
-> +++ b/arch/parisc/mm/init.c
-> @@ -55,12 +55,12 @@ signed char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
->  
->  static struct resource data_resource = {
->  	.name	= "Kernel data",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource code_resource = {
->  	.name	= "Kernel code",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource pdcdata_resource = {
-> @@ -201,7 +201,7 @@ static void __init setup_bootmem(void)
->  		res->name = "System RAM";
->  		res->start = pmem_ranges[i].start_pfn << PAGE_SHIFT;
->  		res->end = res->start + (pmem_ranges[i].pages << PAGE_SHIFT)-1;
-> -		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  		request_resource(&iomem_resource, res);
->  	}
->  
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index 22d94c3..e78a2b7 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -541,7 +541,7 @@ static int __init add_system_ram_resources(void)
->  			res->name = "System RAM";
->  			res->start = base;
->  			res->end = base + size - 1;
-> -			res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +			res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  			WARN_ON(request_resource(&iomem_resource, res) < 0);
->  		}
->  	}
-> diff --git a/arch/s390/kernel/setup.c b/arch/s390/kernel/setup.c
-> index c837bca..b65a883 100644
-> --- a/arch/s390/kernel/setup.c
-> +++ b/arch/s390/kernel/setup.c
-> @@ -376,17 +376,17 @@ static void __init setup_lowcore(void)
->  
->  static struct resource code_resource = {
->  	.name  = "Kernel code",
-> -	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource data_resource = {
->  	.name = "Kernel data",
-> -	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource bss_resource = {
->  	.name = "Kernel bss",
-> -	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource __initdata *standard_resources[] = {
-> @@ -410,7 +410,7 @@ static void __init setup_resources(void)
->  
->  	for_each_memblock(memory, reg) {
->  		res = alloc_bootmem_low(sizeof(*res));
-> -		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
-> +		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
->  
->  		res->name = "System RAM";
->  		res->start = reg->base;
-> diff --git a/arch/score/kernel/setup.c b/arch/score/kernel/setup.c
-> index b48459a..f3a0649 100644
-> --- a/arch/score/kernel/setup.c
-> +++ b/arch/score/kernel/setup.c
-> @@ -101,7 +101,7 @@ static void __init resource_init(void)
->  	res->name = "System RAM";
->  	res->start = MEMORY_START;
->  	res->end = MEMORY_START + MEMORY_SIZE - 1;
-> -	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  	request_resource(&iomem_resource, res);
->  
->  	request_resource(res, &code_resource);
-> diff --git a/arch/sh/kernel/setup.c b/arch/sh/kernel/setup.c
-> index de19cfa..3f1c18b 100644
-> --- a/arch/sh/kernel/setup.c
-> +++ b/arch/sh/kernel/setup.c
-> @@ -78,17 +78,17 @@ static char __initdata command_line[COMMAND_LINE_SIZE] = { 0, };
->  
->  static struct resource code_resource = {
->  	.name = "Kernel code",
-> -	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource data_resource = {
->  	.name = "Kernel data",
-> -	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  static struct resource bss_resource = {
->  	.name	= "Kernel bss",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
->  };
->  
->  unsigned long memory_start;
-> @@ -202,7 +202,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
->  	res->name = "System RAM";
->  	res->start = start;
->  	res->end = end - 1;
-> -	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  
->  	if (request_resource(&iomem_resource, res)) {
->  		pr_err("unable to request memory_resource 0x%lx 0x%lx\n",
-> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-> index 3025bd5..a02d43d 100644
-> --- a/arch/sparc/mm/init_64.c
-> +++ b/arch/sparc/mm/init_64.c
-> @@ -2862,17 +2862,17 @@ void hugetlb_setup(struct pt_regs *regs)
->  
->  static struct resource code_resource = {
->  	.name	= "Kernel code",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  static struct resource data_resource = {
->  	.name	= "Kernel data",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  static struct resource bss_resource = {
->  	.name	= "Kernel bss",
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  static inline resource_size_t compute_kern_paddr(void *addr)
-> @@ -2908,7 +2908,7 @@ static int __init report_memory(void)
->  		res->name = "System RAM";
->  		res->start = pavail[i].phys_addr;
->  		res->end = pavail[i].phys_addr + pavail[i].reg_size - 1;
-> -		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
-> +		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
->  
->  		if (insert_resource(&iomem_resource, res) < 0) {
->  			pr_warn("Resource insertion failed.\n");
-> diff --git a/arch/tile/kernel/setup.c b/arch/tile/kernel/setup.c
-> index 6b755d1..6606fe2 100644
-> --- a/arch/tile/kernel/setup.c
-> +++ b/arch/tile/kernel/setup.c
-> @@ -1632,14 +1632,14 @@ static struct resource data_resource = {
->  	.name	= "Kernel data",
->  	.start	= 0,
->  	.end	= 0,
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  static struct resource code_resource = {
->  	.name	= "Kernel code",
->  	.start	= 0,
->  	.end	= 0,
-> -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-> +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
->  };
->  
->  /*
-> @@ -1673,10 +1673,15 @@ insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
->  		kzalloc(sizeof(struct resource), GFP_ATOMIC);
->  	if (!res)
->  		return NULL;
-> -	res->name = reserved ? "Reserved" : "System RAM";
->  	res->start = start_pfn << PAGE_SHIFT;
->  	res->end = (end_pfn << PAGE_SHIFT) - 1;
->  	res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
-> +	if (reserved) {
-> +		res->name = "Reserved";
-> +	} else {
-> +		res->name = "System RAM";
-> +		res->flags |= IORESOURCE_SYSRAM;
-> +	}
->  	if (insert_resource(&iomem_resource, res)) {
->  		kfree(res);
->  		return NULL;
-> diff --git a/arch/unicore32/kernel/setup.c b/arch/unicore32/kernel/setup.c
-> index 3fa317f..c2bffa5 100644
-> --- a/arch/unicore32/kernel/setup.c
-> +++ b/arch/unicore32/kernel/setup.c
-> @@ -72,13 +72,13 @@ static struct resource mem_res[] = {
->  		.name = "Kernel code",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	},
->  	{
->  		.name = "Kernel data",
->  		.start = 0,
->  		.end = 0,
-> -		.flags = IORESOURCE_MEM
-> +		.flags = IORESOURCE_SYSTEM_RAM
->  	}
->  };
->  
-> @@ -211,7 +211,7 @@ request_standard_resources(struct meminfo *mi)
->  		res->name  = "System RAM";
->  		res->start = mi->bank[i].start;
->  		res->end   = mi->bank[i].start + mi->bank[i].size - 1;
-> -		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  
->  		request_resource(&iomem_resource, res);
->  
-> 
+cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+
+When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+workqueue does not update wq_numa_possible_cpumask.
+
+So here is the problem:
+
+Assume we have the following cpuid <-> nodeid in the beginning:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 2 | 30-44, 90-104
+node 3 | 45-59, 105-119
+
+and we hot-remove node2 and node3, it becomes:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+
+and we hot-add node4 and node5, it becomes:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 4 | 30-59
+node 5 | 90-119
+
+But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+
+When a pool workqueue is initialized, if its cpumask belongs to a node, its
+pool->node will be mapped to that node. And memory used by this workqueue will
+also be allocated on that node.
+
+static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+...
+        /* if cpumask is contained inside a NUMA node, we belong to that node */
+        if (wq_numa_enabled) {
+                for_each_node(node) {
+                        if (cpumask_subset(pool->attrs->cpumask,
+                                           wq_numa_possible_cpumask[node])) {
+                                pool->node = node;
+                                break;
+                        }
+                }
+        }
+
+Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+which will lead to memory allocation failure:
+
+ SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+  cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+  node 0: slabs: 6172, objs: 259224, free: 245741
+  node 1: slabs: 3261, objs: 136962, free: 127656
+
+It happens here:
+
+create_worker(struct worker_pool *pool)
+ |--> worker = alloc_worker(pool->node);
+
+static struct worker *alloc_worker(int node)
+{
+        struct worker *worker;
+
+        worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
+
+        ......
+
+        return worker;
+}
+
+
+[Solution]
+
+There are four mappings in the kernel:
+1. nodeid (logical node id)   <->   pxm
+2. apicid (physical cpu id)   <->   nodeid
+3. cpuid (logical cpu id)     <->   apicid
+4. cpuid (logical cpu id)     <->   nodeid
+
+1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+   mapping is setup at boot time. This mapping is persistent, won't change.
+
+2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+   time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+   persistent.
+
+3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+   allocated, lower ids first, and released at CPU hotremove time, reused for other
+   hotadded CPUs. So this mapping is not persistent.
+
+4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+   cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+
+To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+mapping. So the key point is obtaining all cpus' apicid.
+
+apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+
+1. Enable apic registeration flow to handle both enabled and disabled cpus.
+   This is done by introducing an extra parameter to generic_processor_info to let the
+   caller control if disabled cpus are ignored.
+
+2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+   the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+   registering local apic. Store the mapping in this array.
+
+3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+   This is also done by introducing an extra parameter to these apis to let the caller
+   control if disabled cpus are ignored.
+
+4. Establish all possible cpuid <-> nodeid mapping.
+   This is done via an additional acpi namespace walk for processors.
+
+
+For previous discussion, please refer to:
+https://lkml.org/lkml/2015/2/27/145
+https://lkml.org/lkml/2015/3/25/989
+https://lkml.org/lkml/2015/5/14/244
+https://lkml.org/lkml/2015/7/7/200
+https://lkml.org/lkml/2015/9/27/209
+
+Change log v4 -> v5:
+1. Remove useless code in patch 1.
+2. Small improvement of commit message.
+
+Change log v3 -> v4:
+1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
+   before per cpu areas were initialized.
+
+Change log v2 -> v3:
+1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
+2. Build zonelists for memory-less nodes so that memory allocator will fall 
+   back to proper nodes automatically.
+
+Change log v1 -> v2:
+1. Split code movement and actual changes. Add patch 1.
+2. Synchronize best near online node record when node hotplug happens. In patch 2.
+3. Fix some comment.
+
+Gu Zheng (4):
+  x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+    boot time.
+  x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+    persistent cpuid <-> apicid mapping.
+  x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+  x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+    booting.
+
+Tang Chen (1):
+  x86, memhp, numa: Online memory-less nodes at boot time.
+
+ arch/ia64/kernel/acpi.c       |   2 +-
+ arch/x86/include/asm/mpspec.h |   1 +
+ arch/x86/kernel/acpi/boot.c   |   8 ++-
+ arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++----
+ arch/x86/mm/numa.c            |  27 +++++-----
+ drivers/acpi/acpi_processor.c |   5 +-
+ drivers/acpi/bus.c            |   3 ++
+ drivers/acpi/processor_core.c | 122 ++++++++++++++++++++++++++++++++++--------
+ include/linux/acpi.h          |   2 +
+ 9 files changed, 204 insertions(+), 51 deletions(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+1.9.3
