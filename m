@@ -1,108 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 89C44828DF
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:56:03 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id e32so113803014qgf.3
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:56:03 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v16si25221122qge.70.2016.01.25.08.56.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 08:56:02 -0800 (PST)
-From: Laura Abbott <labbott@fedoraproject.org>
-Subject: [RFC][PATCH 3/3] mm/page_poisoning.c: Allow for zero poisoning
-Date: Mon, 25 Jan 2016 08:55:53 -0800
-Message-Id: <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
-In-Reply-To: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
-References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE966B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:25:23 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id uo6so85454814pac.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:25:23 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id z62si34858832pfi.21.2016.01.25.09.25.22
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jan 2016 09:25:22 -0800 (PST)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH 1/3] x86: Honour passed pgprot in track_pfn_insert() and track_pfn_remap()
+Date: Mon, 25 Jan 2016 12:25:15 -0500
+Message-Id: <1453742717-10326-2-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>
-Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
+To: Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+From: Matthew Wilcox <willy@linux.intel.com>
 
-By default, page poisoning uses a poison value (0xaa) on free. If this
-is changed to 0, the page is not only sanitized but zeroing on alloc
-with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
-corruption from the poisoning is harder to detect. This feature also
-cannot be used with hibernation since pages are not guaranteed to be
-zeroed after hibernation.
+track_pfn_insert() overwrites the pgprot that is passed in with a value
+based on the VMA's page_prot.  This is a problem for people trying to
+do clever things with the new vm_insert_pfn_prot() as it will simply
+overwrite the passed protection flags.  If we use the current value of
+the pgprot as the base, then it will behave as people are expecting.
 
-Credit to Mathias Krause and grsecurity for original work
+Also fix track_pfn_remap() in the same way.
 
-Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
-
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- include/linux/poison.h |  4 ++++
- mm/Kconfig.debug       | 13 +++++++++++++
- mm/page_alloc.c        |  8 +++++++-
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ arch/x86/mm/pat.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/poison.h b/include/linux/poison.h
-index 4a27153..51334ed 100644
---- a/include/linux/poison.h
-+++ b/include/linux/poison.h
-@@ -30,7 +30,11 @@
- #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index f4ae536..04e2e71 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -943,7 +943,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 			return -EINVAL;
+ 	}
  
- /********** mm/debug-pagealloc.c **********/
-+#ifdef CONFIG_PAGE_POISONING_ZERO
-+#define PAGE_POISON 0x00
-+#else
- #define PAGE_POISON 0xaa
-+#endif
+-	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
++	*prot = __pgprot((pgprot_val(*prot) & (~_PAGE_CACHE_MASK)) |
+ 			 cachemode2protval(pcm));
  
- /********** mm/page_alloc.c ************/
- 
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index c300f5f..8ec7dc6 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -48,3 +48,16 @@ config PAGE_POISONING_NO_SANITY
- 
- 	   If you are only interested in sanitization, say Y. Otherwise
- 	   say N.
-+
-+config PAGE_POISONING_ZERO
-+	bool "Use zero for poisoning instead of random data"
-+	depends on !HIBERNATION
-+	depends on PAGE_POISONING
-+	---help---
-+	   Instead of using the existing poison value, fill the pages with
-+	   zeros. This makes it harder to detect when errors are occuring
-+	   due to sanitization but the zeroing at free means that it is
-+	   no longer necessary to write zeros when GFP_ZERO is used on
-+	   allocation.
-+
-+	   If unsure, say N
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c733421..7395eee 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1382,6 +1382,12 @@ static inline int check_new_page(struct page *page)
  	return 0;
- }
+@@ -959,7 +959,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
  
-+static inline bool should_zero(void)
-+{
-+	return !IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) ||
-+		!page_poisoning_enabled();
-+}
-+
- static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 								int alloc_flags)
- {
-@@ -1401,7 +1407,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 	kernel_map_pages(page, 1 << order, 1);
- 	kasan_alloc_pages(page, order);
+ 	/* Set prot based on lookup */
+ 	pcm = lookup_memtype(pfn_t_to_phys(pfn));
+-	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
++	*prot = __pgprot((pgprot_val(*prot) & (~_PAGE_CACHE_MASK)) |
+ 			 cachemode2protval(pcm));
  
--	if (gfp_flags & __GFP_ZERO)
-+	if (should_zero() && gfp_flags & __GFP_ZERO)
- 		for (i = 0; i < (1 << order); i++)
- 			clear_highpage(page + i);
- 
+ 	return 0;
 -- 
-2.5.0
+2.7.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
