@@ -1,79 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CAFC6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:55:44 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id r129so67397505wmr.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:55:44 -0800 (PST)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id d71si24919917wmi.16.2016.01.25.06.55.43
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 126366B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:03:29 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id u188so69428062wmu.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:03:29 -0800 (PST)
+Received: from lb2-smtp-cloud6.xs4all.net (lb2-smtp-cloud6.xs4all.net. [194.109.24.28])
+        by mx.google.com with ESMTPS id 201si24872530wml.102.2016.01.25.07.03.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 06:55:43 -0800 (PST)
-Received: by mail-wm0-f50.google.com with SMTP id l65so67297519wmf.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:55:43 -0800 (PST)
-Date: Mon, 25 Jan 2016 15:55:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: do not loop !__GFP_FS allocation if the OOM
- killer is disabled.
-Message-ID: <20160125145541.GD23939@dhcp22.suse.cz>
-References: <1453563531-4831-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1453563531-4831-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 07:03:28 -0800 (PST)
+Message-ID: <1453734204.17181.15.camel@tiscali.nl>
+Subject: Re: [PATCH v2] mm/debug_pagealloc: Ask users for default setting of
+ debug_pagealloc
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Mon, 25 Jan 2016 16:03:24 +0100
+In-Reply-To: <1453720528-103788-1-git-send-email-borntraeger@de.ibm.com>
+References: <1453720528-103788-1-git-send-email-borntraeger@de.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: peterz@infradead.org, heiko.carstens@de.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org
 
-It would really help if you CCed all people who participated in the
-previous discussion... and Andrew (CCed now) to pick up the patch as
-well.
+On ma, 2016-01-25 at 12:15 +0100, Christian Borntraeger wrote:
+> --- a/mm/Kconfig.debug
+> +++ b/mm/Kconfig.debug
 
-On Sun 24-01-16 00:38:51, Tetsuo Handa wrote:
-> After the OOM killer is disabled during suspend operation,
-> any !__GFP_NOFAIL && __GFP_FS allocations are forced to fail.
-> Thus, any !__GFP_NOFAIL && !__GFP_FS allocations should be
-> forced to fail as well.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c | 6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6463426..2f71caa 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2749,8 +2749,12 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  			 * XXX: Page reclaim didn't yield anything,
->  			 * and the OOM killer can't be invoked, but
->  			 * keep looping as per tradition.
-> +			 *
-> +			 * But do not keep looping if oom_killer_disable()
-> +			 * was already called, for the system is trying to
-> +			 * enter a quiescent state during suspend.
->  			 */
-> -			*did_some_progress = 1;
-> +			*did_some_progress = !oom_killer_disabled;
->  			goto out;
->  		}
->  		if (pm_suspended_storage())
-> -- 
-> 1.8.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +config DEBUG_PAGEALLOC_ENABLE_DEFAULT
+> +	bool "Enable debug page memory allocations by default?"
+> +        default off
 
--- 
-Michal Hocko
-SUSE Labs
+Nit: you apparently meant
+	default n
+
+Note that "default off" should also evaluate to "n", which probably
+explains why you didn't notice. And "n" is the default anyhow.
+
+So I'm guessing you might as well drop this line.
+
+> +        depends on DEBUG_PAGEALLOC
+> +        ---help---
+> +	  Enable debug page memory allocations by default? This value
+> +	  can be overridden by debug_pagealloc=off|on.
+> +
+> +	  If unsure say no.
+
+(Really trivial: you start indentation both with spaces and with tabs.
+Start with tabs, please.)
+
+
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
