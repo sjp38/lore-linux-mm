@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CFD06B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:37:49 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id uo6so86371207pac.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:37:49 -0800 (PST)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D61C16B0255
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:37:51 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id cy9so84742173pac.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:37:51 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id r72si35293889pfb.1.2016.01.25.10.37.48
+        by mx.google.com with ESMTP id b17si35216481pfj.86.2016.01.25.10.37.49
         for <linux-mm@kvack.org>;
-        Mon, 25 Jan 2016 10:37:48 -0800 (PST)
+        Mon, 25 Jan 2016 10:37:49 -0800 (PST)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 1/3] x86/mm: Add INVPCID helpers
-Date: Mon, 25 Jan 2016 10:37:42 -0800
-Message-Id: <f0bdec49dc0e2c7ec745408e0478bed5f6789f20.1453746505.git.luto@kernel.org>
+Subject: [PATCH v2 2/3] x86/mm: Add a noinvpcid option to turn off INVPCID
+Date: Mon, 25 Jan 2016 10:37:43 -0800
+Message-Id: <321b1dde2b4341df44a7c408381c83905aa1762c.1453746505.git.luto@kernel.org>
 In-Reply-To: <cover.1453746505.git.luto@kernel.org>
 References: <cover.1453746505.git.luto@kernel.org>
 In-Reply-To: <cover.1453746505.git.luto@kernel.org>
@@ -21,66 +21,52 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org
 Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>
 
-This adds helpers for each of the four currently-specified INVPCID
-modes.
-
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/include/asm/tlbflush.h | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ Documentation/kernel-parameters.txt |  2 ++
+ arch/x86/kernel/cpu/common.c        | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 6df2029405a3..20fc38d8478a 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -7,6 +7,47 @@
- #include <asm/processor.h>
- #include <asm/special_insns.h>
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 742f69d18fc8..b34e55e00bae 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2508,6 +2508,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
  
-+static inline void __invpcid(unsigned long pcid, unsigned long addr,
-+			     unsigned long type)
+ 	nointroute	[IA-64]
+ 
++	noinvpcid	[X86] Disable the INVPCID cpu feature.
++
+ 	nojitter	[IA-64] Disables jitter checking for ITC timers.
+ 
+ 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index c2b7522cbf35..48196980c1c7 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -162,6 +162,22 @@ static int __init x86_mpx_setup(char *s)
+ }
+ __setup("nompx", x86_mpx_setup);
+ 
++static int __init x86_noinvpcid_setup(char *s)
 +{
-+	u64 desc[2] = { pcid, addr };
++	/* noinvpcid doesn't accept parameters */
++	if (s)
++		return -EINVAL;
 +
-+	/*
-+	 * The memory clobber is because the whole point is to invalidate
-+	 * stale TLB entries and, especially if we're flushing global
-+	 * mappings, we don't want the compiler to reorder any subsequent
-+	 * memory accesses before the TLB flush.
-+	 */
-+	asm volatile (
-+		".byte 0x66, 0x0f, 0x38, 0x82, 0x01"	/* invpcid (%cx), %ax */
-+		: : "m" (desc), "a" (type), "c" (desc) : "memory");
++	/* do not emit a message if the feature is not present */
++	if (!boot_cpu_has(X86_FEATURE_INVPCID))
++		return 0;
++
++	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
++	pr_info("noinvpcid: INVPCID feature disabled\n");
++	return 0;
 +}
++early_param("noinvpcid", x86_noinvpcid_setup);
 +
-+/* Flush all mappings for a given pcid and addr, not including globals. */
-+static inline void invpcid_flush_one(unsigned long pcid,
-+				     unsigned long addr)
-+{
-+	__invpcid(pcid, addr, 0);
-+}
-+
-+/* Flush all mappings for a given PCID, not including globals. */
-+static inline void invpcid_flush_single_context(unsigned long pcid)
-+{
-+	__invpcid(pcid, 0, 1);
-+}
-+
-+/* Flush all mappings, including globals, for all PCIDs. */
-+static inline void invpcid_flush_everything(void)
-+{
-+	__invpcid(0, 0, 2);
-+}
-+
-+/* Flush all mappings for all PCIDs except globals. */
-+static inline void invpcid_flush_all_nonglobals(void)
-+{
-+	__invpcid(0, 0, 3);
-+}
-+
- #ifdef CONFIG_PARAVIRT
- #include <asm/paravirt.h>
- #else
+ #ifdef CONFIG_X86_32
+ static int cachesize_override = -1;
+ static int disable_x86_serial_nr = 1;
 -- 
 2.5.0
 
