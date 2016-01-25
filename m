@@ -1,74 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB696B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:02:53 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id n5so71002170wmn.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 02:02:53 -0800 (PST)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id mp1si27407739wjc.177.2016.01.25.02.02.52
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AC1C96B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:03:26 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id l65so56912425wmf.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 02:03:26 -0800 (PST)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id z187si23390722wmb.114.2016.01.25.02.03.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 02:02:52 -0800 (PST)
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Mon, 25 Jan 2016 10:02:52 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 7574D219005E
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:02:37 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PA2ncL61538542
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:02:49 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PA2nRP015675
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:02:49 -0700
-Date: Mon, 25 Jan 2016 11:02:48 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH] mm/debug_pagealloc: Ask users for default setting of
- debug_pagealloc
-Message-ID: <20160125100248.GB4298@osiris>
-References: <1453713588-119602-1-git-send-email-borntraeger@de.ibm.com>
- <20160125094132.GA4298@osiris>
- <56A5EECE.90607@de.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56A5EECE.90607@de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jan 2016 02:03:25 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 322361C1456
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:03:25 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 0/2] Avoid unnecessary page locks in the generic read path
+Date: Mon, 25 Jan 2016 10:03:22 +0000
+Message-Id: <1453716204-20409-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, peterz@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Mon, Jan 25, 2016 at 10:45:50AM +0100, Christian Borntraeger wrote:
-> >> +	  By default this option will be almost for free and can be activated
-> >> +	  in distribution kernels. The overhead and the debugging can be enabled
-> >> +	  by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc command line
-> >> +	  parameter.
-> > 
-> > Sorry, but it's not almost for free and should not be used by distribution
-> > kernels. If we have DEBUG_PAGEALLOC enabled, at least on s390 we will not
-> > make use of 2GB and 1MB pagetable entries for the identy mapping anymore.
-> > Instead we will only use 4K mappings.
-> 
-> Hmmm, can we change these code areas to use debug_pagealloc_enabled? I guess
-> this evaluated too late?
+A long time ago there was an attempt to merge a patch that reduced the
+cost of unlock_page by avoiding the page_waitqueue lookup if there were no
+waiters. It was rejected on the grounds of complexity but it was pointed
+out that the read paths call lock_page unnecessarily. This series reduces
+the number of calls to lock_page when multiple processes read data in at
+the same time.
 
-Yes, that should be possible. "debug_pagealloc" is an early_param, which
-will be evaluated before we call paging_init() (both in
-arch/s390/kernel/setup.c).
+ mm/filemap.c | 90 ++++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 60 insertions(+), 30 deletions(-)
 
-So it looks like this can be trivially changed. (replace the ifdefs in
-arch/s390/mm/vmem.c with debug_pagealloc_enabled()).
-
-> > I assume this is true for all architectures since freeing pages can happen
-> > in any context and therefore we can't allocate memory in order to split
-> > page tables.
-> > 
-> > So enabling this will cost memory and put more pressure on the TLB.
-> 
-> So I will change the description and drop the "if unsure" statement.
-
-Well, given that we can change it like above... I don't care anymore ;)
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
