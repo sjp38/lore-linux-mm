@@ -1,129 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 20FC36B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:15:11 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id 123so61020688wmz.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:15:11 -0800 (PST)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id l11si5126576wmd.29.2016.01.25.03.15.09
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 021EF6B0256
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:35:02 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id n5so74979214wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:35:01 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id le8si27938643wjb.80.2016.01.25.03.35.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 03:15:10 -0800 (PST)
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Mon, 25 Jan 2016 11:15:09 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4C04A2190023
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:14:53 +0000 (GMT)
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PBF5H44587694
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:15:05 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PBF4IQ030105
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 04:15:05 -0700
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v2] mm/debug_pagealloc: Ask users for default setting of debug_pagealloc
-Date: Mon, 25 Jan 2016 12:15:28 +0100
-Message-Id: <1453720528-103788-1-git-send-email-borntraeger@de.ibm.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 03:35:01 -0800 (PST)
+Date: Mon, 25 Jan 2016 12:35:13 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: filemap: Avoid unnecessary calls to lock_page
+ when waiting for IO to complete during a read
+Message-ID: <20160125113513.GE20933@quack.suse.cz>
+References: <1453716204-20409-1-git-send-email-mgorman@techsingularity.net>
+ <1453716204-20409-3-git-send-email-mgorman@techsingularity.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1453716204-20409-3-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: peterz@infradead.org, heiko.carstens@de.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-since commit 031bc5743f158 ("mm/debug-pagealloc: make debug-pagealloc
-boottime configurable") CONFIG_DEBUG_PAGEALLOC is by default not
-adding any page debugging.
+On Mon 25-01-16 10:03:24, Mel Gorman wrote:
+> In the generic read paths the kernel looks up a page in the page cache
+> and if it's up to date, it is used. If not, the page lock is acquired to
+> wait for IO to complete and then check the page.  If multiple processes
+> are waiting on IO, they all serialise against the lock and duplicate the
+> checks. This is unnecessary.
+> 
+> The page lock in itself does not give any guarantees to the callers about
+> the page state as it can be immediately truncated or reclaimed after the
+> page is unlocked. It's sufficient to wait_on_page_locked and then continue
+> if the page is up to date on wakeup.
+> 
+> It is possible that a truncated but up-to-date page is returned but the
+> reference taken during read prevents it disappearing underneath the caller
+> and the data is still valid if PageUptodate.
+> 
+> The overall impact is small as even if processes serialise on the lock,
+> the lock section is tiny once the IO is complete. Profiles indicated that
+> unlock_page and friends are generally a tiny portion of a read-intensive
+> workload.  An artifical test was created that had instances of dd access
+> a cache-cold file on an ext4 filesystem and measure how long the read took.
+> 
+> paralleldd
+>                                     4.4.0                 4.4.0
+>                                   vanilla             avoidlock
+> Amean    Elapsd-1          5.28 (  0.00%)        5.15 (  2.50%)
+> Amean    Elapsd-4          5.29 (  0.00%)        5.17 (  2.12%)
+> Amean    Elapsd-7          5.28 (  0.00%)        5.18 (  1.78%)
+> Amean    Elapsd-12         5.20 (  0.00%)        5.33 ( -2.50%)
+> Amean    Elapsd-21         5.14 (  0.00%)        5.21 ( -1.41%)
+> Amean    Elapsd-30         5.30 (  0.00%)        5.12 (  3.38%)
+> Amean    Elapsd-48         5.78 (  0.00%)        5.42 (  6.21%)
+> Amean    Elapsd-79         6.78 (  0.00%)        6.62 (  2.46%)
+> Amean    Elapsd-110        9.09 (  0.00%)        8.99 (  1.15%)
+> Amean    Elapsd-128       10.60 (  0.00%)       10.43 (  1.66%)
+> 
+> The impact is small but intuitively, it makes sense to avoid unnecessary
+> calls to lock_page.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-This resulted in several unnoticed bugs, e.g.
+The patch looks good. One small nit below, otherwise feel free to add:
 
-https://lkml.kernel.org/g/<569F5E29.3090107@de.ibm.com>
-or
-https://lkml.kernel.org/g/<56A20F30.4050705@de.ibm.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-as this behaviour change was not even documented in Kconfig.
+> ---
+>  mm/filemap.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 49 insertions(+)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index aa38593d0cd5..235ee2b0b5da 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1649,6 +1649,15 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+>  					index, last_index - index);
+>  		}
+>  		if (!PageUptodate(page)) {
+> +			/*
+> +			 * See comment in do_read_cache_page on why
+> +			 * wait_on_page_locked is used to avoid unnecessarily
+> +			 * serialisations and why it's safe.
+> +			 */
+> +			wait_on_page_locked(page);
+> +			if (PageUptodate(page))
+> +				goto page_ok;
+> +
 
-Let's provide a new Kconfig symbol that allows to change the default
-back to enabled, e.g. for debug kernels. This also makes the change
-obvious to kernel packagers.
+We want a wait_on_page_locked_killable() here to match the
+lock_page_killable() later in do_generic_file_read()?
 
-Let's also change the Kconfig description for CONFIG_DEBUG_PAGEALLOC,
-to indicate that there are two stages of overhead.
+									Honza
 
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
-V1->V2: change Kconfig help to indicate, that CONFIG_DEBUG_PAGEALLOC
-	is not for free, even if disabled
-
- mm/Kconfig.debug | 20 ++++++++++++++++++--
- mm/page_alloc.c  |  6 +++++-
- 2 files changed, 23 insertions(+), 3 deletions(-)
-
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 957d3da..f15c1cd 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -16,8 +16,8 @@ config DEBUG_PAGEALLOC
- 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	---help---
- 	  Unmap pages from the kernel linear mapping after free_pages().
--	  This results in a large slowdown, but helps to find certain types
--	  of memory corruption.
-+	  Depending on runtime enablement, this results in a small or large
-+	  slowdown, but helps to find certain types of memory corruption.
- 
- 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
- 	  fill the pages with poison patterns after free_pages() and verify
-@@ -26,5 +26,21 @@ config DEBUG_PAGEALLOC
- 	  that would result in incorrect warnings of memory corruption after
- 	  a resume because free pages are not saved to the suspend image.
- 
-+	  By default this option will have a small overhead, e.g. by not
-+	  allowing the kernel mapping to be backed by large pages on some
-+	  architectures. Even bigger overhead comes when the debugging is
-+	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
-+	  command line parameter.
-+
-+config DEBUG_PAGEALLOC_ENABLE_DEFAULT
-+	bool "Enable debug page memory allocations by default?"
-+        default off
-+        depends on DEBUG_PAGEALLOC
-+        ---help---
-+	  Enable debug page memory allocations by default? This value
-+	  can be overridden by debug_pagealloc=off|on.
-+
-+	  If unsure say no.
-+
- config PAGE_POISONING
- 	bool
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d666df..933def7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -479,7 +479,8 @@ void prep_compound_page(struct page *page, unsigned int order)
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- unsigned int _debug_guardpage_minorder;
--bool _debug_pagealloc_enabled __read_mostly;
-+bool _debug_pagealloc_enabled __read_mostly
-+			= IS_ENABLED(CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT);
- bool _debug_guardpage_enabled __read_mostly;
- 
- static int __init early_debug_pagealloc(char *buf)
-@@ -490,6 +491,9 @@ static int __init early_debug_pagealloc(char *buf)
- 	if (strcmp(buf, "on") == 0)
- 		_debug_pagealloc_enabled = true;
- 
-+	if (strcmp(buf, "off") == 0)
-+		_debug_pagealloc_enabled = false;
-+
- 	return 0;
- }
- early_param("debug_pagealloc", early_debug_pagealloc);
 -- 
-2.3.0
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
