@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C16D6B0009
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 16:30:01 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id g73so169607520ioe.3
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:30:01 -0800 (PST)
-Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
-        by mx.google.com with ESMTPS id k20si36098096ioe.26.2016.01.25.13.30.00
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6D26B0009
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 16:35:22 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id 65so381436pfd.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:35:22 -0800 (PST)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id fg8si36097219pad.227.2016.01.25.13.35.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 13:30:00 -0800 (PST)
-Received: by mail-io0-x232.google.com with SMTP id 1so165922287ion.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:30:00 -0800 (PST)
-MIME-Version: 1.0
-Date: Mon, 25 Jan 2016 13:30:00 -0800
-Message-ID: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
-Subject: Re: [PATCH] proc: revert /proc/<pid>/maps [stack:TID] annotation
-From: Colin Cross <ccross@android.com>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 25 Jan 2016 13:35:22 -0800 (PST)
+Message-ID: <1453757661.834.99.camel@hpe.com>
+Subject: Re: [PATCH v3 00/17] Enhance iomem search interfaces and support
+ EINJ to NVDIMM
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Mon, 25 Jan 2016 14:34:21 -0700
+In-Reply-To: <20160125191804.GE14030@pd.tnic>
+References: <1452020068-26492-1-git-send-email-toshi.kani@hpe.com>
+	 <20160125191804.GE14030@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, rafael.j.wysocki@intel.com, dan.j.williams@intel.com, dyoung@redhat.com, x86@kernel.org, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org, kexec@lists.infradead.org, xen-devel@lists.xenproject.org, linux-samsung-soc@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 19, 2016 at 3:30 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Tue, Jan 19, 2016 at 02:14:30PM -0800, Andrew Morton wrote:
->> On Tue, 19 Jan 2016 13:02:39 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
->>
->> > b764375 ("procfs: mark thread stack correctly in proc/<pid>/maps")
->> > added [stack:TID] annotation to /proc/<pid>/maps. Finding the task of
->> > a stack VMA requires walking the entire thread list, turning this into
->> > quadratic behavior: a thousand threads means a thousand stacks, so the
->> > rendering of /proc/<pid>/maps needs to look at a million threads. The
->> > cost is not in proportion to the usefulness as described in the patch.
->> >
->> > Drop the [stack:TID] annotation to make /proc/<pid>/maps (and
->> > /proc/<pid>/numa_maps) usable again for higher thread counts.
->> >
->> > The [stack] annotation inside /proc/<pid>/task/<tid>/maps is retained,
->> > as identifying the stack VMA there is an O(1) operation.
->>
->> Four years ago, ouch.
->>
->> Any thoughts on the obvious back-compatibility concerns?  ie, why did
->> Siddhesh implement this in the first place?  My bad for not ensuring
->> that the changelog told us this.
->>
->> https://lkml.org/lkml/2012/1/14/25 has more info:
->>
->> : Memory mmaped by glibc for a thread stack currently shows up as a
->> : simple anonymous map, which makes it difficult to differentiate between
->> : memory usage of the thread on stack and other dynamic allocation.
->> : Since glibc already uses MAP_STACK to request this mapping, the
->> : attached patch uses this flag to add additional VM_STACK_FLAGS to the
->> : resulting vma so that the mapping is treated as a stack and not any
->> : regular anonymous mapping.  Also, one may use vm_flags to decide if a
->> : vma is a stack.
->>
->> But even that doesn't really tell us what the actual *value* of the
->> patch is to end-users.
->
-> I doubt it can be very useful as it's unreliable: if two stacks are
-> allocated end-to-end (which is not good idea, but still) it can only
-> report [stack:XXX] for the first one as they are merged into one VMA.
-> Any other anon VMA merged with the stack will be also claimed as stack,
-> which is not always correct.
->
-> I think report the VMA as anon is the best we can know about it,
-> everything else just rather expensive guesses.
+On Mon, 2016-01-25 at 20:18 +0100, Borislav Petkov wrote:
+> On Tue, Jan 05, 2016 at 11:54:28AM -0700, Toshi Kani wrote:
+> > This patch-set enhances the iomem table and its search interfacs, and
+> > then changes EINJ to support NVDIMM.
+> > 
+ :
+> 
+> Ok, all applied ontop of 4.5-rc1.
+> 
+> You could take a look if everything's still fine and I haven't botched
+> anything:
+> 
+> http://git.kernel.org/cgit/linux/kernel/git/bp/bp.git/log/?h=tip-mm
 
-An alternative to guessing is the anonymous VMA naming patch used on
-Android, https://lkml.org/lkml/2013/10/30/518.  It allows userspace to
-name anonymous memory however it wishes, and prevents vma merging
-adjacent regions with different names.  Android uses it to label
-native heap memory, but it would work well for stacks too.
+I verified the patches and tested the kernel in the tree.  All look good.
+
+> I'll let the build bot chew on it and then test it here and send it out
+> again to everyone on CC so that people don't act surprised.
+
+Sounds great.
+
+> Thanks for this cleanup, code looks much better now!
+
+Thanks!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
