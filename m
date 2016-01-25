@@ -1,72 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 704E96B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:01:40 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id 123so60552368wmz.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:01:40 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id 8si27696739wjx.165.2016.01.25.03.01.39
+	by kanga.kvack.org (Postfix) with ESMTP id 81A1A6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:10:22 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id n5so73957960wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:10:22 -0800 (PST)
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com. [195.75.94.101])
+        by mx.google.com with ESMTPS id 65si23796468wmg.21.2016.01.25.03.10.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 03:01:39 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id r129so59016213wmr.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:01:39 -0800 (PST)
-Date: Mon, 25 Jan 2016 13:01:37 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [LSF/MM ATTEND] Huge Page Futures
-Message-ID: <20160125110137.GB11541@node.shutemov.name>
-References: <56A580F8.4060301@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 03:10:21 -0800 (PST)
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Mon, 25 Jan 2016 11:10:20 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 814022190023
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:10:04 +0000 (GMT)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PBAG5O6357454
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:10:17 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PAAITJ001244
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 03:10:18 -0700
+Subject: Re: [PATCH] mm/debug_pagealloc: Ask users for default setting of
+ debug_pagealloc
+References: <1453713588-119602-1-git-send-email-borntraeger@de.ibm.com>
+ <20160125094132.GA4298@osiris> <56A5EECE.90607@de.ibm.com>
+ <20160125100248.GB4298@osiris> <56A5F3C8.4050202@de.ibm.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Message-ID: <56A60297.4050501@de.ibm.com>
+Date: Mon, 25 Jan 2016 12:10:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56A580F8.4060301@oracle.com>
+In-Reply-To: <56A5F3C8.4050202@de.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, peterz@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On Sun, Jan 24, 2016 at 05:57:12PM -0800, Mike Kravetz wrote:
-> In a search of the archives, it appears huge page support in one form or
-> another has been a discussion topic in almost every LSF/MM gathering. Based
-> on patches submitted this past year, huge pages is still an area of active
-> development.  And, it appears this level of activity will  continue in the
-> coming year.
+On 01/25/2016 11:07 AM, Christian Borntraeger wrote:
+> On 01/25/2016 11:02 AM, Heiko Carstens wrote:
+>> On Mon, Jan 25, 2016 at 10:45:50AM +0100, Christian Borntraeger wrote:
+>>>>> +	  By default this option will be almost for free and can be activated
+>>>>> +	  in distribution kernels. The overhead and the debugging can be enabled
+>>>>> +	  by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc command line
+>>>>> +	  parameter.
+>>>>
+>>>> Sorry, but it's not almost for free and should not be used by distribution
+>>>> kernels. If we have DEBUG_PAGEALLOC enabled, at least on s390 we will not
+>>>> make use of 2GB and 1MB pagetable entries for the identy mapping anymore.
+>>>> Instead we will only use 4K mappings.
+>>>
+>>> Hmmm, can we change these code areas to use debug_pagealloc_enabled? I guess
+>>> this evaluated too late?
+>>
+>> Yes, that should be possible. "debug_pagealloc" is an early_param, which
+>> will be evaluated before we call paging_init() (both in
+>> arch/s390/kernel/setup.c).
+>>
+>> So it looks like this can be trivially changed. (replace the ifdefs in
+>> arch/s390/mm/vmem.c with debug_pagealloc_enabled()).
+>>
+>>>> I assume this is true for all architectures since freeing pages can happen
+>>>> in any context and therefore we can't allocate memory in order to split
+>>>> page tables.
+>>>>
+>>>> So enabling this will cost memory and put more pressure on the TLB.
+>>>
+>>> So I will change the description and drop the "if unsure" statement.
+>>
+>> Well, given that we can change it like above... I don't care anymore ;)
 > 
-> I propose a "Huge Page Futures" session to discuss large works in progress
-> as well as work people are considering for 2016.  Areas of discussion would
-> minimally include:
-> 
-> - Krill Shutemov's THP new refcounting code and the push for huge page
->   support in the page cache.
+> Ok, I will give it a try, and come back with a rewording or an s390 patch.
 
-s/Krill/Kirill/ :]
+I have a patch for x86 and s390. powerpc should also be possible.
 
-I work on huge pages in tmpfs first and will look on huge pages for real
-filesystems later.
+Now it seems that sparc already defines the TSB very early in head.S. 
+Unless we find a solution for sparc to use debug_pagealloc_enabled()
+I will modify the patch description and resend the patch.
 
-> 
-> - Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
->   more interesting is the desire for supporting PUD pages.  This seems to
->   beg the question of supporting transparent PUD pages elsewhere.
-> 
-> - Other suggestions?
-> 
-> My interest in attending also revolves around huge pages.  This past year
-> I have added functionality to hugetlbfs.  hugetlbfs is not dead, and is
-> very much in use by some DB implementations.  Proposed future work I will
-> be attempting includes:
-> - Adding userfaultfd support to hugetlbfs
-> - Adding shared page table (PMD) support to DAX much like that which exists
->   for hugetlbfs
 
-Shared page tables for hugetlbfs is rather ugly hack.
-
-Do you have any thoughts how it's going to be implemented? It would be
-nice to have some design overview or better proof-of-concept patch before
-the summit to be able analyze implications for the kernel.
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
