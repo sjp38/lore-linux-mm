@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 06315828DF
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:47:10 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id bc4so77259009lbc.2
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:47:09 -0800 (PST)
-Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
-        by mx.google.com with ESMTPS id rv5si10282980lbb.31.2016.01.25.08.47.08
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 08:47:08 -0800 (PST)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1aNkIF-0002om-I1
-	for linux-mm@kvack.org; Mon, 25 Jan 2016 17:47:07 +0100
-Received: from 65-125-35-19.newmexicoconsortium.org ([65-125-35-19.newmexicoconsortium.org])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 17:47:07 +0100
-Received: from hugh by 65-125-35-19.newmexicoconsortium.org with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 17:47:07 +0100
-From: Hugh Greenberg <hugh@galliumos.org>
-Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
-Date: Mon, 25 Jan 2016 16:46:58 +0000 (UTC)
-Message-ID: <loom.20160125T174557-678@post.gmane.org>
-References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com> <20160121161656.GA16564@node.shutemov.name> <loom.20160123T165232-709@post.gmane.org> <20160125103853.GD11095@node.shutemov.name>
-Mime-Version: 1.0
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E65D2828DF
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:52:13 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id 65so84609276pff.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:52:13 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hq1si34680166pac.56.2016.01.25.08.52.13
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jan 2016 08:52:13 -0800 (PST)
+Date: Mon, 25 Jan 2016 11:52:09 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX
+ documentation
+Message-ID: <20160125165209.GH2948@linux.intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+ <CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
+ <100D68C7BA14664A8938383216E40DE0421657C5@fmsmsx111.amr.corp.intel.com>
+ <CA+ZsKJ4EMKRgdFQzUjRJOE48=tTJzHf66-60PnVRj7pxvmNgVg@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <CA+ZsKJ4EMKRgdFQzUjRJOE48=tTJzHf66-60PnVRj7pxvmNgVg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Jared Hulbert <jaredeh@gmail.com>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Chris Brandt <Chris.Brandt@renesas.com>
 
-Kirill A. Shutemov <kirill <at> shutemov.name> writes:
+On Sun, Jan 24, 2016 at 01:03:49AM -0800, Jared Hulbert wrote:
+> I our defense we didn't know we were sinning at the time.
 
+Fair enough.  Cache flushing is Hard.
+
+> Can you walk me through the cache flushing hole?  How is it okay on
+> X86 but not VIVT archs?  I'm missing something obvious here.
 > 
-> On Sat, Jan 23, 2016 at 03:57:21PM +0000, Hugh Greenberg wrote:
-> > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
-> > > 
-> > > Could you try to insert 
-"late_initcall(set_recommended_min_free_kbytes);"
-> > > back and check if makes any difference.
-> > > 
-> > 
-> > We tested adding late_initcall(set_recommended_min_free_kbytes); 
-> > back in 4.1.14 and it made a huge difference. We aren't sure if the
-> > issue is 100% fixed, but it could be. We will keep testing it.
+> I thought earlier that vm_insert_mixed() handled the necessary
+> flushing.  Is that even the part you are worried about?
+
+No, that part should be fine.  My concern is about write() calls to files
+which are also mmaped.  See Documentation/cachetlb.txt around line 229,
+starting with "There exists another whole class of cpu cache issues" ...
+
+> What flushing functions would you call if you did have a cache page.
+
+Well, that's the problem; they don't currently exist.
+
+> There are all kinds of cache flushing functions that work without a
+> struct page. If nothing else the specialized ASM instructions that do
+> the various flushes don't use struct page as a parameter.  This isn't
+> the first I've run into the lack of a sane cache API.  Grep for
+> inval_cache in the mtd drivers, should have been much easier.  Isn't
+> the proper solution to fix update_mmu_cache() or build out a pageless
+> cache flushing API?
 > 
-> It would be nice to have values of min_free_kbytes before and after
-> set_recommended_min_free_kbytes() in your configuration.
-> 
+> I don't get the explicit mapping solution.  What are you mapping
+> where?  What addresses would be SHMLBA?  Phys, kernel, userspace?
 
-Before adding set_recommended_min_free_kbytes: 5391
-After: 67584
+The problem comes in dax_io() where the kernel stores to an alias of the
+user address (or reads from an alias of the user address).  Theoretically,
+we should flush user addresses before we read from the kernel's alias,
+and flush the kernel's alias after we store to it.
 
+But if we create a new address for the kernel to use which lands on the
+same cache line as the user's address (and this is what SHMLBA is used
+to indicate), there is no incoherency between the kernel's view and the
+user's view.  And no new cache flushing API is needed.
 
+Is that clearer?  I'm not always good at explaining these things in a
+way which makes sense to other people :-(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
