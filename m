@@ -1,74 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD336B0253
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:25:57 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id e32so114591662qgf.3
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:25:57 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f34si18511014qgd.87.2016.01.25.09.25.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 09:25:57 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] VM containers
-References: <56A2511F.1080900@redhat.com>
- <439BF796-53D3-48C9-8578-A0733DDE8001@intel.com>
- <20160124170656.6c5460a3@lxorguk.ukuu.org.uk>
-From: Rik van Riel <riel@redhat.com>
-Message-ID: <56A65AA2.6040307@redhat.com>
-Date: Mon, 25 Jan 2016 12:25:54 -0500
-MIME-Version: 1.0
-In-Reply-To: <20160124170656.6c5460a3@lxorguk.ukuu.org.uk>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1616B0253
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:26:12 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id n128so84910573pfn.3
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:26:12 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id n9si34860949pap.49.2016.01.25.09.26.11
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jan 2016 09:26:11 -0800 (PST)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH 3/3] dax: Handle write faults more efficiently
+Date: Mon, 25 Jan 2016 12:25:17 -0500
+Message-Id: <1453742717-10326-4-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, "Nakajima, Jun" <jun.nakajima@intel.com>
-Cc: "lsf-pc@lists.linuxfoundation.org" <lsf-pc@lists.linuxfoundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>
+To: Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/24/2016 12:06 PM, One Thousand Gnomes wrote:
->>> That changes some of the goals the memory management subsystem has,
->>> from "use all the resources effectively" to "use as few resources as
->>> necessary, in case the host needs the memory for something else".
-> 
-> Also "and take guidance/provide telemetry" - because you want to tune the
-> VM behaviours based upon policy and to learn from them for when you re-run
-> that container.
-> 
->> Beyond memory consumption, I would be interested whether we can harden the kernel by the paravirt interfaces for memory protection in VMs (if any). For example, the hypervisor could write-protect part of the page tables or kernel data structures in VMs, and does it help?
-> 
-> There are four behaviours I can think of, some of which you see in
-> various hypervisors and security hardening systems
-> 
-> - die on write (a write here causes a security trap and termination after
->   the guest has marked the page range die on write, and it cannot be
->   unmarked). The guest OS at boot can for example mark all it's code as
->   die-on-write.
-> - irrevocably read only (VM never allows page to be rewritten by guest
->   after the guest marks the page range irrevocably r/o)
+From: Matthew Wilcox <willy@linux.intel.com>
 
-For these we get the question "how do we make it harder for the
-guest to remap the page tables to point at read/write memory,
-and modify that instead of the read-only memory?"
+When we handle a write-fault on a DAX mapping, we currently insert a
+read-only mapping and then take the page fault again to convert it to
+a writable mapping.  This is necessary for the case where we cover a
+hole with a read-only zero page, but when we have a data block already
+allocated, it is inefficient.
 
-On "smaller" guests (less than 1TB in size), it may be enough to
-ensure that the kernel PUD pointer points to the (read-only) kernel
-PUD at context switch time, placing the main kernel page tables,
-kernel text, and some other things in read-only memory.
+Use the recently added vmf_insert_pfn_prot() to insert a writable mapping,
+even though the default VM flags say to use a read-only mapping.
 
-> - asynchronous faulting (pages the guest thinks are in it's memory but
->   are in fact on the hosts swap cause a subscribable fault in the guest
->   so that it can (where possible) be context switched
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ fs/dax.c | 73 ++++++++++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 53 insertions(+), 20 deletions(-)
 
-KVM (and s390) already do the asynchronous page fault trick.
-
-> - free if needed - marking pages as freed up and either you get a page
->   back as it was or a fault and a zeroed page
-
-People have worked on this for KVM. I do not remember what
-happened to the code.
-
+diff --git a/fs/dax.c b/fs/dax.c
+index 206650f..3f6138d 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -519,9 +519,44 @@ int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+ }
+ EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
+ 
++/*
++ * The default page protections for DAX VMAs are set to "copy" so that
++ * we get notifications when zero pages are written to.  This function
++ * is called when we're inserting a mapping to a data page.  If this is
++ * a write fault, we've already done all the necessary accounting and
++ * it's pointless to insert this translation entry read-only.  Convert
++ * the pgprot to be writable.
++ *
++ * While this is not the most elegant code, the compiler can see that (on
++ * any sane architecture) all four arms of the conditional are the same.
++ */
++static pgprot_t dax_pgprot(struct vm_area_struct *vma, bool write)
++{
++	pgprot_t pgprot = vma->vm_page_prot;
++	if (!write)
++		return pgprot;
++	if ((vma->vm_flags & (VM_READ|VM_EXEC)) == (VM_READ|VM_EXEC))
++		return __pgprot(pgprot_val(pgprot) ^
++				pgprot_val(__P111) ^
++				pgprot_val(__S111));
++	else if ((vma->vm_flags & (VM_READ|VM_EXEC)) == VM_READ)
++		return __pgprot(pgprot_val(pgprot) ^
++				pgprot_val(__P110) ^
++				pgprot_val(__S110));
++	else if ((vma->vm_flags & (VM_READ|VM_EXEC)) == VM_EXEC)
++		return __pgprot(pgprot_val(pgprot) ^
++				pgprot_val(__P011) ^
++				pgprot_val(__S011));
++	else
++		return __pgprot(pgprot_val(pgprot) ^
++				pgprot_val(__P010) ^
++				pgprot_val(__S010));
++}
++
+ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 			struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	bool write = vmf->flags & FAULT_FLAG_WRITE;
+ 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct block_device *bdev = bh->b_bdev;
+@@ -530,7 +565,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 		.size = bh->b_size,
+ 	};
+ 	pgoff_t size;
+-	int error;
++	int result;
+ 
+ 	i_mmap_lock_read(mapping);
+ 
+@@ -542,15 +577,11 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 	 * allocated past the end of the file.
+ 	 */
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (unlikely(vmf->pgoff >= size)) {
+-		error = -EIO;
+-		goto out;
+-	}
++	if (unlikely(vmf->pgoff >= size))
++		goto sigbus;
+ 
+-	if (dax_map_atomic(bdev, &dax) < 0) {
+-		error = PTR_ERR(dax.addr);
+-		goto out;
+-	}
++	if (dax_map_atomic(bdev, &dax) < 0)
++		goto sigbus;
+ 
+ 	if (buffer_unwritten(bh) || buffer_new(bh)) {
+ 		clear_pmem(dax.addr, PAGE_SIZE);
+@@ -558,17 +589,19 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 	}
+ 	dax_unmap_atomic(bdev, &dax);
+ 
+-	error = dax_radix_entry(mapping, vmf->pgoff, dax.sector, false,
+-			vmf->flags & FAULT_FLAG_WRITE);
+-	if (error)
+-		goto out;
++	if (dax_radix_entry(mapping, vmf->pgoff, dax.sector, false, write))
++		goto sigbus;
+ 
+-	error = vm_insert_mixed(vma, vaddr, dax.pfn);
++	result = vmf_insert_pfn_prot(vma, vaddr, dax.pfn,
++					dax_pgprot(vma, write));
+ 
+  out:
+ 	i_mmap_unlock_read(mapping);
++	return result;
+ 
+-	return error;
++ sigbus:
++	result = VM_FAULT_SIGBUS;
++	goto out;
+ }
+ 
+ /**
+@@ -599,7 +632,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	unsigned blkbits = inode->i_blkbits;
+ 	sector_t block;
+ 	pgoff_t size;
+-	int error;
++	int result, error;
+ 	int major = 0;
+ 
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+@@ -701,19 +734,19 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	 * indicate what the callback should do via the uptodate variable, same
+ 	 * as for normal BH based IO completions.
+ 	 */
+-	error = dax_insert_mapping(inode, &bh, vma, vmf);
++	result = dax_insert_mapping(inode, &bh, vma, vmf);
+ 	if (buffer_unwritten(&bh)) {
+ 		if (complete_unwritten)
+-			complete_unwritten(&bh, !error);
++			complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
+ 		else
+ 			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
+ 	}
++	return result | major;
+ 
+  out:
+ 	if (error == -ENOMEM)
+ 		return VM_FAULT_OOM | major;
+-	/* -EBUSY is fine, somebody else faulted on the same PTE */
+-	if ((error < 0) && (error != -EBUSY))
++	if (error < 0)
+ 		return VM_FAULT_SIGBUS | major;
+ 	return VM_FAULT_NOPAGE | major;
+ 
 -- 
-All rights reversed
+2.7.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
