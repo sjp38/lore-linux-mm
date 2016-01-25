@@ -1,69 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 386BD6B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:56:31 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id u188so78231150wmu.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:56:31 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id df6si30133498wjc.222.2016.01.25.10.56.29
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D5606B0255
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:57:11 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id n5so95465733wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:57:11 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id t187si106206wmg.54.2016.01.25.10.57.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 10:56:30 -0800 (PST)
-Date: Mon, 25 Jan 2016 13:55:38 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/memcontrol: avoid a spurious gcc warning
-Message-ID: <20160125185538.GF29291@cmpxchg.org>
-References: <1453736756-1959377-3-git-send-email-arnd@arndb.de>
+        Mon, 25 Jan 2016 10:57:09 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id u188so13045173wmu.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:57:09 -0800 (PST)
+Date: Mon, 25 Jan 2016 19:57:06 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 0/3] x86/mm: INVPCID support
+Message-ID: <20160125185706.GA28416@gmail.com>
+References: <cover.1453746505.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1453736756-1959377-3-git-send-email-arnd@arndb.de>
+In-Reply-To: <cover.1453746505.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-arm-kernel@lists.infradead.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Hi Arnd,
 
-On Mon, Jan 25, 2016 at 04:45:50PM +0100, Arnd Bergmann wrote:
-> When CONFIG_DEBUG_VM is set, the various VM_BUG_ON() confuse gcc to
-> the point where it cannot remember that 'memcg' is known to be initialized:
+* Andy Lutomirski <luto@kernel.org> wrote:
+
+> Ingo, before applying this, please apply these two KASAN fixes:
 > 
-> mm/memcontrol.c: In function 'mem_cgroup_can_attach':
-> mm/memcontrol.c:4791:9: warning: 'memcg' may be used uninitialized in this function [-Wmaybe-uninitialized]
+> http://lkml.kernel.org/g/1452516679-32040-2-git-send-email-aryabinin@virtuozzo.com
+> http://lkml.kernel.org/g/1452516679-32040-3-git-send-email-aryabinin@virtuozzo.com
 > 
-> On ARM gcc-5.1, the above happens when any two or more of the VM_BUG_ON()
-> are active, but not when I remove most or all of them. This is clearly
-> random behavior and the only way I've found to shut up the warning is
-> to add an explicit initialization.
+> Without those fixes, this series will trigger a KASAN bug.
 > 
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> This is a straightforward speedup on Ivy Bridge and newer, IIRC.
+> (I tested on Skylake.  INVPCID is not available on Sandy Bridge.
+> I don't have Ivy Bridge, Haswell or Broadwell to test on, so I
+> could be wrong as to when the feature was introduced.)
+> 
+> I think we should consider these patches separately from the rest
+> of the PCID stuff -- they barely interact, and this part is much
+> simpler and is useful on its own.
+> 
+> This is exactly identical to patches 2-4 of the PCID RFC series.
+> 
+> Andy Lutomirski (3):
+>   x86/mm: Add INVPCID helpers
+>   x86/mm: Add a noinvpcid option to turn off INVPCID
+>   x86/mm: If INVPCID is available, use it to flush global mappings
+> 
+>  Documentation/kernel-parameters.txt |  2 ++
+>  arch/x86/include/asm/tlbflush.h     | 50 +++++++++++++++++++++++++++++++++++++
+>  arch/x86/kernel/cpu/common.c        | 16 ++++++++++++
+>  3 files changed, 68 insertions(+)
 
-Thanks Arnd.
+Ok, I'll pick these up tomorrow unless there are objections.
 
-This has been fixed upstream already:
+Thanks,
 
-commit eed67d75b66748a498a0592d9704081a98509444
-Author: Ross Zwisler <ross.zwisler@linux.intel.com>
-Date:   Wed Dec 23 14:53:27 2015 -0700
-
-    cgroup: Fix uninitialized variable warning
-    
-    Commit 1f7dd3e5a6e4 ("cgroup: fix handling of multi-destination migration
-    from subtree_control enabling") introduced the following compiler warning:
-    
-    mm/memcontrol.c: In function a??mem_cgroup_can_attacha??:
-    mm/memcontrol.c:4790:9: warning: a??memcga?? may be used uninitialized in this function [-Wmaybe-uninitialized]
-       mc.to = memcg;
-             ^
-    
-    Fix this by initializing 'memcg' to NULL.
-    
-    This was found using gcc (GCC) 4.9.2 20150212 (Red Hat 4.9.2-6).
-    
-    Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-    Signed-off-by: Tejun Heo <tj@kernel.org>
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
