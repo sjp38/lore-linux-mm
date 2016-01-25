@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 765B06B0258
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:41:58 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id u188so73392613wmu.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:41:58 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A23966B0255
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 11:42:36 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id 123so73199564wmz.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:42:36 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 79si25455419wmb.9.2016.01.25.08.41.57
+        by mx.google.com with ESMTPS id c192si25455423wmd.11.2016.01.25.08.42.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 08:41:57 -0800 (PST)
-Date: Mon, 25 Jan 2016 11:41:14 -0500
+        Mon, 25 Jan 2016 08:42:35 -0800 (PST)
+Date: Mon, 25 Jan 2016 11:41:52 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 1/3] mm: workingset: eviction buckets for bigmem/lowbit
- machines
-Message-ID: <20160125164114.GB29291@cmpxchg.org>
+Subject: [PATCH 2/3] mm: workingset: separate shadow unpacking and refault
+ calculation
+Message-ID: <20160125164152.GC29291@cmpxchg.org>
 References: <1453654576-8371-1-git-send-email-vdavydov@virtuozzo.com>
  <20160125163907.GA29291@cmpxchg.org>
 MIME-Version: 1.0
@@ -25,101 +25,104 @@ List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-space will get tight once we need to identify the memcg. add this to
-stretch out the necessary distance by sacrificing granularity.
+used to be alright, but we're gonna add memcg and then the difference
+between unpacking static data from the radix entry and dealing with
+dynamic objects and doing calculations becomes more pronounced and
+would make things awkward.
+
+keep unpacking simple, move the higher-level stuff to _refault().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/workingset.c | 40 +++++++++++++++++++++++++++++++++++-----
- 1 file changed, 35 insertions(+), 5 deletions(-)
+ mm/workingset.c | 55 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 28 insertions(+), 27 deletions(-)
 
 diff --git a/mm/workingset.c b/mm/workingset.c
-index 61ead9e5549d..6f3ba184ffb2 100644
+index 6f3ba184ffb2..ac6eb7bc1faa 100644
 --- a/mm/workingset.c
 +++ b/mm/workingset.c
-@@ -152,8 +152,23 @@
-  * refault distance will immediately activate the refaulting page.
-  */
+@@ -176,13 +176,10 @@ static void *pack_shadow(unsigned long eviction, struct zone *zone)
+ 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
+ }
  
-+#define EVICTION_SHIFT (NODES_SHIFT + ZONES_SHIFT +	\
-+			RADIX_TREE_EXCEPTIONAL_SHIFT)
-+#define EVICTION_MASK (~0UL >> EVICTION_SHIFT)
-+
-+/*
-+ * Eviction timestamps need to be able to cover the full range of
-+ * actionable refaults. However, bits are tight in the radix tree
-+ * entry, and after storing the identifier for the lruvec there might
-+ * not be enough left to represent every single actionable refault. In
-+ * that case, we have to sacrifice granularity for distance, and group
-+ * evictions into coarser buckets by shaving off lower timestamp bits.
-+ */
-+static unsigned int bucket_order;
-+
- static void *pack_shadow(unsigned long eviction, struct zone *zone)
+-static void unpack_shadow(void *shadow,
+-			  struct zone **zone,
+-			  unsigned long *distance)
++static void unpack_shadow(void *shadow, struct zone **zonep,
++			  unsigned long *evictionp)
  {
-+	eviction >>= bucket_order;
- 	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
- 	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
- 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
-@@ -168,7 +183,6 @@ static void unpack_shadow(void *shadow,
  	unsigned long entry = (unsigned long)shadow;
- 	unsigned long eviction;
- 	unsigned long refault;
--	unsigned long mask;
+-	unsigned long eviction;
+-	unsigned long refault;
  	int zid, nid;
  
  	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
-@@ -176,13 +190,12 @@ static void unpack_shadow(void *shadow,
+@@ -190,29 +187,10 @@ static void unpack_shadow(void *shadow,
  	entry >>= ZONES_SHIFT;
  	nid = entry & ((1UL << NODES_SHIFT) - 1);
  	entry >>= NODES_SHIFT;
--	eviction = entry;
-+	eviction = entry << bucket_order;
+-	eviction = entry << bucket_order;
+-
+-	*zone = NODE_DATA(nid)->node_zones + zid;
  
- 	*zone = NODE_DATA(nid)->node_zones + zid;
+-	refault = atomic_long_read(&(*zone)->inactive_age);
++	*zonep = NODE_DATA(nid)->node_zones + zid;
++	*evictionp = entry << bucket_order;
  
- 	refault = atomic_long_read(&(*zone)->inactive_age);
--	mask = ~0UL >> (NODES_SHIFT + ZONES_SHIFT +
--			RADIX_TREE_EXCEPTIONAL_SHIFT);
-+
- 	/*
- 	 * The unsigned subtraction here gives an accurate distance
- 	 * across inactive_age overflows in most cases.
-@@ -199,7 +212,7 @@ static void unpack_shadow(void *shadow,
- 	 * inappropriate activation leading to pressure on the active
- 	 * list is not a problem.
- 	 */
--	*distance = (refault - eviction) & mask;
-+	*distance = (refault - eviction) & EVICTION_MASK;
+-	/*
+-	 * The unsigned subtraction here gives an accurate distance
+-	 * across inactive_age overflows in most cases.
+-	 *
+-	 * There is a special case: usually, shadow entries have a
+-	 * short lifetime and are either refaulted or reclaimed along
+-	 * with the inode before they get too old.  But it is not
+-	 * impossible for the inactive_age to lap a shadow entry in
+-	 * the field, which can then can result in a false small
+-	 * refault distance, leading to a false activation should this
+-	 * old entry actually refault again.  However, earlier kernels
+-	 * used to deactivate unconditionally with *every* reclaim
+-	 * invocation for the longest time, so the occasional
+-	 * inappropriate activation leading to pressure on the active
+-	 * list is not a problem.
+-	 */
+-	*distance = (refault - eviction) & EVICTION_MASK;
  }
  
  /**
-@@ -398,8 +411,25 @@ static struct lock_class_key shadow_nodes_key;
- 
- static int __init workingset_init(void)
+@@ -244,9 +222,32 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
+ bool workingset_refault(void *shadow)
  {
-+	unsigned int timestamp_bits;
-+	unsigned int max_order;
- 	int ret;
+ 	unsigned long refault_distance;
++	unsigned long eviction;
++	unsigned long refault;
+ 	struct zone *zone;
  
-+	BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
-+	/*
-+	 * Calculate the eviction bucket size to cover the longest
-+	 * actionable refault distance, which is currently half of
-+	 * memory (totalram_pages/2). However, memory hotplug may add
-+	 * some more pages at runtime, so keep working with up to
-+	 * double the initial memory by using totalram_pages as-is.
-+	 */
-+	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
-+	max_order = fls_long(totalram_pages - 1);
-+	if (max_order > timestamp_bits)
-+		bucket_order = max_order - timestamp_bits;
-+	printk("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",
-+	       timestamp_bits, max_order, bucket_order);
+-	unpack_shadow(shadow, &zone, &refault_distance);
++	unpack_shadow(shadow, &zone, &eviction);
 +
- 	ret = list_lru_init_key(&workingset_shadow_nodes, &shadow_nodes_key);
- 	if (ret)
- 		goto err;
++	refault = atomic_long_read(&zone->inactive_age);
++
++	/*
++	 * The unsigned subtraction here gives an accurate distance
++	 * across inactive_age overflows in most cases.
++	 *
++	 * There is a special case: usually, shadow entries have a
++	 * short lifetime and are either refaulted or reclaimed along
++	 * with the inode before they get too old.  But it is not
++	 * impossible for the inactive_age to lap a shadow entry in
++	 * the field, which can then can result in a false small
++	 * refault distance, leading to a false activation should this
++	 * old entry actually refault again.  However, earlier kernels
++	 * used to deactivate unconditionally with *every* reclaim
++	 * invocation for the longest time, so the occasional
++	 * inappropriate activation leading to pressure on the active
++	 * list is not a problem.
++	 */
++	refault_distance = (refault - eviction) & EVICTION_MASK;
++
+ 	inc_zone_state(zone, WORKINGSET_REFAULT);
+ 
+ 	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
 -- 
 2.7.0
 
