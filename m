@@ -1,129 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DD096B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:17:51 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id cy9so80937249pac.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:17:51 -0800 (PST)
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
-        by mx.google.com with ESMTPS id fm8si33702147pad.29.2016.01.25.05.17.49
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 506146B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:34:00 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id r129so64232106wmr.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:34:00 -0800 (PST)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id m189si24432064wmb.98.2016.01.25.05.33.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 05:17:50 -0800 (PST)
-Received: from localhost
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 25 Jan 2016 18:47:47 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PDHiXn1179916
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:47:45 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PDHcg5013139
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:47:40 +0530
-Date: Mon, 25 Jan 2016 18:47:24 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
-Message-ID: <20160125131723.GB17206@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20160122180219.164259F1@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jan 2016 05:33:59 -0800 (PST)
+Received: by mail-wm0-f49.google.com with SMTP id l65so64136931wmf.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:33:59 -0800 (PST)
+Date: Mon, 25 Jan 2016 14:33:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [LSF/MM TOPIC] proposals for topics
+Message-ID: <20160125133357.GC23939@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160122180219.164259F1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, jack@suse.cz, Oleg Nesterov <oleg@redhat.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-> 
-> One of Vlastimil's comments made me go dig back in to the uprobes
-> code's use of get_user_pages().  I decided to change both of them
-> to be "foreign" accesses.
-> 
-> This also fixes the nommu breakage that Vlastimil noted last time.
-> 
-> Srikar, I'd appreciate if you can have a look at the uprobes.c
-> modifications, especially the comment.  I don't think this will
-> change any behavior, but I want to make sure the comment is
-> accurate.
-> 
-> ---
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> For protection keys, we need to understand whether protections
-> should be enforced in software or not.  In general, we enforce
-> protections when working on our own task, but not when on others.
-> We call these "current" and "foreign" operations.
-> 
-> This patch introduces a new get_user_pages() variant:
-> 
-> 	get_user_pages_foreign()
-> 
-> We modify the vanilla get_user_pages() so it can no longer be
-> used on mm/tasks other than 'current/current->mm', which is by
-> far the most common way it is called.  Using it makes a few of
-> the call sites look a bit nicer.
-> 
-> In other words, get_user_pages_foreign() is a replacement for
-> when get_user_pages() is called on non-current tsk/mm.
-> 
-> This also switches get_user_pages_(un)locked() over to be like
-> get_user_pages() and not take a tsk/mm.  There is no
-> get_user_pages_foreign_(un)locked().  If someone wants that
-> behavior they just have to use "__" variant and pass in
-> FOLL_FOREIGN explicitly.
-> 
-> The uprobes is_trap_at_addr() location holds mmap_sem and
-> calls get_user_pages(current->mm) on an instruction address.  This
-> makes it a pretty unique gup caller.  Being an instruction access
-> and also really originating from the kernel (vs. the app), I opted
-> to consider this a 'foreign' access where protection keys will not
-> be enforced.
-> 
+Hi,
+I would like to propose the following topics (mainly for the MM track
+but some of them might be of interest for FS people as well)
+- gfp flags for allocations requests seems to be quite complicated
+  and used arbitrarily by many subsystems. GFP_REPEAT is one such
+  example. Half of the current usage is for low order allocations
+  requests where it is basically ignored. Moreover the documentation
+  claims that such a request is _not_ retrying endlessly which is
+  true only for costly high order allocations. I think we should get
+  rid of most of the users of this flag (basically all low order ones)
+  and then come up with something like GFP_BEST_EFFORT which would work
+  for all orders consistently [1]
+- GFP_NOFS is another one which would be good to discuss. Its primary
+  use is to prevent from reclaim recursion back into FS. This makes
+  such an allocation context weaker and historically we haven't
+  triggered OOM killer and rather hopelessly retry the request and
+  rely on somebody else to make a progress for us. There are two issues
+  here.
+  First we shouldn't retry endlessly and rather fail the allocation and
+  allow the FS to handle the error. As per my experiments most FS cope
+  with that quite reasonably. Btrfs unfortunately handles many of those
+  failures by BUG_ON which is really unfortunate.
+  Another issue is that GFP_NOFS is quite often used without any obvious
+  reason. It is not clear which lock is held and could be taken from
+  the reclaim path. Wouldn't it be much better if the no-recursion
+  behavior was bound to the lock scope rather than particular allocation
+  request? We already have something like this for PM
+  pm_res{trict,tore}_gfp_mask resp. memalloc_noio_{save,restore}. It
+  would be great if we could unify this and use the context based NOFS
+  in the FS.
+- OOM killer has been discussed a lot throughout this year. We have
+  discussed this topic the last year at LSF and there has been quite some
+  progress since then. We have async memory tear down for the OOM victim
+  [2] which should help in many corner cases. We are still waiting
+  to make mmap_sem for write killable which would help in some other
+  classes of corner cases. Whatever we do, however, will not work in
+  100% cases. So the primary question is how far are we willing to go to
+  support different corner cases. Do we want to have a
+  panic_after_timeout global knob, allow multiple OOM victims after
+  a timeout?
+- sysrq+f to trigger the oom killer follows some heuristics used by the
+  OOM killer invoked by the system which means that it is unreliable
+  and it might skip to kill any task without any explanation why. The
+  semantic of the knob doesn't seem to clear and it has been even
+  suggested [3] to remove it altogether as an unuseful debugging aid. Is
+  this really a general consensus?
+- One of the long lasting issue related to the OOM handling is when to
+  actually declare OOM. There are workloads which might be trashing on
+  few last remaining pagecache pages or on the swap which makes the
+  system completely unusable for considerable amount of time yet the
+  OOM killer is not invoked. Can we finally do something about that?
 
-Changes for uprobes.c looks good to me.
-Acked-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> Cc: vbabka@suse.cz
-> Cc: jack@suse.cz
-
-> diff -puN kernel/events/uprobes.c~get_current_user_pages kernel/events/uprobes.c
-> --- a/kernel/events/uprobes.c~get_current_user_pages	2016-01-22 08:43:42.602473969 -0800
-> +++ b/kernel/events/uprobes.c	2016-01-22 09:36:14.203845894 -0800
-> @@ -299,7 +299,7 @@ int uprobe_write_opcode(struct mm_struct
-> 
->  retry:
->  	/* Read the page with vaddr into memory */
-> -	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
-> +	ret = get_user_pages_foreign(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
->  	if (ret <= 0)
->  		return ret;
-> 
-> @@ -1700,7 +1700,13 @@ static int is_trap_at_addr(struct mm_str
->  	if (likely(result == 0))
->  		goto out;
-> 
-> -	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
-> +	/*
-> +	 * The NULL 'tsk' here ensures that any faults that occur here
-> +	 * will not be accounted to the task.  'mm' *is* current->mm,
-> +	 * but we treat this as a 'foreign' access since it is
-> +	 * essentially a kernel access to the memory.
-> +	 */
-> +	result = get_user_pages_foreign(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
->  	if (result < 0)
->  		return result;
-> 
-
+[1] http://lkml.kernel.org/r/1446740160-29094-1-git-send-email-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/1452094975-551-1-git-send-email-mhocko@kernel.org
+[3] http://lkml.kernel.org/r/alpine.DEB.2.10.1601141347220.16227@chino.kir.corp.google.com
 -- 
-Thanks and Regards
-Srikar Dronamraju
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
