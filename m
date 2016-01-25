@@ -1,91 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D67BA6B0009
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 17:06:00 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id mw1so40486274igb.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:06:00 -0800 (PST)
-Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
-        by mx.google.com with ESMTPS id m3si1124995igj.63.2016.01.25.14.06.00
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 216616B0009
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:14:55 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id n5so104475655wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:14:55 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id v18si31571959wju.157.2016.01.25.15.14.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 14:06:00 -0800 (PST)
-Received: by mail-io0-x22f.google.com with SMTP id 1so166847890ion.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 14:06:00 -0800 (PST)
+        Mon, 25 Jan 2016 15:14:53 -0800 (PST)
+Received: by mail-wm0-x22e.google.com with SMTP id r129so83787608wmr.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:14:53 -0800 (PST)
+Date: Tue, 26 Jan 2016 01:14:51 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] proc: revert /proc/<pid>/maps [stack:TID] annotation
+Message-ID: <20160125231451.GA15513@node.shutemov.name>
+References: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <56A682B5.8000603@intel.com>
-References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
-	<1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
-	<56A682B5.8000603@intel.com>
-Date: Mon, 25 Jan 2016 14:05:59 -0800
-Message-ID: <CAGXu5jJCrNMuE9JgqsBeuL1UFyp-z+erWVPOK_FGT+vum7X5Wg@mail.gmail.com>
-Subject: Re: [kernel-hardening] [RFC][PATCH 3/3] mm/page_poisoning.c: Allow
- for zero poisoning
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@fedoraproject.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Colin Cross <ccross@android.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-On Mon, Jan 25, 2016 at 12:16 PM, Dave Hansen <dave.hansen@intel.com> wrote:
-> Thanks for doing this!  It all looks pretty straightforward.
->
-> On 01/25/2016 08:55 AM, Laura Abbott wrote:
->> By default, page poisoning uses a poison value (0xaa) on free. If this
->> is changed to 0, the page is not only sanitized but zeroing on alloc
->> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
->> corruption from the poisoning is harder to detect. This feature also
->> cannot be used with hibernation since pages are not guaranteed to be
->> zeroed after hibernation.
->
-> Ugh, that's a good point about hibernation.  I'm not sure how widely it
-> gets used but it does look pretty widely enabled in distribution kernels.
->
-> Is this something that's fixable?  It seems like we could have the
-> hibernation code run through and zero all the free lists.  Or, we could
-> just disable the optimization at runtime when a hibernation is done.
+On Mon, Jan 25, 2016 at 01:30:00PM -0800, Colin Cross wrote:
+> On Tue, Jan 19, 2016 at 3:30 PM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> > On Tue, Jan 19, 2016 at 02:14:30PM -0800, Andrew Morton wrote:
+> >> On Tue, 19 Jan 2016 13:02:39 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >>
+> >> > b764375 ("procfs: mark thread stack correctly in proc/<pid>/maps")
+> >> > added [stack:TID] annotation to /proc/<pid>/maps. Finding the task of
+> >> > a stack VMA requires walking the entire thread list, turning this into
+> >> > quadratic behavior: a thousand threads means a thousand stacks, so the
+> >> > rendering of /proc/<pid>/maps needs to look at a million threads. The
+> >> > cost is not in proportion to the usefulness as described in the patch.
+> >> >
+> >> > Drop the [stack:TID] annotation to make /proc/<pid>/maps (and
+> >> > /proc/<pid>/numa_maps) usable again for higher thread counts.
+> >> >
+> >> > The [stack] annotation inside /proc/<pid>/task/<tid>/maps is retained,
+> >> > as identifying the stack VMA there is an O(1) operation.
+> >>
+> >> Four years ago, ouch.
+> >>
+> >> Any thoughts on the obvious back-compatibility concerns?  ie, why did
+> >> Siddhesh implement this in the first place?  My bad for not ensuring
+> >> that the changelog told us this.
+> >>
+> >> https://lkml.org/lkml/2012/1/14/25 has more info:
+> >>
+> >> : Memory mmaped by glibc for a thread stack currently shows up as a
+> >> : simple anonymous map, which makes it difficult to differentiate between
+> >> : memory usage of the thread on stack and other dynamic allocation.
+> >> : Since glibc already uses MAP_STACK to request this mapping, the
+> >> : attached patch uses this flag to add additional VM_STACK_FLAGS to the
+> >> : resulting vma so that the mapping is treated as a stack and not any
+> >> : regular anonymous mapping.  Also, one may use vm_flags to decide if a
+> >> : vma is a stack.
+> >>
+> >> But even that doesn't really tell us what the actual *value* of the
+> >> patch is to end-users.
+> >
+> > I doubt it can be very useful as it's unreliable: if two stacks are
+> > allocated end-to-end (which is not good idea, but still) it can only
+> > report [stack:XXX] for the first one as they are merged into one VMA.
+> > Any other anon VMA merged with the stack will be also claimed as stack,
+> > which is not always correct.
+> >
+> > I think report the VMA as anon is the best we can know about it,
+> > everything else just rather expensive guesses.
+> 
+> An alternative to guessing is the anonymous VMA naming patch used on
+> Android, https://lkml.org/lkml/2013/10/30/518.  It allows userspace to
+> name anonymous memory however it wishes, and prevents vma merging
+> adjacent regions with different names.  Android uses it to label
+> native heap memory, but it would work well for stacks too.
 
-We can also make hibernation run-time disabled when poisoning is used
-(similar to how kASLR disables it).
+I don't think preventing vma merging is fair price for the feature: you
+would pay extra in every find_vma() (meaning all page faults).
 
-> Not that we _have_ to do any of this now, but if a runtime knob (like a
-> sysctl) could be fun too.  I would be nice for folks to turn it on and
-> off if they wanted the added security of "real" poisoning vs. the
-> potential performance boost from this optimization.
->
->> +static inline bool should_zero(void)
->> +{
->> +     return !IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) ||
->> +             !page_poisoning_enabled();
->> +}
->
-> I wonder if calling this "free_pages_prezeroed()" would make things a
-> bit more clear when we use it in prep_new_page().
->
->>  static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
->>                                                               int alloc_flags)
->>  {
->> @@ -1401,7 +1407,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
->>       kernel_map_pages(page, 1 << order, 1);
->>       kasan_alloc_pages(page, order);
->>
->> -     if (gfp_flags & __GFP_ZERO)
->> +     if (should_zero() && gfp_flags & __GFP_ZERO)
->>               for (i = 0; i < (1 << order); i++)
->>                       clear_highpage(page + i);
->
-> It's probably also worth pointing out that this can be a really nice
-> feature to have in virtual machines where memory is being deduplicated.
->  As it stands now, the free lists end up with gunk in them and tend not
-> to be easy to deduplicate.  This patch would fix that.
+I think it would be nice to have a way to store this kind of sideband info
+without impacting critical code path.
 
-Oh, good point!
-
--Kees
+One other use case I see for such sideband info is storing hits from
+MADV_HUGEPAGE/MADV_NOHUGEPAGE: need to split vma just for these hints is
+unfortunate.
 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
