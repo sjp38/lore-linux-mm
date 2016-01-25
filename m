@@ -1,96 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 216616B0009
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:14:55 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id n5so104475655wmn.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:14:55 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id v18si31571959wju.157.2016.01.25.15.14.53
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 888BA6B0009
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:37:11 -0500 (EST)
+Received: by mail-qg0-f46.google.com with SMTP id o11so121944307qge.2
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:37:11 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y69si27135511qka.73.2016.01.25.15.37.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 15:14:53 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id r129so83787608wmr.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 15:14:53 -0800 (PST)
-Date: Tue, 26 Jan 2016 01:14:51 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] proc: revert /proc/<pid>/maps [stack:TID] annotation
-Message-ID: <20160125231451.GA15513@node.shutemov.name>
-References: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
+        Mon, 25 Jan 2016 15:37:10 -0800 (PST)
+Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
+References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
+ <20160122163801.GA16668@cmpxchg.org>
+ <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <56A6B1A2.40903@redhat.com>
+Date: Mon, 25 Jan 2016 15:37:06 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
+In-Reply-To: <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Mon, Jan 25, 2016 at 01:30:00PM -0800, Colin Cross wrote:
-> On Tue, Jan 19, 2016 at 3:30 PM, Kirill A. Shutemov
-> <kirill@shutemov.name> wrote:
-> > On Tue, Jan 19, 2016 at 02:14:30PM -0800, Andrew Morton wrote:
-> >> On Tue, 19 Jan 2016 13:02:39 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >>
-> >> > b764375 ("procfs: mark thread stack correctly in proc/<pid>/maps")
-> >> > added [stack:TID] annotation to /proc/<pid>/maps. Finding the task of
-> >> > a stack VMA requires walking the entire thread list, turning this into
-> >> > quadratic behavior: a thousand threads means a thousand stacks, so the
-> >> > rendering of /proc/<pid>/maps needs to look at a million threads. The
-> >> > cost is not in proportion to the usefulness as described in the patch.
-> >> >
-> >> > Drop the [stack:TID] annotation to make /proc/<pid>/maps (and
-> >> > /proc/<pid>/numa_maps) usable again for higher thread counts.
-> >> >
-> >> > The [stack] annotation inside /proc/<pid>/task/<tid>/maps is retained,
-> >> > as identifying the stack VMA there is an O(1) operation.
-> >>
-> >> Four years ago, ouch.
-> >>
-> >> Any thoughts on the obvious back-compatibility concerns?  ie, why did
-> >> Siddhesh implement this in the first place?  My bad for not ensuring
-> >> that the changelog told us this.
-> >>
-> >> https://lkml.org/lkml/2012/1/14/25 has more info:
-> >>
-> >> : Memory mmaped by glibc for a thread stack currently shows up as a
-> >> : simple anonymous map, which makes it difficult to differentiate between
-> >> : memory usage of the thread on stack and other dynamic allocation.
-> >> : Since glibc already uses MAP_STACK to request this mapping, the
-> >> : attached patch uses this flag to add additional VM_STACK_FLAGS to the
-> >> : resulting vma so that the mapping is treated as a stack and not any
-> >> : regular anonymous mapping.  Also, one may use vm_flags to decide if a
-> >> : vma is a stack.
-> >>
-> >> But even that doesn't really tell us what the actual *value* of the
-> >> patch is to end-users.
-> >
-> > I doubt it can be very useful as it's unreliable: if two stacks are
-> > allocated end-to-end (which is not good idea, but still) it can only
-> > report [stack:XXX] for the first one as they are merged into one VMA.
-> > Any other anon VMA merged with the stack will be also claimed as stack,
-> > which is not always correct.
-> >
-> > I think report the VMA as anon is the best we can know about it,
-> > everything else just rather expensive guesses.
-> 
-> An alternative to guessing is the anonymous VMA naming patch used on
-> Android, https://lkml.org/lkml/2013/10/30/518.  It allows userspace to
-> name anonymous memory however it wishes, and prevents vma merging
-> adjacent regions with different names.  Android uses it to label
-> native heap memory, but it would work well for stacks too.
+On 01/24/2016 11:08 PM, Joonsoo Kim wrote:
+> Hello,
+>
+> 2016-01-23 1:38 GMT+09:00 Johannes Weiner <hannes@cmpxchg.org>:
+>> Hi,
+>>
+>> On Fri, Jan 22, 2016 at 10:11:12AM +0530, Aneesh Kumar K.V wrote:
+>>> * CMA allocator issues:
+>>>    (1) order zero allocation failures:
+>>>        We are observing order zero non-movable allocation failures in kernel
+>>> with CMA configured. We don't start a reclaim because our free memory check
+>>> does not consider free_cma. Hence the reclaim code assume we have enough free
+>>> pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
+>>> like to discuss the challenges in getting this merged upstream.
+>>> https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
+>
+> As far as I know, there is no disagreement on this patchset in last year LSF/MM.
+> Problem may be due to my laziness... Sorry about that. I will handle it soon.
+> Is there anything more that you concern?
+>
 
-I don't think preventing vma merging is fair price for the feature: you
-would pay extra in every find_vma() (meaning all page faults).
+Is that series going to conflict with the work done for ZONE_DEVICE or run
+into similar problems?
+033fbae988fcb67e5077203512181890848b8e90 (mm: ZONE_DEVICE for "device memory")
+has commit text about running out of ZONE_SHIFT bits and needing to get
+rid of ZONE_DMA instead so it seems like ZONE_CMA would run into the same
+problem.
 
-I think it would be nice to have a way to store this kind of sideband info
-without impacting critical code path.
-
-One other use case I see for such sideband info is storing hits from
-MADV_HUGEPAGE/MADV_NOHUGEPAGE: need to split vma just for these hints is
-unfortunate.
-
--- 
- Kirill A. Shutemov
+Thanks,
+Laura
+  
+>> The exclusion of cma pages from the watermark checks means that
+>> reclaim is happening too early, not too late, which leaves memory
+>> underutilized. That's what ZONE_CMA set out to fix.
+>>
+>> But unmovable allocations can still fail when the only free memory is
+>> inside CMA regions. I don't see how ZONE_CMA would fix that.
+>>
+>> CC Joonsoo
+>
+> I understand what Aneesh's problem is.
+>
+> Assume that
+>
+> X = non movable free page
+> Y = movable free page
+> Z = cma free page
+>
+> X < min watermark
+> X + Y > high watermark
+> Z > high watermark
+>
+> If there are bunch of consecutive movable allocation requests,
+> Y will decrease. After some time, Y will be exhausted. At that
+> time, there is enough Z so movable allocation request still can be
+> handled in fastpath and kswapd isn't waked up. In that situation,
+> if atomic non-movable page allocation for order-0 comes,
+> it would be failed.
+>
+> Although it isn't mentioned on ZONE_CMA patchset, it is also
+> fixed by that patchset because with that patchset, all CMA pages
+> are in CMA zone so freepage calculation is always precise.
+>
+> Thanks.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
