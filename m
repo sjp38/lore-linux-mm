@@ -1,114 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B76796B0005
-	for <linux-mm@kvack.org>; Sun, 24 Jan 2016 18:04:25 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id u188so45571238wmu.1
-        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 15:04:25 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id in5si21635084wjb.155.2016.01.24.15.04.24
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCA36B0005
+	for <linux-mm@kvack.org>; Sun, 24 Jan 2016 20:57:18 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id ba1so106226225obb.3
+        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 17:57:18 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id pv10si15089398obb.80.2016.01.24.17.57.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Jan 2016 15:04:24 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id r129so44133575wmr.0
-        for <linux-mm@kvack.org>; Sun, 24 Jan 2016 15:04:24 -0800 (PST)
-Date: Mon, 25 Jan 2016 01:04:22 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: WARNING in __delete_from_page_cache
-Message-ID: <20160124230422.GA8439@node.shutemov.name>
-References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+        Sun, 24 Jan 2016 17:57:16 -0800 (PST)
+Subject: [LSF/MM ATTEND] Huge Page Futures
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56A580F8.4060301@oracle.com>
+Date: Sun, 24 Jan 2016 17:57:12 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <willy@linux.intel.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Sun, Jan 24, 2016 at 11:48:21AM +0100, Dmitry Vyukov wrote:
-> Hello,
-> 
-> The following program triggers WARNING in __delete_from_page_cache:
-> 
-> ------------[ cut here ]------------
-> WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
-> __delete_from_page_cache+0x9f6/0xb60()
-> Modules linked in:
-> CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->  00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
->  ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
->  ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
-> Call Trace:
->  [<     inline     >] __dump_stack lib/dump_stack.c:15
->  [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
->  [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
->  [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
->  [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
->  [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
->  [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
->  [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
->  [<     inline     >] wp_pfn_shared mm/memory.c:2208
->  [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
->  [<     inline     >] handle_pte_fault mm/memory.c:3323
->  [<     inline     >] __handle_mm_fault mm/memory.c:3417
->  [<ffffffff816ecec3>] handle_mm_fault+0x2483/0x4640 mm/memory.c:3446
->  [<ffffffff8127eff6>] __do_page_fault+0x376/0x960 arch/x86/mm/fault.c:1238
->  [<ffffffff8127f738>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
->  [<ffffffff812705c4>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
->  [<ffffffff86338f78>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
->  [<ffffffff86336c36>] entry_SYSCALL_64_fastpath+0x16/0x7a
-> arch/x86/entry/entry_64.S:185
-> ---[ end trace dae21e0f85f1f98c ]---
-> 
-> 
-> // autogenerated by syzkaller (http://github.com/google/syzkaller)
-> #include <pthread.h>
-> #include <stdint.h>
-> #include <string.h>
-> #include <sys/syscall.h>
-> #include <unistd.h>
-> #include <fcntl.h>
-> 
-> int main()
-> {
->   syscall(SYS_mmap, 0x20000000ul, 0x10000ul, 0x3ul, 0x32ul, -1, 0x0ul);
->   int fd = syscall(SYS_open, "/dev/ram1", O_RDWR);
->   syscall(SYS_mmap, 0x20a31000ul, 0x3000ul, 0x3ul, 0xb011ul, fd, 0x0ul);
->   *(uint64_t*)0x20003000 = 1;
->   syscall(SYS_write, fd, 0x20003000ul, 0x78ul, 0, 0, 0);
->   syscall(SYS_getresuid, 0x20000688ul, 0x200008f2ul, 0x20a31000ul, 0, 0, 0);
->   return 0;
-> }
-> 
-> On commit 30f05309bde49295e02e45c7e615f73aa4e0ccc2.
+In a search of the archives, it appears huge page support in one form or
+another has been a discussion topic in almost every LSF/MM gathering. Based
+on patches submitted this past year, huge pages is still an area of active
+development.  And, it appears this level of activity will  continue in the
+coming year.
 
-Reduced and human readable test case:
+I propose a "Huge Page Futures" session to discuss large works in progress
+as well as work people are considering for 2016.  Areas of discussion would
+minimally include:
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
+- Krill Shutemov's THP new refcounting code and the push for huge page
+  support in the page cache.
 
-int main()
-{
-	int fd;
-	char *p;
+- Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
+  more interesting is the desire for supporting PUD pages.  This seems to
+  beg the question of supporting transparent PUD pages elsewhere.
 
-	fd = open("/dev/ram0", O_RDWR);
-	p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	write(fd, "1", 1);
-	*p = 1;
-	return 0;
-}
+- Other suggestions?
 
-Looks like DAX doesn't expect to see something except hole-page in the radix
-tree. This expectation is [probably] true for files on DAX-enabled
-filesystems, but it seems broken for ramdisks.
-
-Matthew?
+My interest in attending also revolves around huge pages.  This past year
+I have added functionality to hugetlbfs.  hugetlbfs is not dead, and is
+very much in use by some DB implementations.  Proposed future work I will
+be attempting includes:
+- Adding userfaultfd support to hugetlbfs
+- Adding shared page table (PMD) support to DAX much like that which exists
+  for hugetlbfs
 
 -- 
- Kirill A. Shutemov
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
