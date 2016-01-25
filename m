@@ -1,46 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 192576B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:04:00 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id 123so62647267wmz.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 04:04:00 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id 189si24019016wme.76.2016.01.25.04.03.58
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6086B0254
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:21:57 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id u188so63494647wmu.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 04:21:57 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h79si24091450wme.86.2016.01.25.04.21.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 04:03:58 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id u188so62876846wmu.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 04:03:58 -0800 (PST)
-Date: Mon, 25 Jan 2016 14:03:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: valgrind: mmap ENOMEM
-Message-ID: <20160125120356.GA12078@node.shutemov.name>
-References: <20160125134920.66e514e9@mdontu-l.dsd.bitdefender.biz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 04:21:56 -0800 (PST)
+Date: Mon, 25 Jan 2016 13:22:06 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: mm: WARNING in __delete_from_page_cache
+Message-ID: <20160125122206.GA24938@quack.suse.cz>
+References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+ <20160124230422.GA8439@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160125134920.66e514e9@mdontu-l.dsd.bitdefender.biz>
+In-Reply-To: <20160124230422.GA8439@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mihai =?utf-8?B?RG9uyJt1?= <mihai.dontu@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <willy@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Mon, Jan 25, 2016 at 01:49:20PM +0200, Mihai DonE?u wrote:
-> Hi,
+On Mon 25-01-16 01:04:22, Kirill A. Shutemov wrote:
+> On Sun, Jan 24, 2016 at 11:48:21AM +0100, Dmitry Vyukov wrote:
+> > Hello,
+> > 
+> > The following program triggers WARNING in __delete_from_page_cache:
+> > 
+> > ------------[ cut here ]------------
+> > WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
+> > __delete_from_page_cache+0x9f6/0xb60()
+> > Modules linked in:
+> > CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
+> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> >  00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
+> >  ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
+> >  ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
+> > Call Trace:
+> >  [<     inline     >] __dump_stack lib/dump_stack.c:15
+> >  [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+> >  [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
+> >  [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
+> >  [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
+> >  [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
+> >  [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
+> >  [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
+> >  [<     inline     >] wp_pfn_shared mm/memory.c:2208
+> >  [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
+> >  [<     inline     >] handle_pte_fault mm/memory.c:3323
+> >  [<     inline     >] __handle_mm_fault mm/memory.c:3417
+> >  [<ffffffff816ecec3>] handle_mm_fault+0x2483/0x4640 mm/memory.c:3446
+> >  [<ffffffff8127eff6>] __do_page_fault+0x376/0x960 arch/x86/mm/fault.c:1238
+> >  [<ffffffff8127f738>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
+> >  [<ffffffff812705c4>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
+> >  [<ffffffff86338f78>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
+> >  [<ffffffff86336c36>] entry_SYSCALL_64_fastpath+0x16/0x7a
+> > arch/x86/entry/entry_64.S:185
+> > ---[ end trace dae21e0f85f1f98c ]---
+> > 
+> > 
+> > // autogenerated by syzkaller (http://github.com/google/syzkaller)
+> > #include <pthread.h>
+> > #include <stdint.h>
+> > #include <string.h>
+> > #include <sys/syscall.h>
+> > #include <unistd.h>
+> > #include <fcntl.h>
+> > 
+> > int main()
+> > {
+> >   syscall(SYS_mmap, 0x20000000ul, 0x10000ul, 0x3ul, 0x32ul, -1, 0x0ul);
+> >   int fd = syscall(SYS_open, "/dev/ram1", O_RDWR);
+> >   syscall(SYS_mmap, 0x20a31000ul, 0x3000ul, 0x3ul, 0xb011ul, fd, 0x0ul);
+> >   *(uint64_t*)0x20003000 = 1;
+> >   syscall(SYS_write, fd, 0x20003000ul, 0x78ul, 0, 0, 0);
+> >   syscall(SYS_getresuid, 0x20000688ul, 0x200008f2ul, 0x20a31000ul, 0, 0, 0);
+> >   return 0;
+> > }
+> > 
+> > On commit 30f05309bde49295e02e45c7e615f73aa4e0ccc2.
 > 
-> I just moved to 4.5-rc1 and noticed this little gem while trying to
-> debug an issue with skype:
+> Reduced and human readable test case:
 > 
->   $ valgrind skype
->   valgrind: mmap(0x60b000, 8192) failed in UME with error 12 (Cannot allocate memory).
+> #include <fcntl.h>
+> #include <unistd.h>
+> #include <sys/mman.h>
 > 
-> 4.4 works fine. I have attached my kernel config.
+> int main()
+> {
+> 	int fd;
+> 	char *p;
+> 
+> 	fd = open("/dev/ram0", O_RDWR);
+> 	p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+> 	write(fd, "1", 1);
+> 	*p = 1;
+> 	return 0;
+> }
+> 
+> Looks like DAX doesn't expect to see something except hole-page in the radix
+> tree. This expectation is [probably] true for files on DAX-enabled
+> filesystems, but it seems broken for ramdisks.
+> 
+> Matthew?
 
-http://lkml.kernel.org/r/145358234948.18573.2681359119037889087.stgit@zurg
+Thanks. Despite the huge list of recipients the author of the changes
+hasn't been CCed :) I've added Dan to CC since he wrote DAX support for
+block devices. It seems somehow the write didn't go through the DAX path
+but through the standard page cache write path. Ah, I see, only
+file->f_mapping->host has S_DAX set but io_is_direct() which decides
+whether DAX or pagecache path should be used for writes uses file->f_inode
+which is something different for block devices... 
 
+								Honza
 -- 
- Kirill A. Shutemov
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
