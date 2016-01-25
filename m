@@ -1,124 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6086B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:21:57 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id u188so63494647wmu.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 04:21:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h79si24091450wme.86.2016.01.25.04.21.56
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD096B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 08:17:51 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id cy9so80937249pac.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 05:17:51 -0800 (PST)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
+        by mx.google.com with ESMTPS id fm8si33702147pad.29.2016.01.25.05.17.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 04:21:56 -0800 (PST)
-Date: Mon, 25 Jan 2016 13:22:06 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: mm: WARNING in __delete_from_page_cache
-Message-ID: <20160125122206.GA24938@quack.suse.cz>
-References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
- <20160124230422.GA8439@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 05:17:50 -0800 (PST)
+Received: from localhost
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 25 Jan 2016 18:47:47 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0PDHiXn1179916
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:47:45 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0PDHcg5013139
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 18:47:40 +0530
+Date: Mon, 25 Jan 2016 18:47:24 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
+Message-ID: <20160125131723.GB17206@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20160122180219.164259F1@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160124230422.GA8439@node.shutemov.name>
+In-Reply-To: <20160122180219.164259F1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <willy@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, jack@suse.cz, Oleg Nesterov <oleg@redhat.com>
 
-On Mon 25-01-16 01:04:22, Kirill A. Shutemov wrote:
-> On Sun, Jan 24, 2016 at 11:48:21AM +0100, Dmitry Vyukov wrote:
-> > Hello,
-> > 
-> > The following program triggers WARNING in __delete_from_page_cache:
-> > 
-> > ------------[ cut here ]------------
-> > WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
-> > __delete_from_page_cache+0x9f6/0xb60()
-> > Modules linked in:
-> > CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
-> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> >  00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
-> >  ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
-> >  ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
-> > Call Trace:
-> >  [<     inline     >] __dump_stack lib/dump_stack.c:15
-> >  [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
-> >  [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
-> >  [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
-> >  [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
-> >  [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
-> >  [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
-> >  [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
-> >  [<     inline     >] wp_pfn_shared mm/memory.c:2208
-> >  [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
-> >  [<     inline     >] handle_pte_fault mm/memory.c:3323
-> >  [<     inline     >] __handle_mm_fault mm/memory.c:3417
-> >  [<ffffffff816ecec3>] handle_mm_fault+0x2483/0x4640 mm/memory.c:3446
-> >  [<ffffffff8127eff6>] __do_page_fault+0x376/0x960 arch/x86/mm/fault.c:1238
-> >  [<ffffffff8127f738>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
-> >  [<ffffffff812705c4>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
-> >  [<ffffffff86338f78>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
-> >  [<ffffffff86336c36>] entry_SYSCALL_64_fastpath+0x16/0x7a
-> > arch/x86/entry/entry_64.S:185
-> > ---[ end trace dae21e0f85f1f98c ]---
-> > 
-> > 
-> > // autogenerated by syzkaller (http://github.com/google/syzkaller)
-> > #include <pthread.h>
-> > #include <stdint.h>
-> > #include <string.h>
-> > #include <sys/syscall.h>
-> > #include <unistd.h>
-> > #include <fcntl.h>
-> > 
-> > int main()
-> > {
-> >   syscall(SYS_mmap, 0x20000000ul, 0x10000ul, 0x3ul, 0x32ul, -1, 0x0ul);
-> >   int fd = syscall(SYS_open, "/dev/ram1", O_RDWR);
-> >   syscall(SYS_mmap, 0x20a31000ul, 0x3000ul, 0x3ul, 0xb011ul, fd, 0x0ul);
-> >   *(uint64_t*)0x20003000 = 1;
-> >   syscall(SYS_write, fd, 0x20003000ul, 0x78ul, 0, 0, 0);
-> >   syscall(SYS_getresuid, 0x20000688ul, 0x200008f2ul, 0x20a31000ul, 0, 0, 0);
-> >   return 0;
-> > }
-> > 
-> > On commit 30f05309bde49295e02e45c7e615f73aa4e0ccc2.
 > 
-> Reduced and human readable test case:
+> One of Vlastimil's comments made me go dig back in to the uprobes
+> code's use of get_user_pages().  I decided to change both of them
+> to be "foreign" accesses.
 > 
-> #include <fcntl.h>
-> #include <unistd.h>
-> #include <sys/mman.h>
+> This also fixes the nommu breakage that Vlastimil noted last time.
 > 
-> int main()
-> {
-> 	int fd;
-> 	char *p;
+> Srikar, I'd appreciate if you can have a look at the uprobes.c
+> modifications, especially the comment.  I don't think this will
+> change any behavior, but I want to make sure the comment is
+> accurate.
 > 
-> 	fd = open("/dev/ram0", O_RDWR);
-> 	p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-> 	write(fd, "1", 1);
-> 	*p = 1;
-> 	return 0;
-> }
+> ---
 > 
-> Looks like DAX doesn't expect to see something except hole-page in the radix
-> tree. This expectation is [probably] true for files on DAX-enabled
-> filesystems, but it seems broken for ramdisks.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Matthew?
+> For protection keys, we need to understand whether protections
+> should be enforced in software or not.  In general, we enforce
+> protections when working on our own task, but not when on others.
+> We call these "current" and "foreign" operations.
+> 
+> This patch introduces a new get_user_pages() variant:
+> 
+> 	get_user_pages_foreign()
+> 
+> We modify the vanilla get_user_pages() so it can no longer be
+> used on mm/tasks other than 'current/current->mm', which is by
+> far the most common way it is called.  Using it makes a few of
+> the call sites look a bit nicer.
+> 
+> In other words, get_user_pages_foreign() is a replacement for
+> when get_user_pages() is called on non-current tsk/mm.
+> 
+> This also switches get_user_pages_(un)locked() over to be like
+> get_user_pages() and not take a tsk/mm.  There is no
+> get_user_pages_foreign_(un)locked().  If someone wants that
+> behavior they just have to use "__" variant and pass in
+> FOLL_FOREIGN explicitly.
+> 
+> The uprobes is_trap_at_addr() location holds mmap_sem and
+> calls get_user_pages(current->mm) on an instruction address.  This
+> makes it a pretty unique gup caller.  Being an instruction access
+> and also really originating from the kernel (vs. the app), I opted
+> to consider this a 'foreign' access where protection keys will not
+> be enforced.
+> 
 
-Thanks. Despite the huge list of recipients the author of the changes
-hasn't been CCed :) I've added Dan to CC since he wrote DAX support for
-block devices. It seems somehow the write didn't go through the DAX path
-but through the standard page cache write path. Ah, I see, only
-file->f_mapping->host has S_DAX set but io_is_direct() which decides
-whether DAX or pagecache path should be used for writes uses file->f_inode
-which is something different for block devices... 
+Changes for uprobes.c looks good to me.
+Acked-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-								Honza
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> Cc: vbabka@suse.cz
+> Cc: jack@suse.cz
+
+> diff -puN kernel/events/uprobes.c~get_current_user_pages kernel/events/uprobes.c
+> --- a/kernel/events/uprobes.c~get_current_user_pages	2016-01-22 08:43:42.602473969 -0800
+> +++ b/kernel/events/uprobes.c	2016-01-22 09:36:14.203845894 -0800
+> @@ -299,7 +299,7 @@ int uprobe_write_opcode(struct mm_struct
+> 
+>  retry:
+>  	/* Read the page with vaddr into memory */
+> -	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
+> +	ret = get_user_pages_foreign(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
+>  	if (ret <= 0)
+>  		return ret;
+> 
+> @@ -1700,7 +1700,13 @@ static int is_trap_at_addr(struct mm_str
+>  	if (likely(result == 0))
+>  		goto out;
+> 
+> -	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
+> +	/*
+> +	 * The NULL 'tsk' here ensures that any faults that occur here
+> +	 * will not be accounted to the task.  'mm' *is* current->mm,
+> +	 * but we treat this as a 'foreign' access since it is
+> +	 * essentially a kernel access to the memory.
+> +	 */
+> +	result = get_user_pages_foreign(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
+>  	if (result < 0)
+>  		return result;
+> 
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
