@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 588846B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:10:19 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id uo6so83095093pac.1
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:10:19 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id 7si34007100pfi.90.2016.01.25.06.10.18
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DF936B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:21:28 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id n5so82298093wmn.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 06:21:28 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 201si24677939wml.102.2016.01.25.06.21.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 06:10:18 -0800 (PST)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH] mm/page-writeback: fix dirty_ratelimit calculation
-Date: Mon, 25 Jan 2016 17:11:11 +0300
-Message-ID: <1453731071-21541-1-git-send-email-aryabinin@virtuozzo.com>
-In-Reply-To: <566594E2.3050306@odin.com>
-References: <566594E2.3050306@odin.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 25 Jan 2016 06:21:27 -0800 (PST)
+Date: Mon, 25 Jan 2016 15:21:39 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] proposals for topics
+Message-ID: <20160125142139.GF24938@quack.suse.cz>
+References: <20160125133357.GC23939@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160125133357.GC23939@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Calculation of dirty_ratelimit sometimes is not correct.
-E.g. initial values of dirty_ratelimit == INIT_BW and step == 0,
-lead to the following result:
+Hi!
 
-   UBSAN: Undefined behaviour in ../mm/page-writeback.c:1286:7
-   shift exponent 25600 is too large for 64-bit type 'long unsigned int'
+On Mon 25-01-16 14:33:57, Michal Hocko wrote:
+> - GFP_NOFS is another one which would be good to discuss. Its primary
+>   use is to prevent from reclaim recursion back into FS. This makes
+>   such an allocation context weaker and historically we haven't
+>   triggered OOM killer and rather hopelessly retry the request and
+>   rely on somebody else to make a progress for us. There are two issues
+>   here.
+>   First we shouldn't retry endlessly and rather fail the allocation and
+>   allow the FS to handle the error. As per my experiments most FS cope
+>   with that quite reasonably. Btrfs unfortunately handles many of those
+>   failures by BUG_ON which is really unfortunate.
+>   Another issue is that GFP_NOFS is quite often used without any obvious
+>   reason. It is not clear which lock is held and could be taken from
+>   the reclaim path. Wouldn't it be much better if the no-recursion
+>   behavior was bound to the lock scope rather than particular allocation
+>   request? We already have something like this for PM
+>   pm_res{trict,tore}_gfp_mask resp. memalloc_noio_{save,restore}. It
+>   would be great if we could unify this and use the context based NOFS
+>   in the FS.
 
-The fix is straightforward - make step 0 if the shift exponent is too big.
+I like the idea that we'd protect lock scopes from reclaim recursion but the
+effort to do so would be IMHO rather big. E.g. there are ~75 instances of
+GFP_NOFS allocation in ext4/jbd2 codebase and making sure all are properly
+covered will take quite some auditing... I'm not saying we shouldn't do
+something like this, just you will have to be good in selling the benefits
+:).
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/page-writeback.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+								Honza
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6fe7d15..d782cba 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1169,6 +1169,7 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
- 	unsigned long balanced_dirty_ratelimit;
- 	unsigned long step;
- 	unsigned long x;
-+	unsigned long shift;
- 
- 	/*
- 	 * The dirty rate will match the writeout rate in long term, except
-@@ -1293,11 +1294,11 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
- 	 * rate itself is constantly fluctuating. So decrease the track speed
- 	 * when it gets close to the target. Helps eliminate pointless tremors.
- 	 */
--	step >>= dirty_ratelimit / (2 * step + 1);
--	/*
--	 * Limit the tracking speed to avoid overshooting.
--	 */
--	step = (step + 7) / 8;
-+	shift = dirty_ratelimit / (2 * step + 1);
-+	if (shift < BITS_PER_LONG)
-+		step = DIV_ROUND_UP(step >> shift, 8);
-+	else
-+		step = 0;
- 
- 	if (dirty_ratelimit < balanced_dirty_ratelimit)
- 		dirty_ratelimit += step;
+
 -- 
-2.4.10
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
