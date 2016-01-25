@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 49382828E2
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:48:13 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id n5so86669765wmn.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:48:13 -0800 (PST)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0BA828E2
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:48:15 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id b14so86753515wmb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 07:48:15 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n123si25131660wmb.41.2016.01.25.07.48.11
+        by mx.google.com with ESMTPS id yv10si29130953wjc.217.2016.01.25.07.48.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 07:48:12 -0800 (PST)
+        Mon, 25 Jan 2016 07:48:14 -0800 (PST)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v4 13/22] mm/huge_page: Convert khugepaged() into kthread worker API
-Date: Mon, 25 Jan 2016 16:45:02 +0100
-Message-Id: <1453736711-6703-14-git-send-email-pmladek@suse.com>
+Subject: [PATCH v4 14/22] ring_buffer: Convert benchmark kthreads into kthread worker API
+Date: Mon, 25 Jan 2016 16:45:03 +0100
+Message-Id: <1453736711-6703-15-git-send-email-pmladek@suse.com>
 In-Reply-To: <1453736711-6703-1-git-send-email-pmladek@suse.com>
 References: <1453736711-6703-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -36,297 +36,264 @@ single thread for the work. It helps to make sure that it is
 available when needed. Also it allows a better control, e.g.
 define a scheduling priority.
 
-This patch converts khugepaged() in kthread worker API
-because it modifies the scheduling.
+This patch converts the ring buffer benchmark producer into a kthread
+worker because it modifies the scheduling priority and policy.
+Also, it is a benchmark. It makes CPU very busy. It will most likely
+run only limited time. IMHO, it does not make sense to mess the system
+workqueues with it.
 
-It keeps the functionality except that we do not wakeup the worker
-when it is already created and someone calls start() once again.
+The thread is split into two independent works. It might look more
+complicated but it helped me to find a race in the sleeping part
+that was fixed separately.
 
-Note that kthread works get associated with a single kthread worker.
-They must be initialized if we want to use them with another worker.
-This is needed also when the worker is restarted.
-
-set_freezable() is not needed because the kthread worker is
-created as freezable.
-
-set_user_nice() is called from start_stop_khugepaged(). It need
-not be done from within the kthread.
-
-The scan work must be queued only when the worker is available.
-We have to use "khugepaged_mm_lock" to avoid a race between the check
-and queuing. I admit that this was a bit easier before because wake_up()
-was a nope when the kthread did not exist.
-
-Also the scan work is queued only when the list of scanned pages is
-not empty. It adds one check but it is cleaner.
-
-They delay between scans is done using a delayed work.
-
-Note that @khugepaged_wait waitqueue had two purposes. It was used
-to wait between scans and when an allocation failed. It is still used
-for the second purpose. Therefore it was renamed to better describe
-the current use.
-
-Also note that we could not longer check for kthread_should_stop()
-in the works. The kthread used by the worker has to stay alive
-until all queued works are finished. Instead, we use the existing
-check khugepaged_enabled() that returns false when we are going down.
+kthread_should_stop() could not longer be used inside the works
+because it defines the life of the worker and it needs to stay
+usable until all works are done. Instead, we add @test_end
+global variable. It is set during normal termination in compare
+with @test_error.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- mm/huge_memory.c | 138 ++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 76 insertions(+), 62 deletions(-)
+ kernel/trace/ring_buffer_benchmark.c | 133 ++++++++++++++++-------------------
+ 1 file changed, 59 insertions(+), 74 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index fd3a07b3e6f4..828d741ed242 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -89,10 +89,16 @@ static unsigned int khugepaged_full_scans;
- static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
- /* during fragmentation poll the hugepage allocator once every minute */
- static unsigned int khugepaged_alloc_sleep_millisecs __read_mostly = 60000;
--static struct task_struct *khugepaged_thread __read_mostly;
+diff --git a/kernel/trace/ring_buffer_benchmark.c b/kernel/trace/ring_buffer_benchmark.c
+index 6df9a83e20d7..7ff443f1e406 100644
+--- a/kernel/trace/ring_buffer_benchmark.c
++++ b/kernel/trace/ring_buffer_benchmark.c
+@@ -26,10 +26,17 @@ static int wakeup_interval = 100;
+ static int reader_finish;
+ static DECLARE_COMPLETION(read_start);
+ static DECLARE_COMPLETION(read_done);
+-
+ static struct ring_buffer *buffer;
+-static struct task_struct *producer;
+-static struct task_struct *consumer;
 +
-+static void khugepaged_do_scan_func(struct kthread_work *dummy);
-+static void khugepaged_cleanup_func(struct kthread_work *dummy);
-+static struct kthread_worker *khugepaged_worker;
-+static struct delayed_kthread_work khugepaged_do_scan_work;
-+static struct kthread_work khugepaged_cleanup_work;
++static void rb_producer_hammer_func(struct kthread_work *dummy);
++static struct kthread_worker *rb_producer_worker;
++static DEFINE_DELAYED_KTHREAD_WORK(rb_producer_hammer_work,
++				   rb_producer_hammer_func);
 +
- static DEFINE_MUTEX(khugepaged_mutex);
- static DEFINE_SPINLOCK(khugepaged_mm_lock);
--static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-+static DECLARE_WAIT_QUEUE_HEAD(khugepaged_alloc_wait);
- /*
-  * default collapse hugepages if there is at least one pte mapped like
-  * it would have happened if the vma was large enough during page
-@@ -100,7 +106,6 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-  */
- static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
++static void rb_consumer_func(struct kthread_work *dummy);
++static struct kthread_worker *rb_consumer_worker;
++static DEFINE_KTHREAD_WORK(rb_consumer_work, rb_consumer_func);
++
+ static unsigned long read;
  
--static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
- static void khugepaged_slab_exit(void);
+ static unsigned int disable_reader;
+@@ -61,6 +68,7 @@ MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
+ static int read_events;
  
-@@ -180,29 +185,55 @@ static void set_recommended_min_free_kbytes(void)
- 	setup_per_zone_wmarks();
+ static int test_error;
++static int test_end;
+ 
+ #define TEST_ERROR()				\
+ 	do {					\
+@@ -77,7 +85,7 @@ enum event_status {
+ 
+ static bool break_test(void)
+ {
+-	return test_error || kthread_should_stop();
++	return test_error || test_end;
  }
  
-+static int khugepaged_has_work(void)
-+{
-+	return !list_empty(&khugepaged_scan.mm_head);
-+}
-+
- static int start_stop_khugepaged(void)
- {
-+	struct kthread_worker *worker;
- 	int err = 0;
-+
- 	if (khugepaged_enabled()) {
--		if (!khugepaged_thread)
--			khugepaged_thread = kthread_run(khugepaged, NULL,
--							"khugepaged");
--		if (IS_ERR(khugepaged_thread)) {
--			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
--			err = PTR_ERR(khugepaged_thread);
--			khugepaged_thread = NULL;
--			goto fail;
-+		if (khugepaged_worker)
-+			goto out;
-+
-+		worker = create_kthread_worker(KTW_FREEZABLE, "khugepaged");
-+		if (IS_ERR(worker)) {
-+			pr_err("khugepaged: failed to create kthread worker\n");
-+			goto out;
- 		}
-+		set_user_nice(worker->task, MAX_NICE);
+ static enum event_status read_event(int cpu)
+@@ -262,8 +270,8 @@ static void ring_buffer_producer(void)
+ 		end_time = ktime_get();
  
--		if (!list_empty(&khugepaged_scan.mm_head))
--			wake_up_interruptible(&khugepaged_wait);
-+		/* Always initialize the works when the worker is started. */
-+		init_delayed_kthread_work(&khugepaged_do_scan_work,
-+					  khugepaged_do_scan_func);
-+		init_kthread_work(&khugepaged_cleanup_work,
-+				  khugepaged_cleanup_func);
-+
-+		/* Make the worker public and check for work synchronously. */
-+		spin_lock(&khugepaged_mm_lock);
-+		khugepaged_worker = worker;
-+		if (khugepaged_has_work())
-+			queue_delayed_kthread_work(worker,
-+						   &khugepaged_do_scan_work,
-+						   0);
-+		spin_unlock(&khugepaged_mm_lock);
+ 		cnt++;
+-		if (consumer && !(cnt % wakeup_interval))
+-			wake_up_process(consumer);
++		if (rb_consumer_worker && !(cnt % wakeup_interval))
++			wake_up_process(rb_consumer_worker->task);
  
- 		set_recommended_min_free_kbytes();
--	} else if (khugepaged_thread) {
--		kthread_stop(khugepaged_thread);
--		khugepaged_thread = NULL;
-+	} else if (khugepaged_worker) {
-+		/* First, stop others from using the worker. */
-+		spin_lock(&khugepaged_mm_lock);
-+		worker = khugepaged_worker;
-+		khugepaged_worker = NULL;
-+		spin_unlock(&khugepaged_mm_lock);
-+
-+		cancel_delayed_kthread_work_sync(&khugepaged_do_scan_work);
-+		queue_kthread_work(worker, &khugepaged_cleanup_work);
-+		destroy_kthread_worker(worker);
+ #ifndef CONFIG_PREEMPT
+ 		/*
+@@ -281,14 +289,14 @@ static void ring_buffer_producer(void)
+ 	} while (ktime_before(end_time, timeout) && !break_test());
+ 	trace_printk("End ring buffer hammer\n");
+ 
+-	if (consumer) {
++	if (rb_consumer_worker) {
+ 		/* Init both completions here to avoid races */
+ 		init_completion(&read_start);
+ 		init_completion(&read_done);
+ 		/* the completions must be visible before the finish var */
+ 		smp_wmb();
+ 		reader_finish = 1;
+-		wake_up_process(consumer);
++		wake_up_process(rb_consumer_worker->task);
+ 		wait_for_completion(&read_done);
  	}
--fail:
-+out:
- 	return err;
+ 
+@@ -366,68 +374,39 @@ static void ring_buffer_producer(void)
+ 	}
  }
  
-@@ -461,7 +492,13 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
- 		return -EINVAL;
- 
- 	khugepaged_scan_sleep_millisecs = msecs;
--	wake_up_interruptible(&khugepaged_wait);
-+
-+	spin_lock(&khugepaged_mm_lock);
-+	if (khugepaged_worker && khugepaged_has_work())
-+		mod_delayed_kthread_work(khugepaged_worker,
-+					 &khugepaged_do_scan_work,
-+					 0);
-+	spin_unlock(&khugepaged_mm_lock);
- 
- 	return count;
- }
-@@ -488,7 +525,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
- 		return -EINVAL;
- 
- 	khugepaged_alloc_sleep_millisecs = msecs;
--	wake_up_interruptible(&khugepaged_wait);
-+	wake_up_interruptible(&khugepaged_alloc_wait);
- 
- 	return count;
- }
-@@ -1878,7 +1915,7 @@ static inline int khugepaged_test_exit(struct mm_struct *mm)
- int __khugepaged_enter(struct mm_struct *mm)
+-static void wait_to_die(void)
+-{
+-	set_current_state(TASK_INTERRUPTIBLE);
+-	while (!kthread_should_stop()) {
+-		schedule();
+-		set_current_state(TASK_INTERRUPTIBLE);
+-	}
+-	__set_current_state(TASK_RUNNING);
+-}
+-
+-static int ring_buffer_consumer_thread(void *arg)
++static void rb_consumer_func(struct kthread_work *dummy)
  {
- 	struct mm_slot *mm_slot;
--	int wakeup;
-+	int has_work;
+-	while (!break_test()) {
+-		complete(&read_start);
+-
+-		ring_buffer_consumer();
++	complete(&read_start);
  
- 	mm_slot = alloc_mm_slot();
- 	if (!mm_slot)
-@@ -1897,13 +1934,15 @@ int __khugepaged_enter(struct mm_struct *mm)
- 	 * Insert just behind the scanning cursor, to let the area settle
- 	 * down a little.
- 	 */
--	wakeup = list_empty(&khugepaged_scan.mm_head);
-+	has_work = khugepaged_has_work();
- 	list_add_tail(&mm_slot->mm_node, &khugepaged_scan.mm_head);
--	spin_unlock(&khugepaged_mm_lock);
+-		set_current_state(TASK_INTERRUPTIBLE);
+-		if (break_test())
+-			break;
+-		schedule();
+-	}
+-	__set_current_state(TASK_RUNNING);
+-
+-	if (!kthread_should_stop())
+-		wait_to_die();
+-
+-	return 0;
++	ring_buffer_consumer();
+ }
  
- 	atomic_inc(&mm->mm_count);
--	if (wakeup)
--		wake_up_interruptible(&khugepaged_wait);
-+	if (khugepaged_worker && has_work)
-+		mod_delayed_kthread_work(khugepaged_worker,
-+					 &khugepaged_do_scan_work,
-+					 0);
-+	spin_unlock(&khugepaged_mm_lock);
+-static int ring_buffer_producer_thread(void *arg)
++static void rb_producer_hammer_func(struct kthread_work *dummy)
+ {
+-	while (!break_test()) {
+-		ring_buffer_reset(buffer);
++	if (break_test())
++		return;
+ 
+-		if (consumer) {
+-			wake_up_process(consumer);
+-			wait_for_completion(&read_start);
+-		}
+-
+-		ring_buffer_producer();
+-		if (break_test())
+-			goto out_kill;
++	ring_buffer_reset(buffer);
+ 
+-		trace_printk("Sleeping for 10 secs\n");
+-		set_current_state(TASK_INTERRUPTIBLE);
+-		if (break_test())
+-			goto out_kill;
+-		schedule_timeout(HZ * SLEEP_TIME);
++	if (rb_consumer_worker) {
++		queue_kthread_work(rb_consumer_worker, &rb_consumer_work);
++		wait_for_completion(&read_start);
+ 	}
+ 
+-out_kill:
+-	__set_current_state(TASK_RUNNING);
+-	if (!kthread_should_stop())
+-		wait_to_die();
++	ring_buffer_producer();
+ 
+-	return 0;
++	if (break_test())
++		return;
++
++	trace_printk("Sleeping for 10 secs\n");
++	queue_delayed_kthread_work(rb_producer_worker,
++				   &rb_producer_hammer_work,
++				   HZ * SLEEP_TIME);
+ }
+ 
+ static int __init ring_buffer_benchmark_init(void)
+ {
+-	int ret;
++	int ret = 0;
+ 
+ 	/* make a one meg buffer in overwite mode */
+ 	buffer = ring_buffer_alloc(1000000, RB_FL_OVERWRITE);
+@@ -435,19 +414,21 @@ static int __init ring_buffer_benchmark_init(void)
+ 		return -ENOMEM;
+ 
+ 	if (!disable_reader) {
+-		consumer = kthread_create(ring_buffer_consumer_thread,
+-					  NULL, "rb_consumer");
+-		ret = PTR_ERR(consumer);
+-		if (IS_ERR(consumer))
++		rb_consumer_worker = create_kthread_worker(0, "rb_consumer");
++		if (IS_ERR(rb_consumer_worker)) {
++			ret = PTR_ERR(rb_consumer_worker);
+ 			goto out_fail;
++		}
+ 	}
+ 
+-	producer = kthread_run(ring_buffer_producer_thread,
+-			       NULL, "rb_producer");
+-	ret = PTR_ERR(producer);
+-
+-	if (IS_ERR(producer))
++	rb_producer_worker = create_kthread_worker(0, "rb_producer");
++	if (IS_ERR(rb_producer_worker)) {
++		ret = PTR_ERR(rb_producer_worker);
+ 		goto out_kill;
++	}
++
++	queue_delayed_kthread_work(rb_producer_worker,
++				   &rb_producer_hammer_work, 0);
+ 
+ 	/*
+ 	 * Run them as low-prio background tasks by default:
+@@ -457,24 +438,26 @@ static int __init ring_buffer_benchmark_init(void)
+ 			struct sched_param param = {
+ 				.sched_priority = consumer_fifo
+ 			};
+-			sched_setscheduler(consumer, SCHED_FIFO, &param);
++			sched_setscheduler(rb_consumer_worker->task,
++					   SCHED_FIFO, &param);
+ 		} else
+-			set_user_nice(consumer, consumer_nice);
++			set_user_nice(rb_consumer_worker->task, consumer_nice);
+ 	}
+ 
+ 	if (producer_fifo >= 0) {
+ 		struct sched_param param = {
+ 			.sched_priority = producer_fifo
+ 		};
+-		sched_setscheduler(producer, SCHED_FIFO, &param);
++		sched_setscheduler(rb_producer_worker->task,
++				   SCHED_FIFO, &param);
+ 	} else
+-		set_user_nice(producer, producer_nice);
++		set_user_nice(rb_producer_worker->task, producer_nice);
  
  	return 0;
- }
-@@ -2142,10 +2181,10 @@ static void khugepaged_alloc_sleep(void)
+ 
+  out_kill:
+-	if (consumer)
+-		kthread_stop(consumer);
++	if (rb_consumer_worker)
++		destroy_kthread_worker(rb_consumer_worker);
+ 
+  out_fail:
+ 	ring_buffer_free(buffer);
+@@ -483,9 +466,11 @@ static int __init ring_buffer_benchmark_init(void)
+ 
+ static void __exit ring_buffer_benchmark_exit(void)
  {
- 	DEFINE_WAIT(wait);
- 
--	add_wait_queue(&khugepaged_wait, &wait);
-+	add_wait_queue(&khugepaged_alloc_wait, &wait);
- 	freezable_schedule_timeout_interruptible(
- 		msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
--	remove_wait_queue(&khugepaged_wait, &wait);
-+	remove_wait_queue(&khugepaged_alloc_wait, &wait);
+-	kthread_stop(producer);
+-	if (consumer)
+-		kthread_stop(consumer);
++	test_end = 1;
++	cancel_delayed_kthread_work_sync(&rb_producer_hammer_work);
++	destroy_kthread_worker(rb_producer_worker);
++	if (rb_consumer_worker)
++		destroy_kthread_worker(rb_consumer_worker);
+ 	ring_buffer_free(buffer);
  }
  
- static int khugepaged_node_load[MAX_NUMNODES];
-@@ -2716,19 +2755,7 @@ breakouterloop_mmap_sem:
- 	return progress;
- }
- 
--static int khugepaged_has_work(void)
--{
--	return !list_empty(&khugepaged_scan.mm_head) &&
--		khugepaged_enabled();
--}
--
--static int khugepaged_wait_event(void)
--{
--	return !list_empty(&khugepaged_scan.mm_head) ||
--		kthread_should_stop();
--}
--
--static void khugepaged_do_scan(void)
-+static void khugepaged_do_scan_func(struct kthread_work *dummy)
- {
- 	struct page *hpage = NULL;
- 	unsigned int progress = 0, pass_through_head = 0;
-@@ -2743,7 +2770,7 @@ static void khugepaged_do_scan(void)
- 
- 		cond_resched();
- 
--		if (unlikely(kthread_should_stop() || try_to_freeze()))
-+		if (unlikely(!khugepaged_enabled() || try_to_freeze()))
- 			break;
- 
- 		spin_lock(&khugepaged_mm_lock);
-@@ -2760,43 +2787,30 @@ static void khugepaged_do_scan(void)
- 
- 	if (!IS_ERR_OR_NULL(hpage))
- 		put_page(hpage);
--}
- 
--static void khugepaged_wait_work(void)
--{
- 	if (khugepaged_has_work()) {
--		if (!khugepaged_scan_sleep_millisecs)
--			return;
- 
--		wait_event_freezable_timeout(khugepaged_wait,
--					     kthread_should_stop(),
--			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
--		return;
--	}
-+		unsigned long delay = 0;
- 
--	if (khugepaged_enabled())
--		wait_event_freezable(khugepaged_wait, khugepaged_wait_event());
-+		if (khugepaged_scan_sleep_millisecs)
-+			delay = msecs_to_jiffies(khugepaged_scan_sleep_millisecs);
-+
-+		queue_delayed_kthread_work(khugepaged_worker,
-+					   &khugepaged_do_scan_work,
-+					   delay);
-+	}
- }
- 
--static int khugepaged(void *none)
-+static void khugepaged_cleanup_func(struct kthread_work *dummy)
- {
- 	struct mm_slot *mm_slot;
- 
--	set_freezable();
--	set_user_nice(current, MAX_NICE);
--
--	while (!kthread_should_stop()) {
--		khugepaged_do_scan();
--		khugepaged_wait_work();
--	}
--
- 	spin_lock(&khugepaged_mm_lock);
- 	mm_slot = khugepaged_scan.mm_slot;
- 	khugepaged_scan.mm_slot = NULL;
- 	if (mm_slot)
- 		collect_mm_slot(mm_slot);
- 	spin_unlock(&khugepaged_mm_lock);
--	return 0;
- }
- 
- static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
 -- 
 1.8.5.6
 
