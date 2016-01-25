@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1616B0253
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CF10E6B0253
 	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 12:26:12 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id n128so84910573pfn.3
+Received: by mail-pa0-f52.google.com with SMTP id ho8so83628769pac.2
         for <linux-mm@kvack.org>; Mon, 25 Jan 2016 09:26:12 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         by mx.google.com with ESMTP id n9si34860949pap.49.2016.01.25.09.26.11
         for <linux-mm@kvack.org>;
         Mon, 25 Jan 2016 09:26:11 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 3/3] dax: Handle write faults more efficiently
-Date: Mon, 25 Jan 2016 12:25:17 -0500
-Message-Id: <1453742717-10326-4-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 2/3] mm: Convert vm_insert_pfn_prot to vmf_insert_pfn_prot
+Date: Mon, 25 Jan 2016 12:25:16 -0500
+Message-Id: <1453742717-10326-3-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,157 +21,123 @@ Cc: Matthew Wilcox <willy@linux.intel.com>, Kees Cook <keescook@chromium.org>, A
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-When we handle a write-fault on a DAX mapping, we currently insert a
-read-only mapping and then take the page fault again to convert it to
-a writable mapping.  This is necessary for the case where we cover a
-hole with a read-only zero page, but when we have a data block already
-allocated, it is inefficient.
+Other than the name, the vmf_ version takes a pfn_t parameter, and
+returns a VM_FAULT_ code suitable for returning from a fault handler.
 
-Use the recently added vmf_insert_pfn_prot() to insert a writable mapping,
-even though the default VM flags say to use a read-only mapping.
+This patch also prevents vm_insert_pfn() from returning -EBUSY.
+This is a good thing as several callers handled it incorrectly (and
+none intentionally treat -EBUSY as a different case from 0).
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- fs/dax.c | 73 ++++++++++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 53 insertions(+), 20 deletions(-)
+ arch/x86/entry/vdso/vma.c |  6 +++---
+ include/linux/mm.h        |  4 ++--
+ mm/memory.c               | 31 ++++++++++++++++++-------------
+ 3 files changed, 23 insertions(+), 18 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 206650f..3f6138d 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -519,9 +519,44 @@ int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
- }
- EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
- 
-+/*
-+ * The default page protections for DAX VMAs are set to "copy" so that
-+ * we get notifications when zero pages are written to.  This function
-+ * is called when we're inserting a mapping to a data page.  If this is
-+ * a write fault, we've already done all the necessary accounting and
-+ * it's pointless to insert this translation entry read-only.  Convert
-+ * the pgprot to be writable.
-+ *
-+ * While this is not the most elegant code, the compiler can see that (on
-+ * any sane architecture) all four arms of the conditional are the same.
-+ */
-+static pgprot_t dax_pgprot(struct vm_area_struct *vma, bool write)
-+{
-+	pgprot_t pgprot = vma->vm_page_prot;
-+	if (!write)
-+		return pgprot;
-+	if ((vma->vm_flags & (VM_READ|VM_EXEC)) == (VM_READ|VM_EXEC))
-+		return __pgprot(pgprot_val(pgprot) ^
-+				pgprot_val(__P111) ^
-+				pgprot_val(__S111));
-+	else if ((vma->vm_flags & (VM_READ|VM_EXEC)) == VM_READ)
-+		return __pgprot(pgprot_val(pgprot) ^
-+				pgprot_val(__P110) ^
-+				pgprot_val(__S110));
-+	else if ((vma->vm_flags & (VM_READ|VM_EXEC)) == VM_EXEC)
-+		return __pgprot(pgprot_val(pgprot) ^
-+				pgprot_val(__P011) ^
-+				pgprot_val(__S011));
-+	else
-+		return __pgprot(pgprot_val(pgprot) ^
-+				pgprot_val(__P010) ^
-+				pgprot_val(__S010));
-+}
-+
- static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 			struct vm_area_struct *vma, struct vm_fault *vmf)
+diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+index 7c912fe..660bb69 100644
+--- a/arch/x86/entry/vdso/vma.c
++++ b/arch/x86/entry/vdso/vma.c
+@@ -9,6 +9,7 @@
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+ #include <linux/init.h>
++#include <linux/pfn_t.h>
+ #include <linux/random.h>
+ #include <linux/elf.h>
+ #include <linux/cpu.h>
+@@ -131,10 +132,9 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+ 	} else if (sym_offset == image->sym_hpet_page) {
+ #ifdef CONFIG_HPET_TIMER
+ 		if (hpet_address && vclock_was_used(VCLOCK_HPET)) {
+-			ret = vm_insert_pfn_prot(
+-				vma,
++			return vmf_insert_pfn_prot(vma,
+ 				(unsigned long)vmf->virtual_address,
+-				hpet_address >> PAGE_SHIFT,
++				phys_to_pfn_t(hpet_address, PFN_DEV),
+ 				pgprot_noncached(PAGE_READONLY));
+ 		}
+ #endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fa6da9a..19f8741 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2138,8 +2138,8 @@ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+-int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+-			unsigned long pfn, pgprot_t pgprot);
++int vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
++			pfn_t pfn, pgprot_t pgprot);
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			pfn_t pfn);
+ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+diff --git a/mm/memory.c b/mm/memory.c
+index a2eaeef..9b57318 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1554,7 +1554,11 @@ out:
+ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn)
  {
-+	bool write = vmf->flags & FAULT_FLAG_WRITE;
- 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
- 	struct address_space *mapping = inode->i_mapping;
- 	struct block_device *bdev = bh->b_bdev;
-@@ -530,7 +565,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 		.size = bh->b_size,
- 	};
- 	pgoff_t size;
--	int error;
-+	int result;
- 
- 	i_mmap_lock_read(mapping);
- 
-@@ -542,15 +577,11 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	 * allocated past the end of the file.
- 	 */
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	if (unlikely(vmf->pgoff >= size)) {
--		error = -EIO;
--		goto out;
--	}
-+	if (unlikely(vmf->pgoff >= size))
-+		goto sigbus;
- 
--	if (dax_map_atomic(bdev, &dax) < 0) {
--		error = PTR_ERR(dax.addr);
--		goto out;
--	}
-+	if (dax_map_atomic(bdev, &dax) < 0)
-+		goto sigbus;
- 
- 	if (buffer_unwritten(bh) || buffer_new(bh)) {
- 		clear_pmem(dax.addr, PAGE_SIZE);
-@@ -558,17 +589,19 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	}
- 	dax_unmap_atomic(bdev, &dax);
- 
--	error = dax_radix_entry(mapping, vmf->pgoff, dax.sector, false,
--			vmf->flags & FAULT_FLAG_WRITE);
--	if (error)
--		goto out;
-+	if (dax_radix_entry(mapping, vmf->pgoff, dax.sector, false, write))
-+		goto sigbus;
- 
--	error = vm_insert_mixed(vma, vaddr, dax.pfn);
-+	result = vmf_insert_pfn_prot(vma, vaddr, dax.pfn,
-+					dax_pgprot(vma, write));
- 
-  out:
- 	i_mmap_unlock_read(mapping);
-+	return result;
- 
--	return error;
-+ sigbus:
-+	result = VM_FAULT_SIGBUS;
-+	goto out;
+-	return vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot);
++	int result = vmf_insert_pfn_prot(vma, addr,
++			__pfn_to_pfn_t(pfn, PFN_DEV), vma->vm_page_prot);
++	if (result & VM_FAULT_ERROR)
++		return -EFAULT;
++	return 0;
  }
+ EXPORT_SYMBOL(vm_insert_pfn);
  
- /**
-@@ -599,7 +632,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	unsigned blkbits = inode->i_blkbits;
- 	sector_t block;
- 	pgoff_t size;
--	int error;
-+	int result, error;
- 	int major = 0;
+@@ -1570,13 +1574,13 @@ EXPORT_SYMBOL(vm_insert_pfn);
+  *
+  * This only makes sense for IO mappings, and it makes no sense for
+  * cow mappings.  In general, using multiple vmas is preferable;
+- * vm_insert_pfn_prot should only be used if using multiple VMAs is
++ * vmf_insert_pfn_prot should only be used if using multiple VMAs is
+  * impractical.
+  */
+-int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+-			unsigned long pfn, pgprot_t pgprot)
++int vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
++			pfn_t pfn, pgprot_t pgprot)
+ {
+-	int ret;
++	int error;
+ 	/*
+ 	 * Technically, architectures with pte_special can avoid all these
+ 	 * restrictions (same for remap_pfn_range).  However we would like
+@@ -1587,18 +1591,19 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+ 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+-	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_t_valid(pfn));
  
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-@@ -701,19 +734,19 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	 * indicate what the callback should do via the uptodate variable, same
- 	 * as for normal BH based IO completions.
- 	 */
--	error = dax_insert_mapping(inode, &bh, vma, vmf);
-+	result = dax_insert_mapping(inode, &bh, vma, vmf);
- 	if (buffer_unwritten(&bh)) {
- 		if (complete_unwritten)
--			complete_unwritten(&bh, !error);
-+			complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
- 		else
- 			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
- 	}
-+	return result | major;
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+-		return -EFAULT;
+-	if (track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV)))
+-		return -EINVAL;
+-
+-	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
++		return VM_FAULT_SIGBUS;
++	if (track_pfn_insert(vma, &pgprot, pfn))
++		return VM_FAULT_SIGBUS;
  
-  out:
- 	if (error == -ENOMEM)
- 		return VM_FAULT_OOM | major;
--	/* -EBUSY is fine, somebody else faulted on the same PTE */
--	if ((error < 0) && (error != -EBUSY))
-+	if (error < 0)
- 		return VM_FAULT_SIGBUS | major;
- 	return VM_FAULT_NOPAGE | major;
+-	return ret;
++	error = insert_pfn(vma, addr, pfn, pgprot);
++	if (error == -EBUSY || !error)
++		return VM_FAULT_NOPAGE;
++	return VM_FAULT_SIGBUS;
+ }
+-EXPORT_SYMBOL(vm_insert_pfn_prot);
++EXPORT_SYMBOL(vmf_insert_pfn_prot);
  
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			pfn_t pfn)
 -- 
 2.7.0.rc3
 
