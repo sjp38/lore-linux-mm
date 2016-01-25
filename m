@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 919BF6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:37:43 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id o11so115581412qge.2
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:37:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d193si25660578qka.54.2016.01.25.10.37.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 10:37:42 -0800 (PST)
-Subject: Re: [PATCH 1/4] arm: Fix wrong bounds check.
-References: <1453561543-14756-1-git-send-email-mika.penttila@nextfour.com>
- <1453561543-14756-2-git-send-email-mika.penttila@nextfour.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56A66B74.1060103@redhat.com>
-Date: Mon, 25 Jan 2016 10:37:40 -0800
-MIME-Version: 1.0
-In-Reply-To: <1453561543-14756-2-git-send-email-mika.penttila@nextfour.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7756B0253
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 13:37:47 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id q63so88248074pfb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 10:37:47 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id xu3si22168401pab.94.2016.01.25.10.37.47
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jan 2016 10:37:47 -0800 (PST)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v2 0/3] x86/mm: INVPCID support
+Date: Mon, 25 Jan 2016 10:37:41 -0800
+Message-Id: <cover.1453746505.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mika.penttila@nextfour.com, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, linux@arm.linux.org.uk
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>
 
-On 01/23/2016 07:05 AM, mika.penttila@nextfour.com wrote:
-> From: Mika PenttilA? <mika.penttila@nextfour.com>
->
-> Not related to this oops, but while at it, fix incorrect bounds check.
->
-> Signed-off-by: Mika PenttilA? mika.penttila@nextfour.com
->
-> ---
->   arch/arm/mm/pageattr.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/arch/arm/mm/pageattr.c b/arch/arm/mm/pageattr.c
-> index cf30daf..be7fe4b 100644
-> --- a/arch/arm/mm/pageattr.c
-> +++ b/arch/arm/mm/pageattr.c
-> @@ -52,7 +52,7 @@ static int change_memory_common(unsigned long addr, int numpages,
->   	if (start < MODULES_VADDR || start >= MODULES_END)
->   		return -EINVAL;
->
-> -	if (end < MODULES_VADDR || start >= MODULES_END)
-> +	if (end < MODULES_VADDR || end >= MODULES_END)
->   		return -EINVAL;
->
->   	data.set_mask = set_mask;
->
+Ingo, before applying this, please apply these two KASAN fixes:
 
-This has been submitted a few times before, not sure if it is pending
-in Russell's patch tracker or nobody has actually submitted it to the
-patch tracker.
+http://lkml.kernel.org/g/1452516679-32040-2-git-send-email-aryabinin@virtuozzo.com
+http://lkml.kernel.org/g/1452516679-32040-3-git-send-email-aryabinin@virtuozzo.com
 
-Russell, is this pending somewhere already?
+Without those fixes, this series will trigger a KASAN bug.
 
-Thanks,
-Laura
+This is a straightforward speedup on Ivy Bridge and newer, IIRC.
+(I tested on Skylake.  INVPCID is not available on Sandy Bridge.
+I don't have Ivy Bridge, Haswell or Broadwell to test on, so I
+could be wrong as to when the feature was introduced.)
+
+I think we should consider these patches separately from the rest
+of the PCID stuff -- they barely interact, and this part is much
+simpler and is useful on its own.
+
+This is exactly identical to patches 2-4 of the PCID RFC series.
+
+Andy Lutomirski (3):
+  x86/mm: Add INVPCID helpers
+  x86/mm: Add a noinvpcid option to turn off INVPCID
+  x86/mm: If INVPCID is available, use it to flush global mappings
+
+ Documentation/kernel-parameters.txt |  2 ++
+ arch/x86/include/asm/tlbflush.h     | 50 +++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/cpu/common.c        | 16 ++++++++++++
+ 3 files changed, 68 insertions(+)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
