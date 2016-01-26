@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0A86B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 17:49:27 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id x125so643467pfb.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 14:49:27 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6AC6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 17:51:55 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id x125so674058pfb.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 14:51:55 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id by6si3627703pad.69.2016.01.26.14.49.27
+        by mx.google.com with ESMTPS id w70si4726407pfa.98.2016.01.26.14.51.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 14:49:27 -0800 (PST)
-Date: Tue, 26 Jan 2016 14:49:26 -0800
+        Tue, 26 Jan 2016 14:51:54 -0800 (PST)
+Date: Tue, 26 Jan 2016 14:51:53 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] mm: warn about VmData over RLIMIT_DATA
-Message-Id: <20160126144926.21d854fe53b76bd03e34b0d1@linux-foundation.org>
-In-Reply-To: <145358234948.18573.2681359119037889087.stgit@zurg>
-References: <145358234948.18573.2681359119037889087.stgit@zurg>
+Subject: Re: [RFC PATCH] mm: support CONFIG_ZONE_DEVICE + CONFIG_ZONE_DMA
+Message-Id: <20160126145153.44e4f38b04200209d133c0a3@linux-foundation.org>
+In-Reply-To: <CAPcyv4hytzxpNt2RT6b5M6iuqz6V3GdSnO3eHwqpHVt4gfXPxg@mail.gmail.com>
+References: <20160126000639.358.89668.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20160126141152.e1043d14502dcca17813afb3@linux-foundation.org>
+	<CAPcyv4hytzxpNt2RT6b5M6iuqz6V3GdSnO3eHwqpHVt4gfXPxg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linuxfoundation.org>, linux-kernel@vger.kernel.org, Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jerome Glisse <j.glisse@gmail.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On Sat, 23 Jan 2016 23:52:29 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Tue, 26 Jan 2016 14:33:48 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
 
-> This patch fixes 84638335900f ("mm: rework virtual memory accounting")
-
-uh, I think I'll rewrite this to
-
-: This patch provides a way of working around a slight regression introduced
-: by 84638335900f ("mm: rework virtual memory accounting").
-
-> Before that commit RLIMIT_DATA have control only over size of the brk region.
-> But that change have caused problems with all existing versions of valgrind,
-> because it set RLIMIT_DATA to zero.
+> >> Towards this end, alias ZONE_DMA and ZONE_DEVICE to work around needing
+> >> to maintain a unique zone number for ZONE_DEVICE.  Record the geometry
+> >> of ZONE_DMA at init (->init_spanned_pages) and use that information in
+> >> is_zone_device_page() to differentiate pages allocated via
+> >> devm_memremap_pages() vs true ZONE_DMA pages.  Otherwise, use the
+> >> simpler definition of is_zone_device_page() when ZONE_DMA is turned off.
+> >>
+> >> Note that this also teaches the memory hot remove path that the zone may
+> >> not have sections for all pfn spans (->zone_dyn_start_pfn).
+> >>
+> >> A user visible implication of this change is potentially an unexpectedly
+> >> high "spanned" value in /proc/zoneinfo for the DMA zone.
+> >
+> > Well, all these icky tricks are to avoid increasing ZONES_SHIFT, yes?
+> > Is it possible to just use ZONES_SHIFT=3?
 > 
-> This patch fixes rlimit check (limit actually in bytes, not pages)
-> and by default turns it into warning which prints at first VmData misuse:
-> "mmap: top (795): VmData 516096 exceed data ulimit 512000. Will be forbidden soon."
+> Last I tried I hit this warning in mm/memory.c
 > 
-> Behavior is controlled by boot param ignore_rlimit_data=y/n and by sysfs
-> /sys/module/kernel/parameters/ignore_rlimit_data. For now it set to "y".
-> 
-> 
-> ...
->
-> +static inline bool is_data_mapping(vm_flags_t flags)
-> +{
-> +	return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
-> +					VM_WRITE | VM_SHARED)) == VM_WRITE;
-> +}
+> #warning Unfortunate NUMA and NUMA Balancing config, growing
+> page-frame for last_cpupid.
 
-This (copied from existing code) hurts my brain.  We're saying "if it
-isn't stack and it's unshared and writable, it's data", yes?
-
-hm.  I guess that's because with a shared mapping we don't know who to
-blame for the memory consumption so we blame nobody.  But what about
-non-shared read-only mappings?
-
-Can we please have a comment here fully explaining the thinking?
+Well yes, it may take a bit of work - perhaps salvaging a bit from
+somewhere else if poss.  But that might provide a better overall
+solution so could you please have a think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
