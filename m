@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CEBF6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:33:45 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id is5so136148834obc.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 22:33:45 -0800 (PST)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0079.outbound.protection.outlook.com. [157.55.234.79])
-        by mx.google.com with ESMTPS id r7si20847268oew.52.2016.01.25.22.33.44
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5D96B0009
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:33:51 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id is5so136150200obc.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 22:33:51 -0800 (PST)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0075.outbound.protection.outlook.com. [157.55.234.75])
+        by mx.google.com with ESMTPS id jk7si4063857oeb.27.2016.01.25.22.33.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 22:33:44 -0800 (PST)
+        Mon, 25 Jan 2016 22:33:51 -0800 (PST)
 From: <mika.penttila@nextfour.com>
-Subject: [PATCH 1/2 v2] arm, arm64: change_memory_common with numpages == 0 should be no-op.
-Date: Tue, 26 Jan 2016 08:33:08 +0200
-Message-ID: <1453789989-13260-2-git-send-email-mika.penttila@nextfour.com>
+Subject: [PATCH 2/2 v2] make apply_to_page_range() more robust.
+Date: Tue, 26 Jan 2016 08:33:09 +0200
+Message-ID: <1453789989-13260-3-git-send-email-mika.penttila@nextfour.com>
 In-Reply-To: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
 References: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
 MIME-Version: 1.0
@@ -25,49 +25,33 @@ Cc: linux-mm@kvack.org, linux@arm.linux.org.uk, =?UTF-8?q?Mika=20Penttil=C3=A4?=
 
 From: Mika PenttilA? <mika.penttila@nextfour.com>
 
-This makes the caller set_memory_xx() consistent with x86.
-
-arm64 part is rebased on 4.5.0-rc1 with Ard's patch
- lkml.kernel.org/g/<1453125665-26627-1-git-send-email-ard.biesheuvel@linaro.org>
-applied.
+Now the arm/arm64 don't trigger this BUG_ON() any more,
+but WARN_ON() is here enough to catch buggy callers
+but still let potential other !size callers pass with warning.
 
 Signed-off-by: Mika PenttilA? mika.penttila@nextfour.com
-Reviewed-by: Laura Abbott <labbott@redhat.com>
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 Acked-by: David Rientjes <rientjes@google.com>
 
 ---
- arch/arm/mm/pageattr.c   | 3 +++
- arch/arm64/mm/pageattr.c | 3 +++
- 2 files changed, 6 insertions(+)
+ mm/memory.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm/mm/pageattr.c b/arch/arm/mm/pageattr.c
-index cf30daf..d19b1ad 100644
---- a/arch/arm/mm/pageattr.c
-+++ b/arch/arm/mm/pageattr.c
-@@ -49,6 +49,9 @@ static int change_memory_common(unsigned long addr, int numpages,
- 		WARN_ON_ONCE(1);
- 	}
+diff --git a/mm/memory.c b/mm/memory.c
+index 30991f8..9178ee6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1871,7 +1871,9 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+ 	unsigned long end = addr + size;
+ 	int err;
  
-+	if (!numpages)
-+		return 0;
+-	BUG_ON(addr >= end);
++	if (WARN_ON(addr >= end))
++		return -EINVAL;
 +
- 	if (start < MODULES_VADDR || start >= MODULES_END)
- 		return -EINVAL;
- 
-diff --git a/arch/arm64/mm/pageattr.c b/arch/arm64/mm/pageattr.c
-index 1360a02..b582fc2 100644
---- a/arch/arm64/mm/pageattr.c
-+++ b/arch/arm64/mm/pageattr.c
-@@ -53,6 +53,9 @@ static int change_memory_common(unsigned long addr, int numpages,
- 		WARN_ON_ONCE(1);
- 	}
- 
-+	if (!numpages)
-+		return 0;
-+
- 	/*
- 	 * Kernel VA mappings are always live, and splitting live section
- 	 * mappings into page mappings may cause TLB conflicts. This means
+ 	pgd = pgd_offset(mm, addr);
+ 	do {
+ 		next = pgd_addr_end(addr, end);
 -- 
 1.9.1
 
