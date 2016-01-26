@@ -1,149 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 514386B0009
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:52:52 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l65so102731044wmf.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:52:52 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id q135si5301112wmg.88.2016.01.26.04.52.51
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 051106B0255
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:53:21 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id 123so104604609wmz.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:53:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r201si4151992wmd.103.2016.01.26.04.46.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 04:52:51 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id 123so104587568wmz.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:52:51 -0800 (PST)
-MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 26 Jan 2016 13:52:31 +0100
-Message-ID: <CACT4Y+YK7or=W4RGpv1k1T5-xDHu3_PPVZWqsQU6nWoArsV5vA@mail.gmail.com>
-Subject: mm: VM_BUG_ON_PAGE(PageTail(page)) in mbind
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 04:46:26 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v4 13/14] mm, page_owner: dump page owner info from dump_page()
+Date: Tue, 26 Jan 2016 13:45:52 +0100
+Message-Id: <1453812353-26744-14-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
+References: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
 
-Hello,
+The page_owner mechanism is useful for dealing with memory leaks. By reading
+/sys/kernel/debug/page_owner one can determine the stack traces leading to
+allocations of all pages, and find e.g. a buggy driver.
 
-The following program triggers the following bug:
+This information might be also potentially useful for debugging, such as the
+VM_BUG_ON_PAGE() calls to dump_page(). So let's print the stored info from
+dump_page().
 
-page:ffffea0000b82240 count:0 mapcount:1 mapping:dead0000ffffffff
-index:0x0 compound_mapcount: 0
-flags: 0x1fffc0000000000()
-page dumped because: VM_BUG_ON_PAGE(PageTail(page))
-------------[ cut here ]------------
-kernel BUG at mm/vmscan.c:1446!
-invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
-Modules linked in:
-CPU: 1 PID: 6868 Comm: a.out Not tainted 4.5.0-rc1+ #287
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff88003e24af80 ti: ffff88002e808000 task.ti: ffff88002e808000
-RIP: 0010:[<ffffffff816a4b7a>]  [<ffffffff816a4b7a>]
-isolate_lru_page+0x4ea/0x6d0
-RSP: 0018:ffff88002e80fa50  EFLAGS: 00010282
-RAX: ffff88003e24af80 RBX: ffffea0000b82240 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffea0000b82278
-RBP: ffff88002e80fa88 R08: 0000000000000001 R09: 0000000000000000
-R10: ffff88003e24af80 R11: 0000000000000001 R12: ffffea0000b82260
-R13: ffffea0000b82200 R14: ffffea0000b82201 R15: 0000000020004000
-FS:  0000000000c1f880(0063) GS:ffff88003ed00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 0000000020005ff8 CR3: 000000002e324000 CR4: 00000000000006e0
-Stack:
- dffffc0000000000 ffffffff816f5e89 ffff88003124b010 0000000020002000
- dffffc0000000000 ffffea0000b82240 0000000020004000 ffff88002e80fb10
- ffffffff817612bd ffffea0000000001 ffff88002e80fc70 ffff88002e80fde8
-Call Trace:
- [<     inline     >] migrate_page_add mm/mempolicy.c:966
- [<ffffffff817612bd>] queue_pages_pte_range+0x4ad/0x10b0 mm/mempolicy.c:552
- [<     inline     >] walk_pmd_range mm/pagewalk.c:50
- [<     inline     >] walk_pud_range mm/pagewalk.c:90
- [<     inline     >] walk_pgd_range mm/pagewalk.c:116
- [<ffffffff81732713>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
- [<ffffffff81732ec4>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
- [<ffffffff8175f07b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:687
- [<ffffffff817678c1>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1239
- [<     inline     >] SYSC_mbind mm/mempolicy.c:1351
- [<ffffffff8176871d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1333
- [<ffffffff8646ed76>] entry_SYSCALL_64_fastpath+0x16/0x7a
-arch/x86/entry/entry_64.S:185
-Code: 89 df e8 aa 64 04 00 0f 0b e8 63 6d ed ff 4d 8d 6e ff e9 73 fb
-ff ff e8 55 6d ed ff 48 c7 c6 60 7b 5b 86 48 89 df e8 86 64 04 00 <0f>
-0b e8 3f 6d ed ff 4d 8d 6e ff e9 eb fb ff ff c7 45 d0 f0 ff
-RIP  [<ffffffff816a4b7a>] isolate_lru_page+0x4ea/0x6d0 mm/vmscan.c:1446
- RSP <ffff88002e80fa50>
----[ end trace 310d844ac0b69c5b ]---
-BUG: sleeping function called from invalid context at include/linux/sched.h:2805
-in_atomic(): 1, irqs_disabled(): 0, pid: 6868, name: a.out
-INFO: lockdep is turned off.
-CPU: 1 PID: 6868 Comm: a.out Tainted: G      D         4.5.0-rc1+ #287
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- 00000000ffffffff ffff88002e80f548 ffffffff829f9d0d ffff88003e24af80
- 0000000000001ad4 0000000000000000 ffff88002e80f570 ffffffff813cba2b
- ffff88003e24af80 ffffffff865527a0 0000000000000af5 ffff88002e80f5b0
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff829f9d0d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
- [<ffffffff813cba2b>] ___might_sleep+0x27b/0x3a0 kernel/sched/core.c:7703
- [<ffffffff813cbbe0>] __might_sleep+0x90/0x1a0 kernel/sched/core.c:7665
- [<     inline     >] threadgroup_change_begin include/linux/sched.h:2805
- [<ffffffff81383221>] exit_signals+0x81/0x430 kernel/signal.c:2392
- [<ffffffff8135c55c>] do_exit+0x23c/0x2cb0 kernel/exit.c:701
- [<ffffffff811aa28f>] oops_end+0x9f/0xd0 arch/x86/kernel/dumpstack.c:250
- [<ffffffff811aa686>] die+0x46/0x60 arch/x86/kernel/dumpstack.c:316
- [<     inline     >] do_trap_no_signal arch/x86/kernel/traps.c:205
- [<ffffffff811a3b9f>] do_trap+0x18f/0x380 arch/x86/kernel/traps.c:251
- [<ffffffff811a400e>] do_error_trap+0x11e/0x280 arch/x86/kernel/traps.c:290
- [<ffffffff811a527b>] do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:303
- [<ffffffff86470a8e>] invalid_op+0x1e/0x30 arch/x86/entry/entry_64.S:830
- [<     inline     >] migrate_page_add mm/mempolicy.c:966
- [<ffffffff817612bd>] queue_pages_pte_range+0x4ad/0x10b0 mm/mempolicy.c:552
- [<     inline     >] walk_pmd_range mm/pagewalk.c:50
- [<     inline     >] walk_pud_range mm/pagewalk.c:90
- [<     inline     >] walk_pgd_range mm/pagewalk.c:116
- [<ffffffff81732713>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
- [<ffffffff81732ec4>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
- [<ffffffff8175f07b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:687
- [<ffffffff817678c1>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1239
- [<     inline     >] SYSC_mbind mm/mempolicy.c:1351
- [<ffffffff8176871d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1333
- [<ffffffff8646ed76>] entry_SYSCALL_64_fastpath+0x16/0x7a
-arch/x86/entry/entry_64.S:185
-note: a.out[6868] exited with preempt_count 1
+Example output:
 
+page:ffffea000292f1c0 count:1 mapcount:0 mapping:ffff8800b2f6cc18 index:0x91d
+flags: 0x1fffff8001002c(referenced|uptodate|lru|mappedtodisk)
+page dumped because: VM_BUG_ON_PAGE(1)
+page->mem_cgroup:ffff8801392c5000
+page allocated via order 0, migratetype Movable, gfp_mask 0x24213ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD|__GFP_NOWARN|__GFP_NORETRY)
+ [<ffffffff811682c4>] __alloc_pages_nodemask+0x134/0x230
+ [<ffffffff811b40c8>] alloc_pages_current+0x88/0x120
+ [<ffffffff8115e386>] __page_cache_alloc+0xe6/0x120
+ [<ffffffff8116ba6c>] __do_page_cache_readahead+0xdc/0x240
+ [<ffffffff8116bd05>] ondemand_readahead+0x135/0x260
+ [<ffffffff8116be9c>] page_cache_async_readahead+0x6c/0x70
+ [<ffffffff811604c2>] generic_file_read_iter+0x3f2/0x760
+ [<ffffffff811e0dc7>] __vfs_read+0xa7/0xd0
+page has been migrated, last migrate reason: compaction
 
-// autogenerated by syzkaller (http://github.com/google/syzkaller)
-#include <pthread.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <fcntl.h>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/page_owner.h |  9 +++++++++
+ mm/debug.c                 |  2 ++
+ mm/page_alloc.c            |  1 +
+ mm/page_owner.c            | 25 +++++++++++++++++++++++++
+ 4 files changed, 37 insertions(+)
 
-#ifndef SYS_mlock2
-#define SYS_mlock2 325
-#endif
-
-int main()
-{
-  long r[8];
-  memset(r, -1, sizeof(r));
-  r[0] = syscall(SYS_mmap, 0x20000000ul, 0x1000ul, 0x3ul, 0x32ul,
-                 0xfffffffffffffffful, 0x0ul);
-  memcpy((void*)0x20000f33, "\x2f\x64\x65\x76\x2f\x73\x67\x23", 8);
-  r[2] = syscall(SYS_open, "/dev/sg0",O_RDWR);
-  r[3] = syscall(SYS_mmap, 0x20001000ul, 0x4000ul, 0x4ul, 0x12ul, r[2],
-                 0x0ul);
-  r[4] = syscall(SYS_mlock2, 0x20001000ul, 0x3000ul, 0x1ul, 0, 0, 0);
-  r[5] = syscall(SYS_mmap, 0x20005000ul, 0x1000ul, 0x3ul, 0x32ul,
-                 0xfffffffffffffffful, 0x0ul);
-  *(uint64_t*)0x20005ff8 = (uint64_t)0x80000000;
-  r[7] = syscall(SYS_mbind, 0x20000000ul, 0x4000ul, 0x8000ul,
-                 0x20005ff8ul, 0x5ul, 0x2ul);
-  return 0;
-}
-
-
-On commit 92e963f50fc74041b5e9e744c330dca48e04f08d.
+diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
+index 555893bf13d7..46f1b939948c 100644
+--- a/include/linux/page_owner.h
++++ b/include/linux/page_owner.h
+@@ -13,6 +13,7 @@ extern void __set_page_owner(struct page *page,
+ extern gfp_t __get_page_owner_gfp(struct page *page);
+ extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
+ extern void __set_page_owner_migrate_reason(struct page *page, int reason);
++extern void __dump_page_owner(struct page *page);
+ 
+ static inline void reset_page_owner(struct page *page, unsigned int order)
+ {
+@@ -44,6 +45,11 @@ static inline void set_page_owner_migrate_reason(struct page *page, int reason)
+ 	if (static_branch_unlikely(&page_owner_inited))
+ 		__set_page_owner_migrate_reason(page, reason);
+ }
++static inline void dump_page_owner(struct page *page)
++{
++	if (static_branch_unlikely(&page_owner_inited))
++		__dump_page_owner(page);
++}
+ #else
+ static inline void reset_page_owner(struct page *page, unsigned int order)
+ {
+@@ -62,5 +68,8 @@ static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
+ static inline void set_page_owner_migrate_reason(struct page *page, int reason)
+ {
+ }
++static inline void dump_page_owner(struct page *page)
++{
++}
+ #endif /* CONFIG_PAGE_OWNER */
+ #endif /* __LINUX_PAGE_OWNER_H */
+diff --git a/mm/debug.c b/mm/debug.c
+index 78dc54877075..61b1f1bb328e 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -11,6 +11,7 @@
+ #include <linux/memcontrol.h>
+ #include <trace/events/mmflags.h>
+ #include <linux/migrate.h>
++#include <linux/page_owner.h>
+ 
+ #include "internal.h"
+ 
+@@ -67,6 +68,7 @@ void dump_page_badflags(struct page *page, const char *reason,
+ void dump_page(struct page *page, const char *reason)
+ {
+ 	dump_page_badflags(page, reason, 0);
++	dump_page_owner(page);
+ }
+ EXPORT_SYMBOL(dump_page);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d1f385a37b5c..e8b3cb78b5cf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -443,6 +443,7 @@ static void bad_page(struct page *page, const char *reason,
+ 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
+ 		current->comm, page_to_pfn(page));
+ 	dump_page_badflags(page, reason, bad_flags);
++	dump_page_owner(page);
+ 
+ 	print_modules();
+ 	dump_stack();
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index a57068cfe52f..44ad1f00c4e1 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -183,6 +183,31 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 	return -ENOMEM;
+ }
+ 
++void __dump_page_owner(struct page *page)
++{
++	struct page_ext *page_ext = lookup_page_ext(page);
++	struct stack_trace trace = {
++		.nr_entries = page_ext->nr_entries,
++		.entries = &page_ext->trace_entries[0],
++	};
++	gfp_t gfp_mask = page_ext->gfp_mask;
++	int mt = gfpflags_to_migratetype(gfp_mask);
++
++	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
++		pr_alert("page_owner info is not active (free page?)\n");
++		return;
++	}
++
++	pr_alert("page allocated via order %u, migratetype %s, "
++			"gfp_mask %#x(%pGg)\n", page_ext->order,
++			migratetype_names[mt], gfp_mask, &gfp_mask);
++	print_stack_trace(&trace, 0);
++
++	if (page_ext->last_migrate_reason != -1)
++		pr_alert("page has been migrated, last migrate reason: %s\n",
++			migrate_reason_names[page_ext->last_migrate_reason]);
++}
++
+ static ssize_t
+ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ {
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
