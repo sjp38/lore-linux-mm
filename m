@@ -1,59 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2172E6B0257
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 10:00:49 -0500 (EST)
-Received: by mail-oi0-f41.google.com with SMTP id p187so107329790oia.2
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:00:49 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0072.outbound.protection.outlook.com. [104.47.1.72])
-        by mx.google.com with ESMTPS id t186si862273oig.51.2016.01.26.07.00.47
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DD7036B0258
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 10:01:33 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id ik10so58505828igb.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:01:33 -0800 (PST)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id b28si5504399ioj.51.2016.01.26.07.01.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 07:00:48 -0800 (PST)
-From: <mika.penttila@nextfour.com>
-Subject: [PATCH V2 RESEND 2/2] make apply_to_page_range() more robust.
-Date: Tue, 26 Jan 2016 16:59:53 +0200
-Message-ID: <1453820393-31179-3-git-send-email-mika.penttila@nextfour.com>
-In-Reply-To: <1453820393-31179-1-git-send-email-mika.penttila@nextfour.com>
-References: <1453820393-31179-1-git-send-email-mika.penttila@nextfour.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 07:01:33 -0800 (PST)
+Date: Tue, 26 Jan 2016 09:01:31 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/3] Speed up SLUB poisoning + disable checks
+In-Reply-To: <20160126070320.GB28254@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.20.1601260900370.27338@east.gentwo.org>
+References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org> <20160126070320.GB28254@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux@arm.linux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, =?UTF-8?q?Mika=20Penttil=C3=A4?= <mika.penttila@nextfour.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Laura Abbott <labbott@fedoraproject.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
 
-From: Mika PenttilA? <mika.penttila@nextfour.com>
+On Tue, 26 Jan 2016, Joonsoo Kim wrote:
 
-Now the arm/arm64 don't trigger this BUG_ON() any more,
-but WARN_ON() is here enough to catch buggy callers
-but still let potential other !size callers pass with warning.
+> I doesn't follow up that discussion, but, I think that reusing
+> SLAB_POISON for slab sanitization needs more changes. I assume that
+> completeness and performance is matter for slab sanitization.
+>
+> 1) SLAB_POISON isn't applied to specific kmem_cache which has
+> constructor or SLAB_DESTROY_BY_RCU flag. For debug, it's not necessary
+> to be applied, but, for slab sanitization, it is better to apply it to
+> all caches.
 
-Signed-off-by: Mika PenttilA? mika.penttila@nextfour.com
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
-Acked-by: David Rientjes <rientjes@google.com>
-
----
- mm/memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 30991f8..9178ee6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1871,7 +1871,9 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- 	unsigned long end = addr + size;
- 	int err;
- 
--	BUG_ON(addr >= end);
-+	if (WARN_ON(addr >= end))
-+		return -EINVAL;
-+
- 	pgd = pgd_offset(mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--- 
-1.9.1
+Those slabs can be legitimately accessed after the objects were freed. You
+cannot sanitize nor poison.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
