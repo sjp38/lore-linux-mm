@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BD506B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:39:57 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id u188so122668632wmu.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 12:39:57 -0800 (PST)
-Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id t9si3979154wjf.169.2016.01.26.12.39.56
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E60676B0253
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:48:24 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id q63so107367755pfb.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 12:48:24 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l81si4131311pfb.18.2016.01.26.12.48.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 12:39:56 -0800 (PST)
-Date: Tue, 26 Jan 2016 21:38:52 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH/RFC 3/3] s390: query dynamic DEBUG_PAGEALLOC setting
-In-Reply-To: <20160126181903.GB4671@osiris>
-Message-ID: <alpine.DEB.2.11.1601262138260.3886@nanos>
-References: <1453799905-10941-1-git-send-email-borntraeger@de.ibm.com> <1453799905-10941-4-git-send-email-borntraeger@de.ibm.com> <20160126181903.GB4671@osiris>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jan 2016 12:48:24 -0800 (PST)
+Date: Tue, 26 Jan 2016 12:48:23 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mm: VM_BUG_ON_PAGE(PageTail(page)) in mbind
+Message-Id: <20160126124823.15b08f0a53dd9671fbc685d9@linux-foundation.org>
+In-Reply-To: <20160126202829.GA21250@node.shutemov.name>
+References: <CACT4Y+YK7or=W4RGpv1k1T5-xDHu3_PPVZWqsQU6nWoArsV5vA@mail.gmail.com>
+	<20160126202829.GA21250@node.shutemov.name>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Doug Gilbert <dgilbert@interlog.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi@vger.kernel.org
 
-On Tue, 26 Jan 2016, Heiko Carstens wrote:
-> On Tue, Jan 26, 2016 at 10:18:25AM +0100, Christian Borntraeger wrote:
-> > We can use debug_pagealloc_enabled() to check if we can map
-> > the identity mapping with 1MB/2GB pages as well as to print
-> > the current setting in dump_stack.
-> > 
-> > Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> > ---
-> >  arch/s390/kernel/dumpstack.c |  4 +++-
-> >  arch/s390/mm/vmem.c          | 10 ++++------
-> >  2 files changed, 7 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/arch/s390/kernel/dumpstack.c b/arch/s390/kernel/dumpstack.c
-> > index dc8e204..a1c0530 100644
-> > --- a/arch/s390/kernel/dumpstack.c
-> > +++ b/arch/s390/kernel/dumpstack.c
-> > @@ -11,6 +11,7 @@
-> >  #include <linux/export.h>
-> >  #include <linux/kdebug.h>
-> >  #include <linux/ptrace.h>
-> > +#include <linux/mm.h>
-> >  #include <linux/module.h>
-> >  #include <linux/sched.h>
-> >  #include <asm/processor.h>
-> > @@ -186,7 +187,8 @@ void die(struct pt_regs *regs, const char *str)
-> >  	printk("SMP ");
-> >  #endif
-> >  #ifdef CONFIG_DEBUG_PAGEALLOC
-> > -	printk("DEBUG_PAGEALLOC");
-> > +	printk("DEBUG_PAGEALLOC(%s)",
-> > +		debug_pagealloc_enabled() ? "enabled" : "disabled");
-> >  #endif
+On Tue, 26 Jan 2016 22:28:29 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+
+> The patch below fixes the issue for me, but this bug makes me wounder how
+> many bugs like this we have in kernel... :-/
 > 
-> I'd prefer if you change this to
+> Looks like we are too permissive about which VMA is migratable:
+> vma_migratable() filters out VMA by VM_IO and VM_PFNMAP.
+> I think VM_DONTEXPAND also correlate with VMA which cannot be migrated.
 > 
-> 	if (debug_pagealloc_enabled())
-> 		printk("DEBUG_PAGEALLOC");
+> $ git grep VM_DONTEXPAND drivers | grep -v '\(VM_IO\|VM_PFNMAN\)' | wc -l 
+> 33
 > 
-> That way we can get rid of yet another ifdef. Having
-> "DEBUG_PAGEALLOC(disabled)" doesn't seem to be very helpful.
+> Hm.. :-|
+> 
+> It worth looking on them closely... And I wouldn't be surprised if some
+> VMAs without all of these flags are not migratable too.
+> 
+> Sigh.. Any thoughts?
 
-Yes, same for x86 please.
+Sigh indeed.  I think that both VM_DONTEXPAND and VM_DONTDUMP are
+pretty good signs that mbind() should not be mucking with this vma.  If
+such a policy sometimes results in mbind failing to set a policy then
+that's not a huge loss - something runs a bit slower maybe.
 
-Thanks,
-
-	tglx
+I mean, we only really expect mbind() to operate against regular old
+anon/pagecache memory, yes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
