@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 123F96B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 16:07:46 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id 123so123236853wmz.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:07:46 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id hh4si4110316wjc.172.2016.01.26.13.07.45
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 766276B0009
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 16:08:06 -0500 (EST)
+Received: by mail-yk0-f173.google.com with SMTP id k129so217086175yke.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:08:06 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id d71si1091457ybh.210.2016.01.26.13.08.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 13:07:45 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id u188so123545225wmu.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:07:45 -0800 (PST)
-Date: Tue, 26 Jan 2016 23:07:43 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: VM_BUG_ON_PAGE(PageTail(page)) in mbind
-Message-ID: <20160126210743.GB22852@node.shutemov.name>
-References: <CACT4Y+YK7or=W4RGpv1k1T5-xDHu3_PPVZWqsQU6nWoArsV5vA@mail.gmail.com>
- <20160126202829.GA21250@node.shutemov.name>
- <20160126124823.15b08f0a53dd9671fbc685d9@linux-foundation.org>
+        Tue, 26 Jan 2016 13:08:05 -0800 (PST)
+Received: by mail-yk0-x22d.google.com with SMTP id u68so87614509ykd.2
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:08:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160126124823.15b08f0a53dd9671fbc685d9@linux-foundation.org>
+In-Reply-To: <1453841853-11383-13-git-send-email-bp@alien8.de>
+References: <1453841853-11383-1-git-send-email-bp@alien8.de>
+	<1453841853-11383-13-git-send-email-bp@alien8.de>
+Date: Tue, 26 Jan 2016 13:08:05 -0800
+Message-ID: <CAPcyv4j1g2FRvMZfn28B7KkTHmv4z5nmca2bS7e4Xi3dWHqSTg@mail.gmail.com>
+Subject: Re: [PATCH 12/17] memremap: Change region_intersects() to take @flags
+ and @desc
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Doug Gilbert <dgilbert@interlog.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Jakub Sitnicki <jsitnicki@gmail.com>, Jan Kara <jack@suse.cz>, Jiang Liu <jiang.liu@linux.intel.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Jan 26, 2016 at 12:48:23PM -0800, Andrew Morton wrote:
-> On Tue, 26 Jan 2016 22:28:29 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> 
-> > The patch below fixes the issue for me, but this bug makes me wounder how
-> > many bugs like this we have in kernel... :-/
-> > 
-> > Looks like we are too permissive about which VMA is migratable:
-> > vma_migratable() filters out VMA by VM_IO and VM_PFNMAP.
-> > I think VM_DONTEXPAND also correlate with VMA which cannot be migrated.
-> > 
-> > $ git grep VM_DONTEXPAND drivers | grep -v '\(VM_IO\|VM_PFNMAN\)' | wc -l 
-> > 33
-> > 
-> > Hm.. :-|
-> > 
-> > It worth looking on them closely... And I wouldn't be surprised if some
-> > VMAs without all of these flags are not migratable too.
-> > 
-> > Sigh.. Any thoughts?
-> 
-> Sigh indeed.  I think that both VM_DONTEXPAND and VM_DONTDUMP are
-> pretty good signs that mbind() should not be mucking with this vma.  If
-> such a policy sometimes results in mbind failing to set a policy then
-> that's not a huge loss - something runs a bit slower maybe.
-> 
-> I mean, we only really expect mbind() to operate against regular old
-> anon/pagecache memory, yes?
+On Tue, Jan 26, 2016 at 12:57 PM, Borislav Petkov <bp@alien8.de> wrote:
+> From: Toshi Kani <toshi.kani@hpe.com>
+>
+> Change region_intersects() to identify a target with @flags and @desc,
+> instead of @name with strcmp().
+>
+> Change the callers of region_intersects(), memremap() and
+> devm_memremap(), to set IORESOURCE_SYSTEM_RAM in @flags and
+> IORES_DESC_NONE in @desc when searching System RAM.
+>
+> Also, export region_intersects() so that the ACPI EINJ error injection
+> driver can call this function in a later patch.
+>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
 
-Well, it can work fine too if driver itself uses page tables to find out
-which pages it should to operate on. I don't think it's a common case.
-
--- 
- Kirill A. Shutemov
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
