@@ -1,75 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3281A6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:08:08 -0500 (EST)
-Received: by mail-yk0-f182.google.com with SMTP id v14so192124712ykd.3
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:08:08 -0800 (PST)
-Received: from mail-yk0-x241.google.com (mail-yk0-x241.google.com. [2607:f8b0:4002:c07::241])
-        by mx.google.com with ESMTPS id z67si142983ywb.228.2016.01.26.01.08.07
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 914906B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:18:06 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id l65so95478873wmf.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:18:06 -0800 (PST)
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
+        by mx.google.com with ESMTPS id a127si3124159wmf.116.2016.01.26.01.18.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 01:08:07 -0800 (PST)
-Received: by mail-yk0-x241.google.com with SMTP id v14so14201388ykd.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:08:07 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
-References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
-Date: Tue, 26 Jan 2016 10:08:06 +0100
-Message-ID: <CA+rthh9diW4PddNjDm56o3peB+38oEh9Q5rPtbeQXKTnoEQc2w@mail.gmail.com>
-Subject: Re: [kernel-hardening] [RFC][PATCH 0/3] Sanitization of buddy pages
-From: Mathias Krause <minipli@googlemail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 01:18:05 -0800 (PST)
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Tue, 26 Jan 2016 09:18:04 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 69AB417D8066
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:18:09 +0000 (GMT)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0Q9I1Wo524572
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:18:01 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0Q9I0fD010404
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:18:01 -0500
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCH/RFC 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
+Date: Tue, 26 Jan 2016 10:18:24 +0100
+Message-Id: <1453799905-10941-3-git-send-email-borntraeger@de.ibm.com>
+In-Reply-To: <1453799905-10941-1-git-send-email-borntraeger@de.ibm.com>
+References: <1453799905-10941-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kees Cook <keescook@chromium.org>, PaX Team <pageexec@freemail.hu>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>
 
-On 25 January 2016 at 17:55, Laura Abbott <labbott@fedoraproject.org> wrote:
-> Hi,
->
-> This is an implementation of page poisoning/sanitization for all arches. It
-> takes advantage of the existing implementation for
-> !ARCH_SUPPORTS_DEBUG_PAGEALLOC arches. This is a different approach than what
-> the Grsecurity patches were taking but should provide equivalent functionality.
->
-> For those who aren't familiar with this, the goal of sanitization is to reduce
-> the severity of use after free and uninitialized data bugs. Memory is cleared
-> on free so any sensitive data is no longer available. Discussion of
-> sanitization was brough up in a thread about CVEs
-> (lkml.kernel.org/g/<20160119112812.GA10818@mwanda>)
->
-> I eventually expect Kconfig names will want to be changed and or moved if this
-> is going to be used for security but that can happen later.
->
-> Credit to Mathias Krause for the version in grsecurity
+We can use debug_pagealloc_enabled() to check if we can map
+the identity mapping with 2MB pages. We can also add the state
+into the dump_stack output.
 
-Thanks for the credits but I don't deserve them. I've contributed the
-slab based sanitization only. The page based one shipped in PaX and
-grsecurity is from the PaX Team.
+The patch does not touch the code for the 1GB pages, which ignored
+CONFIG_DEBUG_PAGEALLOC. Do we need to fence this as well?
 
->
-> Laura Abbott (3):
->   mm/debug-pagealloc.c: Split out page poisoning from debug page_alloc
->   mm/page_poison.c: Enable PAGE_POISONING as a separate option
->   mm/page_poisoning.c: Allow for zero poisoning
->
->  Documentation/kernel-parameters.txt |   5 ++
->  include/linux/mm.h                  |  13 +++
->  include/linux/poison.h              |   4 +
->  mm/Kconfig.debug                    |  35 +++++++-
->  mm/Makefile                         |   5 +-
->  mm/debug-pagealloc.c                | 127 +----------------------------
->  mm/page_alloc.c                     |  10 ++-
->  mm/page_poison.c                    | 158 ++++++++++++++++++++++++++++++++++++
->  8 files changed, 228 insertions(+), 129 deletions(-)
->  create mode 100644 mm/page_poison.c
->
-> --
-> 2.5.0
->
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+ arch/x86/kernel/dumpstack.c |  4 +++-
+ arch/x86/mm/init.c          |  7 ++++---
+ arch/x86/mm/pageattr.c      | 14 ++++----------
+ 3 files changed, 11 insertions(+), 14 deletions(-)
 
-Regards,
-Mathias
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index 9c30acf..7971638 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -266,7 +266,9 @@ int __die(const char *str, struct pt_regs *regs, long err)
+ 	printk("SMP ");
+ #endif
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-	printk("DEBUG_PAGEALLOC ");
++	printk("DEBUG_PAGEALLOC(%s) ",
++		debug_pagealloc_enabled() ? "enabled" : "disabled");
++
+ #endif
+ #ifdef CONFIG_KASAN
+ 	printk("KASAN");
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 493f541..39823fd 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -150,13 +150,14 @@ static int page_size_mask;
+ 
+ static void __init probe_page_size_mask(void)
+ {
+-#if !defined(CONFIG_DEBUG_PAGEALLOC) && !defined(CONFIG_KMEMCHECK)
++#if !defined(CONFIG_KMEMCHECK)
+ 	/*
+-	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
++	 * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
++	 * use small pages.
+ 	 * This will simplify cpa(), which otherwise needs to support splitting
+ 	 * large pages into small in interrupt context, etc.
+ 	 */
+-	if (cpu_has_pse)
++	if (cpu_has_pse && !debug_pagealloc_enabled())
+ 		page_size_mask |= 1 << PG_LEVEL_2M;
+ #endif
+ 
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index a3137a4..a49c8fd 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -103,12 +103,6 @@ static inline unsigned long highmap_end_pfn(void)
+ 
+ #endif
+ 
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-# define debug_pagealloc 1
+-#else
+-# define debug_pagealloc 0
+-#endif
+-
+ static inline int
+ within(unsigned long addr, unsigned long start, unsigned long end)
+ {
+@@ -703,10 +697,10 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
+ {
+ 	struct page *base;
+ 
+-	if (!debug_pagealloc)
++	if (!debug_pagealloc_enabled())
+ 		spin_unlock(&cpa_lock);
+ 	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+-	if (!debug_pagealloc)
++	if (!debug_pagealloc_enabled())
+ 		spin_lock(&cpa_lock);
+ 	if (!base)
+ 		return -ENOMEM;
+@@ -1326,10 +1320,10 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
+ 		if (cpa->flags & (CPA_ARRAY | CPA_PAGES_ARRAY))
+ 			cpa->numpages = 1;
+ 
+-		if (!debug_pagealloc)
++		if (!debug_pagealloc_enabled())
+ 			spin_lock(&cpa_lock);
+ 		ret = __change_page_attr(cpa, checkalias);
+-		if (!debug_pagealloc)
++		if (!debug_pagealloc_enabled())
+ 			spin_unlock(&cpa_lock);
+ 		if (ret)
+ 			return ret;
+-- 
+2.3.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
