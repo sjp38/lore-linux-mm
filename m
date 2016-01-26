@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E60676B0253
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:48:24 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id q63so107367755pfb.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 12:48:24 -0800 (PST)
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A69AA6B0256
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:49:18 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id e65so105029100pfe.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 12:49:18 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l81si4131311pfb.18.2016.01.26.12.48.24
+        by mx.google.com with ESMTPS id x2si4099604pfi.97.2016.01.26.12.49.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 12:48:24 -0800 (PST)
-Date: Tue, 26 Jan 2016 12:48:23 -0800
+        Tue, 26 Jan 2016 12:49:18 -0800 (PST)
+Date: Tue, 26 Jan 2016 12:49:16 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: mm: VM_BUG_ON_PAGE(PageTail(page)) in mbind
-Message-Id: <20160126124823.15b08f0a53dd9671fbc685d9@linux-foundation.org>
+Message-Id: <20160126124916.1f4ed291a6e4bcf19b74b7f7@linux-foundation.org>
 In-Reply-To: <20160126202829.GA21250@node.shutemov.name>
 References: <CACT4Y+YK7or=W4RGpv1k1T5-xDHu3_PPVZWqsQU6nWoArsV5vA@mail.gmail.com>
 	<20160126202829.GA21250@node.shutemov.name>
@@ -26,30 +26,25 @@ Cc: Dmitry Vyukov <dvyukov@google.com>, Doug Gilbert <dgilbert@interlog.com>, Da
 
 On Tue, 26 Jan 2016 22:28:29 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> The patch below fixes the issue for me, but this bug makes me wounder how
-> many bugs like this we have in kernel... :-/
+> Let's mark the VMA as VM_IO to indicate to mm core that the VMA is
+> migratable.
 > 
-> Looks like we are too permissive about which VMA is migratable:
-> vma_migratable() filters out VMA by VM_IO and VM_PFNMAP.
-> I think VM_DONTEXPAND also correlate with VMA which cannot be migrated.
-> 
-> $ git grep VM_DONTEXPAND drivers | grep -v '\(VM_IO\|VM_PFNMAN\)' | wc -l 
-> 33
-> 
-> Hm.. :-|
-> 
-> It worth looking on them closely... And I wouldn't be surprised if some
-> VMAs without all of these flags are not migratable too.
-> 
-> Sigh.. Any thoughts?
+> ...
+>
+> --- a/drivers/scsi/sg.c
+> +++ b/drivers/scsi/sg.c
+> @@ -1261,7 +1261,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
+>  	}
+>  
+>  	sfp->mmap_called = 1;
+> -	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> +	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+>  	vma->vm_private_data = sfp;
+>  	vma->vm_ops = &sg_mmap_vm_ops;
+>  	return 0;
 
-Sigh indeed.  I think that both VM_DONTEXPAND and VM_DONTDUMP are
-pretty good signs that mbind() should not be mucking with this vma.  If
-such a policy sometimes results in mbind failing to set a policy then
-that's not a huge loss - something runs a bit slower maybe.
-
-I mean, we only really expect mbind() to operate against regular old
-anon/pagecache memory, yes?
+I'll put cc:stable on this - I don't think we recently did anything to make
+this happen?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
