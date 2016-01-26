@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5D96B0009
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:33:51 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id is5so136150200obc.0
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 22:33:51 -0800 (PST)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0075.outbound.protection.outlook.com. [157.55.234.75])
-        by mx.google.com with ESMTPS id jk7si4063857oeb.27.2016.01.25.22.33.51
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4666B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 01:40:06 -0500 (EST)
+Received: by mail-oi0-f53.google.com with SMTP id w75so102557465oie.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 22:40:06 -0800 (PST)
+Received: from mail-ob0-x243.google.com (mail-ob0-x243.google.com. [2607:f8b0:4003:c01::243])
+        by mx.google.com with ESMTPS id tj10si20934988obc.72.2016.01.25.22.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jan 2016 22:33:51 -0800 (PST)
-From: <mika.penttila@nextfour.com>
-Subject: [PATCH 2/2 v2] make apply_to_page_range() more robust.
-Date: Tue, 26 Jan 2016 08:33:09 +0200
-Message-ID: <1453789989-13260-3-git-send-email-mika.penttila@nextfour.com>
-In-Reply-To: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
-References: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jan 2016 22:40:05 -0800 (PST)
+Received: by mail-ob0-x243.google.com with SMTP id x5so10893240obg.1
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 22:40:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1453740953-18109-3-git-send-email-labbott@fedoraproject.org>
+References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org> <1453740953-18109-3-git-send-email-labbott@fedoraproject.org>
+From: Jianyu Zhan <nasa4836@gmail.com>
+Date: Tue, 26 Jan 2016 14:39:26 +0800
+Message-ID: <CAHz2CGXc6=r_D1L6nUTj7A_bbX7GeUFb5+0TZWh55UUA6hiQ7w@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/3] mm/page_poison.c: Enable PAGE_POISONING as a
+ separate option
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux@arm.linux.org.uk, =?UTF-8?q?Mika=20Penttil=C3=A4?= <mika.penttila@nextfour.com>
+To: Laura Abbott <labbott@fedoraproject.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
 
-From: Mika PenttilA? <mika.penttila@nextfour.com>
+On Tue, Jan 26, 2016 at 12:55 AM, Laura Abbott
+<labbott@fedoraproject.org> wrote:
+> --- a/mm/debug-pagealloc.c
+> +++ b/mm/debug-pagealloc.c
+> @@ -8,11 +8,5 @@
+>
+>  void __kernel_map_pages(struct page *page, int numpages, int enable)
+>  {
+> -       if (!page_poisoning_enabled())
+> -               return;
+> -
+> -       if (enable)
+> -               unpoison_pages(page, numpages);
+> -       else
+> -               poison_pages(page, numpages);
+> +       kernel_poison_pages(page, numpages, enable);
+>  }
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 63358d9..c733421 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1002,6 +1002,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+>                                            PAGE_SIZE << order);
+>         }
+>         arch_free_page(page, order);
+> +       kernel_poison_pages(page, 1 << order, 0);
+>         kernel_map_pages(page, 1 << order, 0);
+>
+>         return true;
+> @@ -1396,6 +1397,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>         set_page_refcounted(page);
+>
+>         arch_alloc_page(page, order);
+> +       kernel_poison_pages(page, 1 << order, 1);
+>         kernel_map_pages(page, 1 << order, 1);
+>         kasan_alloc_pages(page, order);
+>
 
-Now the arm/arm64 don't trigger this BUG_ON() any more,
-but WARN_ON() is here enough to catch buggy callers
-but still let potential other !size callers pass with warning.
+kernel_map_pages() will fall back to page poisoning scheme for
+!ARCH_SUPPORTS_DEBUG_PAGEALLOC.
 
-Signed-off-by: Mika PenttilA? mika.penttila@nextfour.com
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
-Acked-by: David Rientjes <rientjes@google.com>
+IIUC,  calling kernel_poison_pages() before kernel_map_pages() will be
+equivalent to call kernel_poison_pages()
+twice?!
 
----
- mm/memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 30991f8..9178ee6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1871,7 +1871,9 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- 	unsigned long end = addr + size;
- 	int err;
- 
--	BUG_ON(addr >= end);
-+	if (WARN_ON(addr >= end))
-+		return -EINVAL;
-+
- 	pgd = pgd_offset(mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--- 
-1.9.1
+
+
+Thanks,
+Jianyu Zhan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
