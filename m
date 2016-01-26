@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id EDB196B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 18:23:28 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id yy13so104862730pab.3
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:23:28 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id we2si4873799pac.127.2016.01.26.15.23.28
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6674F6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 18:28:00 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id uo6so107181935pac.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:28:00 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x2si4913131pfi.97.2016.01.26.15.27.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 15:23:28 -0800 (PST)
-Received: by mail-pa0-x235.google.com with SMTP id yy13so104862615pab.3
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 15:23:28 -0800 (PST)
-Date: Tue, 26 Jan 2016 15:23:26 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH/RFC 1/3] mm: provide debug_pagealloc_enabled() without
- CONFIG_DEBUG_PAGEALLOC
-In-Reply-To: <1453799905-10941-2-git-send-email-borntraeger@de.ibm.com>
-Message-ID: <alpine.DEB.2.10.1601261521560.25141@chino.kir.corp.google.com>
-References: <1453799905-10941-1-git-send-email-borntraeger@de.ibm.com> <1453799905-10941-2-git-send-email-borntraeger@de.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 26 Jan 2016 15:27:59 -0800 (PST)
+Date: Tue, 26 Jan 2016 15:27:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] mm/madvise: pass return code of memory_failure() to
+ userspace
+Message-Id: <20160126152758.0638a764ba99ab215c44977c@linux-foundation.org>
+In-Reply-To: <1453451277-20979-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1453451277-20979-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Chen Gong <gong.chen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Tue, 26 Jan 2016, Christian Borntraeger wrote:
+On Fri, 22 Jan 2016 17:27:57 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> We can provide debug_pagealloc_enabled() also if CONFIG_DEBUG_PAGEALLOC
-> is not set. It will return false in that case.
-> 
-> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> ---
->  include/linux/mm.h | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 7783073..fbc5354 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2148,6 +2148,10 @@ kernel_map_pages(struct page *page, int numpages, int enable)
->  extern bool kernel_page_present(struct page *page);
->  #endif /* CONFIG_HIBERNATION */
->  #else
-> +static inline bool debug_pagealloc_enabled(void)
-> +{
-> +	return false;
-> +}
->  static inline void
->  kernel_map_pages(struct page *page, int numpages, int enable) {}
->  #ifdef CONFIG_HIBERNATION
+> Currently the return value of memory_failure() is not passed to userspace, which
+> is inconvenient for test programs that want to know the result of error handling.
+> So let's return it to the caller as we already do in MADV_SOFT_OFFLINE case.
 
-Since the patchset needs to be refreshed based on Heiko and Thomas's 
-comments, please add some /* CONFIG_DEBUG_PAGEALLOC */ annotation to the 
-#else and #endif lines so this block is easier to read.  After that, feel 
-free to add
+I updated this to mention that it's for madvise(MADV_HWPOISON):
 
-	Acked-by: David Rientjes <rientjes@google.com>
+: Currently the return value of memory_failure() is not passed to userspace
+: when madvise(MADV_HWPOISON) is used.  This is inconvenient for test
+: programs that want to know the result of error handling.  So let's return
+: it to the caller as we already do in the MADV_SOFT_OFFLINE case.
+
+btw, MADV_SOFT_OFFLINE and MADV_HWPOISON are not documented in that
+comment block over sys_madvise().  Fixy please?  You might want to
+check that no other MADV_foo values have been omitted.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
