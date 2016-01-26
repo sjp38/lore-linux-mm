@@ -1,59 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D4C726B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:53:49 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id u188so119135136wmu.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 10:53:49 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lz8si3477317wjb.121.2016.01.26.10.53.48
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 10:53:48 -0800 (PST)
-Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
- <20160122163801.GA16668@cmpxchg.org>
- <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
- <56A6B1A2.40903@redhat.com> <20160126073846.GC28254@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56A7C0B9.7040701@suse.cz>
-Date: Tue, 26 Jan 2016 19:53:45 +0100
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 698656B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 14:11:08 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id u188so119738895wmu.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 11:11:08 -0800 (PST)
+Received: from claranet-outbound-smtp05.uk.clara.net (claranet-outbound-smtp05.uk.clara.net. [195.8.89.38])
+        by mx.google.com with ESMTP id ko8si3603952wjb.26.2016.01.26.11.11.07
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jan 2016 11:11:07 -0800 (PST)
+Message-ID: <f210f47beb9713da6ca43bac792cdbbf.squirrel@ssl-webmail-vh.clara.net>
+In-Reply-To: <20160126060028.GB2053@sudip-laptop>
+References: 
+    <20160126000639.358.89668.stgit@dwillia2-desk3.amr.corp.intel.com>
+    <20160126060028.GB2053@sudip-laptop>
+Date: Tue, 26 Jan 2016 19:10:51 -0000
+Subject: Re: [RFC PATCH] mm: support CONFIG_ZONE_DEVICE + CONFIG_ZONE_DMA
+From: "Mark" <markk@clara.co.uk>
 MIME-Version: 1.0
-In-Reply-To: <20160126073846.GC28254@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
+To: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, linux-nvdimm@ml01.01.org, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jerome Glisse <j.glisse@gmail.com>
 
-On 26.1.2016 8:38, Joonsoo Kim wrote:
-> On Mon, Jan 25, 2016 at 03:37:06PM -0800, Laura Abbott wrote:
+On Tue, January 26, 2016 06:00, Sudip Mukherjee wrote:
+> On Mon, Jan 25, 2016 at 04:06:40PM -0800, Dan Williams wrote:
+>> It appears devices requiring ZONE_DMA are still prevalent (see link
+>> below).  For this reason the proposal to require turning off ZONE_DMA to
+>> enable ZONE_DEVICE is untenable in the short term.  We want a single
+>> kernel image to be able to support legacy devices as well as next
+>> generation persistent memory platforms.
 >>
->> Is that series going to conflict with the work done for ZONE_DEVICE or run
->> into similar problems?
->> 033fbae988fcb67e5077203512181890848b8e90 (mm: ZONE_DEVICE for "device memory")
->> has commit text about running out of ZONE_SHIFT bits and needing to get
->> rid of ZONE_DMA instead so it seems like ZONE_CMA would run into the same
->> problem.
-> 
-> Hmm... I'm not sure. I need a investigation. What I did before is
-> enlarging section size. Then, number of section is reduced and we need
-> less section bit in struct page's flag. This worked for my sparsemem
-> configuration but I'm not sure other conguration. Perhaps, in other
-> congifuration, we can limit node bits and max number of node.
+>> Towards this end, alias ZONE_DMA and ZONE_DEVICE to work around needing
+>> to maintain a unique zone number for ZONE_DEVICE.  Record the geometry
+>> of ZONE_DMA at init (->init_spanned_pages) and use that information in
+>> is_zone_device_page() to differentiate pages allocated via
+>> devm_memremap_pages() vs true ZONE_DMA pages.  Otherwise, use the
+>> simpler definition of is_zone_device_page() when ZONE_DMA is turned off.
+>>
+>> Note that this also teaches the memory hot remove path that the zone may
+>> not have sections for all pfn spans (->zone_dyn_start_pfn).
+>>
+>> A user visible implication of this change is potentially an unexpectedly
+>> high "spanned" value in /proc/zoneinfo for the DMA zone.
+>>
+>> Cc: H. Peter Anvin <hpa@zytor.com>
+>> Cc: Ingo Molnar <mingo@redhat.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Jerome Glisse <j.glisse@gmail.com>
+>> Cc: Christoph Hellwig <hch@lst.de>
+>> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+>> Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
+>> Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
+>> Reported-by: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+>
+> It should actually be Reported-by: Mark <markk@clara.co.uk>
+>
+> Hi Mark,
+> Can you please test this patch available at
+> https://patchwork.kernel.org/patch/8116991/
+> in your setup..
 
-This seems to be a solution proposed for the ZONE_DMA and ZONE_DEVICE
-coexistence https://lkml.org/lkml/2016/1/25/1233
-It wouldn't help with ZONE_CMA, so I guess it's time to look for a more robust one.
+I applied that patch to 4.5-rc1 and it seems to work. At least, there is
+no error message in dmesg output any more. I didn't actually try using the
+parallel port (need to find a parallel printer cable). Presumably a
+parallel printer would work whether DMA is used or not, just slower and
+using more CPU time in the PIO case. Also, I don't have any hardware that
+needs CONFIG_ZONE_DEVICE.
 
-> Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+The config file I used to compile the kernel can be downloaded from
+https://www.mediafire.com/?1do33bkko41ypo3
+if anyone feels like taking a look.
+
+Perhaps someone with one of the affected PCI sound cards could also test
+the patch, since those presumably don't work/build at all without it.
+Hopefully someone else has a PC with native parallel port to confirm the
+fix. (Native floppy controller may be another affected device.)
+
+
+Mark
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
