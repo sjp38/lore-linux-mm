@@ -1,261 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 503A76B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 03:28:09 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id cy9so94748453pac.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 00:28:09 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id yu1si484853pac.9.2016.01.26.00.28.08
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E25366B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 03:28:55 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id r129so94076719wmr.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 00:28:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dm6si348470wjb.119.2016.01.26.00.28.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 00:28:08 -0800 (PST)
-Date: Tue, 26 Jan 2016 11:27:56 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH v2] mm: workingset: make workingset detection logic memcg
- aware
-Message-ID: <20160126082756.GF11586@esperanza>
-References: <1453654576-8371-1-git-send-email-vdavydov@virtuozzo.com>
- <20160125163907.GA29291@cmpxchg.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 00:28:54 -0800 (PST)
+Date: Tue, 26 Jan 2016 09:29:04 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: mm: WARNING in __delete_from_page_cache
+Message-ID: <20160126082904.GS24938@quack.suse.cz>
+References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+ <20160124230422.GA8439@node.shutemov.name>
+ <20160125122206.GA24938@quack.suse.cz>
+ <1453779754.32645.3.camel@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160125163907.GA29291@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1453779754.32645.3.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Williams, Dan J" <dan.j.williams@intel.com>
+Cc: "kirill@shutemov.name" <kirill@shutemov.name>, "jack@suse.cz" <jack@suse.cz>, "syzkaller@googlegroups.com" <syzkaller@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "kcc@google.com" <kcc@google.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "dvyukov@google.com" <dvyukov@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gthelen@google.com" <gthelen@google.com>, "willy@linux.intel.com" <willy@linux.intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "jack@suse.com" <jack@suse.com>, "glider@google.com" <glider@google.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "j-nomura@ce.jp.nec.com" <j-nomura@ce.jp.nec.com>
 
-On Mon, Jan 25, 2016 at 11:39:07AM -0500, Johannes Weiner wrote:
-> On Sun, Jan 24, 2016 at 07:56:16PM +0300, Vladimir Davydov wrote:
-> > Currently, inactive_age is maintained per zone, which results in
-> > unexpected file page activations in case memory cgroups are used. For
-> > example, if the total number of active pages is big, a memory cgroup
-> > might get every refaulted file page activated even if refault distance
-> > is much greater than the number of active file pages in the cgroup. This
-> > patch fixes this issue by making inactive_age per lruvec.
+On Tue 26-01-16 03:42:34, Williams, Dan J wrote:
+> On Mon, 2016-01-25 at 13:22 +0100, Jan Kara wrote:
+> [..]
+> > Thanks. Despite the huge list of recipients the author of the changes
+> > hasn't been CCed :) I've added Dan to CC since he wrote DAX support
+> > for
+> > block devices. It seems somehow the write didn't go through the DAX
+> > path
+> > but through the standard page cache write path. Ah, I see, only
+> > file->f_mapping->host has S_DAX set but io_is_direct() which decides
+> > whether DAX or pagecache path should be used for writes uses file-
+> > >f_inode
+> > which is something different for block devices... 
 > 
-> Argh!!
+> Thanks, yes, the following silences the warning for me:
 > 
-> It's great that you're still interested in this and kept working on
-> it. I just regret that I worked on the same stuff the last couple days
-> without pinging you before picking it up. Oh well...
+> 8<----- (git am --scissors)
+> Subject: fs, block: force direct-I/O for dax-enabled block devices
+> 
+> From: Dan Williams <dan.j.williams@intel.com>
+> 
+> Similar to the file I/O path, re-direct all I/O to the DAX path for I/O
+> to a block-device special file.
+> 
+> Otherwise, we confuse the DAX code that does not expect to find live
+> data in the page cache:
+> 
+>     ------------[ cut here ]------------
+>     WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
+>     __delete_from_page_cache+0x9f6/0xb60()
+>     Modules linked in:
+>     CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
+>     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>      00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
+>      ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
+>      ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
+>     Call Trace:
+>      [<     inline     >] __dump_stack lib/dump_stack.c:15
+>      [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+>      [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
+>      [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
+>      [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
+>      [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
+>      [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
+>      [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
+>      [<     inline     >] wp_pfn_shared mm/memory.c:2208
+>      [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
+>      [<     inline     >] handle_pte_fault mm/memory.c:3323
+>      [<     inline     >] __handle_mm_fault mm/memory.c:3417
+>      [<ffffffff816ecec3>] handle_mm_fault+0x2483/0x4640 mm/memory.c:3446
+>      [<ffffffff8127eff6>] __do_page_fault+0x376/0x960 arch/x86/mm/fault.c:1238
+>      [<ffffffff8127f738>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
+>      [<ffffffff812705c4>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
+>      [<ffffffff86338f78>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
+>      [<ffffffff86336c36>] entry_SYSCALL_64_fastpath+0x16/0x7a
+>     arch/x86/entry/entry_64.S:185
+>     ---[ end trace dae21e0f85f1f98c ]---
+> 
+> Cc: Matthew Wilcox <willy@linux.intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Fixes: 5a023cdba50c ("block: enable dax for raw block devices")
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> Reported-by: Kirill A. Shutemov <kirill@shutemov.name>
+> Suggested-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-:-)
+The patch looks good to me. You can add:
 
-> 
-> However, my patches are sufficiently different that I think it makes
-> sense to discuss them both and figure out the best end result.  I have
-> some comments below and will followup this email with my version.
-> 
-> > The patch is pretty straightforward and self-explaining, but there are
-> > two things that should be noted:
-> > 
-> >  - workingset_{eviction,activation} need to get lruvec given a page.
-> >    On the default hierarchy one can safely access page->mem_cgroup
-> >    provided the page is pinned, but on the legacy hierarchy a page can
-> >    be migrated from one cgroup to another at any moment, so extra care
-> >    must be taken to assure page->mem_cgroup will stay put.
-> > 
-> >    workingset_eviction is passed a locked page, so it is safe to use
-> >    page->mem_cgroup in this function. workingset_activation is trickier:
-> >    it is called from mark_page_accessed, where the page is not
-> >    necessarily locked. To protect it against page->mem_cgroup change, we
-> >    move it to __activate_page, which is called by mark_page_accessed
-> >    once there's enough pages on percpu pagevec. This function is called
-> >    with zone->lru_lock held, which rules out page charge migration.
-> 
-> When a page moves to another cgroup at the same time it's activated,
-> there really is no wrong lruvec to age. Both would be correct. The
-> locking guarantees a stable answer, but we don't need it here. It's
-> enough to take the rcu lock here to ensure page_memcg() isn't freed.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Yeah, that's true, but I think that taking rcu lock when memcg is
-disabled or even compiled out is ugly. May be, we should introduce
-helpers lock/unlock_page_memcg(), which would be no-op on the unified
-hierarchy while on the legacy hierarchy they would act just like
-mem_cgroup_begin/end_page_stat, i.e. we could just rename the latter
-two. This would also simplify dropping legacy code once the legacy
-hierarchy has passed away.
-
+								Honza
+> ---
+>  fs/block_dev.c     |    5 -----
+>  include/linux/fs.h |   12 +++++++++++-
+>  2 files changed, 11 insertions(+), 6 deletions(-)
 > 
-> >  - To calculate refault distance correctly even in case a page is
-> >    refaulted by a different cgroup, we need to store memcg id in shadow
-> >    entry. There's no problem with it on 64-bit, but on 32-bit there's
-> >    not much space left in radix tree slot after storing information
-> >    about node, zone, and memory cgroup, so we can't just save eviction
-> >    counter as is, because it would trim max refault distance making it
-> >    unusable.
-> > 
-> >    To overcome this problem, we increase refault distance granularity,
-> >    as proposed by Johannes Weiner. We disregard 10 least significant
-> >    bits of eviction counter. This reduces refault distance accuracy to
-> >    4MB, which is still fine. With the default NODE_SHIFT (3) this leaves
-> >    us 9 bits for storing eviction counter, hence maximal refault
-> >    distance will be 2GB, which should be enough for 32-bit systems.
-> 
-> If we limit it to 2G it becomes a clear-cut correctness issue once you
-> have more memory. Instead, we should continue to stretch out the
-> distance with an ever-increasing bucket size. The more memory you
-> have, the less important the granularity becomes anyway. With 8G, an
-> 8M granularity is still okay, and so forth. And once we get beyond a
-> certain point, and it creates problems for people, it should be fair
-> enough to recommend upgrading to 64 bit.
-
-That's a great idea. I'm all for it.
-
-> 
-> > @@ -152,8 +152,72 @@
-> >   * refault distance will immediately activate the refaulting page.
-> >   */
-> >  
-> > -static void *pack_shadow(unsigned long eviction, struct zone *zone)
-> > +#ifdef CONFIG_MEMCG
-> > +/*
-> > + * On 32-bit there is not much space left in radix tree slot after
-> > + * storing information about node, zone, and memory cgroup, so we
-> > + * disregard 10 least significant bits of eviction counter. This
-> > + * reduces refault distance accuracy to 4MB, which is still fine.
-> > + *
-> > + * With the default NODE_SHIFT (3) this leaves us 9 bits for storing
-> > + * eviction counter, hence maximal refault distance will be 2GB, which
-> > + * should be enough for 32-bit systems.
-> > + */
-> > +#ifdef CONFIG_64BIT
-> > +# define REFAULT_DISTANCE_GRANULARITY		0
-> > +#else
-> > +# define REFAULT_DISTANCE_GRANULARITY		10
-> > +#endif
-> > +
-> > +static unsigned long pack_shadow_memcg(unsigned long eviction,
-> > +				       struct mem_cgroup *memcg)
-> > +{
-> > +	if (mem_cgroup_disabled())
-> > +		return eviction;
-> > +
-> > +	eviction >>= REFAULT_DISTANCE_GRANULARITY;
-> > +	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | mem_cgroup_id(memcg);
-> > +	return eviction;
-> > +}
-> > +
-> > +static unsigned long unpack_shadow_memcg(unsigned long entry,
-> > +					 unsigned long *mask,
-> > +					 struct mem_cgroup **memcg)
-> > +{
-> > +	if (mem_cgroup_disabled()) {
-> > +		*memcg = NULL;
-> > +		return entry;
-> > +	}
-> > +
-> > +	rcu_read_lock();
-> > +	*memcg = mem_cgroup_from_id(entry & MEM_CGROUP_ID_MAX);
-> > +	rcu_read_unlock();
-> > +
-> > +	entry >>= MEM_CGROUP_ID_SHIFT;
-> > +	entry <<= REFAULT_DISTANCE_GRANULARITY;
-> > +	*mask >>= MEM_CGROUP_ID_SHIFT - REFAULT_DISTANCE_GRANULARITY;
-> > +	return entry;
-> > +}
-> > +#else /* !CONFIG_MEMCG */
-> > +static unsigned long pack_shadow_memcg(unsigned long eviction,
-> > +				       struct mem_cgroup *memcg)
-> > +{
-> > +	return eviction;
-> > +}
-> > +
-> > +static unsigned long unpack_shadow_memcg(unsigned long entry,
-> > +					 unsigned long *mask,
-> > +					 struct mem_cgroup **memcg)
-> > +{
-> > +	*memcg = NULL;
-> > +	return entry;
-> > +}
-> > +#endif /* CONFIG_MEMCG */
-> > +
-> > +static void *pack_shadow(unsigned long eviction, struct zone *zone,
-> > +			 struct mem_cgroup *memcg)
-> >  {
-> > +	eviction = pack_shadow_memcg(eviction, memcg);
-> >  	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
-> >  	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
-> >  	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
-> 
-> For !CONFIG_MEMCG, we can define MEMCG_ID_SHIFT to 0 and pass in a
-> cssid of 0. That would save much of the special casing here.
-
-But what about mem_cgroup_disabled() case? Do we want to waste 16 bits
-in this case?
-
-> 
-> > @@ -213,10 +282,16 @@ static void unpack_shadow(void *shadow,
-> >  void *workingset_eviction(struct address_space *mapping, struct page *page)
-> >  {
-> >  	struct zone *zone = page_zone(page);
-> > +	struct mem_cgroup *memcg = page_memcg(page);
-> > +	struct lruvec *lruvec;
-> >  	unsigned long eviction;
-> >  
-> > -	eviction = atomic_long_inc_return(&zone->inactive_age);
-> > -	return pack_shadow(eviction, zone);
-> > +	if (!mem_cgroup_disabled())
-> > +		mem_cgroup_get(memcg);
-> > +
-> > +	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> > +	eviction = atomic_long_inc_return(&lruvec->inactive_age);
-> > +	return pack_shadow(eviction, zone, memcg);
-> 
-> I don't think we need to hold a reference to the memcg here, it should
-> be enough to verify whether the cssid is still existent upon refault.
-> 
-> What could theoretically happen then is that the original memcg gets
-> deleted, a new one will reuse the same id and then refault the same
-> pages. However, there are two things that should make this acceptable:
-> 1. a couple pages don't matter in this case, and sharing data between
-> cgroups on a large scale already leads to weird accounting artifacts
-> in other places; this wouldn't be much different. 2. from a system
-> perspective, those pages were in fact recently evicted, so even if we
-> activate them by accident in the new cgroup, it wouldn't be entirely
-> unreasonable. The workload will shake out what the true active list
-> frequency is on its own.
-> 
-> So I think we can just do away with the reference counting for now,
-> and reconsider it should the false sharing in this case create new
-> problems that are worse than existing consequences of false sharing.
-
-Memory cgroup creation/destruction are rare events, so I agree that we
-can close our eyes on this and not clutter the code with
-mem_cgroup_get/put.
-
-> 
-> > @@ -230,13 +305,22 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
-> >   */
-> >  bool workingset_refault(void *shadow)
-> >  {
-> > -	unsigned long refault_distance;
-> > +	unsigned long refault_distance, nr_active;
-> >  	struct zone *zone;
-> > +	struct mem_cgroup *memcg;
-> > +	struct lruvec *lruvec;
-> >  
-> > -	unpack_shadow(shadow, &zone, &refault_distance);
-> > +	unpack_shadow(shadow, &zone, &memcg, &refault_distance);
-> >  	inc_zone_state(zone, WORKINGSET_REFAULT);
-> >  
-> > -	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
-> > +	if (!mem_cgroup_disabled()) {
-> > +		lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> > +		nr_active = mem_cgroup_get_lru_size(lruvec, LRU_ACTIVE_FILE);
-> > +		mem_cgroup_put(memcg);
-> > +	} else
-> > +		nr_active = zone_page_state(zone, NR_ACTIVE_FILE);
-> 
-> This is basically get_lru_size(), so I reused that instead.
-
-Yeah. In the previous version I did the same.
-
->From quick glance, I think that in general, your patch set looks better.
-
-Thanks,
-Vladimir
+> diff --git a/fs/block_dev.c b/fs/block_dev.c
+> index 7b9cd49622b1..277008617b2d 100644
+> --- a/fs/block_dev.c
+> +++ b/fs/block_dev.c
+> @@ -156,11 +156,6 @@ blkdev_get_block(struct inode *inode, sector_t iblock,
+>  	return 0;
+>  }
+>  
+> -static struct inode *bdev_file_inode(struct file *file)
+> -{
+> -	return file->f_mapping->host;
+> -}
+> -
+>  static ssize_t
+>  blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+>  {
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 1a2046275cdf..a4c4314eed48 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1237,6 +1237,11 @@ static inline struct inode *file_inode(const struct file *f)
+>  	return f->f_inode;
+>  }
+>  
+> +static inline struct inode *bdev_file_inode(struct file *file)
+> +{
+> +	return file->f_mapping->host;
+> +}
+> +
+>  static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
+>  {
+>  	return locks_lock_inode_wait(file_inode(filp), fl);
+> @@ -2907,7 +2912,12 @@ extern void replace_mount_options(struct super_block *sb, char *options);
+>  
+>  static inline bool io_is_direct(struct file *filp)
+>  {
+> -	return (filp->f_flags & O_DIRECT) || IS_DAX(file_inode(filp));
+> +	struct inode *inode = file_inode(filp);
+> +
+> +	if (S_ISBLK(inode->i_mode))
+> +		inode = bdev_file_inode(filp);
+> +
+> +	return (filp->f_flags & O_DIRECT) || IS_DAX(inode);
+>  }
+>  
+>  static inline int iocb_flags(struct file *file)
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
