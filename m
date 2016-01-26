@@ -1,147 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 63D546B0254
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:09:36 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id b14so132317668wmb.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 06:09:36 -0800 (PST)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id 9si5723113wmi.71.2016.01.26.06.09.32
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 009BF6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:31:19 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id 123so108332332wmz.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 06:31:18 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id j6si5887099wmj.0.2016.01.26.06.31.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 06:09:32 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id E13891C1D53
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 14:09:31 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 2/2] mm: filemap: Avoid unnecessary calls to lock_page when waiting for IO to complete during a read
-Date: Tue, 26 Jan 2016 14:09:30 +0000
-Message-Id: <1453817370-10399-3-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1453817370-10399-1-git-send-email-mgorman@techsingularity.net>
-References: <1453817370-10399-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 06:31:14 -0800 (PST)
+Date: Tue, 26 Jan 2016 14:31:02 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 0/2 v2] set_memory_xx fixes
+Message-ID: <20160126143102.GP10826@n2100.arm.linux.org.uk>
+References: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1453789989-13260-1-git-send-email-mika.penttila@nextfour.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: mika.penttila@nextfour.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In the generic read paths the kernel looks up a page in the page cache
-and if it's up to date, it is used. If not, the page lock is acquired to
-wait for IO to complete and then check the page.  If multiple processes
-are waiting on IO, they all serialise against the lock and duplicate the
-checks. This is unnecessary.
+On Tue, Jan 26, 2016 at 08:33:07AM +0200, mika.penttila@nextfour.com wrote:
+> Recent changes (4.4.0+) in module loader triggered oops on ARM.
+> 
+> The module in question is in-tree module :
+> drivers/misc/ti-st/st_drv.ko
 
-The page lock in itself does not give any guarantees to the callers about
-the page state as it can be immediately truncated or reclaimed after the
-page is unlocked. It's sufficient to wait_on_page_locked and then continue
-if the page is up to date on wakeup.
+I don't see a reason for these to be applied together, they each look
+like stand-alone changes.
 
-It is possible that a truncated but up-to-date page is returned but the
-reference taken during read prevents it disappearing underneath the caller
-and the data is still valid if PageUptodate.
+I'd like to apply the ARM (32-bit) change, but as it incorporates ARM64
+changes, I either need an ack from ARM64 people, or I need the ARM64
+code split out.  Please re-send, copying the ARM64 maintainers too,
+optionally splitting the first patch up.
 
-The overall impact is small as even if processes serialise on the lock,
-the lock section is tiny once the IO is complete. Profiles indicated that
-unlock_page and friends are generally a tiny portion of a read-intensive
-workload.  An artificial test was created that had instances of dd access
-a cache-cold file on an ext4 filesystem and measure how long the read took.
+Thanks.
 
-paralleldd
-                                    4.4.0                 4.4.0
-                                  vanilla             avoidlock
-Amean    Elapsd-1          5.28 (  0.00%)        5.15 (  2.50%)
-Amean    Elapsd-4          5.29 (  0.00%)        5.17 (  2.12%)
-Amean    Elapsd-7          5.28 (  0.00%)        5.18 (  1.78%)
-Amean    Elapsd-12         5.20 (  0.00%)        5.33 ( -2.50%)
-Amean    Elapsd-21         5.14 (  0.00%)        5.21 ( -1.41%)
-Amean    Elapsd-30         5.30 (  0.00%)        5.12 (  3.38%)
-Amean    Elapsd-48         5.78 (  0.00%)        5.42 (  6.21%)
-Amean    Elapsd-79         6.78 (  0.00%)        6.62 (  2.46%)
-Amean    Elapsd-110        9.09 (  0.00%)        8.99 (  1.15%)
-Amean    Elapsd-128       10.60 (  0.00%)       10.43 (  1.66%)
-
-The impact is small but intuitively, it makes sense to avoid unnecessary
-calls to lock_page.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- mm/filemap.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 49 insertions(+)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index aa38593d0cd5..6a3c030b0c8d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1649,6 +1649,15 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
- 					index, last_index - index);
- 		}
- 		if (!PageUptodate(page)) {
-+			/*
-+			 * See comment in do_read_cache_page on why
-+			 * wait_on_page_locked is used to avoid unnecessarily
-+			 * serialisations and why it's safe.
-+			 */
-+			wait_on_page_locked_killable(page);
-+			if (PageUptodate(page))
-+				goto page_ok;
-+
- 			if (inode->i_blkbits == PAGE_CACHE_SHIFT ||
- 					!mapping->a_ops->is_partially_uptodate)
- 				goto page_not_up_to_date;
-@@ -2321,12 +2330,52 @@ static struct page *do_read_cache_page(struct address_space *mapping,
- 	if (PageUptodate(page))
- 		goto out;
- 
-+	/*
-+	 * Page is not up to date and may be locked due one of the following
-+	 * case a: Page is being filled and the page lock is held
-+	 * case b: Read/write error clearing the page uptodate status
-+	 * case c: Truncation in progress (page locked)
-+	 * case d: Reclaim in progress
-+	 *
-+	 * Case a, the page will be up to date when the page is unlocked.
-+	 *    There is no need to serialise on the page lock here as the page
-+	 *    is pinned so the lock gives no additional protection. Even if the
-+	 *    the page is truncated, the data is still valid if PageUptodate as
-+	 *    it's a race vs truncate race.
-+	 * Case b, the page will not be up to date
-+	 * Case c, the page may be truncated but in itself, the data may still
-+	 *    be valid after IO completes as it's a read vs truncate race. The
-+	 *    operation must restart if the page is not uptodate on unlock but
-+	 *    otherwise serialising on page lock to stabilise the mapping gives
-+	 *    no additional guarantees to the caller as the page lock is
-+	 *    released before return.
-+	 * Case d, similar to truncation. If reclaim holds the page lock, it
-+	 *    will be a race with remove_mapping that determines if the mapping
-+	 *    is valid on unlock but otherwise the data is valid and there is
-+	 *    no need to serialise with page lock.
-+	 *
-+	 * As the page lock gives no additional guarantee, we optimistically
-+	 * wait on the page to be unlocked and check if it's up to date and
-+	 * use the page if it is. Otherwise, the page lock is required to
-+	 * distinguish between the different cases. The motivation is that we
-+	 * avoid spurious serialisations and wakeups when multiple processes
-+	 * wait on the same page for IO to complete.
-+	 */
-+	wait_on_page_locked(page);
-+	if (PageUptodate(page))
-+		goto out;
-+
-+	/* Distinguish between all the cases under the safety of the lock */
- 	lock_page(page);
-+
-+	/* Case c or d, restart the operation */
- 	if (!page->mapping) {
- 		unlock_page(page);
- 		page_cache_release(page);
- 		goto repeat;
- 	}
-+
-+	/* Someone else locked and filled the page in a very small window */
- 	if (PageUptodate(page)) {
- 		unlock_page(page);
- 		goto out;
 -- 
-2.6.4
+RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
