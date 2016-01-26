@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1542A6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:57:32 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id z14so60381861igp.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 06:57:32 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id x4si119925igg.49.2016.01.26.06.57.30
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C061C6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 10:00:24 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id t15so60559952igr.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:00:24 -0800 (PST)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id b28si5504399ioj.51.2016.01.26.07.00.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 06:57:31 -0800 (PST)
-Date: Tue, 26 Jan 2016 08:57:29 -0600 (CST)
+        Tue, 26 Jan 2016 07:00:21 -0800 (PST)
+Date: Tue, 26 Jan 2016 09:00:20 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 0/3] Speed up SLUB poisoning + disable checks
-In-Reply-To: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org>
-Message-ID: <alpine.DEB.2.20.1601260856160.27338@east.gentwo.org>
-References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org>
+Subject: Re: [PATCH 3/3] slub: Add option to skip consistency checks
+In-Reply-To: <1453770913-32287-4-git-send-email-labbott@fedoraproject.org>
+Message-ID: <alpine.DEB.2.20.1601260858590.27338@east.gentwo.org>
+References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org> <1453770913-32287-4-git-send-email-labbott@fedoraproject.org>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,13 +23,16 @@ Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joo
 
 On Mon, 25 Jan 2016, Laura Abbott wrote:
 
-> slub_debug=-:  7.437
-> slub_debug=-:   7.932
+> SLUB debugging by default does checks to ensure consistency.
+> These checks, while useful, are expensive for allocation speed.
+> Features such as poisoning and tracing can stand alone without
+> any checks. Add a slab flag to skip these checks.
 
-So thats an almost 10% performance regression if the feature is not used.
-The reason that posoning is on the slow path is because it is impacting
-performance. Focus on optimizing the debug path without impacting the fast
-path please.
+I would suggest to rename the SLAB_DEBUG_FREE to SLAB_CONSISTENCY_CHECKS
+instead. I think the flag is already used that way in a couple of places.
+
+Flags generally enable stuff. Disabling what is enabled by others is
+something that we want to avoid for simplicities sake.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
