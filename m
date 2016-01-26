@@ -1,146 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D726B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 11:38:26 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l65so111766652wmf.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 08:38:26 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id v71si6530651wmd.18.2016.01.26.08.38.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 08:38:25 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id u188so18363411wmu.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 08:38:25 -0800 (PST)
-Date: Tue, 26 Jan 2016 17:38:23 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/2] oom: clear TIF_MEMDIE after oom_reaper managed to
- unmap the address space
-Message-ID: <20160126163823.GG27563@dhcp22.suse.cz>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
- <1452516120-5535-1-git-send-email-mhocko@kernel.org>
- <201601181335.JJD69226.JHVQSMFOFOFtOL@I-love.SAKURA.ne.jp>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0466B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 11:59:32 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id yy13so100069858pab.3
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 08:59:32 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id tl10si2997737pac.177.2016.01.26.08.59.31
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jan 2016 08:59:31 -0800 (PST)
+From: "Williams, Dan J" <dan.j.williams@intel.com>
+Subject: Re: mm: WARNING in __delete_from_page_cache
+Date: Tue, 26 Jan 2016 16:59:27 +0000
+Message-ID: <1453827566.32645.5.camel@intel.com>
+References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+	 <20160124230422.GA8439@node.shutemov.name>
+	 <20160125122206.GA24938@quack.suse.cz> <1453779754.32645.3.camel@intel.com>
+	 <20160126125456.GK2948@linux.intel.com>
+	 <20160126133636.GE23820@quack.suse.cz>
+In-Reply-To: <20160126133636.GE23820@quack.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-7"
+Content-ID: <E4D97631F8A25D418AEB8A2614C308AC@intel.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201601181335.JJD69226.JHVQSMFOFOFtOL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "jack@suse.cz" <jack@suse.cz>, "willy@linux.intel.com" <willy@linux.intel.com>
+Cc: "syzkaller@googlegroups.com" <syzkaller@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kcc@google.com" <kcc@google.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "dvyukov@google.com" <dvyukov@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gthelen@google.com" <gthelen@google.com>, "kirill@shutemov.name" <kirill@shutemov.name>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "jack@suse.com" <jack@suse.com>, "glider@google.com" <glider@google.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "j-nomura@ce.jp.nec.com" <j-nomura@ce.jp.nec.com>
 
-On Mon 18-01-16 13:35:44, Tetsuo Handa wrote:
-[...]
-> (1) Make the OOM reaper available on CONFIG_MMU=n kernels.
-> 
->     I don't know about MMU, but I assume we can handle these errors.
+On Tue, 2016-01-26 at 14:36 +-0100, Jan Kara wrote:
++AD4- On Tue 26-01-16 07:54:56, Matthew Wilcox wrote:
++AD4- +AD4- On Tue, Jan 26, 2016 at 03:42:34AM +-0000, Williams, Dan J wrot=
+e:
++AD4- +AD4- +AD4- +AEAAQA- -2907,7 +-2912,12 +AEAAQA- extern void replace+A=
+F8-mount+AF8-options(struct
++AD4- +AD4- +AD4- super+AF8-block +ACo-sb, char +ACo-options)+ADs-
++AD4- +AD4- +AD4- +AKA-
++AD4- +AD4- +AD4- +AKA-static inline bool io+AF8-is+AF8-direct(struct file =
++ACo-filp)
++AD4- +AD4- +AD4- +AKAAew-
++AD4- +AD4- +AD4- -	return (filp-+AD4-f+AF8-flags +ACY- O+AF8-DIRECT) +AHwA=
+fA-
++AD4- +AD4- +AD4- IS+AF8-DAX(file+AF8-inode(filp))+ADs-
++AD4- +AD4-=20
++AD4- +AD4- I think this should just be a one-liner:
++AD4- +AD4-=20
++AD4- +AD4- -	return (filp-+AD4-f+AF8-flags +ACY- O+AF8-DIRECT) +AHwAfA-
++AD4- +AD4- IS+AF8-DAX(file+AF8-inode(filp))+ADs-
++AD4- +AD4- +-	return (filp-+AD4-f+AF8-flags +ACY- O+AF8-DIRECT) +AHwAfA- I=
+S+AF8-DAX(filp-
++AD4- +AD4- +AD4-f+AF8-mapping-+AD4-host)+ADs-
++AD4- +AD4-=20
++AD4- +AD4- This does the right thing for block device inodes and filesyste=
+m
++AD4- +AD4- inodes.
++AD4- +AD4- (see the opening stanzas of +AF8AXw-dax+AF8-fault for an exampl=
+e).
++AD4-=20
++AD4- Ah, right. This looks indeed better.
++AD4-=20
 
-What is the usecase for this on !MMU configurations? Why does it make
-sense to add more code to such a restricted environments? I haven't
-heard of a single OOM report from that land.
 
->     slub.c:(.text+0x4184): undefined reference to `tlb_gather_mmu'
->     slub.c:(.text+0x41bc): undefined reference to `unmap_page_range'
->     slub.c:(.text+0x41d8): undefined reference to `tlb_finish_mmu'
-> 
-> (2) Do not boot the system if failed to create the OOM reaper thread.
-> 
->     We are already heavily depending on the OOM reaper.
+Oh, yeah, looks good.
 
-Hohmm, does this really bother you that much? This all happens really
-early during the boot. If a single kernel thread creation fails that
-early then we are screwed anyway and OOM killer will not help a tiny
-bit. The only place where the current benevolence matters is a test for
-oom_reaper_th != NULL in wake_oom_reaper and I doubt it adds an
-overhead. BUG_ON is suited for unrecoverable errors and we can clearly
-live without oom_reaper.
- 
->     pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
->                     PTR_ERR(oom_reaper_th));
-> 
-> (3) Eliminate locations that call mark_oom_victim() without
->     making the OOM victim task under monitor of the OOM reaper.
-> 
->     The OOM reaper needs to take actions when the OOM victim task got stuck
->     because we (except me) do not want to use my sysctl-controlled timeout-
->     based OOM victim selection.
+8+ADw----- (git am --scissors)
+Subject: fs, block: force direct-I/O for dax-enabled block devices
 
-I do not think this is a correct way to approach the problem. I think we
-should involve oom_reaper for those cases. I just want to do that in an
-incremental steps. Originally I had the oom_reaper invocation in
-mark_oom_victim but that didn't work out (for reasons I do not remember
-right now and would have to find them in the archive).
-[...]
+From: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
 
-> (4) Don't select an OOM victim until mm_to_reap (or task_to_reap) becomes NULL.
+Similar to the file I/O path, re-direct all I/O to the DAX path for I/O
+to a block-device special file.+AKAAoA-Both regular files and device specia=
+l
+files can use the common filp-+AD4-f+AF8-mapping-+AD4-host lookup to determ=
+ing is
+DAX is enabled.
 
-If we ever see a realistic case where the OOM killer hits in such a pace
-that the oom reaper cannot cope with it then I would rather introduce a
-queuing mechanism than add a complex code to synchronize the two
-contexts. They are currently synchronized via TIF_MEMDIE and that should
-be sufficient until the TIF_MEMDIE stops being the oom synchronization
-point.
+Otherwise, we confuse the DAX code that does not expect to find live
+data in the page cache:
 
->     This is needed for making sure that any OOM victim is made under
->     monitor of the OOM reaper in order to let the OOM reaper take action
->     before leaving oom_reap_vmas() (or oom_reap_task()).
-> 
->     Since the OOM reaper can do mm_to_reap (or task_to_reap) = NULL shortly
->     (e.g. within a second if it retries for 10 times with 0.1 second interval),
->     waiting should not become a problem.
-> 
-> (5) Decrease oom_score_adj value after the OOM reaper reclaimed memory.
-> 
->     If __oom_reap_vmas(mm) (or __oom_reap_task(tsk)) succeeded, set oom_score_adj
->     value of all tasks sharing the same mm to -1000 (by walking the process list)
->     and clear TIF_MEMDIE.
-> 
->     Changing only the OOM victim's oom_score_adj is not sufficient
->     when there are other thread groups sharing the OOM victim's memory
->     (i.e. clone(!CLONE_THREAD && CLONE_VM) case).
->
-> (6) Decrease oom_score_adj value even if the OOM reaper failed to reclaim memory.
-> 
->     If __oom_reap_vmas(mm) (or __oom_reap_task(tsk)) failed for 10 times, decrease
->     oom_score_adj value of all tasks sharing the same mm and clear TIF_MEMDIE.
->     This is needed for preventing the OOM killer from selecting the same thread
->     group forever.
++AKAAoACgAKA-------------+AFs- cut here +AF0-------------
++AKAAoACgAKA-WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
++AKAAoACgAKAAXwBf-delete+AF8-from+AF8-page+AF8-cache+-0x9f6/0xb60()
++AKAAoACgAKA-Modules linked in:
++AKAAoACgAKA-CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+- +ACM-276
++AKAAoACgAKA-Hardware name: QEMU Standard PC (i440FX +- PIIX, 1996), BIOS B=
+ochs 01/01/2011
++AKAAoACgAKAAoA-00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 00000000=
+00000000
++AKAAoACgAKAAoA-ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff=
+81352089
++AKAAoACgAKAAoA-ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea00=
+00009d60
++AKAAoACgAKA-Call Trace:
++AKAAoACgAKAAoABbADwAoACgAKAAoACg-inline+AKAAoACgAKAAoAA+AF0- +AF8AXw-dump+=
+AF8-stack lib/dump+AF8-stack.c:15
++AKAAoACgAKAAoABbADw-ffffffff82999e2d+AD4AXQ- dump+AF8-stack+-0x6f/0xa2 lib=
+/dump+AF8-stack.c:50
++AKAAoACgAKAAoABbADw-ffffffff81352089+AD4AXQ- warn+AF8-slowpath+AF8-common+=
+-0xd9/0x140 kernel/panic.c:482
++AKAAoACgAKAAoABbADw-ffffffff813522b9+AD4AXQ- warn+AF8-slowpath+AF8-null+-0=
+x29/0x30 kernel/panic.c:515
++AKAAoACgAKAAoABbADw-ffffffff81658d36+AD4AXQ- +AF8AXw-delete+AF8-from+AF8-p=
+age+AF8-cache+-0x9f6/0xb60 mm/filemap.c:217
++AKAAoACgAKAAoABbADw-ffffffff81658fb2+AD4AXQ- delete+AF8-from+AF8-page+AF8-=
+cache+-0x112/0x200 mm/filemap.c:244
++AKAAoACgAKAAoABbADw-ffffffff818af369+AD4AXQ- +AF8AXw-dax+AF8-fault+-0x859/=
+0x1800 fs/dax.c:487
++AKAAoACgAKAAoABbADw-ffffffff8186f4f6+AD4AXQ- blkdev+AF8-dax+AF8-fault+-0x2=
+6/0x30 fs/block+AF8-dev.c:1730
++AKAAoACgAKAAoABbADwAoACgAKAAoACg-inline+AKAAoACgAKAAoAA+AF0- wp+AF8-pfn+AF=
+8-shared mm/memory.c:2208
++AKAAoACgAKAAoABbADw-ffffffff816e9145+AD4AXQ- do+AF8-wp+AF8-page+-0xc85/0x1=
+4f0 mm/memory.c:2307
++AKAAoACgAKAAoABbADwAoACgAKAAoACg-inline+AKAAoACgAKAAoAA+AF0- handle+AF8-pt=
+e+AF8-fault mm/memory.c:3323
++AKAAoACgAKAAoABbADwAoACgAKAAoACg-inline+AKAAoACgAKAAoAA+AF0- +AF8AXw-handl=
+e+AF8-mm+AF8-fault mm/memory.c:3417
++AKAAoACgAKAAoABbADw-ffffffff816ecec3+AD4AXQ- handle+AF8-mm+AF8-fault+-0x24=
+83/0x4640 mm/memory.c:3446
++AKAAoACgAKAAoABbADw-ffffffff8127eff6+AD4AXQ- +AF8AXw-do+AF8-page+AF8-fault=
++-0x376/0x960 arch/x86/mm/fault.c:1238
++AKAAoACgAKAAoABbADw-ffffffff8127f738+AD4AXQ- trace+AF8-do+AF8-page+AF8-fau=
+lt+-0xe8/0x420 arch/x86/mm/fault.c:1331
++AKAAoACgAKAAoABbADw-ffffffff812705c4+AD4AXQ- do+AF8-async+AF8-page+AF8-fau=
+lt+-0x14/0xd0 arch/x86/kernel/kvm.c:264
++AKAAoACgAKAAoABbADw-ffffffff86338f78+AD4AXQ- async+AF8-page+AF8-fault+-0x2=
+8/0x30 arch/x86/entry/entry+AF8-64.S:986
++AKAAoACgAKAAoABbADw-ffffffff86336c36+AD4AXQ- entry+AF8-SYSCALL+AF8-64+AF8-=
+fastpath+-0x16/0x7a
++AKAAoACgAKA-arch/x86/entry/entry+AF8-64.S:185
++AKAAoACgAKA----+AFs- end trace dae21e0f85f1f98c +AF0----
 
-I understand what you mean but I would consider this outside of the
-scope of the patchset as I want to pursue it right now. I really want to
-introduce a simple async OOM handling. Further steps can be built on top
-but please let's not make it a huge monster right away. The same applies
-to the point 5. mm shared between processes is a border line to focus on
-it in the first submission.
+Cc: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+Fixes: 5a023cdba50c (+ACI-block: enable dax for raw block devices+ACI-)
+Reported-by: Dmitry Vyukov +ADw-dvyukov+AEA-google.com+AD4-
+Reported-by: Kirill A. Shutemov +ADw-kirill+AEA-shutemov.name+AD4-
+Suggested-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Reviewed-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Suggested-by: Matthew Wilcox +ADw-willy+AEA-linux.intel.com+AD4-
+Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+---
++AKA-include/linux/fs.h +AHwAoACgAKAAoA-2 +--
++AKA-1 file changed, 1 insertion(+-), 1 deletion(-)
 
->     An example is, set oom_score_adj to -999 if oom_score_adj is greater than
->     -999, set -1000 if oom_score_adj is already -999. This will allow the OOM
->     killer try to choose different OOM victims before retrying __oom_reap_vmas(mm)
->     (or __oom_reap_task(tsk)) of this OOM victim, then trigger kernel panic if
->     all OOM victims got -1000.
-> 
->     Changing mmap_sem lock killable increases possibility of __oom_reap_vmas(mm)
->     (or __oom_reap_task(tsk)) to succeed. But due to the changes in (3) and (4),
->     there is no guarantee that TIF_MEMDIE is set to the thread which is looping at
->     __alloc_pages_slowpath() with the mmap_sem held for writing. If the OOM killer
->     were able to know which thread is looping at __alloc_pages_slowpath() with the
->     mmap_sem held for writing (via per task_struct variable), the OOM killer would
->     set TIF_MEMDIE on that thread before randomly choosing one thread using
->     find_lock_task_mm().
-
-If mmap_sem (for write) holder is looping in the allocator and the
-process gets killed it will get access to memory reserves automatically,
-so I am not sure what do you mean here.
-
-Thank you for your feedback. There are some improvements and additional
-heuristics proposed and they might be really valuable in some cases but
-I believe that none of the points you are rising are blockers for the
-current code. My intention here is to push the initial version which
-would handle the most probable cases and build more on top. I would
-really prefer this doesn't grow into a hard to evaluate bloat from the
-early beginning.
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 1a2046275cdf..b10002d4a5f5 100644
+--- a/include/linux/fs.h
++-+-+- b/include/linux/fs.h
++AEAAQA- -2907,7 +-2907,7 +AEAAQA- extern void replace+AF8-mount+AF8-option=
+s(struct super+AF8-block +ACo-sb, char +ACo-options)+ADs-
++AKA-
++AKA-static inline bool io+AF8-is+AF8-direct(struct file +ACo-filp)
++AKAAew-
+-	return (filp-+AD4-f+AF8-flags +ACY- O+AF8-DIRECT) +AHwAfA- IS+AF8-DAX(fil=
+e+AF8-inode(filp))+ADs-
++-	return (filp-+AD4-f+AF8-flags +ACY- O+AF8-DIRECT) +AHwAfA- IS+AF8-DAX(fi=
+lp-+AD4-f+AF8-mapping-+AD4-host)+ADs-
++AKAAfQ-
++AKA-
++AKA-static inline int iocb+AF8-flags(struct file +ACo-file)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
