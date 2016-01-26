@@ -1,145 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 56EDA6B0256
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:54:08 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id n5so128663919wmn.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:54:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m12si5292166wmg.59.2016.01.26.04.46.26
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 04:46:26 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 11/14] mm, page_owner: copy page owner info during migration
-Date: Tue, 26 Jan 2016 13:45:50 +0100
-Message-Id: <1453812353-26744-12-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
-References: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 018206B0255
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:55:01 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id yy13so97243391pab.3
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:55:00 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id ur4si62710pab.50.2016.01.26.04.55.00
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jan 2016 04:55:00 -0800 (PST)
+Date: Tue, 26 Jan 2016 07:54:56 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: mm: WARNING in __delete_from_page_cache
+Message-ID: <20160126125456.GK2948@linux.intel.com>
+References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+ <20160124230422.GA8439@node.shutemov.name>
+ <20160125122206.GA24938@quack.suse.cz>
+ <1453779754.32645.3.camel@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1453779754.32645.3.camel@intel.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.com>
+To: "Williams, Dan J" <dan.j.williams@intel.com>
+Cc: "kirill@shutemov.name" <kirill@shutemov.name>, "jack@suse.cz" <jack@suse.cz>, "syzkaller@googlegroups.com" <syzkaller@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "kcc@google.com" <kcc@google.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "dvyukov@google.com" <dvyukov@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gthelen@google.com" <gthelen@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "jack@suse.com" <jack@suse.com>, "glider@google.com" <glider@google.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "j-nomura@ce.jp.nec.com" <j-nomura@ce.jp.nec.com>
 
-The page_owner mechanism stores gfp_flags of an allocation and stack trace
-that lead to it. During page migration, the original information is
-practically replaced by the allocation of free page as the migration target.
-Arguably this is less useful and might lead to all the page_owner info for
-migratable pages gradually converge towards compaction or numa balancing
-migrations. It has also lead to inaccuracies such as one fixed by commit
-e2cfc91120fa ("mm/page_owner: set correct gfp_mask on page_owner").
+On Tue, Jan 26, 2016 at 03:42:34AM +0000, Williams, Dan J wrote:
+> @@ -2907,7 +2912,12 @@ extern void replace_mount_options(struct super_b=
+lock *sb, char *options);
+> =A0
+> =A0static inline bool io_is_direct(struct file *filp)
+> =A0{
+> -	return (filp->f_flags & O_DIRECT) || IS_DAX(file_inode(filp));
 
-This patch thus introduces copying the page_owner info during migration.
-However, since the fact that the page has been migrated from its original
-place might be useful for debugging, the next patch will introduce a way to
-track that information as well.
+I think this should just be a one-liner:
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/page_owner.h | 10 +++++++++-
- mm/migrate.c               |  3 +++
- mm/page_owner.c            | 25 +++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 1 deletion(-)
+-	return (filp->f_flags & O_DIRECT) || IS_DAX(file_inode(filp));
++	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
 
-diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index 8e2eb153c7b9..6440daab4ef8 100644
---- a/include/linux/page_owner.h
-+++ b/include/linux/page_owner.h
-@@ -11,6 +11,7 @@ extern void __reset_page_owner(struct page *page, unsigned int order);
- extern void __set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask);
- extern gfp_t __get_page_owner_gfp(struct page *page);
-+extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
- 
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -32,6 +33,11 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
- 	else
- 		return 0;
- }
-+static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
-+{
-+	if (static_branch_unlikely(&page_owner_inited))
-+		__copy_page_owner(oldpage, newpage);
-+}
- #else
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -44,6 +50,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
- {
- 	return 0;
- }
--
-+static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
-+{
-+}
- #endif /* CONFIG_PAGE_OWNER */
- #endif /* __LINUX_PAGE_OWNER_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b1034f9c77e7..863a0f1fe23f 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -38,6 +38,7 @@
- #include <linux/balloon_compaction.h>
- #include <linux/mmu_notifier.h>
- #include <linux/page_idle.h>
-+#include <linux/page_owner.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -578,6 +579,8 @@ void migrate_page_copy(struct page *newpage, struct page *page)
- 	 */
- 	if (PageWriteback(newpage))
- 		end_page_writeback(newpage);
-+
-+	copy_page_owner(page, newpage);
- }
- 
- /************************************************************
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index feaa28b40c1c..774b55623212 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -84,6 +84,31 @@ gfp_t __get_page_owner_gfp(struct page *page)
- 	return page_ext->gfp_mask;
- }
- 
-+void __copy_page_owner(struct page *oldpage, struct page *newpage)
-+{
-+	struct page_ext *old_ext = lookup_page_ext(oldpage);
-+	struct page_ext *new_ext = lookup_page_ext(newpage);
-+	int i;
-+
-+	new_ext->order = old_ext->order;
-+	new_ext->gfp_mask = old_ext->gfp_mask;
-+	new_ext->nr_entries = old_ext->nr_entries;
-+
-+	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
-+		new_ext->trace_entries[i] = old_ext->trace_entries[i];
-+
-+	/*
-+	 * We don't clear the bit on the oldpage as it's going to be freed
-+	 * after migration. Until then, the info can be useful in case of
-+	 * a bug, and the overal stats will be off a bit only temporarily.
-+	 * Also, migrate_misplaced_transhuge_page() can still fail the
-+	 * migration and then we want the oldpage to retain the info. But
-+	 * in that case we also don't need to explicitly clear the info from
-+	 * the new page, which will be freed.
-+	 */
-+	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
-+}
-+
- static ssize_t
- print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		struct page *page, struct page_ext *page_ext)
--- 
-2.7.0
+This does the right thing for block device inodes and filesystem inodes.
+(see the opening stanzas of __dax_fault for an example).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
