@@ -1,111 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A17186B0256
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:34 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id l65so102513933wmf.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:34 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C9EF6B0257
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:37 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l65so102515427wmf.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:37 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g199si5289697wmg.66.2016.01.26.04.46.26
+        by mx.google.com with ESMTPS id t8si4173135wmd.71.2016.01.26.04.46.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 26 Jan 2016 04:46:26 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 00/14] mm flags in printk, page_owner improvements for debugging
-Date: Tue, 26 Jan 2016 13:45:39 +0100
-Message-Id: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v4 02/14] mm, tracing: make show_gfp_flags() up to date
+Date: Tue, 26 Jan 2016 13:45:41 +0100
+Message-Id: <1453812353-26744-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
+References: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Sasha Levin <sasha.levin@oracle.com>, Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
 
-Changes since v3:
-- Rebased on next-20160125
-- Changed the %pg format string for flags to %pG due to clash with another
-  patch already merged merged
-- Update GFP flags (patches 2, 3) for new changes and stuff I overlooked
-  the last time
-- __GFP_X flags are now printed as __GFP_X instead of GFP_X as that was just
-  confusing and GFP_ATOMIC vs __GFP_ATOMIC already needed an exception
+The show_gfp_flags() macro provides human-friendly printing of gfp flags in
+tracepoints. However, it is somewhat out of date and missing several flags.
+This patches fills in the missing flags, and distinguishes properly between
+GFP_ATOMIC and __GFP_ATOMIC which were both translated to "GFP_ATOMIC".
+More generally, all __GFP_X flags which were previously printed as GFP_X, are
+now printed as __GFP_X, since ommiting the underscores results in output that
+doesn't actually match the source code, and can only lead to confusion. Where
+both variants are defined equal (e.g. _DMA and _DMA32), the variant without
+underscores are preferred.
 
-After v2 [1] of the page_owner series, I've moved mm-specific flags printing
-into printk() and posted it on top of the series. But it makes more sense and
-results in less code churn to do the printk() changes first. So this series
-is two-part. Patches 1-6 are related to the flags handling in printk() and
-tracepoints, and CC the printk, ftrace and perf maintainers. The rest is
-the original page_owner series, CCing only mm people.
+Also add a note in gfp.h so hopefully future changes will be synced better.
 
-Adapted description of v2:
+__GFP_MOVABLE is defined twice in include/linux/gfp.h with different comments.
+Leave just the newer one, which was intended to replace the old one.
 
-For page_owner, the main changes are
-o Use static key to further reduce overhead when compiled in but not enabled.
-o Improve output wrt. page and pageblock migratetypes
-o Transfer the info on page migrations and track last migration reason.
-o Dump the info as part of dump_page() to hopefully help debugging.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/gfp.h             |  6 ++++-
+ include/trace/events/gfpflags.h | 53 ++++++++++++++++++++++++-----------------
+ 2 files changed, 36 insertions(+), 23 deletions(-)
 
-For the last point, Kirill requested a human readable printing of gfp_mask and
-migratetype after v1. At that point it probably makes a lot of sense to do the
-same for page alloc failure and OOM warnings. The flags have been undergoing
-revisions recently, and we might be getting reports from various kernel
-versions that differ. The ./scripts/gfp-translate tool needs to be pointed at
-the corresponding sources to be accurate.  The downside is potentially breaking
-scripts that grep these warnings, but it's not a first change done there over
-the years.
-
-Other changes since v1:
-o Change placement of page owner migration calls to cover missing cases (Hugh)
-o Move dump_page_owner() call up from dump_page_badflags(), so the latter can
-  be used for adding debugging prints without page owner info (Kirill)
-
-[1] https://lkml.org/lkml/2015/11/24/342
-
-Vlastimil Babka (14):
-  tracepoints: move trace_print_flags definitions to tracepoint-defs.h
-  mm, tracing: make show_gfp_flags() up to date
-  tools, perf: make gfp_compact_table up to date
-  mm, tracing: unify mm flags handling in tracepoints and printk
-  mm, printk: introduce new format string for flags
-  mm, debug: replace dump_flags() with the new printk formats
-  mm, page_alloc: print symbolic gfp_flags on allocation failure
-  mm, oom: print symbolic gfp_flags in oom warning
-  mm, page_owner: print migratetype of page and pageblock, symbolic
-    flags
-  mm, page_owner: convert page_owner_inited to static key
-  mm, page_owner: copy page owner info during migration
-  mm, page_owner: track and print last migrate reason
-  mm, page_owner: dump page owner info from dump_page()
-  mm, debug: move bad flags printing to bad_page()
-
- Documentation/printk-formats.txt   |  18 ++++
- Documentation/vm/page_owner.txt    |   9 +-
- include/linux/gfp.h                |   6 +-
- include/linux/migrate.h            |   6 +-
- include/linux/mmdebug.h            |   9 +-
- include/linux/mmzone.h             |   3 +
- include/linux/page_ext.h           |   1 +
- include/linux/page_owner.h         |  50 ++++++++---
- include/linux/trace_events.h       |  10 ---
- include/linux/tracepoint-defs.h    |  14 +++-
- include/trace/events/btrfs.h       |   2 +-
- include/trace/events/compaction.h  |   2 +-
- include/trace/events/gfpflags.h    |  43 ----------
- include/trace/events/huge_memory.h |   2 -
- include/trace/events/kmem.h        |   2 +-
- include/trace/events/mmflags.h     | 165 +++++++++++++++++++++++++++++++++++++
- include/trace/events/vmscan.h      |   2 +-
- lib/test_printf.c                  |  53 ++++++++++++
- lib/vsprintf.c                     |  75 +++++++++++++++++
- mm/debug.c                         | 165 +++++++++----------------------------
- mm/internal.h                      |   6 ++
- mm/migrate.c                       |  13 ++-
- mm/oom_kill.c                      |   7 +-
- mm/page_alloc.c                    |  29 +++++--
- mm/page_owner.c                    | 100 +++++++++++++++++-----
- mm/vmstat.c                        |  15 +---
- tools/perf/builtin-kmem.c          |  49 ++++++-----
- 27 files changed, 583 insertions(+), 273 deletions(-)
- delete mode 100644 include/trace/events/gfpflags.h
- create mode 100644 include/trace/events/mmflags.h
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 28ad5f6494b0..e5f7d222177d 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -9,6 +9,11 @@
+ 
+ struct vm_area_struct;
+ 
++/*
++ * In case of changes, please don't forget to update
++ * include/trace/events/gfpflags.h
++ */
++
+ /* Plain integer GFP bitmasks. Do not use this directly. */
+ #define ___GFP_DMA		0x01u
+ #define ___GFP_HIGHMEM		0x02u
+@@ -48,7 +53,6 @@ struct vm_area_struct;
+ #define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+ #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+ #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+-#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* Page is movable */
+ #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+ #define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
+ 
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index dde6bf092c8a..f53b216c9311 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -11,33 +11,42 @@
+ #define show_gfp_flags(flags)						\
+ 	(flags) ? __print_flags(flags, "|",				\
+ 	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+-	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
++	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+ 	{(unsigned long)GFP_USER,		"GFP_USER"},		\
+ 	{(unsigned long)GFP_TEMPORARY,		"GFP_TEMPORARY"},	\
++	{(unsigned long)GFP_KERNEL_ACCOUNT,	"GFP_KERNEL_ACCOUNT"},	\
+ 	{(unsigned long)GFP_KERNEL,		"GFP_KERNEL"},		\
+ 	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
+ 	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
+ 	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
+-	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
+-	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
+-	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
+-	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
+-	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
+-	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
+-	{(unsigned long)__GFP_NOFAIL,		"GFP_NOFAIL"},		\
+-	{(unsigned long)__GFP_NORETRY,		"GFP_NORETRY"},		\
+-	{(unsigned long)__GFP_COMP,		"GFP_COMP"},		\
+-	{(unsigned long)__GFP_ZERO,		"GFP_ZERO"},		\
+-	{(unsigned long)__GFP_NOMEMALLOC,	"GFP_NOMEMALLOC"},	\
+-	{(unsigned long)__GFP_MEMALLOC,		"GFP_MEMALLOC"},	\
+-	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
+-	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
+-	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+-	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+-	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
+-	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
+-	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
+-	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+-	) : "GFP_NOWAIT"
++	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
++	{(unsigned long)GFP_DMA,		"GFP_DMA"},		\
++	{(unsigned long)__GFP_HIGHMEM,		"__GFP_HIGHMEM"},	\
++	{(unsigned long)GFP_DMA32,		"GFP_DMA32"},		\
++	{(unsigned long)__GFP_HIGH,		"__GFP_HIGH"},		\
++	{(unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
++	{(unsigned long)__GFP_IO,		"__GFP_IO"},		\
++	{(unsigned long)__GFP_FS,		"__GFP_FS"},		\
++	{(unsigned long)__GFP_COLD,		"__GFP_COLD"},		\
++	{(unsigned long)__GFP_NOWARN,		"__GFP_NOWARN"},	\
++	{(unsigned long)__GFP_REPEAT,		"__GFP_REPEAT"},	\
++	{(unsigned long)__GFP_NOFAIL,		"__GFP_NOFAIL"},	\
++	{(unsigned long)__GFP_NORETRY,		"__GFP_NORETRY"},	\
++	{(unsigned long)__GFP_COMP,		"__GFP_COMP"},		\
++	{(unsigned long)__GFP_ZERO,		"__GFP_ZERO"},		\
++	{(unsigned long)__GFP_NOMEMALLOC,	"__GFP_NOMEMALLOC"},	\
++	{(unsigned long)__GFP_MEMALLOC,		"__GFP_MEMALLOC"},	\
++	{(unsigned long)__GFP_HARDWALL,		"__GFP_HARDWALL"},	\
++	{(unsigned long)__GFP_THISNODE,		"__GFP_THISNODE"},	\
++	{(unsigned long)__GFP_RECLAIMABLE,	"__GFP_RECLAIMABLE"},	\
++	{(unsigned long)__GFP_MOVABLE,		"__GFP_MOVABLE"},	\
++	{(unsigned long)__GFP_ACCOUNT,		"__GFP_ACCOUNT"},	\
++	{(unsigned long)__GFP_NOTRACK,		"__GFP_NOTRACK"},	\
++	{(unsigned long)__GFP_WRITE,		"__GFP_WRITE"},		\
++	{(unsigned long)__GFP_RECLAIM,		"__GFP_RECLAIM"},	\
++	{(unsigned long)__GFP_DIRECT_RECLAIM,	"__GFP_DIRECT_RECLAIM"},\
++	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"__GFP_KSWAPD_RECLAIM"},\
++	{(unsigned long)__GFP_OTHER_NODE,	"__GFP_OTHER_NODE"}	\
++	) : "none"
+ 
 -- 
 2.7.0
 
