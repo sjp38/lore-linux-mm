@@ -1,53 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 62FC76B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 16:30:26 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id cy9so103766298pac.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:30:26 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r81si4281546pfi.191.2016.01.26.13.30.25
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A0CF16B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 16:37:42 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id p63so6925475wmp.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:37:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ln5si4297147wjb.38.2016.01.26.13.37.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 13:30:25 -0800 (PST)
-Date: Tue, 26 Jan 2016 13:30:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: memcontrol: drop superfluous entry in the per-memcg
- stats array
-Message-Id: <20160126133024.07f372dbf8935e03a3035269@linux-foundation.org>
-In-Reply-To: <1453841729-29072-1-git-send-email-hannes@cmpxchg.org>
-References: <1453841729-29072-1-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 13:37:41 -0800 (PST)
+Subject: Re: mm: VM_BUG_ON_PAGE(PageTail(page)) in mbind
+References: <CACT4Y+YK7or=W4RGpv1k1T5-xDHu3_PPVZWqsQU6nWoArsV5vA@mail.gmail.com>
+ <20160126202829.GA21250@node.shutemov.name>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56A7E71F.4060905@suse.cz>
+Date: Tue, 26 Jan 2016 22:37:35 +0100
+MIME-Version: 1.0
+In-Reply-To: <20160126202829.GA21250@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Dmitry Vyukov <dvyukov@google.com>, Doug Gilbert <dgilbert@interlog.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi@vger.kernel.org
 
-On Tue, 26 Jan 2016 15:55:29 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> MEM_CGROUP_STAT_NSTATS is just a delimiter for cgroup1 statistics, not
-> an actual array entry. Reuse it for the first cgroup2 stat entry, like
-> in the event array.
+On 26.1.2016 21:28, Kirill A. Shutemov wrote:
+> From 396ad132be07a2d2b9ec5d1d6ec9fe2fffe8105e Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Tue, 26 Jan 2016 22:59:16 +0300
+> Subject: [PATCH] sg: mark VMA as VM_IO to prevent migration
 > 
-> ...
->
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -51,7 +51,7 @@ enum mem_cgroup_stat_index {
->  	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
->  	MEM_CGROUP_STAT_NSTATS,
->  	/* default hierarchy stats */
-> -	MEMCG_SOCK,
-> +	MEMCG_SOCK = MEM_CGROUP_STAT_NSTATS,
->  	MEMCG_NR_STAT,
->  };
+> Reduced testcase:
+> 
+> 	#include <fcntl.h>
+> 	#include <unistd.h>
+> 	#include <sys/mman.h>
+> 	#include <numaif.h>
+> 
+> 	#define SIZE 0x2000
+> 
+> 	int main()
+> 	{
+> 		int fd;
+> 		void *p;
+> 
+> 		fd = open("/dev/sg0", O_RDWR);
+> 		p = mmap(NULL, SIZE, PROT_EXEC, MAP_PRIVATE | MAP_LOCKED, fd, 0);
+> 		mbind(p, SIZE, 0, NULL, 0, MPOL_MF_MOVE);
+> 		return 0;
+> 	}
+> 
+> We shouldn't try to migrate pages in sg VMA as we don't have a way to
+> update Sg_scatter_hold::pages accordingly from mm core.
+> 
+> Let's mark the VMA as VM_IO to indicate to mm core that the VMA is
+> migratable.
 
-The code looks a bit odd.  How come mem_cgroup_stat_names[] ends with
-"swap"?  Should MEMCG_SOCK be in there at all?
+ ^ not migratable.
 
-And the naming is a bit sad.  "MEM_CGROUP_STAT_FILE_MAPPED" maps to
-"mapped_file", not "file_mapped".
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> ---
+>  drivers/scsi/sg.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/scsi/sg.c b/drivers/scsi/sg.c
+> index 503ab8b46c0b..5e820674432c 100644
+> --- a/drivers/scsi/sg.c
+> +++ b/drivers/scsi/sg.c
+> @@ -1261,7 +1261,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
+>  	}
+>  
+>  	sfp->mmap_called = 1;
+> -	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> +	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+>  	vma->vm_private_data = sfp;
+>  	vma->vm_ops = &sg_mmap_vm_ops;
+>  	return 0;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
