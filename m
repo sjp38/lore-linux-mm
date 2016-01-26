@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D1CCA6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 12:20:41 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id 123so115383514wmz.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 09:20:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h79si6688425wme.86.2016.01.26.09.20.40
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0F66B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 13:10:01 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id b14so144579875wmb.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 10:10:01 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id t207si5826068wmt.84.2016.01.26.10.09.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 09:20:40 -0800 (PST)
-Date: Tue, 26 Jan 2016 18:20:51 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] proposals for topics
-Message-ID: <20160126172051.GB6066@quack.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jan 2016 10:10:00 -0800 (PST)
+Date: Tue, 26 Jan 2016 13:09:13 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [LSF/MM TOPIC] proposals for topics
+Message-ID: <20160126180913.GA2428@cmpxchg.org>
 References: <20160125133357.GC23939@dhcp22.suse.cz>
  <20160125184559.GE29291@cmpxchg.org>
- <20160126095022.GC27563@dhcp22.suse.cz>
- <56A7AA0D.9040409@suse.cz>
+ <56A7A7E8.3060801@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56A7AA0D.9040409@suse.cz>
+In-Reply-To: <56A7A7E8.3060801@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Tue 26-01-16 18:17:01, Vlastimil Babka wrote:
-> >>>- GFP_NOFS is another one which would be good to discuss. Its primary
-> >>>   use is to prevent from reclaim recursion back into FS. This makes
-> >>>   such an allocation context weaker and historically we haven't
-> >>>   triggered OOM killer and rather hopelessly retry the request and
-> >>>   rely on somebody else to make a progress for us. There are two issues
-> >>>   here.
-> >>>   First we shouldn't retry endlessly and rather fail the allocation and
-> >>>   allow the FS to handle the error. As per my experiments most FS cope
-> >>>   with that quite reasonably. Btrfs unfortunately handles many of those
-> >>>   failures by BUG_ON which is really unfortunate.
-> >>
-> >>Are there any new datapoints on how to deal with failing allocations?
-> >>IIRC the conclusion last time was that some filesystems simply can't
-> >>support this without a reservation system - which I don't believe
-> >>anybody is working on. Does it make sense to rehash this when nothing
-> >>really changed since last time?
+On Tue, Jan 26, 2016 at 06:07:52PM +0100, Vlastimil Babka wrote:
+> On 01/25/2016 07:45 PM, Johannes Weiner wrote:
+> >>>- One of the long lasting issue related to the OOM handling is when to
+> >>>   actually declare OOM. There are workloads which might be trashing on
+> >>>   few last remaining pagecache pages or on the swap which makes the
+> >>>   system completely unusable for considerable amount of time yet the
+> >>>   OOM killer is not invoked. Can we finally do something about that?
+> >I'm working on this, but it's not an easy situation to detect.
 > >
-> >There have been patches posted during the year to fortify those places
-> >which cannot cope with allocation failures for ext[34] and testing
-> >has shown that ext* resp. xfs are quite ready to see NOFS allocation
-> >failures.
+> >We can't decide based on amount of page cache, as you could have very
+> >little of it and still be fine. Most of it could still be used-once.
+> >
+> >We can't decide based on number or rate of (re)faults, because this
+> >spikes during startup and workingset changes, or can be even sustained
+> >when working with a data set that you'd never expect to fit into
+> >memory in the first place, while still making acceptable progress.
 > 
-> Hmm from last year I remember Dave Chinner saying there really are some
-> places that can't handle failure, period? That's why all the discussions
-> about reservations, and I would be surprised if all such places were gone
-> today? Which of course doesn't mean that there couldn't be different NOFS
-> places that can handle failures, which however don't happen in current
-> implementation.
+> I would hope that workingset should help distinguish workloads thrashing due
+> to low memory and those that can't fit there no matter what? Or would it
+> require tracking lifetime of so many evicted pages that the memory overhead
+> of that would be infeasible?
 
-Well, but we have GFP_NOFAIL (or equivalent of thereof opencoded) in there.
-So yes, there are GFP_NOFAIL | GFP_NOFS allocations and allocator must deal
-with it somehow.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Yes, using the workingset code is exactly my plan. The only thing it
+requires on top is a time component. Then we can kick the OOM killer
+based on the share of time a workload (the system?) spends thrashing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
