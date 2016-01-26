@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0CF6B0254
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:30 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id n5so128342073wmn.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:30 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 629F06B0255
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:32 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id n5so128343706wmn.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:32 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 70si5281876wmv.76.2016.01.26.04.46.25
+        by mx.google.com with ESMTPS id m9si1561486wjx.242.2016.01.26.04.46.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 26 Jan 2016 04:46:26 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 03/14] tools, perf: make gfp_compact_table up to date
-Date: Tue, 26 Jan 2016 13:45:42 +0100
-Message-Id: <1453812353-26744-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v4 01/14] tracepoints: move trace_print_flags definitions to tracepoint-defs.h
+Date: Tue, 26 Jan 2016 13:45:40 +0100
+Message-Id: <1453812353-26744-2-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 References: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,11 +20,10 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
 
-When updating tracing's show_gfp_flags() I have noticed that perf's
-gfp_compact_table is also outdated. Fill in the missing flags and place a
-note in gfp.h to increase chance that future updates are synced. Convert the
-__GFP_X flags from "GFP_X" to "__GFP_X" strings in line with the previous
-patch.
+The following patch will need to declare array of struct trace_print_flags
+in a header. To prevent this header from pulling in all of RCU through
+trace_events.h, move the struct trace_print_flags{_64} definitions to the new
+lightweight tracepoint-defs.h header.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Steven Rostedt <rostedt@goodmis.org>
@@ -39,86 +38,61 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/gfp.h       |  2 +-
- tools/perf/builtin-kmem.c | 47 ++++++++++++++++++++++++++++-------------------
- 2 files changed, 29 insertions(+), 20 deletions(-)
+ include/linux/trace_events.h    | 10 ----------
+ include/linux/tracepoint-defs.h | 14 ++++++++++++--
+ 2 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index e5f7d222177d..8dbface7ad59 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -11,7 +11,7 @@ struct vm_area_struct;
+diff --git a/include/linux/trace_events.h b/include/linux/trace_events.h
+index 429fdfc3baf5..d91404f89ff2 100644
+--- a/include/linux/trace_events.h
++++ b/include/linux/trace_events.h
+@@ -15,16 +15,6 @@ struct tracer;
+ struct dentry;
+ struct bpf_prog;
+ 
+-struct trace_print_flags {
+-	unsigned long		mask;
+-	const char		*name;
+-};
+-
+-struct trace_print_flags_u64 {
+-	unsigned long long	mask;
+-	const char		*name;
+-};
+-
+ const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
+ 				  unsigned long flags,
+ 				  const struct trace_print_flags *flag_array);
+diff --git a/include/linux/tracepoint-defs.h b/include/linux/tracepoint-defs.h
+index e1ee97c713bf..4ac89acb6136 100644
+--- a/include/linux/tracepoint-defs.h
++++ b/include/linux/tracepoint-defs.h
+@@ -3,13 +3,23 @@
  
  /*
-  * In case of changes, please don't forget to update
-- * include/trace/events/gfpflags.h
-+ * include/trace/events/gfpflags.h and tools/perf/builtin-kmem.c
+  * File can be included directly by headers who only want to access
+- * tracepoint->key to guard out of line trace calls. Otherwise
+- * linux/tracepoint.h should be used.
++ * tracepoint->key to guard out of line trace calls, or the definition of
++ * trace_print_flags{_u64}. Otherwise linux/tracepoint.h should be used.
   */
  
- /* Plain integer GFP bitmasks. Do not use this directly. */
-diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index 118010553d0c..778cdc02563a 100644
---- a/tools/perf/builtin-kmem.c
-+++ b/tools/perf/builtin-kmem.c
-@@ -612,30 +612,39 @@ static const struct {
- 	{ "GFP_HIGHUSER",		"HU" },
- 	{ "GFP_USER",			"U" },
- 	{ "GFP_TEMPORARY",		"TMP" },
-+	{ "GFP_KERNEL_ACCOUNT",		"KAC" },
- 	{ "GFP_KERNEL",			"K" },
- 	{ "GFP_NOFS",			"NF" },
- 	{ "GFP_ATOMIC",			"A" },
- 	{ "GFP_NOIO",			"NI" },
--	{ "GFP_HIGH",			"H" },
--	{ "GFP_WAIT",			"W" },
--	{ "GFP_IO",			"I" },
--	{ "GFP_COLD",			"CO" },
--	{ "GFP_NOWARN",			"NWR" },
--	{ "GFP_REPEAT",			"R" },
--	{ "GFP_NOFAIL",			"NF" },
--	{ "GFP_NORETRY",		"NR" },
--	{ "GFP_COMP",			"C" },
--	{ "GFP_ZERO",			"Z" },
--	{ "GFP_NOMEMALLOC",		"NMA" },
--	{ "GFP_MEMALLOC",		"MA" },
--	{ "GFP_HARDWALL",		"HW" },
--	{ "GFP_THISNODE",		"TN" },
--	{ "GFP_RECLAIMABLE",		"RC" },
--	{ "GFP_MOVABLE",		"M" },
--	{ "GFP_NOTRACK",		"NT" },
--	{ "GFP_NO_KSWAPD",		"NK" },
--	{ "GFP_OTHER_NODE",		"ON" },
- 	{ "GFP_NOWAIT",			"NW" },
-+	{ "GFP_DMA",			"D" },
-+	{ "__GFP_HIGHMEM",		"HM" },
-+	{ "GFP_DMA32",			"D32" },
-+	{ "__GFP_HIGH",			"H" },
-+	{ "__GFP_ATOMIC",		"_A" },
-+	{ "__GFP_IO",			"I" },
-+	{ "__GFP_FS",			"F" },
-+	{ "__GFP_COLD",			"CO" },
-+	{ "__GFP_NOWARN",		"NWR" },
-+	{ "__GFP_REPEAT",		"R" },
-+	{ "__GFP_NOFAIL",		"NF" },
-+	{ "__GFP_NORETRY",		"NR" },
-+	{ "__GFP_COMP",			"C" },
-+	{ "__GFP_ZERO",			"Z" },
-+	{ "__GFP_NOMEMALLOC",		"NMA" },
-+	{ "__GFP_MEMALLOC",		"MA" },
-+	{ "__GFP_HARDWALL",		"HW" },
-+	{ "__GFP_THISNODE",		"TN" },
-+	{ "__GFP_RECLAIMABLE",		"RC" },
-+	{ "__GFP_MOVABLE",		"M" },
-+	{ "__GFP_ACCOUNT",		"AC" },
-+	{ "__GFP_NOTRACK",		"NT" },
-+	{ "__GFP_WRITE",		"WR" },
-+	{ "__GFP_RECLAIM",		"R" },
-+	{ "__GFP_DIRECT_RECLAIM",	"DR" },
-+	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
-+	{ "__GFP_OTHER_NODE",		"ON" },
- };
+ #include <linux/atomic.h>
+ #include <linux/static_key.h>
  
- static size_t max_gfp_len;
++struct trace_print_flags {
++	unsigned long		mask;
++	const char		*name;
++};
++
++struct trace_print_flags_u64 {
++	unsigned long long	mask;
++	const char		*name;
++};
++
+ struct tracepoint_func {
+ 	void *func;
+ 	void *data;
 -- 
 2.7.0
 
