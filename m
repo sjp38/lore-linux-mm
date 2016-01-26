@@ -1,133 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 539786B0254
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 20:15:26 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id o11so123455835qge.2
-        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 17:15:26 -0800 (PST)
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 563896B0009
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2016 20:33:33 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id b35so123569091qge.0
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2016 17:33:33 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z107si27635026qge.1.2016.01.25.17.15.25
+        by mx.google.com with ESMTPS id t138si27614983qhb.115.2016.01.25.17.33.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jan 2016 17:15:25 -0800 (PST)
-From: Laura Abbott <labbott@fedoraproject.org>
-Subject: [PATCH 3/3] slub: Add option to skip consistency checks
-Date: Mon, 25 Jan 2016 17:15:13 -0800
-Message-Id: <1453770913-32287-4-git-send-email-labbott@fedoraproject.org>
-In-Reply-To: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org>
-References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org>
+        Mon, 25 Jan 2016 17:33:32 -0800 (PST)
+Subject: Re: [kernel-hardening] [RFC][PATCH 3/3] mm/page_poisoning.c: Allow
+ for zero poisoning
+References: <1453740953-18109-1-git-send-email-labbott@fedoraproject.org>
+ <1453740953-18109-4-git-send-email-labbott@fedoraproject.org>
+ <56A682B5.8000603@intel.com>
+ <CAGXu5jJCrNMuE9JgqsBeuL1UFyp-z+erWVPOK_FGT+vum7X5Wg@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <56A6CCE8.5030600@redhat.com>
+Date: Mon, 25 Jan 2016 17:33:28 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jJCrNMuE9JgqsBeuL1UFyp-z+erWVPOK_FGT+vum7X5Wg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
+To: Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@fedoraproject.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 01/25/2016 02:05 PM, Kees Cook wrote:
+> On Mon, Jan 25, 2016 at 12:16 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>> Thanks for doing this!  It all looks pretty straightforward.
+>>
+>> On 01/25/2016 08:55 AM, Laura Abbott wrote:
+>>> By default, page poisoning uses a poison value (0xaa) on free. If this
+>>> is changed to 0, the page is not only sanitized but zeroing on alloc
+>>> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
+>>> corruption from the poisoning is harder to detect. This feature also
+>>> cannot be used with hibernation since pages are not guaranteed to be
+>>> zeroed after hibernation.
+>>
+>> Ugh, that's a good point about hibernation.  I'm not sure how widely it
+>> gets used but it does look pretty widely enabled in distribution kernels.
+>>
+>> Is this something that's fixable?  It seems like we could have the
+>> hibernation code run through and zero all the free lists.  Or, we could
+>> just disable the optimization at runtime when a hibernation is done.
+>
+> We can also make hibernation run-time disabled when poisoning is used
+> (similar to how kASLR disables it).
+>
 
-SLUB debugging by default does checks to ensure consistency.
-These checks, while useful, are expensive for allocation speed.
-Features such as poisoning and tracing can stand alone without
-any checks. Add a slab flag to skip these checks.
+I'll look into the approach kASLR uses to disable hibernation although
+having the hibernation code zero the memory could be useful as well.
+We can see if there are actual complaints.
+  
+>> Not that we _have_ to do any of this now, but if a runtime knob (like a
+>> sysctl) could be fun too.  I would be nice for folks to turn it on and
+>> off if they wanted the added security of "real" poisoning vs. the
+>> potential performance boost from this optimization.
+>>
+>>> +static inline bool should_zero(void)
+>>> +{
+>>> +     return !IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) ||
+>>> +             !page_poisoning_enabled();
+>>> +}
+>>
+>> I wonder if calling this "free_pages_prezeroed()" would make things a
+>> bit more clear when we use it in prep_new_page().
+>>
 
-Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
----
- include/linux/slab.h |  1 +
- mm/slub.c            | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+Yes that sounds much better
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 3627d5c..789f6a3 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -23,6 +23,7 @@
- #define SLAB_DEBUG_FREE		0x00000100UL	/* DEBUG: Perform (expensive) checks on free */
- #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
- #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
-+#define SLAB_NO_CHECKS		0x00001000UL	/* DEBUG: Skip all consistency checks*/
- #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
- #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
- #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
-diff --git a/mm/slub.c b/mm/slub.c
-index a47e615..078f088 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -230,6 +230,9 @@ static inline int check_valid_pointer(struct kmem_cache *s,
- {
- 	void *base;
- 
-+	if (s->flags & SLAB_NO_CHECKS)
-+		return 1;
-+
- 	if (!object)
- 		return 1;
- 
-@@ -818,6 +821,9 @@ static int check_object(struct kmem_cache *s, struct page *page,
- 	u8 *p = object;
- 	u8 *endobject = object + s->object_size;
- 
-+	if (s->flags & SLAB_NO_CHECKS)
-+		return 1;
-+
- 	if (s->flags & SLAB_RED_ZONE) {
- 		if (!check_bytes_and_report(s, page, object, "Redzone",
- 			endobject, val, s->inuse - s->object_size))
-@@ -873,6 +879,9 @@ static int check_slab(struct kmem_cache *s, struct page *page)
- 
- 	VM_BUG_ON(!irqs_disabled());
- 
-+	if (s->flags & SLAB_NO_CHECKS)
-+		return 1;
-+
- 	if (!PageSlab(page)) {
- 		slab_err(s, page, "Not a valid slab page");
- 		return 0;
-@@ -906,6 +915,9 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search,
- 	void *object = NULL;
- 	int max_objects;
- 
-+	if (s->flags & SLAB_NO_CHECKS)
-+		return 0;
-+
- 	fp = page->freelist;
- 	while (fp && nr <= page->objects) {
- 		if (fp == search)
-@@ -1303,6 +1315,8 @@ static int __init setup_slub_debug(char *str)
- 		case 'a':
- 			slub_debug |= SLAB_FAILSLAB;
- 			break;
-+		case 'q':
-+			slub_debug |= SLAB_NO_CHECKS;
- 		case 'o':
- 			/*
- 			 * Avoid enabling debugging on caches if its minimum
-@@ -5032,6 +5046,20 @@ static ssize_t poison_store(struct kmem_cache *s,
- }
- SLAB_ATTR(poison);
- 
-+static ssize_t no_checks_show(struct kmem_cache *s, char *buf)
-+{
-+	return sprintf(buf, "%d\n", !!(s->flags & SLAB_NO_CHECKS));
-+}
-+
-+static ssize_t no_checks_store(struct kmem_cache *s,
-+				const char *buf, size_t length)
-+{
-+	return -EINVAL;
-+}
-+SLAB_ATTR(no_checks);
-+
-+
-+
- static ssize_t store_user_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_STORE_USER));
-@@ -5257,6 +5285,7 @@ static struct attribute *slab_attrs[] = {
- 	&trace_attr.attr,
- 	&red_zone_attr.attr,
- 	&poison_attr.attr,
-+	&no_checks_attr.attr,
- 	&store_user_attr.attr,
- 	&validate_attr.attr,
- 	&alloc_calls_attr.attr,
--- 
-2.5.0
+>>>   static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>>>                                                                int alloc_flags)
+>>>   {
+>>> @@ -1401,7 +1407,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>>>        kernel_map_pages(page, 1 << order, 1);
+>>>        kasan_alloc_pages(page, order);
+>>>
+>>> -     if (gfp_flags & __GFP_ZERO)
+>>> +     if (should_zero() && gfp_flags & __GFP_ZERO)
+>>>                for (i = 0; i < (1 << order); i++)
+>>>                        clear_highpage(page + i);
+>>
+>> It's probably also worth pointing out that this can be a really nice
+>> feature to have in virtual machines where memory is being deduplicated.
+>>   As it stands now, the free lists end up with gunk in them and tend not
+>> to be easy to deduplicate.  This patch would fix that.
+
+Interesting, do you have any benchmarks I could test?
+
+>
+> Oh, good point!
+>
+> -Kees
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
