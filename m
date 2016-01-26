@@ -1,110 +1,177 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: [PATCH 10/17] resource: Change walk_system_ram() to use System RAM type
-Date: Tue, 26 Jan 2016 21:57:26 +0100
-Message-ID: <1453841853-11383-11-git-send-email-bp@alien8.de>
+Subject: [PATCH 12/17] memremap: Change region_intersects() to take @flags and @desc
+Date: Tue, 26 Jan 2016 21:57:28 +0100
+Message-ID: <1453841853-11383-13-git-send-email-bp@alien8.de>
 References: <1453841853-11383-1-git-send-email-bp@alien8.de>
 Return-path: <linux-arch-owner@vger.kernel.org>
 In-Reply-To: <1453841853-11383-1-git-send-email-bp@alien8.de>
 Sender: linux-arch-owner@vger.kernel.org
 To: Ingo Molnar <mingo@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jakub Sitnicki <jsitnicki@gmail.com>, Jiang Liu <jiang.liu@linux.intel.com>, linux-arch@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Dan Williams <dan.j.williams@intel.com>, Jakub Sitnicki <jsitnicki@gmail.com>, Jan Kara <jack@suse.cz>, Jiang Liu <jiang.liu@linux.intel.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 List-Id: linux-mm.kvack.org
 
 From: Toshi Kani <toshi.kani@hpe.com>
 
-Now that all System RAM resource entries have been initialized
-to IORESOURCE_SYSTEM_RAM type, change walk_system_ram_res() and
-walk_system_ram_range() to call find_next_iomem_res() by setting
-@res.flags to IORESOURCE_SYSTEM_RAM and @name to NULL. With this
-change, they walk through the iomem table to find System RAM
-ranges without the need to do strcmp() on the resource names.
+Change region_intersects() to identify a target with @flags and @desc,
+instead of @name with strcmp().
 
-No functional change is made to the interfaces.
+Change the callers of region_intersects(), memremap() and
+devm_memremap(), to set IORESOURCE_SYSTEM_RAM in @flags and
+IORES_DESC_NONE in @desc when searching System RAM.
+
+Also, export region_intersects() so that the ACPI EINJ error injection
+driver can call this function in a later patch.
 
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Jakub Sitnicki <jsitnicki@gmail.com>
+Cc: Jan Kara <jack@suse.cz>
 Cc: Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: linux-arch@vger.kernel.org
 Cc: linux-mm <linux-mm@kvack.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Link: http://lkml.kernel.org/r/1452020081-26534-10-git-send-email-toshi.kani@hpe.com
-[ Boris: fixup comments. ]
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Link: http://lkml.kernel.org/r/1452020081-26534-12-git-send-email-toshi.kani@hpe.com
 Signed-off-by: Borislav Petkov <bp@suse.de>
 ---
- kernel/resource.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ include/linux/mm.h |  3 ++-
+ kernel/memremap.c  | 13 +++++++------
+ kernel/resource.c  | 26 +++++++++++++++-----------
+ 3 files changed, 24 insertions(+), 18 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f1cd22f2df1a..cd5a300d3397 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -385,7 +385,8 @@ enum {
+ 	REGION_MIXED,
+ };
+ 
+-int region_intersects(resource_size_t offset, size_t size, const char *type);
++int region_intersects(resource_size_t offset, size_t size, unsigned long flags,
++		      unsigned long desc);
+ 
+ /* Support for virtually mapped pages */
+ struct page *vmalloc_to_page(const void *addr);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index e517a16cb426..293309cac061 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -47,7 +47,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
+  * being mapped does not have i/o side effects and the __iomem
+  * annotation is not applicable.
+  *
+- * MEMREMAP_WB - matches the default mapping for "System RAM" on
++ * MEMREMAP_WB - matches the default mapping for System RAM on
+  * the architecture.  This is usually a read-allocate write-back cache.
+  * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
+  * memremap() will bypass establishing a new mapping and instead return
+@@ -56,11 +56,12 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
+  * MEMREMAP_WT - establish a mapping whereby writes either bypass the
+  * cache or are written through to memory and never exist in a
+  * cache-dirty state with respect to program visibility.  Attempts to
+- * map "System RAM" with this mapping type will fail.
++ * map System RAM with this mapping type will fail.
+  */
+ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+ {
+-	int is_ram = region_intersects(offset, size, "System RAM");
++	int is_ram = region_intersects(offset, size,
++				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+ 	void *addr = NULL;
+ 
+ 	if (is_ram == REGION_MIXED) {
+@@ -76,7 +77,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+ 		 * MEMREMAP_WB is special in that it can be satisifed
+ 		 * from the direct map.  Some archs depend on the
+ 		 * capability of memremap() to autodetect cases where
+-		 * the requested range is potentially in "System RAM"
++		 * the requested range is potentially in System RAM.
+ 		 */
+ 		if (is_ram == REGION_INTERSECTS)
+ 			addr = try_ram_remap(offset, size);
+@@ -88,7 +89,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+ 	 * If we don't have a mapping yet and more request flags are
+ 	 * pending then we will be attempting to establish a new virtual
+ 	 * address mapping.  Enforce that this mapping is not aliasing
+-	 * "System RAM"
++	 * System RAM.
+ 	 */
+ 	if (!addr && is_ram == REGION_INTERSECTS && flags) {
+ 		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
+@@ -266,7 +267,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap)
+ {
+ 	int is_ram = region_intersects(res->start, resource_size(res),
+-			"System RAM");
++				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+ 	resource_size_t key, align_start, align_size;
+ 	struct dev_pagemap *pgmap;
+ 	struct page_map *page_map;
 diff --git a/kernel/resource.c b/kernel/resource.c
-index 61512e972ece..994f1e41269b 100644
+index 994f1e41269b..0041cedc47d6 100644
 --- a/kernel/resource.c
 +++ b/kernel/resource.c
-@@ -415,11 +415,11 @@ int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+@@ -496,31 +496,34 @@ EXPORT_SYMBOL_GPL(page_is_ram);
+  * region_intersects() - determine intersection of region with known resources
+  * @start: region start address
+  * @size: size of region
+- * @name: name of resource (in iomem_resource)
++ * @flags: flags of resource (in iomem_resource)
++ * @desc: descriptor of resource (in iomem_resource) or IORES_DESC_NONE
+  *
+  * Check if the specified region partially overlaps or fully eclipses a
+- * resource identified by @name.  Return REGION_DISJOINT if the region
+- * does not overlap @name, return REGION_MIXED if the region overlaps
+- * @type and another resource, and return REGION_INTERSECTS if the
+- * region overlaps @type and no other defined resource. Note, that
+- * REGION_INTERSECTS is also returned in the case when the specified
+- * region overlaps RAM and undefined memory holes.
++ * resource identified by @flags and @desc (optional with IORES_DESC_NONE).
++ * Return REGION_DISJOINT if the region does not overlap @flags/@desc,
++ * return REGION_MIXED if the region overlaps @flags/@desc and another
++ * resource, and return REGION_INTERSECTS if the region overlaps @flags/@desc
++ * and no other defined resource. Note that REGION_INTERSECTS is also
++ * returned in the case when the specified region overlaps RAM and undefined
++ * memory holes.
+  *
+  * region_intersect() is used by memory remapping functions to ensure
+  * the user is not remapping RAM and is a vast speed up over walking
+  * through the resource table page by page.
+  */
+-int region_intersects(resource_size_t start, size_t size, const char *name)
++int region_intersects(resource_size_t start, size_t size, unsigned long flags,
++		      unsigned long desc)
+ {
+-	unsigned long flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+ 	resource_size_t end = start + size - 1;
+ 	int type = 0; int other = 0;
+ 	struct resource *p;
+ 
+ 	read_lock(&resource_lock);
+ 	for (p = iomem_resource.child; p ; p = p->sibling) {
+-		bool is_type = strcmp(p->name, name) == 0 &&
+-				((p->flags & flags) == flags);
++		bool is_type = (((p->flags & flags) == flags) &&
++				((desc == IORES_DESC_NONE) ||
++				 (desc == p->desc)));
+ 
+ 		if (start >= p->start && start <= p->end)
+ 			is_type ? type++ : other++;
+@@ -539,6 +542,7 @@ int region_intersects(resource_size_t start, size_t size, const char *name)
+ 
+ 	return REGION_DISJOINT;
  }
++EXPORT_SYMBOL_GPL(region_intersects);
  
- /*
-- * This function calls callback against all memory range of "System RAM"
-- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
-- * Now, this function is only for "System RAM". This function deals with
-- * full ranges and not pfn. If resources are not pfn aligned, dealing
-- * with pfn can truncate ranges.
-+ * This function calls the @func callback against all memory ranges of type
-+ * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
-+ * Now, this function is only for System RAM, it deals with full ranges and
-+ * not PFNs. If resources are not PFN-aligned, dealing with PFNs can truncate
-+ * ranges.
-  */
- int walk_system_ram_res(u64 start, u64 end, void *arg,
- 				int (*func)(u64, u64, void *))
-@@ -430,10 +430,10 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
- 
- 	res.start = start;
- 	res.end = end;
--	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
- 	orig_end = res.end;
- 	while ((res.start < res.end) &&
--		(!find_next_iomem_res(&res, "System RAM", true))) {
-+		(!find_next_iomem_res(&res, NULL, true))) {
- 		ret = (*func)(res.start, res.end, arg);
- 		if (ret)
- 			break;
-@@ -446,9 +446,9 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
- #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
- 
- /*
-- * This function calls callback against all memory range of "System RAM"
-- * which are marked as IORESOURCE_MEM and IORESOUCE_BUSY.
-- * Now, this function is only for "System RAM".
-+ * This function calls the @func callback against all memory ranges of type
-+ * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
-+ * It is to be used only for System RAM.
-  */
- int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 		void *arg, int (*func)(unsigned long, unsigned long, void *))
-@@ -460,10 +460,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 
- 	res.start = (u64) start_pfn << PAGE_SHIFT;
- 	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
--	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
- 	orig_end = res.end;
- 	while ((res.start < res.end) &&
--		(find_next_iomem_res(&res, "System RAM", true) >= 0)) {
-+		(find_next_iomem_res(&res, NULL, true) >= 0)) {
- 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
- 		if (end_pfn > pfn)
-@@ -484,7 +484,7 @@ static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
- }
- /*
-  * This generic page_is_ram() returns true if specified address is
-- * registered as "System RAM" in iomem_resource list.
-+ * registered as System RAM in iomem_resource list.
-  */
- int __weak page_is_ram(unsigned long pfn)
+ void __weak arch_remove_reservations(struct resource *avail)
  {
 -- 
 2.3.5
