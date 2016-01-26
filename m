@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 620EB6B0258
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:39 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l65so102516853wmf.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:39 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9477D6B0259
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 07:46:41 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id l65so102518175wmf.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 04:46:41 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n81si4207550wma.24.2016.01.26.04.46.26
+        by mx.google.com with ESMTPS id wm7si1605894wjc.125.2016.01.26.04.46.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 26 Jan 2016 04:46:26 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 09/14] mm, page_owner: print migratetype of page and pageblock, symbolic flags
-Date: Tue, 26 Jan 2016 13:45:48 +0100
-Message-Id: <1453812353-26744-10-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v4 06/14] mm, debug: replace dump_flags() with the new printk formats
+Date: Tue, 26 Jan 2016 13:45:45 +0100
+Message-Id: <1453812353-26744-7-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 References: <1453812353-26744-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>
 
-The information in /sys/kernel/debug/page_owner includes the migratetype of
-the pageblock the page belongs to. This is also checked against the page's
-migratetype (as declared by gfp_flags during its allocation), and the page is
-reported as Fallback if its migratetype differs from the pageblock's one.
-t
-This is somewhat misleading because in fact fallback allocation is not the only
-reason why these two can differ. It also doesn't direcly provide the page's
-migratetype, although it's possible to derive that from the gfp_flags.
+With the new printk format strings for flags, we can get rid of dump_flags()
+in mm/debug.c.
 
-It's arguably better to print both page and pageblock's migratetype and leave
-the interpretation to the consumer than to suggest fallback allocation as the
-only possible reason. While at it, we can print the migratetypes as string
-the same way as /proc/pagetypeinfo does, as some of the numeric values depend
-on kernel configuration. For that, this patch moves the migratetype_names
-array from #ifdef CONFIG_PROC_FS part of mm/vmstat.c to mm/page_alloc.c and
-exports it.
-
-With the new format strings for flags, we can now also provide symbolic page
-and gfp flags in the /sys/kernel/debug/page_owner file. This replaces the
-positional printing of page flags as single letters, which might have looked
-nicer, but was limited to a subset of flags, and required the user to remember
-the letters.
-
-Example page_owner entry after the patch:
-
-Page allocated via order 0, mask 0x24213ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD|__GFP_NOWARN|__GFP_NORETRY)
-PFN 520 type Movable Block 1 type Movable Flags 0xfffff8001006c(referenced|uptodate|lru|active|mappedtodisk)
- [<ffffffff811682c4>] __alloc_pages_nodemask+0x134/0x230
- [<ffffffff811b4058>] alloc_pages_current+0x88/0x120
- [<ffffffff8115e386>] __page_cache_alloc+0xe6/0x120
- [<ffffffff8116ba6c>] __do_page_cache_readahead+0xdc/0x240
- [<ffffffff8116bd05>] ondemand_readahead+0x135/0x260
- [<ffffffff8116bfb1>] page_cache_sync_readahead+0x31/0x50
- [<ffffffff81160523>] generic_file_read_iter+0x453/0x760
- [<ffffffff811e0d57>] __vfs_read+0xa7/0xd0
+This also fixes dump_vma() which used dump_flags() for printing vma flags.
+However dump_flags() did a page-flags specific filtering of bits higher than
+NR_PAGEFLAGS in order to remove the zone id part. For dump_vma() this resulted
+in removing several VM_* flags from the symbolic translation.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>
@@ -64,118 +41,114 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/mmzone.h |  3 +++
- mm/page_alloc.c        | 13 +++++++++++++
- mm/page_owner.c        | 24 +++++++-----------------
- mm/vmstat.c            | 13 -------------
- 4 files changed, 23 insertions(+), 30 deletions(-)
+ mm/debug.c | 60 ++++++++++++++----------------------------------------------
+ 1 file changed, 14 insertions(+), 46 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 7b6c2cfee390..9fc23ab550a7 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -63,6 +63,9 @@ enum {
- 	MIGRATE_TYPES
+diff --git a/mm/debug.c b/mm/debug.c
+index 0328fd377545..231e1452a912 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -28,36 +28,6 @@ const struct trace_print_flags vmaflag_names[] = {
+ 	{0, NULL}
  };
  
-+/* In mm/page_alloc.c; keep in sync also with show_migration_types() there */
-+extern char * const migratetype_names[MIGRATE_TYPES];
-+
- #ifdef CONFIG_CMA
- #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
- #else
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f89f51aae9a6..d1f385a37b5c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -223,6 +223,19 @@ static char * const zone_names[MAX_NR_ZONES] = {
- #endif
- };
- 
-+char * const migratetype_names[MIGRATE_TYPES] = {
-+	"Unmovable",
-+	"Movable",
-+	"Reclaimable",
-+	"HighAtomic",
-+#ifdef CONFIG_CMA
-+	"CMA",
-+#endif
-+#ifdef CONFIG_MEMORY_ISOLATION
-+	"Isolate",
-+#endif
-+};
-+
- compound_page_dtor * const compound_page_dtors[] = {
- 	NULL,
- 	free_compound_page,
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 983c3a10fa07..7a37a30d941b 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -100,8 +100,9 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		return -ENOMEM;
- 
- 	ret = snprintf(kbuf, count,
--			"Page allocated via order %u, mask 0x%x\n",
--			page_ext->order, page_ext->gfp_mask);
-+			"Page allocated via order %u, mask %#x(%pGg)\n",
-+			page_ext->order, page_ext->gfp_mask,
-+			&page_ext->gfp_mask);
- 
- 	if (ret >= count)
- 		goto err;
-@@ -110,23 +111,12 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	pageblock_mt = get_pfnblock_migratetype(page, pfn);
- 	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
- 	ret += snprintf(kbuf + ret, count - ret,
--			"PFN %lu Block %lu type %d %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
-+			"PFN %lu type %s Block %lu type %s Flags %#lx(%pGp)\n",
- 			pfn,
-+			migratetype_names[page_mt],
- 			pfn >> pageblock_order,
--			pageblock_mt,
--			pageblock_mt != page_mt ? "Fallback" : "        ",
--			PageLocked(page)	? "K" : " ",
--			PageError(page)		? "E" : " ",
--			PageReferenced(page)	? "R" : " ",
--			PageUptodate(page)	? "U" : " ",
--			PageDirty(page)		? "D" : " ",
--			PageLRU(page)		? "L" : " ",
--			PageActive(page)	? "A" : " ",
--			PageSlab(page)		? "S" : " ",
--			PageWriteback(page)	? "W" : " ",
--			PageCompound(page)	? "C" : " ",
--			PageSwapCache(page)	? "B" : " ",
--			PageMappedToDisk(page)	? "M" : " ");
-+			migratetype_names[pageblock_mt],
-+			page->flags, &page->flags);
- 
- 	if (ret >= count)
- 		goto err;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 40b2c74ddf16..5841dd20054f 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -924,19 +924,6 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
- #endif
- 
- #ifdef CONFIG_PROC_FS
--static char * const migratetype_names[MIGRATE_TYPES] = {
--	"Unmovable",
--	"Movable",
--	"Reclaimable",
--	"HighAtomic",
--#ifdef CONFIG_CMA
--	"CMA",
--#endif
--#ifdef CONFIG_MEMORY_ISOLATION
--	"Isolate",
--#endif
--};
+-static void dump_flags(unsigned long flags,
+-			const struct trace_print_flags *names, int count)
+-{
+-	const char *delim = "";
+-	unsigned long mask;
+-	int i;
 -
- static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
- 						struct zone *zone)
+-	pr_emerg("flags: %#lx(", flags);
+-
+-	/* remove zone id */
+-	flags &= (1UL << NR_PAGEFLAGS) - 1;
+-
+-	for (i = 0; i < count && flags; i++) {
+-
+-		mask = names[i].mask;
+-		if ((flags & mask) != mask)
+-			continue;
+-
+-		flags &= ~mask;
+-		pr_cont("%s%s", delim, names[i].name);
+-		delim = "|";
+-	}
+-
+-	/* check for left over flags */
+-	if (flags)
+-		pr_cont("%s%#lx", delim, flags);
+-
+-	pr_cont(")\n");
+-}
+-
+ void dump_page_badflags(struct page *page, const char *reason,
+ 		unsigned long badflags)
  {
+@@ -68,15 +38,15 @@ void dump_page_badflags(struct page *page, const char *reason,
+ 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
+ 	pr_cont("\n");
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+-	dump_flags(page->flags, pageflag_names,
+-					ARRAY_SIZE(pageflag_names) - 1);
++	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
++
+ 	if (reason)
+ 		pr_alert("page dumped because: %s\n", reason);
+-	if (page->flags & badflags) {
+-		pr_alert("bad because of flags:\n");
+-		dump_flags(page->flags & badflags, pageflag_names,
+-					ARRAY_SIZE(pageflag_names) - 1);
+-	}
++
++	badflags &= page->flags;
++	if (badflags)
++		pr_alert("bad because of flags: %#lx(%pGp)\n", badflags,
++								&badflags);
+ #ifdef CONFIG_MEMCG
+ 	if (page->mem_cgroup)
+ 		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
+@@ -96,13 +66,14 @@ void dump_vma(const struct vm_area_struct *vma)
+ 	pr_emerg("vma %p start %p end %p\n"
+ 		"next %p prev %p mm %p\n"
+ 		"prot %lx anon_vma %p vm_ops %p\n"
+-		"pgoff %lx file %p private_data %p\n",
++		"pgoff %lx file %p private_data %p\n"
++		"flags: %#lx(%pGv)\n",
+ 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
+ 		vma->vm_prev, vma->vm_mm,
+ 		(unsigned long)pgprot_val(vma->vm_page_prot),
+ 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
+-		vma->vm_file, vma->vm_private_data);
+-	dump_flags(vma->vm_flags, vmaflag_names, ARRAY_SIZE(vmaflag_names) - 1);
++		vma->vm_file, vma->vm_private_data,
++		vma->vm_flags, &vma->vm_flags);
+ }
+ EXPORT_SYMBOL(dump_vma);
+ 
+@@ -136,7 +107,7 @@ void dump_mm(const struct mm_struct *mm)
+ #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+ 		"tlb_flush_pending %d\n"
+ #endif
+-		"%s",	/* This is here to hold the comma */
++		"def_flags: %#lx(%pGv)\n",
+ 
+ 		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+ #ifdef CONFIG_MMU
+@@ -170,11 +141,8 @@ void dump_mm(const struct mm_struct *mm)
+ #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+ 		mm->tlb_flush_pending,
+ #endif
+-		""		/* This is here to not have a comma! */
+-		);
+-
+-		dump_flags(mm->def_flags, vmaflag_names,
+-				ARRAY_SIZE(vmaflag_names) - 1);
++		mm->def_flags, &mm->def_flags
++	);
+ }
+ 
+ #endif		/* CONFIG_DEBUG_VM */
 -- 
 2.7.0
 
