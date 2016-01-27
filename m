@@ -1,85 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F03A86B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:45:20 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id zv1so58787468obb.2
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:45:20 -0800 (PST)
-Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id d2si4167436oem.8.2016.01.26.21.45.20
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 61E086B0256
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:52:43 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id ik10so73744601igb.1
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:52:43 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id m101si1374788ioi.85.2016.01.26.21.52.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 21:45:20 -0800 (PST)
-Received: by mail-oi0-x231.google.com with SMTP id p187so118899513oia.2
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:45:20 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 21:52:42 -0800 (PST)
+Date: Wed, 27 Jan 2016 14:52:43 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH] mm: support CONFIG_ZONE_DEVICE + CONFIG_ZONE_DMA
+Message-ID: <20160127055243.GA8568@js1304-P5Q-DELUXE>
+References: <20160126141152.e1043d14502dcca17813afb3@linux-foundation.org>
+ <CAPcyv4hytzxpNt2RT6b5M6iuqz6V3GdSnO3eHwqpHVt4gfXPxg@mail.gmail.com>
+ <20160126145153.44e4f38b04200209d133c0a3@linux-foundation.org>
+ <CAPcyv4im4yQqLqRW9DsNRVsRTgWH1CPu1diJryZ4T57rDCWrzg@mail.gmail.com>
+ <20160127011817.GA7398@js1304-P5Q-DELUXE>
+ <CAPcyv4i9-mdPCVdrODOWS19vKKJJYuMZrvXbZ9eZKZc3Ua3QRA@mail.gmail.com>
+ <20160127021515.GA7562@js1304-P5Q-DELUXE>
+ <CAPcyv4hbdMymT5AWKoQXMjzmLLsiAMPT3HnEFi4i93ydkd69WQ@mail.gmail.com>
+ <20160127035215.GA7813@js1304-P5Q-DELUXE>
+ <CAA9_cmdgLJD-XYy0MyoQMmLOUHro=jYNsW_Sh13gL95y7537xA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160127044036.GR2948@linux.intel.com>
-References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
- <1453742717-10326-2-git-send-email-matthew.r.wilcox@intel.com>
- <CALCETrWNx=H=u2R+JKM6Dr3oMqeiBSS+hdrYrGT=BJ-JrEyL+w@mail.gmail.com> <20160127044036.GR2948@linux.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 26 Jan 2016 21:44:24 -0800
-Message-ID: <CALCETrXJacX8HB3vahu0AaarE98qkx-wW9tRYQ8nVVbHt=FgzQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] x86: Honour passed pgprot in track_pfn_insert() and track_pfn_remap()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA9_cmdgLJD-XYy0MyoQMmLOUHro=jYNsW_Sh13gL95y7537xA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jerome Glisse <j.glisse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On Tue, Jan 26, 2016 at 8:40 PM, Matthew Wilcox <willy@linux.intel.com> wrote:
-> On Mon, Jan 25, 2016 at 09:33:35AM -0800, Andy Lutomirski wrote:
->> On Mon, Jan 25, 2016 at 9:25 AM, Matthew Wilcox
->> <matthew.r.wilcox@intel.com> wrote:
->> > From: Matthew Wilcox <willy@linux.intel.com>
->> >
->> > track_pfn_insert() overwrites the pgprot that is passed in with a value
->> > based on the VMA's page_prot.  This is a problem for people trying to
->> > do clever things with the new vm_insert_pfn_prot() as it will simply
->> > overwrite the passed protection flags.  If we use the current value of
->> > the pgprot as the base, then it will behave as people are expecting.
->> >
->> > Also fix track_pfn_remap() in the same way.
->>
->> Well that's embarrassing.  Presumably it worked for me because I only
->> overrode the cacheability bits and lookup_memtype did the right thing.
->>
->> But shouldn't the PAT code change the memtype if vm_insert_pfn_prot
->> requests it?  Or are there no callers that actually need that?  (HPET
->> doesn't, because there's a plain old ioremapped mapping.)
->
-> I'm confused.  Here's what I understand:
->
->  - on x86, the bits in pgprot can be considered as two sets of bits;
->    the 'cacheability bits' -- those in _PAGE_CACHE_MASK and the
->    'protection bits' -- PRESENT, RW, USER, ACCESSED, NX
->  - The purpose of track_pfn_insert() is to ensure that the cacheability bits
->    are the same on all mappings of a given page, as strongly advised by the
->    Intel manuals [1].  So track_pfn_insert() is really only supposed to
->    modify _PAGE_CACHE_MASK of the passed pgprot, but in fact it ends up
->    modifying the protection bits as well, due to the bug.
->
-> I don't think you overrode the cacheability bits at all.  It looks to
-> me like your patch ends up mapping the HPET into userspace writable.
+On Tue, Jan 26, 2016 at 08:26:24PM -0800, Dan Williams wrote:
+> On Tue, Jan 26, 2016 at 7:52 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > On Tue, Jan 26, 2016 at 07:23:59PM -0800, Dan Williams wrote:
+> >> On Tue, Jan 26, 2016 at 6:15 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> >> > On Tue, Jan 26, 2016 at 05:37:38PM -0800, Dan Williams wrote:
+> >> >> On Tue, Jan 26, 2016 at 5:18 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> >> [..]
+> >> >> > Please refer my previous attempt to add a new zone, ZONE_CMA.
+> >> >> >
+> >> >> > https://lkml.org/lkml/2015/2/12/84
+> >> >> >
+> >> >> > It salvages a bit from SECTION_WIDTH by increasing section size.
+> >> >> > Similarly, I guess we can reduce NODE_WIDTH if needed although
+> >> >> > it could cause to reduce maximum node size.
+> >> >>
+> >> >> Dave pointed out to me that LAST__PID_SHIFT might be a better
+> >> >> candidate to reduce to 7 bits.  That field is for storing pids which
+> >> >> are already bigger than 8 bits.  If it is relying on the fact that
+> >> >> pids don't rollover very often then likely the impact of 7-bits
+> >> >> instead of 8 will be minimal.
+> >> >
+> >> > Hmm... I'm not sure it's possible or not, but, it looks not a general
+> >> > solution. It will solve your problem because you are using 64 bit arch
+> >> > but other 32 bit archs can't get the benefit.
+> >>
+> >> This is where the ZONE_CMA and ZONE_DEVICE efforts diverge.
+> >> ZONE_DEVICE is meant to enable DMA access to hundreds of gigagbytes of
+> >> persistent memory.  A 64-bit-only limitation for ZONE_DEVICE is
+> >> reasonable.
+> >
+> > Yes, but, my point is that if someone need another zone like as
+> > ZONE_CMA, they couldn't get the benefit from this change. They need to
+> > re-investigate what bits they can reduce and need to re-do all things.
+> >
+> > If it is implemented more generally at this time, it can relieve their
+> > burden and less churn the code. It would be helpful for maintainability.
+> 
+> I agree in principle that finding a 32-bit compatible solution is
+> desirable, but it simply may not be feasible.
 
-I sure hope not.  If vm_page_prot was writable, something was already
-broken, because this is the vvar mapping, and the vvar mapping is
-VM_READ (and not even VM_MAYREAD).
+Okay.
 
->
-> I don't think the vm_insert_pfn_prot() call gets to change the memtype.
-> For one, that page may already be mapped into a differet userspace using
-> the pre-existing memtype, and [1] continues to bite you.  Then there
-> may be outstanding kernel users of the page that's being mapped in.
+> 
+> For now, I'll help with auditing the existing bits so we can enumerate
+> the tradeoffs.
 
-So why was remap_pfn_range different?  I'm sure there was a reason.
+Thanks! :)
 
-I don't think that whatever_pfn_prot should ever map a page
-inconsistently, but I find it surprising that some of the variants
-call reserve_memtype to change the memtype and others don't.
+> Hmm, one tradeoff that comes to mind for 32-bit is sacrificing
+> ZONE_HIGHMEM, for ZONE_CMA.  Are there configurations that need both
+> enabled?  If a platform needs highmem it really should be using a
+> 64-bit kernel (if possible), desire for ZONE_CMA might be a nice
+> encouragement to lessen the prevalence of highmem.
 
-Anyway, this is in no way an objection to your patches.
+I guess that it's not possible. There are many systems that need
+both.
 
---Andy
+I don't think deeply, but, there is another option for ZONE_CMA.
+It can share ZONE_MOVABLE because their chracteristic is roughly
+same in view of MM. I will think more.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
