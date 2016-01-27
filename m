@@ -1,39 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF666B0256
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 17:18:31 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id yy13so11356781pab.3
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:18:31 -0800 (PST)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id ca7si11979053pad.240.2016.01.27.14.18.31
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 448416B0258
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 17:58:05 -0500 (EST)
+Received: by mail-io0-f179.google.com with SMTP id g73so36552439ioe.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:58:05 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id x27si14500341ioi.119.2016.01.27.14.58.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 14:18:31 -0800 (PST)
-Received: by mail-pa0-x236.google.com with SMTP id ho8so11414599pac.2
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:18:31 -0800 (PST)
-Date: Wed, 27 Jan 2016 14:18:29 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3 3/3] s390: query dynamic DEBUG_PAGEALLOC setting
-In-Reply-To: <1453889401-43496-4-git-send-email-borntraeger@de.ibm.com>
-Message-ID: <alpine.DEB.2.10.1601271418190.23510@chino.kir.corp.google.com>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com> <1453889401-43496-4-git-send-email-borntraeger@de.ibm.com>
+        Wed, 27 Jan 2016 14:58:04 -0800 (PST)
+Date: Thu, 28 Jan 2016 09:57:59 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2016-01-27-14-04 uploaded
+Message-ID: <20160128095759.44af98f5@canb.auug.org.au>
+In-Reply-To: <56a93efb.wTNmPJ0+jR+bz7eT%akpm@linux-foundation.org>
+References: <56a93efb.wTNmPJ0+jR+bz7eT%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz, broonie@kernel.org
 
-On Wed, 27 Jan 2016, Christian Borntraeger wrote:
+Hi Andrew,
 
-> We can use debug_pagealloc_enabled() to check if we can map
-> the identity mapping with 1MB/2GB pages as well as to print
-> the current setting in dump_stack.
-> 
-> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Reviewed-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+On Wed, 27 Jan 2016 14:04:43 -0800 akpm@linux-foundation.org wrote:
+>
+> * compat-add-in_compat_syscall-to-ask-whether-were-in-a-compat-syscall.patch
+> * sparc-compat-provide-an-accurate-in_compat_syscall-implementation.patch
+> * sparc-compat-provide-an-accurate-in_compat_syscall-implementation-fix.patch
+> * sparc-syscall-fix-syscall_get_arch.patch
+> * seccomp-check-in_compat_syscall-not-is_compat_task-in-strict-mode.patch
+> * ptrace-in-peek_siginfo-check-syscall-bitness-not-task-bitness.patch
+> * auditsc-for-seccomp-events-log-syscall-compat-state-using-in_compat_syscall.patch
+> * staging-lustre-switch-from-is_compat_task-to-in_compat_syscall.patch
+> * ext4-in-ext4_dir_llseek-check-syscall-bitness-directly.patch
+> * net-sctp-use-in_compat_syscall-for-sctp_getsockopt_connectx3.patch
+> * net-xfrm_user-use-in_compat_syscall-to-deny-compat-syscalls.patch
+> * firewire-use-in_compat_syscall-to-check-ioctl-compatness.patch
+> * efivars-use-in_compat_syscall-to-check-for-compat-callers.patch
+> * amdkfd-use-in_compat_syscall-to-check-open-caller-type.patch
+> * input-redefine-input_compat_test-as-in_compat_syscall.patch
+> * uhid-check-write-bitness-using-in_compat_syscall.patch
+> * x86-compat-remove-is_compat_task.patch
 
-Acked-by: David Rientjes <rientjes@google.com>
+> * compat-add-in_compat_syscall-to-ask-whether-were-in-a-compat-syscall.patch
+> * sparc-compat-provide-an-accurate-in_compat_syscall-implementation.patch
+> * sparc-compat-provide-an-accurate-in_compat_syscall-implementation-fix.patch
+> * sparc-syscall-fix-syscall_get_arch.patch
+> * seccomp-check-in_compat_syscall-not-is_compat_task-in-strict-mode.patch
+> * ptrace-in-peek_siginfo-check-syscall-bitness-not-task-bitness.patch
+> * auditsc-for-seccomp-events-log-syscall-compat-state-using-in_compat_syscall.patch
+> * staging-lustre-switch-from-is_compat_task-to-in_compat_syscall.patch
+> * ext4-in-ext4_dir_llseek-check-syscall-bitness-directly.patch
+> * net-sctp-use-in_compat_syscall-for-sctp_getsockopt_connectx3.patch
+> * net-xfrm_user-use-in_compat_syscall-to-deny-compat-syscalls.patch
+> * firewire-use-in_compat_syscall-to-check-ioctl-compatness.patch
+> * efivars-use-in_compat_syscall-to-check-for-compat-callers.patch
+> * amdkfd-use-in_compat_syscall-to-check-open-caller-type.patch
+> * input-redefine-input_compat_test-as-in_compat_syscall.patch
+> * uhid-check-write-bitness-using-in_compat_syscall.patch
+> * x86-compat-remove-is_compat_task.patch
+
+Note that the above patches appear twice in the series file.  I just
+applied the first ones :-)
+-- 
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
