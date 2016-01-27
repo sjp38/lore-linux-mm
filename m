@@ -1,185 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E15C66B0256
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:13:58 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id uo6so8618537pac.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:13:58 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id sp7si10826971pac.230.2016.01.27.10.13.58
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F2B006B0258
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:25:18 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id r129so155910513wmr.0
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:18 -0800 (PST)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id j142si12562926wmg.110.2016.01.27.10.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 10:13:58 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.3 016/157] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Wed, 27 Jan 2016 10:11:23 -0800
-Message-Id: <20160127180933.357485031@linuxfoundation.org>
-In-Reply-To: <20160127180932.533735338@linuxfoundation.org>
-References: <20160127180932.533735338@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
+        Wed, 27 Jan 2016 10:25:17 -0800 (PST)
+Received: by mail-wm0-x235.google.com with SMTP id n5so41727194wmn.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:17 -0800 (PST)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v1 0/8] SLAB support for KASAN
+Date: Wed, 27 Jan 2016 19:25:05 +0100
+Message-Id: <cover.1453918525.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-4.3-stable review patch.  If anyone has any objections, please let me know.
+This patch set implements SLAB support for KASAN
 
-------------------
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will remove the dependency on SLUB_DEBUG.
 
-From: Andy Lutomirski <luto@kernel.org>
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+Alexander Potapenko (8):
+  kasan: Change the behavior of kmalloc_large_oob_right test
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  kasan: Changed kmalloc_large_oob_right, added
+    kmalloc_pagealloc_oob_right
+  mm: kasan: Initial memory quarantine implementation
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  31 ++--
+ include/linux/kasan.h                |  63 +++++---
+ include/linux/slab.h                 |   6 +
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ kernel/softirq.c                     |   3 +-
+ lib/Kconfig.kasan                    |   4 +-
+ lib/test_kasan.c                     |  66 +++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   3 +
+ mm/kasan/kasan.c                     | 221 +++++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  52 +++++++
+ mm/kasan/quarantine.c                | 284 +++++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  68 +++++++--
+ mm/kasan/stackdepot.c                | 236 +++++++++++++++++++++++++++++
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  56 ++++++-
+ mm/slab.h                            |   4 +
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  21 +--
+ 40 files changed, 1122 insertions(+), 89 deletions(-)
+ create mode 100644 mm/kasan/quarantine.c
+ create mode 100644 mm/kasan/stackdepot.c
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/include/asm/mmu_context.h |   33 ++++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  |   29 ++++++++++++++++++++++++++---
- 2 files changed, 58 insertions(+), 4 deletions(-)
-
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_s
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
-+
- 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -156,10 +182,15 @@ static inline void switch_mm(struct mm_s
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -161,7 +161,10 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-@@ -188,17 +191,29 @@ void flush_tlb_mm_range(struct mm_struct
- 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto out;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto out;
- 	}
- 
- 	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
- 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
- 
-+	/*
-+	 * Both branches below are implicit full barriers (MOV to CR or
-+	 * INVLPG) that synchronize with switch_mm.
-+	 */
- 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
- 		base_pages_to_flush = TLB_FLUSH_ALL;
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-@@ -228,10 +243,18 @@ void flush_tlb_page(struct vm_area_struc
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
