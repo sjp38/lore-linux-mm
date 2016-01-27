@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EF2516B0253
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 20:24:29 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id x125so2786580pfb.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 17:24:29 -0800 (PST)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id ll4si5498538pab.207.2016.01.26.17.24.29
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 624006B0253
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 20:26:54 -0500 (EST)
+Received: by mail-oi0-f46.google.com with SMTP id p187so116338803oia.2
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 17:26:54 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id h8si3495172oej.49.2016.01.26.17.26.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jan 2016 17:24:29 -0800 (PST)
-Received: by mail-pa0-x242.google.com with SMTP id pv5so8523996pac.0
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 17:24:29 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jan 2016 17:26:53 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1] mm/madvise: update comment on sys_madvise()
-Date: Wed, 27 Jan 2016 10:24:25 +0900
-Message-Id: <1453857865-13650-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm/madvise: pass return code of memory_failure() to
+ userspace
+Date: Wed, 27 Jan 2016 01:26:20 +0000
+Message-ID: <20160127012618.GA14613@hori1.linux.bs1.fc.nec.co.jp>
+References: <1453451277-20979-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20160126152758.0638a764ba99ab215c44977c@linux-foundation.org>
+In-Reply-To: <20160126152758.0638a764ba99ab215c44977c@linux-foundation.org>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <A76D7091E758CD4A87A77E5570E807E3@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jason Baron <jbaron@redhat.com>, Chen Gong <gong.chen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+Cc: Chen Gong <gong.chen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Some new MADV_* advices are not documented in sys_madvise() comment.
-So let's update it.
+On Tue, Jan 26, 2016 at 03:27:58PM -0800, Andrew Morton wrote:
+> On Fri, 22 Jan 2016 17:27:57 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
+.com> wrote:
+>=20
+> > Currently the return value of memory_failure() is not passed to userspa=
+ce, which
+> > is inconvenient for test programs that want to know the result of error=
+ handling.
+> > So let's return it to the caller as we already do in MADV_SOFT_OFFLINE =
+case.
+>=20
+> I updated this to mention that it's for madvise(MADV_HWPOISON):
+>=20
+> : Currently the return value of memory_failure() is not passed to userspa=
+ce
+> : when madvise(MADV_HWPOISON) is used.  This is inconvenient for test
+> : programs that want to know the result of error handling.  So let's retu=
+rn
+> : it to the caller as we already do in the MADV_SOFT_OFFLINE case.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/madvise.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+Thank you.
 
-diff --git v4.4-mmotm-2016-01-20-16-10/mm/madvise.c v4.4-mmotm-2016-01-20-16-10_patched/mm/madvise.c
-index 6a77114..c897b15 100644
---- v4.4-mmotm-2016-01-20-16-10/mm/madvise.c
-+++ v4.4-mmotm-2016-01-20-16-10_patched/mm/madvise.c
-@@ -639,14 +639,26 @@ madvise_behavior_valid(int behavior)
-  *		some pages ahead.
-  *  MADV_DONTNEED - the application is finished with the given range,
-  *		so the kernel can free resources associated with it.
-+ *  MADV_FREE - the application marks pages in the given range as lasyfree,
-+ *		where actual purges are postponed until memory pressure happens.
-  *  MADV_REMOVE - the application wants to free up the given range of
-  *		pages and associated backing store.
-  *  MADV_DONTFORK - omit this area from child's address space when forking:
-  *		typically, to avoid COWing pages pinned by get_user_pages().
-  *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
-+ *  MADV_HWPOISON - trigger memory error handler as if the given memory range
-+ *		were corrupted by unrecoverable hardware memory failure.
-+ *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
-  *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
-  *		this area with pages of identical content from other such areas.
-  *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
-+ *  MADV_HUGEPAGE - the application wants to allocate transparent hugepages to
-+ *		load the content of the given memory range.
-+ *  MADV_NOHUGEPAGE - cancel MADV_HUGEPAGE: no longer allocate transparent
-+ *		hugepages.
-+ *  MADV_DONTDUMP - the application wants to prevent pages in the given range
-+ *		from being included in its core dump.
-+ *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
-  *
-  * return values:
-  *  zero    - success
--- 
-2.7.0
+> btw, MADV_SOFT_OFFLINE and MADV_HWPOISON are not documented in that
+> comment block over sys_madvise().  Fixy please?  You might want to
+> check that no other MADV_foo values have been omitted.
+
+OK, I posted the fix patch just now, which also updates about some other
+madvices.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
