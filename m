@@ -1,116 +1,375 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE286B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 04:09:12 -0500 (EST)
-Received: by mail-lb0-f177.google.com with SMTP id cl12so1494458lbc.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:09:12 -0800 (PST)
-Received: from mail-lb0-x243.google.com (mail-lb0-x243.google.com. [2a00:1450:4010:c04::243])
-        by mx.google.com with ESMTPS id f6si2670635lbc.137.2016.01.27.01.09.10
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D4AE56B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 04:10:15 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l65so136426626wmf.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:10:15 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id fa10si7183079wjd.246.2016.01.27.01.10.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 01:09:11 -0800 (PST)
-Received: by mail-lb0-x243.google.com with SMTP id dx9so109750lbc.2
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:09:10 -0800 (PST)
+        Wed, 27 Jan 2016 01:10:14 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 11A811C2191
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 09:10:14 +0000 (GMT)
+Date: Wed, 27 Jan 2016 09:10:12 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC 2/3] mm, compaction: introduce kcompactd
+Message-ID: <20160127091012.GL3162@techsingularity.net>
+References: <1453822575-20835-1-git-send-email-vbabka@suse.cz>
+ <1453822575-20835-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160126144926.21d854fe53b76bd03e34b0d1@linux-foundation.org>
-References: <145358234948.18573.2681359119037889087.stgit@zurg>
-	<20160126144926.21d854fe53b76bd03e34b0d1@linux-foundation.org>
-Date: Wed, 27 Jan 2016 12:09:10 +0300
-Message-ID: <CALYGNiM-XNnXT+L+b=WLRVxrxii_oxXxY3Wu1PC8mvm_6W8wNw@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: warn about VmData over RLIMIT_DATA
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1453822575-20835-2-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Jan 27, 2016 at 1:49 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sat, 23 Jan 2016 23:52:29 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Tue, Jan 26, 2016 at 04:36:14PM +0100, Vlastimil Babka wrote:
+> Memory compaction can be currently performed in several contexts:
+> 
+> - kswapd balancing a zone after a high-order allocation failure
+> - direct compaction to satisfy a high-order allocation, including THP page
+>   fault attemps
+> - khugepaged trying to collapse a hugepage
+> - manually from /proc
+> 
+> The purpose of compaction is two-fold. The obvious purpose is to satisfy a
+> (pending or future) high-order allocation, and is easy to evaluate. The other
+> purpose is to keep overal memory fragmentation low and help the
+> anti-fragmentation mechanism. The success wrt the latter purpose is more
+> difficult to evaluate though.
+> 
+> The current situation wrt the purposes has a few drawbacks:
+> 
+> - compaction is invoked only when a high-order page or hugepage is not
+>   available (or manually). This might be too late for the purposes of keeping
+>   memory fragmentation low.
+> - direct compaction increases latency of allocations. Again, it would be
+>   better if compaction was performed asynchronously to keep fragmentation low,
+>   before the allocation itself comes.
+> - (a special case of the previous) the cost of compaction during THP page
+>   faults can easily offset the benefits of THP.
+> - kswapd compaction appears to be complex, fragile and not working in some
+>   scenarios
+> 
+
+An addendum to that is that kswapd can be compacting for a high-order
+allocation request when it should be reclaiming memory for an order-0
+request.
+
+My recollection is that kswapd compacting was meant to help atomic
+high-order allocations but I wonder if the same problem even exists with
+the revised watermark handling.
+
+> To improve the situation, we should be able to benefit from an equivalent of
+> kswapd, but for compaction - i.e. a background thread which responds to
+> fragmentation and the need for high-order allocations (including hugepages)
+> somewhat proactively.
+> 
+> One possibility is to extend the responsibilities of kswapd, which could
+> however complicate its design too much. It should be better to let kswapd
+> handle reclaim, as order-0 allocations are often more critical than high-order
+> ones.
+> 
+> Another possibility is to extend khugepaged, but this kthread is a single
+> instance and tied to THP configs.
+> 
+
+That also would not handle the atomic high-order allocation case.
+
+> This patch goes with the option of a new set of per-node kthreads called
+> kcompactd, and lays the foundations, without introducing any new tunables.
+> The lifecycle mimics kswapd kthreads, including the memory hotplug hooks.
+> 
+> Waking up of the kcompactd threads is also tied to kswapd activity and follows
+> these rules:
+> - we don't want to affect any fastpaths, so wake up kcompactd only from the
+>   slowpath, as it's done for kswapd
+
+Ok
+
+> - if kswapd is doing reclaim, it's more important than compaction, so don't
+>   invoke kcompactd until kswapd goes to sleep
+
+This makes sense given that kswapd can be reclaiming order-0 pages so
+compaction can even start with a reasonable chance of success.
+
+> - the target order used for kswapd is passed to kcompactd
+> 
+> The kswapd compact/reclaim loop for high-order pages will be removed in the
+> next patch with the description of what's wrong with it.
+> 
+> In this patch, kcompactd uses the standard compaction_suitable() and
+> compact_finished() criteria, which means it will most likely have nothing left
+> to do after kswapd finishes, until the next patch. Kcompactd also mimics
+> direct compaction somewhat by trying async compaction first and sync compaction
+> afterwards, and uses the deferred compaction functionality.
+> 
+
+Why should it try async compaction first? The deferred compaction makes
+sense as kcompact will need some sort of limitation on the amount of
+CPU it can use.
+
+> Future possible future uses for kcompactd include the ability to wake up
+> kcompactd on demand in special situations, such as when hugepages are not
+> available (currently not done due to __GFP_NO_KSWAPD) or when a fragmentation
+> event (i.e. __rmqueue_fallback()) occurs. It's also possible to perform
+> periodic compaction with kcompactd.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  include/linux/compaction.h        |  16 +++
+>  include/linux/mmzone.h            |   6 +
+>  include/linux/vm_event_item.h     |   1 +
+>  include/trace/events/compaction.h |  55 +++++++++
+>  mm/compaction.c                   | 227 ++++++++++++++++++++++++++++++++++++++
+>  mm/memory_hotplug.c               |  15 ++-
+>  mm/page_alloc.c                   |   3 +
+>  mm/vmscan.c                       |   6 +
+>  mm/vmstat.c                       |   1 +
+>  9 files changed, 325 insertions(+), 5 deletions(-)
+> 
+> <SNIP>
 >
->> This patch fixes 84638335900f ("mm: rework virtual memory accounting")
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 585de54dbe8c..7452975fa481 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -17,6 +17,9 @@
+>  #include <linux/balloon_compaction.h>
+>  #include <linux/page-isolation.h>
+>  #include <linux/kasan.h>
+> +#include <linux/kthread.h>
+> +#include <linux/freezer.h>
+> +#include <linux/module.h>
+>  #include "internal.h"
+>  
+>  #ifdef CONFIG_COMPACTION
+> @@ -29,6 +32,7 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
+>  {
+>  	count_vm_events(item, delta);
+>  }
+> +
+>  #else
+>  #define count_compact_event(item) do { } while (0)
+>  #define count_compact_events(item, delta) do { } while (0)
+
+Spurious whitespace change.
+
+> @@ -1759,4 +1763,227 @@ void compaction_unregister_node(struct node *node)
+>  }
+>  #endif /* CONFIG_SYSFS && CONFIG_NUMA */
+>  
+> +static bool kcompactd_work_requested(pg_data_t *pgdat)
+> +{
+> +	return pgdat->kcompactd_max_order > 0;
+> +}
+> +
+
+inline
+
+> +static bool kcompactd_node_suitable(pg_data_t *pgdat)
+> +{
+> +	int zoneid;
+> +	struct zone *zone;
+> +
+> +	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+> +		zone = &pgdat->node_zones[zoneid];
+> +
+> +		if (!populated_zone(zone))
+> +			continue;
+> +
+> +		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
+> +					pgdat->kcompactd_classzone_idx)
+> +							== COMPACT_CONTINUE)
+> +			return true;
+> +	}
+> +
+> +	return false;
+> +}
+> +
+
+Why does this traverse all zones and not just the ones within the
+classzone_idx?
+
+> +static void kcompactd_do_work(pg_data_t *pgdat)
+> +{
+> +	/*
+> +	 * With no special task, compact all zones so that a page of requested
+> +	 * order is allocatable.
+> +	 */
+> +	int zoneid;
+> +	struct zone *zone;
+> +	struct compact_control cc = {
+> +		.order = pgdat->kcompactd_max_order,
+> +		.classzone_idx = pgdat->kcompactd_classzone_idx,
+> +		.mode = MIGRATE_ASYNC,
+> +		.ignore_skip_hint = true,
+> +
+> +	};
+> +	bool success = false;
+> +
+> +	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+> +							cc.classzone_idx);
+> +	count_vm_event(KCOMPACTD_WAKE);
+> +
+> +retry:
+> +	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+
+Again, why is classzone_idx not taken into account?
+
+> +		int status;
+> +
+> +		zone = &pgdat->node_zones[zoneid];
+> +		if (!populated_zone(zone))
+> +			continue;
+> +
+> +		if (compaction_deferred(zone, cc.order))
+> +			continue;
+> +
+> +		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
+> +							COMPACT_CONTINUE)
+> +			continue;
+> +
+> +		cc.nr_freepages = 0;
+> +		cc.nr_migratepages = 0;
+> +		cc.zone = zone;
+> +		INIT_LIST_HEAD(&cc.freepages);
+> +		INIT_LIST_HEAD(&cc.migratepages);
+> +
+> +		status = compact_zone(zone, &cc);
+> +
+> +		if (zone_watermark_ok(zone, cc.order, low_wmark_pages(zone),
+> +						cc.classzone_idx, 0)) {
+> +			success = true;
+> +			compaction_defer_reset(zone, cc.order, false);
+> +		} else if (cc.mode != MIGRATE_ASYNC &&
+> +						status == COMPACT_COMPLETE) {
+> +			defer_compaction(zone, cc.order);
+> +		}
+> +
+> +		VM_BUG_ON(!list_empty(&cc.freepages));
+> +		VM_BUG_ON(!list_empty(&cc.migratepages));
+> +	}
+> +
+> +	if (!success && cc.mode == MIGRATE_ASYNC) {
+> +		cc.mode = MIGRATE_SYNC_LIGHT;
+> +		goto retry;
+> +	}
+> +
+
+Still not getting why kcompactd should concern itself with async
+compaction. It's really direct compaction that cared and was trying to
+avoid stalls.
+
+> +	 * Regardless of success, we are done until woken up next. But remember
+> +	 * the requested order/classzone_idx in case it was higher/tighter than
+> +	 * our current ones
+> +	 */
+> +	if (pgdat->kcompactd_max_order <= cc.order)
+> +		pgdat->kcompactd_max_order = 0;
+> +	if (pgdat->classzone_idx >= cc.classzone_idx)
+> +		pgdat->classzone_idx = pgdat->nr_zones - 1;
+> +}
+> +
 >
-> uh, I think I'll rewrite this to
+> <SNIP>
 >
-> : This patch provides a way of working around a slight regression introduced
-> : by 84638335900f ("mm: rework virtual memory accounting").
+> @@ -1042,7 +1043,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	arg.nr_pages = nr_pages;
+>  	node_states_check_changes_online(nr_pages, zone, &arg);
+>  
+> -	nid = pfn_to_nid(pfn);
+> +	nid = zone_to_nid(zone);
+>  
+>  	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+>  	ret = notifier_to_errno(ret);
+> @@ -1082,7 +1083,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+>  
+>  	if (onlined_pages) {
+> -		node_states_set_node(zone_to_nid(zone), &arg);
+> +		node_states_set_node(nid, &arg);
+>  		if (need_zonelists_rebuild)
+>  			build_all_zonelists(NULL, NULL);
+>  		else
 
-Sure.
+Why are these two hunks necessary?
 
-As you see I keept this in "ignore and warn" state by default.
-During testing in linux-next it was able to cauch only small limits
-like 0 in case of valgrind decause bug in pages/bytes units.
-I think it's a bad idea to enfornce limit in the middle of merge window.
-So let's change default to "block" in the next release.
+> @@ -1093,8 +1094,10 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  
+>  	init_per_zone_wmark_min();
+>  
+> -	if (onlined_pages)
+> -		kswapd_run(zone_to_nid(zone));
+> +	if (onlined_pages) {
+> +		kswapd_run(nid);
+> +		kcompactd_run(nid);
+> +	}
+>  
+>  	vm_total_pages = nr_free_pagecache_pages();
+>  
+> @@ -1858,8 +1861,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  		zone_pcp_update(zone);
+>  
+>  	node_states_clear_node(node, &arg);
+> -	if (arg.status_change_nid >= 0)
+> +	if (arg.status_change_nid >= 0) {
+>  		kswapd_stop(node);
+> +		kcompactd_stop(node);
+> +	}
+>  
+>  	vm_total_pages = nr_free_pagecache_pages();
+>  	writeback_set_ratelimit();
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 63358d9f9aa9..7747eb36e789 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5212,6 +5212,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  #endif
+>  	init_waitqueue_head(&pgdat->kswapd_wait);
+>  	init_waitqueue_head(&pgdat->pfmemalloc_wait);
+> +#ifdef CONFIG_COMPACTION
+> +	init_waitqueue_head(&pgdat->kcompactd_wait);
+> +#endif
+>  	pgdat_page_ext_init(pgdat);
+>  
+>  	for (j = 0; j < MAX_NR_ZONES; j++) {
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 72d52d3aef74..1449e21c55cc 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3408,6 +3408,12 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+>  		 */
+>  		reset_isolation_suitable(pgdat);
+>  
+> +		/*
+> +		 * We have freed the memory, now we should compact it to make
+> +		 * allocation of the requested order possible.
+> +		 */
+> +		wakeup_kcompactd(pgdat, order, classzone_idx);
+> +
+>  		if (!kthread_should_stop())
+>  			schedule();
+>  
 
->
->> Before that commit RLIMIT_DATA have control only over size of the brk region.
->> But that change have caused problems with all existing versions of valgrind,
->> because it set RLIMIT_DATA to zero.
->>
->> This patch fixes rlimit check (limit actually in bytes, not pages)
->> and by default turns it into warning which prints at first VmData misuse:
->> "mmap: top (795): VmData 516096 exceed data ulimit 512000. Will be forbidden soon."
->>
->> Behavior is controlled by boot param ignore_rlimit_data=y/n and by sysfs
->> /sys/module/kernel/parameters/ignore_rlimit_data. For now it set to "y".
->>
->>
->> ...
->>
->> +static inline bool is_data_mapping(vm_flags_t flags)
->> +{
->> +     return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
->> +                                     VM_WRITE | VM_SHARED)) == VM_WRITE;
->> +}
->
-> This (copied from existing code) hurts my brain.  We're saying "if it
-> isn't stack and it's unshared and writable, it's data", yes?
+This initially confused me but it's due to patch ordering. It's silly
+but when this patch is applied then both kswapd and kcompactd are
+compacting memory. I would prefer if the patches were in reverse order
+but that is purely taste.
 
-Yes. Data vma supposed to be private, writable and without GROWSDOWN/UP.
-We could make it more redable if define macro for stack growing direction.
+While this was not a comprehensive review, I think the patch is ok in
+principal. While deferred compaction will keep the CPU usage under control,
+the main concern is that kcompactd consumes too much CPU but I do not
+see a case where that would trigger that kswapd would not have
+encountered already.
 
-Or redefine that data shouldn't grow in any direction and any growable
-vma is a "stack",
-but RLIMIT_STACK is enforced only in one direction (or not? not sure).
-Anyway only few arches actually have flag VM_GROWSUP.
-
-VM_WRITE separates Data and Code - Data can be executable, Code
-should't be writable.
-VM_GROWS separates Data and Stack - Stack grows automaticallly, Data is not.
-
-Probaly stack should be writable too, but some applications  might
-remaps pieces of stack as read-only.
-
-For now (except parisc and metag)
-
-VM_GROWSDOWN | VM_EXEC is a code
-VM_GROWSDOWN | VM_EXEC | VM_WRITE is a stack
-VM_GROWSUP | VM_EXEC | VM_WRITE is a data (for ia64)
-
-And yes, this hurts my brain too. But much less than previous version
-of accounting.
-
->
-> hm.  I guess that's because with a shared mapping we don't know who to
-> blame for the memory consumption so we blame nobody.  But what about
-> non-shared read-only mappings?
-
-I have no Idea. There's a lot stange combinations. But since VmData is
-supposed to be limited with RLIMIT_DATA it safer to leave them alone.
-User will see them in total VmSize and able to limit with RLIMIT_AS.
-
-To be honest RLMIT_DATA cannot limit memory consumption at all.
-RLIMIT_AS cannot do anything too: applicataion can keep any
-amount of data in unlinked tmpfs file and mmap them as needed.
-Only memory controller can solve this.
-
->
-> Can we please have a comment here fully explaining the thinking?
->
-
-Ok. I'll tie this together in a form of patch.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
