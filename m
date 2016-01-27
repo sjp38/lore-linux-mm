@@ -1,66 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 057AD6B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 05:09:50 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id 123so144489087wmz.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 02:09:49 -0800 (PST)
-Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com. [195.75.94.105])
-        by mx.google.com with ESMTPS id u3si7491990wju.201.2016.01.27.02.09.43
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 634436B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 05:10:17 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id r129so138521146wmr.0
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 02:10:17 -0800 (PST)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id hn6si7433918wjc.229.2016.01.27.02.10.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 02:09:43 -0800 (PST)
-Received: from localhost
-	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 27 Jan 2016 10:09:42 -0000
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v3 1/3] mm: provide debug_pagealloc_enabled() without CONFIG_DEBUG_PAGEALLOC
-Date: Wed, 27 Jan 2016 11:09:59 +0100
-Message-Id: <1453889401-43496-2-git-send-email-borntraeger@de.ibm.com>
-In-Reply-To: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Jan 2016 02:10:16 -0800 (PST)
+Date: Wed, 27 Jan 2016 11:09:04 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: several messages
+In-Reply-To: <20160125185706.GA28416@gmail.com>
+Message-ID: <alpine.DEB.2.11.1601271108230.3886@nanos>
+References: <cover.1453746505.git.luto@kernel.org> <20160125185706.GA28416@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk, Christian Borntraeger <borntraeger@de.ibm.com>
+To: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-We can provide debug_pagealloc_enabled() also if CONFIG_DEBUG_PAGEALLOC
-is not set. It will return false in that case.
+On Mon, 25 Jan 2016, Andy Lutomirski wrote:
+> This is a straightforward speedup on Ivy Bridge and newer, IIRC.
+> (I tested on Skylake.  INVPCID is not available on Sandy Bridge.
+> I don't have Ivy Bridge, Haswell or Broadwell to test on, so I
+> could be wrong as to when the feature was introduced.)
 
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
----
- include/linux/mm.h | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f1cd22f..ae84716 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2194,13 +2194,18 @@ kernel_map_pages(struct page *page, int numpages, int enable)
- #ifdef CONFIG_HIBERNATION
- extern bool kernel_page_present(struct page *page);
- #endif /* CONFIG_HIBERNATION */
--#else
-+#else  /* CONFIG_DEBUG_PAGEALLOC */
-+static inline bool debug_pagealloc_enabled(void)
-+{
-+	return false;
-+}
-+
- static inline void
- kernel_map_pages(struct page *page, int numpages, int enable) {}
- #ifdef CONFIG_HIBERNATION
- static inline bool kernel_page_present(struct page *page) { return true; }
- #endif /* CONFIG_HIBERNATION */
--#endif
-+#endif /* CONFIG_DEBUG_PAGEALLOC */
+Haswell and Broadwell have it. No idea about ivy bridge.
  
- #ifdef __HAVE_ARCH_GATE_AREA
- extern struct vm_area_struct *get_gate_vma(struct mm_struct *mm);
--- 
-2.3.0
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
