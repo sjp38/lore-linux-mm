@@ -1,70 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A6E56B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 03:50:02 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id n5so16811508wmn.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:50:01 -0800 (PST)
-Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id f136si10852087wme.20.2016.01.27.00.50.00
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CCF86B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 03:50:04 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id n5so16813249wmn.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:50:04 -0800 (PST)
+Received: from e06smtp17.uk.ibm.com (e06smtp17.uk.ibm.com. [195.75.94.113])
+        by mx.google.com with ESMTPS id yv10si7108282wjc.217.2016.01.27.00.50.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 27 Jan 2016 00:50:00 -0800 (PST)
 Received: from localhost
-	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 27 Jan 2016 08:49:59 -0000
+	Wed, 27 Jan 2016 08:50:00 -0000
 Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id A0D311B0804B
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:50:03 +0000 (GMT)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0R8nuPZ9830824
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 5783A1B0805F
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:50:04 +0000 (GMT)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0R8nuVC67043562
 	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:49:56 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0R7nuRV023825
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:49:57 -0700
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0R8nuRX003435
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:49:56 -0700
 From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v2 0/3] Optimize CONFIG_DEBUG_PAGEALLOC
-Date: Wed, 27 Jan 2016 09:50:15 +0100
-Message-Id: <1453884618-33852-1-git-send-email-borntraeger@de.ibm.com>
+Subject: [PATCH v2 3/3] s390: query dynamic DEBUG_PAGEALLOC setting
+Date: Wed, 27 Jan 2016 09:50:18 +0100
+Message-Id: <1453884618-33852-4-git-send-email-borntraeger@de.ibm.com>
+In-Reply-To: <1453884618-33852-1-git-send-email-borntraeger@de.ibm.com>
+References: <1453884618-33852-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk, Christian Borntraeger <borntraeger@de.ibm.com>
 
-As CONFIG_DEBUG_PAGEALLOC can be enabled/disabled via kernel
-parameters we can optimize some cases by checking the enablement
-state.
+We can use debug_pagealloc_enabled() to check if we can map
+the identity mapping with 1MB/2GB pages as well as to print
+the current setting in dump_stack.
 
-I have done s390 and x86 as examples.
-s390 should be ok, I tested several combinations, x86 seems to
-work as well, but I have some concerns about the 1GB pages.
-The previous code did not bother at all with CONFIG_DEBUG_PAGEALLOC
-and I do not fully understand why.
-
-Power can probably do the same, Michael/Ben?
-I am not sure about sparc. Sparc seems to allocate the TSB buffer
-really early. David?
-
-
-V1->V2:
-- replace DEBUG_PAGEALLOC(disabled/enabled) with DEBUG_PAGEALLOC
-  dump_stack for s390/x86
-- add /* CONFIG_DEBUG_PAGEALLOC */ to else and endif
-
-
-Christian Borntraeger (3):
-  mm: provide debug_pagealloc_enabled() without CONFIG_DEBUG_PAGEALLOC
-  x86: query dynamic DEBUG_PAGEALLOC setting
-  s390: query dynamic DEBUG_PAGEALLOC setting
-
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
  arch/s390/kernel/dumpstack.c |  8 ++++----
  arch/s390/mm/vmem.c          | 10 ++++------
- arch/x86/kernel/dumpstack.c  |  5 ++---
- arch/x86/mm/init.c           |  7 ++++---
- arch/x86/mm/pageattr.c       | 14 ++++----------
- include/linux/mm.h           |  9 +++++++--
- 6 files changed, 25 insertions(+), 28 deletions(-)
+ 2 files changed, 8 insertions(+), 10 deletions(-)
 
+diff --git a/arch/s390/kernel/dumpstack.c b/arch/s390/kernel/dumpstack.c
+index dc8e204..3f352e9 100644
+--- a/arch/s390/kernel/dumpstack.c
++++ b/arch/s390/kernel/dumpstack.c
+@@ -11,6 +11,7 @@
+ #include <linux/export.h>
+ #include <linux/kdebug.h>
+ #include <linux/ptrace.h>
++#include <linux/mm.h>
+ #include <linux/module.h>
+ #include <linux/sched.h>
+ #include <asm/processor.h>
+@@ -184,10 +185,9 @@ void die(struct pt_regs *regs, const char *str)
+ #endif
+ #ifdef CONFIG_SMP
+ 	printk("SMP ");
+-#endif
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-	printk("DEBUG_PAGEALLOC");
+-#endif
++#endif	
++if (debug_pagealloc_enabled())
++		printk("DEBUG_PAGEALLOC");
+ 	printk("\n");
+ 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
+ 	print_modules();
+diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+index ef7d6c8..d27fccba 100644
+--- a/arch/s390/mm/vmem.c
++++ b/arch/s390/mm/vmem.c
+@@ -94,16 +94,15 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
+ 			pgd_populate(&init_mm, pg_dir, pu_dir);
+ 		}
+ 		pu_dir = pud_offset(pg_dir, address);
+-#ifndef CONFIG_DEBUG_PAGEALLOC
+ 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
+-		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
++		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
++		     !debug_pagealloc_enabled()) {
+ 			pud_val(*pu_dir) = __pa(address) |
+ 				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
+ 				(ro ? _REGION_ENTRY_PROTECT : 0);
+ 			address += PUD_SIZE;
+ 			continue;
+ 		}
+-#endif
+ 		if (pud_none(*pu_dir)) {
+ 			pm_dir = vmem_pmd_alloc();
+ 			if (!pm_dir)
+@@ -111,9 +110,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
+ 			pud_populate(&init_mm, pu_dir, pm_dir);
+ 		}
+ 		pm_dir = pmd_offset(pu_dir, address);
+-#ifndef CONFIG_DEBUG_PAGEALLOC
+ 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
+-		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
++		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
++		    !debug_pagealloc_enabled()) {
+ 			pmd_val(*pm_dir) = __pa(address) |
+ 				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
+ 				_SEGMENT_ENTRY_YOUNG |
+@@ -121,7 +120,6 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
+ 			address += PMD_SIZE;
+ 			continue;
+ 		}
+-#endif
+ 		if (pmd_none(*pm_dir)) {
+ 			pt_dir = vmem_pte_alloc(address);
+ 			if (!pt_dir)
 -- 
 2.3.0
 
