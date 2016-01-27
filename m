@@ -1,105 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0B56B0005
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 06:31:00 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id r129so141166116wmr.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 03:31:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 68si10478780wmi.97.2016.01.27.03.30.59
+Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 100D06B0005
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 06:49:57 -0500 (EST)
+Received: by mail-lf0-f44.google.com with SMTP id 17so4274346lfz.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 03:49:57 -0800 (PST)
+Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
+        by mx.google.com with ESMTPS id av2si2996611lbc.8.2016.01.27.03.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 03:30:59 -0800 (PST)
-Subject: Re: [PATCH] mm, gup: introduce concept of "foreign" get_user_pages()
-References: <20160122180219.164259F1@viggo.jf.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56A8AA6E.2080705@suse.cz>
-Date: Wed, 27 Jan 2016 12:30:54 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 03:49:55 -0800 (PST)
+Received: by mail-lf0-x22d.google.com with SMTP id 17so4274105lfz.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 03:49:55 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160122180219.164259F1@viggo.jf.intel.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
+References: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
+Date: Wed, 27 Jan 2016 14:49:55 +0300
+Message-ID: <CALYGNiP6-T=LuBwzKys7TPpFAiGC-U7FymDT4kr3Zrcfo7CoiQ@mail.gmail.com>
+Subject: Re: mm: BUG in expand_downwards
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, srikar@linux.vnet.ibm.com, jack@suse.cz
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-On 01/22/2016 07:02 PM, Dave Hansen wrote:
-> One of Vlastimil's comments made me go dig back in to the uprobes
-> code's use of get_user_pages().  I decided to change both of them
-> to be "foreign" accesses.
-> 
-> This also fixes the nommu breakage that Vlastimil noted last time.
-> 
-> Srikar, I'd appreciate if you can have a look at the uprobes.c
-> modifications, especially the comment.  I don't think this will
-> change any behavior, but I want to make sure the comment is
-> accurate.
-> 
-> ---
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> For protection keys, we need to understand whether protections
-> should be enforced in software or not.  In general, we enforce
-> protections when working on our own task, but not when on others.
-> We call these "current" and "foreign" operations.
-> 
-> This patch introduces a new get_user_pages() variant:
-> 
-> 	get_user_pages_foreign()
-> 
-> We modify the vanilla get_user_pages() so it can no longer be
-> used on mm/tasks other than 'current/current->mm', which is by
-> far the most common way it is called.  Using it makes a few of
-> the call sites look a bit nicer.
-> 
-> In other words, get_user_pages_foreign() is a replacement for
-> when get_user_pages() is called on non-current tsk/mm.
-> 
-> This also switches get_user_pages_(un)locked() over to be like
-> get_user_pages() and not take a tsk/mm.  There is no
-> get_user_pages_foreign_(un)locked().  If someone wants that
-> behavior they just have to use "__" variant and pass in
-> FOLL_FOREIGN explicitly.
-> 
-> The uprobes is_trap_at_addr() location holds mmap_sem and
-> calls get_user_pages(current->mm) on an instruction address.  This
-> makes it a pretty unique gup caller.  Being an instruction access
-> and also really originating from the kernel (vs. the app), I opted
-> to consider this a 'foreign' access where protection keys will not
-> be enforced.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> Cc: vbabka@suse.cz
+It seems anon_vma appeared between lock and unlock.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+This should fix the bug and make code faster (write lock isn't required here)
 
-But,
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -453,12 +453,16 @@ static void validate_mm(struct mm_struct *mm)
+        struct vm_area_struct *vma = mm->mmap;
 
->  long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
->  			       unsigned long start, unsigned long nr_pages,
->  			       int write, int force, struct page **pages,
->  			       unsigned int gup_flags)
->  {
->  	long ret;
-> -	down_read(&mm->mmap_sem);
-> -	ret = get_user_pages(tsk, mm, start, nr_pages, write, force,
-> -			     pages, NULL);
-> -	up_read(&mm->mmap_sem);
-> +	down_read(&current->mm->mmap_sem);
-> +	ret = get_user_pages(start, nr_pages, write, force, pages, NULL);
-> +	up_read(&current->mm->mmap_sem);
+        while (vma) {
++               struct anon_vma *anon_vma = vma->anon_vma;
+                struct anon_vma_chain *avc;
 
-I understand your reply to lkp report also means that this no longer locks
-current's mmap_sem? :)
+-               vma_lock_anon_vma(vma);
+-               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+-                       anon_vma_interval_tree_verify(avc);
+-               vma_unlock_anon_vma(vma);
++               if (anon_vma) {
++                       anon_vma_lock_read(anon_vma);
++                       list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++                               anon_vma_interval_tree_verify(avc);
++                       anon_vma_unlock_read(anon_vma);
++               }
++
+                highest_address = vma->vm_end;
+                vma = vma->vm_next;
+                i++;
 
-Vlastimil
 
+On Wed, Jan 27, 2016 at 1:51 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> Hello,
+>
+> The following program trigger BUG in expand_downwards (run it in tight
+> parallel loop for a while):
+>
+> // autogenerated by syzkaller (http://github.com/google/syzkaller)
+> #include <pthread.h>
+> #include <stdint.h>
+> #include <string.h>
+> #include <sys/syscall.h>
+> #include <unistd.h>
+>
+> long r[10];
+>
+> void* thr(void* arg)
+> {
+>   switch ((long)arg) {
+>   case 0:
+>     r[0] = syscall(SYS_mmap, 0x20731000ul, 0x2000ul, 0x2ul, 0x22132ul,
+>                    0xfffffffffffffffful, 0x0ul);
+>     break;
+>   case 1:
+>     r[1] = syscall(SYS_mremap, 0x20732000ul, 0x1000ul, 0x3000ul, 0x3ul,
+>                    0x2015b000ul, 0);
+>     break;
+>   case 2:
+>     r[2] = syscall(SYS_fanotify_init, 0x20ul, 0x40002ul, 0, 0, 0, 0);
+>     break;
+>   case 3:
+>     r[3] = syscall(SYS_mremap, 0x2015c000ul, 0x1000ul, 0x4000ul, 0x3ul,
+>                    0x204eb000ul, 0);
+>     break;
+>   case 4:
+>     r[4] = syscall(SYS_munlock, 0x204eb000ul, 0x4000ul, 0, 0, 0, 0);
+>     break;
+>   case 5:
+>     r[5] = syscall(SYS_mremap, 0x204ec000ul, 0x1000ul, 0x1000ul, 0x3ul,
+>                    0x2015d000ul, 0);
+>     break;
+>   case 6:
+>     r[6] = syscall(SYS_mmap, 0x20000000ul, 0x1000ul, 0x3ul, 0x32ul,
+>                    0xfffffffffffffffful, 0x0ul);
+>     break;
+>   case 7:
+>     r[7] = syscall(SYS_sigaltstack, 0x204ec000ul, 0x20000000ul, 0, 0, 0,
+>                    0);
+>     break;
+>   case 8:
+>     memcpy((void*)0x2015bffa, "\x2e\x2f\x62\x75\x73\x00", 6);
+>     r[9] = syscall(SYS_mkdir, 0x2015bffaul, 0x108ul, 0, 0, 0, 0);
+>     break;
+>   }
+>   return 0;
+> }
+>
+> int main()
+> {
+>   long i;
+>   pthread_t th[9];
+>
+>   srand(getpid());
+>   memset(r, -1, sizeof(r));
+>   for (i = 0; i < 9; i++) {
+>     pthread_create(&th[i], 0, thr, (void*)i);
+>     usleep(1000);
+>   }
+>   for (i = 0; i < 9; i++) {
+>     pthread_create(&th[i], 0, thr, (void*)i);
+>     usleep(rand()%1000);
+>   }
+>   usleep(10000);
+>   return 0;
+> }
+>
+>
+>
+> =====================================
+> [ BUG: bad unlock balance detected! ]
+> 4.5.0-rc1+ #292 Not tainted
+> -------------------------------------
+> a.out/7506 is trying to release lock (&anon_vma->rwsem) at:
+> [<     inline     >] vma_unlock_anon_vma include/linux/rmap.h:123
+> [<ffffffff816f8e5d>] validate_mm+0x12d/0x850 mm/mmap.c:461
+> but there are no more locks to release!
+>
+> other info that might help us debug this:
+> 1 lock held by a.out/7506:
+>  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff8127dfd7>]
+> __do_page_fault+0x737/0x960 arch/x86/mm/fault.c:1184
+>
+> stack backtrace:
+> CPU: 1 PID: 7506 Comm: a.out Not tainted 4.5.0-rc1+ #292
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>  00000000ffffffff ffff88005d107b50 ffffffff829e79ad ffff8800603b4ce8
+>  ffff88005f15df00 ffffffff816f8e5d ffff88005d107b80 ffffffff81450884
+>  ffff8800603b4ce8 ffff88005f15e720 ffff88005f15e720 00000000ffffffff
+> Call Trace:
+>  [<     inline     >] __dump_stack lib/dump_stack.c:15
+>  [<ffffffff829e79ad>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+>  [<ffffffff81450884>] print_unlock_imbalance_bug+0x174/0x1a0
+> kernel/locking/lockdep.c:3261
+>  [<     inline     >] __lock_release kernel/locking/lockdep.c:3385
+>  [<ffffffff8145c687>] lock_release+0x937/0xce0 kernel/locking/lockdep.c:3606
+>  [<ffffffff814490ba>] up_write+0x1a/0x60 kernel/locking/rwsem.c:91
+>  [<     inline     >] vma_unlock_anon_vma include/linux/rmap.h:123
+>  [<ffffffff816f8e5d>] validate_mm+0x12d/0x850 mm/mmap.c:461
+>  [<ffffffff817034be>] expand_downwards+0x19e/0xb30 mm/mmap.c:2283
+>  [<ffffffff81703ecb>] expand_stack+0x7b/0xe0 mm/mmap.c:2338
+>  [<ffffffff8127df88>] __do_page_fault+0x6e8/0x960 arch/x86/mm/fault.c:1217
+>  [<ffffffff8127e358>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
+>  [<ffffffff8126f514>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
+>  [<ffffffff8645bdf8>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
+>  [<     inline     >] SYSC_sigaltstack kernel/signal.c:3157
+>  [<ffffffff8138600c>] SyS_sigaltstack+0x6c/0x90 kernel/signal.c:3155
+>  [<ffffffff86459ab6>] entry_SYSCALL_64_fastpath+0x16/0x7a
+> arch/x86/entry/entry_64.S:185
+> mmap: free gap 1000, correct 0
+> mm ffff8800603a4e00 mmap ffff88005fc794c0 seqnum 12 task_size 140737488351232
+> get_unmapped_area ffffffff811af470
+> mmap_base 140584500215808 mmap_legacy_base 47048170172416
+> highest_vm_end 140737437655040
+> pgd ffff88005fc20000 mm_users 2 mm_count 1 nr_ptes 25 nr_pmds 3 map_count 49
+> hiwater_rss 7 hiwater_vm 813a total_vm 913e locked_vm 2
+> pinned_vm 0 data_vm 902e exec_vm d1 stack_vm 2a
+> start_code 400000 end_code 4ce986 start_data 6cee90 end_data 6d0d88
+> start_brk 934000 brk 957000 start_stack 7ffffcf5e660
+> arg_start 7ffffcf5feae arg_end 7ffffcf5feb6 env_start 7ffffcf5feb6
+> env_end 7ffffcf5fff0
+> binfmt ffffffff8797c260 flags cd core_state           (null)
+> ioctx_table           (null)
+> owner ffff88005d99df00 exe_file ffff880033321680
+> mmu_notifier_mm           (null)
+> flags: 0x0()
+> ------------[ cut here ]------------
+> kernel BUG at mm/mmap.c:481!
+> invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+> Modules linked in:
+> CPU: 1 PID: 9534 Comm: a.out Not tainted 4.5.0-rc1+ #292
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff880031522f80 ti: ffff8800314f8000 task.ti: ffff8800314f8000
+> RIP: 0010:[<ffffffff816f922c>]  [<ffffffff816f922c>] validate_mm+0x4fc/0x850
+> RSP: 0018:ffff8800314ffc60  EFLAGS: 00010286
+> RAX: 0000000000000001 RBX: 0000000000000000 RCX: 0000000000000000
+> RDX: 0000000000000001 RSI: 0000000000000001 RDI: ffffed000629ff22
+> RBP: ffff8800314ffcc8 R08: 0000000000000001 R09: 0000000000000000
+> R10: 0000000000000003 R11: 1ffffffff12e43c4 R12: 0000000000000031
+> R13: 0000000000000000 R14: 00007ffffcfa4000 R15: dffffc0000000000
+> FS:  00007fdc59313700(0000) GS:ffff88003ed00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00000000204ec000 CR3: 000000005fc20000 CR4: 00000000000006e0
+> Stack:
+>  0000000000486f70 ffff8800603a4e60 ffff8800603a4e00 0000003100000001
+>  0000000000000000 0000000000041000 ffff88005fc78538 ffff88005fc78530
+>  ffff880032870a60 0000000000000000 ffff880031e61e00 000000001f6a9000
+> Call Trace:
+>  [<ffffffff817034be>] expand_downwards+0x19e/0xb30 mm/mmap.c:2283
+>  [<ffffffff81703ecb>] expand_stack+0x7b/0xe0 mm/mmap.c:2338
+>  [<ffffffff8127df88>] __do_page_fault+0x6e8/0x960 arch/x86/mm/fault.c:1217
+>  [<ffffffff8127e358>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
+>  [<ffffffff8126f514>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
+>  [<ffffffff8645bdf8>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
+>  [<     inline     >] SYSC_sigaltstack kernel/signal.c:3157
+>  [<ffffffff8138600c>] SyS_sigaltstack+0x6c/0x90 kernel/signal.c:3155
+>  [<ffffffff86459ab6>] entry_SYSCALL_64_fastpath+0x16/0x7a
+> arch/x86/entry/entry_64.S:185
+> Code: 58 60 44 39 e3 74 73 e8 03 0f e7 ff 44 89 e2 89 de 48 c7 c7 a0
+> dc 5a 86 e8 e7 c3 f4 ff e8 ed 0e e7 ff 48 8b 7d a8 e8 24 00 fe ff <0f>
+> 0b e8 dd 0e e7 ff 8b 55 b4 44 89 e6 48 c7 c7 40 dc 5a 86 e8
+> RIP  [<ffffffff816f922c>] validate_mm+0x4fc/0x850 mm/mmap.c:481
+>  RSP <ffff8800314ffc60>
+> ---[ end trace 5282aed32b3391b4 ]---
+>
+>
+> And there seems to be some locking issue in validate_mm.
+>
+> On commit 92e963f50fc74041b5e9e744c330dca48e04f08d (Jan 24).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
