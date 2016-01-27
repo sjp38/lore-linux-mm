@@ -1,54 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 658CA6B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:29:08 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id 65so7174309pfd.2
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:29:08 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id n5si10423468pfj.17.2016.01.27.08.29.07
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 461536B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:30:22 -0500 (EST)
+Received: by mail-lb0-f179.google.com with SMTP id dx2so8351370lbd.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:30:22 -0800 (PST)
+Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
+        by mx.google.com with ESMTPS id pc8si3500783lbc.210.2016.01.27.08.30.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 08:29:07 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH] vmpressure: Fix subtree pressure detection
-Date: Wed, 27 Jan 2016 19:28:57 +0300
-Message-ID: <1453912137-25473-1-git-send-email-vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Wed, 27 Jan 2016 08:30:20 -0800 (PST)
+Received: by mail-lb0-x241.google.com with SMTP id ad5so612131lbc.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:30:20 -0800 (PST)
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: [PATCH v2] mm/mprotect.c: don't imply PROT_EXEC on non-exec fs
+Date: Wed, 27 Jan 2016 17:29:37 +0100
+Message-Id: <1453912177-16424-1-git-send-email-kwapulinski.piotr@gmail.com>
+In-Reply-To: <CALYGNiMKK4B_z+=CiMxoDmkYUZkayAhbg2dOOTi9-Bic+FEK2w@mail.gmail.com>
+References: <CALYGNiMKK4B_z+=CiMxoDmkYUZkayAhbg2dOOTi9-Bic+FEK2w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gorcunov@openvz.org, aarcange@redhat.com, koct9i@gmail.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-When vmpressure is called for the entire subtree under pressure we
-mistakenly use vmpressure->scanned instead of vmpressure->tree_scanned
-when checking if vmpressure work is to be scheduled. This results in
-suppressing all vmpressure events in the legacy cgroup hierarchy. Fix
-it.
+The mprotect(PROT_READ) fails when called by the READ_IMPLIES_EXEC binary
+on a memory mapped file located on non-exec fs. The mprotect does not
+check whether fs is _executable_ or not. The PROT_EXEC flag is set
+automatically even if a memory mapped file is located on non-exec fs.
+Fix it by checking whether a memory mapped file is located on a non-exec
+fs. If so the PROT_EXEC is not implied by the PROT_READ.
+The implementation uses the VM_MAYEXEC flag set properly in mmap.
+Now it is consistent with mmap.
 
-Fixes: 8e8ae645249b ("mm: memcontrol: hook up vmpressure to socket pressure")
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+I did the isolated tests (PT_GNU_STACK X/NX, multiple VMAs, X/NX fs).
+I also patched the official 3.19.0-47-generic Ubuntu 14.04 kernel
+and it seems to work.
+
+Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 ---
- mm/vmpressure.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+The difference between v1 is that the prot variable is reset to
+ reqprot for each loop iteration (thanks to Konstantin Khlebnikov for
+pointing this out).
+rier means "(current->personality & [R]EAD_[I]MPLIES_[E]XEC) &&
+(prot & PROT_[R]EAD)".
 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 9a6c0704211c..149fdf6c5c56 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -248,9 +248,8 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
+ mm/mprotect.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 8eb7bb4..1b9597f 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -352,10 +352,12 @@ fail:
+ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 		unsigned long, prot)
+ {
+-	unsigned long vm_flags, nstart, end, tmp, reqprot;
++	unsigned long nstart, end, tmp, reqprot;
+ 	struct vm_area_struct *vma, *prev;
+ 	int error = -EINVAL;
+ 	const int grows = prot & (PROT_GROWSDOWN|PROT_GROWSUP);
++	const bool rier = (current->personality & READ_IMPLIES_EXEC) &&
++				(prot & PROT_READ);
+ 	prot &= ~(PROT_GROWSDOWN|PROT_GROWSUP);
+ 	if (grows == (PROT_GROWSDOWN|PROT_GROWSUP)) /* can't be both */
+ 		return -EINVAL;
+@@ -372,13 +374,6 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 		return -EINVAL;
  
- 	if (tree) {
- 		spin_lock(&vmpr->sr_lock);
--		vmpr->tree_scanned += scanned;
-+		scanned = vmpr->tree_scanned += scanned;
- 		vmpr->tree_reclaimed += reclaimed;
--		scanned = vmpr->scanned;
- 		spin_unlock(&vmpr->sr_lock);
+ 	reqprot = prot;
+-	/*
+-	 * Does the application expect PROT_READ to imply PROT_EXEC:
+-	 */
+-	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
+-		prot |= PROT_EXEC;
+-
+-	vm_flags = calc_vm_prot_bits(prot);
  
- 		if (scanned < vmpressure_win)
+ 	down_write(&current->mm->mmap_sem);
+ 
+@@ -412,7 +407,11 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 
+ 		/* Here we know that vma->vm_start <= nstart < vma->vm_end. */
+ 
+-		newflags = vm_flags;
++		/* Does the application expect PROT_READ to imply PROT_EXEC */
++		if (rier && (vma->vm_flags & VM_MAYEXEC))
++			prot |= PROT_EXEC;
++
++		newflags = calc_vm_prot_bits(prot);
+ 		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
+ 
+ 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
+@@ -443,6 +442,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 			error = -ENOMEM;
+ 			goto out;
+ 		}
++		prot = reqprot;
+ 	}
+ out:
+ 	up_write(&current->mm->mmap_sem);
 -- 
-2.1.4
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
