@@ -1,80 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 170376B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:41:38 -0500 (EST)
-Received: by mail-qk0-f175.google.com with SMTP id x1so8009864qkc.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:41:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d32si8021814qgd.67.2016.01.27.11.41.37
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C286B0009
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:51:35 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p63so2034754wmp.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:51:35 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id lk6si10455449wjb.21.2016.01.27.11.51.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 11:41:37 -0800 (PST)
-Date: Wed, 27 Jan 2016 20:41:32 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: mm: BUG in expand_downwards
-Message-ID: <20160127194132.GA896@redhat.com>
-References: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
- <CALYGNiP6-T=LuBwzKys7TPpFAiGC-U7FymDT4kr3Zrcfo7CoiQ@mail.gmail.com>
- <CACT4Y+YNUZumEy2-OXhDku3rdn-4u28kCDRKtgYaO2uA9cYv5w@mail.gmail.com>
- <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
+        Wed, 27 Jan 2016 11:51:34 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id n5so263962wmn.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:51:34 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
+In-Reply-To: <CA+ZsKJ5dRTtmqj-ErKn=hx8xqornAZ3i2kHWWNfLubrCQkZTiA@mail.gmail.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1414185652-28663-11-git-send-email-matthew.r.wilcox@intel.com>
+	<CA+ZsKJ7LgOjuZ091d-ikhuoA+ZrCny4xBGVupv0oai8yB5OqFQ@mail.gmail.com>
+	<100D68C7BA14664A8938383216E40DE0421657C5@fmsmsx111.amr.corp.intel.com>
+	<CA+ZsKJ4EMKRgdFQzUjRJOE48=tTJzHf66-60PnVRj7pxvmNgVg@mail.gmail.com>
+	<20160125165209.GH2948@linux.intel.com>
+	<CA+ZsKJ5dRTtmqj-ErKn=hx8xqornAZ3i2kHWWNfLubrCQkZTiA@mail.gmail.com>
+Date: Wed, 27 Jan 2016 11:51:34 -0800
+Message-ID: <CA+ZsKJ5_szQoJK_JMt_4KKTRsA9O_ksCTsGZzsTta6ZtB5Y1MQ@mail.gmail.com>
+Subject: Re: [PATCH v12 10/20] dax: Replace XIP documentation with DAX documentation
+From: Jared Hulbert <jaredeh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Carsten Otte <cotte@de.ibm.com>, Chris Brandt <Chris.Brandt@renesas.com>
 
-On 01/27, Dmitry Vyukov wrote:
+On Mon, Jan 25, 2016 at 1:18 PM, Jared Hulbert <jaredeh@gmail.com> wrote:
+> On Mon, Jan 25, 2016 at 8:52 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
+>> On Sun, Jan 24, 2016 at 01:03:49AM -0800, Jared Hulbert wrote:
+>>> I our defense we didn't know we were sinning at the time.
+>>
+>> Fair enough.  Cache flushing is Hard.
+>>
+>>> Can you walk me through the cache flushing hole?  How is it okay on
+>>> X86 but not VIVT archs?  I'm missing something obvious here.
+>>>
+>>> I thought earlier that vm_insert_mixed() handled the necessary
+>>> flushing.  Is that even the part you are worried about?
+>>
+>> No, that part should be fine.  My concern is about write() calls to files
+>> which are also mmaped.  See Documentation/cachetlb.txt around line 229,
+>> starting with "There exists another whole class of cpu cache issues" ...
 >
-> On Wed, Jan 27, 2016 at 1:24 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> > On Wed, Jan 27, 2016 at 12:49 PM, Konstantin Khlebnikov
-> > <koct9i@gmail.com> wrote:
-> >> It seems anon_vma appeared between lock and unlock.
-> >>
-> >> This should fix the bug and make code faster (write lock isn't required here)
-> >>
-> >> --- a/mm/mmap.c
-> >> +++ b/mm/mmap.c
-> >> @@ -453,12 +453,16 @@ static void validate_mm(struct mm_struct *mm)
-> >>         struct vm_area_struct *vma = mm->mmap;
-> >>
-> >>         while (vma) {
-> >> +               struct anon_vma *anon_vma = vma->anon_vma;
-> >>                 struct anon_vma_chain *avc;
-> >>
-> >> -               vma_lock_anon_vma(vma);
-> >> -               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
-> >> -                       anon_vma_interval_tree_verify(avc);
-> >> -               vma_unlock_anon_vma(vma);
-> >> +               if (anon_vma) {
-> >> +                       anon_vma_lock_read(anon_vma);
-> >> +                       list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
-> >> +                               anon_vma_interval_tree_verify(avc);
-> >> +                       anon_vma_unlock_read(anon_vma);
-> >> +               }
-> >> +
-> >>                 highest_address = vma->vm_end;
-> >>                 vma = vma->vm_next;
-> >>                 i++;
-> >
-> >
-> > Now testing with this patch. Thanks for quick fix!
+> oh wow.  So aren't all the copy_to/from_user() variants specifically
+> supposed to handle such cases?
 >
+>>> What flushing functions would you call if you did have a cache page.
+>>
+>> Well, that's the problem; they don't currently exist.
+>>
+>>> There are all kinds of cache flushing functions that work without a
+>>> struct page. If nothing else the specialized ASM instructions that do
+>>> the various flushes don't use struct page as a parameter.  This isn't
+>>> the first I've run into the lack of a sane cache API.  Grep for
+>>> inval_cache in the mtd drivers, should have been much easier.  Isn't
+>>> the proper solution to fix update_mmu_cache() or build out a pageless
+>>> cache flushing API?
+>>>
+>>> I don't get the explicit mapping solution.  What are you mapping
+>>> where?  What addresses would be SHMLBA?  Phys, kernel, userspace?
+>>
+>> The problem comes in dax_io() where the kernel stores to an alias of the
+>> user address (or reads from an alias of the user address).  Theoretically,
+>> we should flush user addresses before we read from the kernel's alias,
+>> and flush the kernel's alias after we store to it.
 >
-> Hit the same BUG with this patch.
+> Reasoning this out loud here.  Please correct.
+>
+> For the dax read case:
+> - kernel virt is mapped to pfn
+> - data is memcpy'd from kernel virt
+>
+> For the dax write case:
+> - kernel virt is mapped to pfn
+> - data is memcpy'd to kernel virt
+> - user virt map to pfn attempts to read
+>
+> Is that right?  I see the x86 does a nocache copy_to/from operation,
+> I'm not familiar with the semantics of that call and it would take me
+> a while to understand the assembly but I assume it's doing some magic
+> opcodes that forces the writes down to physical memory with each
+> load/store.  Does the the caching model of the x86 arch update the
+> cache entries tied to the physical memory on update?
+>
+> For architectures that don't do auto coherency magic...
+>
+> For reads:
+> - User dcaches need flushing before kernel virtual mapping to ensure
+> kernel reads latest data.  If the user has unflushed data in the
+> dcache it would not be reflected in the read copy.
+> This failure mode only is a problem if the filesystem is RW.
+>
+> For writes:
+> - Unlike the read case we don't need up to date data for the user's
+> mapping of a pfn.  However, the user will need to caches invalidated
+> to get fresh data, so we should make sure to writeback any affected
+> lines in the user caches so they don't get lost if we do an
+> invalidate.  I suppose uncommitted data might corrupt the new data
+> written from the kernel mapping if the cachelines get flushed later.
+> - After the data is memcpy'ed to the kernel virt map the cache, and
+> possibly the write buffers, should be flushed.  Without this flush the
+> data might not ever get to the user mapped versions.
+> - Assuming the user maps were all flushed at the outset they should be
+> reloaded with fresh data on access.
+>
+> Do I get it more or less?
 
-Do you mean the same "bad unlock balance detected" BUG? this should be "obviously"
-fixed by the patch above...
+I assume the silence means I don't get it.
 
-Or you mean the 2nd VM_BUG_ON_MM() ?
+Moving along...
 
-> Please try to reproduce it locally and test.
+The need to flush kernel aliases and user alias without a struct page
+was articulated and cited as the reason why the DAX doesn't work with
+ARM, MIPS, and SPARC.
 
-tried to reproduce, doesn't work.
+One of the following routines should work for kernel flushing, right?
+--  flush_cache_vmap(unsigned long start, unsigned long end)
+--  flush_kernel_vmap_range(void *vaddr, int size)
+--  invalidate_kernel_vmap_range(void *vaddr, int size)
 
-Oleg.
+For user aliases I'm less confident with here, but at first glance I
+don't see why these wouldn't work?
+-- flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
+unsigned long pfn)
+-- flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+unsigned long end)
+
+Help?!  I missing something here.
+
+>> But if we create a new address for the kernel to use which lands on the
+>> same cache line as the user's address (and this is what SHMLBA is used
+>> to indicate), there is no incoherency between the kernel's view and the
+>> user's view.  And no new cache flushing API is needed.
+>
+> So... how exactly would one force the kernel address to be at the
+> SHMLBA boundary?
+>
+>> Is that clearer?  I'm not always good at explaining these things in a
+>> way which makes sense to other people :-(
+>
+> Yeah.  I think I'm at 80% comprehension here.  Or at least I think I
+> am.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
