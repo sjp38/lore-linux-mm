@@ -1,99 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 61E086B0256
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:52:43 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id ik10so73744601igb.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:52:43 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id m101si1374788ioi.85.2016.01.26.21.52.41
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D4A46B0005
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:02:19 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id is5so160210729obc.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 22:02:19 -0800 (PST)
+Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
+        by mx.google.com with ESMTPS id i62si3940145oib.73.2016.01.26.22.02.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 21:52:42 -0800 (PST)
-Date: Wed, 27 Jan 2016 14:52:43 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH] mm: support CONFIG_ZONE_DEVICE + CONFIG_ZONE_DMA
-Message-ID: <20160127055243.GA8568@js1304-P5Q-DELUXE>
-References: <20160126141152.e1043d14502dcca17813afb3@linux-foundation.org>
- <CAPcyv4hytzxpNt2RT6b5M6iuqz6V3GdSnO3eHwqpHVt4gfXPxg@mail.gmail.com>
- <20160126145153.44e4f38b04200209d133c0a3@linux-foundation.org>
- <CAPcyv4im4yQqLqRW9DsNRVsRTgWH1CPu1diJryZ4T57rDCWrzg@mail.gmail.com>
- <20160127011817.GA7398@js1304-P5Q-DELUXE>
- <CAPcyv4i9-mdPCVdrODOWS19vKKJJYuMZrvXbZ9eZKZc3Ua3QRA@mail.gmail.com>
- <20160127021515.GA7562@js1304-P5Q-DELUXE>
- <CAPcyv4hbdMymT5AWKoQXMjzmLLsiAMPT3HnEFi4i93ydkd69WQ@mail.gmail.com>
- <20160127035215.GA7813@js1304-P5Q-DELUXE>
- <CAA9_cmdgLJD-XYy0MyoQMmLOUHro=jYNsW_Sh13gL95y7537xA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jan 2016 22:02:18 -0800 (PST)
+Received: by mail-ob0-x234.google.com with SMTP id ba1so161827985obb.3
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 22:02:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA9_cmdgLJD-XYy0MyoQMmLOUHro=jYNsW_Sh13gL95y7537xA@mail.gmail.com>
+In-Reply-To: <20160127041706.GP2948@linux.intel.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1453742717-10326-4-git-send-email-matthew.r.wilcox@intel.com>
+ <CALCETrWuPa2SoUcMCtDiv1UDodNqKcQzsZV5PxQx5Xhb524f7w@mail.gmail.com> <20160127041706.GP2948@linux.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 26 Jan 2016 22:01:08 -0800
+Message-ID: <CALCETrXdCWtsLxhx_DqNPEma4mo71iTXF-FTVzSOfD9HDaiqhg@mail.gmail.com>
+Subject: Re: [PATCH 3/3] dax: Handle write faults more efficiently
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jerome Glisse <j.glisse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jan 26, 2016 at 08:26:24PM -0800, Dan Williams wrote:
-> On Tue, Jan 26, 2016 at 7:52 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > On Tue, Jan 26, 2016 at 07:23:59PM -0800, Dan Williams wrote:
-> >> On Tue, Jan 26, 2016 at 6:15 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> > On Tue, Jan 26, 2016 at 05:37:38PM -0800, Dan Williams wrote:
-> >> >> On Tue, Jan 26, 2016 at 5:18 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> [..]
-> >> >> > Please refer my previous attempt to add a new zone, ZONE_CMA.
-> >> >> >
-> >> >> > https://lkml.org/lkml/2015/2/12/84
-> >> >> >
-> >> >> > It salvages a bit from SECTION_WIDTH by increasing section size.
-> >> >> > Similarly, I guess we can reduce NODE_WIDTH if needed although
-> >> >> > it could cause to reduce maximum node size.
-> >> >>
-> >> >> Dave pointed out to me that LAST__PID_SHIFT might be a better
-> >> >> candidate to reduce to 7 bits.  That field is for storing pids which
-> >> >> are already bigger than 8 bits.  If it is relying on the fact that
-> >> >> pids don't rollover very often then likely the impact of 7-bits
-> >> >> instead of 8 will be minimal.
-> >> >
-> >> > Hmm... I'm not sure it's possible or not, but, it looks not a general
-> >> > solution. It will solve your problem because you are using 64 bit arch
-> >> > but other 32 bit archs can't get the benefit.
-> >>
-> >> This is where the ZONE_CMA and ZONE_DEVICE efforts diverge.
-> >> ZONE_DEVICE is meant to enable DMA access to hundreds of gigagbytes of
-> >> persistent memory.  A 64-bit-only limitation for ZONE_DEVICE is
-> >> reasonable.
-> >
-> > Yes, but, my point is that if someone need another zone like as
-> > ZONE_CMA, they couldn't get the benefit from this change. They need to
-> > re-investigate what bits they can reduce and need to re-do all things.
-> >
-> > If it is implemented more generally at this time, it can relieve their
-> > burden and less churn the code. It would be helpful for maintainability.
-> 
-> I agree in principle that finding a 32-bit compatible solution is
-> desirable, but it simply may not be feasible.
+On Tue, Jan 26, 2016 at 8:17 PM, Matthew Wilcox <willy@linux.intel.com> wrote:
+> On Mon, Jan 25, 2016 at 09:38:19AM -0800, Andy Lutomirski wrote:
+>> On Mon, Jan 25, 2016 at 9:25 AM, Matthew Wilcox
+>> <matthew.r.wilcox@intel.com> wrote:
+>> > From: Matthew Wilcox <willy@linux.intel.com>
+>> >
+>> > When we handle a write-fault on a DAX mapping, we currently insert a
+>> > read-only mapping and then take the page fault again to convert it to
+>> > a writable mapping.  This is necessary for the case where we cover a
+>> > hole with a read-only zero page, but when we have a data block already
+>> > allocated, it is inefficient.
+>> >
+>> > Use the recently added vmf_insert_pfn_prot() to insert a writable mapping,
+>> > even though the default VM flags say to use a read-only mapping.
+>>
+>> Conceptually, I like this.  Do you need to make sure to do all the
+>> do_wp_page work, though?  (E.g. we currently update mtime in there.
+>> Some day I'll fix that, but it'll be replaced with a set_bit to force
+>> a deferred mtime update.)
+>
+> We update mtime in the ->fault handler of filesystems which support DAX
+> like this:
+>
+>         if (vmf->flags & FAULT_FLAG_WRITE) {
+>                 sb_start_pagefault(inode->i_sb);
+>                 file_update_time(vma->vm_file);
+>         }
+>
+> so I think we're covered.
 
-Okay.
+A question that came up on IRC: if the page is a reflinked page on XFS
+(whenever that feature lands), then presumably XFS has real work to do
+in page_mkwrite.  If so, what ensures that page_mkwrite gets called?
 
-> 
-> For now, I'll help with auditing the existing bits so we can enumerate
-> the tradeoffs.
+As a half-baked alternative to this patch, there's a generic
+optimization for this case.  do_shared_fault normally calls
+do_page_mkwrite and installs the resulting page with the writable bit
+set.  But if __do_fault returns VM_FAULT_NOPAGE, then this
+optimization is skipped.  Could be add VM_FAULT_NOPAGE_READONLY (or
+VM_FAULT_NOPAGE | VM_FAULT_READONLY) as a hint that a page was
+installed but that it was installed readonly?  If we did that, then
+do_shared_fault could check that bit and go through the wp_page logic
+rather than returning to userspace.
 
-Thanks! :)
-
-> Hmm, one tradeoff that comes to mind for 32-bit is sacrificing
-> ZONE_HIGHMEM, for ZONE_CMA.  Are there configurations that need both
-> enabled?  If a platform needs highmem it really should be using a
-> 64-bit kernel (if possible), desire for ZONE_CMA might be a nice
-> encouragement to lessen the prevalence of highmem.
-
-I guess that it's not possible. There are many systems that need
-both.
-
-I don't think deeply, but, there is another option for ZONE_CMA.
-It can share ZONE_MOVABLE because their chracteristic is roughly
-same in view of MM. I will think more.
-
-Thanks.
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
