@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B686A6B0256
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 16:18:07 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id o185so6278365pfb.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:18:07 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 78si11759567pfr.69.2016.01.27.13.18.01
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C80336B0257
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 16:18:09 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id uo6so10943195pac.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:18:09 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id n2si11695735pap.201.2016.01.27.13.18.03
         for <linux-mm@kvack.org>;
-        Wed, 27 Jan 2016 13:18:01 -0800 (PST)
+        Wed, 27 Jan 2016 13:18:03 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 5/5] radix-tree,shmem: Introduce radix_tree_iter_next()
-Date: Wed, 27 Jan 2016 16:17:52 -0500
-Message-Id: <1453929472-25566-6-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 1/5] radix-tree: Fix race in gang lookup
+Date: Wed, 27 Jan 2016 16:17:48 -0500
+Message-Id: <1453929472-25566-2-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ohad Ben-Cohen <ohad@wizery.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-shmem likes to occasionally drop the lock, schedule, then reacqire
-the lock and continue with the iteration from the last place it
-left off.  This is currently done with a pretty ugly goto.  Introduce
-radix_tree_iter_next() and use it throughout shmem.c.
+If the indirect_ptr bit is set on a slot, that indicates we need to
+redo the lookup.  Introduce a new function radix_tree_iter_retry()
+which forces the loop to retry the lookup by setting 'slot' to NULL and
+turning the iterator back to point at the problematic entry.
 
+This is a pretty rare problem to hit at the moment; the lookup has to
+race with a grow of the radix tree from a height of 0.  The consequences
+of hitting this race are that gang lookup could return a pointer to a
+radix_tree_node instead of a pointer to whatever the user had inserted
+in the tree.
+
+Fixes: cebbd29e1c2f ("radix-tree: rewrite gang lookup using iterator")
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Cc: stable@vger.kernel.org
 ---
- include/linux/radix-tree.h | 15 +++++++++++++++
- mm/shmem.c                 | 12 +++---------
- 2 files changed, 18 insertions(+), 9 deletions(-)
+ include/linux/radix-tree.h | 16 ++++++++++++++++
+ lib/radix-tree.c           | 12 ++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index db0ed595749b..dec2c6c77eea 100644
+index f9a3da5bf892..db0ed595749b 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -403,6 +403,21 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
- }
+@@ -387,6 +387,22 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
+ 			     struct radix_tree_iter *iter, unsigned flags);
  
  /**
-+ * radix_tree_iter_next - resume iterating when the chunk may be invalid
++ * radix_tree_iter_retry - retry this chunk of the iteration
 + * @iter:	iterator state
 + *
-+ * If the iterator needs to release then reacquire a lock, the chunk may
-+ * have been invalidated by an insertion or deletion.  Call this function
-+ * to continue the iteration from the next index.
++ * If we iterate over a tree protected only by the RCU lock, a race
++ * against deletion or creation may result in seeing a slot for which
++ * radix_tree_deref_retry() returns true.  If so, call this function
++ * and continue the iteration.
 + */
 +static inline __must_check
-+void **radix_tree_iter_next(struct radix_tree_iter *iter)
++void **radix_tree_iter_retry(struct radix_tree_iter *iter)
 +{
-+	iter->next_index = iter->index + 1;
++	iter->next_index = iter->index;
 +	return NULL;
 +}
 +
@@ -58,64 +67,40 @@ index db0ed595749b..dec2c6c77eea 100644
   * radix_tree_chunk_size - get current chunk size
   *
   * @iter:	pointer to radix tree iterator
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 6ec14b70d82d..438ea8004c26 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -376,7 +376,6 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index a25f635dcc56..65422ac17114 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -1105,9 +1105,13 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+ 		return 0;
  
- 	rcu_read_lock();
- 
--restart:
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
- 		if (iter.index >= end)
+ 	radix_tree_for_each_slot(slot, root, &iter, first_index) {
+-		results[ret] = indirect_to_ptr(rcu_dereference_raw(*slot));
++		results[ret] = rcu_dereference_raw(*slot);
+ 		if (!results[ret])
+ 			continue;
++		if (radix_tree_is_indirect_ptr(results[ret])) {
++			slot = radix_tree_iter_retry(&iter);
++			continue;
++		}
+ 		if (++ret == max_items)
  			break;
-@@ -398,8 +397,7 @@ restart:
- 
- 		if (need_resched()) {
- 			cond_resched_rcu();
--			start = iter.index + 1;
--			goto restart;
-+			slot = radix_tree_iter_next(&iter);
- 		}
  	}
+@@ -1184,9 +1188,13 @@ radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
+ 		return 0;
  
-@@ -1950,7 +1948,6 @@ static void shmem_tag_pins(struct address_space *mapping)
- 	start = 0;
- 	rcu_read_lock();
- 
--restart:
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
- 		page = radix_tree_deref_slot(slot);
- 		if (!page || radix_tree_exception(page)) {
-@@ -1967,8 +1964,7 @@ restart:
- 
- 		if (need_resched()) {
- 			cond_resched_rcu();
--			start = iter.index + 1;
--			goto restart;
-+			slot = radix_tree_iter_next(&iter);
- 		}
+ 	radix_tree_for_each_tagged(slot, root, &iter, first_index, tag) {
+-		results[ret] = indirect_to_ptr(rcu_dereference_raw(*slot));
++		results[ret] = rcu_dereference_raw(*slot);
+ 		if (!results[ret])
+ 			continue;
++		if (radix_tree_is_indirect_ptr(results[ret])) {
++			slot = radix_tree_iter_retry(&iter);
++			continue;
++		}
+ 		if (++ret == max_items)
+ 			break;
  	}
- 	rcu_read_unlock();
-@@ -2005,7 +2001,6 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 
- 		start = 0;
- 		rcu_read_lock();
--restart:
- 		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
- 					   start, SHMEM_TAG_PINNED) {
- 
-@@ -2039,8 +2034,7 @@ restart:
- continue_resched:
- 			if (need_resched()) {
- 				cond_resched_rcu();
--				start = iter.index + 1;
--				goto restart;
-+				slot = radix_tree_iter_next(&iter);
- 			}
- 		}
- 		rcu_read_unlock();
 -- 
 2.7.0.rc3
 
