@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 531376B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2016 23:46:14 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id q63so113847410pfb.1
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 20:46:14 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id r6si6650841pap.212.2016.01.26.20.46.13
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B14E86B0005
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 00:23:36 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id is5so159677440obc.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:23:36 -0800 (PST)
+Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com. [2607:f8b0:4003:c01::235])
+        by mx.google.com with ESMTPS id ba9si1460235obb.102.2016.01.26.21.23.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Jan 2016 20:46:13 -0800 (PST)
-Date: Wed, 27 Jan 2016 13:46:14 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 00/16] mm/slab: introduce new freed objects management
- way, OBJFREELIST_SLAB
-Message-ID: <20160127044614.GA8326@js1304-P5Q-DELUXE>
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160126204013.a065301b.akpm@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jan 2016 21:23:35 -0800 (PST)
+Received: by mail-ob0-x235.google.com with SMTP id is5so159677323obc.0
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2016 21:23:35 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160126204013.a065301b.akpm@linux-foundation.org>
+In-Reply-To: <20160127041706.GP2948@linux.intel.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1453742717-10326-4-git-send-email-matthew.r.wilcox@intel.com>
+ <CALCETrWuPa2SoUcMCtDiv1UDodNqKcQzsZV5PxQx5Xhb524f7w@mail.gmail.com> <20160127041706.GP2948@linux.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 26 Jan 2016 21:22:35 -0800
+Message-ID: <CALCETrV=Me4Z9RvGXcxcoVTz0q9L7L-jF6GN+HS6PJaA7F+fLQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] dax: Handle write faults more efficiently
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jan 26, 2016 at 08:40:13PM -0800, Andrew Morton wrote:
-> On Thu, 14 Jan 2016 14:24:13 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
-> 
-> > This patchset implements new freed object management way, that is,
-> > OBJFREELIST_SLAB. Purpose of it is to reduce memory overhead in SLAB.
-> > 
-> > SLAB needs a array to manage freed objects in a slab. If there is
-> > leftover after objects are packed into a slab, we can use it as
-> > a management array, and, in this case, there is no memory waste.
-> > But, in the other cases, we need to allocate extra memory for
-> > a management array or utilize dedicated internal memory in a slab for it.
-> > Both cases causes memory waste so it's not good.
-> > 
-> > With this patchset, freed object itself can be used for a management
-> > array. So, memory waste could be reduced. Detailed idea and numbers
-> > are described in last patch's commit description. Please refer it.
-> > 
-> > In fact, I tested another idea implementing OBJFREELIST_SLAB with
-> > extendable linked array through another freed object. It can remove
-> > memory waste completely but it causes more computational overhead
-> > in critical lock path and it seems that overhead outweigh benefit.
-> > So, this patchset doesn't include it. I will attach prototype just for
-> > a reference.
-> 
-> It appears that this patchset is perhaps due a couple of touchups from
-> Christoph's comments.  I'll grab it as-is as I want to get an mmotm
-> into linux-next tomorrow then vanish for a few days.
+On Tue, Jan 26, 2016 at 8:17 PM, Matthew Wilcox <willy@linux.intel.com> wrote:
+> On Mon, Jan 25, 2016 at 09:38:19AM -0800, Andy Lutomirski wrote:
+>> On Mon, Jan 25, 2016 at 9:25 AM, Matthew Wilcox
+>> <matthew.r.wilcox@intel.com> wrote:
+>> > From: Matthew Wilcox <willy@linux.intel.com>
+>> >
+>> > When we handle a write-fault on a DAX mapping, we currently insert a
+>> > read-only mapping and then take the page fault again to convert it to
+>> > a writable mapping.  This is necessary for the case where we cover a
+>> > hole with a read-only zero page, but when we have a data block already
+>> > allocated, it is inefficient.
+>> >
+>> > Use the recently added vmf_insert_pfn_prot() to insert a writable mapping,
+>> > even though the default VM flags say to use a read-only mapping.
+>>
+>> Conceptually, I like this.  Do you need to make sure to do all the
+>> do_wp_page work, though?  (E.g. we currently update mtime in there.
+>> Some day I'll fix that, but it'll be replaced with a set_bit to force
+>> a deferred mtime update.)
+>
+> We update mtime in the ->fault handler of filesystems which support DAX
+> like this:
+>
+>         if (vmf->flags & FAULT_FLAG_WRITE) {
+>                 sb_start_pagefault(inode->i_sb);
+>                 file_update_time(vma->vm_file);
+>         }
+>
+> so I think we're covered.
 
-Hello, Andrew.
+Sounds good.
 
-Could you add just one small fix below to 16/16 "mm/slab: introduce
-new slab management type, OBJFREELIST_SLAB"?
+On second reading, though, what ensures that the vm is
+VM_WRITE|VM_SHARED?  If nothing else, some nice comments might help.
 
-Thanks.
+A WARN_ON_ONCE that the pgprot you're starting with is RO would be
+nice if there's a generic way to do that.  Actually, having a generic
+pgprot_writable could make this less ugly.
 
+Also, this optimization could be generalized, albeit a bit slower, by
+having handle_pte_fault check if the inserted pte is read-only for a
+write fault and continuing down the function to the wp_page logic.
+After all, returning back to the arch entry code and retrying the
+fault the old fashioned way is both very slow and has an outcome
+that's known in advance.
 
------------->8-------------
+--Andy
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
