@@ -1,84 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DEA476B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:08:02 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id n5so43365215wmn.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:08:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z133si12756490wmg.61.2016.01.27.11.08.01
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 675C86B0009
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:40:44 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id n5so44529908wmn.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:40:44 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id bv6si10367690wjc.97.2016.01.27.11.40.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 11:08:01 -0800 (PST)
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-References: <87k2n2usyf.fsf@linux.vnet.ibm.com>
- <20160122201707.1271a279@cotter.ozlabs.ibm.com>
- <20160122141948.GG16898@quack.suse.cz> <56A2725B.1090509@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56A9158C.60604@suse.cz>
-Date: Wed, 27 Jan 2016 20:07:56 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 11:40:43 -0800 (PST)
+Date: Wed, 27 Jan 2016 14:39:58 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: do not let vdso pages into LRU rotation
+Message-ID: <20160127193958.GA31407@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <56A2725B.1090509@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Balbir Singh <bsingharora@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Peter Zijlstra <peterz@infradead.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/22/2016 07:18 PM, Laura Abbott wrote:
-> On 01/22/2016 06:19 AM, Jan Kara wrote:
->> On Fri 22-01-16 20:17:07, Balbir Singh wrote:
->>> On Fri, 22 Jan 2016 10:11:12 +0530
->>> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
->>>
->>>
->>> +1
->>>
->>> I agree CMA design is a concern. I also noticed that today all CMA pages come
->>> from one node. On a NUMA box you'll see cross traffic going to that region -
->>> although from kernel only text. It should be discussed at the summit and Aneesh
->>> would be a good representative
->>
->> I'm not really an mm guy but CMA has been discussed already last year, and
->> I think even the year before... Are we moving somewhere? So if this is
->> about hashing out what blocks VM_PINNED series (I think it may be just a
->> lack of Peter's persistence in pushing it ;) then that looks like a
->> sensible goal. Some other CMA architecture discussions need IMHO a more
->> concrete proposals...
->>
->> 								Honza
->>
-> 
-> The conclusion from the CMA session last year was that pinned pages need to be
-> fixed up at the caller sites doing the pinning. Each caller site really needs
-> to be taken individually. I think the discussion last year was good but if
-> it's going to end up with a different conclusion I agree there needs to be
-> concrete proposals.
-> 
-> Something that could be worth discussing as well is Joonsoo Kim's proposal for
-> page reference tracking http://thread.gmane.org/gmane.linux.kernel.api/16138
+Hi,
 
-I think indentifying the pinners and actually doing something about them, are
-different things. The tracking might help with the identification. Maybe some
-pins can be removed as found to be unneeded, but VM_PINNED infrastructure should
-help with dealing with the genuine ones - IIRC the idea was that prior to
-(relatively long-term) pinning, the pages would be migrated away from MOVABLE or
-CMA pageblocks to reduce fragmentation/allow CMA allocations succeed. Otherwise
-the only other option I see for genuine long-term pins is to pre-emptively
-allocate such pages as UNMOVABLE. A waste in case it's a large class of pages
-where only a subset of them (not known upfront) is going to be pinned. What if
-the class is e.g. "userspace-mapped pages"?
+I noticed that vdso pages are faulted and unmapped as if they were
+regular file pages. And I'm guessing this is so that the vdso mappings
+are able to use the generic COW code in memory.c.
 
+However, it's a little unsettling that zap_pte_range() makes decisions
+based on PageAnon() and the page even reaches mark_page_accessed(), as
+that function makes several assumptions about the page being a regular
+LRU user page. It seems this isn't crashing today by sheer luck, but I
+am working on code that does when page_is_file_cache() returns garbage.
 
-> Thanks,
-> Laura
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I'm using this hack to work around it:
+
+diff --git a/mm/memory.c b/mm/memory.c
+index c387430f06c3..f0537c500150 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1121,7 +1121,8 @@ again:
+ 					set_page_dirty(page);
+ 				}
+ 				if (pte_young(ptent) &&
+-				    likely(!(vma->vm_flags & VM_SEQ_READ)))
++				    likely(!(vma->vm_flags & VM_SEQ_READ)) &&
++				    !PageReserved(page))
+ 					mark_page_accessed(page);
+ 				rss[MM_FILEPAGES]--;
+ 			}
+
+but I think we need a cleaner (and more robust) solution there to make
+it clearer that these pages are not regularly managed pages.
+
+Could the VDSO be a VM_MIXEDMAP to keep the initial unmanaged pages
+out of the VM while allowing COW into regular anonymous pages?
+
+Are there other requirements of the VDSO that I might be missing?
+
+Any feedback would be greatly appreciated.
+
+Thanks!
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
