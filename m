@@ -1,69 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C35F46B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:07:33 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id n5so39119034wmn.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:07:33 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id y41si12446308wmh.107.2016.01.27.10.07.32
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 492546B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:13:12 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id o185so3931958pfb.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:13:12 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xg10si10837949pab.141.2016.01.27.10.13.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 10:07:32 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id n5so39118458wmn.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:07:32 -0800 (PST)
+        Wed, 27 Jan 2016 10:13:11 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 08/67] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Wed, 27 Jan 2016 10:12:02 -0800
+Message-Id: <20160127180908.183457858@linuxfoundation.org>
+In-Reply-To: <20160127180907.419868641@linuxfoundation.org>
+References: <20160127180907.419868641@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <CAOxpaSVr2kAcBtN81DLK8Z9-MA-zOo9DG1mexkb=vVUxUVazrA@mail.gmail.com>
-References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
- <CAOxpaSVr2kAcBtN81DLK8Z9-MA-zOo9DG1mexkb=vVUxUVazrA@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 27 Jan 2016 19:07:12 +0100
-Message-ID: <CACT4Y+Y1--HL4MyEk_0ZdBAac80LcdYc=rubWeeYtFUxe=D6ZQ@mail.gmail.com>
-Subject: Re: mm: WARNING in __delete_from_page_cache
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzkaller <syzkaller@googlegroups.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Wed, Jan 27, 2016 at 7:02 PM, Ross Zwisler <zwisler@gmail.com> wrote:
-> On Sun, Jan 24, 2016 at 3:48 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> Hello,
->>
->> The following program triggers WARNING in __delete_from_page_cache:
->>
->> ------------[ cut here ]------------
->> WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
->> __delete_from_page_cache+0x9f6/0xb60()
->> Modules linked in:
->> CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
->> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->>  00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
->>  ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
->>  ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
->> Call Trace:
->>  [<     inline     >] __dump_stack lib/dump_stack.c:15
->>  [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
->>  [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
->>  [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
->>  [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
->>  [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
->>  [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
->>  [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
->>  [<     inline     >] wp_pfn_shared mm/memory.c:2208
->>  [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
->>  [<     inline     >] handle_pte_fault mm/memory.c:3323
->>  [<     inline     >] __handle_mm_fault mm/memory.c:3417
->
-> Having inline functions represented in the stack trace and having file
-> names with line numbers seems really useful - how did you get this
-> output?  Is this a feature of some kernel patch applied for syzkaller?
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
+------------------
 
-I pipe normal kernel output through this script:
-https://github.com/google/sanitizers/blob/master/address-sanitizer/tools/kasan_symbolize.py
+From: Andy Lutomirski <luto@kernel.org>
 
-If you are in linux source dir with vmlinux and modules, then you just do:
-$ cat crash | kasan_symbolize.py
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
+
+Document all the barriers that make this work correctly and add
+a couple that were missing.
+
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/include/asm/mmu_context.h |   33 ++++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  |   29 ++++++++++++++++++++++++++---
+ 2 files changed, 58 insertions(+), 4 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_s
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+-		/* Re-load page tables */
++		/*
++		 * Re-load page tables.
++		 *
++		 * This logic has an ordering constraint:
++		 *
++		 *  CPU 0: Write to a PTE for 'next'
++		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
++		 *  CPU 1: set bit 1 in next's mm_cpumask
++		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
++		 *
++		 * We need to prevent an outcome in which CPU 1 observes
++		 * the new PTE value and CPU 0 observes bit 1 clear in
++		 * mm_cpumask.  (If that occurs, then the IPI will never
++		 * be sent, and CPU 0's TLB will contain a stale entry.)
++		 *
++		 * The bad outcome can occur if either CPU's load is
++		 * reordered before that CPU's store, so both CPUs much
++		 * execute full barriers to prevent this from happening.
++		 *
++		 * Thus, switch_mm needs a full barrier between the
++		 * store to mm_cpumask and any operation that could load
++		 * from next->pgd.  This barrier synchronizes with
++		 * remote TLB flushers.  Fortunately, load_cr3 is
++		 * serializing and thus acts as a full barrier.
++		 *
++		 */
+ 		load_cr3(next->pgd);
++
+ 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 
+ 		/* Stop flush ipis for the previous mm */
+@@ -156,10 +182,15 @@ static inline void switch_mm(struct mm_s
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
++
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
++			 *
++			 * As above, this is a barrier that forces
++			 * TLB repopulation to be ordered after the
++			 * store to mm_cpumask.
+ 			 */
+ 			load_cr3(next->pgd);
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -161,7 +161,10 @@ void flush_tlb_current_task(void)
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++
++	/* This is an implicit full barrier that synchronizes with switch_mm. */
+ 	local_flush_tlb();
++
+ 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+@@ -188,17 +191,29 @@ void flush_tlb_mm_range(struct mm_struct
+ 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
+ 
+ 	preempt_disable();
+-	if (current->active_mm != mm)
++	if (current->active_mm != mm) {
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto out;
++	}
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
++
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto out;
+ 	}
+ 
+ 	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
+ 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
+ 
++	/*
++	 * Both branches below are implicit full barriers (MOV to CR or
++	 * INVLPG) that synchronize with switch_mm.
++	 */
+ 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
+ 		base_pages_to_flush = TLB_FLUSH_ALL;
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+@@ -228,10 +243,18 @@ void flush_tlb_page(struct vm_area_struc
+ 	preempt_disable();
+ 
+ 	if (current->active_mm == mm) {
+-		if (current->mm)
++		if (current->mm) {
++			/*
++			 * Implicit full barrier (INVLPG) that synchronizes
++			 * with switch_mm.
++			 */
+ 			__flush_tlb_one(start);
+-		else
++		} else {
+ 			leave_mm(smp_processor_id());
++
++			/* Synchronize with switch_mm. */
++			smp_mb();
++		}
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
