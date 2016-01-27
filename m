@@ -1,57 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D71C56B0005
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 04:08:31 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p63so15850636wmp.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:08:31 -0800 (PST)
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
-        by mx.google.com with ESMTPS id s197si22625185wmb.1.2016.01.27.01.08.30
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CE286B0009
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 04:09:12 -0500 (EST)
+Received: by mail-lb0-f177.google.com with SMTP id cl12so1494458lbc.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:09:12 -0800 (PST)
+Received: from mail-lb0-x243.google.com (mail-lb0-x243.google.com. [2a00:1450:4010:c04::243])
+        by mx.google.com with ESMTPS id f6si2670635lbc.137.2016.01.27.01.09.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 01:08:30 -0800 (PST)
-Received: by mail-wm0-f48.google.com with SMTP id l65so136367730wmf.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:08:30 -0800 (PST)
-Date: Wed, 27 Jan 2016 10:08:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] proposals for topics
-Message-ID: <20160127090828.GA13951@dhcp22.suse.cz>
-References: <20160125133357.GC23939@dhcp22.suse.cz>
- <20160125184559.GE29291@cmpxchg.org>
- <20160126095022.GC27563@dhcp22.suse.cz>
- <56A7AA0D.9040409@suse.cz>
- <20160126172051.GB6066@quack.suse.cz>
+        Wed, 27 Jan 2016 01:09:11 -0800 (PST)
+Received: by mail-lb0-x243.google.com with SMTP id dx9so109750lbc.2
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 01:09:10 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160126172051.GB6066@quack.suse.cz>
+In-Reply-To: <20160126144926.21d854fe53b76bd03e34b0d1@linux-foundation.org>
+References: <145358234948.18573.2681359119037889087.stgit@zurg>
+	<20160126144926.21d854fe53b76bd03e34b0d1@linux-foundation.org>
+Date: Wed, 27 Jan 2016 12:09:10 +0300
+Message-ID: <CALYGNiM-XNnXT+L+b=WLRVxrxii_oxXxY3Wu1PC8mvm_6W8wNw@mail.gmail.com>
+Subject: Re: [PATCH v3] mm: warn about VmData over RLIMIT_DATA
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-On Tue 26-01-16 18:20:51, Jan Kara wrote:
-> On Tue 26-01-16 18:17:01, Vlastimil Babka wrote:
-[...]
-> > Hmm from last year I remember Dave Chinner saying there really are some
-> > places that can't handle failure, period? That's why all the discussions
-> > about reservations, and I would be surprised if all such places were gone
-> > today? Which of course doesn't mean that there couldn't be different NOFS
-> > places that can handle failures, which however don't happen in current
-> > implementation.
-> 
-> Well, but we have GFP_NOFAIL (or equivalent of thereof opencoded) in there.
-> So yes, there are GFP_NOFAIL | GFP_NOFS allocations and allocator must deal
-> with it somehow.
+On Wed, Jan 27, 2016 at 1:49 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sat, 23 Jan 2016 23:52:29 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>
+>> This patch fixes 84638335900f ("mm: rework virtual memory accounting")
+>
+> uh, I think I'll rewrite this to
+>
+> : This patch provides a way of working around a slight regression introduced
+> : by 84638335900f ("mm: rework virtual memory accounting").
 
-Yes, the allocator deals with them in two ways. a) it allows to trigger
-the OOM killer and b) gives them access to memory reserves. So while
-the reservation system sounds like a more robust plan long term but we
-have a way forward right now and distinguish must not fail and do have a
-fallback method already.
+Sure.
 
--- 
-Michal Hocko
-SUSE Labs
+As you see I keept this in "ignore and warn" state by default.
+During testing in linux-next it was able to cauch only small limits
+like 0 in case of valgrind decause bug in pages/bytes units.
+I think it's a bad idea to enfornce limit in the middle of merge window.
+So let's change default to "block" in the next release.
+
+>
+>> Before that commit RLIMIT_DATA have control only over size of the brk region.
+>> But that change have caused problems with all existing versions of valgrind,
+>> because it set RLIMIT_DATA to zero.
+>>
+>> This patch fixes rlimit check (limit actually in bytes, not pages)
+>> and by default turns it into warning which prints at first VmData misuse:
+>> "mmap: top (795): VmData 516096 exceed data ulimit 512000. Will be forbidden soon."
+>>
+>> Behavior is controlled by boot param ignore_rlimit_data=y/n and by sysfs
+>> /sys/module/kernel/parameters/ignore_rlimit_data. For now it set to "y".
+>>
+>>
+>> ...
+>>
+>> +static inline bool is_data_mapping(vm_flags_t flags)
+>> +{
+>> +     return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
+>> +                                     VM_WRITE | VM_SHARED)) == VM_WRITE;
+>> +}
+>
+> This (copied from existing code) hurts my brain.  We're saying "if it
+> isn't stack and it's unshared and writable, it's data", yes?
+
+Yes. Data vma supposed to be private, writable and without GROWSDOWN/UP.
+We could make it more redable if define macro for stack growing direction.
+
+Or redefine that data shouldn't grow in any direction and any growable
+vma is a "stack",
+but RLIMIT_STACK is enforced only in one direction (or not? not sure).
+Anyway only few arches actually have flag VM_GROWSUP.
+
+VM_WRITE separates Data and Code - Data can be executable, Code
+should't be writable.
+VM_GROWS separates Data and Stack - Stack grows automaticallly, Data is not.
+
+Probaly stack should be writable too, but some applications  might
+remaps pieces of stack as read-only.
+
+For now (except parisc and metag)
+
+VM_GROWSDOWN | VM_EXEC is a code
+VM_GROWSDOWN | VM_EXEC | VM_WRITE is a stack
+VM_GROWSUP | VM_EXEC | VM_WRITE is a data (for ia64)
+
+And yes, this hurts my brain too. But much less than previous version
+of accounting.
+
+>
+> hm.  I guess that's because with a shared mapping we don't know who to
+> blame for the memory consumption so we blame nobody.  But what about
+> non-shared read-only mappings?
+
+I have no Idea. There's a lot stange combinations. But since VmData is
+supposed to be limited with RLIMIT_DATA it safer to leave them alone.
+User will see them in total VmSize and able to limit with RLIMIT_AS.
+
+To be honest RLMIT_DATA cannot limit memory consumption at all.
+RLIMIT_AS cannot do anything too: applicataion can keep any
+amount of data in unlinked tmpfs file and mmap them as needed.
+Only memory controller can solve this.
+
+>
+> Can we please have a comment here fully explaining the thinking?
+>
+
+Ok. I'll tie this together in a form of patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
