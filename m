@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BCDD6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 08:59:14 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id p63so27711384wmp.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 05:59:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id km4si8615452wjc.232.2016.01.27.05.59.13
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 035D06B0005
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 09:31:01 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id n128so5635476pfn.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 06:31:00 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ut6si9849070pab.68.2016.01.27.06.30.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 05:59:13 -0800 (PST)
-Subject: Re: [PATCH v1] mm/madvise: pass return code of memory_failure() to
- userspace
-References: <1453451277-20979-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56A8CD2F.5080903@suse.cz>
-Date: Wed, 27 Jan 2016 14:59:11 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 06:30:59 -0800 (PST)
+Date: Wed, 27 Jan 2016 17:30:45 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 1/5] mm: memcontrol: generalize locking for the
+ page->mem_cgroup binding
+Message-ID: <20160127143045.GA9623@esperanza>
+References: <1453842006-29265-1-git-send-email-hannes@cmpxchg.org>
+ <1453842006-29265-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1453451277-20979-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1453842006-29265-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Chen Gong <gong.chen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-[CC += linux-api, linux-man]
+On Tue, Jan 26, 2016 at 04:00:02PM -0500, Johannes Weiner wrote:
 
-On 01/22/2016 09:27 AM, Naoya Horiguchi wrote:
-> Currently the return value of memory_failure() is not passed to userspace, which
-> is inconvenient for test programs that want to know the result of error handling.
-> So let's return it to the caller as we already do in MADV_SOFT_OFFLINE case.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  mm/madvise.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git v4.4-mmotm-2016-01-20-16-10/mm/madvise.c v4.4-mmotm-2016-01-20-16-10_patched/mm/madvise.c
-> index f56825b..6a77114 100644
-> --- v4.4-mmotm-2016-01-20-16-10/mm/madvise.c
-> +++ v4.4-mmotm-2016-01-20-16-10_patched/mm/madvise.c
-> @@ -555,8 +555,9 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
->  		}
->  		pr_info("Injecting memory failure for page %#lx at %#lx\n",
->  		       page_to_pfn(p), start);
-> -		/* Ignore return value for now */
-> -		memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
-> +		ret = memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
-> +		if (ret)
-> +			return ret;
+> @@ -683,17 +683,17 @@ int __set_page_dirty_buffers(struct page *page)
+>  		} while (bh != head);
+>  	}
+>  	/*
+> -	 * Use mem_group_begin_page_stat() to keep PageDirty synchronized with
+> -	 * per-memcg dirty page counters.
+> +	 * Lock out page->mem_cgroup migration to keep PageDirty
+> +	 * synchronized with per-memcg dirty page counters.
+>  	 */
+> -	memcg = mem_cgroup_begin_page_stat(page);
+> +	memcg = lock_page_memcg(page);
+>  	newly_dirty = !TestSetPageDirty(page);
+>  	spin_unlock(&mapping->private_lock);
+>  
+>  	if (newly_dirty)
+>  		__set_page_dirty(page, mapping, memcg, 1);
 
-Can you explain what madvise can newly return for MADV_HWPOISON in which
-situations, for the purposes of updated man page?
+Do we really want to pass memcg to __set_page_dirty and then to
+account_page_dirtied, increasing stack/regs usage even in case memory
+cgroup is disabled? May be, it'd be better to make
+mem_cgroup_update_page_stat take a page instead of a memcg?
 
 Thanks,
-Vlastimil
+Vladimir
 
->  	}
->  	return 0;
->  }
-> 
+>  
+> -	mem_cgroup_end_page_stat(memcg);
+> +	unlock_page_memcg(memcg);
+>  
+>  	if (newly_dirty)
+>  		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
