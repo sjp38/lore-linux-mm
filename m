@@ -1,35 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4A46B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 12:55:29 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id d63so10564384ioj.2
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 09:55:29 -0800 (PST)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id me4si12894654igb.100.2016.01.27.09.55.29
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D252A6B0009
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:02:58 -0500 (EST)
+Received: by mail-qg0-f54.google.com with SMTP id b35so13418700qge.0
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:02:58 -0800 (PST)
+Received: from mail-qg0-x242.google.com (mail-qg0-x242.google.com. [2607:f8b0:400d:c04::242])
+        by mx.google.com with ESMTPS id x145si5090240qka.105.2016.01.27.10.02.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 09:55:29 -0800 (PST)
-Date: Wed, 27 Jan 2016 11:55:27 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 16/16] mm/slab: introduce new slab management type,
- OBJFREELIST_SLAB
-In-Reply-To: <56A8FBE4.1060806@suse.cz>
-Message-ID: <alpine.DEB.2.20.1601271154310.14468@east.gentwo.org>
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com> <1452749069-15334-17-git-send-email-iamjoonsoo.kim@lge.com> <56A8C788.9000004@suse.cz> <alpine.DEB.2.20.1601271047480.14468@east.gentwo.org> <56A8FBE4.1060806@suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 10:02:58 -0800 (PST)
+Received: by mail-qg0-x242.google.com with SMTP id 6so979143qgy.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:02:58 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+References: <CACT4Y+aBnm8VLe5f=AwO2nUoQZaH-UVqUynGB+naAC-zauOQsQ@mail.gmail.com>
+Date: Wed, 27 Jan 2016 11:02:57 -0700
+Message-ID: <CAOxpaSVr2kAcBtN81DLK8Z9-MA-zOo9DG1mexkb=vVUxUVazrA@mail.gmail.com>
+Subject: Re: mm: WARNING in __delete_from_page_cache
+From: Ross Zwisler <zwisler@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Wed, 27 Jan 2016, Vlastimil Babka wrote:
+On Sun, Jan 24, 2016 at 3:48 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> Hello,
+>
+> The following program triggers WARNING in __delete_from_page_cache:
+>
+> ------------[ cut here ]------------
+> WARNING: CPU: 0 PID: 7676 at mm/filemap.c:217
+> __delete_from_page_cache+0x9f6/0xb60()
+> Modules linked in:
+> CPU: 0 PID: 7676 Comm: a.out Not tainted 4.4.0+ #276
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>  00000000ffffffff ffff88006d3f7738 ffffffff82999e2d 0000000000000000
+>  ffff8800620a0000 ffffffff86473d20 ffff88006d3f7778 ffffffff81352089
+>  ffffffff81658d36 ffffffff86473d20 00000000000000d9 ffffea0000009d60
+> Call Trace:
+>  [<     inline     >] __dump_stack lib/dump_stack.c:15
+>  [<ffffffff82999e2d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+>  [<ffffffff81352089>] warn_slowpath_common+0xd9/0x140 kernel/panic.c:482
+>  [<ffffffff813522b9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:515
+>  [<ffffffff81658d36>] __delete_from_page_cache+0x9f6/0xb60 mm/filemap.c:217
+>  [<ffffffff81658fb2>] delete_from_page_cache+0x112/0x200 mm/filemap.c:244
+>  [<ffffffff818af369>] __dax_fault+0x859/0x1800 fs/dax.c:487
+>  [<ffffffff8186f4f6>] blkdev_dax_fault+0x26/0x30 fs/block_dev.c:1730
+>  [<     inline     >] wp_pfn_shared mm/memory.c:2208
+>  [<ffffffff816e9145>] do_wp_page+0xc85/0x14f0 mm/memory.c:2307
+>  [<     inline     >] handle_pte_fault mm/memory.c:3323
+>  [<     inline     >] __handle_mm_fault mm/memory.c:3417
 
-> OK. Perhaps a LSF/MM topic then to discuss whether we need both? What are the
-> remaining cases where SLAB is better choice, and can there be something done
-> about them in SLUB?
+Having inline functions represented in the stack trace and having file
+names with line numbers seems really useful - how did you get this
+output?  Is this a feature of some kernel patch applied for syzkaller?
 
-Right now one is driving the other which is good I think. So you may just
-ignore my cynical comment.
+>  [<ffffffff816ecec3>] handle_mm_fault+0x2483/0x4640 mm/memory.c:3446
+>  [<ffffffff8127eff6>] __do_page_fault+0x376/0x960 arch/x86/mm/fault.c:1238
+>  [<ffffffff8127f738>] trace_do_page_fault+0xe8/0x420 arch/x86/mm/fault.c:1331
+>  [<ffffffff812705c4>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:264
+>  [<ffffffff86338f78>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:986
+>  [<ffffffff86336c36>] entry_SYSCALL_64_fastpath+0x16/0x7a
+> arch/x86/entry/entry_64.S:185
+> ---[ end trace dae21e0f85f1f98c ]---
+>
+>
+> // autogenerated by syzkaller (http://github.com/google/syzkaller)
+> #include <pthread.h>
+> #include <stdint.h>
+> #include <string.h>
+> #include <sys/syscall.h>
+> #include <unistd.h>
+> #include <fcntl.h>
+>
+> int main()
+> {
+>   syscall(SYS_mmap, 0x20000000ul, 0x10000ul, 0x3ul, 0x32ul, -1, 0x0ul);
+>   int fd = syscall(SYS_open, "/dev/ram1", O_RDWR);
+>   syscall(SYS_mmap, 0x20a31000ul, 0x3000ul, 0x3ul, 0xb011ul, fd, 0x0ul);
+>   *(uint64_t*)0x20003000 = 1;
+>   syscall(SYS_write, fd, 0x20003000ul, 0x78ul, 0, 0, 0);
+>   syscall(SYS_getresuid, 0x20000688ul, 0x200008f2ul, 0x20a31000ul, 0, 0, 0);
+>   return 0;
+> }
+>
+> On commit 30f05309bde49295e02e45c7e615f73aa4e0ccc2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
