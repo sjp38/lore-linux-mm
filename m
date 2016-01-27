@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 492546B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:13:12 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id o185so3931958pfb.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:13:12 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E15C66B0256
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:13:58 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id uo6so8618537pac.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:13:58 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id xg10si10837949pab.141.2016.01.27.10.13.11
+        by mx.google.com with ESMTPS id sp7si10826971pac.230.2016.01.27.10.13.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 10:13:11 -0800 (PST)
+        Wed, 27 Jan 2016 10:13:58 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 08/67] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Wed, 27 Jan 2016 10:12:02 -0800
-Message-Id: <20160127180908.183457858@linuxfoundation.org>
-In-Reply-To: <20160127180907.419868641@linuxfoundation.org>
-References: <20160127180907.419868641@linuxfoundation.org>
+Subject: [PATCH 4.3 016/157] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Wed, 27 Jan 2016 10:11:23 -0800
+Message-Id: <20160127180933.357485031@linuxfoundation.org>
+In-Reply-To: <20160127180932.533735338@linuxfoundation.org>
+References: <20160127180932.533735338@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.3-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
