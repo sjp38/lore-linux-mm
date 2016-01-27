@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE7A6B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 12:18:33 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p63so37006345wmp.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 09:18:33 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pi3si9661919wjb.134.2016.01.27.09.18.31
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C7E6B0009
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 12:50:01 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id zv1so13691081obb.2
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 09:50:01 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id h7si4247331obf.1.2016.01.27.09.50.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 09:18:32 -0800 (PST)
-Subject: Re: [PATCH 16/16] mm/slab: introduce new slab management type,
- OBJFREELIST_SLAB
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1452749069-15334-17-git-send-email-iamjoonsoo.kim@lge.com>
- <56A8C788.9000004@suse.cz>
- <alpine.DEB.2.20.1601271047480.14468@east.gentwo.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56A8FBE4.1060806@suse.cz>
-Date: Wed, 27 Jan 2016 18:18:28 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 09:50:01 -0800 (PST)
+Subject: Re: [LSF/MM ATTEND] Huge Page Futures
+References: <56A580F8.4060301@oracle.com>
+ <20160125110137.GB11541@node.shutemov.name> <56A62837.7010105@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56A90345.3020903@oracle.com>
+Date: Wed, 27 Jan 2016 09:49:57 -0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1601271047480.14468@east.gentwo.org>
+In-Reply-To: <56A62837.7010105@oracle.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 01/27/2016 05:48 PM, Christoph Lameter wrote:
-> On Wed, 27 Jan 2016, Vlastimil Babka wrote:
+On 01/25/2016 05:50 AM, Mike Kravetz wrote:
+> On 01/25/2016 03:01 AM, Kirill A. Shutemov wrote:
+>> On Sun, Jan 24, 2016 at 05:57:12PM -0800, Mike Kravetz wrote:
+>>> In a search of the archives, it appears huge page support in one form or
+>>> another has been a discussion topic in almost every LSF/MM gathering. Based
+>>> on patches submitted this past year, huge pages is still an area of active
+>>> development.  And, it appears this level of activity will  continue in the
+>>> coming year.
+>>>
+>>> I propose a "Huge Page Futures" session to discuss large works in progress
+>>> as well as work people are considering for 2016.  Areas of discussion would
+>>> minimally include:
+>>>
+>>> - Krill Shutemov's THP new refcounting code and the push for huge page
+>>>   support in the page cache.
+>>
+>> s/Krill/Kirill/ :]
+> 
+> Sorry!
 > 
 >>
->> Can you elaborate? Do we actually need an extendable linked array? Why not just
->> store the pointer to the next free object into the object, NULL for the last
->> one? I.e. a singly-linked list. We should never need to actually traverse it?
+>> I work on huge pages in tmpfs first and will look on huge pages for real
+>> filesystems later.
 >>
->> freeing object obj:
->> *obj = page->freelist;
->> page->freelist = obj;
+>>>
+>>> - Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
+>>>   more interesting is the desire for supporting PUD pages.  This seems to
+>>>   beg the question of supporting transparent PUD pages elsewhere.
+>>>
+>>> - Other suggestions?
+>>>
+>>> My interest in attending also revolves around huge pages.  This past year
+>>> I have added functionality to hugetlbfs.  hugetlbfs is not dead, and is
+>>> very much in use by some DB implementations.  Proposed future work I will
+>>> be attempting includes:
+>>> - Adding userfaultfd support to hugetlbfs
+>>> - Adding shared page table (PMD) support to DAX much like that which exists
+>>>   for hugetlbfs
 >>
->> allocating object:
->> obj = page->freelist;
->> page->freelist = *obj;
->> *obj = NULL;
+>> Shared page tables for hugetlbfs is rather ugly hack.
+>>
+>> Do you have any thoughts how it's going to be implemented? It would be
+>> nice to have some design overview or better proof-of-concept patch before
+>> the summit to be able analyze implications for the kernel.
+>>
 > 
-> Well the single linked lists are a concept of another slab allocator. At
-> what point do we rename SLAB to SLUB2?
+> Good to know the hugetlbfs implementation is considered a hack.  I just
+> started looking at this, and was going to use hugetlbfs as a starting
+> point.  I'll reconsider that decision.
 
-OK. Perhaps a LSF/MM topic then to discuss whether we need both? What are the
-remaining cases where SLAB is better choice, and can there be something done
-about them in SLUB?
+Kirill, can you (or others) explain your reasons for saying the hugetlbfs
+implementation is an ugly hack?  I do not have enough history/experience
+with this to say what is most offensive.  I would be happy to start by
+cleaning up issues with the current implementation.
 
-(I can imagine there were such discussions in the past, and I came to kernel
-development only in 2013. In that case maybe enough time passed to revisit this?)
+If we do shared page tables for DAX, it makes sense that it and hugetlbfs
+should be similar (or common) if possible.
+
+-- 
+Mike Kravetz
+
+> 
+> BTW, this request comes from the same DB people taking advantage of shared
+> page tables today.  This will be as important (if not more) with the larger
+> sizes of pmem.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
