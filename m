@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 878CC680F7F
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:25:24 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id n5so39830058wmn.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:24 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id b20si9955503wjr.226.2016.01.27.10.25.23
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1331F680F7F
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 13:25:27 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id p63so39775210wmp.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:27 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id y190si13696615wme.93.2016.01.27.10.25.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 10:25:23 -0800 (PST)
-Received: by mail-wm0-x233.google.com with SMTP id l66so16086700wml.0
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:23 -0800 (PST)
+        Wed, 27 Jan 2016 10:25:24 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id p63so39773578wmp.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 10:25:24 -0800 (PST)
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v1 3/8] mm, kasan: Added GFP flags to KASAN API
-Date: Wed, 27 Jan 2016 19:25:08 +0100
-Message-Id: <04c23390ffa83482c8a50e2c4ed7419d479b25ba.1453918525.git.glider@google.com>
+Subject: [PATCH v1 4/8] arch, ftrace: For KASAN put hard/soft IRQ entries into separate sections
+Date: Wed, 27 Jan 2016 19:25:09 +0100
+Message-Id: <99939a92dd93dc5856c4ec7bf32dbe0035cdc689.1453918525.git.glider@google.com>
 In-Reply-To: <cover.1453918525.git.glider@google.com>
 References: <cover.1453918525.git.glider@google.com>
 In-Reply-To: <cover.1453918525.git.glider@google.com>
@@ -24,350 +24,332 @@ List-ID: <linux-mm.kvack.org>
 To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org
 Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add GFP flags to KASAN hooks for future patches to use.
-
-This patch is based on the "mm: kasan: unified support for SLUB and
-SLAB allocators" patch originally prepared by Dmitry Chernenkov.
+KASAN needs to know whether the allocation happens in an IRQ handler.
+This lets us strip everything below the IRQ entry point to reduce the number
+of unique stack traces needed to be stored.
 
 Signed-off-by: Alexander Potapenko <glider@google.com>
 ---
- include/linux/kasan.h | 19 +++++++++++--------
- mm/kasan/kasan.c      | 15 ++++++++-------
- mm/mempool.c          | 16 ++++++++--------
- mm/slab.c             | 14 +++++++-------
- mm/slab_common.c      |  4 ++--
- mm/slub.c             | 17 +++++++++--------
- 6 files changed, 45 insertions(+), 40 deletions(-)
+ arch/arm/kernel/vmlinux.lds.S        |  1 +
+ arch/arm64/kernel/vmlinux.lds.S      |  1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |  1 +
+ arch/c6x/kernel/vmlinux.lds.S        |  1 +
+ arch/metag/kernel/vmlinux.lds.S      |  1 +
+ arch/microblaze/kernel/vmlinux.lds.S |  1 +
+ arch/mips/kernel/vmlinux.lds.S       |  1 +
+ arch/nios2/kernel/vmlinux.lds.S      |  1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |  1 +
+ arch/parisc/kernel/vmlinux.lds.S     |  1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |  1 +
+ arch/s390/kernel/vmlinux.lds.S       |  1 +
+ arch/sh/kernel/vmlinux.lds.S         |  1 +
+ arch/sparc/kernel/vmlinux.lds.S      |  1 +
+ arch/tile/kernel/vmlinux.lds.S       |  1 +
+ arch/x86/kernel/vmlinux.lds.S        |  1 +
+ include/asm-generic/vmlinux.lds.h    | 12 +++++++++++-
+ include/linux/ftrace.h               | 31 ++++++++++++++++++++-----------
+ kernel/softirq.c                     |  3 ++-
+ 19 files changed, 49 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index 4405a35..bf71ab0 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -53,13 +53,14 @@ void kasan_poison_slab(struct page *page);
- void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
- void kasan_poison_object_data(struct kmem_cache *cache, void *object);
+diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S
+index 8b60fde..28b690fc 100644
+--- a/arch/arm/kernel/vmlinux.lds.S
++++ b/arch/arm/kernel/vmlinux.lds.S
+@@ -105,6 +105,7 @@ SECTIONS
+ 			*(.exception.text)
+ 			__exception_text_end = .;
+ 			IRQENTRY_TEXT
++			SOFTIRQENTRY_TEXT
+ 			TEXT_TEXT
+ 			SCHED_TEXT
+ 			LOCK_TEXT
+diff --git a/arch/arm64/kernel/vmlinux.lds.S b/arch/arm64/kernel/vmlinux.lds.S
+index e3928f5..b9242b7 100644
+--- a/arch/arm64/kernel/vmlinux.lds.S
++++ b/arch/arm64/kernel/vmlinux.lds.S
+@@ -102,6 +102,7 @@ SECTIONS
+ 			*(.exception.text)
+ 			__exception_text_end = .;
+ 			IRQENTRY_TEXT
++			SOFTIRQENTRY_TEXT
+ 			TEXT_TEXT
+ 			SCHED_TEXT
+ 			LOCK_TEXT
+diff --git a/arch/blackfin/kernel/vmlinux.lds.S b/arch/blackfin/kernel/vmlinux.lds.S
+index c9eec84..d920b95 100644
+--- a/arch/blackfin/kernel/vmlinux.lds.S
++++ b/arch/blackfin/kernel/vmlinux.lds.S
+@@ -35,6 +35,7 @@ SECTIONS
+ #endif
+ 		LOCK_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		KPROBES_TEXT
+ #ifdef CONFIG_ROMKERNEL
+ 		__sinittext = .;
+diff --git a/arch/c6x/kernel/vmlinux.lds.S b/arch/c6x/kernel/vmlinux.lds.S
+index 5a6e141..50bc10f 100644
+--- a/arch/c6x/kernel/vmlinux.lds.S
++++ b/arch/c6x/kernel/vmlinux.lds.S
+@@ -72,6 +72,7 @@ SECTIONS
+ 		SCHED_TEXT
+ 		LOCK_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		KPROBES_TEXT
+ 		*(.fixup)
+ 		*(.gnu.warning)
+diff --git a/arch/metag/kernel/vmlinux.lds.S b/arch/metag/kernel/vmlinux.lds.S
+index e12055e..150ace9 100644
+--- a/arch/metag/kernel/vmlinux.lds.S
++++ b/arch/metag/kernel/vmlinux.lds.S
+@@ -24,6 +24,7 @@ SECTIONS
+ 	LOCK_TEXT
+ 	KPROBES_TEXT
+ 	IRQENTRY_TEXT
++	SOFTIRQENTRY_TEXT
+ 	*(.text.*)
+ 	*(.gnu.warning)
+ 	}
+diff --git a/arch/microblaze/kernel/vmlinux.lds.S b/arch/microblaze/kernel/vmlinux.lds.S
+index be9488d..0a47f04 100644
+--- a/arch/microblaze/kernel/vmlinux.lds.S
++++ b/arch/microblaze/kernel/vmlinux.lds.S
+@@ -36,6 +36,7 @@ SECTIONS {
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		. = ALIGN (4) ;
+ 		_etext = . ;
+ 	}
+diff --git a/arch/mips/kernel/vmlinux.lds.S b/arch/mips/kernel/vmlinux.lds.S
+index 0a93e83..54d653e 100644
+--- a/arch/mips/kernel/vmlinux.lds.S
++++ b/arch/mips/kernel/vmlinux.lds.S
+@@ -58,6 +58,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.text.*)
+ 		*(.fixup)
+ 		*(.gnu.warning)
+diff --git a/arch/nios2/kernel/vmlinux.lds.S b/arch/nios2/kernel/vmlinux.lds.S
+index 326fab4..e23e895 100644
+--- a/arch/nios2/kernel/vmlinux.lds.S
++++ b/arch/nios2/kernel/vmlinux.lds.S
+@@ -39,6 +39,7 @@ SECTIONS
+ 		SCHED_TEXT
+ 		LOCK_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		KPROBES_TEXT
+ 	} =0
+ 	_etext = .;
+diff --git a/arch/openrisc/kernel/vmlinux.lds.S b/arch/openrisc/kernel/vmlinux.lds.S
+index 2d69a85..d936de4 100644
+--- a/arch/openrisc/kernel/vmlinux.lds.S
++++ b/arch/openrisc/kernel/vmlinux.lds.S
+@@ -50,6 +50,7 @@ SECTIONS
+ 	  LOCK_TEXT
+ 	  KPROBES_TEXT
+ 	  IRQENTRY_TEXT
++	  SOFTIRQENTRY_TEXT
+ 	  *(.fixup)
+ 	  *(.text.__*)
+ 	  _etext = .;
+diff --git a/arch/parisc/kernel/vmlinux.lds.S b/arch/parisc/kernel/vmlinux.lds.S
+index 308f290..f3ead0b 100644
+--- a/arch/parisc/kernel/vmlinux.lds.S
++++ b/arch/parisc/kernel/vmlinux.lds.S
+@@ -72,6 +72,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.text.do_softirq)
+ 		*(.text.sys_exit)
+ 		*(.text.do_sigaltstack)
+diff --git a/arch/powerpc/kernel/vmlinux.lds.S b/arch/powerpc/kernel/vmlinux.lds.S
+index d41fd0a..2dd91f7 100644
+--- a/arch/powerpc/kernel/vmlinux.lds.S
++++ b/arch/powerpc/kernel/vmlinux.lds.S
+@@ -55,6 +55,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
  
--void kasan_kmalloc_large(const void *ptr, size_t size);
-+void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
- void kasan_kfree_large(const void *ptr);
- void kasan_kfree(void *ptr);
--void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
--void kasan_krealloc(const void *object, size_t new_size);
-+void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
-+		  gfp_t flags);
-+void kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
+ #ifdef CONFIG_PPC32
+ 		*(.got1)
+diff --git a/arch/s390/kernel/vmlinux.lds.S b/arch/s390/kernel/vmlinux.lds.S
+index 445657f..0f41a82 100644
+--- a/arch/s390/kernel/vmlinux.lds.S
++++ b/arch/s390/kernel/vmlinux.lds.S
+@@ -28,6 +28,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.fixup)
+ 		*(.gnu.warning)
+ 	} :text = 0x0700
+diff --git a/arch/sh/kernel/vmlinux.lds.S b/arch/sh/kernel/vmlinux.lds.S
+index db88cbf..235a410 100644
+--- a/arch/sh/kernel/vmlinux.lds.S
++++ b/arch/sh/kernel/vmlinux.lds.S
+@@ -39,6 +39,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.fixup)
+ 		*(.gnu.warning)
+ 		_etext = .;		/* End of text section */
+diff --git a/arch/sparc/kernel/vmlinux.lds.S b/arch/sparc/kernel/vmlinux.lds.S
+index f1a2f68..aadd321 100644
+--- a/arch/sparc/kernel/vmlinux.lds.S
++++ b/arch/sparc/kernel/vmlinux.lds.S
+@@ -48,6 +48,7 @@ SECTIONS
+ 		LOCK_TEXT
+ 		KPROBES_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.gnu.warning)
+ 	} = 0
+ 	_etext = .;
+diff --git a/arch/tile/kernel/vmlinux.lds.S b/arch/tile/kernel/vmlinux.lds.S
+index 0e059a0..378f5d8 100644
+--- a/arch/tile/kernel/vmlinux.lds.S
++++ b/arch/tile/kernel/vmlinux.lds.S
+@@ -45,6 +45,7 @@ SECTIONS
+     LOCK_TEXT
+     KPROBES_TEXT
+     IRQENTRY_TEXT
++    SOFTIRQENTRY_TEXT
+     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
+     ALIGN_FUNCTION();
+     *(.hottext*)
+diff --git a/arch/x86/kernel/vmlinux.lds.S b/arch/x86/kernel/vmlinux.lds.S
+index 74e4bf1..056a97a 100644
+--- a/arch/x86/kernel/vmlinux.lds.S
++++ b/arch/x86/kernel/vmlinux.lds.S
+@@ -102,6 +102,7 @@ SECTIONS
+ 		KPROBES_TEXT
+ 		ENTRY_TEXT
+ 		IRQENTRY_TEXT
++		SOFTIRQENTRY_TEXT
+ 		*(.fixup)
+ 		*(.gnu.warning)
+ 		/* End of text section */
+diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
+index c4bd0e2..b470421 100644
+--- a/include/asm-generic/vmlinux.lds.h
++++ b/include/asm-generic/vmlinux.lds.h
+@@ -456,7 +456,7 @@
+ 		*(.entry.text)						\
+ 		VMLINUX_SYMBOL(__entry_text_end) = .;
  
--void kasan_slab_alloc(struct kmem_cache *s, void *object);
-+void kasan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
- void kasan_slab_free(struct kmem_cache *s, void *object);
- 
- struct kasan_cache {
-@@ -90,14 +91,16 @@ static inline void kasan_unpoison_object_data(struct kmem_cache *cache,
- static inline void kasan_poison_object_data(struct kmem_cache *cache,
- 					void *object) {}
- 
--static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
-+static inline void kasan_kmalloc_large(void *ptr, size_t size, gfp_t flags) {}
- static inline void kasan_kfree_large(const void *ptr) {}
- static inline void kasan_kfree(void *ptr) {}
- static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
--				size_t size) {}
--static inline void kasan_krealloc(const void *object, size_t new_size) {}
-+				size_t size, gfp_t flags) {}
-+static inline void kasan_krealloc(const void *object, size_t new_size,
-+				 gfp_t flags) {}
- 
--static inline void kasan_slab_alloc(struct kmem_cache *s, void *object) {}
-+static inline void kasan_slab_alloc(struct kmem_cache *s, void *object,
-+				   gfp_t flags) {}
- static inline void kasan_slab_free(struct kmem_cache *s, void *object) {}
- 
- static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 84305c2..787224a 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -414,9 +414,9 @@ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
- }
+-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
++#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+ #define IRQENTRY_TEXT							\
+ 		ALIGN_FUNCTION();					\
+ 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
+@@ -466,6 +466,16 @@
+ #define IRQENTRY_TEXT
  #endif
  
--void kasan_slab_alloc(struct kmem_cache *cache, void *object)
-+void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
- {
--	kasan_kmalloc(cache, object, cache->object_size);
-+	kasan_kmalloc(cache, object, cache->object_size, flags);
- }
++#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
++#define SOFTIRQENTRY_TEXT						\
++		ALIGN_FUNCTION();					\
++		VMLINUX_SYMBOL(__softirqentry_text_start) = .;		\
++		*(.softirqentry.text)					\
++		VMLINUX_SYMBOL(__softirqentry_text_end) = .;
++#else
++#define SOFTIRQENTRY_TEXT
++#endif
++
+ /* Section used for early init (in .S files) */
+ #define HEAD_TEXT  *(.head.text)
  
- void kasan_slab_free(struct kmem_cache *cache, void *object)
-@@ -431,7 +431,8 @@ void kasan_slab_free(struct kmem_cache *cache, void *object)
- 	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
- }
+diff --git a/include/linux/ftrace.h b/include/linux/ftrace.h
+index 0639dcc..2a143fa 100644
+--- a/include/linux/ftrace.h
++++ b/include/linux/ftrace.h
+@@ -762,6 +762,26 @@ struct ftrace_graph_ret {
+ typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
+ typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
  
--void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
-+void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
-+		   gfp_t flags)
- {
- 	unsigned long redzone_start;
- 	unsigned long redzone_end;
-@@ -460,7 +461,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
- }
- EXPORT_SYMBOL(kasan_kmalloc);
++#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
++/*
++ * We want to know which function is an entrypoint of a hardirq.
++ */
++#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
++#define __softirq_entry  \
++	__attribute__((__section__(".softirqentry.text")))
++
++/* Limits of hardirq entrypoints */
++extern char __irqentry_text_start[];
++extern char __irqentry_text_end[];
++/* Limits of softirq entrypoints */
++extern char __softirqentry_text_start[];
++extern char __softirqentry_text_end[];
++
++#else
++#define __irq_entry
++#define __softirq_entry
++#endif
++
+ #ifdef CONFIG_FUNCTION_GRAPH_TRACER
  
--void kasan_kmalloc_large(const void *ptr, size_t size)
-+void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
- {
- 	struct page *page;
- 	unsigned long redzone_start;
-@@ -479,7 +480,7 @@ void kasan_kmalloc_large(const void *ptr, size_t size)
- 		KASAN_PAGE_REDZONE);
- }
+ /* for init task */
+@@ -798,16 +818,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
+  */
+ #define __notrace_funcgraph		notrace
  
--void kasan_krealloc(const void *object, size_t size)
-+void kasan_krealloc(const void *object, size_t size, gfp_t flags)
- {
- 	struct page *page;
+-/*
+- * We want to which function is an entrypoint of a hardirq.
+- * That will help us to put a signal on output.
+- */
+-#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
+-
+-/* Limits of hardirq entrypoints */
+-extern char __irqentry_text_start[];
+-extern char __irqentry_text_end[];
+-
+ #define FTRACE_NOTRACE_DEPTH 65536
+ #define FTRACE_RETFUNC_DEPTH 50
+ #define FTRACE_RETSTACK_ALLOC_SIZE 32
+@@ -844,7 +854,6 @@ static inline void unpause_graph_tracing(void)
+ #else /* !CONFIG_FUNCTION_GRAPH_TRACER */
  
-@@ -489,9 +490,9 @@ void kasan_krealloc(const void *object, size_t size)
- 	page = virt_to_head_page(object);
+ #define __notrace_funcgraph
+-#define __irq_entry
+ #define INIT_FTRACE_GRAPH
  
- 	if (unlikely(!PageSlab(page)))
--		kasan_kmalloc_large(object, size);
-+		kasan_kmalloc_large(object, size, flags);
- 	else
--		kasan_kmalloc(page->slab_cache, object, size);
-+		kasan_kmalloc(page->slab_cache, object, size, flags);
- }
+ static inline void ftrace_graph_init_task(struct task_struct *t) { }
+diff --git a/kernel/softirq.c b/kernel/softirq.c
+index 479e443..2b31bb0 100644
+--- a/kernel/softirq.c
++++ b/kernel/softirq.c
+@@ -11,6 +11,7 @@
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
  
- void kasan_kfree(void *ptr)
-diff --git a/mm/mempool.c b/mm/mempool.c
-index 004d42b..b47c8a7 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -112,12 +112,12 @@ static void kasan_poison_element(mempool_t *pool, void *element)
- 		kasan_free_pages(element, (unsigned long)pool->pool_data);
- }
- 
--static void kasan_unpoison_element(mempool_t *pool, void *element)
-+static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
- {
- 	if (pool->alloc == mempool_alloc_slab)
--		kasan_slab_alloc(pool->pool_data, element);
-+		kasan_slab_alloc(pool->pool_data, element, flags);
- 	if (pool->alloc == mempool_kmalloc)
--		kasan_krealloc(element, (size_t)pool->pool_data);
-+		kasan_krealloc(element, (size_t)pool->pool_data, flags);
- 	if (pool->alloc == mempool_alloc_pages)
- 		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
- }
-@@ -130,13 +130,13 @@ static void add_element(mempool_t *pool, void *element)
- 	pool->elements[pool->curr_nr++] = element;
- }
- 
--static void *remove_element(mempool_t *pool)
-+static void *remove_element(mempool_t *pool, gfp_t flags)
- {
- 	void *element = pool->elements[--pool->curr_nr];
- 
- 	BUG_ON(pool->curr_nr < 0);
- 	check_element(pool, element);
--	kasan_unpoison_element(pool, element);
-+	kasan_unpoison_element(pool, element, flags);
- 	return element;
- }
- 
-@@ -154,7 +154,7 @@ void mempool_destroy(mempool_t *pool)
- 		return;
- 
- 	while (pool->curr_nr) {
--		void *element = remove_element(pool);
-+		void *element = remove_element(pool, GFP_KERNEL);
- 		pool->free(element, pool->pool_data);
- 	}
- 	kfree(pool->elements);
-@@ -250,7 +250,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
- 	spin_lock_irqsave(&pool->lock, flags);
- 	if (new_min_nr <= pool->min_nr) {
- 		while (new_min_nr < pool->curr_nr) {
--			element = remove_element(pool);
-+			element = remove_element(pool, GFP_KERNEL);
- 			spin_unlock_irqrestore(&pool->lock, flags);
- 			pool->free(element, pool->pool_data);
- 			spin_lock_irqsave(&pool->lock, flags);
-@@ -336,7 +336,7 @@ repeat_alloc:
- 
- 	spin_lock_irqsave(&pool->lock, flags);
- 	if (likely(pool->curr_nr)) {
--		element = remove_element(pool);
-+		element = remove_element(pool, gfp_temp);
- 		spin_unlock_irqrestore(&pool->lock, flags);
- 		/* paired with rmb in mempool_free(), read comment there */
- 		smp_wmb();
-diff --git a/mm/slab.c b/mm/slab.c
-index 739b89d..0ec7aa3 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3417,7 +3417,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
- {
- 	void *ret = slab_alloc(cachep, flags, _RET_IP_);
- 	if (ret)
--		kasan_slab_alloc(cachep, ret);
-+		kasan_slab_alloc(cachep, ret, flags);
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret,
- 			       cachep->object_size, cachep->size, flags);
-@@ -3448,7 +3448,7 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
- 	ret = slab_alloc(cachep, flags, _RET_IP_);
- 
- 	if (ret)
--		kasan_kmalloc(cachep, ret, size);
-+		kasan_kmalloc(cachep, ret, size, flags);
- 	trace_kmalloc(_RET_IP_, ret,
- 		      size, cachep->size, flags);
- 	return ret;
-@@ -3473,7 +3473,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
- 
- 	if (ret)
--		kasan_slab_alloc(cachep, ret);
-+		kasan_slab_alloc(cachep, ret, flags);
- 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
- 				    cachep->object_size, cachep->size,
- 				    flags, nodeid);
-@@ -3493,7 +3493,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
- 	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
- 
- 	if (ret)
--		kasan_kmalloc(cachep, ret, size);
-+		kasan_kmalloc(cachep, ret, size, flags);
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, cachep->size,
- 			   flags, nodeid);
-@@ -3513,7 +3513,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 		return cachep;
- 	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
- 	if (ret)
--		kasan_kmalloc(cachep, ret, size);
-+		kasan_kmalloc(cachep, ret, size, flags);
- 
- 	return ret;
- }
-@@ -3550,7 +3550,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 	ret = slab_alloc(cachep, flags, caller);
- 
- 	if (ret)
--		kasan_kmalloc(cachep, ret, size);
-+		kasan_kmalloc(cachep, ret, size, flags);
- 	trace_kmalloc(caller, ret,
- 		      size, cachep->size, flags);
- 
-@@ -4278,7 +4278,7 @@ size_t ksize(const void *objp)
- 	/* We assume that ksize callers could use whole allocated area,
- 	 * so we need to unpoison this area.
- 	 */
--	kasan_krealloc(objp, size);
-+	kasan_krealloc(objp, size, GFP_NOWAIT);
- 
- 	return size;
- }
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 8d2531d..8478631 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1008,7 +1008,7 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
- 	page = alloc_kmem_pages(flags, order);
- 	ret = page ? page_address(page) : NULL;
- 	kmemleak_alloc(ret, size, 1, flags);
--	kasan_kmalloc_large(ret, size);
-+	kasan_kmalloc_large(ret, size, flags);
- 	return ret;
- }
- EXPORT_SYMBOL(kmalloc_order);
-@@ -1189,7 +1189,7 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
- 		ks = ksize(p);
- 
- 	if (ks >= new_size) {
--		kasan_krealloc((void *)p, new_size);
-+		kasan_krealloc((void *)p, new_size, flags);
- 		return (void *)p;
- 	}
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index b21fd24..945bbee 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1272,7 +1272,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
- static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
- {
- 	kmemleak_alloc(ptr, size, 1, flags);
--	kasan_kmalloc_large(ptr, size);
-+	kasan_kmalloc_large(ptr, size, flags);
- }
- 
- static inline void kfree_hook(const void *x)
-@@ -1306,7 +1306,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
- 		kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
- 		kmemleak_alloc_recursive(object, s->object_size, 1,
- 					 s->flags, flags);
--		kasan_slab_alloc(s, object);
-+		kasan_slab_alloc(s, object, flags);
- 	}
- 	memcg_kmem_put_cache(s);
- }
-@@ -2590,7 +2590,7 @@ void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
- {
- 	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
--	kasan_kmalloc(s, ret, size);
-+	kasan_kmalloc(s, ret, size, gfpflags);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_trace);
-@@ -2618,7 +2618,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, s->size, gfpflags, node);
- 
--	kasan_kmalloc(s, ret, size);
-+	kasan_kmalloc(s, ret, size, gfpflags);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-@@ -3162,7 +3162,8 @@ static void early_kmem_cache_node_alloc(int node)
- 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
- 	init_tracking(kmem_cache_node, n);
+ #include <linux/export.h>
++#include <linux/ftrace.h>
+ #include <linux/kernel_stat.h>
+ #include <linux/interrupt.h>
+ #include <linux/init.h>
+@@ -227,7 +228,7 @@ static inline bool lockdep_softirq_start(void) { return false; }
+ static inline void lockdep_softirq_end(bool in_hardirq) { }
  #endif
--	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node));
-+	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
-+		      GFP_KERNEL);
- 	init_kmem_cache_node(n);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
  
-@@ -3535,7 +3536,7 @@ void *__kmalloc(size_t size, gfp_t flags)
- 
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
--	kasan_kmalloc(s, ret, size);
-+	kasan_kmalloc(s, ret, size, flags);
- 
- 	return ret;
- }
-@@ -3580,7 +3581,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 
- 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
- 
--	kasan_kmalloc(s, ret, size);
-+	kasan_kmalloc(s, ret, size, flags);
- 
- 	return ret;
- }
-@@ -3609,7 +3610,7 @@ size_t ksize(const void *object)
- 	size_t size = __ksize(object);
- 	/* We assume that ksize callers could use whole allocated area,
- 	   so we need unpoison this area. */
--	kasan_krealloc(object, size);
-+	kasan_krealloc(object, size, GFP_NOWAIT);
- 	return size;
- }
- EXPORT_SYMBOL(ksize);
+-asmlinkage __visible void __do_softirq(void)
++asmlinkage __visible void __softirq_entry __do_softirq(void)
+ {
+ 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
+ 	unsigned long old_flags = current->flags;
 -- 
 2.7.0.rc3.207.g0ac5344
 
