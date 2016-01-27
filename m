@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 675C86B0009
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:40:44 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id n5so44529908wmn.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:40:44 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bv6si10367690wjc.97.2016.01.27.11.40.43
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 170376B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2016 14:41:38 -0500 (EST)
+Received: by mail-qk0-f175.google.com with SMTP id x1so8009864qkc.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 11:41:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d32si8021814qgd.67.2016.01.27.11.41.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jan 2016 11:40:43 -0800 (PST)
-Date: Wed, 27 Jan 2016 14:39:58 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH] mm: do not let vdso pages into LRU rotation
-Message-ID: <20160127193958.GA31407@cmpxchg.org>
+        Wed, 27 Jan 2016 11:41:37 -0800 (PST)
+Date: Wed, 27 Jan 2016 20:41:32 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: mm: BUG in expand_downwards
+Message-ID: <20160127194132.GA896@redhat.com>
+References: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
+ <CALYGNiP6-T=LuBwzKys7TPpFAiGC-U7FymDT4kr3Zrcfo7CoiQ@mail.gmail.com>
+ <CACT4Y+YNUZumEy2-OXhDku3rdn-4u28kCDRKtgYaO2uA9cYv5w@mail.gmail.com>
+ <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-Hi,
+On 01/27, Dmitry Vyukov wrote:
+>
+> On Wed, Jan 27, 2016 at 1:24 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> > On Wed, Jan 27, 2016 at 12:49 PM, Konstantin Khlebnikov
+> > <koct9i@gmail.com> wrote:
+> >> It seems anon_vma appeared between lock and unlock.
+> >>
+> >> This should fix the bug and make code faster (write lock isn't required here)
+> >>
+> >> --- a/mm/mmap.c
+> >> +++ b/mm/mmap.c
+> >> @@ -453,12 +453,16 @@ static void validate_mm(struct mm_struct *mm)
+> >>         struct vm_area_struct *vma = mm->mmap;
+> >>
+> >>         while (vma) {
+> >> +               struct anon_vma *anon_vma = vma->anon_vma;
+> >>                 struct anon_vma_chain *avc;
+> >>
+> >> -               vma_lock_anon_vma(vma);
+> >> -               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+> >> -                       anon_vma_interval_tree_verify(avc);
+> >> -               vma_unlock_anon_vma(vma);
+> >> +               if (anon_vma) {
+> >> +                       anon_vma_lock_read(anon_vma);
+> >> +                       list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+> >> +                               anon_vma_interval_tree_verify(avc);
+> >> +                       anon_vma_unlock_read(anon_vma);
+> >> +               }
+> >> +
+> >>                 highest_address = vma->vm_end;
+> >>                 vma = vma->vm_next;
+> >>                 i++;
+> >
+> >
+> > Now testing with this patch. Thanks for quick fix!
+>
+>
+> Hit the same BUG with this patch.
 
-I noticed that vdso pages are faulted and unmapped as if they were
-regular file pages. And I'm guessing this is so that the vdso mappings
-are able to use the generic COW code in memory.c.
+Do you mean the same "bad unlock balance detected" BUG? this should be "obviously"
+fixed by the patch above...
 
-However, it's a little unsettling that zap_pte_range() makes decisions
-based on PageAnon() and the page even reaches mark_page_accessed(), as
-that function makes several assumptions about the page being a regular
-LRU user page. It seems this isn't crashing today by sheer luck, but I
-am working on code that does when page_is_file_cache() returns garbage.
+Or you mean the 2nd VM_BUG_ON_MM() ?
 
-I'm using this hack to work around it:
+> Please try to reproduce it locally and test.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index c387430f06c3..f0537c500150 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1121,7 +1121,8 @@ again:
- 					set_page_dirty(page);
- 				}
- 				if (pte_young(ptent) &&
--				    likely(!(vma->vm_flags & VM_SEQ_READ)))
-+				    likely(!(vma->vm_flags & VM_SEQ_READ)) &&
-+				    !PageReserved(page))
- 					mark_page_accessed(page);
- 				rss[MM_FILEPAGES]--;
- 			}
+tried to reproduce, doesn't work.
 
-but I think we need a cleaner (and more robust) solution there to make
-it clearer that these pages are not regularly managed pages.
-
-Could the VDSO be a VM_MIXEDMAP to keep the initial unmanaged pages
-out of the VM while allowing COW into regular anonymous pages?
-
-Are there other requirements of the VDSO that I might be missing?
-
-Any feedback would be greatly appreciated.
-
-Thanks!
-Johannes
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
