@@ -1,53 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1171C6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 16:12:56 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id 128so27937851wmz.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:12:56 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id xt10si17738082wjb.4.2016.01.28.13.12.54
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E5676B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 16:19:24 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p63so42708040wmp.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:24 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id a65si6554685wmh.50.2016.01.28.13.19.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 13:12:55 -0800 (PST)
-Date: Thu, 28 Jan 2016 16:12:40 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160128211240.GA4163@cmpxchg.org>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
- <20160128190204.GJ12228@redhat.com>
- <20160128201123.GB621@dhcp22.suse.cz>
+        Thu, 28 Jan 2016 13:19:23 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id r129so6207180wmr.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:23 -0800 (PST)
+Date: Thu, 28 Jan 2016 22:19:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160128211921.GC621@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
+ <201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
+ <20151229163249.GD10321@dhcp22.suse.cz>
+ <201512310005.DFJ21839.QOOSVFFHMLJOtF@I-love.SAKURA.ne.jp>
+ <201601030047.HJF60980.HJOSFQOMLVFFtO@I-love.SAKURA.ne.jp>
+ <20160120122422.GD14187@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1601271513310.1248@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160128201123.GB621@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.10.1601271513310.1248@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 28, 2016 at 09:11:23PM +0100, Michal Hocko wrote:
-> On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
-> > It's not immediately apparent if there is a new OOM killer upstream
-> > logic that would prevent the risk of a second OOM killer invocation
-> > despite another OOM killing already happened while we were stuck in
-> > reclaim. In absence of that, the high wmark check would be still
-> > needed.
+On Wed 27-01-16 15:18:11, David Rientjes wrote:
+> On Wed, 20 Jan 2016, Michal Hocko wrote:
 > 
-> Well, my oom detection rework [1] strives to make the OOM detection more
-> robust and the retry logic performs the watermark check. So I think the
-> last attempt is no longer needed after that patch. I will then remove
-> it.
+> > > That trigger was introduced by commit 97a16fc82a7c5b0c ("mm, page_alloc: only
+> > > enforce watermarks for order-0 allocations"), and "mm, oom: rework oom detection"
+> > > patch hits the trigger.
+> > [....]
+> > > [  154.829582] zone=DMA32 reclaimable=308907 available=312734 no_progress_loops=0 did_some_progress=50
+> > > [  154.831562] zone=DMA reclaimable=2 available=1728 no_progress_loops=0 did_some_progress=50
+> > > [  154.838499] fork invoked oom-killer: order=2, oom_score_adj=0, gfp_mask=0x27000c0(GFP_KERNEL|GFP_NOTRACK|0x100000)
+> > > [  154.841167] fork cpuset=/ mems_allowed=0
+> > [...]
+> > > [  154.917857] Node 0 DMA32 free:17996kB min:5172kB low:6464kB high:7756kB ....
+> > [...]
+> > > [  154.931918] Node 0 DMA: 107*4kB (UME) 72*8kB (ME) 47*16kB (UME) 19*32kB (UME) 9*64kB (ME) 1*128kB (M) 3*256kB (M) 2*512kB (E) 2*1024kB (UM) 0*2048kB 0*4096kB = 6908kB
+> > > [  154.937453] Node 0 DMA32: 1113*4kB (UME) 1400*8kB (UME) 116*16kB (UM) 15*32kB (UM) 1*64kB (M) 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 18052kB
+> > 
+> > It is really strange that __zone_watermark_ok claimed DMA32 unusable
+> > here. With the target of 312734 which should easilly pass the wmark
+> > check for the particular order and there are 116*16kB 15*32kB 1*64kB
+> > blocks "usable" for our request because GFP_KERNEL can use both
+> > Unmovable and Movable blocks. So it makes sense to wait for more order-0
+> > allocations to pass the basic (NR_FREE_MEMORY) watermark and continue
+> > with this particular allocation request.
+> > 
+> > The nr_reserved_highatomic might be too high to matter but then you see
+> > [1] the reserce being 0. So this doesn't make much sense to me. I will
+> > dig into it some more.
+> > 
+> > [1] http://lkml.kernel.org/r/201601161007.DDG56185.QOHMOFOLtSFJVF@I-love.SAKURA.ne.jp
+> 
+> There's another issue in the use of zone_reclaimable_pages().  I think 
+> should_reclaim_retry() using zone_page_state_snapshot() is approrpriate, 
+> as I indicated before, but notice that zone_reclaimable_pages() only uses 
+> zone_page_state().  It means that the heuristic is based on some 
+> up-to-date members and some stale members.  If we are relying on 
+> NR_ISOLATED_* to be accurate, for example, in zone_reclaimable_pages(), 
+> then it may take up to 1s for that to actually occur and may quickly 
+> exhaust the retry counter in should_reclaim_retry() before that happens.
 
-Hm? I don't have the same conclusion from what Andrea said.
+You are right. I will post a patch to fix that.
 
-When you have many allocations racing at the same time, they can all
-enter __alloc_pages_may_oom() in quick succession. We don't want a
-cavalcade of OOM kills when one could be enough, so we have to make
-sure that in between should_alloc_retry() giving up and acquiring the
-OOM lock nobody else already issued a kill and released enough memory.
-
-It's a race window that gets yanked wide open when hundreds of threads
-race in __alloc_pages_may_oom(). Your patches don't fix that, AFAICS.
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
