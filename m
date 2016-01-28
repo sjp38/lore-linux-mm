@@ -1,98 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 44EEA6B0256
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 04:44:46 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id o185so16331159pfb.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 01:44:46 -0800 (PST)
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
-        by mx.google.com with ESMTPS id x12si781998pfa.98.2016.01.28.01.44.44
+Received: from mail-lf0-f47.google.com (mail-lf0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B7DEE6B0256
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 04:45:49 -0500 (EST)
+Received: by mail-lf0-f47.google.com with SMTP id c192so23256301lfe.2
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 01:45:49 -0800 (PST)
+Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com. [2a00:1450:4010:c04::232])
+        by mx.google.com with ESMTPS id a5si5164043lbs.150.2016.01.28.01.45.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 01:44:45 -0800 (PST)
-Received: from localhost
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 28 Jan 2016 19:44:37 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id DDEA42BB0054
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:44:33 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0S9iRqV12124372
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:44:35 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0S9i08l005912
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:44:01 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM ATTEND] 2016: Requests to attend MM-summit
-In-Reply-To: <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
-References: <87k2n2usyf.fsf@linux.vnet.ibm.com> <20160122163801.GA16668@cmpxchg.org> <CAAmzW4OmWr1QGJn8D2c14jCPnwQ89T=YgBbg=bExgc_R6a4-bw@mail.gmail.com>
-Date: Thu, 28 Jan 2016 15:13:33 +0530
-Message-ID: <877fiu59a2.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 01:45:48 -0800 (PST)
+Received: by mail-lb0-x232.google.com with SMTP id cl12so20254430lbc.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 01:45:48 -0800 (PST)
+Subject: [PATCH] mm: polish virtual memory accounting
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Thu, 28 Jan 2016 12:45:44 +0300
+Message-ID: <145397434479.24456.7330581149702545550.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: lsf-pc@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-Joonsoo Kim <js1304@gmail.com> writes:
+* add VM_STACK as alias for VM_GROWSUP/DOWN depending on architecture
+* always account VMAs with flag VM_STACK as stack (as it was before)
+* cleanup classifying helpers
+* update comments and documentation
 
-> Hello,
->
-> 2016-01-23 1:38 GMT+09:00 Johannes Weiner <hannes@cmpxchg.org>:
->> Hi,
->>
->> On Fri, Jan 22, 2016 at 10:11:12AM +0530, Aneesh Kumar K.V wrote:
->>> * CMA allocator issues:
->>>   (1) order zero allocation failures:
->>>       We are observing order zero non-movable allocation failures in kernel
->>> with CMA configured. We don't start a reclaim because our free memory check
->>> does not consider free_cma. Hence the reclaim code assume we have enough free
->>> pages. Joonsoo Kim tried to fix this with his ZOME_CMA patches. I would
->>> like to discuss the challenges in getting this merged upstream.
->>> https://lkml.org/lkml/2015/2/12/95 (ZONE_CMA)
->
-> As far as I know, there is no disagreement on this patchset in last year LSF/MM.
-> Problem may be due to my laziness... Sorry about that. I will handle it soon.
-> Is there anything more that you concern?
->
->> The exclusion of cma pages from the watermark checks means that
->> reclaim is happening too early, not too late, which leaves memory
->> underutilized. That's what ZONE_CMA set out to fix.
->>
->> But unmovable allocations can still fail when the only free memory is
->> inside CMA regions. I don't see how ZONE_CMA would fix that.
->>
->> CC Joonsoo
->
-> I understand what Aneesh's problem is.
->
-> Assume that
->
-> X = non movable free page
-> Y = movable free page
-> Z = cma free page
->
-> X < min watermark
-> X + Y > high watermark
-> Z > high watermark
->
-> If there are bunch of consecutive movable allocation requests,
-> Y will decrease. After some time, Y will be exhausted. At that
-> time, there is enough Z so movable allocation request still can be
-> handled in fastpath and kswapd isn't waked up. In that situation,
-> if atomic non-movable page allocation for order-0 comes,
-> it would be failed.
->
-> Although it isn't mentioned on ZONE_CMA patchset, it is also
-> fixed by that patchset because with that patchset, all CMA pages
-> are in CMA zone so freepage calculation is always precise.
->
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+---
+ Documentation/filesystems/proc.txt |    4 ++--
+ include/linux/mm.h                 |    6 ++++--
+ include/linux/mm_types.h           |    6 +++---
+ mm/internal.h                      |   23 +++++++++++++++++++----
+ 4 files changed, 28 insertions(+), 11 deletions(-)
 
-That is the issue I am hitting and if we don't have any blocker against
-ZONE_CMA then we can drop this topic.
-
--aneesh
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index fde9fd06fa98..6a4da2a6d8c9 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -240,8 +240,8 @@ Table 1-2: Contents of the status files (as of 4.1)
+  RssFile                     size of resident file mappings
+  RssShmem                    size of resident shmem memory (includes SysV shm,
+                              mapping of tmpfs and shared anonymous mappings)
+- VmData                      size of data, stack, and text segments
+- VmStk                       size of data, stack, and text segments
++ VmData                      size of private data segments
++ VmStk                       size of stack segments
+  VmExe                       size of text segment
+  VmLib                       size of shared library code
+  VmPTE                       size of page table entries
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f1cd22f2df1a..62fc828c7ec7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -201,11 +201,13 @@ extern unsigned int kobjsize(const void *objp);
+ #endif
+ 
+ #ifdef CONFIG_STACK_GROWSUP
+-#define VM_STACK_FLAGS	(VM_GROWSUP | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
++#define VM_STACK	VM_GROWSUP
+ #else
+-#define VM_STACK_FLAGS	(VM_GROWSDOWN | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
++#define VM_STACK	VM_GROWSDOWN
+ #endif
+ 
++#define VM_STACK_FLAGS	(VM_STACK | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
++
+ /*
+  * Special vmas that are non-mergable, non-mlock()able.
+  * Note: mm/huge_memory.c VM_NO_THP depends on this definition.
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index d3ebb9d21a53..624b78b848b8 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -424,9 +424,9 @@ struct mm_struct {
+ 	unsigned long total_vm;		/* Total pages mapped */
+ 	unsigned long locked_vm;	/* Pages that have PG_mlocked set */
+ 	unsigned long pinned_vm;	/* Refcount permanently increased */
+-	unsigned long data_vm;		/* VM_WRITE & ~VM_SHARED/GROWSDOWN */
+-	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
+-	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
++	unsigned long data_vm;		/* VM_WRITE & ~VM_SHARED & ~VM_STACK */
++	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
++	unsigned long stack_vm;		/* VM_STACK */
+ 	unsigned long def_flags;
+ 	unsigned long start_code, end_code, start_data, end_data;
+ 	unsigned long start_brk, brk, start_stack;
+diff --git a/mm/internal.h b/mm/internal.h
+index 6e976302ddd8..a38a21ebddb4 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -216,20 +216,35 @@ static inline bool is_cow_mapping(vm_flags_t flags)
+ 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ }
+ 
++/*
++ * These three helpers classifies VMAs for virtual memory accounting.
++ */
++
++/*
++ * Executable code area - executable, not writable, not stack
++ */
+ static inline bool is_exec_mapping(vm_flags_t flags)
+ {
+-	return (flags & (VM_EXEC | VM_WRITE)) == VM_EXEC;
++	return (flags & (VM_EXEC | VM_WRITE | VM_STACK)) == VM_EXEC;
+ }
+ 
++/*
++ * Stack area - atomatically grows in one direction
++ *
++ * VM_GROWSUP / VM_GROWSDOWN VMAs are always private anonymous:
++ * do_mmap() forbids all other combinations.
++ */
+ static inline bool is_stack_mapping(vm_flags_t flags)
+ {
+-	return (flags & (VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN))) != 0;
++	return (flags & VM_STACK) == VM_STACK;
+ }
+ 
++/*
++ * Data area - private, writable, not stack
++ */
+ static inline bool is_data_mapping(vm_flags_t flags)
+ {
+-	return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
+-					VM_WRITE | VM_SHARED)) == VM_WRITE;
++	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
+ }
+ 
+ /* mm/util.c */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
