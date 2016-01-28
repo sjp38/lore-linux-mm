@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E5676B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 16:19:24 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id p63so42708040wmp.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:24 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id a65si6554685wmh.50.2016.01.28.13.19.23
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DE26E6B0253
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 16:19:53 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id l66so29113655wml.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:53 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id w8si17766424wjz.7.2016.01.28.13.19.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 13:19:23 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id r129so6207180wmr.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:23 -0800 (PST)
-Date: Thu, 28 Jan 2016 22:19:21 +0100
+        Thu, 28 Jan 2016 13:19:52 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id 128so4015801wmz.3
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:19:52 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20160128211921.GC621@dhcp22.suse.cz>
+Subject: [PATCH 5/3] mm, vmscan: make zone_reclaimable_pages more precise
+Date: Thu, 28 Jan 2016 22:19:39 +0100
+Message-Id: <1454015979-9985-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
 References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <201512242141.EAH69761.MOVFQtHSFOJFLO@I-love.SAKURA.ne.jp>
- <201512282108.EDI82328.OHFLtVJOSQFMFO@I-love.SAKURA.ne.jp>
- <20151229163249.GD10321@dhcp22.suse.cz>
- <201512310005.DFJ21839.QOOSVFFHMLJOtF@I-love.SAKURA.ne.jp>
- <201601030047.HJF60980.HJOSFQOMLVFFtO@I-love.SAKURA.ne.jp>
- <20160120122422.GD14187@dhcp22.suse.cz>
- <alpine.DEB.2.10.1601271513310.1248@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1601271513310.1248@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 27-01-16 15:18:11, David Rientjes wrote:
-> On Wed, 20 Jan 2016, Michal Hocko wrote:
-> 
-> > > That trigger was introduced by commit 97a16fc82a7c5b0c ("mm, page_alloc: only
-> > > enforce watermarks for order-0 allocations"), and "mm, oom: rework oom detection"
-> > > patch hits the trigger.
-> > [....]
-> > > [  154.829582] zone=DMA32 reclaimable=308907 available=312734 no_progress_loops=0 did_some_progress=50
-> > > [  154.831562] zone=DMA reclaimable=2 available=1728 no_progress_loops=0 did_some_progress=50
-> > > [  154.838499] fork invoked oom-killer: order=2, oom_score_adj=0, gfp_mask=0x27000c0(GFP_KERNEL|GFP_NOTRACK|0x100000)
-> > > [  154.841167] fork cpuset=/ mems_allowed=0
-> > [...]
-> > > [  154.917857] Node 0 DMA32 free:17996kB min:5172kB low:6464kB high:7756kB ....
-> > [...]
-> > > [  154.931918] Node 0 DMA: 107*4kB (UME) 72*8kB (ME) 47*16kB (UME) 19*32kB (UME) 9*64kB (ME) 1*128kB (M) 3*256kB (M) 2*512kB (E) 2*1024kB (UM) 0*2048kB 0*4096kB = 6908kB
-> > > [  154.937453] Node 0 DMA32: 1113*4kB (UME) 1400*8kB (UME) 116*16kB (UM) 15*32kB (UM) 1*64kB (M) 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 18052kB
-> > 
-> > It is really strange that __zone_watermark_ok claimed DMA32 unusable
-> > here. With the target of 312734 which should easilly pass the wmark
-> > check for the particular order and there are 116*16kB 15*32kB 1*64kB
-> > blocks "usable" for our request because GFP_KERNEL can use both
-> > Unmovable and Movable blocks. So it makes sense to wait for more order-0
-> > allocations to pass the basic (NR_FREE_MEMORY) watermark and continue
-> > with this particular allocation request.
-> > 
-> > The nr_reserved_highatomic might be too high to matter but then you see
-> > [1] the reserce being 0. So this doesn't make much sense to me. I will
-> > dig into it some more.
-> > 
-> > [1] http://lkml.kernel.org/r/201601161007.DDG56185.QOHMOFOLtSFJVF@I-love.SAKURA.ne.jp
-> 
-> There's another issue in the use of zone_reclaimable_pages().  I think 
-> should_reclaim_retry() using zone_page_state_snapshot() is approrpriate, 
-> as I indicated before, but notice that zone_reclaimable_pages() only uses 
-> zone_page_state().  It means that the heuristic is based on some 
-> up-to-date members and some stale members.  If we are relying on 
-> NR_ISOLATED_* to be accurate, for example, in zone_reclaimable_pages(), 
-> then it may take up to 1s for that to actually occur and may quickly 
-> exhaust the retry counter in should_reclaim_retry() before that happens.
+From: Michal Hocko <mhocko@suse.com>
 
-You are right. I will post a patch to fix that.
+zone_reclaimable_pages is used in should_reclaim_retry which uses it to
+calculate the target for the watermark check. This means that precise
+numbers are important for the correct decision. zone_reclaimable_pages
+uses zone_page_state which can contain stale data with per-cpu diffs
+not synced yet (the last vmstat_update might have run 1s in the past).
 
-Thanks!
+Use zone_page_state_snapshot in zone_reclaimable_pages instead. None
+of the current callers is in a hot path where getting the precise value
+(which involves per-cpu iteration) would cause an unreasonable overhead.
+
+Suggested-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/vmscan.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 489212252cd6..9145e3f89eab 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -196,21 +196,21 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
+ {
+ 	unsigned long nr;
+ 
+-	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
+-	     zone_page_state(zone, NR_INACTIVE_FILE) +
+-	     zone_page_state(zone, NR_ISOLATED_FILE);
++	nr = zone_page_state_snapshot(zone, NR_ACTIVE_FILE) +
++	     zone_page_state_snapshot(zone, NR_INACTIVE_FILE) +
++	     zone_page_state_snapshot(zone, NR_ISOLATED_FILE);
+ 
+ 	if (get_nr_swap_pages() > 0)
+-		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
+-		      zone_page_state(zone, NR_INACTIVE_ANON) +
+-		      zone_page_state(zone, NR_ISOLATED_ANON);
++		nr += zone_page_state_snapshot(zone, NR_ACTIVE_ANON) +
++		      zone_page_state_snapshot(zone, NR_INACTIVE_ANON) +
++		      zone_page_state_snapshot(zone, NR_ISOLATED_ANON);
+ 
+ 	return nr;
+ }
+ 
+ bool zone_reclaimable(struct zone *zone)
+ {
+-	return zone_page_state(zone, NR_PAGES_SCANNED) <
++	return zone_page_state_snapshot(zone, NR_PAGES_SCANNED) <
+ 		zone_reclaimable_pages(zone) * 6;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
