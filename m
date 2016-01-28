@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 383F76B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 10:37:47 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id l66so16417817wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 07:37:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y9si16036585wjr.11.2016.01.28.07.37.45
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 22EBD6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 10:47:50 -0500 (EST)
+Received: by mail-qg0-f53.google.com with SMTP id o11so41921512qge.2
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 07:47:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w132si10192215qka.53.2016.01.28.07.47.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 07:37:46 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm/Kconfig: correct description of DEFERRED_STRUCT_PAGE_INIT
-Date: Thu, 28 Jan 2016 16:37:28 +0100
-Message-Id: <1453995448-27582-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 07:47:49 -0800 (PST)
+Date: Thu, 28 Jan 2016 16:47:46 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm: BUG in expand_downwards
+Message-ID: <20160128154746.GI12228@redhat.com>
+References: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
+ <CALYGNiP6-T=LuBwzKys7TPpFAiGC-U7FymDT4kr3Zrcfo7CoiQ@mail.gmail.com>
+ <CACT4Y+YNUZumEy2-OXhDku3rdn-4u28kCDRKtgYaO2uA9cYv5w@mail.gmail.com>
+ <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
+ <20160127194132.GA896@redhat.com>
+ <CACT4Y+Z86=NoNPrS-vgtJiB54Akwq6FfAPf2wnBA1FX2BHafWQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+Z86=NoNPrS-vgtJiB54Akwq6FfAPf2wnBA1FX2BHafWQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-The description mentions kswapd threads, while the deferred struct page
-initialization is actually done by one-off "pgdatinitX" threads. Fix the
-description so that potentially users are not confused about pgdatinit threads
-using CPU after boot instead of kswapd.
+Hello,
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/Kconfig | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+On Wed, Jan 27, 2016 at 10:11:44PM +0100, Dmitry Vyukov wrote:
+> Sorry, I meant only the second once. The mm bug.
+> I guess you need at least CONFIG_DEBUG_VM.  Run it in a tight parallel
+> loop with CPU oversubscription (e.g. 32 parallel processes on 2 cores)
+> for  at least an hour.
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 97a4e06b15c0..03cbfa072f42 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -624,7 +624,7 @@ config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	bool
- 
- config DEFERRED_STRUCT_PAGE_INIT
--	bool "Defer initialisation of struct pages to kswapd"
-+	bool "Defer initialisation of struct pages to kthreads"
- 	default n
- 	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	depends on MEMORY_HOTPLUG
-@@ -633,9 +633,10 @@ config DEFERRED_STRUCT_PAGE_INIT
- 	  single thread. On very large machines this can take a considerable
- 	  amount of time. If this option is set, large machines will bring up
- 	  a subset of memmap at boot and then initialise the rest in parallel
--	  when kswapd starts. This has a potential performance impact on
--	  processes running early in the lifetime of the systemm until kswapd
--	  finishes the initialisation.
-+	  by starting one-off "pgdatinitX" kernel thread for each node X. This
-+	  has a potential performance impact on processes running early in the
-+	  lifetime of the system until these kthreads finish the
-+	  initialisation.
- 
- config IDLE_PAGE_TRACKING
- 	bool "Enable idle page tracking"
--- 
-2.7.0
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Does this help for the mm bug?
