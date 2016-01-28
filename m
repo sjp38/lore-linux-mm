@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 14FEB6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:02:08 -0500 (EST)
-Received: by mail-qk0-f175.google.com with SMTP id o6so15138442qkc.2
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:02:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m186si9700928qhc.62.2016.01.28.11.02.07
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 601AA6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:07:04 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id wb13so10776697obb.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:07:04 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id d71si11585385oih.12.2016.01.28.11.07.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 11:02:07 -0800 (PST)
-Date: Thu, 28 Jan 2016 20:02:04 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160128190204.GJ12228@redhat.com>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
+        Thu, 28 Jan 2016 11:07:03 -0800 (PST)
+Subject: Re: [LSF/MM ATTEND] Huge Page Futures
+References: <56A580F8.4060301@oracle.com>
+ <20160125110137.GB11541@node.shutemov.name> <56A62837.7010105@oracle.com>
+ <56A90345.3020903@oracle.com>
+ <alpine.LSU.2.11.1601280022040.4201@eggly.anvils>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56AA66CE.8080000@oracle.com>
+Date: Thu, 28 Jan 2016 11:06:54 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160128163802.GA15953@dhcp22.suse.cz>
+In-Reply-To: <alpine.LSU.2.11.1601280022040.4201@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hello Michal,
-
-On Thu, Jan 28, 2016 at 05:38:03PM +0100, Michal Hocko wrote:
-> Hi,
-> __alloc_pages_may_oom just after it manages to get oom_lock we try
-> to allocate once more with ALLOC_WMARK_HIGH target. I was always
-> wondering why are we will to actually kill something even though
-> we are above min wmark. This doesn't make much sense to me. I understand
-> that this is racy because __alloc_pages_may_oom is called after we have
-> failed to fulfill the WMARK_MIN target but this means WMARK_HIGH
-> is highly unlikely as well. So either we should use ALLOC_WMARK_MIN
-> or get rid of this altogether.
+On 01/28/2016 12:49 AM, Hugh Dickins wrote:
+> On Wed, 27 Jan 2016, Mike Kravetz wrote:
+>> On 01/25/2016 05:50 AM, Mike Kravetz wrote:
+>>> On 01/25/2016 03:01 AM, Kirill A. Shutemov wrote:
+>>>> On Sun, Jan 24, 2016 at 05:57:12PM -0800, Mike Kravetz wrote:
+>>>>> - Adding shared page table (PMD) support to DAX much like that which exists
+>>>>>   for hugetlbfs
+>>>>
+>>>> Shared page tables for hugetlbfs is rather ugly hack.
+>>>>
+>>>> Do you have any thoughts how it's going to be implemented? It would be
+>>>> nice to have some design overview or better proof-of-concept patch before
+>>>> the summit to be able analyze implications for the kernel.
+>>>>
+>>>
+>>> Good to know the hugetlbfs implementation is considered a hack.  I just
+>>> started looking at this, and was going to use hugetlbfs as a starting
+>>> point.  I'll reconsider that decision.
+>>
+>> Kirill, can you (or others) explain your reasons for saying the hugetlbfs
+>> implementation is an ugly hack?  I do not have enough history/experience
+>> with this to say what is most offensive.  I would be happy to start by
+>> cleaning up issues with the current implementation.
 > 
-> The code has been added before git era by
-> https://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.11-rc2/2.6.11-rc2-mm2/broken-out/mm-fix-several-oom-killer-bugs.patch
-
-I assume you refer to this:
-
-+		/*
-+		 * Go through the zonelist yet one more time, keep
-+		 * very high watermark here, this is only to catch
-+		 * a parallel oom killing, we must fail if we're still
-+		 * under heavy pressure.
-+		 */
-+		for (i = 0; (z = zones[i]) != NULL; i++) {
-+			if (!zone_watermark_ok(z, order, z->pages_high,
-			   			  	 ^^^^^^^^^^^^^
-
-> and it doesn't explain this particular decision. It seems to me that
-
-Not explained explicitly in the commit header but see the above
-comment added just before the z->pages_high, it at least tries to
-explain it..
-
-Although the implementation changed and now it's ALLOC_WMARK_HIGH
-instead of z->pages_high, the old comment is still in the current
-upstream:
-
-	/*
-	 * Go through the zonelist yet one more time, keep very high watermark
-	 * here, this is only to catch a parallel oom killing, we must fail if
-	 * we're still under heavy pressure.
-	 */
-
-> what ever was the reason back then it doesn't hold anymore.
+> I disagree that the hugetlbfs shared pagetables are an ugly hack.
+> What they are is a dark backwater that very few people are aware of,
+> which we therefore can very easily break or be broken by.
 > 
-> What do you think?
+> I have regretted bringing them into mm for that reason, and have
+> thought that they're next in line for the axe, after those non-linear
+> vmas which Kirill dispatched without tears last year.  But if you're
+> intent on making more use of them, exposing them to the light of day
+> is a fair alternative to consider.
 
-Elaborating the comment: the reason for the high wmark is to reduce
-the likelihood of livelocks and be sure to invoke the OOM killer, if
-we're still under pressure and reclaim just failed. The high wmark is
-used to be sure the failure of reclaim isn't going to be ignored. If
-using the min wmark like you propose there's risk of livelock or
-anyway of delayed OOM killer invocation.
+It is interesting to note that at least one DB vendor (my employer) is
+very aware of hugetlbfs shared pagetables, and takes advantage of them
+in their DB architecture.  Their primary concern is the memory savings
+that sharing provides.  I agree with you that very few people know
+about them.  I didn't know they existed until informed by the DB team
+and I looked at the code.
 
-The reason for doing one last wmark check (regardless of the wmark
-used) before invoking the oom killer, was just to be sure another OOM
-killer invocation hasn't already freed a ton of memory while we were
-stuck in reclaim. A lot of free memory generated by the OOM killer,
-won't make a parallel reclaim more likely to succeed, it just creates
-free memory, but reclaim only succeeds when it finds "freeable" memory
-and it makes progress in converting it to free memory. So for the
-purpose of this last check, the high wmark would work fine as lots of
-free memory would have been generated in such case.
-
-It's not immediately apparent if there is a new OOM killer upstream
-logic that would prevent the risk of a second OOM killer invocation
-despite another OOM killing already happened while we were stuck in
-reclaim. In absence of that, the high wmark check would be still
-needed.
-
-Thanks,
-Andrea
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
