@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE8A6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:24:31 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id l66so25352758wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:24:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 137si6045635wmb.8.2016.01.28.11.24.29
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 810296B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:28:41 -0500 (EST)
+Received: by mail-io0-f176.google.com with SMTP id g73so66652349ioe.3
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:28:41 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id sa7si6589852igb.13.2016.01.28.11.28.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 11:24:29 -0800 (PST)
-Subject: Re: [PATCH] vmpressure: Fix subtree pressure detection
-References: <1453912137-25473-1-git-send-email-vdavydov@virtuozzo.com>
- <20160128155531.GE15948@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56AA6AEE.30004@suse.cz>
-Date: Thu, 28 Jan 2016 20:24:30 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 11:28:40 -0800 (PST)
+Subject: Re: [LSF/MM ATTEND] Huge Page Futures
+References: <56A580F8.4060301@oracle.com> <87bn85ycbh.fsf@linux.vnet.ibm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56AA6BE1.2050809@oracle.com>
+Date: Thu, 28 Jan 2016 11:28:33 -0800
 MIME-Version: 1.0
-In-Reply-To: <20160128155531.GE15948@dhcp22.suse.cz>
+In-Reply-To: <87bn85ycbh.fsf@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 28.1.2016 16:55, Michal Hocko wrote:
-> On Wed 27-01-16 19:28:57, Vladimir Davydov wrote:
->> When vmpressure is called for the entire subtree under pressure we
->> mistakenly use vmpressure->scanned instead of vmpressure->tree_scanned
->> when checking if vmpressure work is to be scheduled. This results in
->> suppressing all vmpressure events in the legacy cgroup hierarchy. Fix
->> it.
->>
->> Fixes: 8e8ae645249b ("mm: memcontrol: hook up vmpressure to socket pressure")
->> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+On 01/28/2016 07:05 AM, Aneesh Kumar K.V wrote:
+> Mike Kravetz <mike.kravetz@oracle.com> writes:
 > 
-> a = b += c made me scratch my head for a second but this looks correct
-
-Ugh, it's actually a = b += a
-
-While clever and compact, this will make scratch their head anyone looking at
-the code in the future. Is it worth it?
-
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
->> ---
->>  mm/vmpressure.c | 3 +--
->>  1 file changed, 1 insertion(+), 2 deletions(-)
+>> In a search of the archives, it appears huge page support in one form or
+>> another has been a discussion topic in almost every LSF/MM gathering. Based
+>> on patches submitted this past year, huge pages is still an area of active
+>> development.  And, it appears this level of activity will  continue in the
+>> coming year.
 >>
->> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
->> index 9a6c0704211c..149fdf6c5c56 100644
->> --- a/mm/vmpressure.c
->> +++ b/mm/vmpressure.c
->> @@ -248,9 +248,8 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
->>  
->>  	if (tree) {
->>  		spin_lock(&vmpr->sr_lock);
->> -		vmpr->tree_scanned += scanned;
->> +		scanned = vmpr->tree_scanned += scanned;
->>  		vmpr->tree_reclaimed += reclaimed;
->> -		scanned = vmpr->scanned;
->>  		spin_unlock(&vmpr->sr_lock);
->>  
->>  		if (scanned < vmpressure_win)
->> -- 
->> 2.1.4
+>> I propose a "Huge Page Futures" session to discuss large works in progress
+>> as well as work people are considering for 2016.  Areas of discussion would
+>> minimally include:
+>>
+>> - Krill Shutemov's THP new refcounting code and the push for huge page
+>>   support in the page cache.
+> 
+> I am also interested in this discussion. We had some nice challenge
+> w.r.t to powerpc implementation of THP.
+> 
+>>
+>> - Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
+>>   more interesting is the desire for supporting PUD pages.  This seems to
+>>   beg the question of supporting transparent PUD pages elsewhere.
+>>
+> 
+> I am also looking at switching powerpc hugetlbfs to GENERAL_HUGETLB. To
+> support 16GB pages I would need hugepage at PUD/PGD. Can you elaborate
+> why supporting huge PUD page is a challenge ?
+
+For hugetlbfs it should not be an issue.  However, page fault handling for
+hugetlbfs is already a special case today.  Is that what you were asking?
+
+Matt's work adds THP for PUD sized huge pages to DAX mappings.  The thought
+that popped into my head is "Does it make sense to try and expand THP for
+PUD sized pages elsewhere?".  Perhaps that is nonsense and a silly question
+to ask.
+
+-- 
+Mike Kravetz
+
+> 
+> -aneesh
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
