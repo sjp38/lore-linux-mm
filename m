@@ -1,124 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 385376B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:11:29 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p63so40557396wmp.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:11:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g15si6272322wmd.12.2016.01.28.12.11.26
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C176B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:40:13 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id l66so27877281wml.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:40:13 -0800 (PST)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id 137si6423972wmb.8.2016.01.28.12.40.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 12:11:28 -0800 (PST)
-Date: Thu, 28 Jan 2016 21:11:23 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160128201123.GB621@dhcp22.suse.cz>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
- <20160128190204.GJ12228@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160128190204.GJ12228@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 12:40:12 -0800 (PST)
+Received: by mail-wm0-f66.google.com with SMTP id r129so6029664wmr.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:40:12 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 4/3] mm, oom: drop the last allocation attempt before out_of_memory
+Date: Thu, 28 Jan 2016 21:40:03 +0100
+Message-Id: <1454013603-3682-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
-> Hello Michal,
-> 
-> On Thu, Jan 28, 2016 at 05:38:03PM +0100, Michal Hocko wrote:
-> > Hi,
-> > __alloc_pages_may_oom just after it manages to get oom_lock we try
-> > to allocate once more with ALLOC_WMARK_HIGH target. I was always
-> > wondering why are we will to actually kill something even though
-> > we are above min wmark. This doesn't make much sense to me. I understand
-> > that this is racy because __alloc_pages_may_oom is called after we have
-> > failed to fulfill the WMARK_MIN target but this means WMARK_HIGH
-> > is highly unlikely as well. So either we should use ALLOC_WMARK_MIN
-> > or get rid of this altogether.
-> > 
-> > The code has been added before git era by
-> > https://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.11-rc2/2.6.11-rc2-mm2/broken-out/mm-fix-several-oom-killer-bugs.patch
-> 
-> I assume you refer to this:
-> 
-> +		/*
-> +		 * Go through the zonelist yet one more time, keep
-> +		 * very high watermark here, this is only to catch
-> +		 * a parallel oom killing, we must fail if we're still
-> +		 * under heavy pressure.
-> +		 */
-> +		for (i = 0; (z = zones[i]) != NULL; i++) {
-> +			if (!zone_watermark_ok(z, order, z->pages_high,
-> 			   			  	 ^^^^^^^^^^^^^
+From: Michal Hocko <mhocko@suse.com>
 
-yes
+__alloc_pages_may_oom has been doing get_page_from_freelist with
+ALLOC_WMARK_HIGH target before going out_of_memory and invoking the oom
+killer. This has two reasons as explained by Andrea:
+"
+: the reason for the high wmark is to reduce the likelihood of livelocks
+: and be sure to invoke the OOM killer, if we're still under pressure
+: and reclaim just failed. The high wmark is used to be sure the failure
+: of reclaim isn't going to be ignored. If using the min wmark like
+: you propose there's risk of livelock or anyway of delayed OOM killer
+: invocation.
+:
+: The reason for doing one last wmark check (regardless of the wmark
+: used) before invoking the oom killer, was just to be sure another OOM
+: killer invocation hasn't already freed a ton of memory while we were
+: stuck in reclaim. A lot of free memory generated by the OOM killer,
+: won't make a parallel reclaim more likely to succeed, it just creates
+: free memory, but reclaim only succeeds when it finds "freeable" memory
+: and it makes progress in converting it to free memory. So for the
+: purpose of this last check, the high wmark would work fine as lots of
+: free memory would have been generated in such case.
+"
 
-> > and it doesn't explain this particular decision. It seems to me that
-> 
-> Not explained explicitly in the commit header but see the above
-> comment added just before the z->pages_high, it at least tries to
-> explain it..
-> 
-> Although the implementation changed and now it's ALLOC_WMARK_HIGH
-> instead of z->pages_high, the old comment is still in the current
-> upstream:
-> 
-> 	/*
-> 	 * Go through the zonelist yet one more time, keep very high watermark
-> 	 * here, this is only to catch a parallel oom killing, we must fail if
-> 	 * we're still under heavy pressure.
-> 	 */
+This is no longer a concern after "mm, oom: rework oom detection"
+because should_reclaim_retry performs the water mark check right before
+__alloc_pages_may_oom is invoked. Remove the last moment allocation
+request as it just makes the code more confusing and doesn't really
+serve any purpose because a success is basically impossible otherwise
+should_reclaim_retry would force the reclaim to retry. So this is
+merely a code cleanup rather than a functional change.
 
-Yes I have read the comment but it doesn't make any sense to me, to be
-honest.
-
-> > what ever was the reason back then it doesn't hold anymore.
-> > 
-> > What do you think?
-> 
-> Elaborating the comment: the reason for the high wmark is to reduce
-> the likelihood of livelocks and be sure to invoke the OOM killer, if
-> we're still under pressure and reclaim just failed. The high wmark is
-> used to be sure the failure of reclaim isn't going to be ignored. If
-> using the min wmark like you propose there's risk of livelock or
-> anyway of delayed OOM killer invocation.
-
-By livelock you mean trashing when last few pages are recycled very
-quickly and the OOM killer should be invoked instead?
-
-> The reason for doing one last wmark check (regardless of the wmark
-> used) before invoking the oom killer, was just to be sure another OOM
-> killer invocation hasn't already freed a ton of memory while we were
-> stuck in reclaim. A lot of free memory generated by the OOM killer,
-> won't make a parallel reclaim more likely to succeed, it just creates
-> free memory, but reclaim only succeeds when it finds "freeable" memory
-> and it makes progress in converting it to free memory. So for the
-> purpose of this last check, the high wmark would work fine as lots of
-> free memory would have been generated in such case.
-
-OK, I see. It is true that we try to allocate only if the direct reclaim
-made some progress which is not aware of the oom killer reclaimed memory.
-
->
-> It's not immediately apparent if there is a new OOM killer upstream
-> logic that would prevent the risk of a second OOM killer invocation
-> despite another OOM killing already happened while we were stuck in
-> reclaim. In absence of that, the high wmark check would be still
-> needed.
-
-Well, my oom detection rework [1] strives to make the OOM detection more
-robust and the retry logic performs the watermark check. So I think the
-last attempt is no longer needed after that patch. I will then remove
-it.
-
-Thanks for the clarification
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
-[1] http://lkml.kernel.org/r/1450203586-10959-1-git-send-email-mhocko@kernel.org
+ mm/page_alloc.c | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 268de1654128..f82941c0ac4e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2743,16 +2743,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 	}
+ 
+-	/*
+-	 * Go through the zonelist yet one more time, keep very high watermark
+-	 * here, this is only to catch a parallel oom killing, we must fail if
+-	 * we're still under heavy pressure.
+-	 */
+-	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
+-					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+-	if (page)
+-		goto out;
+-
+ 	if (!(gfp_mask & __GFP_NOFAIL)) {
+ 		/* Coredumps can quickly deplete all memory reserves */
+ 		if (current->flags & PF_DUMPCORE)
 -- 
-Michal Hocko
-SUSE Labs
+2.7.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
