@@ -1,160 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A336B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 05:25:48 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p63so17789713wmp.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 02:25:48 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id 68si3300855wmi.97.2016.01.28.02.25.47
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8788E6B0253
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 05:27:32 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id r129so17906648wmr.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 02:27:32 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id q10si14455541wjo.159.2016.01.28.02.27.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 02:25:47 -0800 (PST)
-Received: by mail-wm0-x22a.google.com with SMTP id l66so4094952wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 02:25:47 -0800 (PST)
-Date: Thu, 28 Jan 2016 12:25:45 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] proc: revert /proc/<pid>/maps [stack:TID] annotation
-Message-ID: <20160128102544.GA2396@node.shutemov.name>
-References: <CAMbhsRTAeobrQAqujusAVpw+wZyr3WsdKd4iQPi62GWyLB3gJA@mail.gmail.com>
- <20160125231451.GA15513@node.shutemov.name>
- <CAMbhsRT-XsxkznXzygkdP2tmVr4Xgfi9TCQ2i66dqz8vGfJD3Q@mail.gmail.com>
+        Thu, 28 Jan 2016 02:27:31 -0800 (PST)
+Received: by mail-wm0-x233.google.com with SMTP id l66so18821865wml.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 02:27:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMbhsRT-XsxkznXzygkdP2tmVr4Xgfi9TCQ2i66dqz8vGfJD3Q@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 28 Jan 2016 11:27:11 +0100
+Message-ID: <CACT4Y+Z9UDZNLsoEz-DO3fX_+0gTwPUA=uE++J=w1sAG_4CGJg@mail.gmail.com>
+Subject: mm: another VM_BUG_ON_PAGE(PageTail(page))
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Doug Gilbert <dgilbert@interlog.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi <linux-scsi@vger.kernel.org>
 
-On Mon, Jan 25, 2016 at 03:53:01PM -0800, Colin Cross wrote:
-> On Mon, Jan 25, 2016 at 3:14 PM, Kirill A. Shutemov
-> <kirill@shutemov.name> wrote:
-> > On Mon, Jan 25, 2016 at 01:30:00PM -0800, Colin Cross wrote:
-> >> On Tue, Jan 19, 2016 at 3:30 PM, Kirill A. Shutemov
-> >> <kirill@shutemov.name> wrote:
-> >> > On Tue, Jan 19, 2016 at 02:14:30PM -0800, Andrew Morton wrote:
-> >> >> On Tue, 19 Jan 2016 13:02:39 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> >>
-> >> >> > b764375 ("procfs: mark thread stack correctly in proc/<pid>/maps")
-> >> >> > added [stack:TID] annotation to /proc/<pid>/maps. Finding the task of
-> >> >> > a stack VMA requires walking the entire thread list, turning this into
-> >> >> > quadratic behavior: a thousand threads means a thousand stacks, so the
-> >> >> > rendering of /proc/<pid>/maps needs to look at a million threads. The
-> >> >> > cost is not in proportion to the usefulness as described in the patch.
-> >> >> >
-> >> >> > Drop the [stack:TID] annotation to make /proc/<pid>/maps (and
-> >> >> > /proc/<pid>/numa_maps) usable again for higher thread counts.
-> >> >> >
-> >> >> > The [stack] annotation inside /proc/<pid>/task/<tid>/maps is retained,
-> >> >> > as identifying the stack VMA there is an O(1) operation.
-> >> >>
-> >> >> Four years ago, ouch.
-> >> >>
-> >> >> Any thoughts on the obvious back-compatibility concerns?  ie, why did
-> >> >> Siddhesh implement this in the first place?  My bad for not ensuring
-> >> >> that the changelog told us this.
-> >> >>
-> >> >> https://lkml.org/lkml/2012/1/14/25 has more info:
-> >> >>
-> >> >> : Memory mmaped by glibc for a thread stack currently shows up as a
-> >> >> : simple anonymous map, which makes it difficult to differentiate between
-> >> >> : memory usage of the thread on stack and other dynamic allocation.
-> >> >> : Since glibc already uses MAP_STACK to request this mapping, the
-> >> >> : attached patch uses this flag to add additional VM_STACK_FLAGS to the
-> >> >> : resulting vma so that the mapping is treated as a stack and not any
-> >> >> : regular anonymous mapping.  Also, one may use vm_flags to decide if a
-> >> >> : vma is a stack.
-> >> >>
-> >> >> But even that doesn't really tell us what the actual *value* of the
-> >> >> patch is to end-users.
-> >> >
-> >> > I doubt it can be very useful as it's unreliable: if two stacks are
-> >> > allocated end-to-end (which is not good idea, but still) it can only
-> >> > report [stack:XXX] for the first one as they are merged into one VMA.
-> >> > Any other anon VMA merged with the stack will be also claimed as stack,
-> >> > which is not always correct.
-> >> >
-> >> > I think report the VMA as anon is the best we can know about it,
-> >> > everything else just rather expensive guesses.
-> >>
-> >> An alternative to guessing is the anonymous VMA naming patch used on
-> >> Android, https://lkml.org/lkml/2013/10/30/518.  It allows userspace to
-> >> name anonymous memory however it wishes, and prevents vma merging
-> >> adjacent regions with different names.  Android uses it to label
-> >> native heap memory, but it would work well for stacks too.
-> >
-> > I don't think preventing vma merging is fair price for the feature: you
-> > would pay extra in every find_vma() (meaning all page faults).
-> >
-> > I think it would be nice to have a way to store this kind of sideband info
-> > without impacting critical code path.
-> >
-> > One other use case I see for such sideband info is storing hits from
-> > MADV_HUGEPAGE/MADV_NOHUGEPAGE: need to split vma just for these hints is
-> > unfortunate.
-> 
-> In practice we don't see many extra VMAs from naming; alignment
-> requirements, guard pages, and permissions differences are usually
-> enough to keep adjacent anonymous VMAs from merging.  Here's an
-> example from a process on Android:
-> 7f9086c000-7f9086d000 rw-p 00006000 fd:00 1495
->   /system/lib64/libhardware_legacy.so
-> 7f9086d000-7f9086e000 rw-p 00000000 00:00 0
-> 7f9086e000-7f9086f000 rw-p 00000000 00:00 0
->   [anon:linker_alloc]
-> 7f90875000-7f90876000 r--p 00000000 00:00 0
->   [anon:linker_alloc]
-> 7f9087c000-7f9087d000 r--p 00000000 00:00 0
->   [anon:linker_alloc]
-> 7f90901000-7f90902000 ---p 00000000 00:00 0
->   [anon:thread stack guard page]
-> 7f90902000-7f90a00000 rw-p 00000000 00:00 0
->   [stack:410]
-> 7f90a00000-7f90c00000 rw-p 00000000 00:00 0
->   [anon:libc_malloc]
-> 7f90c02000-7f90c03000 ---p 00000000 00:00 0
->   [anon:thread stack guard page]
-> 7f90c03000-7f90d01000 rw-p 00000000 00:00 0
->   [stack:409]
-> 7f90d01000-7f90d02000 ---p 00000000 00:00 0
->   [anon:thread stack guard page]
-> 7f90d02000-7f90e00000 rw-p 00000000 00:00 0
->   [stack:408]
-> 7f90e00000-7f91200000 rw-p 00000000 00:00 0
->   [anon:libc_malloc]
-> 7f91206000-7f91207000 r--p 00000000 00:00 0
->   [anon:linker_alloc]
-> 7f91237000-7f91238000 ---p 00000000 00:00 0
->   [anon:thread signal stack guard page]
-> 7f91238000-7f9123c000 rw-p 00000000 00:00 0
->   [anon:thread signal stack]
-> 7f9123c000-7f9123d000 ---p 00000000 00:00 0
->   [anon:thread signal stack guard page]
-> 7f9123d000-7f91241000 rw-p 00000000 00:00 0
->   [anon:thread signal stack]
-> 7f91246000-7f91247000 ---p 00000000 00:00 0
->   [anon:thread signal stack guard page]
-> 7f91247000-7f9124b000 rw-p 00000000 00:00 0
->   [anon:thread signal stack]
-> 7f9124b000-7f9124c000 ---p 00000000 00:00 0
->   [anon:thread signal stack guard page]
-> 7f9124c000-7f91250000 rw-p 00000000 00:00 0
->   [anon:thread signal stack]
-> 
-> I only see 2 extra VMAs here, the "[stack:410]" and "[stack:408]"
-> regions would have been merged with the following "[anon:libc_malloc]"
-> regions.
+Hello,
 
-Fair enough.
+The following program triggers VM_BUG_ON_PAGE(PageTail(page)):
 
-I wanted to trick you to implemented feature I want. Failed. ;)
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
+#include <fcntl.h>
+#include <numaif.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-The naming approach looks good to me. Storing strings in userspace is
-somewhat unusual, but probably okay.
+int main()
+{
+  int fd;
 
--- 
- Kirill A. Shutemov
+  mmap((void*)0x20000000, 4096, PROT_READ|PROT_WRITE,
+MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0);
+  fd = open("/dev/sg1", O_RDONLY|O_SYNC|0x100000);
+  mmap((void*)0x20001000, 0x4000, PROT_READ|PROT_WRITE,
+MAP_PRIVATE|MAP_FIXED, fd, 0);
+  mbind((void*)0x20000000, 0x4000, 0x8002, (void*)0x20002ff8, 3660,
+MPOL_MF_STRICT|MPOL_MF_MOVE);
+  return 0;
+}
+
+
+page:ffffea0000f5da80 count:0 mapcount:1 mapping:dead000000000400
+index:0x0 compound_mapcount: 0
+flags: 0x1fffc0000000000()
+page dumped because: VM_BUG_ON_PAGE(PageTail(page))
+------------[ cut here ]------------
+kernel BUG at mm/vmscan.c:1446!
+invalid opcode: 0000 [#27] SMP DEBUG_PAGEALLOC KASAN
+Modules linked in:
+CPU: 1 PID: 8185 Comm: a.out Tainted: G      D         4.5.0-rc1+ #300
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+task: ffff88006146c740 ti: ffff88006c8f0000 task.ti: ffff88006c8f0000
+RIP: 0010:[<ffffffff8169309a>]  [<ffffffff8169309a>]
+isolate_lru_page+0x4ea/0x6d0
+RSP: 0018:ffff88006c8f7a50  EFLAGS: 00010282
+RAX: ffff88006146c740 RBX: ffffea0000f5da80 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffea0000f5dab8
+RBP: ffff88006c8f7a88 R08: 0000000000000001 R09: 0000000000000000
+R10: 0000000000000002 R11: 1ffffffff134edc5 R12: ffffea0000f5daa0
+R13: ffffea0000f5da00 R14: ffffea0000f5da01 R15: 0000000020004000
+FS:  00000000022ec880(0063) GS:ffff88003ed00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000000020003000 CR3: 0000000031d0b000 CR4: 00000000000006e0
+Stack:
+ 00000001ffffffff ffffffff816e4159 ffff8800310f6018 0000000020003000
+ dffffc0000000000 ffffea0000f5da80 0000000020004000 ffff88006c8f7b10
+ ffffffff8174efdd ffffea0000000001 ffff88006c8f7c70 ffff88006c8f7de8
+Call Trace:
+ [<     inline     >] migrate_page_add mm/mempolicy.c:966
+ [<ffffffff8174efdd>] queue_pages_pte_range+0x4ad/0x10b0 mm/mempolicy.c:552
+ [<     inline     >] walk_pmd_range mm/pagewalk.c:50
+ [<     inline     >] walk_pud_range mm/pagewalk.c:90
+ [<     inline     >] walk_pgd_range mm/pagewalk.c:116
+ [<ffffffff817209c3>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
+ [<ffffffff81721174>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
+ [<ffffffff8174cd9b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:687
+ [<ffffffff817555e1>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1239
+ [<     inline     >] SYSC_mbind mm/mempolicy.c:1351
+ [<ffffffff8175643d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1333
+ [<ffffffff86653236>] entry_SYSCALL_64_fastpath+0x16/0x7a
+arch/x86/entry/entry_64.S:185
+Code: 89 df e8 5a 62 04 00 0f 0b e8 43 71 ed ff 4d 8d 6e ff e9 73 fb
+ff ff e8 35 71 ed ff 48 c7 c6 a0 ab 79 86 48 89 df e8 36 62 04 00 <0f>
+0b e8 1f 71 ed ff 4d 8d 6e ff e9 eb fb ff ff c7 45 d0 f0 ff
+RIP  [<ffffffff8169309a>] isolate_lru_page+0x4ea/0x6d0 mm/vmscan.c:1446
+ RSP <ffff88006c8f7a50>
+---[ end trace 4b07319c03942d44 ]---
+BUG: sleeping function called from invalid context at include/linux/sched.h:2805
+in_atomic(): 1, irqs_disabled(): 0, pid: 8185, name: a.out
+INFO: lockdep is turned off.
+CPU: 1 PID: 8185 Comm: a.out Tainted: G      D         4.5.0-rc1+ #300
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+ 00000000ffffffff ffff88006c8f7548 ffffffff82be118d ffff88006146c740
+ 0000000000001ff9 0000000000000000 ffff88006c8f7570 ffffffff813cb8cb
+ ffff88006146c740 ffffffff867387a0 0000000000000af5 ffff88006c8f75b0
+Call Trace:
+ [<     inline     >] __dump_stack lib/dump_stack.c:15
+ [<ffffffff82be118d>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+ [<ffffffff813cb8cb>] ___might_sleep+0x27b/0x3a0 kernel/sched/core.c:7703
+ [<ffffffff813cba80>] __might_sleep+0x90/0x1a0 kernel/sched/core.c:7665
+ [<     inline     >] threadgroup_change_begin include/linux/sched.h:2805
+ [<ffffffff813830d1>] exit_signals+0x81/0x430 kernel/signal.c:2392
+ [<ffffffff8135c3dc>] do_exit+0x23c/0x2cb0 kernel/exit.c:701
+ [<ffffffff811aa28f>] oops_end+0x9f/0xd0 arch/x86/kernel/dumpstack.c:250
+ [<ffffffff811aa686>] die+0x46/0x60 arch/x86/kernel/dumpstack.c:316
+ [<     inline     >] do_trap_no_signal arch/x86/kernel/traps.c:205
+ [<ffffffff811a3b9f>] do_trap+0x18f/0x380 arch/x86/kernel/traps.c:251
+ [<ffffffff811a400e>] do_error_trap+0x11e/0x280 arch/x86/kernel/traps.c:290
+ [<ffffffff811a527b>] do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:303
+ [<ffffffff86654f4e>] invalid_op+0x1e/0x30 arch/x86/entry/entry_64.S:830
+ [<     inline     >] migrate_page_add mm/mempolicy.c:966
+ [<ffffffff8174efdd>] queue_pages_pte_range+0x4ad/0x10b0 mm/mempolicy.c:552
+ [<     inline     >] walk_pmd_range mm/pagewalk.c:50
+ [<     inline     >] walk_pud_range mm/pagewalk.c:90
+ [<     inline     >] walk_pgd_range mm/pagewalk.c:116
+ [<ffffffff817209c3>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
+ [<ffffffff81721174>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
+ [<ffffffff8174cd9b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:687
+ [<ffffffff817555e1>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1239
+ [<     inline     >] SYSC_mbind mm/mempolicy.c:1351
+ [<ffffffff8175643d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1333
+ [<ffffffff86653236>] entry_SYSCALL_64_fastpath+0x16/0x7a
+arch/x86/entry/entry_64.S:185
+note: a.out[8185] exited with preempt_count 1
+
+
+On commit 92e963f50fc74041b5e9e744c330dca48e04f08d with Kirill recent fix:
+
+--- a/drivers/scsi/sg.c
++++ b/drivers/scsi/sg.c
+@@ -1261,7 +1261,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
+        }
+
+        sfp->mmap_called = 1;
+-       vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
++       vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+        vma->vm_private_data = sfp;
+        vma->vm_ops = &sg_mmap_vm_ops;
+        return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
