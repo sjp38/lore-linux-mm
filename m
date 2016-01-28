@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E55828DF
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:17:59 -0500 (EST)
-Received: by mail-lb0-f179.google.com with SMTP id bc4so27274190lbc.2
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:17:59 -0800 (PST)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id te7si6005596lbb.166.2016.01.28.09.17.56
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A296B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:34:35 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id r129so35320136wmr.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:34:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ha10si16590658wjc.117.2016.01.28.09.34.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 09:17:56 -0800 (PST)
-Received: by mail-lf0-f67.google.com with SMTP id z62so2438214lfd.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:17:56 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] vmstat: make vmstat_update deferrable
-Date: Thu, 28 Jan 2016 18:17:46 +0100
-Message-Id: <1454001466-27398-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1454001466-27398-1-git-send-email-mhocko@kernel.org>
-References: <1454001466-27398-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 28 Jan 2016 09:34:34 -0800 (PST)
+Subject: Re: [linux-next:master 1860/2084] include/linux/mm.h:1602:2: note: in
+ expansion of macro 'spin_lock_init'
+References: <201601281504.800eqd3p%fengguang.wu@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56AA5126.2030101@suse.cz>
+Date: Thu, 28 Jan 2016 18:34:30 +0100
+MIME-Version: 1.0
+In-Reply-To: <201601281504.800eqd3p%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cristopher Lameter <clameter@sgi.com>, Mike Galbraith <mgalbraith@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: kbuild test robot <fengguang.wu@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 01/28/2016 08:23 AM, kbuild test robot wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   888c8375131656144c1605071eab2eb6ac49abc3
+> commit: cec08ed70d3d5209368a435fed278ae667117a0c [1860/2084] mm, printk: introduce new format string for flags
+> config: s390-allyesconfig (attached as .config)
+> reproduce:
+>          wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>          chmod +x ~/bin/make.cross
+>          git checkout cec08ed70d3d5209368a435fed278ae667117a0c
+>          # save the attached .config to linux build tree
+>          make.cross ARCH=s390
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>     In file included from include/linux/spinlock.h:81:0,
+>                      from include/linux/rcupdate.h:38,
+>                      from include/linux/tracepoint.h:19,
+>                      from include/linux/mmdebug.h:7,
+>                      from arch/s390/include/asm/cmpxchg.h:10,
+>                      from arch/s390/include/asm/atomic.h:19,
+>                      from include/linux/atomic.h:4,
+>                      from include/linux/debug_locks.h:5,
+>                      from include/linux/lockdep.h:23,
+>                      from include/linux/hardirq.h:5,
+>                      from include/linux/kvm_host.h:10,
+>                      from arch/s390/kernel/asm-offsets.c:10:
+>>> include/linux/spinlock_types.h:30:21: error: field 'dep_map' has incomplete type
+>       struct lockdep_map dep_map;
+>                          ^
 
-0eb77e988032 ("vmstat: make vmstat_updater deferrable again and shut
-down on idle") made vmstat_shepherd deferrable. vmstat_update itself
-is still useing standard timer which might interrupt idle task. This
-is possible because "mm, vmstat: make quiet_vmstat lighter" removed
-cancel_delayed_work from the quiet_vmstat. Change vmstat_work to
-use DEFERRABLE_WORK to prevent from pointless wakeups from the idle
-context.
+Damn, a rebasing mistake in my series, sorry about that.
+This should help. Can it be applied to -next? I think Andrew said he
+would be travelling...
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/vmstat.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index eb30bf45bd55..69537d2be6f6 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1512,7 +1512,7 @@ static void __init start_shepherd_timer(void)
- 	int cpu;
- 
- 	for_each_possible_cpu(cpu)
--		INIT_DELAYED_WORK(per_cpu_ptr(&vmstat_work, cpu),
-+		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
- 			vmstat_update);
- 
- 	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
--- 
-2.7.0.rc3
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
