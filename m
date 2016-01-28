@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C6F426B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:38:56 -0500 (EST)
-Received: by mail-oi0-f52.google.com with SMTP id k206so27621558oia.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 06:38:56 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id z186si10495427oig.87.2016.01.28.06.38.55
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E83966B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:53:52 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id z14so14620022igp.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 06:53:52 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0159.hostedemail.com. [216.40.44.159])
+        by mx.google.com with ESMTPS id c1si5101116igx.104.2016.01.28.06.53.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 06:38:55 -0800 (PST)
-Date: Thu, 28 Jan 2016 06:38:52 -0800
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: mm: provide reference to READ_IMPLIES_EXEC
-Message-ID: <20160128143852.GA22099@roeck-us.net>
-References: <1453972263-25907-1-git-send-email-sudipm.mukherjee@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 06:53:52 -0800 (PST)
+Date: Thu, 28 Jan 2016 09:53:49 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1 4/8] arch, ftrace: For KASAN put hard/soft IRQ
+ entries into separate sections
+Message-ID: <20160128095349.6f771f14@gandalf.local.home>
+In-Reply-To: <99939a92dd93dc5856c4ec7bf32dbe0035cdc689.1453918525.git.glider@google.com>
+References: <cover.1453918525.git.glider@google.com>
+	<99939a92dd93dc5856c4ec7bf32dbe0035cdc689.1453918525.git.glider@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1453972263-25907-1-git-send-email-sudipm.mukherjee@gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jan 28, 2016 at 02:41:03PM +0530, Sudip Mukherjee wrote:
-> blackfin defconfig fails with the error:
-> mm/internal.h: In function 'is_stack_mapping':
-> arch/blackfin/include/asm/page.h:15:27: error: 'READ_IMPLIES_EXEC' undeclared
-> 
-> Commit 07dff8ae2bc5 has added is_stack_mapping in mm/internal.h but it
-> also needs personality.h.
-> 
-> Fixes: 07dff8ae2bc5 ("mm: warn about VmData over RLIMIT_DATA")
+On Wed, 27 Jan 2016 19:25:09 +0100
+Alexander Potapenko <glider@google.com> wrote:
 
-FWIW, this is just one of many build failures due to this patch.
-Pretty much all non-MMU builds fail, plus several MMU builds.
-I had prepared a patch for mn10300, but gave up after I noticed
-all the other failures.
+> --- a/include/linux/ftrace.h
+> +++ b/include/linux/ftrace.h
+> @@ -762,6 +762,26 @@ struct ftrace_graph_ret {
+>  typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
+>  typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
+>  
+> +#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+> +/*
+> + * We want to know which function is an entrypoint of a hardirq.
+> + */
+> +#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
+> +#define __softirq_entry  \
+> +	__attribute__((__section__(".softirqentry.text")))
+> +
+> +/* Limits of hardirq entrypoints */
+> +extern char __irqentry_text_start[];
+> +extern char __irqentry_text_end[];
+> +/* Limits of softirq entrypoints */
+> +extern char __softirqentry_text_start[];
+> +extern char __softirqentry_text_end[];
+> +
+> +#else
+> +#define __irq_entry
+> +#define __softirq_entry
+> +#endif
+> +
+>  #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+>  
+>  /* for init task */
 
-Build results in next-20160128:
-	total: 146 pass: 121 fail: 25
-Failed builds:
-	alpha:allmodconfig
-	arm64:allnoconfig
-	arm64:allmodconfig
-	avr32:defconfig
-	avr32:merisc_defconfig
-	avr32:atngw100mkii_evklcd101_defconfig
-	blackfin:defconfig
-	blackfin:BF561-EZKIT-SMP_defconfig
-	c6x:dsk6455_defconfig
-	c6x:evmc6457_defconfig
-	c6x:evmc6678_defconfig
-	frv:defconfig
-	ia64:defconfig
-	ia64:allnoconfig
-	m68k:allmodconfig
-	microblaze:nommu_defconfig
-	microblaze:allnoconfig
-	mn10300:asb2303_defconfig
-	mn10300:asb2364_defconfig
-	parisc:allmodconfig
-	powerpc:ppc6xx_defconfig
-	s390:defconfig
-	s390:allmodconfig
-	s390:allnoconfig
-	xtensa:allmodconfig
-Qemu test results:
-	total: 96 pass: 83 fail: 13
-Failed tests:
-	arm:kzm:imx_v6_v7_defconfig
-	arm64:smp:defconfig
-	arm64:nosmp:defconfig
-	microblaze:microblaze_defconfig
-	microblaze:microblazeel_defconfig
-	powerpc:mac99:ppc_book3s_defconfig
-	powerpc:mpc8544ds:mpc85xx_smp_defconfig
-	powerpc:smp4:ppc64_book3s_defconfig
-	powerpc:nosmp:ppc64_e5500_defconfig
-	powerpc:smp:ppc64_e5500_defconfig
-	s390:defconfig
-	sparc64:sun4u:nosmp:sparc64_defconfig
-	sparc64:sun4v:nosmp:sparc64_defconfig
+Since this is no longer just used for function tracing, perhaps the
+code should be moved to include/linux/irq.h or something.
 
-Not all, but most of the failures are due to 07dff8ae2bc5.
-
-Guenter
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
