@@ -1,60 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AE26A6B0254
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 16:55:18 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l66so43764922wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 13:55:18 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 197si6718940wmf.42.2016.01.28.13.55.17
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C49956B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:04:25 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id p63so44385300wmp.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:04:25 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id y83si6747067wmc.67.2016.01.28.14.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 13:55:17 -0800 (PST)
-Date: Thu, 28 Jan 2016 22:55:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160128215514.GF621@dhcp22.suse.cz>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
- <20160128190204.GJ12228@redhat.com>
- <20160128201123.GB621@dhcp22.suse.cz>
- <20160128211240.GA4163@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 14:04:24 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id r129so44423927wmr.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:04:24 -0800 (PST)
+Date: Thu, 28 Jan 2016 23:04:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] proposals for topics
+Message-ID: <20160128220422.GG621@dhcp22.suse.cz>
+References: <20160125133357.GC23939@dhcp22.suse.cz>
+ <20160125184559.GE29291@cmpxchg.org>
+ <20160126095022.GC27563@dhcp22.suse.cz>
+ <20160128205525.GO6033@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160128211240.GA4163@cmpxchg.org>
+In-Reply-To: <20160128205525.GO6033@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu 28-01-16 16:12:40, Johannes Weiner wrote:
-> On Thu, Jan 28, 2016 at 09:11:23PM +0100, Michal Hocko wrote:
-> > On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
-> > > It's not immediately apparent if there is a new OOM killer upstream
-> > > logic that would prevent the risk of a second OOM killer invocation
-> > > despite another OOM killing already happened while we were stuck in
-> > > reclaim. In absence of that, the high wmark check would be still
-> > > needed.
-> > 
-> > Well, my oom detection rework [1] strives to make the OOM detection more
-> > robust and the retry logic performs the watermark check. So I think the
-> > last attempt is no longer needed after that patch. I will then remove
-> > it.
+On Fri 29-01-16 07:55:25, Dave Chinner wrote:
+> On Tue, Jan 26, 2016 at 10:50:23AM +0100, Michal Hocko wrote:
+[...]
+> > There have been patches posted during the year to fortify those places
+> > which cannot cope with allocation failures for ext[34] and testing
+> > has shown that ext* resp. xfs are quite ready to see NOFS allocation
+> > failures.
 > 
-> Hm? I don't have the same conclusion from what Andrea said.
-> 
-> When you have many allocations racing at the same time, they can all
-> enter __alloc_pages_may_oom() in quick succession. We don't want a
-> cavalcade of OOM kills when one could be enough, so we have to make
-> sure that in between should_alloc_retry() giving up and acquiring the
-> OOM lock nobody else already issued a kill and released enough memory.
-> 
-> It's a race window that gets yanked wide open when hundreds of threads
-> race in __alloc_pages_may_oom(). Your patches don't fix that, AFAICS.
+> The XFS situation is compeletely unchanged from last year, and the
+> fact that you say it handles NOFS allocation failures just fine
+> makes me seriously question your testing methodology.
 
-Only one task would be allowed to go out_of_memory and all the rest will
-simply fail on oom_lock trylock and return with NULL. Or am I missing
-your point?
+I am certainly open to suggestions there. My testing managed to identify
+some weaker points in ext[34] which led to RO remounts. __GFP_NOFAIL as
+the current band aid worked for them. I wasn't able to hit this with
+xfs.
 
+> In XFS, *any* memory allocation failure during a transaction will
+> either cause a panic through null point deference (because we don't
+> check for allocation failure in most cases) or a filesystem
+> shutdown (in the cases where we do check). If you haven't seen these
+> behaviours, then you haven't been failing memory allocations during
+> filesystem modifications.
+> 
+> We need to fundamentally change error handling in transactions in
+> XFS to allow arbitrary memory allocation to fail. That is, we need
+> to implement a full transaction rollback capability so we can back
+> out changes made during the transaction before the error occurred.
+> That's a major amount of work, and I'm probably not going to do
+> anything on this in the next year as it's low priority because what
+> we have now works.
+
+I am quite confused now. I remember you were the one who complained
+about the silent nofail behavior of the allocator because that means
+you cannot implement an appropriate fallback strategy. Please also
+note that I am talking solely about GFP_NOFS allocation here. The
+allocator really cannot do much other than hoplessly retrying and
+relying on somebody _else_ to make a forward progress.
+
+That being said, I do understand that allowing GFP_NOFS allocation to
+fail is not an easy task and nothing to be done tomorrow or in few
+months, but I believe that a discussion with FS people about what
+can/should be done in order to make this happen is valuable.
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
