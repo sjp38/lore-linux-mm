@@ -1,189 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB5D6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 01:19:47 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id o185so13483398pfb.1
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 22:19:47 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id yu1si14668969pac.9.2016.01.27.22.19.46
-        for <linux-mm@kvack.org>;
-        Wed, 27 Jan 2016 22:19:46 -0800 (PST)
-Subject: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 27 Jan 2016 22:19:14 -0800
-Message-ID: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6DC6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 02:16:29 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p63so11219999wmp.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 23:16:29 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id b133si2341009wmd.90.2016.01.27.23.16.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jan 2016 23:16:28 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id n5so1816511wmn.3
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 23:16:27 -0800 (PST)
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Subject: Re: [PATCH v5 00/12] MADV_FREE support
+References: <1448865583-2446-1-git-send-email-minchan@kernel.org>
+Message-ID: <56A9C049.7010508@gmail.com>
+Date: Thu, 28 Jan 2016 08:16:25 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <1448865583-2446-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: mtk.manpages@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>
 
-ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
-mm zones that are bumping up against the current maximum limit of 4
-zones, i.e. 2 bits in page->flags.  When adding a zone this equation
-still needs to be satisified:
+Hello Minchan,
 
-    SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
-	  <= BITS_PER_LONG - NR_PAGEFLAGS
+On 11/30/2015 07:39 AM, Minchan Kim wrote:
+> In v4, Andrew wanted to settle in old basic MADV_FREE and introduces
+> new stuffs(ie, lazyfree LRU, swapless support and lazyfreeness) later
+> so this version doesn't include them.
+> 
+> I have been tested it on mmotm-2015-11-25-17-08 with additional
+> patch[1] from Kirill to prevent BUG_ON which he didn't send to
+> linux-mm yet as formal patch. With it, I couldn't find any
+> problem so far.
+> 
+> Note that this version is based on THP refcount redesign so
+> I needed some modification on MADV_FREE because split_huge_pmd
+> doesn't split a THP page any more and pmd_trans_huge(pmd) is not
+> enough to guarantee the page is not THP page.
+> As well, for MAVD_FREE lazy-split, THP split should respect
+> pmd's dirtiness rather than marking ptes of all subpages dirty
+> unconditionally. Please, review last patch in this patchset.
 
-ZONE_DEVICE currently tries to satisfy this equation by requiring that
-ZONE_DMA be disabled, but this is untenable given generic kernels want
-to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
-to increase the amount of memory covered per section, but that limits
-the minimum granularity at which consecutive memory ranges can be added
-via devm_memremap_pages().
+Now that MADV_FREE has been merged, would you be willing to write
+patch to the madvise(2) man page that describes the semantics, 
+noes limitations and restrictions, and (ideally) has some sentences
+describing use cases?
 
-The trade-off of what is acceptable to sacrifice depends heavily on the
-platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
-page->flags is constrained, but those platforms likely do not care about
-the minimum granularity of memory hotplug.  A big iron machine with 1024
-numa nodes can likely sacrifice ZONE_DMA where a general purpose
-distribution kernel can not.
+Thanks,
 
-CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
-when the number of configured zones exceeds 4.  It documents the
-configuration symbols and definitions that get modified when ZONES_WIDTH
-is greater than 2.
+Michael
 
-For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
-document the definitions that get modified when a 32-bit configuration
-wants more zone bits.
 
-Note that GFP_ZONE_TABLE poses an interesting constraint since
-include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
-build.  We need to be careful to only build the table for zones that
-have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
-purpose.  This patch does not attempt to solve the problem of adding a
-new zone that also has a corresponding GFP_ flag.
+> 	mm: don't split THP page when syscall is called
+> 
+> [1] https://lkml.org/lkml/2015/11/17/134
+> 
+> git: git://git.kernel.org/pub/scm/linux/kernel/git/minchan/linux.git
+> branch: mm/madv_free-v4.4-rc2-mmotm-2015-11-25-17-08-v5r2
+> 
+> In this stage, I don't think we need to write man page.
+> It could be done after solid policy and implementation.
+> 
+>  * Change from v4
+>    * drop lazyfree LRU
+>    * drop swapless support
+>    * drop lazyfreeness
+>    * rebase on recent mmotom with THP refcount redesign
+> 
+>  * Change from v3
+>    * some bug fix
+>    * code refactoring
+>    * lazyfree reclaim logic change
+>    * reordering patch
+> 
+>  * Change from v2
+>    * vm_lazyfreeness tuning knob
+>    * add new LRU list - Johannes, Shaohua
+>    * support swapless - Johannes
+> 
+>  * Change from v1
+>    * Don't do unnecessary TLB flush - Shaohua
+>    * Added Acked-by - Hugh, Michal
+>    * Merge deactivate_page and deactivate_file_page
+>    * Add pmd_dirty/pmd_mkclean patches for several arches
+>    * Add lazy THP split patch
+>    * Drop zhangyanfei@cn.fujitsu.com - Delivery Failure
+> 
+> Chen Gang (1):
+>   arch: uapi: asm: mman.h: Let MADV_FREE have same value for all
+>     architectures
+> 
+> Minchan Kim (11):
+>   mm: support madvise(MADV_FREE)
+>   mm: define MADV_FREE for some arches
+>   mm: free swp_entry in madvise_free
+>   mm: move lazily freed pages to inactive list
+>   mm: mark stable page dirty in KSM
+>   x86: add pmd_[dirty|mkclean] for THP
+>   sparc: add pmd_[dirty|mkclean] for THP
+>   powerpc: add pmd_[dirty|mkclean] for THP
+>   arm: add pmd_mkclean for THP
+>   arm64: add pmd_mkclean for THP
+>   mm: don't split THP page when syscall is called
+> 
+>  arch/alpha/include/uapi/asm/mman.h       |   2 +
+>  arch/arm/include/asm/pgtable-3level.h    |   1 +
+>  arch/arm64/include/asm/pgtable.h         |   1 +
+>  arch/mips/include/uapi/asm/mman.h        |   2 +
+>  arch/parisc/include/uapi/asm/mman.h      |   2 +
+>  arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
+>  arch/sparc/include/asm/pgtable_64.h      |   9 ++
+>  arch/x86/include/asm/pgtable.h           |   5 +
+>  arch/xtensa/include/uapi/asm/mman.h      |   2 +
+>  include/linux/huge_mm.h                  |   3 +
+>  include/linux/rmap.h                     |   1 +
+>  include/linux/swap.h                     |   1 +
+>  include/linux/vm_event_item.h            |   1 +
+>  include/uapi/asm-generic/mman-common.h   |   1 +
+>  mm/huge_memory.c                         |  87 +++++++++++++-
+>  mm/ksm.c                                 |   6 +
+>  mm/madvise.c                             | 199 +++++++++++++++++++++++++++++++
+>  mm/rmap.c                                |   8 ++
+>  mm/swap.c                                |  44 +++++++
+>  mm/swap_state.c                          |   5 +-
+>  mm/vmscan.c                              |  10 +-
+>  mm/vmstat.c                              |   1 +
+>  22 files changed, 383 insertions(+), 10 deletions(-)
+> 
 
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
-Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
-Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Reported-by: Mark <markk@clara.co.uk>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- arch/x86/Kconfig                  |    6 ++++--
- include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
- include/linux/page-flags-layout.h |    2 ++
- mm/Kconfig                        |    7 +++++--
- 4 files changed, 31 insertions(+), 17 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 330e738ccfc1..9dfc52eb3976 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1409,8 +1409,10 @@ config NUMA_EMU
- 
- config NODES_SHIFT
- 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
--	range 1 10
--	default "10" if MAXSMP
-+	range 1 10 if !NR_ZONES_EXTENDED
-+	range 1 9 if NR_ZONES_EXTENDED
-+	default "10" if MAXSMP && !NR_ZONES_EXTENDED
-+	default "9" if MAXSMP && NR_ZONES_EXTENDED
- 	default "6" if X86_64
- 	default "3"
- 	depends on NEED_MULTIPLE_NODES
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 28ad5f6494b0..5979c2c80140 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
-  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
-  *
-- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
-+ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
-  */
- 
--#if 16 * ZONES_SHIFT > BITS_PER_LONG
--#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
-+#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
-+/* ZONE_DEVICE is not a valid GFP zone specifier */
-+#define GFP_ZONES_SHIFT 2
-+#else
-+#define GFP_ZONES_SHIFT ZONES_SHIFT
-+#endif
-+
-+#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
-+#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
- #endif
- 
- #define GFP_ZONE_TABLE ( \
--	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
--	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
--	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
--	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
--	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
--	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
--	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
--	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
-+	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)					\
-+	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)			\
-+	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)		\
-+	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		      	\
-+	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)			\
-+	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)	\
-+	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)	\
-+	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)	\
- )
- 
- /*
-@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- 	enum zone_type z;
- 	int bit = (__force int) (flags & GFP_ZONEMASK);
- 
--	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
--					 ((1 << ZONES_SHIFT) - 1);
-+	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-+					 ((1 << GFP_ZONES_SHIFT) - 1);
- 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
- 	return z;
- }
-diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-index da523661500a..77b078c103b2 100644
---- a/include/linux/page-flags-layout.h
-+++ b/include/linux/page-flags-layout.h
-@@ -17,6 +17,8 @@
- #define ZONES_SHIFT 1
- #elif MAX_NR_ZONES <= 4
- #define ZONES_SHIFT 2
-+#elif MAX_NR_ZONES <= 8
-+#define ZONES_SHIFT 3
- #else
- #error ZONES_SHIFT -- too many zones configured adjust calculation
- #endif
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 97a4e06b15c0..cb5377624df3 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -651,8 +651,6 @@ config IDLE_PAGE_TRACKING
- 
- config ZONE_DEVICE
- 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
--	default !ZONE_DMA
--	depends on !ZONE_DMA
- 	depends on MEMORY_HOTPLUG
- 	depends on MEMORY_HOTREMOVE
- 	depends on X86_64 #arch_add_memory() comprehends device memory
-@@ -666,5 +664,10 @@ config ZONE_DEVICE
- 
- 	  If FS_DAX is enabled, then say Y.
- 
-+config NR_ZONES_EXTENDED
-+	bool
-+	default n if !64BIT
-+	default y if ZONE_DEVICE && ZONE_DMA && ZONE_DMA32
-+
- config FRAME_VECTOR
- 	bool
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
