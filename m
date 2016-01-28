@@ -1,98 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB196B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 00:54:06 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id ho8so17423039pac.2
-        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 21:54:06 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id w5si14527671pfa.177.2016.01.27.21.54.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jan 2016 21:54:05 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v1] mm/madvise: update comment on sys_madvise()
-Date: Thu, 28 Jan 2016 05:50:56 +0000
-Message-ID: <20160128055055.GA8747@hori1.linux.bs1.fc.nec.co.jp>
-References: <1453857865-13650-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20160127152835.GD13956@dhcp22.suse.cz>
-In-Reply-To: <20160127152835.GD13956@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <3921E6AA12F5DC49B2BD906980B38557@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ECB5D6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 01:19:47 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id o185so13483398pfb.1
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2016 22:19:47 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id yu1si14668969pac.9.2016.01.27.22.19.46
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jan 2016 22:19:46 -0800 (PST)
+Subject: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 27 Jan 2016 22:19:14 -0800
+Message-ID: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jason Baron <jbaron@redhat.com>, Chen Gong <gong.chen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: akpm@linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On Wed, Jan 27, 2016 at 04:28:35PM +0100, Michal Hocko wrote:
-> On Wed 27-01-16 10:24:25, Naoya Horiguchi wrote:
-> > Some new MADV_* advices are not documented in sys_madvise() comment.
-> > So let's update it.
-> >=20
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->=20
-> Other than few suggestions below
-> Acked-by: Michal Hocko <mhocko@suse.com>
->=20
-> > ---
-> >  mm/madvise.c | 12 ++++++++++++
-> >  1 file changed, 12 insertions(+)
-> >=20
-> > diff --git v4.4-mmotm-2016-01-20-16-10/mm/madvise.c v4.4-mmotm-2016-01-=
-20-16-10_patched/mm/madvise.c
-> > index 6a77114..c897b15 100644
-> > --- v4.4-mmotm-2016-01-20-16-10/mm/madvise.c
-> > +++ v4.4-mmotm-2016-01-20-16-10_patched/mm/madvise.c
-> > @@ -639,14 +639,26 @@ madvise_behavior_valid(int behavior)
-> >   *		some pages ahead.
-> >   *  MADV_DONTNEED - the application is finished with the given range,
-> >   *		so the kernel can free resources associated with it.
-> > + *  MADV_FREE - the application marks pages in the given range as lasy=
-free,
->=20
-> s@lasyfree@lazy free@
->=20
-> > + *		where actual purges are postponed until memory pressure happens.
-> >   *  MADV_REMOVE - the application wants to free up the given range of
-> >   *		pages and associated backing store.
-> >   *  MADV_DONTFORK - omit this area from child's address space when for=
-king:
-> >   *		typically, to avoid COWing pages pinned by get_user_pages().
-> >   *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when =
-forking.
-> > + *  MADV_HWPOISON - trigger memory error handler as if the given memor=
-y range
-> > + *		were corrupted by unrecoverable hardware memory failure.
-> > + *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
-> >   *  MADV_MERGEABLE - the application recommends that KSM try to merge =
-pages in
-> >   *		this area with pages of identical content from other such areas.
-> >   *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages wit=
-h others.
-> > + *  MADV_HUGEPAGE - the application wants to allocate transparent huge=
-pages to
-> > + *		load the content of the given memory range.
->=20
-> I guess that a slightly different wording would be better:
->=20
-> application wants to back the given range by transparent huge pages in
-> the future. Existing pages might be coalesced and new pages might be
-> allocated as THP.
->=20
-> > + *  MADV_NOHUGEPAGE - cancel MADV_HUGEPAGE: no longer allocate transpa=
-rent
-> > + *		hugepages.
->=20
-> Mark the given range as not worth being backed by transparent huge pages
-> so neither existing pages will be coalesced into THP nor new pages will
-> be allocated as THP.
+ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
+mm zones that are bumping up against the current maximum limit of 4
+zones, i.e. 2 bits in page->flags.  When adding a zone this equation
+still needs to be satisified:
 
-Thank you for the elaboration.
-I'm fine for all these change.
+    SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
+	  <= BITS_PER_LONG - NR_PAGEFLAGS
 
-- Naoya=
+ZONE_DEVICE currently tries to satisfy this equation by requiring that
+ZONE_DMA be disabled, but this is untenable given generic kernels want
+to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
+to increase the amount of memory covered per section, but that limits
+the minimum granularity at which consecutive memory ranges can be added
+via devm_memremap_pages().
+
+The trade-off of what is acceptable to sacrifice depends heavily on the
+platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
+page->flags is constrained, but those platforms likely do not care about
+the minimum granularity of memory hotplug.  A big iron machine with 1024
+numa nodes can likely sacrifice ZONE_DMA where a general purpose
+distribution kernel can not.
+
+CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
+when the number of configured zones exceeds 4.  It documents the
+configuration symbols and definitions that get modified when ZONES_WIDTH
+is greater than 2.
+
+For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
+document the definitions that get modified when a 32-bit configuration
+wants more zone bits.
+
+Note that GFP_ZONE_TABLE poses an interesting constraint since
+include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
+build.  We need to be careful to only build the table for zones that
+have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
+purpose.  This patch does not attempt to solve the problem of adding a
+new zone that also has a corresponding GFP_ flag.
+
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
+Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
+Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Reported-by: Mark <markk@clara.co.uk>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ arch/x86/Kconfig                  |    6 ++++--
+ include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
+ include/linux/page-flags-layout.h |    2 ++
+ mm/Kconfig                        |    7 +++++--
+ 4 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 330e738ccfc1..9dfc52eb3976 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1409,8 +1409,10 @@ config NUMA_EMU
+ 
+ config NODES_SHIFT
+ 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
+-	range 1 10
+-	default "10" if MAXSMP
++	range 1 10 if !NR_ZONES_EXTENDED
++	range 1 9 if NR_ZONES_EXTENDED
++	default "10" if MAXSMP && !NR_ZONES_EXTENDED
++	default "9" if MAXSMP && NR_ZONES_EXTENDED
+ 	default "6" if X86_64
+ 	default "3"
+ 	depends on NEED_MULTIPLE_NODES
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 28ad5f6494b0..5979c2c80140 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+  *
+- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
++ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
+  */
+ 
+-#if 16 * ZONES_SHIFT > BITS_PER_LONG
+-#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
++#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
++/* ZONE_DEVICE is not a valid GFP zone specifier */
++#define GFP_ZONES_SHIFT 2
++#else
++#define GFP_ZONES_SHIFT ZONES_SHIFT
++#endif
++
++#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
++#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+ #endif
+ 
+ #define GFP_ZONE_TABLE ( \
+-	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+-	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
+-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
+-	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
+-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
+-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
++	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)					\
++	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)			\
++	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)		\
++	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		      	\
++	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)			\
++	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)	\
++	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)	\
++	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)	\
+ )
+ 
+ /*
+@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+ 	enum zone_type z;
+ 	int bit = (__force int) (flags & GFP_ZONEMASK);
+ 
+-	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+-					 ((1 << ZONES_SHIFT) - 1);
++	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
++					 ((1 << GFP_ZONES_SHIFT) - 1);
+ 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+ 	return z;
+ }
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+index da523661500a..77b078c103b2 100644
+--- a/include/linux/page-flags-layout.h
++++ b/include/linux/page-flags-layout.h
+@@ -17,6 +17,8 @@
+ #define ZONES_SHIFT 1
+ #elif MAX_NR_ZONES <= 4
+ #define ZONES_SHIFT 2
++#elif MAX_NR_ZONES <= 8
++#define ZONES_SHIFT 3
+ #else
+ #error ZONES_SHIFT -- too many zones configured adjust calculation
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 97a4e06b15c0..cb5377624df3 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -651,8 +651,6 @@ config IDLE_PAGE_TRACKING
+ 
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
+-	default !ZONE_DMA
+-	depends on !ZONE_DMA
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on X86_64 #arch_add_memory() comprehends device memory
+@@ -666,5 +664,10 @@ config ZONE_DEVICE
+ 
+ 	  If FS_DAX is enabled, then say Y.
+ 
++config NR_ZONES_EXTENDED
++	bool
++	default n if !64BIT
++	default y if ZONE_DEVICE && ZONE_DMA && ZONE_DMA32
++
+ config FRAME_VECTOR
+ 	bool
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
