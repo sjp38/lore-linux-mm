@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 601AA6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:07:04 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id wb13so10776697obb.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:07:04 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id d71si11585385oih.12.2016.01.28.11.07.02
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE8A6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:24:31 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id l66so25352758wml.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 11:24:31 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 137si6045635wmb.8.2016.01.28.11.24.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 11:07:03 -0800 (PST)
-Subject: Re: [LSF/MM ATTEND] Huge Page Futures
-References: <56A580F8.4060301@oracle.com>
- <20160125110137.GB11541@node.shutemov.name> <56A62837.7010105@oracle.com>
- <56A90345.3020903@oracle.com>
- <alpine.LSU.2.11.1601280022040.4201@eggly.anvils>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56AA66CE.8080000@oracle.com>
-Date: Thu, 28 Jan 2016 11:06:54 -0800
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 28 Jan 2016 11:24:29 -0800 (PST)
+Subject: Re: [PATCH] vmpressure: Fix subtree pressure detection
+References: <1453912137-25473-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160128155531.GE15948@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56AA6AEE.30004@suse.cz>
+Date: Thu, 28 Jan 2016 20:24:30 +0100
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1601280022040.4201@eggly.anvils>
+In-Reply-To: <20160128155531.GE15948@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/28/2016 12:49 AM, Hugh Dickins wrote:
-> On Wed, 27 Jan 2016, Mike Kravetz wrote:
->> On 01/25/2016 05:50 AM, Mike Kravetz wrote:
->>> On 01/25/2016 03:01 AM, Kirill A. Shutemov wrote:
->>>> On Sun, Jan 24, 2016 at 05:57:12PM -0800, Mike Kravetz wrote:
->>>>> - Adding shared page table (PMD) support to DAX much like that which exists
->>>>>   for hugetlbfs
->>>>
->>>> Shared page tables for hugetlbfs is rather ugly hack.
->>>>
->>>> Do you have any thoughts how it's going to be implemented? It would be
->>>> nice to have some design overview or better proof-of-concept patch before
->>>> the summit to be able analyze implications for the kernel.
->>>>
->>>
->>> Good to know the hugetlbfs implementation is considered a hack.  I just
->>> started looking at this, and was going to use hugetlbfs as a starting
->>> point.  I'll reconsider that decision.
+On 28.1.2016 16:55, Michal Hocko wrote:
+> On Wed 27-01-16 19:28:57, Vladimir Davydov wrote:
+>> When vmpressure is called for the entire subtree under pressure we
+>> mistakenly use vmpressure->scanned instead of vmpressure->tree_scanned
+>> when checking if vmpressure work is to be scheduled. This results in
+>> suppressing all vmpressure events in the legacy cgroup hierarchy. Fix
+>> it.
 >>
->> Kirill, can you (or others) explain your reasons for saying the hugetlbfs
->> implementation is an ugly hack?  I do not have enough history/experience
->> with this to say what is most offensive.  I would be happy to start by
->> cleaning up issues with the current implementation.
+>> Fixes: 8e8ae645249b ("mm: memcontrol: hook up vmpressure to socket pressure")
+>> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 > 
-> I disagree that the hugetlbfs shared pagetables are an ugly hack.
-> What they are is a dark backwater that very few people are aware of,
-> which we therefore can very easily break or be broken by.
+> a = b += c made me scratch my head for a second but this looks correct
+
+Ugh, it's actually a = b += a
+
+While clever and compact, this will make scratch their head anyone looking at
+the code in the future. Is it worth it?
+
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> I have regretted bringing them into mm for that reason, and have
-> thought that they're next in line for the axe, after those non-linear
-> vmas which Kirill dispatched without tears last year.  But if you're
-> intent on making more use of them, exposing them to the light of day
-> is a fair alternative to consider.
-
-It is interesting to note that at least one DB vendor (my employer) is
-very aware of hugetlbfs shared pagetables, and takes advantage of them
-in their DB architecture.  Their primary concern is the memory savings
-that sharing provides.  I agree with you that very few people know
-about them.  I didn't know they existed until informed by the DB team
-and I looked at the code.
-
--- 
-Mike Kravetz
+>> ---
+>>  mm/vmpressure.c | 3 +--
+>>  1 file changed, 1 insertion(+), 2 deletions(-)
+>>
+>> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+>> index 9a6c0704211c..149fdf6c5c56 100644
+>> --- a/mm/vmpressure.c
+>> +++ b/mm/vmpressure.c
+>> @@ -248,9 +248,8 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
+>>  
+>>  	if (tree) {
+>>  		spin_lock(&vmpr->sr_lock);
+>> -		vmpr->tree_scanned += scanned;
+>> +		scanned = vmpr->tree_scanned += scanned;
+>>  		vmpr->tree_reclaimed += reclaimed;
+>> -		scanned = vmpr->scanned;
+>>  		spin_unlock(&vmpr->sr_lock);
+>>  
+>>  		if (scanned < vmpressure_win)
+>> -- 
+>> 2.1.4
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
