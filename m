@@ -1,91 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 313686B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 08:29:44 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l66so25401465wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 05:29:44 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id o11si15328881wjw.191.2016.01.28.05.29.43
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id AC2576B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:22:09 -0500 (EST)
+Received: by mail-qg0-f52.google.com with SMTP id 6so39226109qgy.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 06:22:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 33si12347677qgj.71.2016.01.28.06.22.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 05:29:43 -0800 (PST)
-Received: by mail-wm0-x234.google.com with SMTP id p63so24782194wmp.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 05:29:43 -0800 (PST)
+        Thu, 28 Jan 2016 06:22:08 -0800 (PST)
+Date: Thu, 28 Jan 2016 15:22:04 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [linux-next:master 1811/2084] mm/slab.h:316:9: error: implicit
+ declaration of function 'virt_to_head_page'
+Message-ID: <20160128152204.5a8218bd@redhat.com>
+In-Reply-To: <201601281613.YeqluRNV%fengguang.wu@intel.com>
+References: <201601281613.YeqluRNV%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=W_17XMtCmLRHHccJmzPaJTk1Jc4uCa4T_n4E5NwRR9Mg@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<7f497e194053c25e8a3debe3e1e738a187e38c16.1453918525.git.glider@google.com>
-	<20160128074442.GB15426@js1304-P5Q-DELUXE>
-	<CAG_fn=W_17XMtCmLRHHccJmzPaJTk1Jc4uCa4T_n4E5NwRR9Mg@mail.gmail.com>
-Date: Thu, 28 Jan 2016 14:29:42 +0100
-Message-ID: <CAG_fn=VTnFDOVuQzk3NgFGd6D+BoNDSqL4-MYyo0soq+eM76-g@mail.gmail.com>
-Subject: Re: [PATCH v1 2/8] mm, kasan: SLAB support
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: kasan-dev@googlegroups.com, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, Dmitriy Vyukov <dvyukov@google.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-mm@kvack.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, rostedt@goodmis.org
-
-On Thu, Jan 28, 2016 at 1:37 PM, Alexander Potapenko <glider@google.com> wr=
-ote:
->
-> On Jan 28, 2016 8:44 AM, "Joonsoo Kim" <iamjoonsoo.kim@lge.com> wrote:
->>
->> On Wed, Jan 27, 2016 at 07:25:07PM +0100, Alexander Potapenko wrote:
->> > This patch adds KASAN hooks to SLAB allocator.
->> >
->> > This patch is based on the "mm: kasan: unified support for SLUB and
->> > SLAB allocators" patch originally prepared by Dmitry Chernenkov.
->> >
->> > Signed-off-by: Alexander Potapenko <glider@google.com>
->> > ---
->> >  Documentation/kasan.txt  |  5 ++-
->>
->> ...
->>
->> > +#ifdef CONFIG_SLAB
->> > +struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
->> > +                                     const void *object)
->> > +{
->> > +     return (void *)object + cache->kasan_info.alloc_meta_offset;
->> > +}
->> > +
->> > +struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
->> > +                                   const void *object)
->> > +{
->> > +     return (void *)object + cache->kasan_info.free_meta_offset;
->> > +}
->> > +#endif
->>
->> I cannot find the place to store stack info for free. get_free_info()
->> isn't used except print_object(). Plese let me know where.
->
-> This is covered by other patches in this patchset.
->
->> Thanks.
-(resending to linux-kernel@ because the previous mail bounced)
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, brouer@redhat.com
 
 
---=20
-Alexander Potapenko
-Software Engineer
+Hi Andrew,
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+Looks like I forgot to include linux/mm.h.
+Will you fix up your quilt patch:
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
-leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+ http://ozlabs.org/~akpm/mmots/broken-out/mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
+
+Or how does it work with the MM tree?
+
+Fix needed (verified and compile tested on linux-next):
+
+$ git diff
+diff --git a/mm/failslab.c b/mm/failslab.c
+index 0c5b3f31f310..b0fac98cd938 100644
+--- a/mm/failslab.c
++++ b/mm/failslab.c
+@@ -1,5 +1,6 @@
+ #include <linux/fault-inject.h>
+ #include <linux/slab.h>
++#include <linux/mm.h>
+ #include "slab.h"
+ 
+ static struct {
+
+
+- -- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
+
+
+On Thu, 28 Jan 2016 16:07:16 +0800
+kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   888c8375131656144c1605071eab2eb6ac49abc3
+> commit: 074b6f53c320a81e975c0b5dd79daa5e78a711ba [1811/2084] mm: fault-inject take over bootstrap kmem_cache check
+> config: i386-randconfig-a0-01271607 (attached as .config)
+> reproduce:
+>         git checkout 074b6f53c320a81e975c0b5dd79daa5e78a711ba
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    In file included from mm/failslab.c:3:0:
+>    mm/slab.h: In function 'cache_from_obj':
+> >> mm/slab.h:316:9: error: implicit declaration of function 'virt_to_head_page' [-Werror=implicit-function-declaration]  
+>      page = virt_to_head_page(x);
+>             ^
+> >> mm/slab.h:316:7: warning: assignment makes pointer from integer without a cast [-Wint-conversion]  
+>      page = virt_to_head_page(x);
+>           ^
+>    cc1: some warnings being treated as errors
+> 
+> vim +/virt_to_head_page +316 mm/slab.h
+> 
+> b9ce5ef4 Glauber Costa 2012-12-18  310  	 * to not do even the assignment. In that case, slab_equal_or_root
+> b9ce5ef4 Glauber Costa 2012-12-18  311  	 * will also be a constant.
+> b9ce5ef4 Glauber Costa 2012-12-18  312  	 */
+> b9ce5ef4 Glauber Costa 2012-12-18  313  	if (!memcg_kmem_enabled() && !unlikely(s->flags & SLAB_DEBUG_FREE))
+> b9ce5ef4 Glauber Costa 2012-12-18  314  		return s;
+> b9ce5ef4 Glauber Costa 2012-12-18  315  
+> b9ce5ef4 Glauber Costa 2012-12-18 @316  	page = virt_to_head_page(x);
+> b9ce5ef4 Glauber Costa 2012-12-18  317  	cachep = page->slab_cache;
+> b9ce5ef4 Glauber Costa 2012-12-18  318  	if (slab_equal_or_root(cachep, s))
+> b9ce5ef4 Glauber Costa 2012-12-18  319  		return cachep;
+> 
+> :::::: The code at line 316 was first introduced by commit
+> :::::: b9ce5ef49f00daf2254c6953c8d31f79aabccd34 sl[au]b: always get the cache from its page in kmem_cache_free()
+> 
+> :::::: TO: Glauber Costa <glommer@parallels.com>
+> :::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
