@@ -1,48 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B696B0254
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:20:39 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id cy9so30542283pac.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:20:39 -0800 (PST)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id cc5si19665686pad.168.2016.01.28.15.20.38
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C91E86B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:40:33 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id 128so31687091wmz.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:40:33 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y142si3642640wmd.54.2016.01.28.15.40.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 15:20:38 -0800 (PST)
-Received: by mail-pa0-x22d.google.com with SMTP id cy9so30542172pac.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:20:38 -0800 (PST)
-Date: Thu, 28 Jan 2016 15:20:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/3] mm, vmscan: make zone_reclaimable_pages more
- precise
-In-Reply-To: <1454015979-9985-1-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1601281520250.31035@chino.kir.corp.google.com>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <1454015979-9985-1-git-send-email-mhocko@kernel.org>
+        Thu, 28 Jan 2016 15:40:32 -0800 (PST)
+Date: Thu, 28 Jan 2016 18:40:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
+Message-ID: <20160128234018.GA5530@cmpxchg.org>
+References: <20160128163802.GA15953@dhcp22.suse.cz>
+ <20160128190204.GJ12228@redhat.com>
+ <20160128201123.GB621@dhcp22.suse.cz>
+ <20160128211240.GA4163@cmpxchg.org>
+ <20160128215514.GF621@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160128215514.GF621@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 28 Jan 2016, Michal Hocko wrote:
+On Thu, Jan 28, 2016 at 10:55:15PM +0100, Michal Hocko wrote:
+> On Thu 28-01-16 16:12:40, Johannes Weiner wrote:
+> > On Thu, Jan 28, 2016 at 09:11:23PM +0100, Michal Hocko wrote:
+> > > On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
+> > > > It's not immediately apparent if there is a new OOM killer upstream
+> > > > logic that would prevent the risk of a second OOM killer invocation
+> > > > despite another OOM killing already happened while we were stuck in
+> > > > reclaim. In absence of that, the high wmark check would be still
+> > > > needed.
+> > > 
+> > > Well, my oom detection rework [1] strives to make the OOM detection more
+> > > robust and the retry logic performs the watermark check. So I think the
+> > > last attempt is no longer needed after that patch. I will then remove
+> > > it.
+> > 
+> > Hm? I don't have the same conclusion from what Andrea said.
+> > 
+> > When you have many allocations racing at the same time, they can all
+> > enter __alloc_pages_may_oom() in quick succession. We don't want a
+> > cavalcade of OOM kills when one could be enough, so we have to make
+> > sure that in between should_alloc_retry() giving up and acquiring the
+> > OOM lock nobody else already issued a kill and released enough memory.
+> > 
+> > It's a race window that gets yanked wide open when hundreds of threads
+> > race in __alloc_pages_may_oom(). Your patches don't fix that, AFAICS.
+> 
+> Only one task would be allowed to go out_of_memory and all the rest will
+> simply fail on oom_lock trylock and return with NULL. Or am I missing
+> your point?
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> zone_reclaimable_pages is used in should_reclaim_retry which uses it to
-> calculate the target for the watermark check. This means that precise
-> numbers are important for the correct decision. zone_reclaimable_pages
-> uses zone_page_state which can contain stale data with per-cpu diffs
-> not synced yet (the last vmstat_update might have run 1s in the past).
-> 
-> Use zone_page_state_snapshot in zone_reclaimable_pages instead. None
-> of the current callers is in a hot path where getting the precise value
-> (which involves per-cpu iteration) would cause an unreasonable overhead.
-> 
-> Suggested-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+Just picture it with mutex_lock() instead of mutex_trylock() and it
+becomes obvious why you have to do a locked check before the kill.
 
-Acked-by: David Rientjes <rientjes@google.com>
+The race window is much smaller with the trylock of course, but given
+enough threads it's possible that one of the other contenders would
+acquire the trylock right after the first task drops it:
+
+first task:                     204th task:
+!reclaim                        !reclaim
+!should_alloc_retry             !should_alloc_retry
+oom_trylock
+out_of_memory
+oom_unlock
+                                oom_trylock
+                                out_of_memory // likely unnecessary
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
