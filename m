@@ -1,110 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2576B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:22:09 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id 6so39226109qgy.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 06:22:09 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 33si12347677qgj.71.2016.01.28.06.22.08
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C6F426B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 09:38:56 -0500 (EST)
+Received: by mail-oi0-f52.google.com with SMTP id k206so27621558oia.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 06:38:56 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id z186si10495427oig.87.2016.01.28.06.38.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 06:22:08 -0800 (PST)
-Date: Thu, 28 Jan 2016 15:22:04 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [linux-next:master 1811/2084] mm/slab.h:316:9: error: implicit
- declaration of function 'virt_to_head_page'
-Message-ID: <20160128152204.5a8218bd@redhat.com>
-In-Reply-To: <201601281613.YeqluRNV%fengguang.wu@intel.com>
-References: <201601281613.YeqluRNV%fengguang.wu@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Jan 2016 06:38:55 -0800 (PST)
+Date: Thu, 28 Jan 2016 06:38:52 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mm: provide reference to READ_IMPLIES_EXEC
+Message-ID: <20160128143852.GA22099@roeck-us.net>
+References: <1453972263-25907-1-git-send-email-sudipm.mukherjee@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1453972263-25907-1-git-send-email-sudipm.mukherjee@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, brouer@redhat.com
+To: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>
 
-
-Hi Andrew,
-
-Looks like I forgot to include linux/mm.h.
-Will you fix up your quilt patch:
-
- http://ozlabs.org/~akpm/mmots/broken-out/mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
-
-Or how does it work with the MM tree?
-
-Fix needed (verified and compile tested on linux-next):
-
-$ git diff
-diff --git a/mm/failslab.c b/mm/failslab.c
-index 0c5b3f31f310..b0fac98cd938 100644
---- a/mm/failslab.c
-+++ b/mm/failslab.c
-@@ -1,5 +1,6 @@
- #include <linux/fault-inject.h>
- #include <linux/slab.h>
-+#include <linux/mm.h>
- #include "slab.h"
- 
- static struct {
-
-
-- -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
-
-
-On Thu, 28 Jan 2016 16:07:16 +0800
-kbuild test robot <fengguang.wu@intel.com> wrote:
-
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   888c8375131656144c1605071eab2eb6ac49abc3
-> commit: 074b6f53c320a81e975c0b5dd79daa5e78a711ba [1811/2084] mm: fault-inject take over bootstrap kmem_cache check
-> config: i386-randconfig-a0-01271607 (attached as .config)
-> reproduce:
->         git checkout 074b6f53c320a81e975c0b5dd79daa5e78a711ba
->         # save the attached .config to linux build tree
->         make ARCH=i386 
+On Thu, Jan 28, 2016 at 02:41:03PM +0530, Sudip Mukherjee wrote:
+> blackfin defconfig fails with the error:
+> mm/internal.h: In function 'is_stack_mapping':
+> arch/blackfin/include/asm/page.h:15:27: error: 'READ_IMPLIES_EXEC' undeclared
 > 
-> All error/warnings (new ones prefixed by >>):
+> Commit 07dff8ae2bc5 has added is_stack_mapping in mm/internal.h but it
+> also needs personality.h.
 > 
->    In file included from mm/failslab.c:3:0:
->    mm/slab.h: In function 'cache_from_obj':
-> >> mm/slab.h:316:9: error: implicit declaration of function 'virt_to_head_page' [-Werror=implicit-function-declaration]  
->      page = virt_to_head_page(x);
->             ^
-> >> mm/slab.h:316:7: warning: assignment makes pointer from integer without a cast [-Wint-conversion]  
->      page = virt_to_head_page(x);
->           ^
->    cc1: some warnings being treated as errors
-> 
-> vim +/virt_to_head_page +316 mm/slab.h
-> 
-> b9ce5ef4 Glauber Costa 2012-12-18  310  	 * to not do even the assignment. In that case, slab_equal_or_root
-> b9ce5ef4 Glauber Costa 2012-12-18  311  	 * will also be a constant.
-> b9ce5ef4 Glauber Costa 2012-12-18  312  	 */
-> b9ce5ef4 Glauber Costa 2012-12-18  313  	if (!memcg_kmem_enabled() && !unlikely(s->flags & SLAB_DEBUG_FREE))
-> b9ce5ef4 Glauber Costa 2012-12-18  314  		return s;
-> b9ce5ef4 Glauber Costa 2012-12-18  315  
-> b9ce5ef4 Glauber Costa 2012-12-18 @316  	page = virt_to_head_page(x);
-> b9ce5ef4 Glauber Costa 2012-12-18  317  	cachep = page->slab_cache;
-> b9ce5ef4 Glauber Costa 2012-12-18  318  	if (slab_equal_or_root(cachep, s))
-> b9ce5ef4 Glauber Costa 2012-12-18  319  		return cachep;
-> 
-> :::::: The code at line 316 was first introduced by commit
-> :::::: b9ce5ef49f00daf2254c6953c8d31f79aabccd34 sl[au]b: always get the cache from its page in kmem_cache_free()
-> 
-> :::::: TO: Glauber Costa <glommer@parallels.com>
-> :::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> Fixes: 07dff8ae2bc5 ("mm: warn about VmData over RLIMIT_DATA")
 
+FWIW, this is just one of many build failures due to this patch.
+Pretty much all non-MMU builds fail, plus several MMU builds.
+I had prepared a patch for mn10300, but gave up after I noticed
+all the other failures.
+
+Build results in next-20160128:
+	total: 146 pass: 121 fail: 25
+Failed builds:
+	alpha:allmodconfig
+	arm64:allnoconfig
+	arm64:allmodconfig
+	avr32:defconfig
+	avr32:merisc_defconfig
+	avr32:atngw100mkii_evklcd101_defconfig
+	blackfin:defconfig
+	blackfin:BF561-EZKIT-SMP_defconfig
+	c6x:dsk6455_defconfig
+	c6x:evmc6457_defconfig
+	c6x:evmc6678_defconfig
+	frv:defconfig
+	ia64:defconfig
+	ia64:allnoconfig
+	m68k:allmodconfig
+	microblaze:nommu_defconfig
+	microblaze:allnoconfig
+	mn10300:asb2303_defconfig
+	mn10300:asb2364_defconfig
+	parisc:allmodconfig
+	powerpc:ppc6xx_defconfig
+	s390:defconfig
+	s390:allmodconfig
+	s390:allnoconfig
+	xtensa:allmodconfig
+Qemu test results:
+	total: 96 pass: 83 fail: 13
+Failed tests:
+	arm:kzm:imx_v6_v7_defconfig
+	arm64:smp:defconfig
+	arm64:nosmp:defconfig
+	microblaze:microblaze_defconfig
+	microblaze:microblazeel_defconfig
+	powerpc:mac99:ppc_book3s_defconfig
+	powerpc:mpc8544ds:mpc85xx_smp_defconfig
+	powerpc:smp4:ppc64_book3s_defconfig
+	powerpc:nosmp:ppc64_e5500_defconfig
+	powerpc:smp:ppc64_e5500_defconfig
+	s390:defconfig
+	sparc64:sun4u:nosmp:sparc64_defconfig
+	sparc64:sun4v:nosmp:sparc64_defconfig
+
+Not all, but most of the failures are due to 07dff8ae2bc5.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
