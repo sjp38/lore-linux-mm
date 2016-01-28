@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E1C176B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:40:13 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id l66so27877281wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:40:13 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 137si6423972wmb.8.2016.01.28.12.40.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 12:40:12 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id r129so6029664wmr.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:40:12 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 4/3] mm, oom: drop the last allocation attempt before out_of_memory
-Date: Thu, 28 Jan 2016 21:40:03 +0100
-Message-Id: <1454013603-3682-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B51F6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:55:42 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id z14so22586041igp.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 12:55:42 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id c14si21380850iod.73.2016.01.28.12.55.40
+        for <linux-mm@kvack.org>;
+        Thu, 28 Jan 2016 12:55:41 -0800 (PST)
+Date: Fri, 29 Jan 2016 07:55:25 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [LSF/MM TOPIC] proposals for topics
+Message-ID: <20160128205525.GO6033@dastard>
+References: <20160125133357.GC23939@dhcp22.suse.cz>
+ <20160125184559.GE29291@cmpxchg.org>
+ <20160126095022.GC27563@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160126095022.GC27563@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Jan 26, 2016 at 10:50:23AM +0100, Michal Hocko wrote:
+> On Mon 25-01-16 13:45:59, Johannes Weiner wrote:
+> > Hi Michal,
+> > 
+> > On Mon, Jan 25, 2016 at 02:33:57PM +0100, Michal Hocko wrote:
+> > > - GFP_NOFS is another one which would be good to discuss. Its primary
+> > >   use is to prevent from reclaim recursion back into FS. This makes
+> > >   such an allocation context weaker and historically we haven't
+> > >   triggered OOM killer and rather hopelessly retry the request and
+> > >   rely on somebody else to make a progress for us. There are two issues
+> > >   here.
+> > >   First we shouldn't retry endlessly and rather fail the allocation and
+> > >   allow the FS to handle the error. As per my experiments most FS cope
+> > >   with that quite reasonably. Btrfs unfortunately handles many of those
+> > >   failures by BUG_ON which is really unfortunate.
+> > 
+> > Are there any new datapoints on how to deal with failing allocations?
+> > IIRC the conclusion last time was that some filesystems simply can't
+> > support this without a reservation system - which I don't believe
+> > anybody is working on. Does it make sense to rehash this when nothing
+> > really changed since last time?
+> 
+> There have been patches posted during the year to fortify those places
+> which cannot cope with allocation failures for ext[34] and testing
+> has shown that ext* resp. xfs are quite ready to see NOFS allocation
+> failures.
 
-__alloc_pages_may_oom has been doing get_page_from_freelist with
-ALLOC_WMARK_HIGH target before going out_of_memory and invoking the oom
-killer. This has two reasons as explained by Andrea:
-"
-: the reason for the high wmark is to reduce the likelihood of livelocks
-: and be sure to invoke the OOM killer, if we're still under pressure
-: and reclaim just failed. The high wmark is used to be sure the failure
-: of reclaim isn't going to be ignored. If using the min wmark like
-: you propose there's risk of livelock or anyway of delayed OOM killer
-: invocation.
-:
-: The reason for doing one last wmark check (regardless of the wmark
-: used) before invoking the oom killer, was just to be sure another OOM
-: killer invocation hasn't already freed a ton of memory while we were
-: stuck in reclaim. A lot of free memory generated by the OOM killer,
-: won't make a parallel reclaim more likely to succeed, it just creates
-: free memory, but reclaim only succeeds when it finds "freeable" memory
-: and it makes progress in converting it to free memory. So for the
-: purpose of this last check, the high wmark would work fine as lots of
-: free memory would have been generated in such case.
-"
+The XFS situation is compeletely unchanged from last year, and the
+fact that you say it handles NOFS allocation failures just fine
+makes me seriously question your testing methodology.
 
-This is no longer a concern after "mm, oom: rework oom detection"
-because should_reclaim_retry performs the water mark check right before
-__alloc_pages_may_oom is invoked. Remove the last moment allocation
-request as it just makes the code more confusing and doesn't really
-serve any purpose because a success is basically impossible otherwise
-should_reclaim_retry would force the reclaim to retry. So this is
-merely a code cleanup rather than a functional change.
+In XFS, *any* memory allocation failure during a transaction will
+either cause a panic through null point deference (because we don't
+check for allocation failure in most cases) or a filesystem
+shutdown (in the cases where we do check). If you haven't seen these
+behaviours, then you haven't been failing memory allocations during
+filesystem modifications.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 10 ----------
- 1 file changed, 10 deletions(-)
+We need to fundamentally change error handling in transactions in
+XFS to allow arbitrary memory allocation to fail. That is, we need
+to implement a full transaction rollback capability so we can back
+out changes made during the transaction before the error occurred.
+That's a major amount of work, and I'm probably not going to do
+anything on this in the next year as it's low priority because what
+we have now works.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 268de1654128..f82941c0ac4e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2743,16 +2743,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		return NULL;
- 	}
- 
--	/*
--	 * Go through the zonelist yet one more time, keep very high watermark
--	 * here, this is only to catch a parallel oom killing, we must fail if
--	 * we're still under heavy pressure.
--	 */
--	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
--					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
--	if (page)
--		goto out;
--
- 	if (!(gfp_mask & __GFP_NOFAIL)) {
- 		/* Coredumps can quickly deplete all memory reserves */
- 		if (current->flags & PF_DUMPCORE)
+Cheers,
+
+Dave.
 -- 
-2.7.0.rc3
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
