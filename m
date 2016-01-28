@@ -1,69 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CEE36B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:36:18 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id r129so45278561wmr.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:36:18 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id ll4si18049715wjb.130.2016.01.28.14.36.17
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 349CB6B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:03:42 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id uo6so30864819pac.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:03:42 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id up8si19591815pac.111.2016.01.28.15.03.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 14:36:17 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id r129so6514743wmr.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 14:36:17 -0800 (PST)
-Date: Thu, 28 Jan 2016 23:36:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/2] oom: clear TIF_MEMDIE after oom_reaper managed to
- unmap the address space
-Message-ID: <20160128223615.GB14803@dhcp22.suse.cz>
-References: <1452516120-5535-1-git-send-email-mhocko@kernel.org>
- <201601181335.JJD69226.JHVQSMFOFOFtOL@I-love.SAKURA.ne.jp>
- <20160126163823.GG27563@dhcp22.suse.cz>
- <201601282024.JBG90615.JLFQOSFFVOMHtO@I-love.SAKURA.ne.jp>
- <20160128215121.GE621@dhcp22.suse.cz>
- <201601290726.GGC12497.OSQJVtMFFOHOLF@I-love.SAKURA.ne.jp>
+        Thu, 28 Jan 2016 15:03:41 -0800 (PST)
+Received: by mail-pa0-x234.google.com with SMTP id uo6so30864581pac.1
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:03:41 -0800 (PST)
+Date: Thu, 28 Jan 2016 15:03:39 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
+In-Reply-To: <56A9E3D1.3090001@de.ibm.com>
+Message-ID: <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
+References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com> <1453889401-43496-3-git-send-email-borntraeger@de.ibm.com> <alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com> <56A9E3D1.3090001@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201601290726.GGC12497.OSQJVtMFFOHOLF@I-love.SAKURA.ne.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
 
-On Fri 29-01-16 07:26:39, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 28-01-16 20:24:36, Tetsuo Handa wrote:
-> > [...]
-> > > I like the OOM reaper approach but I can't agree on merging the OOM reaper
-> > > without providing a guaranteed last resort at the same time. If you do want
-> > > to start the OOM reaper as simple as possible (without being bothered by
-> > > a lot of possible corner cases), please pursue a guaranteed last resort
-> > > at the same time.
-> > 
-> > I am getting tired of this level of argumentation. oom_reaper in its
-> > current form is a step forward. I have acknowledged there are possible
-> > improvements doable on top but I do not see them necessary for the core
-> > part being merged. I am not trying to rush this in because I am very
-> > well aware of how subtle and complex all the interactions might be.
-> > So please stop your "we must have it all at once" attitude. This is
-> > nothing we have to rush in. We are not talking about a regression which
-> > has to be absolutely fixed in few days.
+On Thu, 28 Jan 2016, Christian Borntraeger wrote:
+
+> Indeed, I only touched the identity mapping and dump stack.
+> The question is do we really want to change free_init_pages as well?
+> The unmapping during runtime causes significant overhead, but the
+> unmapping after init imposes almost no runtime overhead. Of course,
+> things get fishy now as what is enabled and what not.
 > 
-> I'm not asking you to merge a perfect version of oom_reaper from the
-> beginning. I know it is too difficult. Instead, I'm asking you to allow
-> using timeout based approaches (shown below) as temporarily workaround
-> because there are environments which cannot wait for oom_reaper to become
-> enough reliable. Would you please reply to the thread which proposed a
-> guaranteed last resort (shown below)?
+> Kconfig after my patch "mm/debug_pagealloc: Ask users for default setting of debug_pagealloc"
+> (in mm) now states
+> ----snip----
+> By default this option will have a small overhead, e.g. by not
+> allowing the kernel mapping to be backed by large pages on some
+> architectures. Even bigger overhead comes when the debugging is
+> enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
+> command line parameter.
+> ----snip----
+> 
+> So I am tempted to NOT change free_init_pages, but the x86 maintainers
+> can certainly decide differently. Ingo, Thomas, H. Peter, please advise.
+> 
 
-I really fail to see why you have to bring that part in this particular
-thread or in any other oom related discussion. I didn't get to read
-through that discussion and make my opinion yet.
+I'm sorry, but I thought the discussion of the previous version of the 
+patchset led to deciding that all CONFIG_DEBUG_PAGEALLOC behavior would be 
+controlled by being enabled on the commandline and checked with 
+debug_pagealloc_enabled().
 
--- 
-Michal Hocko
-SUSE Labs
+I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
+and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
+to enable more stuff.  It should either be all enabled by the commandline 
+(or config option) or split into a separate entity.  
+CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
+the current state is very confusing about what is being done and what 
+isn't.
+
+It also wouldn't hurt to enumerate what is enabled and what isn't enabled 
+in the Kconfig entry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
