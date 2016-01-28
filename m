@@ -1,72 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B17156B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 10:23:00 -0500 (EST)
-Received: by mail-qk0-f178.google.com with SMTP id o6so12265274qkc.2
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 07:23:00 -0800 (PST)
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
-        by mx.google.com with ESMTPS id m11si12021369qhm.9.2016.01.28.07.22.59
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C82476B0009
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 10:29:05 -0500 (EST)
+Received: by mail-lb0-f176.google.com with SMTP id x4so25750601lbm.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 07:29:05 -0800 (PST)
+Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
+        by mx.google.com with ESMTPS id l76si5811282lfe.241.2016.01.28.07.29.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 07:22:59 -0800 (PST)
-Received: from localhost
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 28 Jan 2016 08:22:59 -0700
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 8EAF73E4003B
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 08:22:56 -0700 (MST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0SFMtdh33161226
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:22:55 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0SFMtxl013585
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 10:22:55 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] VM containers
-In-Reply-To: <56A2511F.1080900@redhat.com>
-Date: Thu, 28 Jan 2016 20:48:35 +0530
-Message-ID: <87wpqtwx4k.fsf@linux.vnet.ibm.com>
-References: <56A2511F.1080900@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 07:29:04 -0800 (PST)
+Received: by mail-lf0-x234.google.com with SMTP id c192so29140044lfe.2
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 07:29:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20160128143852.GA22099@roeck-us.net>
+References: <1453972263-25907-1-git-send-email-sudipm.mukherjee@gmail.com>
+	<20160128143852.GA22099@roeck-us.net>
+Date: Thu, 28 Jan 2016 18:29:03 +0300
+Message-ID: <CALYGNiPcDsxnA7svAaDZErAP8CgJCFaD32wj=v8n4j0z32Uuww@mail.gmail.com>
+Subject: Re: mm: provide reference to READ_IMPLIES_EXEC
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, lsf-pc@lists.linuxfoundation.org
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-testers@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Rik van Riel <riel@redhat.com> writes:
+On Thu, Jan 28, 2016 at 5:38 PM, Guenter Roeck <linux@roeck-us.net> wrote:
+> On Thu, Jan 28, 2016 at 02:41:03PM +0530, Sudip Mukherjee wrote:
+>> blackfin defconfig fails with the error:
+>> mm/internal.h: In function 'is_stack_mapping':
+>> arch/blackfin/include/asm/page.h:15:27: error: 'READ_IMPLIES_EXEC' undeclared
+>>
+>> Commit 07dff8ae2bc5 has added is_stack_mapping in mm/internal.h but it
+>> also needs personality.h.
+>>
+>> Fixes: 07dff8ae2bc5 ("mm: warn about VmData over RLIMIT_DATA")
+>
+> FWIW, this is just one of many build failures due to this patch.
+> Pretty much all non-MMU builds fail, plus several MMU builds.
+> I had prepared a patch for mn10300, but gave up after I noticed
+> all the other failures.
 
-> Hi,
->
-> I am trying to gauge interest in discussing VM containers at the LSF/MM
-> summit this year. Projects like ClearLinux, Qubes, and others are all
-> trying to use virtual machines as better isolated containers.
->
-> That changes some of the goals the memory management subsystem has,
-> from "use all the resources effectively" to "use as few resources as
-> necessary, in case the host needs the memory for something else".
->
-> These VMs could be as small as running just one application, so this
-> goes a little further than simply trying to squeeze more virtual
-> machines into a system with frontswap and cleancache.
->
-> Single-application VM sandboxes could also get their data differently,
-> using (partial) host filesystem passthrough, instead of a virtual
-> block device. This may change the relative utility of caching data
-> inside the guest page cache, versus freeing up that memory and
-> allowing the host to use it to cache things.
->
-> Are people interested in discussing this at LSF/MM, or is it better
-> saved for a different forum?
->
+Please try mine "[PATCH] mm: polish virtual memory accounting"
+instead of that. It should fix some (or all) fails from 07dff8ae2bc5.
 
-I am interested in the topic. We did look at doing something similar on
-ppc64 and most of our focus was in reducing boot time by cutting out the
-overhead of guest bios (SLOF) and block layer (by using 9pfs).  I would
-like to understand the MM challenges you have identified.
-
--aneesh
+>
+> Build results in next-20160128:
+>         total: 146 pass: 121 fail: 25
+> Failed builds:
+>         alpha:allmodconfig
+>         arm64:allnoconfig
+>         arm64:allmodconfig
+>         avr32:defconfig
+>         avr32:merisc_defconfig
+>         avr32:atngw100mkii_evklcd101_defconfig
+>         blackfin:defconfig
+>         blackfin:BF561-EZKIT-SMP_defconfig
+>         c6x:dsk6455_defconfig
+>         c6x:evmc6457_defconfig
+>         c6x:evmc6678_defconfig
+>         frv:defconfig
+>         ia64:defconfig
+>         ia64:allnoconfig
+>         m68k:allmodconfig
+>         microblaze:nommu_defconfig
+>         microblaze:allnoconfig
+>         mn10300:asb2303_defconfig
+>         mn10300:asb2364_defconfig
+>         parisc:allmodconfig
+>         powerpc:ppc6xx_defconfig
+>         s390:defconfig
+>         s390:allmodconfig
+>         s390:allnoconfig
+>         xtensa:allmodconfig
+> Qemu test results:
+>         total: 96 pass: 83 fail: 13
+> Failed tests:
+>         arm:kzm:imx_v6_v7_defconfig
+>         arm64:smp:defconfig
+>         arm64:nosmp:defconfig
+>         microblaze:microblaze_defconfig
+>         microblaze:microblazeel_defconfig
+>         powerpc:mac99:ppc_book3s_defconfig
+>         powerpc:mpc8544ds:mpc85xx_smp_defconfig
+>         powerpc:smp4:ppc64_book3s_defconfig
+>         powerpc:nosmp:ppc64_e5500_defconfig
+>         powerpc:smp:ppc64_e5500_defconfig
+>         s390:defconfig
+>         sparc64:sun4u:nosmp:sparc64_defconfig
+>         sparc64:sun4v:nosmp:sparc64_defconfig
+>
+> Not all, but most of the failures are due to 07dff8ae2bc5.
+>
+> Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
