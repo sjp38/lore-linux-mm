@@ -1,77 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C91E86B0009
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:40:33 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id 128so31687091wmz.1
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:40:33 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y142si3642640wmd.54.2016.01.28.15.40.32
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 301246B0254
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:42:56 -0500 (EST)
+Received: by mail-oi0-f43.google.com with SMTP id r14so37310138oie.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:42:56 -0800 (PST)
+Received: from alln-iport-6.cisco.com (alln-iport-6.cisco.com. [173.37.142.93])
+        by mx.google.com with ESMTPS id j145si1507310oih.64.2016.01.28.15.42.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 15:40:32 -0800 (PST)
-Date: Thu, 28 Jan 2016 18:40:18 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160128234018.GA5530@cmpxchg.org>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
- <20160128190204.GJ12228@redhat.com>
- <20160128201123.GB621@dhcp22.suse.cz>
- <20160128211240.GA4163@cmpxchg.org>
- <20160128215514.GF621@dhcp22.suse.cz>
+        Thu, 28 Jan 2016 15:42:55 -0800 (PST)
+From: Daniel Walker <danielwa@cisco.com>
+Subject: computing drop-able caches
+Message-ID: <56AAA77D.7090000@cisco.com>
+Date: Thu, 28 Jan 2016 15:42:53 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160128215514.GF621@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
 
-On Thu, Jan 28, 2016 at 10:55:15PM +0100, Michal Hocko wrote:
-> On Thu 28-01-16 16:12:40, Johannes Weiner wrote:
-> > On Thu, Jan 28, 2016 at 09:11:23PM +0100, Michal Hocko wrote:
-> > > On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
-> > > > It's not immediately apparent if there is a new OOM killer upstream
-> > > > logic that would prevent the risk of a second OOM killer invocation
-> > > > despite another OOM killing already happened while we were stuck in
-> > > > reclaim. In absence of that, the high wmark check would be still
-> > > > needed.
-> > > 
-> > > Well, my oom detection rework [1] strives to make the OOM detection more
-> > > robust and the retry logic performs the watermark check. So I think the
-> > > last attempt is no longer needed after that patch. I will then remove
-> > > it.
-> > 
-> > Hm? I don't have the same conclusion from what Andrea said.
-> > 
-> > When you have many allocations racing at the same time, they can all
-> > enter __alloc_pages_may_oom() in quick succession. We don't want a
-> > cavalcade of OOM kills when one could be enough, so we have to make
-> > sure that in between should_alloc_retry() giving up and acquiring the
-> > OOM lock nobody else already issued a kill and released enough memory.
-> > 
-> > It's a race window that gets yanked wide open when hundreds of threads
-> > race in __alloc_pages_may_oom(). Your patches don't fix that, AFAICS.
-> 
-> Only one task would be allowed to go out_of_memory and all the rest will
-> simply fail on oom_lock trylock and return with NULL. Or am I missing
-> your point?
+Hi,
 
-Just picture it with mutex_lock() instead of mutex_trylock() and it
-becomes obvious why you have to do a locked check before the kill.
+My colleague Khalid and I are working on a patch which will provide a 
+/proc file to output the size of the drop-able page cache.
+One way to implement this is to use the current drop_caches /proc 
+routine, but instead of actually droping the caches just add
+up the amount.
 
-The race window is much smaller with the trylock of course, but given
-enough threads it's possible that one of the other contenders would
-acquire the trylock right after the first task drops it:
+Here's a quote Khalid,
 
-first task:                     204th task:
-!reclaim                        !reclaim
-!should_alloc_retry             !should_alloc_retry
-oom_trylock
-out_of_memory
-oom_unlock
-                                oom_trylock
-                                out_of_memory // likely unnecessary
+"Currently there is no way to figure out the droppable pagecache size
+from the meminfo output. The MemFree size can shrink during normal
+system operation, when some of the memory pages get cached and is
+reflected in "Cached" field. Similarly for file operations some of
+the buffer memory gets cached and it is reflected in "Buffers" field.
+The kernel automatically reclaims all this cached & buffered memory,
+when it is needed elsewhere on the system. The only way to manually
+reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. "
+
+So my impression is that the drop-able cache is spread over two fields 
+in meminfo.
+
+Alright, the question is does this info live someplace else that we 
+don't know about? Or someplace in the kernel where it could be
+added to meminfo trivially ?
+
+The point of the whole exercise is to get a better idea of free memory 
+for our employer. Does it make sense to do this for computing free memory?
+
+Any comments welcome..
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
