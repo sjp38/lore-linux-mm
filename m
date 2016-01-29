@@ -1,62 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB1A6B0253
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:03:55 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id is5so50949807obc.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:03:55 -0800 (PST)
-Received: from alln-iport-3.cisco.com (alln-iport-3.cisco.com. [173.37.142.90])
-        by mx.google.com with ESMTPS id o9si11765136oih.126.2016.01.28.17.03.54
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3136B0255
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:09:32 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id l66so48038699wml.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:09:32 -0800 (PST)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id ex19si18780036wjc.64.2016.01.28.17.09.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 17:03:55 -0800 (PST)
-Subject: Re: computing drop-able caches
-References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
-From: Daniel Walker <danielwa@cisco.com>
-Message-ID: <56AABA79.3030103@cisco.com>
-Date: Thu, 28 Jan 2016 17:03:53 -0800
-MIME-Version: 1.0
-In-Reply-To: <20160128235815.GA5953@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Jan 2016 17:09:31 -0800 (PST)
+From: Kamal Mostafa <kamal@canonical.com>
+Subject: [3.19.y-ckt stable] Patch "x86/mm: Add barriers and document switch_mm()-vs-flush synchronization" has been added to the 3.19.y-ckt tree
+Date: Thu, 28 Jan 2016 17:08:24 -0800
+Message-Id: <1454029704-11360-1-git-send-email-kamal@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, Rik van Riel <riel@redhat.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Kamal Mostafa <kamal@canonical.com>, kernel-team@lists.ubuntu.com
 
-On 01/28/2016 03:58 PM, Johannes Weiner wrote:
-> On Thu, Jan 28, 2016 at 03:42:53PM -0800, Daniel Walker wrote:
->> "Currently there is no way to figure out the droppable pagecache size
->> from the meminfo output. The MemFree size can shrink during normal
->> system operation, when some of the memory pages get cached and is
->> reflected in "Cached" field. Similarly for file operations some of
->> the buffer memory gets cached and it is reflected in "Buffers" field.
->> The kernel automatically reclaims all this cached & buffered memory,
->> when it is needed elsewhere on the system. The only way to manually
->> reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. "
-> [...]
->
->> The point of the whole exercise is to get a better idea of free memory for
->> our employer. Does it make sense to do this for computing free memory?
-> /proc/meminfo::MemAvailable was added for this purpose. See the doc
-> text in Documentation/filesystem/proc.txt.
->
-> It's an approximation, however, because this question is not easy to
-> answer. Pages might be in various states and uses that can make them
-> unreclaimable.
+This is a note to let you know that I have just added a patch titled
 
+    x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
 
-Khalid was telling me that our internal sources rejected MemAvailable 
-because it was not accurate enough. It says in the description,
-"The estimate takes into account that the system needs some page cache 
-to function well". I suspect that's part of the inaccuracy. I asked 
-Khalid to respond with more details on this.
+to the linux-3.19.y-queue branch of the 3.19.y-ckt extended stable tree 
+which can be found at:
 
-Do you know of any work to make it more accurate?
+    http://kernel.ubuntu.com/git/ubuntu/linux.git/log/?h=linux-3.19.y-queue
 
-Daniel
+This patch is scheduled to be released in version 3.19.8-ckt14.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+If you, or anyone else, feels it should not be added to this tree, please 
+reply to this email.
+
+For more information about the 3.19.y-ckt tree, see
+https://wiki.ubuntu.com/Kernel/Dev/ExtendedStable
+
+Thanks.
+-Kamal
+
+---8<------------------------------------------------------------
