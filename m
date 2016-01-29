@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A6A828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:21 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id ho8so45051844pac.2
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:21 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id we3si3530534pab.52.2016.01.29.10.17.04
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 937A5828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:23 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id ho8so45052333pac.2
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:23 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id s14si25613639pfa.120.2016.01.29.10.17.05
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:17:04 -0800 (PST)
-Subject: [PATCH 15/31] mm: factor out VMA fault permission checking
+        Fri, 29 Jan 2016 10:17:05 -0800 (PST)
+Subject: [PATCH 16/31] x86, mm: simplify get_user_pages() PTE bit handling
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:17:03 -0800
+Date: Fri, 29 Jan 2016 10:17:05 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181703.02114D45@viggo.jf.intel.com>
+Message-Id: <20160129181705.9FF0BD10@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,60 +22,105 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This code matches a fault condition up with the VMA and ensures
-that the VMA allows the fault to be handled instead of just
-erroring out.
+The current get_user_pages() code is a wee bit more complicated
+than it needs to be for pte bit checking.  Currently, it establishes
+a mask of required pte _PAGE_* bits and ensures that the pte it
+goes after has all those bits.
 
-We will be extending this in a moment to comprehend protection
-keys.
+This consolidates the three identical copies of this code.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/mm/gup.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ b/arch/x86/mm/gup.c |   38 ++++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)
 
-diff -puN mm/gup.c~pkeys-10-pte-fault mm/gup.c
---- a/mm/gup.c~pkeys-10-pte-fault	2016-01-28 15:52:22.856518359 -0800
-+++ b/mm/gup.c	2016-01-28 15:52:22.860518543 -0800
-@@ -611,6 +611,18 @@ next_page:
+diff -puN arch/x86/mm/gup.c~pkeys-12-gup-swizzle arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c~pkeys-12-gup-swizzle	2016-01-28 15:52:23.267537203 -0800
++++ b/arch/x86/mm/gup.c	2016-01-28 15:52:23.270537340 -0800
+@@ -75,6 +75,24 @@ static void undo_dev_pagemap(int *nr, in
  }
- EXPORT_SYMBOL(__get_user_pages);
  
-+bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
+ /*
++ * 'pteval' can come from a pte, pmd or pud.  We only check
++ * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
++ * same value on all 3 types.
++ */
++static inline int pte_allows_gup(unsigned long pteval, int write)
 +{
-+	vm_flags_t vm_flags;
++	unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
 +
-+	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
++	if (write)
++		need_pte_bits |= _PAGE_RW;
 +
-+	if (!(vm_flags & vma->vm_flags))
-+		return false;
++	if ((pteval & need_pte_bits) != need_pte_bits)
++		return 0;
 +
-+	return true;
++	return 1;
 +}
 +
- /*
-  * fixup_user_fault() - manually resolve a user page fault
-  * @tsk:	the task_struct to use for page fault accounting, or
-@@ -646,7 +658,6 @@ int fixup_user_fault(struct task_struct
- 		     bool *unlocked)
++/*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+  * register pressure.
+@@ -83,14 +101,9 @@ static noinline int gup_pte_range(pmd_t
+ 		unsigned long end, int write, struct page **pages, int *nr)
  {
- 	struct vm_area_struct *vma;
--	vm_flags_t vm_flags;
- 	int ret, major = 0;
+ 	struct dev_pagemap *pgmap = NULL;
+-	unsigned long mask;
+ 	int nr_start = *nr;
+ 	pte_t *ptep;
  
- 	if (unlocked)
-@@ -657,8 +668,7 @@ retry:
- 	if (!vma || address < vma->vm_start)
- 		return -EFAULT;
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-
+ 	ptep = pte_offset_map(&pmd, addr);
+ 	do {
+ 		pte_t pte = gup_get_pte(ptep);
+@@ -110,7 +123,8 @@ static noinline int gup_pte_range(pmd_t
+ 				pte_unmap(ptep);
+ 				return 0;
+ 			}
+-		} else if ((pte_flags(pte) & (mask | _PAGE_SPECIAL)) != mask) {
++		} else if (!pte_allows_gup(pte_val(pte), write) ||
++			   pte_special(pte)) {
+ 			pte_unmap(ptep);
+ 			return 0;
+ 		}
+@@ -164,14 +178,10 @@ static int __gup_device_huge_pmd(pmd_t p
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+-	unsigned long mask;
+ 	struct page *head, *page;
+ 	int refs;
  
--	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
--	if (!(vm_flags & vma->vm_flags))
-+	if (!vma_permits_fault(vma, fault_flags))
- 		return -EFAULT;
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-	if ((pmd_flags(pmd) & mask) != mask)
++	if (!pte_allows_gup(pmd_val(pmd), write))
+ 		return 0;
  
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
+ 	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
+@@ -231,14 +241,10 @@ static int gup_pmd_range(pud_t pud, unsi
+ static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+-	unsigned long mask;
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-	if ((pud_flags(pud) & mask) != mask)
++	if (!pte_allows_gup(pud_val(pud), write))
+ 		return 0;
+ 	/* hugepages are never "special" */
+ 	VM_BUG_ON(pud_flags(pud) & _PAGE_SPECIAL);
 _
 
 --
