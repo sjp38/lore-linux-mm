@@ -1,28 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F0AF6B0255
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:35:50 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id cy9so41062083pac.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 04:35:50 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ym10si2020326pab.146.2016.01.29.04.35.49
-        for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 04:35:49 -0800 (PST)
-Date: Fri, 29 Jan 2016 15:35:44 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: mm: another VM_BUG_ON_PAGE(PageTail(page))
-Message-ID: <20160129123544.GB146512@black.fi.intel.com>
-References: <CACT4Y+Z9UDZNLsoEz-DO3fX_+0gTwPUA=uE++J=w1sAG_4CGJg@mail.gmail.com>
- <20160128105136.GD2396@node.shutemov.name>
- <CACT4Y+ZZkWTuw8hxnqLEf81bF=GL2SKv8Buqwv3qByBeSLBf+A@mail.gmail.com>
- <20160128114042.GE2396@node.shutemov.name>
- <CACT4Y+Ybn_YAsP6f_wRfPr-zw2ZbF8cfKBMtqhZ=ya-qCpeq3w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+Ybn_YAsP6f_wRfPr-zw2ZbF8cfKBMtqhZ=ya-qCpeq3w@mail.gmail.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F02256B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:51:54 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id p63so66814716wmp.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 04:51:54 -0800 (PST)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id k67si10794555wmc.99.2016.01.29.04.51.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 29 Jan 2016 04:51:53 -0800 (PST)
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Fri, 29 Jan 2016 12:51:53 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id D64AC1B08075
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:51:59 +0000 (GMT)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0TCppvE12386672
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:51:51 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0TCpoEo029979
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:51:51 -0500
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCH 1/1] x86: also use debug_pagealloc_enabled() for free_init_pages
+Date: Fri, 29 Jan 2016 13:52:12 +0100
+Message-Id: <1454071934-24291-2-git-send-email-borntraeger@de.ibm.com>
+In-Reply-To: <1454071934-24291-1-git-send-email-borntraeger@de.ibm.com>
+References: <1454071934-24291-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Doug Gilbert <dgilbert@interlog.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi <linux-scsi@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Christian Borntraeger <borntraeger@de.ibm.com>
 
+we want to couple all debugging features with debug_pagealloc_enabled()
+and not with the config option CONFIG_DEBUG_PAGEALLOC.
+
+Suggested-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+ arch/x86/mm/init.c | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 39823fd..9d56f27 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -667,21 +667,22 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
+ 	 * mark them not present - any buggy init-section access will
+ 	 * create a kernel page fault:
+ 	 */
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-	printk(KERN_INFO "debug: unmapping init [mem %#010lx-%#010lx]\n",
+-		begin, end - 1);
+-	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
+-#else
+-	/*
+-	 * We just marked the kernel text read only above, now that
+-	 * we are going to free part of that, we need to make that
+-	 * writeable and non-executable first.
+-	 */
+-	set_memory_nx(begin, (end - begin) >> PAGE_SHIFT);
+-	set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
++	if (debug_pagealloc_enabled()) {
++		pr_info("debug: unmapping init [mem %#010lx-%#010lx]\n",
++			begin, end - 1);
++		set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
++	} else {
++		/*
++		 * We just marked the kernel text read only above, now that
++		 * we are going to free part of that, we need to make that
++		 * writeable and non-executable first.
++		 */
++		set_memory_nx(begin, (end - begin) >> PAGE_SHIFT);
++		set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
+ 
+-	free_reserved_area((void *)begin, (void *)end, POISON_FREE_INITMEM, what);
+-#endif
++		free_reserved_area((void *)begin, (void *)end,
++				   POISON_FREE_INITMEM, what);
++	}
+ }
+ 
+ void free_initmem(void)
+-- 
+2.3.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
