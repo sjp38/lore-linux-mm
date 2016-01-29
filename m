@@ -1,153 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 08D8E828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:46 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id yy13so44985232pab.3
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:46 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id os9si3522969pab.169.2016.01.29.10.17.19
+	by kanga.kvack.org (Postfix) with ESMTP id 48ED7828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:48 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id yy13so44985689pab.3
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:48 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ym10si3547456pab.146.2016.01.29.10.17.25
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:17:19 -0800 (PST)
-Subject: [PATCH 25/31] mm, multi-arch: pass a protection key in to calc_vm_flag_bits()
+        Fri, 29 Jan 2016 10:17:25 -0800 (PST)
+Subject: [PATCH 29/31] x86, pkeys: allow kernel to modify user pkey rights register
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:17:18 -0800
+Date: Fri, 29 Jan 2016 10:17:24 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181718.3A3D9E79@viggo.jf.intel.com>
+Message-Id: <20160129181724.5DAA2942@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-api@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This plumbs a protection key through calc_vm_flag_bits().  We
-could have done this in calc_vm_prot_bits(), but I did not feel
-super strongly which way to go.  It was pretty arbitrary which
-one to use.
+The Protection Key Rights for User memory (PKRU) is a 32-bit
+user-accessible register.  It contains two bits for each
+protection key: one to write-disable (WD) access to memory
+covered by the key and another to access-disable (AD).
+
+Userspace can read/write the register with the RDPKRU and WRPKRU
+instructions.  But, the register is saved and restored with the
+XSAVE family of instructions, which means we have to treat it
+like a floating point register.
+
+The kernel needs to write to the register if it wants to
+implement execute-only memory or if it implements a system call
+to change PKRU.
+
+To do this, we need to create a 'pkru_state' buffer, read the old
+contents in to it, modify it, and then tell the FPU code that
+there is modified data in there so it can (possibly) move the
+buffer back in to the registers.
+
+This uses the fpu__xfeature_set_state() function that we defined
+in the previous patch.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/powerpc/include/asm/mman.h  |    5 +++--
- b/drivers/char/agp/frontend.c      |    2 +-
- b/drivers/staging/android/ashmem.c |    4 ++--
- b/include/linux/mman.h             |    6 +++---
- b/mm/mmap.c                        |    2 +-
- b/mm/mprotect.c                    |    2 +-
- b/mm/nommu.c                       |    2 +-
- 7 files changed, 12 insertions(+), 11 deletions(-)
+ b/arch/x86/include/asm/pgtable.h |    5 +-
+ b/arch/x86/include/asm/pkeys.h   |    3 +
+ b/arch/x86/kernel/fpu/xstate.c   |   74 +++++++++++++++++++++++++++++++++++++++
+ b/include/linux/pkeys.h          |    5 ++
+ 4 files changed, 85 insertions(+), 2 deletions(-)
 
-diff -puN arch/powerpc/include/asm/mman.h~pkeys-70-calc_vm_prot_bits arch/powerpc/include/asm/mman.h
---- a/arch/powerpc/include/asm/mman.h~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.723741498 -0800
-+++ b/arch/powerpc/include/asm/mman.h	2016-01-28 15:52:27.736742094 -0800
-@@ -18,11 +18,12 @@
-  * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
-  * here.  How important is the optimization?
-  */
--static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot)
-+static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
-+		unsigned long pkey)
- {
- 	return (prot & PROT_SAO) ? VM_SAO : 0;
- }
--#define arch_calc_vm_prot_bits(prot) arch_calc_vm_prot_bits(prot)
-+#define arch_calc_vm_prot_bits(prot, pkey) arch_calc_vm_prot_bits(prot, pkey)
+diff -puN arch/x86/include/asm/pgtable.h~pkeys-77-arch_set_user_pkey_access arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h~pkeys-77-arch_set_user_pkey_access	2016-01-28 15:52:29.647829708 -0800
++++ b/arch/x86/include/asm/pgtable.h	2016-01-28 15:52:29.655830074 -0800
+@@ -921,16 +921,17 @@ static inline pte_t pte_swp_clear_soft_d
  
- static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
- {
-diff -puN drivers/char/agp/frontend.c~pkeys-70-calc_vm_prot_bits drivers/char/agp/frontend.c
---- a/drivers/char/agp/frontend.c~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.725741589 -0800
-+++ b/drivers/char/agp/frontend.c	2016-01-28 15:52:27.737742140 -0800
-@@ -156,7 +156,7 @@ static pgprot_t agp_convert_mmap_flags(i
- {
- 	unsigned long prot_bits;
+ #define PKRU_AD_BIT 0x1
+ #define PKRU_WD_BIT 0x2
++#define PKRU_BITS_PER_PKEY 2
  
--	prot_bits = calc_vm_prot_bits(prot) | VM_SHARED;
-+	prot_bits = calc_vm_prot_bits(prot, 0) | VM_SHARED;
- 	return vm_get_page_prot(prot_bits);
+ static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
+ {
+-	int pkru_pkey_bits = pkey * 2;
++	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+ 	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
  }
  
-diff -puN drivers/staging/android/ashmem.c~pkeys-70-calc_vm_prot_bits drivers/staging/android/ashmem.c
---- a/drivers/staging/android/ashmem.c~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.726741635 -0800
-+++ b/drivers/staging/android/ashmem.c	2016-01-28 15:52:27.737742140 -0800
-@@ -372,8 +372,8 @@ static int ashmem_mmap(struct file *file
- 	}
- 
- 	/* requested protection bits must match our allowed protection mask */
--	if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask)) &
--		     calc_vm_prot_bits(PROT_MASK))) {
-+	if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask, 0)) &
-+		     calc_vm_prot_bits(PROT_MASK, 0))) {
- 		ret = -EPERM;
- 		goto out;
- 	}
-diff -puN include/linux/mman.h~pkeys-70-calc_vm_prot_bits include/linux/mman.h
---- a/include/linux/mman.h~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.728741727 -0800
-+++ b/include/linux/mman.h	2016-01-28 15:52:27.738742186 -0800
-@@ -35,7 +35,7 @@ static inline void vm_unacct_memory(long
-  */
- 
- #ifndef arch_calc_vm_prot_bits
--#define arch_calc_vm_prot_bits(prot) 0
-+#define arch_calc_vm_prot_bits(prot, pkey) 0
- #endif
- 
- #ifndef arch_vm_get_page_prot
-@@ -70,12 +70,12 @@ static inline int arch_validate_prot(uns
-  * Combine the mmap "prot" argument into "vm_flags" used internally.
-  */
- static inline unsigned long
--calc_vm_prot_bits(unsigned long prot)
-+calc_vm_prot_bits(unsigned long prot, unsigned long pkey)
+ static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
  {
- 	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
- 	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
- 	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
--	       arch_calc_vm_prot_bits(prot);
-+	       arch_calc_vm_prot_bits(prot, pkey);
- }
+-	int pkru_pkey_bits = pkey * 2;
++	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+ 	/*
+ 	 * Access-disable disables writes too so we need to check
+ 	 * both bits here.
+diff -puN arch/x86/include/asm/pkeys.h~pkeys-77-arch_set_user_pkey_access arch/x86/include/asm/pkeys.h
+--- a/arch/x86/include/asm/pkeys.h~pkeys-77-arch_set_user_pkey_access	2016-01-28 15:52:29.649829799 -0800
++++ b/arch/x86/include/asm/pkeys.h	2016-01-28 15:52:29.656830120 -0800
+@@ -3,4 +3,7 @@
  
- /*
-diff -puN mm/mmap.c~pkeys-70-calc_vm_prot_bits mm/mmap.c
---- a/mm/mmap.c~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.730741819 -0800
-+++ b/mm/mmap.c	2016-01-28 15:52:27.739742231 -0800
-@@ -1303,7 +1303,7 @@ unsigned long do_mmap(struct file *file,
- 	 * to. we assume access permissions have been handled by the open
- 	 * of the memory object, so we don't do any here.
+ #define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
+ 
++extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val);
++
+ #endif /*_ASM_X86_PKEYS_H */
+diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-77-arch_set_user_pkey_access arch/x86/kernel/fpu/xstate.c
+--- a/arch/x86/kernel/fpu/xstate.c~pkeys-77-arch_set_user_pkey_access	2016-01-28 15:52:29.650829845 -0800
++++ b/arch/x86/kernel/fpu/xstate.c	2016-01-28 15:52:29.656830120 -0800
+@@ -5,6 +5,7 @@
+  */
+ #include <linux/compat.h>
+ #include <linux/cpu.h>
++#include <linux/pkeys.h>
+ 
+ #include <asm/fpu/api.h>
+ #include <asm/fpu/internal.h>
+@@ -855,3 +856,76 @@ out:
  	 */
--	vm_flags |= calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
-+	vm_flags |= calc_vm_prot_bits(prot, 0) | calc_vm_flag_bits(flags) |
- 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+ 	fpu__current_fpstate_write_end();
+ }
++
++#define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
++#define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
++
++/*
++ * This will go out and modify the XSAVE buffer so that PKRU is
++ * set to a particular state for access to 'pkey'.
++ *
++ * PKRU state does affect kernel access to user memory.  We do
++ * not modfiy PKRU *itself* here, only the XSAVE state that will
++ * be restored in to PKRU when we return back to userspace.
++ */
++int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val)
++{
++	struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
++	struct pkru_state *old_pkru_state;
++	struct pkru_state new_pkru_state;
++	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
++	u32 new_pkru_bits = 0;
++
++	if (!validate_pkey(pkey))
++		return -EINVAL;
++	/*
++	 * This check implies XSAVE support.  OSPKE only gets
++	 * set if we enable XSAVE and we enable PKU in XCR0.
++	 */
++	if (!boot_cpu_has(X86_FEATURE_OSPKE))
++		return -EINVAL;
++
++	/* Set the bits we need in PKRU  */
++	if (init_val & PKEY_DISABLE_ACCESS)
++		new_pkru_bits |= PKRU_AD_BIT;
++	if (init_val & PKEY_DISABLE_WRITE)
++		new_pkru_bits |= PKRU_WD_BIT;
++
++	/* Shift the bits in to the correct place in PKRU for pkey. */
++	new_pkru_bits <<= pkey_shift;
++
++	/* Locate old copy of the state in the xsave buffer */
++	old_pkru_state = get_xsave_addr(xsave, XFEATURE_MASK_PKRU);
++
++	/*
++	 * When state is not in the buffer, it is in the init
++	 * state, set it manually.  Otherwise, copy out the old
++	 * state.
++	 */
++	if (!old_pkru_state)
++		new_pkru_state.pkru = 0;
++	else
++		new_pkru_state.pkru = old_pkru_state->pkru;
++
++	/* mask off any old bits in place */
++	new_pkru_state.pkru &= ~((PKRU_AD_BIT|PKRU_WD_BIT) << pkey_shift);
++	/* Set the newly-requested bits */
++	new_pkru_state.pkru |= new_pkru_bits;
++
++	/*
++	 * We could theoretically live without zeroing pkru.pad.
++	 * The current XSAVE feature state definition says that
++	 * only bytes 0->3 are used.  But we do not want to
++	 * chance leaking kernel stack out to userspace in case a
++	 * memcpy() of the whole xsave buffer was done.
++	 *
++	 * They're in the same cacheline anyway.
++	 */
++	new_pkru_state.pad = 0;
++
++	fpu__xfeature_set_state(XFEATURE_MASK_PKRU, &new_pkru_state,
++			sizeof(new_pkru_state));
++
++	return 0;
++}
+diff -puN include/linux/pkeys.h~pkeys-77-arch_set_user_pkey_access include/linux/pkeys.h
+--- a/include/linux/pkeys.h~pkeys-77-arch_set_user_pkey_access	2016-01-28 15:52:29.652829937 -0800
++++ b/include/linux/pkeys.h	2016-01-28 15:52:29.656830120 -0800
+@@ -4,6 +4,11 @@
+ #include <linux/mm_types.h>
+ #include <asm/mmu_context.h>
  
- 	if (flags & MAP_LOCKED)
-diff -puN mm/mprotect.c~pkeys-70-calc_vm_prot_bits mm/mprotect.c
---- a/mm/mprotect.c~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.731741865 -0800
-+++ b/mm/mprotect.c	2016-01-28 15:52:27.739742231 -0800
-@@ -378,7 +378,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
- 	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
- 		prot |= PROT_EXEC;
- 
--	vm_flags = calc_vm_prot_bits(prot);
-+	vm_flags = calc_vm_prot_bits(prot, 0);
- 
- 	down_write(&current->mm->mmap_sem);
- 
-diff -puN mm/nommu.c~pkeys-70-calc_vm_prot_bits mm/nommu.c
---- a/mm/nommu.c~pkeys-70-calc_vm_prot_bits	2016-01-28 15:52:27.733741956 -0800
-+++ b/mm/nommu.c	2016-01-28 15:52:27.740742277 -0800
-@@ -1090,7 +1090,7 @@ static unsigned long determine_vm_flags(
- {
- 	unsigned long vm_flags;
- 
--	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
-+	vm_flags = calc_vm_prot_bits(prot, 0) | calc_vm_flag_bits(flags);
- 	/* vm_flags |= mm->def_flags; */
- 
- 	if (!(capabilities & NOMMU_MAP_DIRECT)) {
++#define PKEY_DISABLE_ACCESS	0x1
++#define PKEY_DISABLE_WRITE	0x2
++#define PKEY_ACCESS_MASK	(PKEY_DISABLE_ACCESS |\
++				 PKEY_DISABLE_WRITE)
++
+ #ifdef CONFIG_ARCH_HAS_PKEYS
+ #include <asm/pkeys.h>
+ #else /* ! CONFIG_ARCH_HAS_PKEYS */
 _
 
 --
