@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C1C42828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:10 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id o185so41174897pfb.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:10 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id f2si3531060pas.32.2016.01.29.10.16.57
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6CE828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:13 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id 65so45868188pfd.2
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:13 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id zd6si3546818pac.222.2016.01.29.10.17.00
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:16:57 -0800 (PST)
-Subject: [PATCH 10/31] x86, pkeys: arch-specific protection bits
+        Fri, 29 Jan 2016 10:17:00 -0800 (PST)
+Subject: [PATCH 11/31] x86, pkeys: pass VMA down in to fault signal generation code
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:16:56 -0800
+Date: Fri, 29 Jan 2016 10:16:58 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181656.46AB33CC@viggo.jf.intel.com>
+Message-Id: <20160129181658.A3FA133C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,138 +22,206 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Lots of things seem to do:
+During a page fault, we look up the VMA to ensure that the fault
+is in a region with a valid mapping.  But, in the top-level page
+fault code we don't need the VMA for much else.  Once we have
+decided that an access is bad, we are going to send a signal no
+matter what and do not need the VMA any more.  So we do not pass
+it down in to the signal generation code.
 
-        vma->vm_page_prot = vm_get_page_prot(flags);
-
-and the ptes get created right from things we pull out
-of ->vm_page_prot.  So it is very convenient if we can
-store the protection key in flags and vm_page_prot, just
-like the existing permission bits (_PAGE_RW/PRESENT).  It
-greatly reduces the amount of plumbing and arch-specific
-hacking we have to do in generic code.
-
-This also takes the new PROT_PKEY{0,1,2,3} flags and
-turns *those* in to VM_ flags for vma->vm_flags.
-
-The protection key values are stored in 4 places:
-	1. "prot" argument to system calls
-	2. vma->vm_flags, filled from the mmap "prot"
-	3. vma->vm_page prot, filled from vma->vm_flags
-	4. the PTE itself.
-
-The pseudocode for these for steps are as follows:
-
-	mmap(PROT_PKEY*)
-	vma->vm_flags 	  = ... | arch_calc_vm_prot_bits(mmap_prot);
-	vma->vm_page_prot = ... | arch_vm_get_page_prot(vma->vm_flags);
-	pte = pfn | vma->vm_page_prot
-
-Note that this provides a new definitions for x86:
-
-	arch_vm_get_page_prot()
+But, for protection keys, we need the VMA.  It tells us *which*
+protection key we violated if we get a PF_PK.  So, we need to
+pass the VMA down and fill in siginfo->si_pkey.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/mmu_context.h   |   11 +++++++++++
- b/arch/x86/include/asm/pgtable_types.h |   12 ++++++++++--
- b/arch/x86/include/uapi/asm/mman.h     |   16 ++++++++++++++++
- b/include/linux/mm.h                   |    7 +++++++
- 4 files changed, 44 insertions(+), 2 deletions(-)
+ b/arch/x86/mm/fault.c |   50 ++++++++++++++++++++++++++++----------------------
+ 1 file changed, 28 insertions(+), 22 deletions(-)
 
-diff -puN arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma	2016-01-28 15:52:20.646417036 -0800
-+++ b/arch/x86/include/asm/mmu_context.h	2016-01-28 15:52:20.654417403 -0800
-@@ -275,4 +275,15 @@ static inline void arch_unmap(struct mm_
- 		mpx_notify_unmap(mm, vma, start, end);
+diff -puN arch/x86/mm/fault.c~pkeys-08-pass-down-vma arch/x86/mm/fault.c
+--- a/arch/x86/mm/fault.c~pkeys-08-pass-down-vma	2016-01-28 15:52:21.132439318 -0800
++++ b/arch/x86/mm/fault.c	2016-01-28 15:52:21.136439502 -0800
+@@ -171,7 +171,8 @@ is_prefetch(struct pt_regs *regs, unsign
+ 
+ static void
+ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
+-		     struct task_struct *tsk, int fault)
++		     struct task_struct *tsk, struct vm_area_struct *vma,
++		     int fault)
+ {
+ 	unsigned lsb = 0;
+ 	siginfo_t info;
+@@ -656,6 +657,8 @@ no_context(struct pt_regs *regs, unsigne
+ 	struct task_struct *tsk = current;
+ 	unsigned long flags;
+ 	int sig;
++	/* No context means no VMA to pass down */
++	struct vm_area_struct *vma = NULL;
+ 
+ 	/* Are we prepared to handle this kernel fault? */
+ 	if (fixup_exception(regs)) {
+@@ -679,7 +682,8 @@ no_context(struct pt_regs *regs, unsigne
+ 			tsk->thread.cr2 = address;
+ 
+ 			/* XXX: hwpoison faults will set the wrong code. */
+-			force_sig_info_fault(signal, si_code, address, tsk, 0);
++			force_sig_info_fault(signal, si_code, address,
++					     tsk, vma, 0);
+ 		}
+ 
+ 		/*
+@@ -756,7 +760,8 @@ show_signal_msg(struct pt_regs *regs, un
+ 
+ static void
+ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		       unsigned long address, int si_code)
++		       unsigned long address, struct vm_area_struct *vma,
++		       int si_code)
+ {
+ 	struct task_struct *tsk = current;
+ 
+@@ -799,7 +804,7 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 		tsk->thread.error_code	= error_code;
+ 		tsk->thread.trap_nr	= X86_TRAP_PF;
+ 
+-		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
++		force_sig_info_fault(SIGSEGV, si_code, address, tsk, vma, 0);
+ 
+ 		return;
+ 	}
+@@ -812,14 +817,14 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 
+ static noinline void
+ bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		     unsigned long address)
++		     unsigned long address, struct vm_area_struct *vma)
+ {
+-	__bad_area_nosemaphore(regs, error_code, address, SEGV_MAPERR);
++	__bad_area_nosemaphore(regs, error_code, address, vma, SEGV_MAPERR);
  }
  
-+static inline int vma_pkey(struct vm_area_struct *vma)
-+{
-+	u16 pkey = 0;
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
-+				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
-+	pkey = (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
-+#endif
-+	return pkey;
-+}
-+
- #endif /* _ASM_X86_MMU_CONTEXT_H */
-diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma	2016-01-28 15:52:20.648417128 -0800
-+++ b/arch/x86/include/asm/pgtable_types.h	2016-01-28 15:52:20.655417449 -0800
-@@ -115,7 +115,12 @@
- #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
- 			 _PAGE_DIRTY)
+ static void
+ __bad_area(struct pt_regs *regs, unsigned long error_code,
+-	   unsigned long address, int si_code)
++	   unsigned long address,  struct vm_area_struct *vma, int si_code)
+ {
+ 	struct mm_struct *mm = current->mm;
  
--/* Set of bits not changed in pte_modify */
-+/*
-+ * Set of bits not changed in pte_modify.  The pte's
-+ * protection key is treated like _PAGE_RW, for
-+ * instance, and is *not* included in this mask since
-+ * pte_modify() does modify it.
-+ */
- #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
- 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
- 			 _PAGE_SOFT_DIRTY)
-@@ -231,7 +236,10 @@ enum page_cache_mode {
- /* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
- #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+@@ -829,25 +834,25 @@ __bad_area(struct pt_regs *regs, unsigne
+ 	 */
+ 	up_read(&mm->mmap_sem);
  
--/* Extracts the flags from a (pte|pmd|pud|pgd)val_t of a 4KB page */
-+/*
-+ *  Extracts the flags from a (pte|pmd|pud|pgd)val_t
-+ *  This includes the protection key value.
-+ */
- #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
+-	__bad_area_nosemaphore(regs, error_code, address, si_code);
++	__bad_area_nosemaphore(regs, error_code, address, vma, si_code);
+ }
  
- typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
-diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma arch/x86/include/uapi/asm/mman.h
---- a/arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma	2016-01-28 15:52:20.649417174 -0800
-+++ b/arch/x86/include/uapi/asm/mman.h	2016-01-28 15:52:20.655417449 -0800
-@@ -6,6 +6,22 @@
- #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
- #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
+ static noinline void
+ bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
+ {
+-	__bad_area(regs, error_code, address, SEGV_MAPERR);
++	__bad_area(regs, error_code, address, NULL, SEGV_MAPERR);
+ }
  
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+/*
-+ * Take the 4 protection key bits out of the vma->vm_flags
-+ * value and turn them in to the bits that we can put in
-+ * to a pte.
-+ *
-+ * Only override these if Protection Keys are available
-+ * (which is only on 64-bit).
-+ */
-+#define arch_vm_get_page_prot(vm_flags)	__pgprot(	\
-+		((vm_flags) & VM_PKEY_BIT0 ? _PAGE_PKEY_BIT0 : 0) |	\
-+		((vm_flags) & VM_PKEY_BIT1 ? _PAGE_PKEY_BIT1 : 0) |	\
-+		((vm_flags) & VM_PKEY_BIT2 ? _PAGE_PKEY_BIT2 : 0) |	\
-+		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
-+#endif
-+
- #include <asm-generic/mman.h>
+ static noinline void
+ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
+-		      unsigned long address)
++		      unsigned long address, struct vm_area_struct *vma)
+ {
+-	__bad_area(regs, error_code, address, SEGV_ACCERR);
++	__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
+ }
  
- #endif /* _ASM_X86_MMAN_H */
-diff -puN include/linux/mm.h~pkeys-07-store-pkey-in-vma include/linux/mm.h
---- a/include/linux/mm.h~pkeys-07-store-pkey-in-vma	2016-01-28 15:52:20.651417266 -0800
-+++ b/include/linux/mm.h	2016-01-28 15:52:20.656417495 -0800
-@@ -183,6 +183,13 @@ extern unsigned int kobjsize(const void
+ static void
+ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+-	  unsigned int fault)
++	  struct vm_area_struct *vma, unsigned int fault)
+ {
+ 	struct task_struct *tsk = current;
+ 	int code = BUS_ADRERR;
+@@ -874,12 +879,13 @@ do_sigbus(struct pt_regs *regs, unsigned
+ 		code = BUS_MCEERR_AR;
+ 	}
+ #endif
+-	force_sig_info_fault(SIGBUS, code, address, tsk, fault);
++	force_sig_info_fault(SIGBUS, code, address, tsk, vma, fault);
+ }
  
- #if defined(CONFIG_X86)
- # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
-+#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
-+# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
-+# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
-+# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
-+# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
-+# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
-+#endif
- #elif defined(CONFIG_PPC)
- # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
- #elif defined(CONFIG_PARISC)
+ static noinline void
+ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+-	       unsigned long address, unsigned int fault)
++	       unsigned long address, struct vm_area_struct *vma,
++	       unsigned int fault)
+ {
+ 	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
+ 		no_context(regs, error_code, address, 0, 0);
+@@ -903,9 +909,9 @@ mm_fault_error(struct pt_regs *regs, uns
+ 	} else {
+ 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+ 			     VM_FAULT_HWPOISON_LARGE))
+-			do_sigbus(regs, error_code, address, fault);
++			do_sigbus(regs, error_code, address, vma, fault);
+ 		else if (fault & VM_FAULT_SIGSEGV)
+-			bad_area_nosemaphore(regs, error_code, address);
++			bad_area_nosemaphore(regs, error_code, address, vma);
+ 		else
+ 			BUG();
+ 	}
+@@ -1119,7 +1125,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 		 * Don't take the mm semaphore here. If we fixup a prefetch
+ 		 * fault we could otherwise deadlock:
+ 		 */
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 
+ 		return;
+ 	}
+@@ -1132,7 +1138,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 		pgtable_bad(regs, error_code, address);
+ 
+ 	if (unlikely(smap_violation(error_code, regs))) {
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 		return;
+ 	}
+ 
+@@ -1141,7 +1147,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 	 * in a region with pagefaults disabled then we must not take the fault
+ 	 */
+ 	if (unlikely(faulthandler_disabled() || !mm)) {
+-		bad_area_nosemaphore(regs, error_code, address);
++		bad_area_nosemaphore(regs, error_code, address, NULL);
+ 		return;
+ 	}
+ 
+@@ -1185,7 +1191,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
+ 		if ((error_code & PF_USER) == 0 &&
+ 		    !search_exception_tables(regs->ip)) {
+-			bad_area_nosemaphore(regs, error_code, address);
++			bad_area_nosemaphore(regs, error_code, address, NULL);
+ 			return;
+ 		}
+ retry:
+@@ -1233,7 +1239,7 @@ retry:
+ 	 */
+ good_area:
+ 	if (unlikely(access_error(error_code, vma))) {
+-		bad_area_access_error(regs, error_code, address);
++		bad_area_access_error(regs, error_code, address, vma);
+ 		return;
+ 	}
+ 
+@@ -1271,7 +1277,7 @@ good_area:
+ 
+ 	up_read(&mm->mmap_sem);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+-		mm_fault_error(regs, error_code, address, fault);
++		mm_fault_error(regs, error_code, address, vma, fault);
+ 		return;
+ 	}
+ 
 _
 
 --
