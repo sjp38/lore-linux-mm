@@ -1,90 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5466B0257
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:52:00 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p63so66818122wmp.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 04:52:00 -0800 (PST)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id b76si10832460wmd.47.2016.01.29.04.51.56
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A9EE66B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 08:35:47 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l66so54789532wml.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:35:47 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id w77si11099336wme.5.2016.01.29.05.35.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Jan 2016 04:51:57 -0800 (PST)
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Fri, 29 Jan 2016 12:51:56 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9296817D8059
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:52:03 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0TCps686488556
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:51:54 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0TCprcx002796
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:51:53 -0700
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH 1/1] x86: also use debug_pagealloc_enabled() for free_init_pages
-Date: Fri, 29 Jan 2016 13:52:14 +0100
-Message-Id: <1454071934-24291-4-git-send-email-borntraeger@de.ibm.com>
-In-Reply-To: <1454071934-24291-1-git-send-email-borntraeger@de.ibm.com>
-References: <1454071934-24291-1-git-send-email-borntraeger@de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jan 2016 05:35:46 -0800 (PST)
+Received: by mail-wm0-x22d.google.com with SMTP id p63so68452958wmp.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:35:46 -0800 (PST)
+Date: Fri, 29 Jan 2016 14:35:38 +0100
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+Message-ID: <20160129133537.GA26044@gmail.com>
+References: <20160128175536.GA20797@gmail.com>
+ <20160129095028.GA10767@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160129095028.GA10767@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-we want to couple all debugging features with debug_pagealloc_enabled()
-and not with the config option CONFIG_DEBUG_PAGEALLOC.
+On Fri, Jan 29, 2016 at 11:50:28AM +0200, Kirill A. Shutemov wrote:
+> On Thu, Jan 28, 2016 at 06:55:37PM +0100, Jerome Glisse wrote:
+> > Hi,
+> > 
+> > I would like to attend LSF/MM this year to discuss about HMM
+> > (Heterogeneous Memory Manager) and more generaly all topics
+> > related to GPU and heterogeneous memory architecture (including
+> > persistent memory).
+> 
+> How is persistent memory heterogeneous?
+> 
+> I thought it's either in the same cache coherency domain (DAX case) or is
+> not a memory for kernel -- behind block layer.
+> Do we have yet another option?
 
-Suggested-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
- arch/x86/mm/init.c | 29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 39823fd..9d56f27 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -667,21 +667,22 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
- 	 * mark them not present - any buggy init-section access will
- 	 * create a kernel page fault:
- 	 */
--#ifdef CONFIG_DEBUG_PAGEALLOC
--	printk(KERN_INFO "debug: unmapping init [mem %#010lx-%#010lx]\n",
--		begin, end - 1);
--	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
--#else
--	/*
--	 * We just marked the kernel text read only above, now that
--	 * we are going to free part of that, we need to make that
--	 * writeable and non-executable first.
--	 */
--	set_memory_nx(begin, (end - begin) >> PAGE_SHIFT);
--	set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
-+	if (debug_pagealloc_enabled()) {
-+		pr_info("debug: unmapping init [mem %#010lx-%#010lx]\n",
-+			begin, end - 1);
-+		set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
-+	} else {
-+		/*
-+		 * We just marked the kernel text read only above, now that
-+		 * we are going to free part of that, we need to make that
-+		 * writeable and non-executable first.
-+		 */
-+		set_memory_nx(begin, (end - begin) >> PAGE_SHIFT);
-+		set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
- 
--	free_reserved_area((void *)begin, (void *)end, POISON_FREE_INITMEM, what);
--#endif
-+		free_reserved_area((void *)begin, (void *)end,
-+				   POISON_FREE_INITMEM, what);
-+	}
- }
- 
- void free_initmem(void)
--- 
-2.3.0
+Right now it is not, but i am interested in the DMA mapping issue. But from
+what i have seen on roadmap, we are going toward a world with a deeper memory
+hierarchy. Very fast cache near CPU in GB range, regular memory like ddr,
+slower persistent or similar but with enormous capacity. On top of this you
+have thing like GPU memory (which is my main topic of interest) and other
+similar thing like FPGA. GPU are not going away, bandwidth for GPU is in TB/s
+ranges and on GPU roadmap the gap with CPU memory bandwidth keeps getting
+bigger.
+
+So i believe this hierarchy of memory add a layer of complexity on top of
+numa. Technology is not ready but it might be worth discussing it, seeing
+if there is anything to do on top of numa.
+
+Also note that thing like GPU memory can either be visible or unvisible from
+CPU point of view, more over it can be cache coherent or not. Thought the
+latter is only enabled through specific API where application is aware that
+it loose cache coherency with CPU.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
