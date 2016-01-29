@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B23E6B0253
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 17:21:44 -0500 (EST)
-Received: by mail-oi0-f41.google.com with SMTP id r14so56329049oie.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 14:21:44 -0800 (PST)
-Received: from mail-ob0-x229.google.com (mail-ob0-x229.google.com. [2607:f8b0:4003:c01::229])
-        by mx.google.com with ESMTPS id h185si16437334oic.78.2016.01.29.14.21.43
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 285126B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 17:34:45 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id 128so738719wmz.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 14:34:45 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 134si13630773wmg.2.2016.01.29.14.34.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 14:21:43 -0800 (PST)
-Received: by mail-ob0-x229.google.com with SMTP id is5so75104241obc.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 14:21:43 -0800 (PST)
+        Fri, 29 Jan 2016 14:34:44 -0800 (PST)
+Date: Fri, 29 Jan 2016 17:33:46 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: computing drop-able caches
+Message-ID: <20160129223346.GA30068@cmpxchg.org>
+References: <56AAA77D.7090000@cisco.com>
+ <20160128235815.GA5953@cmpxchg.org>
+ <56AABA79.3030103@cisco.com>
+ <56AAC085.9060509@cisco.com>
+ <20160129015534.GA6401@cmpxchg.org>
+ <56ABD7EB.7000404@cisco.com>
 MIME-Version: 1.0
-In-Reply-To: <20160128213302.GB4163@cmpxchg.org>
-References: <20160127193958.GA31407@cmpxchg.org> <CALCETrVy_QzNyaCiOsdwDdgXAgdRmwXsdiyPz8R5h3xaNR00TQ@mail.gmail.com>
- <20160128213302.GB4163@cmpxchg.org>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 29 Jan 2016 14:21:23 -0800
-Message-ID: <CALCETrVLf5LeAhAhrcYFYAK3yS+3vdyoE5oG-epFvpkab5UykA@mail.gmail.com>
-Subject: Re: [PATCH] mm: do not let vdso pages into LRU rotation
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56ABD7EB.7000404@cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Daniel Walker <danielwa@cisco.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, Jan 28, 2016 at 1:33 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Wed, Jan 27, 2016 at 12:32:16PM -0800, Andy Lutomirski wrote:
->> On Wed, Jan 27, 2016 at 11:39 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->> > Could the VDSO be a VM_MIXEDMAP to keep the initial unmanaged pages
->> > out of the VM while allowing COW into regular anonymous pages?
->>
->> Probably.  What are its limitations?  We want ptrace to work on it,
->> and mprotect needs to work and allow COW.  access_process_vm should
->> probably work, too.
->
-> Thanks, that's good to know.
->
-> However, after looking at this a little longer, it appears this would
-> need work in do_wp_page() to support non-page COW copying, then adding
-> vm_ops->access and complicating ->fault in all VDSO implementations.
->
-> And it looks like - at least theoretically - drivers can inject non-VM
-> pages into the page tables as well (comment above insert_page())
->
-> Given that this behavior has been around for a long time (the comment
-> at the bottom of vm_normal_page is ancient), I'll probably go with a
-> more conservative approach; add a comment to mark_page_accessed() and
-> filter out non-VM pages in the function I'm going to call from it.
+On Fri, Jan 29, 2016 at 01:21:47PM -0800, Daniel Walker wrote:
+> On 01/28/2016 05:55 PM, Johannes Weiner wrote:
+> >On Thu, Jan 28, 2016 at 05:29:41PM -0800, Daniel Walker wrote:
+> >>On 01/28/2016 05:03 PM, Daniel Walker wrote:
+> >>[regarding MemAvaiable]
+> >>
+> >>This new metric purportedly helps usrespace assess available memory. But,
+> >>its again based on heuristic, it takes 1/2 of page cache as reclaimable..
+> >No, it takes the smaller value of cache/2 and the low watermark, which
+> >is a fraction of memory. Actually, that does look a little weird. Rik?
+> >
+> >We don't age cache without memory pressure, you don't know how much is
+> >used until you start taking some away. Heuristics is all we can offer.
+> 
+> With a simple busybox root system I get this,
+> 
+> MemTotal:          16273996 kB
+> MemFree:          16137920 kB
+> MemAvailable:   16046132 kB
+> 
+> shouldn't MemAvailable be at least the same as MemFree ? I changed the code
+> somewhat so it subtracted the wmark_low only, or the pagecache/2 only, both
+> are still under MemFree. This system has very little drop-able caches.
 
-I just checked: in -tip, I'm creating a VM_PFNMAP (not VM_MIXEDMAP)
-vma and faulting a RAM page (with struct page and all) in using
-vm_insert_pfn.  Is that okay, or so I need to use VM_MIXEDMAP instead?
-
---Andy
+No, a portion of memory is reserved for the kernel and not available
+to userland. If the kernel doesn't use it it will remain free. Hence
+the lower MemAvailable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
