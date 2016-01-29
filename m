@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 379E26B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:38:01 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id ho8so38010108pac.2
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 00:38:01 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rr5si2164218pab.188.2016.01.29.00.38.00
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 08A986B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 04:50:32 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id r129so60690900wmr.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 01:50:31 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id dz12si21021354wjb.180.2016.01.29.01.50.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 00:38:00 -0800 (PST)
-Date: Fri, 29 Jan 2016 11:37:49 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] vmpressure: Fix subtree pressure detection
-Message-ID: <20160129083749.GB4952@esperanza>
-References: <1453912137-25473-1-git-send-email-vdavydov@virtuozzo.com>
- <20160128155531.GE15948@dhcp22.suse.cz>
- <56AA6AEE.30004@suse.cz>
+        Fri, 29 Jan 2016 01:50:30 -0800 (PST)
+Received: by mail-wm0-x233.google.com with SMTP id r129so60690127wmr.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 01:50:30 -0800 (PST)
+Date: Fri, 29 Jan 2016 11:50:28 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+Message-ID: <20160129095028.GA10767@node.shutemov.name>
+References: <20160128175536.GA20797@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56AA6AEE.30004@suse.cz>
+In-Reply-To: <20160128175536.GA20797@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Jan 28, 2016 at 08:24:30PM +0100, Vlastimil Babka wrote:
-> On 28.1.2016 16:55, Michal Hocko wrote:
-> > On Wed 27-01-16 19:28:57, Vladimir Davydov wrote:
-> >> When vmpressure is called for the entire subtree under pressure we
-> >> mistakenly use vmpressure->scanned instead of vmpressure->tree_scanned
-> >> when checking if vmpressure work is to be scheduled. This results in
-> >> suppressing all vmpressure events in the legacy cgroup hierarchy. Fix
-> >> it.
-> >>
-> >> Fixes: 8e8ae645249b ("mm: memcontrol: hook up vmpressure to socket pressure")
-> >> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> > 
-> > a = b += c made me scratch my head for a second but this looks correct
+On Thu, Jan 28, 2016 at 06:55:37PM +0100, Jerome Glisse wrote:
+> Hi,
 > 
-> Ugh, it's actually a = b += a
-> 
-> While clever and compact, this will make scratch their head anyone looking at
-> the code in the future. Is it worth it?
+> I would like to attend LSF/MM this year to discuss about HMM
+> (Heterogeneous Memory Manager) and more generaly all topics
+> related to GPU and heterogeneous memory architecture (including
+> persistent memory).
 
-I'm just trying to be consistend with the !tree case, where we do
-exactly the same.
+How is persistent memory heterogeneous?
 
-Thanks,
-Vladimir
+I thought it's either in the same cache coherency domain (DAX case) or is
+not a memory for kernel -- behind block layer.
+Do we have yet another option?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
