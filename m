@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 45ED26B025C
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 14:25:57 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id x125so47026417pfb.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 11:25:57 -0800 (PST)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id n63si25948660pfb.139.2016.01.29.11.25.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 11:25:56 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id n128so4158359pfn.3
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 11:25:56 -0800 (PST)
-Date: Sat, 30 Jan 2016 03:25:51 +0800
-From: ChengYi He <chengyihetaipei@gmail.com>
-Subject: [RFC PATCH 2/2] mm/page_alloc: avoid splitting pages of order 2 and
- 3 in migration fallback
-Message-ID: <46b854accad3f40e4178cf3bbd215a4648551763.1454094692.git.chengyihetaipei@gmail.com>
-References: <cover.1454094692.git.chengyihetaipei@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1454094692.git.chengyihetaipei@gmail.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 26BFD6B025B
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 14:43:04 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id uo6so46883364pac.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 11:43:04 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id ks7si3927262pab.129.2016.01.29.11.43.03
+        for <linux-mm@kvack.org>;
+        Fri, 29 Jan 2016 11:43:03 -0800 (PST)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v3 0/3] x86/mm: INVPCID support
+Date: Fri, 29 Jan 2016 11:42:56 -0800
+Message-Id: <cover.1454096309.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Yaowei Bai <bywxiaobai@163.com>, Xishi Qiu <qiuxishi@huawei.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, chengyihetaipei@gmail.com
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>
 
-While buddy system fallbacks to allocate different migration type pages,
-it prefers the largest feasible pages and might split the chosen page
-into smalller ones. If the largest feasible pages are less than or equal
-to orde-3 and migration fallback happens frequently, then order-2 and
-order-3 pages can be exhausted easily. This patch aims to allocate the
-smallest feasible pages for the fallback mechanism under this condition.
+Boris, I think you already have these prerequisites queued up:
 
-Signed-off-by: ChengYi He <chengyihetaipei@gmail.com>
----
- mm/page_alloc.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+http://lkml.kernel.org/g/1452516679-32040-2-git-send-email-aryabinin@virtuozzo.com
+http://lkml.kernel.org/g/1452516679-32040-3-git-send-email-aryabinin@virtuozzo.com
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 50c325a..3fcb653 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1802,9 +1802,22 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 	struct page *page;
- 
- 	/* Find the largest possible block of pages in the other list */
--	for (current_order = MAX_ORDER-1;
--				current_order >= order && current_order <= MAX_ORDER-1;
--				--current_order) {
-+	for (current_order = MAX_ORDER - 1;
-+			current_order >= max_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER + 1, order);
-+			--current_order) {
-+		page = __rmqueue_fallback_order(zone, order, start_migratetype,
-+				current_order);
-+
-+		if (page)
-+			return page;
-+	}
-+
-+	/*
-+	 * While current_order <= PAGE_ALLOC_COSTLY_ORDER, find the smallest
-+	 * feasible pages in the other list to avoid splitting high order pages
-+	 */
-+	for (current_order = order; current_order <= PAGE_ALLOC_COSTLY_ORDER;
-+			++current_order) {
- 		page = __rmqueue_fallback_order(zone, order, start_migratetype,
- 				current_order);
- 
+This is a straightforward speedup on Ivy Bridge and newer, IIRC.
+(I tested on Skylake.  INVPCID is not available on Sandy Bridge.
+I don't have Ivy Bridge, Haswell or Broadwell to test on, so I
+could be wrong as to when the feature was introduced.)
+
+I think we should consider these patches separately from the rest
+of the PCID stuff -- they barely interact, and this part is much
+simpler and is useful on its own.
+
+Changes from v2:
+ - Add macros for the INVPCID mode numbers.
+ - Add a changelog message for the chicken bit.
+
+v1 was exactly identical to patches 2-4 of the PCID RFC series.
+Andy Lutomirski (3):
+  x86/mm: Add INVPCID helpers
+  x86/mm: Add a noinvpcid option to turn off INVPCID
+  x86/mm: If INVPCID is available, use it to flush global mappings
+
+ Documentation/kernel-parameters.txt |  2 ++
+ arch/x86/include/asm/tlbflush.h     | 57 +++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/cpu/common.c        | 16 +++++++++++
+ 3 files changed, 75 insertions(+)
+
 -- 
-1.9.1
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
