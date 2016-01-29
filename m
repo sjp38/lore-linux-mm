@@ -1,112 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D61136B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:35:42 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id ba1so68947014obb.3
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:35:42 -0800 (PST)
-Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
-        by mx.google.com with ESMTPS id i64si15736445oif.58.2016.01.29.09.35.41
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FFC66B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:53:53 -0500 (EST)
+Received: by mail-qk0-f179.google.com with SMTP id o6so27322794qkc.2
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:53:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b15si18719610qge.125.2016.01.29.09.53.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 09:35:41 -0800 (PST)
-Received: by mail-ob0-x22a.google.com with SMTP id ny8so47196363obc.2
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:35:41 -0800 (PST)
+        Fri, 29 Jan 2016 09:53:52 -0800 (PST)
+Date: Fri, 29 Jan 2016 18:53:49 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [LSF/MM ATTEND] 2016 userfaultfd/KSMscale/THP
+Message-ID: <20160129175349.GL12228@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20160129142625.GH10187@pd.tnic>
-References: <cover.1453746505.git.luto@kernel.org> <e3e4f31df42ea5d5e190a6d1e300e01d55e09d79.1453746505.git.luto@kernel.org>
- <20160129142625.GH10187@pd.tnic>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 29 Jan 2016 09:35:22 -0800
-Message-ID: <CALCETrWhUWjfdDS6eyB6PfrJLU8YvvrfkeeKFTo8moxq7L5t6A@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] x86/mm: If INVPCID is available, use it to flush
- global mappings
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Fri, Jan 29, 2016 at 6:26 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Mon, Jan 25, 2016 at 10:37:44AM -0800, Andy Lutomirski wrote:
->> On my Skylake laptop, INVPCID function 2 (flush absolutely
->> everything) takes about 376ns, whereas saving flags, twiddling
->> CR4.PGE to flush global mappings, and restoring flags takes about
->> 539ns.
->
-> FWIW, I ran your microbenchmark on the IVB laptop I have here 3 times
-> and some of the numbers from each run are pretty unstable. Not that it
-> means a whole lot - the thing doesn't have INVPCID support.
->
-> I'm just questioning the microbenchmark and whether we should be rather
-> doing those measurements with a real benchmark, whatever that means. My
-> limited experience says that measuring TLB performance is hard.
->
->  ./context_switch_latency 0 thread same
->  use_xstate = 0
->  Using threads
-> 1: 100000 iters at 2676.2 ns/switch
-> 2: 100000 iters at 2700.2 ns/switch
-> 3: 100000 iters at 2656.1 ns/switch
->
->  ./context_switch_latency 0 thread different
->  use_xstate = 0
->  Using threads
-> 1: 100000 iters at 5174.8 ns/switch
-> 2: 100000 iters at 5140.5 ns/switch
-> 3: 100000 iters at 5292.9 ns/switch
->
->  ./context_switch_latency 0 process same
->  use_xstate = 0
->  Using a subprocess
-> 1: 100000 iters at 2361.2 ns/switch
-> 2: 100000 iters at 2332.2 ns/switch
-> 3: 100000 iters at 3436.9 ns/switch
->
->  ./context_switch_latency 0 process different
->  use_xstate = 0
->  Using a subprocess
-> 1: 100000 iters at 4713.6 ns/switch
-> 2: 100000 iters at 4957.5 ns/switch
-> 3: 100000 iters at 5012.2 ns/switch
->
->  ./context_switch_latency 1 thread same
->  use_xstate = 1
->  Using threads
-> 1: 100000 iters at 2505.6 ns/switch
-> 2: 100000 iters at 2483.1 ns/switch
-> 3: 100000 iters at 2479.7 ns/switch
->
->  ./context_switch_latency 1 thread different
->  use_xstate = 1
->  Using threads
-> 1: 100000 iters at 5245.9 ns/switch
-> 2: 100000 iters at 5241.1 ns/switch
-> 3: 100000 iters at 5220.3 ns/switch
->
->  ./context_switch_latency 1 process same
->  use_xstate = 1
->  Using a subprocess
-> 1: 100000 iters at 2329.8 ns/switch
-> 2: 100000 iters at 2350.2 ns/switch
-> 3: 100000 iters at 2500.9 ns/switch
->
->  ./context_switch_latency 1 process different
->  use_xstate = 1
->  Using a subprocess
-> 1: 100000 iters at 4970.7 ns/switch
-> 2: 100000 iters at 5034.0 ns/switch
-> 3: 100000 iters at 4991.6 ns/switch
->
+Hello,
 
-I'll fiddle with that benchmark a little bit.  Maybe I can make it
-suck less.  If anyone knows a good non-micro benchmark for this, let
-me know.  I refuse to use dbus as my benchmark :)
+I'd like to attend this year LSF/MM summit. Possible topics that I
+would suggest are:
 
-FWIW, I benchmarked cr4 vs invpcid by adding a prctl and calling it in
-a loop.  If Ingo's fpu benchmark thing ever lands, I'll gladly send a
-patch to add TLB flushes to it.
+o the userfaultfd syscall has been merged upstream and it's feature
+  complete for KVM postcopy live migration (available in current
+  upstream QEMU).
 
---Andy
+  The extension to provide the write tracking feature to userfaultfd
+  was planned from the start and an implementation has already been
+  posted. The current implementation works fine for simple cases but
+  it's not fully complete yet (no mmu notifier, THP not working
+  etc..). The API of the new ioctls for the write protection feature
+  should be finalized before this can be merged in -mm/upstream and
+  the summit would be a good opportunity to discuss it. By April I
+  expect a fully functional implementation of the new feature would
+  become available.
+
+  The topic to extend the userfaultfd syscalls to hugetlbfs has
+  already been proposed. I'm interested about following up that too
+  and not just to hugetlbfs but in general to extend it to more
+  filebacked vmas types.
+
+o KSMscale: a change needed to reduce the worst case computational
+  complexity of KSM is pending. This is needed to avoid long (as in
+  seconds) CPU stalls in the rmap_walks (or alternatively the random
+  materialization of unmovable pages anywhere in the physical ranges
+  of supposedly movable memblocks and movable zones) on systems with
+  larges amount of RAM and/or with dense workloads like clear
+  containers. Perhaps by April this will already have been fully
+  sorted out online and the patch will be already upstream, in which
+  case this topic would be obsolete and should be skipped, but if not,
+  I'd be nice to discuss this too.
+
+o TLB flushing reduction in the rmap_walks: Mel and Hugh started
+  various work in this area. Patches have been posted for a certain
+  number of cases but it'd be good if we could optimize things for
+  secondary MMUs (i.e. KVM MMU notifiers) too and for more cases.
+
+Last but not the least I'm also very interested about following the
+Huge Page (Huge Page as in Transparent Huge Pages I assume) Futures
+topic already proposed.
+
+Thanks and hope to see you soon!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
