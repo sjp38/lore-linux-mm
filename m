@@ -1,75 +1,341 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id EAA086B0254
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:01:34 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id 128so45736541wmz.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:01:34 -0800 (PST)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id a125si9950904wmf.3.2016.01.29.02.01.33
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 980C16B0254
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:06:51 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id 128so45928693wmz.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:06:51 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id x203si9984962wmg.14.2016.01.29.02.06.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 02:01:33 -0800 (PST)
-Received: by mail-wm0-x230.google.com with SMTP id l66so60237800wml.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:01:33 -0800 (PST)
-Date: Fri, 29 Jan 2016 12:01:31 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [LSF/MM ATTEND] Huge Page Futures
-Message-ID: <20160129100131.GA10918@node.shutemov.name>
-References: <56A580F8.4060301@oracle.com>
- <87bn85ycbh.fsf@linux.vnet.ibm.com>
- <56AA6BE1.2050809@oracle.com>
+        Fri, 29 Jan 2016 02:06:50 -0800 (PST)
+Received: by mail-wm0-x231.google.com with SMTP id p63so61244118wmp.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:06:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56AA6BE1.2050809@oracle.com>
+In-Reply-To: <20160128114042.GE2396@node.shutemov.name>
+References: <CACT4Y+Z9UDZNLsoEz-DO3fX_+0gTwPUA=uE++J=w1sAG_4CGJg@mail.gmail.com>
+ <20160128105136.GD2396@node.shutemov.name> <CACT4Y+ZZkWTuw8hxnqLEf81bF=GL2SKv8Buqwv3qByBeSLBf+A@mail.gmail.com>
+ <20160128114042.GE2396@node.shutemov.name>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 29 Jan 2016 11:06:30 +0100
+Message-ID: <CACT4Y+Ybn_YAsP6f_wRfPr-zw2ZbF8cfKBMtqhZ=ya-qCpeq3w@mail.gmail.com>
+Subject: Re: mm: another VM_BUG_ON_PAGE(PageTail(page))
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Doug Gilbert <dgilbert@interlog.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, linux-scsi <linux-scsi@vger.kernel.org>
 
-On Thu, Jan 28, 2016 at 11:28:33AM -0800, Mike Kravetz wrote:
-> On 01/28/2016 07:05 AM, Aneesh Kumar K.V wrote:
-> > Mike Kravetz <mike.kravetz@oracle.com> writes:
-> > 
-> >> In a search of the archives, it appears huge page support in one form or
-> >> another has been a discussion topic in almost every LSF/MM gathering. Based
-> >> on patches submitted this past year, huge pages is still an area of active
-> >> development.  And, it appears this level of activity will  continue in the
-> >> coming year.
-> >>
-> >> I propose a "Huge Page Futures" session to discuss large works in progress
-> >> as well as work people are considering for 2016.  Areas of discussion would
-> >> minimally include:
-> >>
-> >> - Krill Shutemov's THP new refcounting code and the push for huge page
-> >>   support in the page cache.
-> > 
-> > I am also interested in this discussion. We had some nice challenge
-> > w.r.t to powerpc implementation of THP.
-> > 
-> >>
-> >> - Matt Wilcox's huge page support in DAX enabled filesystems, but perhaps
-> >>   more interesting is the desire for supporting PUD pages.  This seems to
-> >>   beg the question of supporting transparent PUD pages elsewhere.
-> >>
-> > 
-> > I am also looking at switching powerpc hugetlbfs to GENERAL_HUGETLB. To
-> > support 16GB pages I would need hugepage at PUD/PGD. Can you elaborate
-> > why supporting huge PUD page is a challenge ?
-> 
-> For hugetlbfs it should not be an issue.  However, page fault handling for
-> hugetlbfs is already a special case today.  Is that what you were asking?
-> 
-> Matt's work adds THP for PUD sized huge pages to DAX mappings.  The thought
-> that popped into my head is "Does it make sense to try and expand THP for
-> PUD sized pages elsewhere?".  Perhaps that is nonsense and a silly question
-> to ask.
+On Thu, Jan 28, 2016 at 12:40 PM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Thu, Jan 28, 2016 at 11:55:14AM +0100, Dmitry Vyukov wrote:
+>> On Thu, Jan 28, 2016 at 11:51 AM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>> > On Thu, Jan 28, 2016 at 11:27:11AM +0100, Dmitry Vyukov wrote:
+>> >> Hello,
+>> >>
+>> >> The following program triggers VM_BUG_ON_PAGE(PageTail(page)):
+>> >>
+>> >> // autogenerated by syzkaller (http://github.com/google/syzkaller)
+>> >> #include <fcntl.h>
+>> >> #include <numaif.h>
+>> >> #include <sys/mman.h>
+>> >> #include <unistd.h>
+>> >>
+>> >> int main()
+>> >> {
+>> >>   int fd;
+>> >>
+>> >>   mmap((void*)0x20000000, 4096, PROT_READ|PROT_WRITE,
+>> >> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0);
+>> >>   fd = open("/dev/sg1", O_RDONLY|O_SYNC|0x100000);
+>> >>   mmap((void*)0x20001000, 0x4000, PROT_READ|PROT_WRITE,
+>> >> MAP_PRIVATE|MAP_FIXED, fd, 0);
+>> >>   mbind((void*)0x20000000, 0x4000, 0x8002, (void*)0x20002ff8, 3660,
+>> >> MPOL_MF_STRICT|MPOL_MF_MOVE);
+>> >>   return 0;
+>> >> }
+>> >
+>> > I don't have sg1 in my VM. I changed it to sg0 and it doesn't trigger an
+>> > issue: mbind() returns -EINVAL as it supposed to. Hm..
+>>
+>> I've attached my config, and here is how I start qemu:
+>>
+>> qemu-system-x86_64 -hda wheezy.img -net
+>> user,host=10.0.2.10,hostfwd=tcp::10022-:22 -net nic -nographic -kernel
+>> arch/x86/boot/bzImage -append "console=ttyS0 root=/dev/sda debug
+>> earlyprintk=serial slub_debug=UZ" -enable-kvm -pidfile vm_pid -m 2G
+>> -numa node,nodeid=0,cpus=0-1 -numa node,nodeid=1,cpus=2-3 -smp
+>> sockets=2,cores=2,threads=1 -usb -usbdevice mouse -usbdevice tablet
+>> -soundhw all
+>
+> Still no luck. :-/
+>
+> Could you try patch below. I want to see what vm_flags are.
+>
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 27d135408a22..93edf181f88a 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -548,8 +548,10 @@ retry:
+>                         goto retry;
+>                 }
+>
+> -               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+> +                       VM_BUG_ON_VMA(PageTail(page), vma);
+>                         migrate_page_add(page, qp->pagelist, flags);
+> +               }
+>         }
+>         pte_unmap_unlock(pte - 1, ptl);
+>         cond_resched();
 
-I don't think it has much sense on x86-64. But if an architecture has more
-reasonable page size on PUD level, who knows...
 
--- 
- Kirill A. Shutemov
+
+Humm... now I cannot reproduce it with the original program as well.
+But I reproduced it with another program. Please try the one below.
+I've updated to 26cd83670f2f5a3d5b5514a1f7d96567cdb9558b and have few
+pending fixes to mm (see below) including your VM_BUG_ON_VMA change
+above.
+
+This report contains vm_flags:
+
+
+vma ffff880062082450 start 0000000020001000 end 0000000020005000
+next ffff880030460a60 prev ffff880062083910 mm ffff88002f691380
+prot 8000000000000025 anon_vma ffff880062a55180 vm_ops ffffffff86d5aac0
+pgoff 0 file ffff880060b1f0c0 private_data ffff880061240000
+flags: 0x4144073(read|write|mayread|maywrite|mayexec|io|dontexpand|account)
+------------[ cut here ]------------
+kernel BUG at mm/mempolicy.c:552!
+invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+Modules linked in:
+CPU: 3 PID: 11434 Comm: tail Not tainted 4.5.0-rc1+ #301
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+task: ffff88002ecddf00 ti: ffff880033ed0000 task.ti: ffff880033ed0000
+RIP: 0010:[<ffffffff817502db>]  [<ffffffff817502db>]
+queue_pages_pte_range+0x8ab/0x10f0
+RSP: 0018:ffff880033ed7a98  EFLAGS: 00010296
+RAX: 0000000000000001 RBX: ffff880061e77018 RCX: 0000000000000000
+RDX: 0000000000000001 RSI: 0000000000000001 RDI: ffffed00067daf29
+RBP: ffff880033ed7b10 R08: 0000000000000001 R09: 0000000000000000
+R10: 1ffff1000c41048a R11: 0000000000000001 R12: 0000000020003000
+R13: dffffc0000000000 R14: ffffea0001b4c280 R15: 0000000020004000
+FS:  00007f670c480700(0000) GS:ffff88006d700000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000000020003000 CR3: 00000000004e7000 CR4: 00000000000006e0
+Stack:
+ ffffea0000000001 ffff880033ed7c70 ffffea0001b4c200 ffff880062020840
+ ffffed00067daf8e ffffea0001b4c2a0 0000000000000023 ffff880062082450
+ ffff880033ed7c60 ffff880032747800 ffffffff8174fa30 dffffc0000000000
+Call Trace:
+ [<     inline     >] walk_pmd_range mm/pagewalk.c:50
+ [<     inline     >] walk_pud_range mm/pagewalk.c:90
+ [<     inline     >] walk_pgd_range mm/pagewalk.c:116
+ [<ffffffff817209b3>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
+ [<ffffffff81721164>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
+ [<ffffffff8174cd8b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:689
+ [<ffffffff81755611>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1241
+ [<     inline     >] SYSC_mbind mm/mempolicy.c:1353
+ [<ffffffff8175646d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1335
+ [<ffffffff86653276>] entry_SYSCALL_64_fastpath+0x16/0x7a
+arch/x86/entry/entry_64.S:185
+Code: 55 98 48 8d 42 ff e9 ce fa ff ff e8 00 9f e1 ff 4c 89 f7 e8 18
+fc f2 ff e9 92 fe ff ff e8 ee 9e e1 ff 48 8b 7d c0 e8 85 87 f8 ff <0f>
+0b e8 de 9e e1 ff 48 89 df 48 89 f8 0f 1f 40 00 48 89 c3 48
+RIP  [<ffffffff817502db>] queue_pages_pte_range+0x8ab/0x10f0 mm/mempolicy.c:552
+ RSP <ffff880033ed7a98>
+---[ end trace 3f5635b07e2902a8 ]---
+BUG: sleeping function called from invalid context at include/linux/sched.h:2805
+in_atomic(): 1, irqs_disabled(): 0, pid: 11434, name: tail
+INFO: lockdep is turned off.
+CPU: 3 PID: 11434 Comm: tail Tainted: G      D         4.5.0-rc1+ #301
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+ 00000000ffffffff ffff880033ed7588 ffffffff82be11cd ffff88002ecddf00
+ 0000000000002caa 0000000000000000 ffff880033ed75b0 ffffffff813cb8cb
+ ffff88002ecddf00 ffffffff867387a0 0000000000000af5 ffff880033ed75f0
+Call Trace:
+ [<     inline     >] __dump_stack lib/dump_stack.c:15
+ [<ffffffff82be11cd>] dump_stack+0x6f/0xa2 lib/dump_stack.c:50
+ [<ffffffff813cb8cb>] ___might_sleep+0x27b/0x3a0 kernel/sched/core.c:7703
+ [<ffffffff813cba80>] __might_sleep+0x90/0x1a0 kernel/sched/core.c:7665
+ [<     inline     >] threadgroup_change_begin include/linux/sched.h:2805
+ [<ffffffff813830d1>] exit_signals+0x81/0x430 kernel/signal.c:2392
+ [<ffffffff8135c3dc>] do_exit+0x23c/0x2cb0 kernel/exit.c:701
+ [<ffffffff811aa28f>] oops_end+0x9f/0xd0 arch/x86/kernel/dumpstack.c:250
+ [<ffffffff811aa686>] die+0x46/0x60 arch/x86/kernel/dumpstack.c:316
+ [<     inline     >] do_trap_no_signal arch/x86/kernel/traps.c:205
+ [<ffffffff811a3b9f>] do_trap+0x18f/0x380 arch/x86/kernel/traps.c:251
+ [<ffffffff811a400e>] do_error_trap+0x11e/0x280 arch/x86/kernel/traps.c:290
+ [<ffffffff811a527b>] do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:303
+ [<ffffffff86654f8e>] invalid_op+0x1e/0x30 arch/x86/entry/entry_64.S:830
+ [<     inline     >] walk_pmd_range mm/pagewalk.c:50
+ [<     inline     >] walk_pud_range mm/pagewalk.c:90
+ [<     inline     >] walk_pgd_range mm/pagewalk.c:116
+ [<ffffffff817209b3>] __walk_page_range+0x653/0xcd0 mm/pagewalk.c:204
+ [<ffffffff81721164>] walk_page_range+0x134/0x300 mm/pagewalk.c:281
+ [<ffffffff8174cd8b>] queue_pages_range+0xfb/0x130 mm/mempolicy.c:689
+ [<ffffffff81755611>] do_mbind+0x2c1/0xdc0 mm/mempolicy.c:1241
+ [<     inline     >] SYSC_mbind mm/mempolicy.c:1353
+ [<ffffffff8175646d>] SyS_mbind+0x13d/0x150 mm/mempolicy.c:1335
+ [<ffffffff86653276>] entry_SYSCALL_64_fastpath+0x16/0x7a
+arch/x86/entry/entry_64.S:185
+note: tail[11434] exited with preempt_count 1
+
+
+
+
+
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
+#include <pthread.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+long r[12];
+
+void* thr(void* arg)
+{
+  switch ((long)arg) {
+  case 0:
+    r[0] = syscall(SYS_mmap, 0x20000000ul, 0x1000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 1:
+    r[2] = syscall(SYS_open, "/dev/sg1", 0x101000ul, 0);
+    break;
+  case 2:
+    r[3] = syscall(SYS_mmap, 0x20001000ul, 0x4000ul, 0x3ul, 0x12ul,
+                   r[2], 0x0ul);
+    break;
+  case 3:
+    *(uint64_t*)0x20002ff8 = (uint64_t)0xffffffff;
+    r[5] = syscall(SYS_mbind, 0x20000000ul, 0x4000ul, 0x8002ul,
+                   0x20002ff8ul, 0xe4cul, 0x3ul);
+    break;
+  case 4:
+    r[6] = syscall(SYS_mmap, 0x20005000ul, 0x1000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 5:
+    memcpy((void*)0x20005ffd, "\x7b\x3a\x00", 3);
+    memcpy((void*)0x200053e8, "\x70\x6f\x73\x69\x78\x5f\x61\x63\x6c\x5f"
+                              "\x61\x63\x63\x65\x73\x73\x70\x70\x70\x31"
+                              "\x6b\x65\x79\x72\x69\x6e\x67\x73\x65\x6c"
+                              "\x66\x65\x74\x68\x30\x2f\x5c\x00",
+           38);
+    memcpy((void*)0x20000ffe, "\x73\x65\x63\x75\x72\x69\x74\x79\x00",
+           9);
+    r[10] = syscall(SYS_request_key, 0x20005ffdul, 0x200053e8ul,
+                    0x20000ffeul, 0xfffffffffffffffful, 0, 0);
+    break;
+  case 6:
+    r[11] =
+        syscall(SYS_keyctl, 0x11ul, r[10], 0x20003fbaul, 0xa9ul, 0, 0);
+    break;
+  }
+  return 0;
+}
+
+int main()
+{
+  long i;
+  pthread_t th[7];
+
+  memset(r, -1, sizeof(r));
+  for (i = 0; i < 7; i++) {
+    pthread_create(&th[i], 0, thr, (void*)i);
+    usleep(10000);
+  }
+  for (i = 0; i < 7; i++) {
+    pthread_create(&th[i], 0, thr, (void*)i);
+    if (i % 2 == 0)
+      usleep(10000);
+  }
+  usleep(100000);
+  return 0;
+}
+
+
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 27d1354..93edf18 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -548,8 +548,10 @@ retry:
+                        goto retry;
+                }
+
+-               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
++                       VM_BUG_ON_VMA(PageTail(page), vma);
+                        migrate_page_add(page, qp->pagelist, flags);
++               }
+        }
+        pte_unmap_unlock(pte - 1, ptl);
+        cond_resched();
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 84b1262..082b8a9 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -387,8 +387,9 @@ static long vma_compute_subtree_gap(struct
+vm_area_struct *vma)
+ }
+
+ #ifdef CONFIG_DEBUG_VM_RB
+-static int browse_rb(struct rb_root *root)
++static int browse_rb(struct mm_struct *mm)
+ {
++       struct rb_root *root = &mm->mm_rb;
+        int i = 0, j, bug = 0;
+        struct rb_node *nd, *pn = NULL;
+        unsigned long prev = 0, pend = 0;
+@@ -411,12 +412,14 @@ static int browse_rb(struct rb_root *root)
+                                  vma->vm_start, vma->vm_end);
+                        bug = 1;
+                }
++               spin_lock(&mm->page_table_lock);
+                if (vma->rb_subtree_gap != vma_compute_subtree_gap(vma)) {
+                        pr_emerg("free gap %lx, correct %lx\n",
+                               vma->rb_subtree_gap,
+                               vma_compute_subtree_gap(vma));
+                        bug = 1;
+                }
++               spin_unlock(&mm->page_table_lock);
+                i++;
+                pn = nd;
+                prev = vma->vm_start;
+@@ -453,12 +456,16 @@ static void validate_mm(struct mm_struct *mm)
+        struct vm_area_struct *vma = mm->mmap;
+
+        while (vma) {
++               struct anon_vma *anon_vma = vma->anon_vma;
+                struct anon_vma_chain *avc;
+
+-               vma_lock_anon_vma(vma);
+-               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+-                       anon_vma_interval_tree_verify(avc);
+-               vma_unlock_anon_vma(vma);
++               if (anon_vma) {
++                       anon_vma_lock_read(anon_vma);
++                       list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++                               anon_vma_interval_tree_verify(avc);
++                       anon_vma_unlock_read(anon_vma);
++               }
++
+                highest_address = vma->vm_end;
+                vma = vma->vm_next;
+                i++;
+@@ -472,7 +479,7 @@ static void validate_mm(struct mm_struct *mm)
+                          mm->highest_vm_end, highest_address);
+                bug = 1;
+        }
+-       i = browse_rb(&mm->mm_rb);
++       i = browse_rb(mm);
+        if (i != mm->map_count) {
+                if (i != -1)
+                        pr_emerg("map_count %d rb %d\n", mm->map_count, i);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
