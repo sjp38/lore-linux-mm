@@ -1,49 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 762C96B0256
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 18:58:38 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l66so33122563wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 15:58:38 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 190si7254187wmh.45.2016.01.28.15.58.37
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB1A6B0253
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:03:55 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id is5so50949807obc.0
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:03:55 -0800 (PST)
+Received: from alln-iport-3.cisco.com (alln-iport-3.cisco.com. [173.37.142.90])
+        by mx.google.com with ESMTPS id o9si11765136oih.126.2016.01.28.17.03.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jan 2016 15:58:37 -0800 (PST)
-Date: Thu, 28 Jan 2016 18:58:15 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
+        Thu, 28 Jan 2016 17:03:55 -0800 (PST)
 Subject: Re: computing drop-able caches
-Message-ID: <20160128235815.GA5953@cmpxchg.org>
-References: <56AAA77D.7090000@cisco.com>
+References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
+From: Daniel Walker <danielwa@cisco.com>
+Message-ID: <56AABA79.3030103@cisco.com>
+Date: Thu, 28 Jan 2016 17:03:53 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56AAA77D.7090000@cisco.com>
+In-Reply-To: <20160128235815.GA5953@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Walker <danielwa@cisco.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, Jan 28, 2016 at 03:42:53PM -0800, Daniel Walker wrote:
-> "Currently there is no way to figure out the droppable pagecache size
-> from the meminfo output. The MemFree size can shrink during normal
-> system operation, when some of the memory pages get cached and is
-> reflected in "Cached" field. Similarly for file operations some of
-> the buffer memory gets cached and it is reflected in "Buffers" field.
-> The kernel automatically reclaims all this cached & buffered memory,
-> when it is needed elsewhere on the system. The only way to manually
-> reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. "
+On 01/28/2016 03:58 PM, Johannes Weiner wrote:
+> On Thu, Jan 28, 2016 at 03:42:53PM -0800, Daniel Walker wrote:
+>> "Currently there is no way to figure out the droppable pagecache size
+>> from the meminfo output. The MemFree size can shrink during normal
+>> system operation, when some of the memory pages get cached and is
+>> reflected in "Cached" field. Similarly for file operations some of
+>> the buffer memory gets cached and it is reflected in "Buffers" field.
+>> The kernel automatically reclaims all this cached & buffered memory,
+>> when it is needed elsewhere on the system. The only way to manually
+>> reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. "
+> [...]
+>
+>> The point of the whole exercise is to get a better idea of free memory for
+>> our employer. Does it make sense to do this for computing free memory?
+> /proc/meminfo::MemAvailable was added for this purpose. See the doc
+> text in Documentation/filesystem/proc.txt.
+>
+> It's an approximation, however, because this question is not easy to
+> answer. Pages might be in various states and uses that can make them
+> unreclaimable.
 
-[...]
 
-> The point of the whole exercise is to get a better idea of free memory for
-> our employer. Does it make sense to do this for computing free memory?
+Khalid was telling me that our internal sources rejected MemAvailable 
+because it was not accurate enough. It says in the description,
+"The estimate takes into account that the system needs some page cache 
+to function well". I suspect that's part of the inaccuracy. I asked 
+Khalid to respond with more details on this.
 
-/proc/meminfo::MemAvailable was added for this purpose. See the doc
-text in Documentation/filesystem/proc.txt.
+Do you know of any work to make it more accurate?
 
-It's an approximation, however, because this question is not easy to
-answer. Pages might be in various states and uses that can make them
-unreclaimable.
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
