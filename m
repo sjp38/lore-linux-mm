@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 77EEA828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:16:55 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id cy9so45107042pac.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:16:55 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id v18si22197212pfi.64.2016.01.29.10.16.48
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 917F7828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:16:57 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id n128so45578333pfn.3
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:16:57 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id f2si3531060pas.32.2016.01.29.10.16.50
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:16:48 -0800 (PST)
-Subject: [PATCH 03/31] x86, pkeys: Add Kconfig option
+        Fri, 29 Jan 2016 10:16:50 -0800 (PST)
+Subject: [PATCH 05/31] x86, pkeys: define new CR4 bit
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:16:47 -0800
+Date: Fri, 29 Jan 2016 10:16:50 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181647.02DFB684@viggo.jf.intel.com>
+Message-Id: <20160129181650.F1EBAE1E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,43 +22,28 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-I don't have a strong opinion on whether we need a Kconfig prompt
-or not.  Protection Keys has relatively little code associated
-with it, and it is not a heavyweight feature to keep enabled.
-However, I can imagine that folks would still appreciate being
-able to disable it.
-
-Note that, with disabled-features.h, the checks in the code
-for protection keys are always the same:
-
-	cpu_has(c, X86_FEATURE_PKU)
-
-With the config option disabled, this essentially turns into an
-#ifdef.
-
-We will hide the prompt for now.
+There is a new bit in CR4 for enabling protection keys.  We
+will actually enable it later in the series.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/Kconfig |    4 ++++
- 1 file changed, 4 insertions(+)
+ b/arch/x86/include/uapi/asm/processor-flags.h |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff -puN arch/x86/Kconfig~pkeys-01-kconfig arch/x86/Kconfig
---- a/arch/x86/Kconfig~pkeys-01-kconfig	2016-01-28 15:52:17.645279448 -0800
-+++ b/arch/x86/Kconfig	2016-01-28 15:52:17.649279631 -0800
-@@ -1714,6 +1714,10 @@ config X86_INTEL_MPX
+diff -puN arch/x86/include/uapi/asm/processor-flags.h~pkeys-02-cr4 arch/x86/include/uapi/asm/processor-flags.h
+--- a/arch/x86/include/uapi/asm/processor-flags.h~pkeys-02-cr4	2016-01-28 15:52:18.493318327 -0800
++++ b/arch/x86/include/uapi/asm/processor-flags.h	2016-01-28 15:52:18.497318510 -0800
+@@ -118,6 +118,8 @@
+ #define X86_CR4_SMEP		_BITUL(X86_CR4_SMEP_BIT)
+ #define X86_CR4_SMAP_BIT	21 /* enable SMAP support */
+ #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
++#define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
++#define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
  
- 	  If unsure, say N.
- 
-+config X86_INTEL_MEMORY_PROTECTION_KEYS
-+	def_bool y
-+	depends on CPU_SUP_INTEL && X86_64
-+
- config EFI
- 	bool "EFI runtime service support"
- 	depends on ACPI
+ /*
+  * x86-64 Task Priority Register, CR8
 _
 
 --
