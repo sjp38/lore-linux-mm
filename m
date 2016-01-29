@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 65720828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:06 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id o185so41173917pfb.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:06 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id m2si25608901pfj.159.2016.01.29.10.16.54
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 835D5828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:08 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id yy13so44977535pab.3
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:08 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id c9si3559987pas.70.2016.01.29.10.16.56
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:16:54 -0800 (PST)
-Subject: [PATCH 08/31] x86, pkeys: new page fault error code bit: PF_PK
+        Fri, 29 Jan 2016 10:16:56 -0800 (PST)
+Subject: [PATCH 09/31] x86, pkeys: store protection in high VMA flags
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:16:54 -0800
+Date: Fri, 29 Jan 2016 10:16:55 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181654.CD3A8A3A@viggo.jf.intel.com>
+Message-Id: <20160129181655.58275C1B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,51 +22,74 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Note: "PK" is how the Intel SDM refers to this bit, so we also
-use that nomenclature.
+vma->vm_flags is an 'unsigned long', so has space for 32 flags
+on 32-bit architectures.  The high 32 bits are unused on 64-bit
+platforms.  We've steered away from using the unused high VMA
+bits for things because we would have difficulty supporting it
+on 32-bit.
 
-This only defines the bit, it does not plumb it anywhere to be
-handled.
+Protection Keys are not available in 32-bit mode, so there is
+no concern about supporting this feature in 32-bit mode or on
+32-bit CPUs.
+
+This patch carves out 4 bits from the high half of
+vma->vm_flags and allows architectures to set config option
+to make them available.
+
+Sparse complains about these constants unless we explicitly
+call them "UL".
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/mm/fault.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ b/arch/x86/Kconfig   |    1 +
+ b/include/linux/mm.h |   11 +++++++++++
+ b/mm/Kconfig         |    3 +++
+ 3 files changed, 15 insertions(+)
 
-diff -puN arch/x86/mm/fault.c~pkeys-05-pfec arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-05-pfec	2016-01-28 15:52:19.775377103 -0800
-+++ b/arch/x86/mm/fault.c	2016-01-28 15:52:19.778377241 -0800
-@@ -33,6 +33,7 @@
-  *   bit 2 ==	 0: kernel-mode access	1: user-mode access
-  *   bit 3 ==				1: use of reserved bit detected
-  *   bit 4 ==				1: fault was an instruction fetch
-+ *   bit 5 ==				1: protection keys block access
-  */
- enum x86_pf_error_code {
+diff -puN arch/x86/Kconfig~pkeys-06-eat-high-vma-flags arch/x86/Kconfig
+--- a/arch/x86/Kconfig~pkeys-06-eat-high-vma-flags	2016-01-28 15:52:20.189396084 -0800
++++ b/arch/x86/Kconfig	2016-01-28 15:52:20.197396451 -0800
+@@ -155,6 +155,7 @@ config X86
+ 	select VIRT_TO_BUS
+ 	select X86_DEV_DMA_OPS			if X86_64
+ 	select X86_FEATURE_NAMES		if PROC_FS
++	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
  
-@@ -41,6 +42,7 @@ enum x86_pf_error_code {
- 	PF_USER		=		1 << 2,
- 	PF_RSVD		=		1 << 3,
- 	PF_INSTR	=		1 << 4,
-+	PF_PK		=		1 << 5,
- };
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff -puN include/linux/mm.h~pkeys-06-eat-high-vma-flags include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-06-eat-high-vma-flags	2016-01-28 15:52:20.191396176 -0800
++++ b/include/linux/mm.h	2016-01-28 15:52:20.198396497 -0800
+@@ -170,6 +170,17 @@ extern unsigned int kobjsize(const void
+ #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
  
- /*
-@@ -916,6 +918,12 @@ static int spurious_fault_check(unsigned
++#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
++#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
++#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
++#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
++#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
++#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
++
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #elif defined(CONFIG_PPC)
+diff -puN mm/Kconfig~pkeys-06-eat-high-vma-flags mm/Kconfig
+--- a/mm/Kconfig~pkeys-06-eat-high-vma-flags	2016-01-28 15:52:20.193396268 -0800
++++ b/mm/Kconfig	2016-01-28 15:52:20.198396497 -0800
+@@ -668,3 +668,6 @@ config ZONE_DEVICE
  
- 	if ((error_code & PF_INSTR) && !pte_exec(*pte))
- 		return 0;
-+	/*
-+	 * Note: We do not do lazy flushing on protection key
-+	 * changes, so no spurious fault will ever set PF_PK.
-+	 */
-+	if ((error_code & PF_PK))
-+		return 1;
- 
- 	return 1;
- }
+ config FRAME_VECTOR
+ 	bool
++
++config ARCH_USES_HIGH_VMA_FLAGS
++	bool
 _
 
 --
