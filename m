@@ -1,434 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D4E6B0258
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 12:58:15 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id p63so79149331wmp.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:58:15 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id d65si12384690wma.36.2016.01.29.09.58.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 09:58:14 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH v2 5/5] mm: workingset: per-cgroup cache thrash detection
-Date: Fri, 29 Jan 2016 12:54:07 -0500
-Message-Id: <1454090047-1790-6-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1454090047-1790-1-git-send-email-hannes@cmpxchg.org>
-References: <1454090047-1790-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C766B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:16:49 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id yy13so44973448pab.3
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:16:48 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id f2si3531060pas.32.2016.01.29.10.16.43
+        for <linux-mm@kvack.org>;
+        Fri, 29 Jan 2016 10:16:43 -0800 (PST)
+Subject: [PATCH 00/31] x86: Memory Protection Keys (v9)
+From: Dave Hansen <dave@sr71.net>
+Date: Fri, 29 Jan 2016 10:16:42 -0800
+Message-Id: <20160129181642.98E7D468@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, jack@suse.cz, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz
 
-Cache thrash detection (see a528910e12ec "mm: thrash detection-based
-file cache sizing" for details) currently only works on the system
-level, not inside cgroups. Worse, as the refaults are compared to the
-global number of active cache, cgroups might wrongfully get all their
-refaults activated when their pages are hotter than those of others.
+Memory Protection Keys for User pages is a CPU feature which will
+first appear on Skylake Servers, but will also be supported on
+future non-server parts (there is also a QEMU implementation).  It
+provides a mechanism for enforcing page-based protections, but
+without requiring modification of the page tables when an
+application changes wishes to change permissions.
 
-Move the refault machinery from the zone to the lruvec, and then tag
-eviction entries with the memcg ID. This makes the thrash detection
-work correctly inside cgroups.
+This set introduces supported limited to:
+1. Allows "execute-only" memory
+2. Enables KVM to run Protection-Key-enabled guests
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 56 ++++++++++++++++++++++++++++-----
- include/linux/mmzone.h     | 13 ++++----
- mm/memcontrol.c            | 25 ---------------
- mm/vmscan.c                | 18 +++++------
- mm/workingset.c            | 78 ++++++++++++++++++++++++++++++++++++++++------
- 5 files changed, 133 insertions(+), 57 deletions(-)
+This set contains the vast majority of of the code, with the
+small but tricky explicit user interface parts left off.  We can
+have a more focused review on those at a later time in a (much
+smaller) follow-on series.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c4347a0..4667bd6 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -89,6 +89,10 @@ enum mem_cgroup_events_target {
- };
- 
- #ifdef CONFIG_MEMCG
-+
-+#define MEM_CGROUP_ID_SHIFT	16
-+#define MEM_CGROUP_ID_MAX	USHRT_MAX
-+
- struct mem_cgroup_stat_cpu {
- 	long count[MEMCG_NR_STAT];
- 	unsigned long events[MEMCG_NR_EVENTS];
-@@ -265,6 +269,11 @@ struct mem_cgroup {
- 
- extern struct mem_cgroup *root_mem_cgroup;
- 
-+static inline bool mem_cgroup_disabled(void)
-+{
-+	return !cgroup_subsys_enabled(memory_cgrp_subsys);
-+}
-+
- /**
-  * mem_cgroup_events - count memory events against a cgroup
-  * @memcg: the memory cgroup
-@@ -312,6 +321,28 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
- 				   struct mem_cgroup_reclaim_cookie *);
- void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
- 
-+static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
-+{
-+	if (mem_cgroup_disabled())
-+		return 0;
-+
-+	return memcg->css.id;
-+}
-+
-+/**
-+ * mem_cgroup_from_id - look up a memcg from an id
-+ * @id: the id to look up
-+ *
-+ * Caller must hold rcu_read_lock() and use css_tryget() as necessary.
-+ */
-+static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-+{
-+	struct cgroup_subsys_state *css;
-+
-+	css = css_from_id(id, &memory_cgrp_subsys);
-+	return mem_cgroup_from_css(css);
-+}
-+
- /**
-  * parent_mem_cgroup - find the accounting parent of a memcg
-  * @memcg: memcg whose parent to find
-@@ -353,11 +384,6 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
- struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
- ino_t page_cgroup_ino(struct page *page);
- 
--static inline bool mem_cgroup_disabled(void)
--{
--	return !cgroup_subsys_enabled(memory_cgrp_subsys);
--}
--
- static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
- {
- 	if (mem_cgroup_disabled())
-@@ -502,8 +528,17 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
- 
- #else /* CONFIG_MEMCG */
-+
-+#define MEM_CGROUP_ID_SHIFT	0
-+#define MEM_CGROUP_ID_MAX	0
-+
- struct mem_cgroup;
- 
-+static inline bool mem_cgroup_disabled(void)
-+{
-+	return true;
-+}
-+
- static inline void mem_cgroup_events(struct mem_cgroup *memcg,
- 				     enum mem_cgroup_events_index idx,
- 				     unsigned int nr)
-@@ -586,9 +621,16 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
- {
- }
- 
--static inline bool mem_cgroup_disabled(void)
-+static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
- {
--	return true;
-+	return 0;
-+}
-+
-+static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-+{
-+	WARN_ON_ONCE(id);
-+	/* XXX: This should always return root_mem_cgroup */
-+	return NULL;
- }
- 
- static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 7b6c2cf..6172aae 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -209,10 +209,12 @@ struct zone_reclaim_stat {
- };
- 
- struct lruvec {
--	struct list_head lists[NR_LRU_LISTS];
--	struct zone_reclaim_stat reclaim_stat;
-+	struct list_head		lists[NR_LRU_LISTS];
-+	struct zone_reclaim_stat	reclaim_stat;
-+	/* Evictions & activations on the inactive file list */
-+	atomic_long_t			inactive_age;
- #ifdef CONFIG_MEMCG
--	struct zone *zone;
-+	struct zone			*zone;
- #endif
- };
- 
-@@ -487,9 +489,6 @@ struct zone {
- 	spinlock_t		lru_lock;
- 	struct lruvec		lruvec;
- 
--	/* Evictions & activations on the inactive file list */
--	atomic_long_t		inactive_age;
--
- 	/*
- 	 * When free pages are below this point, additional steps are taken
- 	 * when reading the number of free pages to avoid per-cpu counter
-@@ -758,6 +757,8 @@ static inline struct zone *lruvec_zone(struct lruvec *lruvec)
- #endif
- }
- 
-+extern unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru);
-+
- #ifdef CONFIG_HAVE_MEMORY_PRESENT
- void memory_present(int nid, unsigned long start, unsigned long end);
- #else
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 953f0f9..864e237 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -268,31 +268,6 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
- 	return (memcg == root_mem_cgroup);
- }
- 
--/*
-- * We restrict the id in the range of [1, 65535], so it can fit into
-- * an unsigned short.
-- */
--#define MEM_CGROUP_ID_MAX	USHRT_MAX
--
--static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
--{
--	return memcg->css.id;
--}
--
--/*
-- * A helper function to get mem_cgroup from ID. must be called under
-- * rcu_read_lock().  The caller is responsible for calling
-- * css_tryget_online() if the mem_cgroup is used for charging. (dropping
-- * refcnt from swap can be called against removed memcg.)
-- */
--static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
--{
--	struct cgroup_subsys_state *css;
--
--	css = css_from_id(id, &memory_cgrp_subsys);
--	return mem_cgroup_from_css(css);
--}
--
- #ifndef CONFIG_SLOB
- /*
-  * This will be the memcg's index in each cache's ->memcg_params.memcg_caches.
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4577132..9342a0f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -213,7 +213,7 @@ bool zone_reclaimable(struct zone *zone)
- 		zone_reclaimable_pages(zone) * 6;
- }
- 
--static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
-+unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru)
- {
- 	if (!mem_cgroup_disabled())
- 		return mem_cgroup_get_lru_size(lruvec, lru);
-@@ -1931,8 +1931,8 @@ static bool inactive_file_is_low(struct lruvec *lruvec)
- 	unsigned long inactive;
- 	unsigned long active;
- 
--	inactive = get_lru_size(lruvec, LRU_INACTIVE_FILE);
--	active = get_lru_size(lruvec, LRU_ACTIVE_FILE);
-+	inactive = lruvec_lru_size(lruvec, LRU_INACTIVE_FILE);
-+	active = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
- 
- 	return active > inactive;
- }
-@@ -2071,7 +2071,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * system is under heavy pressure.
- 	 */
- 	if (!inactive_file_is_low(lruvec) &&
--	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
-+	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
-@@ -2097,10 +2097,10 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * anon in [0], file in [1]
- 	 */
- 
--	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
--		get_lru_size(lruvec, LRU_INACTIVE_ANON);
--	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
--		get_lru_size(lruvec, LRU_INACTIVE_FILE);
-+	anon  = lruvec_lru_size(lruvec, LRU_ACTIVE_ANON) +
-+		lruvec_lru_size(lruvec, LRU_INACTIVE_ANON);
-+	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE) +
-+		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
-@@ -2138,7 +2138,7 @@ out:
- 			unsigned long size;
- 			unsigned long scan;
- 
--			size = get_lru_size(lruvec, lru);
-+			size = lruvec_lru_size(lruvec, lru);
- 			scan = size >> sc->priority;
- 
- 			if (!scan && pass && force_scan)
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 9a26a60..3ced3a2 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -153,7 +153,8 @@
-  */
- 
- #define EVICTION_SHIFT	(RADIX_TREE_EXCEPTIONAL_ENTRY + \
--			 ZONES_SHIFT + NODES_SHIFT)
-+			 ZONES_SHIFT + NODES_SHIFT +	\
-+			 MEM_CGROUP_ID_SHIFT)
- #define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
- 
- /*
-@@ -166,9 +167,10 @@
-  */
- static unsigned int bucket_order __read_mostly;
- 
--static void *pack_shadow(unsigned long eviction, struct zone *zone)
-+static void *pack_shadow(int memcgid, struct zone *zone, unsigned long eviction)
- {
- 	eviction >>= bucket_order;
-+	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
- 	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
- 	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
- 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
-@@ -176,18 +178,21 @@ static void *pack_shadow(unsigned long eviction, struct zone *zone)
- 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
- }
- 
--static void unpack_shadow(void *shadow, struct zone **zonep,
-+static void unpack_shadow(void *shadow, int *memcgidp, struct zone **zonep,
- 			  unsigned long *evictionp)
- {
- 	unsigned long entry = (unsigned long)shadow;
--	int zid, nid;
-+	int memcgid, nid, zid;
- 
- 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
- 	zid = entry & ((1UL << ZONES_SHIFT) - 1);
- 	entry >>= ZONES_SHIFT;
- 	nid = entry & ((1UL << NODES_SHIFT) - 1);
- 	entry >>= NODES_SHIFT;
-+	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
-+	entry >>= MEM_CGROUP_ID_SHIFT;
- 
-+	*memcgidp = memcgid;
- 	*zonep = NODE_DATA(nid)->node_zones + zid;
- 	*evictionp = entry << bucket_order;
- }
-@@ -202,11 +207,20 @@ static void unpack_shadow(void *shadow, struct zone **zonep,
-  */
- void *workingset_eviction(struct address_space *mapping, struct page *page)
- {
-+	struct mem_cgroup *memcg = page_memcg(page);
- 	struct zone *zone = page_zone(page);
-+	int memcgid = mem_cgroup_id(memcg);
- 	unsigned long eviction;
-+	struct lruvec *lruvec;
- 
--	eviction = atomic_long_inc_return(&zone->inactive_age);
--	return pack_shadow(eviction, zone);
-+	/* Page is fully exclusive and pins page->mem_cgroup */
-+	VM_BUG_ON_PAGE(PageLRU(page), page);
-+	VM_BUG_ON_PAGE(page_count(page), page);
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+
-+	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-+	eviction = atomic_long_inc_return(&lruvec->inactive_age);
-+	return pack_shadow(memcgid, zone, eviction);
- }
- 
- /**
-@@ -221,13 +235,42 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
- bool workingset_refault(void *shadow)
- {
- 	unsigned long refault_distance;
-+	unsigned long active_file;
-+	struct mem_cgroup *memcg;
- 	unsigned long eviction;
-+	struct lruvec *lruvec;
- 	unsigned long refault;
- 	struct zone *zone;
-+	int memcgid;
- 
--	unpack_shadow(shadow, &zone, &eviction);
-+	unpack_shadow(shadow, &memcgid, &zone, &eviction);
- 
--	refault = atomic_long_read(&zone->inactive_age);
-+	rcu_read_lock();
-+	/*
-+	 * Look up the memcg associated with the stored ID. It might
-+	 * have been deleted since the page's eviction.
-+	 *
-+	 * Note that in rare events the ID could have been recycled
-+	 * for a new cgroup that refaults a shared page. This is
-+	 * impossible to tell from the available data. However, this
-+	 * should be a rare and limited disturbance, and activations
-+	 * are always speculative anyway. Ultimately, it's the aging
-+	 * algorithm's job to shake out the minimum access frequency
-+	 * for the active cache.
-+	 *
-+	 * XXX: On !CONFIG_MEMCG, this will always return NULL; it
-+	 * would be better if the root_mem_cgroup existed in all
-+	 * configurations instead.
-+	 */
-+	memcg = mem_cgroup_from_id(memcgid);
-+	if (!mem_cgroup_disabled() && !memcg) {
-+		rcu_read_unlock();
-+		return false;
-+	}
-+	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-+	refault = atomic_long_read(&lruvec->inactive_age);
-+	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
-+	rcu_read_unlock();
- 
- 	/*
- 	 * The unsigned subtraction here gives an accurate distance
-@@ -249,7 +292,7 @@ bool workingset_refault(void *shadow)
- 
- 	inc_zone_state(zone, WORKINGSET_REFAULT);
- 
--	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
-+	if (refault_distance <= active_file) {
- 		inc_zone_state(zone, WORKINGSET_ACTIVATE);
- 		return true;
- 	}
-@@ -262,7 +305,22 @@ bool workingset_refault(void *shadow)
-  */
- void workingset_activation(struct page *page)
- {
--	atomic_long_inc(&page_zone(page)->inactive_age);
-+	struct mem_cgroup *memcg;
-+	struct lruvec *lruvec;
-+
-+	memcg = lock_page_memcg(page);
-+	/*
-+	 * Filter non-memcg pages here, e.g. unmap can call
-+	 * mark_page_accessed() on VDSO pages.
-+	 *
-+	 * XXX: See workingset_refault() - this should return
-+	 * root_mem_cgroup even for !CONFIG_MEMCG.
-+	 */
-+	if (!mem_cgroup_disabled() && !memcg)
-+		return;
-+	lruvec = mem_cgroup_zone_lruvec(page_zone(page), memcg);
-+	atomic_long_inc(&lruvec->inactive_age);
-+	unlock_page_memcg(memcg);
- }
- 
- /*
--- 
-2.7.0
+Changes from v8:
+ * Reorganization of get_user_pages() patch with awesome feedback
+   from Vlastimil Babka and suggestions from Jan Kara.
+ * fix EXPORT_SYMBOL() and use get_current_user_page() in nommu.c
+
+Changes from v7:
+ * Fixed merge issue with cpu feature bitmap definitions
+ * Fixed up some comments in get_user_pages() and smaps patches
+   (thanks Vlastimil!)
+
+Changes from v6:
+ * fix up ??'s showing up in in smaps' VmFlags field
+ * added execute-only support
+ * removed all the new syscalls from this set.  We can discuss
+   them in detail after this is merged.
+
+Changes from v5:
+
+ * make types in read_pkru() u32's, not ints
+ * rework VM_* bits to avoid using __ffsl() and clean up
+   vma_pkey()
+ * rework pte_allows_gup() to use p??_val() instead of passing
+   around p{te,md,ud}_t types.
+ * Fix up some inconsistent bool vs. int usage
+ * corrected name of ARCH_VM_PKEY_FLAGS in patch description
+ * remove NR_PKEYS... config option.  Just define it directly
+
+Changes from v4:
+
+ * Made "allow setting of XSAVE state" safe if we got preempted
+   between when we saved our FPU state and when we restore it.
+   (I would appreciate a look from Ingo on this patch).
+ * Fixed up a few things from Thomas's latest comments: splt up
+   siginfo in to x86 and generic, removed extra 'eax' variable
+   in rdpkru function, reworked vm_flags assignment, reworded
+   a comment in pte_allows_gup()
+ * Add missing DISABLED/REQUIRED_MASK14 in cpufeature.h
+ * Added comment about compile optimization in fault path
+ * Left get_user_pages_locked() alone.  Andrea thinks we need it.
+
+Changes from RFCv3:
+
+ * Added 'current' and 'foreign' variants of get_user_pages() to
+   help indicate whether protection keys should be enforced.
+   Thanks to Jerome Glisse for pointing out this issue.
+ * Added "allocation" and set/get system calls so that we can do
+   management of proection keys in the kernel.  This opens the
+   door to use of specific protection keys for kernel use in the
+   future, such as for execute-only memory.
+ * Removed the kselftest code for the moment.  It will be
+   submitted separately.
+
+Thanks Ingo and Thomas for most of these):
+Changes from RFCv2 (Thanks Ingo and Thomas for most of these):
+
+ * few minor compile warnings
+ * changed 'nopku' interaction with cpuid bits.  Now, we do not
+   clear the PKU cpuid bit, we just skip enabling it.
+ * changed __pkru_allows_write() to also check access disable bit
+ * removed the unused write_pkru()
+ * made si_pkey a u64 and added some patch description details.
+   Also made it share space in siginfo with MPX and clarified
+   comments.
+ * give some real text for the Processor Trace xsave state
+ * made vma_pkey() less ugly (and much more optimized actually)
+ * added SEGV_PKUERR to copy_siginfo_to_user()
+ * remove page table walk when filling in si_pkey, added some
+   big fat comments about it being inherently racy.
+ * added self test code
+
+This code is not runnable to anyone outside of Intel unless they
+have some special hardware or a fancy simulator.  There is a qemu
+model to emulate the feature, but it is not currently implemented
+fully enough to be usable.  If you are interested in running this
+for real, please get in touch with me.  Hardware is available to a
+very small but nonzero number of people.
+
+This set is also available here:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-pkeys.git pkeys-v021.1
+
+=== diffstat ===
+
+Dave Hansen (31):
+      mm, gup: introduce concept of "foreign" get_user_pages()
+      x86, fpu: add placeholder for Processor Trace XSAVE state
+      x86, pkeys: Add Kconfig option
+      x86, pkeys: cpuid bit definition
+      x86, pkeys: define new CR4 bit
+      x86, pkeys: add PKRU xsave fields and data structure(s)
+      x86, pkeys: PTE bits for storing protection key
+      x86, pkeys: new page fault error code bit: PF_PK
+      x86, pkeys: store protection in high VMA flags
+      x86, pkeys: arch-specific protection bits
+      x86, pkeys: pass VMA down in to fault signal generation code
+      signals, pkeys: notify userspace about protection key faults
+      x86, pkeys: fill in pkey field in siginfo
+      x86, pkeys: add functions to fetch PKRU
+      mm: factor out VMA fault permission checking
+      x86, mm: simplify get_user_pages() PTE bit handling
+      x86, pkeys: check VMAs and PTEs for protection keys
+      mm: do not enforce PKEY permissions on "foreign" mm access
+      x86, pkeys: optimize fault handling in access_error()
+      x86, pkeys: differentiate instruction fetches
+      x86, pkeys: dump PKRU with other kernel registers
+      x86, pkeys: dump pkey from VMA in /proc/pid/smaps
+      x86, pkeys: add Kconfig prompt to existing config option
+      x86, pkeys: actually enable Memory Protection Keys in CPU
+      mm, multi-arch: pass a protection key in to calc_vm_flag_bits()
+      x86, pkeys: add arch_validate_pkey()
+      x86: separate out LDT init from context init
+      x86, fpu: allow setting of XSAVE state
+      x86, pkeys: allow kernel to modify user pkey rights register
+      x86, pkeys: create an x86 arch_calc_vm_prot_bits() for VMA flags
+      x86, pkeys: execute-only support
+
+ Documentation/kernel-parameters.txt           |   3 +
+ arch/cris/arch-v32/drivers/cryptocop.c        |   8 +-
+ arch/ia64/kernel/err_inject.c                 |   3 +-
+ arch/mips/mm/gup.c                            |   3 +-
+ arch/powerpc/include/asm/mman.h               |   5 +-
+ arch/powerpc/include/asm/mmu_context.h        |  12 ++
+ arch/s390/include/asm/mmu_context.h           |  12 ++
+ arch/s390/mm/gup.c                            |   4 +-
+ arch/sh/mm/gup.c                              |   2 +-
+ arch/sparc/mm/gup.c                           |   2 +-
+ arch/unicore32/include/asm/mmu_context.h      |  12 ++
+ arch/x86/Kconfig                              |  16 ++
+ arch/x86/include/asm/cpufeature.h             |  61 ++++--
+ arch/x86/include/asm/disabled-features.h      |  15 ++
+ arch/x86/include/asm/fpu/internal.h           |   2 +
+ arch/x86/include/asm/fpu/types.h              |  12 ++
+ arch/x86/include/asm/fpu/xstate.h             |   4 +-
+ arch/x86/include/asm/mmu_context.h            |  85 +++++++-
+ arch/x86/include/asm/pgtable.h                |  38 ++++
+ arch/x86/include/asm/pgtable_types.h          |  39 +++-
+ arch/x86/include/asm/pkeys.h                  |  34 ++++
+ arch/x86/include/asm/required-features.h      |   7 +
+ arch/x86/include/asm/special_insns.h          |  22 +++
+ arch/x86/include/uapi/asm/mman.h              |  22 +++
+ arch/x86/include/uapi/asm/processor-flags.h   |   2 +
+ arch/x86/kernel/cpu/common.c                  |  42 ++++
+ arch/x86/kernel/fpu/core.c                    |  63 ++++++
+ arch/x86/kernel/fpu/xstate.c                  | 185 +++++++++++++++++-
+ arch/x86/kernel/ldt.c                         |   4 +-
+ arch/x86/kernel/process_64.c                  |   2 +
+ arch/x86/kernel/setup.c                       |   9 +
+ arch/x86/mm/Makefile                          |   2 +
+ arch/x86/mm/fault.c                           | 168 +++++++++++++---
+ arch/x86/mm/gup.c                             |  45 +++--
+ arch/x86/mm/mpx.c                             |   4 +-
+ arch/x86/mm/pkeys.c                           | 101 ++++++++++
+ drivers/char/agp/frontend.c                   |   2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c       |   3 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c       |   2 +-
+ drivers/gpu/drm/radeon/radeon_ttm.c           |   3 +-
+ drivers/gpu/drm/via/via_dmablit.c             |   3 +-
+ drivers/infiniband/core/umem.c                |   2 +-
+ drivers/infiniband/core/umem_odp.c            |   8 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c   |   3 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c    |   3 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c      |   2 +-
+ drivers/iommu/amd_iommu_v2.c                  |   1 +
+ drivers/media/pci/ivtv/ivtv-udma.c            |   4 +-
+ drivers/media/pci/ivtv/ivtv-yuv.c             |  10 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c     |   3 +-
+ drivers/misc/mic/scif/scif_rma.c              |   2 -
+ drivers/misc/sgi-gru/grufault.c               |   3 +-
+ drivers/scsi/st.c                             |   2 -
+ drivers/staging/android/ashmem.c              |   4 +-
+ drivers/staging/rdma/ipath/ipath_user_pages.c |   3 +-
+ drivers/video/fbdev/pvr2fb.c                  |   4 +-
+ drivers/virt/fsl_hypervisor.c                 |   5 +-
+ fs/exec.c                                     |   8 +-
+ fs/proc/task_mmu.c                            |  14 ++
+ include/asm-generic/mm_hooks.h                |  12 ++
+ include/linux/mm.h                            |  41 +++-
+ include/linux/mman.h                          |   6 +-
+ include/linux/pkeys.h                         |  33 ++++
+ include/uapi/asm-generic/siginfo.h            |  17 +-
+ kernel/events/uprobes.c                       |  10 +-
+ kernel/signal.c                               |   4 +
+ mm/Kconfig                                    |   5 +
+ mm/frame_vector.c                             |   2 +-
+ mm/gup.c                                      |  94 ++++++---
+ mm/ksm.c                                      |  12 +-
+ mm/memory.c                                   |   8 +-
+ mm/mempolicy.c                                |   6 +-
+ mm/mmap.c                                     |  10 +-
+ mm/mprotect.c                                 |   8 +-
+ mm/nommu.c                                    |  32 +--
+ mm/process_vm_access.c                        |  11 +-
+ mm/util.c                                     |   4 +-
+ net/ceph/pagevec.c                            |   2 +-
+ security/tomoyo/domain.c                      |   9 +-
+ virt/kvm/async_pf.c                           |   7 +-
+ virt/kvm/kvm_main.c                           |  10 +-
+ 81 files changed, 1264 insertions(+), 223 deletions(-)
+
+Cc: linux-api@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: aarcange@redhat.com
+Cc: akpm@linux-foundation.org
+Cc: jack@suse.cz
+Cc: kirill.shutemov@linux.intel.com
+Cc: linux-api@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com
+Cc: x86@kernel.org
+Cc: torvalds@linux-foundation.org
+Cc: vbabka@suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
