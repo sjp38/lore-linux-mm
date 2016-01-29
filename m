@@ -1,84 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BA296B0254
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:09:43 -0500 (EST)
-Received: by mail-yk0-f176.google.com with SMTP id r207so21075869ykd.2
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:09:43 -0800 (PST)
-Received: from mail-yk0-x22f.google.com (mail-yk0-x22f.google.com. [2607:f8b0:4002:c07::22f])
-        by mx.google.com with ESMTPS id m123si5932844ywe.321.2016.01.29.03.09.42
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EBCD6B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:25:21 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id p63so64087758wmp.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:25:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id df5si21517703wjb.118.2016.01.29.03.25.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 03:09:42 -0800 (PST)
-Received: by mail-yk0-x22f.google.com with SMTP id k129so64939863yke.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:09:42 -0800 (PST)
-Date: Fri, 29 Jan 2016 06:09:41 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] workqueue: warn if memory reclaim tries to flush
- !WQ_MEM_RECLAIM workqueue
-Message-ID: <20160129110941.GK32380@htj.duckdns.org>
-References: <20151203002810.GJ19878@mtj.duckdns.org>
- <20151203093350.GP17308@twins.programming.kicks-ass.net>
- <20151203100018.GO11639@twins.programming.kicks-ass.net>
- <20151203144811.GA27463@mtj.duckdns.org>
- <20151203150442.GR17308@twins.programming.kicks-ass.net>
- <20151203150604.GC27463@mtj.duckdns.org>
- <20151203192616.GJ27463@mtj.duckdns.org>
- <20160126173843.GA11115@ulmo.nvidia.com>
- <20160128101210.GC6357@twins.programming.kicks-ass.net>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 29 Jan 2016 03:25:20 -0800 (PST)
+Subject: Re: [linux-next:master 1875/2100] include/linux/jump_label.h:122:2:
+ error: implicit declaration of function 'atomic_read'
+References: <201601291512.vqk4lpvV%fengguang.wu@intel.com>
+ <56AB3EEB.8090808@suse.cz> <20160129215335.1a049964@canb.auug.org.au>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56AB4C1D.5090801@suse.cz>
+Date: Fri, 29 Jan 2016 12:25:17 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160128101210.GC6357@twins.programming.kicks-ass.net>
+In-Reply-To: <20160129215335.1a049964@canb.auug.org.au>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thierry Reding <thierry.reding@gmail.com>, Ulrich Obergfell <uobergfe@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Jon Hunter <jonathanh@nvidia.com>, linux-tegra@vger.kernel.org, rmk+kernel@arm.linux.org.uk, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kbuild-all@01.org, linux-s390@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
 
-Hello, Peter.
-
-On Thu, Jan 28, 2016 at 11:12:10AM +0100, Peter Zijlstra wrote:
-> On Tue, Jan 26, 2016 at 06:38:43PM +0100, Thierry Reding wrote:
-> > > Task or work item involved in memory reclaim trying to flush a
-> > > non-WQ_MEM_RECLAIM workqueue or one of its work items can lead to
-> > > deadlock.  Trigger WARN_ONCE() if such conditions are detected.
-> > I've started noticing the following during boot on some of the devices I
-> > work with:
-> > 
-> > [    4.723705] WARNING: CPU: 0 PID: 6 at kernel/workqueue.c:2361 check_flush_dependency+0x138/0x144()
-> > [    4.736818] workqueue: WQ_MEM_RECLAIM deferwq:deferred_probe_work_func is flushing !WQ_MEM_RECLAIM events:lru_add_drain_per_cpu
-...
-> Right, also, I think it makes sense to do lru_add_drain_all() from a
-> WQ_MEM_RECLAIM workqueue, it is, after all, aiding in getting memory
-> freed.
+On 01/29/2016 11:53 AM, Stephen Rothwell wrote:
+> Hi Vlastimil,
 > 
-> Does something like the below cure things?
+> On Fri, 29 Jan 2016 11:28:59 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+>> >    include/linux/jump_label.h: In function 'static_key_count':  
+>> >>> include/linux/jump_label.h:122:2: error: implicit declaration of function 'atomic_read' [-Werror=implicit-function-declaration]  
+>> >      return atomic_read(&key->enabled);  
+>> 
+>> Sigh.
+>> 
+>> I don't get it, there's "#include <linux/atomic.h>" in jump_label.h right before
+>> it gets used. So, what implicit declaration?
 > 
-> TJ does this make sense to you?
+> But we are in the process of reading linux/atomic.h already, and the
+> #include in jump_label.h will just not read it then (because of the
+> include guards) so the body of linux/atomic.h has not yet been read
+> when we process static_key_count().  i.e. we have a circular inclusion.
+ 
+Oh, of course, doh. Thanks.
 
-The problem here is that deferwq which has nothing to do with memory
-reclaim is marked with WQ_MEM_RECLAIM because it was created the old
-create_singlethread_workqueue() which doesn't distinguish workqueues
-which may be used on mem reclaim path and thus has to mark all as
-needing forward progress guarantee.  I posted a patch to disable
-disable flush dependency checks on those workqueues and there's a
-outreachy project to weed out the users of the old interface, so
-hopefully this won't be an issue soon.
+Please replace the -fix with this patch. Sorry again.
 
-As for whether lru drain should have WQ_MEM_RECLAIM, I'm not sure.
-Cc'ing linux-mm.  The rule here is that any workquee which is depended
-upon during memory reclaim should have WQ_MEM_RECLAIM set.  IOW, if a
-work item failing to start execution under memory pressure can prevent
-memory from being reclaimed, it should be scheduled on a
-WQ_MEM_RECLAIM workqueue.  Would this be the case for
-lru_add_drain_per_cpu()?
-
-Thanks.
-
--- 
-tejun
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
