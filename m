@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF606B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:35:42 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id 128so46919875wmz.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:35:42 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id b63si6807674wme.9.2016.01.29.02.35.41
-        for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 02:35:41 -0800 (PST)
-Date: Fri, 29 Jan 2016 11:35:35 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC 01/13] x86/paravirt: Turn KASAN off for parvirt.o
-Message-ID: <20160129103535.GA10187@pd.tnic>
-References: <20160110185916.GD22896@pd.tnic>
- <1452516679-32040-1-git-send-email-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1452516679-32040-1-git-send-email-aryabinin@virtuozzo.com>
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF7F6B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:35:46 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id is5so59615843obc.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:35:46 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t3si11492900obs.47.2016.01.29.02.35.45
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 29 Jan 2016 02:35:45 -0800 (PST)
+Subject: Re: [PATCH 5/3] mm, vmscan: make zone_reclaimable_pages more precise
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+	<1454015979-9985-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1454015979-9985-1-git-send-email-mhocko@kernel.org>
+Message-Id: <201601291935.BGJ95389.VOLMFOOHFStQFJ@I-love.SAKURA.ne.jp>
+Date: Fri, 29 Jan 2016 19:35:18 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andy Lutomirski <luto@kernel.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Mon, Jan 11, 2016 at 03:51:17PM +0300, Andrey Ryabinin wrote:
-> I don't think that this patch is the right way to solve the problem.
-> The follow-up patch "x86/kasan: clear kasan_zero_page after TLB flush"
-> should fix Andy's problem.
+Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> zone_reclaimable_pages is used in should_reclaim_retry which uses it to
+> calculate the target for the watermark check. This means that precise
+> numbers are important for the correct decision. zone_reclaimable_pages
+> uses zone_page_state which can contain stale data with per-cpu diffs
+> not synced yet (the last vmstat_update might have run 1s in the past).
+> 
+> Use zone_page_state_snapshot in zone_reclaimable_pages instead. None
+> of the current callers is in a hot path where getting the precise value
+> (which involves per-cpu iteration) would cause an unreasonable overhead.
+> 
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/vmscan.c | 14 +++++++-------
+>  1 file changed, 7 insertions(+), 7 deletions(-)
+> 
 
-Both applied, thanks.
+I didn't know http://lkml.kernel.org/r/20151021130323.GC8805@dhcp22.suse.cz
+was forgotten. Anyway,
 
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Acked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
