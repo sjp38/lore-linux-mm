@@ -1,59 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A2DF6B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:45:23 -0500 (EST)
-Received: by mail-io0-f178.google.com with SMTP id g73so92217645ioe.3
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:45:23 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0106.hostedemail.com. [216.40.44.106])
-        by mx.google.com with ESMTPS id d4si23953013iod.35.2016.01.29.06.45.22
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A0CE26B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:46:02 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l66so57534448wml.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:46:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id it4si22516894wjb.239.2016.01.29.06.46.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 06:45:23 -0800 (PST)
-Date: Fri, 29 Jan 2016 09:45:20 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1 4/8] arch, ftrace: For KASAN put hard/soft IRQ
- entries into separate sections
-Message-ID: <20160129094520.274a860f@gandalf.local.home>
-In-Reply-To: <CAG_fn=V0-mAPiHS35JJMfrNgB2TFLiGwdbo4S1P_Pw_XR0sETw@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<99939a92dd93dc5856c4ec7bf32dbe0035cdc689.1453918525.git.glider@google.com>
-	<20160128095349.6f771f14@gandalf.local.home>
-	<CAG_fn=Ujxs6bv7ovPuOEtwRQGVSe-c3N3pGvWPHA_4oF3zqbFA@mail.gmail.com>
-	<CAG_fn=V0-mAPiHS35JJMfrNgB2TFLiGwdbo4S1P_Pw_XR0sETw@mail.gmail.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 29 Jan 2016 06:46:01 -0800 (PST)
+Subject: Re: [PATCH 4/5] mm: Use radix_tree_iter_retry()
+References: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1453929472-25566-5-git-send-email-matthew.r.wilcox@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56AB7B27.3090805@suse.cz>
+Date: Fri, 29 Jan 2016 15:45:59 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1453929472-25566-5-git-send-email-matthew.r.wilcox@intel.com>
+Content-Type: text/plain; charset=iso-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 29 Jan 2016 12:59:13 +0100
-Alexander Potapenko <glider@google.com> wrote:
-
-> On the other hand, this will require including <linux/irq.h> into
-> various files that currently use __irq_section.
-> But that header has a comment saying:
+On 01/27/2016 10:17 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <willy@linux.intel.com>
 > 
-> /*
->  * Please do not include this file in generic code.  There is currently
->  * no requirement for any architecture to implement anything held
->  * within this file.
->  *
->  * Thanks. --rmk
->  */
+> Instead of a 'goto restart', we can now use radix_tree_iter_retry()
+> to restart from our current position.  This will make a difference
+> when there are more ways to happen across an indirect pointer.  And it
+> eliminates some confusing gotos.
 > 
-> Do we really want to put anything into that header?
-> 
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 
-What about interrupt.h?
+[...]
 
-It's just weird to have KSAN needing to pull in ftrace.h for irq work.
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index fa2ceb2d2655..6ec14b70d82d 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -388,8 +388,10 @@ restart:
+>  		 * don't need to reset the counter, nor do we risk infinite
+>  		 * restarts.
+>  		 */
+> -		if (radix_tree_deref_retry(page))
+> -			goto restart;
+> +		if (radix_tree_deref_retry(page)) {
+> +			slot = radix_tree_iter_retry(&iter);
+> +			continue;
+> +		}
+>  
+>  		if (radix_tree_exceptional_entry(page))
+>  			swapped++;
 
--- Steve
+This should be applied on top. There are no restarts anymore.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
