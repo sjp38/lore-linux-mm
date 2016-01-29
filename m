@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 50CBB6B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:21:34 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id 128so57259546wmz.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:21:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qr6si22711056wjc.206.2016.01.29.07.21.32
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D366B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:23:10 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id r129so73149622wmr.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:23:10 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id i187si11615334wma.47.2016.01.29.07.23.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Jan 2016 07:21:33 -0800 (PST)
-Subject: Re: [PATCH 16/16] mm/slab: introduce new slab management type,
- OBJFREELIST_SLAB
-References: <1452749069-15334-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1452749069-15334-17-git-send-email-iamjoonsoo.kim@lge.com>
- <56A8C788.9000004@suse.cz> <20160128045128.GC14467@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56AB837A.5090702@suse.cz>
-Date: Fri, 29 Jan 2016 16:21:30 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jan 2016 07:23:09 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id r129so10483596wmr.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 07:23:09 -0800 (PST)
+Date: Fri, 29 Jan 2016 16:23:08 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/3] mm, oom: drop the last allocation attempt before
+ out_of_memory
+Message-ID: <20160129152307.GF32174@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <1454013603-3682-1-git-send-email-mhocko@kernel.org>
+ <20160128213634.GA4903@cmpxchg.org>
+ <alpine.DEB.2.10.1601281508380.31035@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20160128045128.GC14467@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1601281508380.31035@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 01/28/2016 05:51 AM, Joonsoo Kim wrote:
-> On Wed, Jan 27, 2016 at 02:35:04PM +0100, Vlastimil Babka wrote:
->> On 01/14/2016 06:24 AM, Joonsoo Kim wrote:
->> > In fact, I tested another idea implementing OBJFREELIST_SLAB with
->> > extendable linked array through another freed object. It can remove
->> > memory waste completely but it causes more computational overhead
->> > in critical lock path and it seems that overhead outweigh benefit.
->> > So, this patch doesn't include it.
->> 
->> Can you elaborate? Do we actually need an extendable linked array? Why not just
->> store the pointer to the next free object into the object, NULL for the last
->> one? I.e. a singly-linked list. We should never need to actually traverse it?
+On Thu 28-01-16 15:19:08, David Rientjes wrote:
+> On Thu, 28 Jan 2016, Johannes Weiner wrote:
 > 
-> As Christoph explained, it's the way SLUB manages freed objects. In SLAB
-> case, it doesn't want to touch object itself. It's one of main difference
-> between SLAB and SLUB. These objects are cache-cold now so touching object itself
-> could cause more cache footprint.
+> > The check has to happen while holding the OOM lock, otherwise we'll
+> > end up killing much more than necessary when there are many racing
+> > allocations.
+> > 
+> 
+> Right, we need to try with ALLOC_WMARK_HIGH after oom_lock has been 
+> acquired.
+> 
+> The situation is still somewhat fragile, however, but I think it's 
+> tangential to this patch series.  If the ALLOC_WMARK_HIGH allocation fails 
+> because an oom victim hasn't freed its memory yet, and then the TIF_MEMDIE 
+> thread isn't visible during the oom killer's tasklist scan because it has 
+> exited, we still end up killing more than we should.  The likelihood of 
+> this happening grows with the length of the tasklist.
 
-Hm I see. Although I wouldn't bet on whether the now-freed object is more or
-less cold than the freelist array itself (regardless of its placement) :)
+Yes exactly the point I made in the original thread which brought the
+question about ALLOC_WMARK_HIGH originally. The race window after the
+last attempt is much larger than between the last wmark check and the
+attempt.
+
+> Perhaps we should try testing watermarks after a victim has been selected 
+> and immediately before killing?  (Aside: we actually carry an internal 
+> patch to test mem_cgroup_margin() in the memcg oom path after selecting a 
+> victim because we have been hit with this before in the memcg path.)
+> 
+> I would think that retrying with ALLOC_WMARK_HIGH would be enough memory 
+> to deem that we aren't going to immediately reenter an oom condition so 
+> the deferred killing is a waste of time.
+> 
+> The downside is how sloppy this would be because it's blurring the line 
+> between oom killer and page allocator.  We'd need the oom killer to return 
+> the selected victim to the page allocator, try the allocation, and then 
+> call oom_kill_process() if necessary.
+
+Yes the layer violation is definitely not nice.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
