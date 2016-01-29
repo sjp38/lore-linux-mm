@@ -1,34 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6056B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:53:40 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id f81so84978159iof.0
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:53:40 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id p9si25531204ioe.174.2016.01.29.02.53.38
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A2186B0254
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:05:46 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id r129so63400145wmr.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:05:46 -0800 (PST)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id bj10si21460185wjc.110.2016.01.29.03.05.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jan 2016 02:53:38 -0800 (PST)
-Date: Fri, 29 Jan 2016 21:53:35 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 29 Jan 2016 03:05:45 -0800 (PST)
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 29 Jan 2016 11:05:44 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id EEB4B1B0804B
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 11:05:48 +0000 (GMT)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u0TB5e2Y2949590
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 11:05:40 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u0TA5f4e026405
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 03:05:42 -0700
+Date: Fri, 29 Jan 2016 12:05:37 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
 Subject: Re: [linux-next:master 1875/2100] include/linux/jump_label.h:122:2:
  error: implicit declaration of function 'atomic_read'
-Message-ID: <20160129215335.1a049964@canb.auug.org.au>
-In-Reply-To: <56AB3EEB.8090808@suse.cz>
+Message-ID: <20160129110537.GB3896@osiris>
 References: <201601291512.vqk4lpvV%fengguang.wu@intel.com>
-	<56AB3EEB.8090808@suse.cz>
+ <56AB3EEB.8090808@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56AB3EEB.8090808@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kbuild-all@01.org, linux-s390@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kbuild-all@01.org, linux-s390@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
 
-Hi Vlastimil,
-
-On Fri, 29 Jan 2016 11:28:59 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
->
+On Fri, Jan 29, 2016 at 11:28:59AM +0100, Vlastimil Babka wrote:
 > On 01/29/2016 08:06 AM, kbuild test robot wrote:
 > > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
 > > head:   735cfa51151aeae6df04074165aa36b42481df86
@@ -54,23 +64,23 @@ On Fri, 29 Jan 2016 11:28:59 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
 > >                     from include/linux/hardirq.h:5,
 > >                     from include/linux/kvm_host.h:10,
 > >                     from arch/s390/kernel/asm-offsets.c:10:
-> >    include/linux/jump_label.h: In function 'static_key_count':  
-> >>> include/linux/jump_label.h:122:2: error: implicit declaration of function 'atomic_read' [-Werror=implicit-function-declaration]  
-> >      return atomic_read(&key->enabled);  
+> >    include/linux/jump_label.h: In function 'static_key_count':
+> >>> include/linux/jump_label.h:122:2: error: implicit declaration of function 'atomic_read' [-Werror=implicit-function-declaration]
+> >      return atomic_read(&key->enabled);
 > 
 > Sigh.
 > 
 > I don't get it, there's "#include <linux/atomic.h>" in jump_label.h right before
 > it gets used. So, what implicit declaration?
+> 
+> BTW, do you really need to use VM_BUG_ON() and thus include mmdebug.h in
+> arch/s390/include/asm/cmpxchg.h ? Is that assertion really related to VM?
 
-But we are in the process of reading linux/atomic.h already, and the
-#include in jump_label.h will just not read it then (because of the
-include guards) so the body of linux/atomic.h has not yet been read
-when we process static_key_count().  i.e. we have a circular inclusion.
+That's more or less copied over from x86 (and arm64 has it too). Probably
+because the only user used to be SLUB and the author has a strong memory
+management background :)
 
--- 
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+However, I'd like to keep the sanity check.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
