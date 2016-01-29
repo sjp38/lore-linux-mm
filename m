@@ -1,103 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D80DB6B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:38:08 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id 128so55560630wmz.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:38:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gk5si22548500wjb.9.2016.01.29.06.38.07
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A2DF6B0009
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 09:45:23 -0500 (EST)
+Received: by mail-io0-f178.google.com with SMTP id g73so92217645ioe.3
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 06:45:23 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0106.hostedemail.com. [216.40.44.106])
+        by mx.google.com with ESMTPS id d4si23953013iod.35.2016.01.29.06.45.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Jan 2016 06:38:07 -0800 (PST)
-Date: Fri, 29 Jan 2016 15:38:06 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: why do we do ALLOC_WMARK_HIGH before going out_of_memory
-Message-ID: <20160129143806.GC32174@dhcp22.suse.cz>
-References: <20160128163802.GA15953@dhcp22.suse.cz>
- <20160128190204.GJ12228@redhat.com>
- <20160128201123.GB621@dhcp22.suse.cz>
- <20160128211240.GA4163@cmpxchg.org>
- <20160128215514.GF621@dhcp22.suse.cz>
- <20160128234018.GA5530@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jan 2016 06:45:23 -0800 (PST)
+Date: Fri, 29 Jan 2016 09:45:20 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1 4/8] arch, ftrace: For KASAN put hard/soft IRQ
+ entries into separate sections
+Message-ID: <20160129094520.274a860f@gandalf.local.home>
+In-Reply-To: <CAG_fn=V0-mAPiHS35JJMfrNgB2TFLiGwdbo4S1P_Pw_XR0sETw@mail.gmail.com>
+References: <cover.1453918525.git.glider@google.com>
+	<99939a92dd93dc5856c4ec7bf32dbe0035cdc689.1453918525.git.glider@google.com>
+	<20160128095349.6f771f14@gandalf.local.home>
+	<CAG_fn=Ujxs6bv7ovPuOEtwRQGVSe-c3N3pGvWPHA_4oF3zqbFA@mail.gmail.com>
+	<CAG_fn=V0-mAPiHS35JJMfrNgB2TFLiGwdbo4S1P_Pw_XR0sETw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160128234018.GA5530@cmpxchg.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 28-01-16 18:40:18, Johannes Weiner wrote:
-> On Thu, Jan 28, 2016 at 10:55:15PM +0100, Michal Hocko wrote:
-> > On Thu 28-01-16 16:12:40, Johannes Weiner wrote:
-> > > On Thu, Jan 28, 2016 at 09:11:23PM +0100, Michal Hocko wrote:
-> > > > On Thu 28-01-16 20:02:04, Andrea Arcangeli wrote:
-> > > > > It's not immediately apparent if there is a new OOM killer upstream
-> > > > > logic that would prevent the risk of a second OOM killer invocation
-> > > > > despite another OOM killing already happened while we were stuck in
-> > > > > reclaim. In absence of that, the high wmark check would be still
-> > > > > needed.
-> > > > 
-> > > > Well, my oom detection rework [1] strives to make the OOM detection more
-> > > > robust and the retry logic performs the watermark check. So I think the
-> > > > last attempt is no longer needed after that patch. I will then remove
-> > > > it.
-> > > 
-> > > Hm? I don't have the same conclusion from what Andrea said.
-> > > 
-> > > When you have many allocations racing at the same time, they can all
-> > > enter __alloc_pages_may_oom() in quick succession. We don't want a
-> > > cavalcade of OOM kills when one could be enough, so we have to make
-> > > sure that in between should_alloc_retry() giving up and acquiring the
-> > > OOM lock nobody else already issued a kill and released enough memory.
-> > > 
-> > > It's a race window that gets yanked wide open when hundreds of threads
-> > > race in __alloc_pages_may_oom(). Your patches don't fix that, AFAICS.
-> > 
-> > Only one task would be allowed to go out_of_memory and all the rest will
-> > simply fail on oom_lock trylock and return with NULL. Or am I missing
-> > your point?
+On Fri, 29 Jan 2016 12:59:13 +0100
+Alexander Potapenko <glider@google.com> wrote:
+
+> On the other hand, this will require including <linux/irq.h> into
+> various files that currently use __irq_section.
+> But that header has a comment saying:
 > 
-> Just picture it with mutex_lock() instead of mutex_trylock() and it
-> becomes obvious why you have to do a locked check before the kill.
+> /*
+>  * Please do not include this file in generic code.  There is currently
+>  * no requirement for any architecture to implement anything held
+>  * within this file.
+>  *
+>  * Thanks. --rmk
+>  */
 > 
-> The race window is much smaller with the trylock of course, but given
-> enough threads it's possible that one of the other contenders would
-> acquire the trylock right after the first task drops it:
+> Do we really want to put anything into that header?
 > 
-> first task:                     204th task:
-> !reclaim                        !reclaim
-> !should_alloc_retry             !should_alloc_retry
-> oom_trylock
-> out_of_memory
-> oom_unlock
->                                 oom_trylock
->                                 out_of_memory // likely unnecessary
 
-That would require the oom victim to release the memory and drop
-TIF_MEMDIE before we go out_of_memory again. And that might happen
-anytime whether we are holding oom_trylock or not because it doesn't
-synchronize the exit path. So we are basically talking about:
+What about interrupt.h?
 
-should_alloc_retry
-[1]
-get_page_from_freelist(ALLOC_WMARK_HIGH)
-[2]
-out_of_memory
+It's just weird to have KSAN needing to pull in ftrace.h for irq work.
 
-and the race window for 1 is much smaller than 2 because [2] is quite
-costly operation. I wonder if this last moment request ever succeeds. I
-have run my usual oom flood tests and it hasn't shown up a single time.
-
-That being said I do not care that much. I just find this confusing and
-basically pointless because the whole thing is racy by definition and we
-are trying to cover a smaller window. I would understand if we did such
-a last attempt right before we are going to kill a selected victim. This
-would cover much larger race window.
--- 
-Michal Hocko
-SUSE Labs
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
