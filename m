@@ -1,392 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 05041828DF
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:26 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id yy13so44981212pab.3
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:25 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id cx6si3537200pad.130.2016.01.29.10.17.07
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC22828DF
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 13:17:28 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id cy9so45113829pac.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 10:17:28 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id s14si25613639pfa.120.2016.01.29.10.17.08
         for <linux-mm@kvack.org>;
-        Fri, 29 Jan 2016 10:17:07 -0800 (PST)
-Subject: [PATCH 17/31] x86, pkeys: check VMAs and PTEs for protection keys
+        Fri, 29 Jan 2016 10:17:08 -0800 (PST)
+Subject: [PATCH 18/31] mm: do not enforce PKEY permissions on "foreign" mm access
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jan 2016 10:17:06 -0800
+Date: Fri, 29 Jan 2016 10:17:07 -0800
 References: <20160129181642.98E7D468@viggo.jf.intel.com>
 In-Reply-To: <20160129181642.98E7D468@viggo.jf.intel.com>
-Message-Id: <20160129181706.6C58146D@viggo.jf.intel.com>
+Message-Id: <20160129181707.6684005B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-arch@vger.kernel.org
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Today, for normal faults and page table walks, we check the VMA
-and/or PTE to ensure that it is compatible with the action.  For
-instance, if we get a write fault on a non-writeable VMA, we
-SIGSEGV.
+We try to enforce protection keys in software the same way that we
+do in hardware.  (See long example below).
 
-We try to do the same thing for protection keys.  Basically, we
-try to make sure that if a user does this:
+But, we only want to do this when accessing our *own* process's
+memory.  If GDB set PKRU[6].AD=1 (disable access to PKEY 6), then
+tried to PTRACE_POKE a target process which just happened to have
+some mprotect_pkey(pkey=6) memory, we do *not* want to deny the
+debugger access to that memory.  PKRU is fundamentally a
+thread-local structure and we do not want to enforce it on access
+to _another_ thread's data.
 
-	mprotect(ptr, size, PROT_NONE);
-	*ptr = foo;
+This gets especially tricky when we have workqueues or other
+delayed-work mechanisms that might run in a random process's context.
+We can check that we only enforce pkeys when operating on our *own* mm,
+but delayed work gets performed when a random user context is active.
+We might end up with a situation where a delayed-work gup fails when
+running randomly under its "own" task but succeeds when running under
+another process.  We want to avoid that.
 
-they see the same effects with protection keys when they do this:
+To avoid that, we use the new GUP flag: FOLL_FOREIGN and add a
+fault flag: FAULT_FLAG_FOREIGN.  They indicate that we are
+walking an mm which is not guranteed to be the same as
+current->mm and should not be subject to protection key
+enforcement.
 
-	mprotect(ptr, size, PROT_READ|PROT_WRITE);
-	set_pkey(ptr, size, 4);
-	wrpkru(0xffffff3f); // access disable pkey 4
-	*ptr = foo;
+Thanks to Jerome Glisse for pointing out this scenario.
 
-The state to do that checking is in the VMA, but we also
-sometimes have to do it on the page tables only, like when doing
-a get_user_pages_fast() where we have no VMA.
+*** Why do we enforce protection keys in software?? ***
 
-We add two functions and expose them to generic code:
+Imagine that we disabled access to the memory pointer to by 'buf'.
+The, we implemented sys_write() like this:
 
-	arch_pte_access_permitted(pte_flags, write)
-	arch_vma_access_permitted(vma, write)
+	sys_read(fd, buf, len...)
+	{
+		struct page *page = follow_page(buf);
+		void *buf_mapped = kmap(page);
+		memcpy(buf_mapped, fd_data, len);
+		...
+	}
 
-These are, of course, backed up in x86 arch code with checks
-against the PTE or VMA's protection key.
+This writes to 'buf' via a *kernel* mapping, without a protection
+key.  While this implementation does the same thing:
 
-But, there are also cases where we do not want to respect
-protection keys.  When we ptrace(), for instance, we do not want
-to apply the tracer's PKRU permissions to the PTEs from the
-process being traced.
+	sys_read(fd, buf, len...)
+	{
+		copy_to_user(buf, fd_data, len);
+		...
+	}
+
+but would hit a protection key fault because the userspace 'buf'
+mapping has a protection key set.
+
+To provide consistency, and to make key-protected memory work
+as much like mprotect()ed memory as possible, we try to enforce
+the same protections as the hardware would when the *kernel* walks
+the page tables (and other mm structures).
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org
 ---
 
- b/arch/powerpc/include/asm/mmu_context.h   |   11 ++++++
- b/arch/s390/include/asm/mmu_context.h      |   11 ++++++
- b/arch/unicore32/include/asm/mmu_context.h |   11 ++++++
- b/arch/x86/include/asm/mmu_context.h       |   49 +++++++++++++++++++++++++++++
- b/arch/x86/include/asm/pgtable.h           |   29 +++++++++++++++++
- b/arch/x86/mm/fault.c                      |   21 +++++++++++-
- b/arch/x86/mm/gup.c                        |    5 ++
- b/include/asm-generic/mm_hooks.h           |   11 ++++++
- b/mm/gup.c                                 |   18 ++++++++--
- b/mm/memory.c                              |    4 ++
- 10 files changed, 166 insertions(+), 4 deletions(-)
+ b/arch/powerpc/include/asm/mmu_context.h   |    3 ++-
+ b/arch/s390/include/asm/mmu_context.h      |    3 ++-
+ b/arch/unicore32/include/asm/mmu_context.h |    3 ++-
+ b/arch/x86/include/asm/mmu_context.h       |    5 +++--
+ b/drivers/iommu/amd_iommu_v2.c             |    1 +
+ b/include/asm-generic/mm_hooks.h           |    3 ++-
+ b/include/linux/mm.h                       |    1 +
+ b/mm/gup.c                                 |   15 ++++++++++-----
+ b/mm/ksm.c                                 |   10 ++++++++--
+ b/mm/memory.c                              |    3 ++-
+ 10 files changed, 33 insertions(+), 14 deletions(-)
 
-diff -puN arch/powerpc/include/asm/mmu_context.h~pkeys-13-pte-fault arch/powerpc/include/asm/mmu_context.h
---- a/arch/powerpc/include/asm/mmu_context.h~pkeys-13-pte-fault	2016-01-28 15:52:23.681556183 -0800
-+++ b/arch/powerpc/include/asm/mmu_context.h	2016-01-28 15:52:23.698556963 -0800
-@@ -148,5 +148,16 @@ static inline void arch_bprm_mm_init(str
+diff -puN arch/powerpc/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag arch/powerpc/include/asm/mmu_context.h
+--- a/arch/powerpc/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.341586443 -0800
++++ b/arch/powerpc/include/asm/mmu_context.h	2016-01-28 15:52:24.358587222 -0800
+@@ -148,7 +148,8 @@ static inline void arch_bprm_mm_init(str
  {
  }
  
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
- #endif /* __KERNEL__ */
- #endif /* __ASM_POWERPC_MMU_CONTEXT_H */
-diff -puN arch/s390/include/asm/mmu_context.h~pkeys-13-pte-fault arch/s390/include/asm/mmu_context.h
---- a/arch/s390/include/asm/mmu_context.h~pkeys-13-pte-fault	2016-01-28 15:52:23.682556229 -0800
-+++ b/arch/s390/include/asm/mmu_context.h	2016-01-28 15:52:23.699557009 -0800
-@@ -130,4 +130,15 @@ static inline void arch_bprm_mm_init(str
+-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool foreign)
+ {
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN arch/s390/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag arch/s390/include/asm/mmu_context.h
+--- a/arch/s390/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.342586488 -0800
++++ b/arch/s390/include/asm/mmu_context.h	2016-01-28 15:52:24.358587222 -0800
+@@ -130,7 +130,8 @@ static inline void arch_bprm_mm_init(str
  {
  }
  
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
- #endif /* __S390_MMU_CONTEXT_H */
-diff -puN arch/unicore32/include/asm/mmu_context.h~pkeys-13-pte-fault arch/unicore32/include/asm/mmu_context.h
---- a/arch/unicore32/include/asm/mmu_context.h~pkeys-13-pte-fault	2016-01-28 15:52:23.684556321 -0800
-+++ b/arch/unicore32/include/asm/mmu_context.h	2016-01-28 15:52:23.699557009 -0800
-@@ -97,4 +97,15 @@ static inline void arch_bprm_mm_init(str
+-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool foreign)
+ {
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN arch/unicore32/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag arch/unicore32/include/asm/mmu_context.h
+--- a/arch/unicore32/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.344586580 -0800
++++ b/arch/unicore32/include/asm/mmu_context.h	2016-01-28 15:52:24.358587222 -0800
+@@ -97,7 +97,8 @@ static inline void arch_bprm_mm_init(str
  {
  }
  
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
- #endif
-diff -puN arch/x86/include/asm/mmu_context.h~pkeys-13-pte-fault arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~pkeys-13-pte-fault	2016-01-28 15:52:23.685556367 -0800
-+++ b/arch/x86/include/asm/mmu_context.h	2016-01-28 15:52:23.699557009 -0800
-@@ -286,4 +286,53 @@ static inline int vma_pkey(struct vm_are
- 	return pkey;
- }
- 
-+static inline bool __pkru_allows_pkey(u16 pkey, bool write)
-+{
-+	u32 pkru = read_pkru();
-+
-+	if (!__pkru_allows_read(pkru, pkey))
-+		return false;
-+	if (write && !__pkru_allows_write(pkru, pkey))
-+		return false;
-+
-+	return true;
-+}
-+
-+/*
-+ * We only want to enforce protection keys on the current process
-+ * because we effectively have no access to PKRU for other
-+ * processes or any way to tell *which * PKRU in a threaded
-+ * process we could use.
-+ *
-+ * So do not enforce things if the VMA is not from the current
-+ * mm, or if we are in a kernel thread.
-+ */
-+static inline bool vma_is_foreign(struct vm_area_struct *vma)
-+{
-+	if (!current->mm)
-+		return true;
-+	/*
-+	 * Should PKRU be enforced on the access to this VMA?  If
-+	 * the VMA is from another process, then PKRU has no
-+	 * relevance and should not be enforced.
-+	 */
-+	if (current->mm != vma->vm_mm)
-+		return true;
-+
-+	return false;
-+}
-+
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
-+{
-+	/* allow access if the VMA is not one from this process */
-+	if (vma_is_foreign(vma))
-+		return true;
-+	return __pkru_allows_pkey(vma_pkey(vma), write);
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	return __pkru_allows_pkey(pte_flags_pkey(pte_flags(pte)), write);
-+}
-+
- #endif /* _ASM_X86_MMU_CONTEXT_H */
-diff -puN arch/x86/include/asm/pgtable.h~pkeys-13-pte-fault arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h~pkeys-13-pte-fault	2016-01-28 15:52:23.687556458 -0800
-+++ b/arch/x86/include/asm/pgtable.h	2016-01-28 15:52:23.700557054 -0800
-@@ -919,6 +919,35 @@ static inline pte_t pte_swp_clear_soft_d
- }
- #endif
- 
-+#define PKRU_AD_BIT 0x1
-+#define PKRU_WD_BIT 0x2
-+
-+static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
-+{
-+	int pkru_pkey_bits = pkey * 2;
-+	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
-+}
-+
-+static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
-+{
-+	int pkru_pkey_bits = pkey * 2;
-+	/*
-+	 * Access-disable disables writes too so we need to check
-+	 * both bits here.
-+	 */
-+	return !(pkru & ((PKRU_AD_BIT|PKRU_WD_BIT) << pkru_pkey_bits));
-+}
-+
-+static inline u16 pte_flags_pkey(unsigned long pte_flags)
-+{
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+	/* ifdef to avoid doing 59-bit shift on 32-bit values */
-+	return (pte_flags & _PAGE_PKEY_MASK) >> _PAGE_BIT_PKEY_BIT0;
-+#else
-+	return 0;
-+#endif
-+}
-+
- #include <asm-generic/pgtable.h>
- #endif	/* __ASSEMBLY__ */
- 
-diff -puN arch/x86/mm/fault.c~pkeys-13-pte-fault arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-13-pte-fault	2016-01-28 15:52:23.688556504 -0800
-+++ b/arch/x86/mm/fault.c	2016-01-28 15:52:23.700557054 -0800
-@@ -897,6 +897,16 @@ bad_area(struct pt_regs *regs, unsigned
- 	__bad_area(regs, error_code, address, NULL, SEGV_MAPERR);
- }
- 
-+static inline bool bad_area_access_from_pkeys(unsigned long error_code,
-+		struct vm_area_struct *vma)
-+{
-+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-+		return false;
-+	if (error_code & PF_PK)
-+		return true;
-+	return false;
-+}
-+
- static noinline void
- bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
- 		      unsigned long address, struct vm_area_struct *vma)
-@@ -906,7 +916,7 @@ bad_area_access_error(struct pt_regs *re
- 	 * But, doing it this way allows compiler optimizations
- 	 * if pkeys are compiled out.
- 	 */
--	if (boot_cpu_has(X86_FEATURE_OSPKE) && (error_code & PF_PK))
-+	if (bad_area_access_from_pkeys(error_code, vma))
- 		__bad_area(regs, error_code, address, vma, SEGV_PKUERR);
- 	else
- 		__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
-@@ -1081,6 +1091,15 @@ int show_unhandled_signals = 1;
- static inline int
- access_error(unsigned long error_code, struct vm_area_struct *vma)
+-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool foreign)
  {
-+	/*
-+	 * Access or read was blocked by protection keys. We do
-+	 * this check before any others because we do not want
-+	 * to, for instance, confuse a protection-key-denied
-+	 * write with one for which we should do a COW.
-+	 */
-+	if (error_code & PF_PK)
-+		return 1;
-+
- 	if (error_code & PF_WRITE) {
- 		/* write, present and write, not present: */
- 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
-diff -puN arch/x86/mm/gup.c~pkeys-13-pte-fault arch/x86/mm/gup.c
---- a/arch/x86/mm/gup.c~pkeys-13-pte-fault	2016-01-28 15:52:23.690556596 -0800
-+++ b/arch/x86/mm/gup.c	2016-01-28 15:52:23.701557100 -0800
-@@ -11,6 +11,7 @@
- #include <linux/swap.h>
- #include <linux/memremap.h>
- 
-+#include <asm/mmu_context.h>
- #include <asm/pgtable.h>
- 
- static inline pte_t gup_get_pte(pte_t *ptep)
-@@ -89,6 +90,10 @@ static inline int pte_allows_gup(unsigne
- 	if ((pteval & need_pte_bits) != need_pte_bits)
- 		return 0;
- 
-+	/* Check memory protection keys permissions. */
-+	if (!__pkru_allows_pkey(pte_flags_pkey(pteval), write))
-+		return 0;
-+
- 	return 1;
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.345586626 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2016-01-28 15:52:24.359587268 -0800
+@@ -322,10 +322,11 @@ static inline bool vma_is_foreign(struct
+ 	return false;
  }
  
-diff -puN include/asm-generic/mm_hooks.h~pkeys-13-pte-fault include/asm-generic/mm_hooks.h
---- a/include/asm-generic/mm_hooks.h~pkeys-13-pte-fault	2016-01-28 15:52:23.692556688 -0800
-+++ b/include/asm-generic/mm_hooks.h	2016-01-28 15:52:23.701557100 -0800
-@@ -26,4 +26,15 @@ static inline void arch_bprm_mm_init(str
+-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool foreign)
+ {
+ 	/* allow access if the VMA is not one from this process */
+-	if (vma_is_foreign(vma))
++	if (foreign || vma_is_foreign(vma))
+ 		return true;
+ 	return __pkru_allows_pkey(vma_pkey(vma), write);
+ }
+diff -puN drivers/iommu/amd_iommu_v2.c~pkeys-14-gup-fault-foreign-flag drivers/iommu/amd_iommu_v2.c
+--- a/drivers/iommu/amd_iommu_v2.c~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.347586718 -0800
++++ b/drivers/iommu/amd_iommu_v2.c	2016-01-28 15:52:24.359587268 -0800
+@@ -526,6 +526,7 @@ static void do_fault(struct work_struct
+ 		flags |= FAULT_FLAG_USER;
+ 	if (fault->flags & PPR_FAULT_WRITE)
+ 		flags |= FAULT_FLAG_WRITE;
++	flags |= FAULT_FLAG_FOREIGN;
+ 
+ 	down_read(&mm->mmap_sem);
+ 	vma = find_extend_vma(mm, address);
+diff -puN include/asm-generic/mm_hooks.h~pkeys-14-gup-fault-foreign-flag include/asm-generic/mm_hooks.h
+--- a/include/asm-generic/mm_hooks.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.348586763 -0800
++++ b/include/asm-generic/mm_hooks.h	2016-01-28 15:52:24.360587314 -0800
+@@ -26,7 +26,8 @@ static inline void arch_bprm_mm_init(str
  {
  }
  
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
- #endif	/* _ASM_GENERIC_MM_HOOKS_H */
-diff -puN mm/gup.c~pkeys-13-pte-fault mm/gup.c
---- a/mm/gup.c~pkeys-13-pte-fault	2016-01-28 15:52:23.693556734 -0800
-+++ b/mm/gup.c	2016-01-28 15:52:23.702557146 -0800
-@@ -14,6 +14,7 @@
- #include <linux/rwsem.h>
- #include <linux/hugetlb.h>
+-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write)
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool foreign)
+ {
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN include/linux/mm.h~pkeys-14-gup-fault-foreign-flag include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.350586855 -0800
++++ b/include/linux/mm.h	2016-01-28 15:52:24.360587314 -0800
+@@ -249,6 +249,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
+ #define FAULT_FLAG_TRIED	0x20	/* Second try */
+ #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
++#define FAULT_FLAG_FOREIGN	0x80	/* faulting for non current tsk/mm */
  
-+#include <asm/mmu_context.h>
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
+ /*
+  * vm_fault is filled by the the pagefault handler and passed to the vma's
+diff -puN mm/gup.c~pkeys-14-gup-fault-foreign-flag mm/gup.c
+--- a/mm/gup.c~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.351586901 -0800
++++ b/mm/gup.c	2016-01-28 15:52:24.361587360 -0800
+@@ -364,6 +364,8 @@ static int faultin_page(struct task_stru
+ 		return -ENOENT;
+ 	if (*flags & FOLL_WRITE)
+ 		fault_flags |= FAULT_FLAG_WRITE;
++	if (*flags & FOLL_FOREIGN)
++		fault_flags |= FAULT_FLAG_FOREIGN;
+ 	if (nonblocking)
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 	if (*flags & FOLL_NOWAIT)
+@@ -414,11 +416,13 @@ static int faultin_page(struct task_stru
+ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+ {
+ 	vm_flags_t vm_flags = vma->vm_flags;
++	int write = (gup_flags & FOLL_WRITE);
++	int foreign = (gup_flags & FOLL_FOREIGN);
  
-@@ -445,6 +446,8 @@ static int check_vma_flags(struct vm_are
+ 	if (vm_flags & (VM_IO | VM_PFNMAP))
+ 		return -EFAULT;
+ 
+-	if (gup_flags & FOLL_WRITE) {
++	if (write) {
+ 		if (!(vm_flags & VM_WRITE)) {
+ 			if (!(gup_flags & FOLL_FORCE))
+ 				return -EFAULT;
+@@ -446,7 +450,7 @@ static int check_vma_flags(struct vm_are
  		if (!(vm_flags & VM_MAYREAD))
  			return -EFAULT;
  	}
-+	if (!arch_vma_access_permitted(vma, (gup_flags & FOLL_WRITE)))
-+		return -EFAULT;
+-	if (!arch_vma_access_permitted(vma, (gup_flags & FOLL_WRITE)))
++	if (!arch_vma_access_permitted(vma, write, foreign))
+ 		return -EFAULT;
  	return 0;
  }
- 
-@@ -613,13 +616,19 @@ EXPORT_SYMBOL(__get_user_pages);
+@@ -616,7 +620,8 @@ EXPORT_SYMBOL(__get_user_pages);
  
  bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
  {
--	vm_flags_t vm_flags;
--
--	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
-+	bool write = !!(fault_flags & FAULT_FLAG_WRITE);
-+	vm_flags_t vm_flags = write ? VM_WRITE : VM_READ;
+-	bool write = !!(fault_flags & FAULT_FLAG_WRITE);
++	bool write   = !!(fault_flags & FAULT_FLAG_WRITE);
++	bool foreign = !!(fault_flags & FAULT_FLAG_FOREIGN);
+ 	vm_flags_t vm_flags = write ? VM_WRITE : VM_READ;
  
  	if (!(vm_flags & vma->vm_flags))
+@@ -624,9 +629,9 @@ bool vma_permits_fault(struct vm_area_st
+ 
+ 	/*
+ 	 * The architecture might have a hardware protection
+-	 * mechanism other than read/write that can deny access
++	 * mechanism other than read/write that can deny access.
+ 	 */
+-	if (!arch_vma_access_permitted(vma, write))
++	if (!arch_vma_access_permitted(vma, write, foreign))
  		return false;
  
-+	/*
-+	 * The architecture might have a hardware protection
-+	 * mechanism other than read/write that can deny access
-+	 */
-+	if (!arch_vma_access_permitted(vma, write))
-+		return false;
-+
  	return true;
- }
+diff -puN mm/ksm.c~pkeys-14-gup-fault-foreign-flag mm/ksm.c
+--- a/mm/ksm.c~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.353586993 -0800
++++ b/mm/ksm.c	2016-01-28 15:52:24.362587405 -0800
+@@ -359,6 +359,10 @@ static inline bool ksm_test_exit(struct
+  * in case the application has unmapped and remapped mm,addr meanwhile.
+  * Could a ksm page appear anywhere else?  Actually yes, in a VM_PFNMAP
+  * mmap of /dev/mem or /dev/kmem, where we would not want to touch it.
++ *
++ * FAULT_FLAG/FOLL_FOREIGN are because we do this outside the context
++ * of the process that owns 'vma'.  We also do not want to enforce
++ * protection keys here anyway.
+  */
+ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
+ {
+@@ -367,12 +371,14 @@ static int break_ksm(struct vm_area_stru
  
-@@ -1173,6 +1182,9 @@ static int gup_pte_range(pmd_t pmd, unsi
- 			pte_protnone(pte) || (write && !pte_write(pte)))
- 			goto pte_unmap;
- 
-+		if (!arch_pte_access_permitted(pte, write))
-+			goto pte_unmap;
-+
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 		page = pte_page(pte);
- 		head = compound_head(page);
-diff -puN mm/memory.c~pkeys-13-pte-fault mm/memory.c
---- a/mm/memory.c~pkeys-13-pte-fault	2016-01-28 15:52:23.695556825 -0800
-+++ b/mm/memory.c	2016-01-28 15:52:23.703557192 -0800
-@@ -65,6 +65,7 @@
- #include <linux/userfaultfd_k.h>
- 
- #include <asm/io.h>
-+#include <asm/mmu_context.h>
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
- #include <asm/tlb.h>
-@@ -3357,6 +3358,9 @@ static int __handle_mm_fault(struct mm_s
+ 	do {
+ 		cond_resched();
+-		page = follow_page(vma, addr, FOLL_GET | FOLL_MIGRATION);
++		page = follow_page(vma, addr,
++				FOLL_GET | FOLL_MIGRATION | FOLL_FOREIGN);
+ 		if (IS_ERR_OR_NULL(page))
+ 			break;
+ 		if (PageKsm(page))
+ 			ret = handle_mm_fault(vma->vm_mm, vma, addr,
+-							FAULT_FLAG_WRITE);
++							FAULT_FLAG_WRITE |
++							FAULT_FLAG_FOREIGN);
+ 		else
+ 			ret = VM_FAULT_WRITE;
+ 		put_page(page);
+diff -puN mm/memory.c~pkeys-14-gup-fault-foreign-flag mm/memory.c
+--- a/mm/memory.c~pkeys-14-gup-fault-foreign-flag	2016-01-28 15:52:24.355587084 -0800
++++ b/mm/memory.c	2016-01-28 15:52:24.363587451 -0800
+@@ -3358,7 +3358,8 @@ static int __handle_mm_fault(struct mm_s
  	pmd_t *pmd;
  	pte_t *pte;
  
-+	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE))
-+		return VM_FAULT_SIGSEGV;
-+
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return hugetlb_fault(mm, vma, address, flags);
+-	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE))
++	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
++					    flags & FAULT_FLAG_FOREIGN))
+ 		return VM_FAULT_SIGSEGV;
  
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
 _
 
 --
