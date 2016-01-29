@@ -1,120 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A03516B0009
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:39:44 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id k206so44780329oia.1
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:39:44 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id gw3si11501541obc.14.2016.01.29.02.39.43
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 71BB96B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2016 05:39:45 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id l66so61560434wml.0
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:39:45 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id ee2si21312609wjd.88.2016.01.29.02.39.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Jan 2016 02:39:43 -0800 (PST)
-Subject: Re: [PATCH 4/3] mm, oom: drop the last allocation attempt before out_of_memory
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
-	<1454013603-3682-1-git-send-email-mhocko@kernel.org>
-	<20160128213634.GA4903@cmpxchg.org>
-	<alpine.DEB.2.10.1601281508380.31035@chino.kir.corp.google.com>
-	<20160128235110.GA5805@cmpxchg.org>
-In-Reply-To: <20160128235110.GA5805@cmpxchg.org>
-Message-Id: <201601291939.FGH00544.MVQOOtOHLFFJFS@I-love.SAKURA.ne.jp>
-Date: Fri, 29 Jan 2016 19:39:24 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jan 2016 02:39:44 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id p63so62107880wmp.1
+        for <linux-mm@kvack.org>; Fri, 29 Jan 2016 02:39:44 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160128154746.GI12228@redhat.com>
+References: <CACT4Y+Y908EjM2z=706dv4rV6dWtxTLK9nFg9_7DhRMLppBo2g@mail.gmail.com>
+ <CALYGNiP6-T=LuBwzKys7TPpFAiGC-U7FymDT4kr3Zrcfo7CoiQ@mail.gmail.com>
+ <CACT4Y+YNUZumEy2-OXhDku3rdn-4u28kCDRKtgYaO2uA9cYv5w@mail.gmail.com>
+ <CACT4Y+afp8BaUvQ72h7RzQuMOX05iDEyP3p3wuZfjaKcW_Ud9A@mail.gmail.com>
+ <20160127194132.GA896@redhat.com> <CACT4Y+Z86=NoNPrS-vgtJiB54Akwq6FfAPf2wnBA1FX2BHafWQ@mail.gmail.com>
+ <20160128154746.GI12228@redhat.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 29 Jan 2016 11:39:24 +0100
+Message-ID: <CACT4Y+Z=2Lcd13mwRx+ZVVvEofww2v2hAEdmHK-6aHWjaGJm+g@mail.gmail.com>
+Subject: Re: mm: BUG in expand_downwards
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, hannes@cmpxchg.org, rientjes@google.com
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-Johannes Weiner wrote:
-> On Thu, Jan 28, 2016 at 03:19:08PM -0800, David Rientjes wrote:
-> > On Thu, 28 Jan 2016, Johannes Weiner wrote:
-> >
-> > > The check has to happen while holding the OOM lock, otherwise we'll
-> > > end up killing much more than necessary when there are many racing
-> > > allocations.
-> > >
-> >
-> > Right, we need to try with ALLOC_WMARK_HIGH after oom_lock has been
-> > acquired.
-> >
-> > The situation is still somewhat fragile, however, but I think it's
-> > tangential to this patch series.  If the ALLOC_WMARK_HIGH allocation fails
-> > because an oom victim hasn't freed its memory yet, and then the TIF_MEMDIE
-> > thread isn't visible during the oom killer's tasklist scan because it has
-> > exited, we still end up killing more than we should.  The likelihood of
-> > this happening grows with the length of the tasklist.
-> >
-> > Perhaps we should try testing watermarks after a victim has been selected
-> > and immediately before killing?  (Aside: we actually carry an internal
-> > patch to test mem_cgroup_margin() in the memcg oom path after selecting a
-> > victim because we have been hit with this before in the memcg path.)
-
-Yes. Moving final testing to after selecting an OOM victim can reduce the
-possibility of killing more OOM victims than we need. But unfortunately, it is
-likely that memory becomes available (i.e. get_page_from_freelist() succeeds)
-during dump_header() is printing OOM messages using printk(), for printk() is
-a slow operation compared to selecting a victim. This happens very much later
-counted from the moment the victim cleared TIF_MEMDIE.
-
-We can avoid killing more OOM victims than we need if we move final testing to
-after printing OOM messages, but we can't avoid printing OOM messages when we
-don't kill a victim. Maybe this is not a problem if we do
-
-  pr_err("But did not kill any process ...")
-
-instead of
-
-  do_send_sig_info(SIGKILL);
-  mark_oom_victim();
-  pr_err("Killed process %d (%s) ...")
-
-when final testing succeeded.
-
-> >
-> > I would think that retrying with ALLOC_WMARK_HIGH would be enough memory
-> > to deem that we aren't going to immediately reenter an oom condition so
-> > the deferred killing is a waste of time.
-> >
-> > The downside is how sloppy this would be because it's blurring the line
-> > between oom killer and page allocator.  We'd need the oom killer to return
-> > the selected victim to the page allocator, try the allocation, and then
-> > call oom_kill_process() if necessary.
-
-I assumed that Michal wants to preserve the boundary between the OOM killer
-and the page allocator. Therefore, I proposed a patch
-( http://lkml.kernel.org/r/201512291559.HGA46749.VFOFSOHLMtFJQO@I-love.SAKURA.ne.jp )
-which tries to manage it without returning a victim and without depending on
-TIF_MEMDIE or oom_victims.
-
+On Thu, Jan 28, 2016 at 4:47 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hello,
 >
-> https://lkml.org/lkml/2015/3/25/40
+> On Wed, Jan 27, 2016 at 10:11:44PM +0100, Dmitry Vyukov wrote:
+>> Sorry, I meant only the second once. The mm bug.
+>> I guess you need at least CONFIG_DEBUG_VM.  Run it in a tight parallel
+>> loop with CPU oversubscription (e.g. 32 parallel processes on 2 cores)
+>> for  at least an hour.
 >
-> We could have out_of_memory() wait until the number of outstanding OOM
-> victims drops to 0. Then __alloc_pages_may_oom() doesn't relinquish
-> the lock until its kill has been finalized:
+> Does this help for the mm bug?
+
+Yes, it seems to fix the issue.
+I will also run fuzzer with this patch and report if I see it again.
+
+> From 0cc410ae59800444ca929e3dc48e4f1580a95be6 Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Thu, 28 Jan 2016 16:34:44 +0100
+> Subject: [PATCH 1/1] mm: validate_mm browse_rb SMP race condition
 >
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 914451a..4dc5b9d 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -892,7 +892,9 @@ bool out_of_memory(struct oom_control *oc)
->  		 * Give the killed process a good chance to exit before trying
->  		 * to allocate memory again.
->  		 */
-> -		schedule_timeout_killable(1);
-> +		if (!test_thread_flag(TIF_MEMDIE))
-> +			wait_event_timeout(oom_victims_wait,
-> +					   !atomic_read(&oom_victims), HZ);
->  	}
->  	return true;
+> The mmap_sem for reading in validate_mm called from expand_stack is
+> not enough to prevent the argumented rbtree rb_subtree_gap information
+> to change from under us because expand_stack may be running from other
+> threads concurrently which will hold the mmap_sem for reading too.
+>
+> The argumented rbtree is updated with vma_gap_update under the
+> page_table_lock so use it in browse_rb() too to avoid false positives.
+>
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/mmap.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index f384def..8389e03 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -389,8 +389,9 @@ static long vma_compute_subtree_gap(struct vm_area_struct *vma)
 >  }
 >
-
-oom_victims became 0 does not mean that memory became available (i.e.
-get_page_from_freelist() will succeed). I think this patch wants some
-effort for trying to reduce possibility of killing more OOM victims
-than we need.
+>  #ifdef CONFIG_DEBUG_VM_RB
+> -static int browse_rb(struct rb_root *root)
+> +static int browse_rb(struct mm_struct *mm)
+>  {
+> +       struct rb_root *root = &mm->mm_rb;
+>         int i = 0, j, bug = 0;
+>         struct rb_node *nd, *pn = NULL;
+>         unsigned long prev = 0, pend = 0;
+> @@ -413,12 +414,14 @@ static int browse_rb(struct rb_root *root)
+>                                   vma->vm_start, vma->vm_end);
+>                         bug = 1;
+>                 }
+> +               spin_lock(&mm->page_table_lock);
+>                 if (vma->rb_subtree_gap != vma_compute_subtree_gap(vma)) {
+>                         pr_emerg("free gap %lx, correct %lx\n",
+>                                vma->rb_subtree_gap,
+>                                vma_compute_subtree_gap(vma));
+>                         bug = 1;
+>                 }
+> +               spin_unlock(&mm->page_table_lock);
+>                 i++;
+>                 pn = nd;
+>                 prev = vma->vm_start;
+> @@ -474,7 +477,7 @@ static void validate_mm(struct mm_struct *mm)
+>                           mm->highest_vm_end, highest_address);
+>                 bug = 1;
+>         }
+> -       i = browse_rb(&mm->mm_rb);
+> +       i = browse_rb(mm);
+>         if (i != mm->map_count) {
+>                 if (i != -1)
+>                         pr_emerg("map_count %d rb %d\n", mm->map_count, i);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
