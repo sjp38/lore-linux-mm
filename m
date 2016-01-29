@@ -1,187 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F17828E1
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:22:53 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l66so48290389wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:22:53 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id dl6si18801261wjb.82.2016.01.28.17.22.52
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D1D828E1
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2016 20:29:44 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id ba1so51459185obb.3
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2016 17:29:44 -0800 (PST)
+Received: from rcdn-iport-3.cisco.com (rcdn-iport-3.cisco.com. [173.37.86.74])
+        by mx.google.com with ESMTPS id dp7si10062610obb.40.2016.01.28.17.29.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jan 2016 17:22:52 -0800 (PST)
-From: Kamal Mostafa <kamal@canonical.com>
-Subject: [PATCH 3.19.y-ckt 085/210] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Thu, 28 Jan 2016 17:17:03 -0800
-Message-Id: <1454030348-17736-86-git-send-email-kamal@canonical.com>
-In-Reply-To: <1454030348-17736-1-git-send-email-kamal@canonical.com>
-References: <1454030348-17736-1-git-send-email-kamal@canonical.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jan 2016 17:29:43 -0800 (PST)
+Subject: Re: computing drop-able caches
+References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
+ <56AABA79.3030103@cisco.com>
+From: Daniel Walker <danielwa@cisco.com>
+Message-ID: <56AAC085.9060509@cisco.com>
+Date: Thu, 28 Jan 2016 17:29:41 -0800
+MIME-Version: 1.0
+In-Reply-To: <56AABA79.3030103@cisco.com>
+Content-Type: multipart/alternative;
+ boundary="------------050209090902070508010707"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org, kernel-team@lists.ubuntu.com
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Kamal Mostafa <kamal@canonical.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, Rik van Riel <riel@redhat.com>
 
-3.19.8-ckt14 -stable review patch.  If anyone has any objections, please let me know.
+This is a multi-part message in MIME format.
+--------------050209090902070508010707
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 
----8<------------------------------------------------------------
+On 01/28/2016 05:03 PM, Daniel Walker wrote:
+> On 01/28/2016 03:58 PM, Johannes Weiner wrote:
+>> On Thu, Jan 28, 2016 at 03:42:53PM -0800, Daniel Walker wrote:
+>>> "Currently there is no way to figure out the droppable pagecache size
+>>> from the meminfo output. The MemFree size can shrink during normal
+>>> system operation, when some of the memory pages get cached and is
+>>> reflected in "Cached" field. Similarly for file operations some of
+>>> the buffer memory gets cached and it is reflected in "Buffers" field.
+>>> The kernel automatically reclaims all this cached & buffered memory,
+>>> when it is needed elsewhere on the system. The only way to manually
+>>> reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. "
+>> [...]
+>>
+>>> The point of the whole exercise is to get a better idea of free 
+>>> memory for
+>>> our employer. Does it make sense to do this for computing free memory?
+>> /proc/meminfo::MemAvailable was added for this purpose. See the doc
+>> text in Documentation/filesystem/proc.txt.
+>>
+>> It's an approximation, however, because this question is not easy to
+>> answer. Pages might be in various states and uses that can make them
+>> unreclaimable.
+>
+>
+> Khalid was telling me that our internal sources rejected MemAvailable 
+> because it was not accurate enough. It says in the description,
+> "The estimate takes into account that the system needs some page cache 
+> to function well". I suspect that's part of the inaccuracy. I asked 
+> Khalid to respond with more details on this.
+>
 
-From: Andy Lutomirski <luto@kernel.org>
+Some quotes,
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+"
+[regarding MemAvaiable]
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+This new metric purportedly helps usrespace assess available memory. But,
+its again based on heuristic, it takes 1/2 of page cache as reclaimable..
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
+Somewhat arbitrary choice. Maybe appropriate for desktops, where page
+cache is mainly used as page cache, not as a first class store which is
+the case on embedded systems. Our systems are swap less, they have little
+secondary storage, they use in-memory databases/filesystems/shared memories/
+etc. which are all setup on page caches).. This metric as it is implemented
+in 3.14 leads to a totally mis-leading picture of available memory"
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Kamal Mostafa <kamal@canonical.com>
----
- arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---
- 2 files changed, 58 insertions(+), 4 deletions(-)
+Daniel
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index acdeb2be..2962f62 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -89,8 +89,34 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
-+
- 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -122,10 +148,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 020bcc7..106c4e9 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -163,7 +163,10 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-@@ -190,17 +193,29 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto out;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto out;
- 	}
- 
- 	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
- 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
- 
-+	/*
-+	 * Both branches below are implicit full barriers (MOV to CR or
-+	 * INVLPG) that synchronize with switch_mm.
-+	 */
- 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
- 		base_pages_to_flush = TLB_FLUSH_ALL;
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-@@ -230,10 +245,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--- 
-1.9.1
+--------------050209090902070508010707
+Content-Type: text/html; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">On 01/28/2016 05:03 PM, Daniel Walker
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:56AABA79.3030103@cisco.com" type="cite">On
+      01/28/2016 03:58 PM, Johannes Weiner wrote:
+      <br>
+      <blockquote type="cite">On Thu, Jan 28, 2016 at 03:42:53PM -0800,
+        Daniel Walker wrote:
+        <br>
+        <blockquote type="cite">"Currently there is no way to figure out
+          the droppable pagecache size
+          <br>
+          from the meminfo output. The MemFree size can shrink during
+          normal
+          <br>
+          system operation, when some of the memory pages get cached and
+          is
+          <br>
+          reflected in "Cached" field. Similarly for file operations
+          some of
+          <br>
+          the buffer memory gets cached and it is reflected in "Buffers"
+          field.
+          <br>
+          The kernel automatically reclaims all this cached &amp;
+          buffered memory,
+          <br>
+          when it is needed elsewhere on the system. The only way to
+          manually
+          <br>
+          reclaim this memory is by writing 1 to
+          /proc/sys/vm/drop_caches. "
+          <br>
+        </blockquote>
+        [...]
+        <br>
+        <br>
+        <blockquote type="cite">The point of the whole exercise is to
+          get a better idea of free memory for
+          <br>
+          our employer. Does it make sense to do this for computing free
+          memory?
+          <br>
+        </blockquote>
+        /proc/meminfo::MemAvailable was added for this purpose. See the
+        doc
+        <br>
+        text in Documentation/filesystem/proc.txt.
+        <br>
+        <br>
+        It's an approximation, however, because this question is not
+        easy to
+        <br>
+        answer. Pages might be in various states and uses that can make
+        them
+        <br>
+        unreclaimable.
+        <br>
+      </blockquote>
+      <br>
+      <br>
+      Khalid was telling me that our internal sources rejected
+      MemAvailable because it was not accurate enough. It says in the
+      description,
+      <br>
+      "The estimate takes into account that the system needs some page
+      cache to function well". I suspect that's part of the inaccuracy.
+      I asked Khalid to respond with more details on this.
+      <br>
+      <br>
+    </blockquote>
+    <br>
+    Some quotes,<br>
+    <br>
+    "<span id="OLK_SRC_BODY_SECTION"><span id="OLK_SRC_BODY_SECTION"
+        style="color: rgb(0, 0, 0); font-family: Calibri, sans-serif;
+        font-size: 14px; font-style: normal; font-variant: normal;
+        font-weight: normal; letter-spacing: normal; line-height:
+        normal; orphans: auto; text-align: start; text-indent: 0px;
+        text-transform: none; white-space: normal; widows: auto;
+        word-spacing: 0px; -webkit-text-stroke-width: 0px;"><span
+          id="OLK_SRC_BODY_SECTION">
+          <div style="font-family: Consolas; font-size: medium;">[regarding
+            MemAvaiable]</div>
+          <div style="font-family: Consolas; font-size: medium;"><br>
+          </div>
+          <div style="font-family: Consolas; font-size: medium;">This
+            new metric purportedly helps usrespace assess available
+            memory. But,</div>
+          <div style="font-family: Consolas; font-size: medium;">its
+            again based on heuristic, it takes 1/2 of page cache as
+            reclaimable..</div>
+          <div style="font-family: Consolas; font-size: medium;"><br>
+          </div>
+          <div style="font-family: Consolas; font-size: medium;">Somewhat
+            arbitrary choice. Maybe appropriate for desktops, where page</div>
+          <div style="font-family: Consolas; font-size: medium;">cache
+            is mainly used as page cache, not as a first class store
+            which is</div>
+          <div style="font-family: Consolas; font-size: medium;">the
+            case on embedded systems. Our systems are swap less, they
+            have little</div>
+          <div style="font-family: Consolas; font-size: medium;">secondary
+            storage, they use in-memory databases/filesystems/shared
+            memories/</div>
+          <div style="font-family: Consolas; font-size: medium;">etc.
+            which are all setup on page caches).. This metric as it is
+            implemented</div>
+          <div style="font-family: Consolas; font-size: medium;">in 3.14
+            leads to a totally mis-leading picture of available memory"</div>
+        </span></span></span><br>
+    Daniel<br>
+  </body>
+</html>
+
+--------------050209090902070508010707--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
