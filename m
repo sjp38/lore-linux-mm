@@ -1,31 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B878C6B0256
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:33:18 -0500 (EST)
-Received: by mail-io0-f177.google.com with SMTP id f81so112436738iof.0
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:33:18 -0800 (PST)
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8093B6B0259
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:33:24 -0500 (EST)
+Received: by mail-yk0-f181.google.com with SMTP id r207so52829985ykd.2
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:33:24 -0800 (PST)
 Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id jn5si1854463igb.40.2016.01.30.01.33.17
+        by mx.google.com with ESMTPS id o132si4596295ywo.47.2016.01.30.01.33.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jan 2016 01:33:18 -0800 (PST)
-Date: Sat, 30 Jan 2016 01:32:07 -0800
+        Sat, 30 Jan 2016 01:33:23 -0800 (PST)
+Date: Sat, 30 Jan 2016 01:32:29 -0800
 From: tip-bot for Toshi Kani <tipbot@zytor.com>
-Message-ID: <tip-1c29f25bf5d6c557017f619b638c619cbbf798c4@git.kernel.org>
-Reply-To: dvlasenk@redhat.com, tj@kernel.org, bp@suse.de, hpa@zytor.com,
-        akpm@linux-foundation.org, toshi.kani@hp.com,
-        ard.biesheuvel@linaro.org, kirill.shutemov@linux.intel.com,
-        brgerst@gmail.com, mcgrof@suse.com, jiang.liu@linux.intel.com,
-        n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, toshi.kani@hpe.com,
-        torvalds@linux-foundation.org, bp@alien8.de, jsitnicki@gmail.com,
-        dan.j.williams@intel.com, koct9i@gmail.com,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org,
-        luto@amacapital.net, tglx@linutronix.de, mingo@kernel.org,
-        jack@suse.cz, mhocko@suse.com, keescook@chromium.org
-In-Reply-To: <1453841853-11383-13-git-send-email-bp@alien8.de>
-References: <1453841853-11383-13-git-send-email-bp@alien8.de>
-Subject: [tip:core/resources] memremap: Change region_intersects()
-  to take @flags and @desc
+Message-ID: <tip-3f33647c41962401272bb60dce67e6094d14dbf2@git.kernel.org>
+Reply-To: luto@amacapital.net, brgerst@gmail.com, jiang.liu@linux.intel.com,
+        jsitnicki@gmail.com, rafael.j.wysocki@intel.com, mcgrof@suse.com,
+        linux-kernel@vger.kernel.org, toshi.kani@hp.com,
+        akpm@linux-foundation.org, linux-mm@kvack.org, dvlasenk@redhat.com,
+        mingo@kernel.org, bp@suse.de, hanjun.guo@linaro.org,
+        toshi.kani@hpe.com, dan.j.williams@intel.com, peterz@infradead.org,
+        bp@alien8.de, hpa@zytor.com, torvalds@linux-foundation.org,
+        tglx@linutronix.de
+In-Reply-To: <1453841853-11383-14-git-send-email-bp@alien8.de>
+References: <1453841853-11383-14-git-send-email-bp@alien8.de>
+Subject: [tip:core/resources] resource: Add walk_iomem_res_desc()
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -33,189 +30,188 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: mcgrof@suse.com, jiang.liu@linux.intel.com, toshi.kani@hpe.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, bp@alien8.de, torvalds@linux-foundation.org, dvlasenk@redhat.com, hpa@zytor.com, tj@kernel.org, bp@suse.de, akpm@linux-foundation.org, toshi.kani@hp.com, ard.biesheuvel@linaro.org, kirill.shutemov@linux.intel.com, brgerst@gmail.com, mingo@kernel.org, jack@suse.cz, tglx@linutronix.de, luto@amacapital.net, mhocko@suse.com, keescook@chromium.org, dan.j.williams@intel.com, jsitnicki@gmail.com, linux-kernel@vger.kernel.org, peterz@infradead.org, linux-mm@kvack.org, koct9i@gmail.com
+Cc: dan.j.williams@intel.com, torvalds@linux-foundation.org, tglx@linutronix.de, bp@alien8.de, hpa@zytor.com, peterz@infradead.org, bp@suse.de, toshi.kani@hpe.com, hanjun.guo@linaro.org, linux-kernel@vger.kernel.org, dvlasenk@redhat.com, mingo@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, toshi.kani@hp.com, jsitnicki@gmail.com, jiang.liu@linux.intel.com, brgerst@gmail.com, luto@amacapital.net, mcgrof@suse.com, rafael.j.wysocki@intel.com
 
-Commit-ID:  1c29f25bf5d6c557017f619b638c619cbbf798c4
-Gitweb:     http://git.kernel.org/tip/1c29f25bf5d6c557017f619b638c619cbbf798c4
+Commit-ID:  3f33647c41962401272bb60dce67e6094d14dbf2
+Gitweb:     http://git.kernel.org/tip/3f33647c41962401272bb60dce67e6094d14dbf2
 Author:     Toshi Kani <toshi.kani@hpe.com>
-AuthorDate: Tue, 26 Jan 2016 21:57:28 +0100
+AuthorDate: Tue, 26 Jan 2016 21:57:29 +0100
 Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Sat, 30 Jan 2016 09:49:58 +0100
+CommitDate: Sat, 30 Jan 2016 09:49:59 +0100
 
-memremap: Change region_intersects() to take @flags and @desc
+resource: Add walk_iomem_res_desc()
 
-Change region_intersects() to identify a target with @flags and
-@desc, instead of @name with strcmp().
+Add a new interface, walk_iomem_res_desc(), which walks through
+the iomem table by identifying a target with @flags and @desc.
+This interface provides the same functionality as
+walk_iomem_res(), but does not use strcmp() to @name for better
+efficiency.
 
-Change the callers of region_intersects(), memremap() and
-devm_memremap(), to set IORESOURCE_SYSTEM_RAM in @flags and
-IORES_DESC_NONE in @desc when searching System RAM.
+walk_iomem_res() is deprecated and will be removed in a later
+patch.
 
-Also, export region_intersects() so that the ACPI EINJ error
-injection driver can call this function in a later patch.
-
+Requested-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+[ Fixup comments. ]
 Signed-off-by: Borislav Petkov <bp@suse.de>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Hanjun Guo <hanjun.guo@linaro.org>
 Cc: Jakub Sitnicki <jsitnicki@gmail.com>
-Cc: Jan Kara <jack@suse.cz>
 Cc: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Luis R. Rodriguez <mcgrof@suse.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Tejun Heo <tj@kernel.org>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-arch@vger.kernel.org
 Cc: linux-mm <linux-mm@kvack.org>
-Link: http://lkml.kernel.org/r/1453841853-11383-13-git-send-email-bp@alien8.de
+Link: http://lkml.kernel.org/r/1453841853-11383-14-git-send-email-bp@alien8.de
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm.h |  3 ++-
- kernel/memremap.c  | 13 +++++++------
- kernel/resource.c  | 26 +++++++++++++++-----------
- 3 files changed, 24 insertions(+), 18 deletions(-)
+ include/linux/ioport.h |  3 +++
+ kernel/resource.c      | 66 ++++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 59 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f1cd22f..cd5a300 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -385,7 +385,8 @@ enum {
- 	REGION_MIXED,
- };
+diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+index 983bea0..2a4a5e8 100644
+--- a/include/linux/ioport.h
++++ b/include/linux/ioport.h
+@@ -268,6 +268,9 @@ extern int
+ walk_system_ram_res(u64 start, u64 end, void *arg,
+ 		    int (*func)(u64, u64, void *));
+ extern int
++walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start, u64 end,
++		    void *arg, int (*func)(u64, u64, void *));
++extern int
+ walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end, void *arg,
+ 	       int (*func)(u64, u64, void *));
  
--int region_intersects(resource_size_t offset, size_t size, const char *type);
-+int region_intersects(resource_size_t offset, size_t size, unsigned long flags,
-+		      unsigned long desc);
- 
- /* Support for virtually mapped pages */
- struct page *vmalloc_to_page(const void *addr);
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index e517a16..293309c 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -47,7 +47,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
-  * being mapped does not have i/o side effects and the __iomem
-  * annotation is not applicable.
-  *
-- * MEMREMAP_WB - matches the default mapping for "System RAM" on
-+ * MEMREMAP_WB - matches the default mapping for System RAM on
-  * the architecture.  This is usually a read-allocate write-back cache.
-  * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
-  * memremap() will bypass establishing a new mapping and instead return
-@@ -56,11 +56,12 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
-  * MEMREMAP_WT - establish a mapping whereby writes either bypass the
-  * cache or are written through to memory and never exist in a
-  * cache-dirty state with respect to program visibility.  Attempts to
-- * map "System RAM" with this mapping type will fail.
-+ * map System RAM with this mapping type will fail.
-  */
- void *memremap(resource_size_t offset, size_t size, unsigned long flags)
- {
--	int is_ram = region_intersects(offset, size, "System RAM");
-+	int is_ram = region_intersects(offset, size,
-+				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
- 	void *addr = NULL;
- 
- 	if (is_ram == REGION_MIXED) {
-@@ -76,7 +77,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
- 		 * MEMREMAP_WB is special in that it can be satisifed
- 		 * from the direct map.  Some archs depend on the
- 		 * capability of memremap() to autodetect cases where
--		 * the requested range is potentially in "System RAM"
-+		 * the requested range is potentially in System RAM.
- 		 */
- 		if (is_ram == REGION_INTERSECTS)
- 			addr = try_ram_remap(offset, size);
-@@ -88,7 +89,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
- 	 * If we don't have a mapping yet and more request flags are
- 	 * pending then we will be attempting to establish a new virtual
- 	 * address mapping.  Enforce that this mapping is not aliasing
--	 * "System RAM"
-+	 * System RAM.
- 	 */
- 	if (!addr && is_ram == REGION_INTERSECTS && flags) {
- 		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
-@@ -266,7 +267,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap)
- {
- 	int is_ram = region_intersects(res->start, resource_size(res),
--			"System RAM");
-+				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
- 	resource_size_t key, align_start, align_size;
- 	struct dev_pagemap *pgmap;
- 	struct page_map *page_map;
 diff --git a/kernel/resource.c b/kernel/resource.c
-index 994f1e41..0041ced 100644
+index 0041ced..37ed2fc 100644
 --- a/kernel/resource.c
 +++ b/kernel/resource.c
-@@ -496,31 +496,34 @@ EXPORT_SYMBOL_GPL(page_is_ram);
-  * region_intersects() - determine intersection of region with known resources
-  * @start: region start address
-  * @size: size of region
-- * @name: name of resource (in iomem_resource)
-+ * @flags: flags of resource (in iomem_resource)
-+ * @desc: descriptor of resource (in iomem_resource) or IORES_DESC_NONE
-  *
-  * Check if the specified region partially overlaps or fully eclipses a
-- * resource identified by @name.  Return REGION_DISJOINT if the region
-- * does not overlap @name, return REGION_MIXED if the region overlaps
-- * @type and another resource, and return REGION_INTERSECTS if the
-- * region overlaps @type and no other defined resource. Note, that
-- * REGION_INTERSECTS is also returned in the case when the specified
-- * region overlaps RAM and undefined memory holes.
-+ * resource identified by @flags and @desc (optional with IORES_DESC_NONE).
-+ * Return REGION_DISJOINT if the region does not overlap @flags/@desc,
-+ * return REGION_MIXED if the region overlaps @flags/@desc and another
-+ * resource, and return REGION_INTERSECTS if the region overlaps @flags/@desc
-+ * and no other defined resource. Note that REGION_INTERSECTS is also
-+ * returned in the case when the specified region overlaps RAM and undefined
-+ * memory holes.
-  *
-  * region_intersect() is used by memory remapping functions to ensure
-  * the user is not remapping RAM and is a vast speed up over walking
-  * through the resource table page by page.
+@@ -333,14 +333,15 @@ int release_resource(struct resource *old)
+ EXPORT_SYMBOL(release_resource);
+ 
+ /*
+- * Finds the lowest iomem reosurce exists with-in [res->start.res->end)
+- * the caller must specify res->start, res->end, res->flags and "name".
+- * If found, returns 0, res is overwritten, if not found, returns -1.
+- * This walks through whole tree and not just first level children
+- * until and unless first_level_children_only is true.
++ * Finds the lowest iomem resource existing within [res->start.res->end).
++ * The caller must specify res->start, res->end, res->flags, and optionally
++ * desc and "name".  If found, returns 0, res is overwritten, if not found,
++ * returns -1.
++ * This function walks the whole tree and not just first level children until
++ * and unless first_level_children_only is true.
   */
--int region_intersects(resource_size_t start, size_t size, const char *name)
-+int region_intersects(resource_size_t start, size_t size, unsigned long flags,
-+		      unsigned long desc)
+-static int find_next_iomem_res(struct resource *res, char *name,
+-			       bool first_level_children_only)
++static int find_next_iomem_res(struct resource *res, unsigned long desc,
++			       char *name, bool first_level_children_only)
  {
--	unsigned long flags = IORESOURCE_MEM | IORESOURCE_BUSY;
- 	resource_size_t end = start + size - 1;
- 	int type = 0; int other = 0;
+ 	resource_size_t start, end;
  	struct resource *p;
- 
- 	read_lock(&resource_lock);
- 	for (p = iomem_resource.child; p ; p = p->sibling) {
--		bool is_type = strcmp(p->name, name) == 0 &&
--				((p->flags & flags) == flags);
-+		bool is_type = (((p->flags & flags) == flags) &&
-+				((desc == IORES_DESC_NONE) ||
-+				 (desc == p->desc)));
- 
- 		if (start >= p->start && start <= p->end)
- 			is_type ? type++ : other++;
-@@ -539,6 +542,7 @@ int region_intersects(resource_size_t start, size_t size, const char *name)
- 
- 	return REGION_DISJOINT;
- }
-+EXPORT_SYMBOL_GPL(region_intersects);
- 
- void __weak arch_remove_reservations(struct resource *avail)
- {
+@@ -360,6 +361,8 @@ static int find_next_iomem_res(struct resource *res, char *name,
+ 	for (p = iomem_resource.child; p; p = next_resource(p, sibling_only)) {
+ 		if ((p->flags & res->flags) != res->flags)
+ 			continue;
++		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
++			continue;
+ 		if (name && strcmp(p->name, name))
+ 			continue;
+ 		if (p->start > end) {
+@@ -385,12 +388,55 @@ static int find_next_iomem_res(struct resource *res, char *name,
+  * Walks through iomem resources and calls func() with matching resource
+  * ranges. This walks through whole tree and not just first level children.
+  * All the memory ranges which overlap start,end and also match flags and
++ * desc are valid candidates.
++ *
++ * @desc: I/O resource descriptor. Use IORES_DESC_NONE to skip @desc check.
++ * @flags: I/O resource flags
++ * @start: start addr
++ * @end: end addr
++ *
++ * NOTE: For a new descriptor search, define a new IORES_DESC in
++ * <linux/ioport.h> and set it in 'desc' of a target resource entry.
++ */
++int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
++		u64 end, void *arg, int (*func)(u64, u64, void *))
++{
++	struct resource res;
++	u64 orig_end;
++	int ret = -1;
++
++	res.start = start;
++	res.end = end;
++	res.flags = flags;
++	orig_end = res.end;
++
++	while ((res.start < res.end) &&
++		(!find_next_iomem_res(&res, desc, NULL, false))) {
++
++		ret = (*func)(res.start, res.end, arg);
++		if (ret)
++			break;
++
++		res.start = res.end + 1;
++		res.end = orig_end;
++	}
++
++	return ret;
++}
++
++/*
++ * Walks through iomem resources and calls @func with matching resource
++ * ranges. This walks the whole tree and not just first level children.
++ * All the memory ranges which overlap start,end and also match flags and
+  * name are valid candidates.
+  *
+  * @name: name of resource
+  * @flags: resource flags
+  * @start: start addr
+  * @end: end addr
++ *
++ * NOTE: This function is deprecated and should not be used in new code.
++ * Use walk_iomem_res_desc(), instead.
+  */
+ int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+ 		void *arg, int (*func)(u64, u64, void *))
+@@ -404,7 +450,7 @@ int walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end,
+ 	res.flags = flags;
+ 	orig_end = res.end;
+ 	while ((res.start < res.end) &&
+-		(!find_next_iomem_res(&res, name, false))) {
++		(!find_next_iomem_res(&res, IORES_DESC_NONE, name, false))) {
+ 		ret = (*func)(res.start, res.end, arg);
+ 		if (ret)
+ 			break;
+@@ -433,7 +479,7 @@ int walk_system_ram_res(u64 start, u64 end, void *arg,
+ 	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+ 	orig_end = res.end;
+ 	while ((res.start < res.end) &&
+-		(!find_next_iomem_res(&res, NULL, true))) {
++		(!find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true))) {
+ 		ret = (*func)(res.start, res.end, arg);
+ 		if (ret)
+ 			break;
+@@ -463,7 +509,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+ 	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+ 	orig_end = res.end;
+ 	while ((res.start < res.end) &&
+-		(find_next_iomem_res(&res, NULL, true) >= 0)) {
++		(find_next_iomem_res(&res, IORES_DESC_NONE, NULL, true) >= 0)) {
+ 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+ 		if (end_pfn > pfn)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
