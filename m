@@ -1,110 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 87C1F6B0253
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 05:28:13 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id 128so12288431wmz.1
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 02:28:13 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id pb8si27406266wjb.141.2016.01.30.02.28.12
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EA66B0009
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 05:45:32 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id p63so11103390wmp.1
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 02:45:32 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id bj10si27465422wjc.110.2016.01.30.02.45.26
         for <linux-mm@kvack.org>;
-        Sat, 30 Jan 2016 02:28:12 -0800 (PST)
-Date: Sat, 30 Jan 2016 11:28:03 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v8 3/3] x86, mce: Add __mcsafe_copy()
-Message-ID: <20160130102803.GB15296@pd.tnic>
-References: <CA+8MBbLUtVh3E4RqcHbZ165v+fURGYPm=ejOn2cOPq012BwLSg@mail.gmail.com>
- <CAPcyv4hAenpeqPsj7Rd0Un_SgDpm+CjqH3EK72ho-=zZFvG7wA@mail.gmail.com>
- <CALCETrVRgaWS86wq4B6oZbEY5_ODb3Nh5OeE9vvdGdds6j_pYg@mail.gmail.com>
- <CAPcyv4iCbp0oR_V+XCTduLd1t2UxyFwaoJVk0_vwk8aO2Uh=bQ@mail.gmail.com>
- <CA+8MBbLFb1gdhFWeG-3V4=gHd-fHK_n1oJEFCrYiNa8Af6XAng@mail.gmail.com>
- <20160110112635.GC22896@pd.tnic>
- <20160111104425.GA29448@gmail.com>
- <CA+8MBbJpFWdkwC-yvmDFdFuLrchv2-XhPd3fk8A_hqOOyzm5og@mail.gmail.com>
- <20160114043956.GA8496@pd.tnic>
- <CA+8MBbKdH8v=gkTqzxpPRX9-jBEobU9XaEfZh=4cOXDjPE9fBA@mail.gmail.com>
+        Sat, 30 Jan 2016 02:45:31 -0800 (PST)
+Message-ID: <56AC9371.5030605@huawei.com>
+Date: Sat, 30 Jan 2016 18:41:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CA+8MBbKdH8v=gkTqzxpPRX9-jBEobU9XaEfZh=4cOXDjPE9fBA@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/2] mm/page_alloc: avoid splitting pages of order
+ 2 and 3 in migration fallback
+References: <cover.1454094692.git.chengyihetaipei@gmail.com> <46b854accad3f40e4178cf3bbd215a4648551763.1454094692.git.chengyihetaipei@gmail.com>
+In-Reply-To: <46b854accad3f40e4178cf3bbd215a4648551763.1454094692.git.chengyihetaipei@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert <elliott@hpe.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: ChengYi He <chengyihetaipei@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil
+ Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Yaowei Bai <bywxiaobai@163.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 29, 2016 at 04:35:35PM -0800, Tony Luck wrote:
-> On Wed, Jan 13, 2016 at 8:39 PM, Borislav Petkov <bp@alien8.de> wrote:
-> > On Wed, Jan 13, 2016 at 03:22:58PM -0800, Tony Luck wrote:
-> >> Are there some examples of synthetic CPUID bits?
-> >
-> > X86_FEATURE_ALWAYS is one. The others got renamed into X86_BUG_* ones,
-> > the remaining mechanism is the same, though.
+On 2016/1/30 3:25, ChengYi He wrote:
+
+> While buddy system fallbacks to allocate different migration type pages,
+> it prefers the largest feasible pages and might split the chosen page
+> into smalller ones. If the largest feasible pages are less than or equal
+> to orde-3 and migration fallback happens frequently, then order-2 and
+> order-3 pages can be exhausted easily. This patch aims to allocate the
+> smallest feasible pages for the fallback mechanism under this condition.
 > 
-> So something like this [gmail will line wrap, but should still be legible]
+> Signed-off-by: ChengYi He <chengyihetaipei@gmail.com>
+> ---
+>  mm/page_alloc.c | 19 ++++++++++++++++---
+>  1 file changed, 16 insertions(+), 3 deletions(-)
 > 
-> Then Dan will be able to use:
-> 
->       if (cpu_has(c, X86_FEATURE_MCRECOVERY))
-> 
-> to decide whether to use the (slightly slower, but recovery capable)
-> __mcsafe_copy()
-> or just pick the fastest memcpy() instead.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 50c325a..3fcb653 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1802,9 +1802,22 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  	struct page *page;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+> -	for (current_order = MAX_ORDER-1;
+> -				current_order >= order && current_order <= MAX_ORDER-1;
+> -				--current_order) {
+> +	for (current_order = MAX_ORDER - 1;
+> +			current_order >= max_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER + 1, order);
+> +			--current_order) {
+> +		page = __rmqueue_fallback_order(zone, order, start_migratetype,
+> +				current_order);
+> +
+> +		if (page)
+> +			return page;
+> +	}
+> +
+> +	/*
+> +	 * While current_order <= PAGE_ALLOC_COSTLY_ORDER, find the smallest
+> +	 * feasible pages in the other list to avoid splitting high order pages
+> +	 */
+> +	for (current_order = order; current_order <= PAGE_ALLOC_COSTLY_ORDER;
+> +			++current_order) {
+>  		page = __rmqueue_fallback_order(zone, order, start_migratetype,
+>  				current_order);
+>  
 
-The most optimal way of alternatively calling two functions would be
-something like this, IMO:
+Hi Chengyi,
 
-alternative_call(memcpy, __mcsafe_copy, X86_FEATURE_MCRECOVERY,
-		 ASM_OUTPUT2("=a" (mcsafe_ret.trapnr), "=d" (mcsafe_ret.remain)),
-		 "D" (dst), "S" (src), "d" (len));
+So you mean use the largest block first, if no large block left, the use the
+smallest block, right?
 
-I hope I've not messed up the calling convention but you want the inputs
-in %rdi, %rsi, %rdx and the outputs in %rax, %rdx, respectively. Just
-check the asm gcc generates and do not trust me :)
+I have an idea, how about set two migrate types(movable and unmovable) when
+doing init work? The function is memmap_init_zone().
 
-The other thing you probably would need to do is create our own
-__memcpy() which returns struct mcsafe_ret so that the signatures of
-both functions match.
+I don't know how to set the ratio, maybe unmovable takes 1/10 memory, and left
+9/10 memory to movable? I think this effect is a little like the two zones
+(normal and movable). 
 
-Yeah, it is a bit of jumping through hoops but this way we do a CALL
-<func_ptr> directly in asm, without any JMPs or NOPs padding the other
-alternatives methods add.
+Another two ideas
+https://lkml.org/lkml/2015/8/14/67
+7d348b9ea64db0a315d777ce7d4b06697f946503, maybe this patch is not applied on your 3.10
 
-But if you don't care about a small JMP and that is not a hot path, you
-could do the simpler:
-
-	if (static_cpu_has(X86_FEATURE_MCRECOVERY))
-		return __mcsafe_copy(...);
-
-	return memcpy();
-
-which adds a JMP or a 5-byte NOP depending on the X86_FEATURE_MCRECOVERY
-setting.
-
-> diff --git a/arch/x86/include/asm/cpufeature.h
-> b/arch/x86/include/asm/cpufeature.h
-> index 7ad8c9464297..621e05103633 100644
-> --- a/arch/x86/include/asm/cpufeature.h
-> +++ b/arch/x86/include/asm/cpufeature.h
-> @@ -106,6 +106,7 @@
->  #define X86_FEATURE_APERFMPERF ( 3*32+28) /* APERFMPERF */
->  #define X86_FEATURE_EAGER_FPU  ( 3*32+29) /* "eagerfpu" Non lazy FPU restore */
->  #define X86_FEATURE_NONSTOP_TSC_S3 ( 3*32+30) /* TSC doesn't stop in
-> S3 state */
-> +#define X86_FEATURE_MCRECOVERY ( 3*32+31) /* cpu has recoverable
-
-Why not write it out?
-
-	X86_FEATURE_MCE_RECOVERY
-
-> machine checks */
-> 
->  /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
->  #define X86_FEATURE_XMM3       ( 4*32+ 0) /* "pni" SSE-3 */
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
