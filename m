@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C84456B0255
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:30:08 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id uo6so55365962pac.1
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:30:08 -0800 (PST)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C87F56B0009
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:30:40 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id x125so55825386pfb.0
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:30:40 -0800 (PST)
 Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id sq8si8243730pab.10.2016.01.30.01.30.07
+        by mx.google.com with ESMTPS id n1si8266089pap.199.2016.01.30.01.30.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jan 2016 01:30:08 -0800 (PST)
-Date: Sat, 30 Jan 2016 01:29:07 -0800
+        Sat, 30 Jan 2016 01:30:40 -0800 (PST)
+Date: Sat, 30 Jan 2016 01:29:30 -0800
 From: tip-bot for Toshi Kani <tipbot@zytor.com>
-Message-ID: <tip-f33b14a4b96b185634848046f54fb0d5028566a9@git.kernel.org>
-Reply-To: luto@amacapital.net, hpa@zytor.com, bhe@redhat.com,
-        brgerst@gmail.com, dan.j.williams@intel.com,
-        torvalds@linux-foundation.org, msalter@redhat.com, bp@alien8.de,
-        jkosina@suse.cz, mcgrof@suse.com, pbonzini@redhat.com,
-        mingo@kernel.org, peterz@infradead.org, tony.luck@intel.com,
-        toshi.kani@hpe.com, jgross@suse.com, tglx@linutronix.de,
-        toshi.kani@hp.com, linux-kernel@vger.kernel.org, dvlasenk@redhat.com,
-        akpm@linux-foundation.org, dyoung@redhat.com, bp@suse.de,
-        chaowang@redhat.com, linux-mm@kvack.org, jroedel@suse.de
-In-Reply-To: <1453841853-11383-5-git-send-email-bp@alien8.de>
-References: <1453841853-11383-5-git-send-email-bp@alien8.de>
-Subject: [tip:core/resources] x86/e820: Set System RAM type and descriptor
+Message-ID: <tip-03cb525eb25018cf5f3da01d0f1391fc8b37805a@git.kernel.org>
+Reply-To: linux-kernel@vger.kernel.org, torvalds@linux-foundation.org,
+        dvlasenk@redhat.com, mingo@kernel.org, rusty@rustcorp.com.au,
+        hpa@zytor.com, peterz@infradead.org, fenghua.yu@intel.com,
+        akpm@linux-foundation.org, bp@suse.de, luto@amacapital.net,
+        toshi.kani@hp.com, linux-efi@vger.kernel.org, bp@alien8.de,
+        mcgrof@suse.com, tglx@linutronix.de, tony.luck@intel.com,
+        brgerst@gmail.com, toshi.kani@hpe.com, linux-mm@kvack.org,
+        matt@codeblueprint.co.uk
+In-Reply-To: <1453841853-11383-6-git-send-email-bp@alien8.de>
+References: <1453841853-11383-6-git-send-email-bp@alien8.de>
+Subject: [tip:core/resources] ia64: Set System RAM type and descriptor
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -31,147 +30,138 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: bp@alien8.de, jkosina@suse.cz, mcgrof@suse.com, pbonzini@redhat.com, bhe@redhat.com, brgerst@gmail.com, hpa@zytor.com, luto@amacapital.net, torvalds@linux-foundation.org, msalter@redhat.com, dan.j.williams@intel.com, chaowang@redhat.com, akpm@linux-foundation.org, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, linux-mm@kvack.org, toshi.kani@hpe.com, jgross@suse.com, tglx@linutronix.de, mingo@kernel.org, peterz@infradead.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, dvlasenk@redhat.com, toshi.kani@hp.com
+Cc: dvlasenk@redhat.com, mingo@kernel.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rusty@rustcorp.com.au, peterz@infradead.org, hpa@zytor.com, fenghua.yu@intel.com, akpm@linux-foundation.org, bp@suse.de, toshi.kani@hp.com, luto@amacapital.net, tglx@linutronix.de, tony.luck@intel.com, linux-efi@vger.kernel.org, mcgrof@suse.com, bp@alien8.de, brgerst@gmail.com, linux-mm@kvack.org, matt@codeblueprint.co.uk, toshi.kani@hpe.com
 
-Commit-ID:  f33b14a4b96b185634848046f54fb0d5028566a9
-Gitweb:     http://git.kernel.org/tip/f33b14a4b96b185634848046f54fb0d5028566a9
+Commit-ID:  03cb525eb25018cf5f3da01d0f1391fc8b37805a
+Gitweb:     http://git.kernel.org/tip/03cb525eb25018cf5f3da01d0f1391fc8b37805a
 Author:     Toshi Kani <toshi.kani@hpe.com>
-AuthorDate: Tue, 26 Jan 2016 21:57:20 +0100
+AuthorDate: Tue, 26 Jan 2016 21:57:21 +0100
 Committer:  Ingo Molnar <mingo@kernel.org>
 CommitDate: Sat, 30 Jan 2016 09:49:57 +0100
 
-x86/e820: Set System RAM type and descriptor
+ia64: Set System RAM type and descriptor
 
-Change e820_reserve_resources() to set 'flags' and 'desc' from
-e820 types.
+Change efi_initialize_iomem_resources() to set 'flags' and
+'desc' for EFI memory types. IORESOURCE_SYSRAM, a modifier bit,
+is set for System RAM as IORESOURCE_MEM is already set.
+IORESOURCE_SYSTEM_RAM is defined as
+(IORESOURCE_MEM|IORESOURCE_SYSRAM). I/O resource descriptor is
+set for "ACPI Non-volatile Storage" and "Persistent Memory".
 
-Set E820_RESERVED_KERN and E820_RAM's (System RAM) io resource
-type to IORESOURCE_SYSTEM_RAM.
-
-Do the same for "Kernel data", "Kernel code", and "Kernel bss",
-which are child nodes of System RAM.
-
-I/O resource descriptor is set to 'desc' for entries that are
-(and will be) target ranges of walk_iomem_res() and
-region_intersects().
+Also set IORESOURCE_SYSTEM_RAM for "Kernel code", "Kernel data",
+and "Kernel bss".
 
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Signed-off-by: Borislav Petkov <bp@suse.de>
+Acked-by: Tony Luck <tony.luck@intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Baoquan He <bhe@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Young <dyoung@redhat.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
 Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Joerg Roedel <jroedel@suse.de>
-Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Luis R. Rodriguez <mcgrof@suse.com>
-Cc: Mark Salter <msalter@redhat.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
 Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
 Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Tony Luck <tony.luck@intel.com>
 Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: WANG Chao <chaowang@redhat.com>
 Cc: linux-arch@vger.kernel.org
+Cc: linux-efi <linux-efi@vger.kernel.org>
+Cc: linux-ia64@vger.kernel.org
 Cc: linux-mm <linux-mm@kvack.org>
-Link: http://lkml.kernel.org/r/1453841853-11383-5-git-send-email-bp@alien8.de
+Link: http://lkml.kernel.org/r/1453841853-11383-6-git-send-email-bp@alien8.de
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/kernel/e820.c  | 38 +++++++++++++++++++++++++++++++++++++-
- arch/x86/kernel/setup.c |  6 +++---
- 2 files changed, 40 insertions(+), 4 deletions(-)
+ arch/ia64/kernel/efi.c   | 13 ++++++++++---
+ arch/ia64/kernel/setup.c |  6 +++---
+ 2 files changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index 569c1e4..837365f 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -925,6 +925,41 @@ static const char *e820_type_to_string(int e820_type)
- 	}
- }
+diff --git a/arch/ia64/kernel/efi.c b/arch/ia64/kernel/efi.c
+index caae3f4..300dac3 100644
+--- a/arch/ia64/kernel/efi.c
++++ b/arch/ia64/kernel/efi.c
+@@ -1178,7 +1178,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
+ 	efi_memory_desc_t *md;
+ 	u64 efi_desc_size;
+ 	char *name;
+-	unsigned long flags;
++	unsigned long flags, desc;
  
-+static unsigned long e820_type_to_iomem_type(int e820_type)
-+{
-+	switch (e820_type) {
-+	case E820_RESERVED_KERN:
-+	case E820_RAM:
-+		return IORESOURCE_SYSTEM_RAM;
-+	case E820_ACPI:
-+	case E820_NVS:
-+	case E820_UNUSABLE:
-+	case E820_PRAM:
-+	case E820_PMEM:
-+	default:
-+		return IORESOURCE_MEM;
-+	}
-+}
+ 	efi_map_start = __va(ia64_boot_param->efi_memmap);
+ 	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+@@ -1193,6 +1193,8 @@ efi_initialize_iomem_resources(struct resource *code_resource,
+ 			continue;
+ 
+ 		flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++		desc = IORES_DESC_NONE;
 +
-+static unsigned long e820_type_to_iores_desc(int e820_type)
-+{
-+	switch (e820_type) {
-+	case E820_ACPI:
-+		return IORES_DESC_ACPI_TABLES;
-+	case E820_NVS:
-+		return IORES_DESC_ACPI_NV_STORAGE;
-+	case E820_PMEM:
-+		return IORES_DESC_PERSISTENT_MEMORY;
-+	case E820_PRAM:
-+		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
-+	case E820_RESERVED_KERN:
-+	case E820_RAM:
-+	case E820_UNUSABLE:
-+	default:
-+		return IORES_DESC_NONE;
-+	}
-+}
-+
- static bool do_mark_busy(u32 type, struct resource *res)
- {
- 	/* this is the legacy bios/dos rom-shadow + mmio region */
-@@ -967,7 +1002,8 @@ void __init e820_reserve_resources(void)
- 		res->start = e820.map[i].addr;
- 		res->end = end;
+ 		switch (md->type) {
  
--		res->flags = IORESOURCE_MEM;
-+		res->flags = e820_type_to_iomem_type(e820.map[i].type);
-+		res->desc = e820_type_to_iores_desc(e820.map[i].type);
+ 			case EFI_MEMORY_MAPPED_IO:
+@@ -1207,14 +1209,17 @@ efi_initialize_iomem_resources(struct resource *code_resource,
+ 				if (md->attribute & EFI_MEMORY_WP) {
+ 					name = "System ROM";
+ 					flags |= IORESOURCE_READONLY;
+-				} else if (md->attribute == EFI_MEMORY_UC)
++				} else if (md->attribute == EFI_MEMORY_UC) {
+ 					name = "Uncached RAM";
+-				else
++				} else {
+ 					name = "System RAM";
++					flags |= IORESOURCE_SYSRAM;
++				}
+ 				break;
  
- 		/*
- 		 * don't register the region that could be conflicted with
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index d3d80e6..aa52c10 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -152,21 +152,21 @@ static struct resource data_resource = {
+ 			case EFI_ACPI_MEMORY_NVS:
+ 				name = "ACPI Non-volatile Storage";
++				desc = IORES_DESC_ACPI_NV_STORAGE;
+ 				break;
+ 
+ 			case EFI_UNUSABLE_MEMORY:
+@@ -1224,6 +1229,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
+ 
+ 			case EFI_PERSISTENT_MEMORY:
+ 				name = "Persistent Memory";
++				desc = IORES_DESC_PERSISTENT_MEMORY;
+ 				break;
+ 
+ 			case EFI_RESERVED_TYPE:
+@@ -1246,6 +1252,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
+ 		res->start = md->phys_addr;
+ 		res->end = md->phys_addr + efi_md_size(md) - 1;
+ 		res->flags = flags;
++		res->desc = desc;
+ 
+ 		if (insert_resource(&iomem_resource, res) < 0)
+ 			kfree(res);
+diff --git a/arch/ia64/kernel/setup.c b/arch/ia64/kernel/setup.c
+index 4f118b0..2029a38 100644
+--- a/arch/ia64/kernel/setup.c
++++ b/arch/ia64/kernel/setup.c
+@@ -80,17 +80,17 @@ unsigned long vga_console_membase;
+ 
+ static struct resource data_resource = {
  	.name	= "Kernel data",
- 	.start	= 0,
- 	.end	= 0,
 -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
  };
  
  static struct resource code_resource = {
  	.name	= "Kernel code",
- 	.start	= 0,
- 	.end	= 0,
 -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
  };
  
  static struct resource bss_resource = {
  	.name	= "Kernel bss",
- 	.start	= 0,
- 	.end	= 0,
 -	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 +	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
  };
  
- 
+ unsigned long ia64_max_cacheline_size;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
