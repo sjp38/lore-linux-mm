@@ -1,60 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id BDECA6B0009
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 10:30:56 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l66so16848503wml.0
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 07:30:56 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id 190si3710229wmh.45.2016.01.30.07.30.55
-        for <linux-mm@kvack.org>;
-        Sat, 30 Jan 2016 07:30:55 -0800 (PST)
-Date: Sat, 30 Jan 2016 16:30:54 +0100
-From: Pavel Machek <pavel@denx.de>
-Subject: Re: [PATCHv2 2/2] mm/page_poisoning.c: Allow for zero poisoning
-Message-ID: <20160130153053.GA4859@amd>
-References: <1454035099-31583-1-git-send-email-labbott@fedoraproject.org>
- <1454035099-31583-3-git-send-email-labbott@fedoraproject.org>
- <20160129104543.GA21224@amd>
- <56ABDB4A.2040709@redhat.com>
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BE71A6B0009
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 12:46:56 -0500 (EST)
+Received: by mail-qk0-f172.google.com with SMTP id s5so36529960qkd.0
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 09:46:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 7si23250819qgy.13.2016.01.30.09.46.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 30 Jan 2016 09:46:55 -0800 (PST)
+Date: Sat, 30 Jan 2016 18:46:46 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at
+ kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
+Message-ID: <20160130184646.6ea9c5f8@redhat.com>
+In-Reply-To: <21684.1454137770@turing-police.cc.vt.edu>
+References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
+	<20160128184749.7bdee246@redhat.com>
+	<21684.1454137770@turing-police.cc.vt.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56ABDB4A.2040709@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Laura Abbott <labbott@fedoraproject.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>, linux-pm@vger.kernel.org
+To: Valdis.Kletnieks@vt.edu
+Cc: kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, brouer@redhat.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-Hi!
+On Sat, 30 Jan 2016 02:09:30 -0500
+Valdis.Kletnieks@vt.edu wrote:
 
-> >>By default, page poisoning uses a poison value (0xaa) on free. If this
-> >>is changed to 0, the page is not only sanitized but zeroing on alloc
-> >>with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
-> >>corruption from the poisoning is harder to detect. This feature also
-> >>cannot be used with hibernation since pages are not guaranteed to be
-> >>zeroed after hibernation.
+> On Thu, 28 Jan 2016 18:47:49 +0100, Jesper Dangaard Brouer said:
+> > I cannot reproduce below problem... have enabled all kind of debugging
+> > and also lockdep.
 > >
-> >So... this makes kernel harder to debug for performance advantage...?
-> >If so.. how big is the performance advantage?
-
+> > Can I get a version of the .config file used?  
 > 
-> The performance advantage really depends on the benchmark you are
-> running.
+> I'm not the 0day bot, but my laptop hits the same issue at boot.
 
-You are trying to improve performance, so you should publish at least
-one benchmark where it helps.
+Thank you! I'm now able to reproduce, and I've found the issue. It only
+happens for SLAB, and with FAILSLAB disabled.
 
-Alternatively, quote kernel build times with and without the
-patch.
+The problem were introduced in the patch before:
+  http://ozlabs.org/~akpm/mmots/broken-out/mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
+which moved the check function:
 
-If it speeds kernel compile twice, I guess I may even help with
-hibernation support. If it makes kernel compile faster by .00000034%
-(or slows it down), we should probably simply ignore this patch.
+ static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
+ {
+       if (unlikely(cachep == kmem_cache))
+               return false;
 
-									Pavel
+       return should_failslab(cachep->object_size, flags, cachep->flags);
+ }
+
+into the fault injection framework, call of should_failslab().
+
+That change was wrong, as some very early boot code depend on SLAB
+failing, when still allocating from the bootstrap kmem_cache. SLUB seem
+to handle this better.
+
+
+In this case the percpu system, have a workqueue function, calling
+pcpu_extend_area_map() which sort-of probe the slab-allocator, and
+depending on it fails, until it is fully ready.
+
+I will fix up my patches, reverting this change... and let them go
+through Andrews quilt process.
+
+Let me know, if the linux-next tree need's an explicit fix?
+
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
