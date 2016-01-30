@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A6ECC6B0254
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:29:54 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id ho8so54408947pac.2
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:29:54 -0800 (PST)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C84456B0255
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:30:08 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id uo6so55365962pac.1
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 01:30:08 -0800 (PST)
 Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id 84si29645777pfr.114.2016.01.30.01.29.53
+        by mx.google.com with ESMTPS id sq8si8243730pab.10.2016.01.30.01.30.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jan 2016 01:29:53 -0800 (PST)
-Date: Sat, 30 Jan 2016 01:28:45 -0800
+        Sat, 30 Jan 2016 01:30:08 -0800 (PST)
+Date: Sat, 30 Jan 2016 01:29:07 -0800
 From: tip-bot for Toshi Kani <tipbot@zytor.com>
-Message-ID: <tip-43ee493bde78da00deaf5737925365c691a036ad@git.kernel.org>
-Reply-To: dan.j.williams@intel.com, mingo@kernel.org, toshi.kani@hpe.com,
-        bp@alien8.de, torvalds@linux-foundation.org, tglx@linutronix.de,
-        linux-mm@kvack.org, hpa@zytor.com, mcgrof@suse.com,
-        akpm@linux-foundation.org, jsitnicki@gmail.com, toshi.kani@hp.com,
-        dvlasenk@redhat.com, peterz@infradead.org, luto@amacapital.net,
-        jiang.liu@linux.intel.com, linux-kernel@vger.kernel.org, bp@suse.de,
-        brgerst@gmail.com
-In-Reply-To: <1453841853-11383-4-git-send-email-bp@alien8.de>
-References: <1453841853-11383-4-git-send-email-bp@alien8.de>
-Subject: [tip:core/resources] resource: Add I/O resource descriptor
+Message-ID: <tip-f33b14a4b96b185634848046f54fb0d5028566a9@git.kernel.org>
+Reply-To: luto@amacapital.net, hpa@zytor.com, bhe@redhat.com,
+        brgerst@gmail.com, dan.j.williams@intel.com,
+        torvalds@linux-foundation.org, msalter@redhat.com, bp@alien8.de,
+        jkosina@suse.cz, mcgrof@suse.com, pbonzini@redhat.com,
+        mingo@kernel.org, peterz@infradead.org, tony.luck@intel.com,
+        toshi.kani@hpe.com, jgross@suse.com, tglx@linutronix.de,
+        toshi.kani@hp.com, linux-kernel@vger.kernel.org, dvlasenk@redhat.com,
+        akpm@linux-foundation.org, dyoung@redhat.com, bp@suse.de,
+        chaowang@redhat.com, linux-mm@kvack.org, jroedel@suse.de
+In-Reply-To: <1453841853-11383-5-git-send-email-bp@alien8.de>
+References: <1453841853-11383-5-git-send-email-bp@alien8.de>
+Subject: [tip:core/resources] x86/e820: Set System RAM type and descriptor
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -29,150 +31,147 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: hpa@zytor.com, mcgrof@suse.com, akpm@linux-foundation.org, jsitnicki@gmail.com, dvlasenk@redhat.com, toshi.kani@hp.com, dan.j.williams@intel.com, mingo@kernel.org, toshi.kani@hpe.com, torvalds@linux-foundation.org, bp@alien8.de, tglx@linutronix.de, linux-mm@kvack.org, bp@suse.de, brgerst@gmail.com, jiang.liu@linux.intel.com, luto@amacapital.net, peterz@infradead.org, linux-kernel@vger.kernel.org
+Cc: bp@alien8.de, jkosina@suse.cz, mcgrof@suse.com, pbonzini@redhat.com, bhe@redhat.com, brgerst@gmail.com, hpa@zytor.com, luto@amacapital.net, torvalds@linux-foundation.org, msalter@redhat.com, dan.j.williams@intel.com, chaowang@redhat.com, akpm@linux-foundation.org, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, linux-mm@kvack.org, toshi.kani@hpe.com, jgross@suse.com, tglx@linutronix.de, mingo@kernel.org, peterz@infradead.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, dvlasenk@redhat.com, toshi.kani@hp.com
 
-Commit-ID:  43ee493bde78da00deaf5737925365c691a036ad
-Gitweb:     http://git.kernel.org/tip/43ee493bde78da00deaf5737925365c691a036ad
+Commit-ID:  f33b14a4b96b185634848046f54fb0d5028566a9
+Gitweb:     http://git.kernel.org/tip/f33b14a4b96b185634848046f54fb0d5028566a9
 Author:     Toshi Kani <toshi.kani@hpe.com>
-AuthorDate: Tue, 26 Jan 2016 21:57:19 +0100
+AuthorDate: Tue, 26 Jan 2016 21:57:20 +0100
 Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Sat, 30 Jan 2016 09:49:56 +0100
+CommitDate: Sat, 30 Jan 2016 09:49:57 +0100
 
-resource: Add I/O resource descriptor
+x86/e820: Set System RAM type and descriptor
 
-walk_iomem_res() and region_intersects() still need to use
-strcmp() for searching a resource entry by @name in the iomem
-table.
+Change e820_reserve_resources() to set 'flags' and 'desc' from
+e820 types.
 
-This patch introduces I/O resource descriptor 'desc' in struct
-resource for the iomem search interfaces. Drivers can assign
-their unique descriptor to a range when they support the search
-interfaces.
+Set E820_RESERVED_KERN and E820_RAM's (System RAM) io resource
+type to IORESOURCE_SYSTEM_RAM.
 
-Otherwise, 'desc' is set to IORES_DESC_NONE (0). This avoids
-changing most of the drivers as they typically allocate resource
-entries statically, or by calling alloc_resource(), kzalloc(),
-or alloc_bootmem_low(), which set the field to zero by default.
-A later patch will address some drivers that use kmalloc()
-without zero'ing the field.
+Do the same for "Kernel data", "Kernel code", and "Kernel bss",
+which are child nodes of System RAM.
 
-Also change release_mem_region_adjustable() to set 'desc' when
-its resource entry gets separated. Other resource interfaces are
-also changed to initialize 'desc' explicitly although
-alloc_resource() sets it to 0.
+I/O resource descriptor is set to 'desc' for entries that are
+(and will be) target ranges of walk_iomem_res() and
+region_intersects().
 
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Signed-off-by: Borislav Petkov <bp@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Baoquan He <bhe@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Young <dyoung@redhat.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Jakub Sitnicki <jsitnicki@gmail.com>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Jiri Kosina <jkosina@suse.cz>
+Cc: Joerg Roedel <jroedel@suse.de>
+Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Luis R. Rodriguez <mcgrof@suse.com>
+Cc: Mark Salter <msalter@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tony Luck <tony.luck@intel.com>
 Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: WANG Chao <chaowang@redhat.com>
 Cc: linux-arch@vger.kernel.org
 Cc: linux-mm <linux-mm@kvack.org>
-Link: http://lkml.kernel.org/r/1453841853-11383-4-git-send-email-bp@alien8.de
+Link: http://lkml.kernel.org/r/1453841853-11383-5-git-send-email-bp@alien8.de
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/ioport.h | 18 ++++++++++++++++++
- kernel/resource.c      |  5 +++++
- 2 files changed, 23 insertions(+)
+ arch/x86/kernel/e820.c  | 38 +++++++++++++++++++++++++++++++++++++-
+ arch/x86/kernel/setup.c |  6 +++---
+ 2 files changed, 40 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index 4b65d94..983bea0 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -20,6 +20,7 @@ struct resource {
- 	resource_size_t end;
- 	const char *name;
- 	unsigned long flags;
-+	unsigned long desc;
- 	struct resource *parent, *sibling, *child;
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 569c1e4..837365f 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -925,6 +925,41 @@ static const char *e820_type_to_string(int e820_type)
+ 	}
+ }
+ 
++static unsigned long e820_type_to_iomem_type(int e820_type)
++{
++	switch (e820_type) {
++	case E820_RESERVED_KERN:
++	case E820_RAM:
++		return IORESOURCE_SYSTEM_RAM;
++	case E820_ACPI:
++	case E820_NVS:
++	case E820_UNUSABLE:
++	case E820_PRAM:
++	case E820_PMEM:
++	default:
++		return IORESOURCE_MEM;
++	}
++}
++
++static unsigned long e820_type_to_iores_desc(int e820_type)
++{
++	switch (e820_type) {
++	case E820_ACPI:
++		return IORES_DESC_ACPI_TABLES;
++	case E820_NVS:
++		return IORES_DESC_ACPI_NV_STORAGE;
++	case E820_PMEM:
++		return IORES_DESC_PERSISTENT_MEMORY;
++	case E820_PRAM:
++		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
++	case E820_RESERVED_KERN:
++	case E820_RAM:
++	case E820_UNUSABLE:
++	default:
++		return IORES_DESC_NONE;
++	}
++}
++
+ static bool do_mark_busy(u32 type, struct resource *res)
+ {
+ 	/* this is the legacy bios/dos rom-shadow + mmio region */
+@@ -967,7 +1002,8 @@ void __init e820_reserve_resources(void)
+ 		res->start = e820.map[i].addr;
+ 		res->end = end;
+ 
+-		res->flags = IORESOURCE_MEM;
++		res->flags = e820_type_to_iomem_type(e820.map[i].type);
++		res->desc = e820_type_to_iores_desc(e820.map[i].type);
+ 
+ 		/*
+ 		 * don't register the region that could be conflicted with
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index d3d80e6..aa52c10 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -152,21 +152,21 @@ static struct resource data_resource = {
+ 	.name	= "Kernel data",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
  };
  
-@@ -112,6 +113,22 @@ struct resource {
- /* PCI control bits.  Shares IORESOURCE_BITS with above PCI ROM.  */
- #define IORESOURCE_PCI_FIXED		(1<<4)	/* Do not move resource */
+ static struct resource code_resource = {
+ 	.name	= "Kernel code",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
  
-+/*
-+ * I/O Resource Descriptors
-+ *
-+ * Descriptors are used by walk_iomem_res_desc() and region_intersects()
-+ * for searching a specific resource range in the iomem table.  Assign
-+ * a new descriptor when a resource range supports the search interfaces.
-+ * Otherwise, resource.desc must be set to IORES_DESC_NONE (0).
-+ */
-+enum {
-+	IORES_DESC_NONE				= 0,
-+	IORES_DESC_CRASH_KERNEL			= 1,
-+	IORES_DESC_ACPI_TABLES			= 2,
-+	IORES_DESC_ACPI_NV_STORAGE		= 3,
-+	IORES_DESC_PERSISTENT_MEMORY		= 4,
-+	IORES_DESC_PERSISTENT_MEMORY_LEGACY	= 5,
-+};
+ static struct resource bss_resource = {
+ 	.name	= "Kernel bss",
+ 	.start	= 0,
+ 	.end	= 0,
+-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
++	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
+ };
  
- /* helpers to define resources */
- #define DEFINE_RES_NAMED(_start, _size, _name, _flags)			\
-@@ -120,6 +137,7 @@ struct resource {
- 		.end = (_start) + (_size) - 1,				\
- 		.name = (_name),					\
- 		.flags = (_flags),					\
-+		.desc = IORES_DESC_NONE,				\
- 	}
  
- #define DEFINE_RES_IO_NAMED(_start, _size, _name)			\
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 96afc80..61512e9 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -949,6 +949,7 @@ static void __init __reserve_region_with_split(struct resource *root,
- 	res->start = start;
- 	res->end = end;
- 	res->flags = IORESOURCE_BUSY;
-+	res->desc = IORES_DESC_NONE;
- 
- 	while (1) {
- 
-@@ -983,6 +984,7 @@ static void __init __reserve_region_with_split(struct resource *root,
- 				next_res->start = conflict->end + 1;
- 				next_res->end = end;
- 				next_res->flags = IORESOURCE_BUSY;
-+				next_res->desc = IORES_DESC_NONE;
- 			}
- 		} else {
- 			res->start = conflict->end + 1;
-@@ -1074,6 +1076,7 @@ struct resource * __request_region(struct resource *parent,
- 	res->end = start + n - 1;
- 	res->flags = resource_type(parent) | resource_ext_type(parent);
- 	res->flags |= IORESOURCE_BUSY | flags;
-+	res->desc = IORES_DESC_NONE;
- 
- 	write_lock(&resource_lock);
- 
-@@ -1238,6 +1241,7 @@ int release_mem_region_adjustable(struct resource *parent,
- 			new_res->start = end + 1;
- 			new_res->end = res->end;
- 			new_res->flags = res->flags;
-+			new_res->desc = res->desc;
- 			new_res->parent = res->parent;
- 			new_res->sibling = res->sibling;
- 			new_res->child = NULL;
-@@ -1413,6 +1417,7 @@ static int __init reserve_setup(char *str)
- 			res->start = io_start;
- 			res->end = io_start + io_num - 1;
- 			res->flags = IORESOURCE_BUSY;
-+			res->desc = IORES_DESC_NONE;
- 			res->child = NULL;
- 			if (request_resource(res->start >= 0x10000 ? &iomem_resource : &ioport_resource, res) == 0)
- 				reserved = x+1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
