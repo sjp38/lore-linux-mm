@@ -1,79 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BE71A6B0009
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 12:46:56 -0500 (EST)
-Received: by mail-qk0-f172.google.com with SMTP id s5so36529960qkd.0
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 09:46:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 7si23250819qgy.13.2016.01.30.09.46.55
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4DB6B0009
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 12:58:34 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id l66so19685651wml.0
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 09:58:34 -0800 (PST)
+Received: from arcturus.aphlor.org (arcturus.ipv6.aphlor.org. [2a03:9800:10:4a::2])
+        by mx.google.com with ESMTPS id y41si4333228wmh.107.2016.01.30.09.58.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jan 2016 09:46:55 -0800 (PST)
-Date: Sat, 30 Jan 2016 18:46:46 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at
- kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
-Message-ID: <20160130184646.6ea9c5f8@redhat.com>
-In-Reply-To: <21684.1454137770@turing-police.cc.vt.edu>
-References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
-	<20160128184749.7bdee246@redhat.com>
-	<21684.1454137770@turing-police.cc.vt.edu>
+        Sat, 30 Jan 2016 09:58:33 -0800 (PST)
+Date: Sat, 30 Jan 2016 12:58:31 -0500
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: 4.5-rc1: mm/gup.c warning when writing to /proc/self/mem
+Message-ID: <20160130175831.GA30571@codemonkey.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, brouer@redhat.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Sat, 30 Jan 2016 02:09:30 -0500
-Valdis.Kletnieks@vt.edu wrote:
+Hit this overnight. Just started seeing this after I added "create mmap's
+of fd's we open()'d" to trinity.
 
-> On Thu, 28 Jan 2016 18:47:49 +0100, Jesper Dangaard Brouer said:
-> > I cannot reproduce below problem... have enabled all kind of debugging
-> > and also lockdep.
-> >
-> > Can I get a version of the .config file used?  
-> 
-> I'm not the 0day bot, but my laptop hits the same issue at boot.
+	Dave
 
-Thank you! I'm now able to reproduce, and I've found the issue. It only
-happens for SLAB, and with FAILSLAB disabled.
-
-The problem were introduced in the patch before:
-  http://ozlabs.org/~akpm/mmots/broken-out/mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
-which moved the check function:
-
- static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
- {
-       if (unlikely(cachep == kmem_cache))
-               return false;
-
-       return should_failslab(cachep->object_size, flags, cachep->flags);
- }
-
-into the fault injection framework, call of should_failslab().
-
-That change was wrong, as some very early boot code depend on SLAB
-failing, when still allocating from the bootstrap kmem_cache. SLUB seem
-to handle this better.
-
-
-In this case the percpu system, have a workqueue function, calling
-pcpu_extend_area_map() which sort-of probe the slab-allocator, and
-depending on it fails, until it is fully ready.
-
-I will fix up my patches, reverting this change... and let them go
-through Andrews quilt process.
-
-Let me know, if the linux-next tree need's an explicit fix?
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+WARNING: CPU: 1 PID: 16733 at mm/gup.c:434 __get_user_pages+0x5f9/0x990()
+CPU: 1 PID: 16733 Comm: trinity-c30 Tainted: G        W       4.5.0-rc1-think+ #12
+ 0000000000000009 000000006648ff5c ffff88000f0779a0 ffffffff99565971
+------------[ cut here ]------------
+WARNING: CPU: 0 PID: 16731 at mm/gup.c:434 __get_user_pages+0x5f9/0x990()
+ 0000000000000000 ffff88000f0779e0 ffffffff990b168f ffffffff992aba69
+ ffff880450cf1000 0000000000000000 ffff88023780e600 0000000000000017
+Call Trace:
+ [<ffffffff99565971>] dump_stack+0x4e/0x7d
+ [<ffffffff990b168f>] warn_slowpath_common+0x9f/0xe0
+ [<ffffffff992aba69>] ? __get_user_pages+0x5f9/0x990
+ [<ffffffff990b18aa>] warn_slowpath_null+0x1a/0x20
+ [<ffffffff992aba69>] __get_user_pages+0x5f9/0x990
+ [<ffffffff992ab470>] ? follow_page_mask+0x530/0x530
+ [<ffffffff992ad54a>] ? __access_remote_vm+0xca/0x340
+ [<ffffffff992ac2e2>] get_user_pages+0x52/0x60
+ [<ffffffff992ad610>] __access_remote_vm+0x190/0x340
+ [<ffffffff990f2531>] ? preempt_count_sub+0xc1/0x120
+ [<ffffffff992ad480>] ? __might_fault+0xf0/0xf0
+ [<ffffffff992ad417>] ? __might_fault+0x87/0xf0
+ [<ffffffff992b607f>] access_remote_vm+0x1f/0x30
+ [<ffffffff993c5703>] mem_rw.isra.15+0xe3/0x1d0
+ [<ffffffff993c5833>] mem_write+0x43/0x50
+ [<ffffffff9930a6ed>] __vfs_write+0xdd/0x260
+ [<ffffffff9930a610>] ? __vfs_read+0x260/0x260
+ [<ffffffff99d136cb>] ? mutex_lock_nested+0x38b/0x590
+ [<ffffffff99133152>] ? __lock_is_held+0x92/0xd0
+ [<ffffffff990f2531>] ? preempt_count_sub+0xc1/0x120
+ [<ffffffff99131035>] ? update_fast_ctr+0x65/0x90
+ [<ffffffff991310e7>] ? percpu_down_read+0x57/0xa0
+ [<ffffffff99310bc4>] ? __sb_start_write+0xb4/0xf0
+ [<ffffffff9930bec6>] vfs_write+0xf6/0x260
+ [<ffffffff9930d84f>] SyS_write+0xbf/0x160
+ [<ffffffff9930d790>] ? SyS_read+0x160/0x160
+ [<ffffffff99002017>] ? trace_hardirqs_on_thunk+0x17/0x19
+ [<ffffffff99d19557>] entry_SYSCALL_64_fastpath+0x12/0x6b
+CPU: 0 PID: 16731 Comm: trinity-c28 Tainted: G        W       4.5.0-rc1-think+ #12
+ 0000000000000009 000000002962eec9 ffff8802e7b7f8d8 ffffffff99565971
+ 0000000000000000 ffff8802e7b7f918 ffffffff990b168f ffffffff992aba69
+ ffff8803ed6f1000 00000000000000a0 ffff88023780e600 0000000000000017
+Call Trace:
+ [<ffffffff99565971>] dump_stack+0x4e/0x7d
+ [<ffffffff990b168f>] warn_slowpath_common+0x9f/0xe0
+ [<ffffffff992aba69>] ? __get_user_pages+0x5f9/0x990
+ [<ffffffff990b18aa>] warn_slowpath_null+0x1a/0x20
+ [<ffffffff992aba69>] __get_user_pages+0x5f9/0x990
+ [<ffffffff99015979>] ? native_sched_clock+0x69/0x160
+ [<ffffffff992ab470>] ? follow_page_mask+0x530/0x530
+ [<ffffffff992ad54a>] ? __access_remote_vm+0xca/0x340
+ [<ffffffff992ac2e2>] get_user_pages+0x52/0x60
+ [<ffffffff992ad610>] __access_remote_vm+0x190/0x340
+ [<ffffffff990f2531>] ? preempt_count_sub+0xc1/0x120
+ [<ffffffff992ad480>] ? __might_fault+0xf0/0xf0
+ [<ffffffff992ad417>] ? __might_fault+0x87/0xf0
+ [<ffffffff992b607f>] access_remote_vm+0x1f/0x30
+ [<ffffffff993c5703>] mem_rw.isra.15+0xe3/0x1d0
+ [<ffffffff993c5833>] mem_write+0x43/0x50
+ [<ffffffff9930a950>] do_loop_readv_writev+0xe0/0x110
+ [<ffffffff993c57f0>] ? mem_rw.isra.15+0x1d0/0x1d0
+ [<ffffffff9930c3bb>] do_readv_writev+0x38b/0x3c0
+ [<ffffffff99132960>] ? trace_hardirqs_off_caller+0x70/0x110
+ [<ffffffff993c57f0>] ? mem_rw.isra.15+0x1d0/0x1d0
+ [<ffffffff9930c030>] ? vfs_write+0x260/0x260
+ [<ffffffff99595e17>] ? debug_smp_processor_id+0x17/0x20
+ [<ffffffff990f2531>] ? preempt_count_sub+0xc1/0x120
+ [<ffffffff991330e5>] ? __lock_is_held+0x25/0xd0
+ [<ffffffff991381e3>] ? mark_held_locks+0x23/0xc0
+ [<ffffffff9926080a>] ? context_tracking_exit.part.5+0x2a/0x50
+ [<ffffffff99138406>] ? trace_hardirqs_on_caller+0x186/0x280
+ [<ffffffff9913850d>] ? trace_hardirqs_on+0xd/0x10
+ [<ffffffff9930c4b9>] vfs_writev+0x59/0x70
+ [<ffffffff9930e2fd>] SyS_pwritev+0x15d/0x180
+ [<ffffffff9930e1a0>] ? SyS_preadv+0x180/0x180
+ [<ffffffff99002017>] ? trace_hardirqs_on_thunk+0x17/0x19
+ [<ffffffff99d19557>] entry_SYSCALL_64_fastpath+0x12/0x6b
+---[ end trace 96115a52264cceaf ]---
+---[ end trace 96115a52264cceb0 ]---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
