@@ -1,92 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D9EA66B0009
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 05:45:32 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id p63so11103390wmp.1
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 02:45:32 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTP id bj10si27465422wjc.110.2016.01.30.02.45.26
-        for <linux-mm@kvack.org>;
-        Sat, 30 Jan 2016 02:45:31 -0800 (PST)
-Message-ID: <56AC9371.5030605@huawei.com>
-Date: Sat, 30 Jan 2016 18:41:53 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/2] mm/page_alloc: avoid splitting pages of order
- 2 and 3 in migration fallback
-References: <cover.1454094692.git.chengyihetaipei@gmail.com> <46b854accad3f40e4178cf3bbd215a4648551763.1454094692.git.chengyihetaipei@gmail.com>
-In-Reply-To: <46b854accad3f40e4178cf3bbd215a4648551763.1454094692.git.chengyihetaipei@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E276B0009
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 07:19:16 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id z14so6663135igp.1
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 04:19:16 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b19si2590392igr.28.2016.01.30.04.19.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 30 Jan 2016 04:19:15 -0800 (PST)
+Subject: Re: [PATCH 4/3] mm, oom: drop the last allocation attempt before out_of_memory
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1454013603-3682-1-git-send-email-mhocko@kernel.org>
+	<20160128213634.GA4903@cmpxchg.org>
+	<alpine.DEB.2.10.1601281508380.31035@chino.kir.corp.google.com>
+	<20160128235110.GA5805@cmpxchg.org>
+	<20160129153250.GH32174@dhcp22.suse.cz>
+In-Reply-To: <20160129153250.GH32174@dhcp22.suse.cz>
+Message-Id: <201601302118.FIE60411.JVOFLtFFHOSQOM@I-love.SAKURA.ne.jp>
+Date: Sat, 30 Jan 2016 21:18:51 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ChengYi He <chengyihetaipei@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil
- Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Yaowei Bai <bywxiaobai@163.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, hannes@cmpxchg.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2016/1/30 3:25, ChengYi He wrote:
-
-> While buddy system fallbacks to allocate different migration type pages,
-> it prefers the largest feasible pages and might split the chosen page
-> into smalller ones. If the largest feasible pages are less than or equal
-> to orde-3 and migration fallback happens frequently, then order-2 and
-> order-3 pages can be exhausted easily. This patch aims to allocate the
-> smallest feasible pages for the fallback mechanism under this condition.
+Michal Hocko wrote:
+> > https://lkml.org/lkml/2015/3/25/40
+> > 
+> > We could have out_of_memory() wait until the number of outstanding OOM
+> > victims drops to 0. Then __alloc_pages_may_oom() doesn't relinquish
+> > the lock until its kill has been finalized:
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 914451a..4dc5b9d 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -892,7 +892,9 @@ bool out_of_memory(struct oom_control *oc)
+> >  		 * Give the killed process a good chance to exit before trying
+> >  		 * to allocate memory again.
+> >  		 */
+> > -		schedule_timeout_killable(1);
+> > +		if (!test_thread_flag(TIF_MEMDIE))
+> > +			wait_event_timeout(oom_victims_wait,
+> > +					   !atomic_read(&oom_victims), HZ);
+> >  	}
+> >  	return true;
+> >  }
 > 
-> Signed-off-by: ChengYi He <chengyihetaipei@gmail.com>
-> ---
->  mm/page_alloc.c | 19 ++++++++++++++++---
->  1 file changed, 16 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 50c325a..3fcb653 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1802,9 +1802,22 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->  	struct page *page;
->  
->  	/* Find the largest possible block of pages in the other list */
-> -	for (current_order = MAX_ORDER-1;
-> -				current_order >= order && current_order <= MAX_ORDER-1;
-> -				--current_order) {
-> +	for (current_order = MAX_ORDER - 1;
-> +			current_order >= max_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER + 1, order);
-> +			--current_order) {
-> +		page = __rmqueue_fallback_order(zone, order, start_migratetype,
-> +				current_order);
-> +
-> +		if (page)
-> +			return page;
-> +	}
-> +
-> +	/*
-> +	 * While current_order <= PAGE_ALLOC_COSTLY_ORDER, find the smallest
-> +	 * feasible pages in the other list to avoid splitting high order pages
-> +	 */
-> +	for (current_order = order; current_order <= PAGE_ALLOC_COSTLY_ORDER;
-> +			++current_order) {
->  		page = __rmqueue_fallback_order(zone, order, start_migratetype,
->  				current_order);
->  
+> Yes this makes sense to me
 
-Hi Chengyi,
+I think schedule_timeout_killable(1) was used for handling cases
+where current thread did not get TIF_MEMDIE but got SIGKILL due to
+sharing the victim's memory. If current thread is blocking TIF_MEMDIE
+thread, this can become a needless delay.
 
-So you mean use the largest block first, if no large block left, the use the
-smallest block, right?
-
-I have an idea, how about set two migrate types(movable and unmovable) when
-doing init work? The function is memmap_init_zone().
-
-I don't know how to set the ratio, maybe unmovable takes 1/10 memory, and left
-9/10 memory to movable? I think this effect is a little like the two zones
-(normal and movable). 
-
-Another two ideas
-https://lkml.org/lkml/2015/8/14/67
-7d348b9ea64db0a315d777ce7d4b06697f946503, maybe this patch is not applied on your 3.10
-
-Thanks,
-Xishi Qiu
+Also, I don't know whether using wait_event_*() helps handling a
+problem that schedule_timeout_killable(1) can sleep for many minutes
+with oom_lock held when there are a lot of tasks. Detail is explained
+in my proposed patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
