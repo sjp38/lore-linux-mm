@@ -1,44 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 54F236B0009
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2016 21:15:12 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id x125so63675200pfb.0
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2016 18:15:12 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id vo4si13219471pab.143.2016.01.30.18.15.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jan 2016 18:15:10 -0800 (PST)
-Date: Sun, 31 Jan 2016 13:15:06 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at
- kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
-Message-ID: <20160131131506.4aad01b5@canb.auug.org.au>
-In-Reply-To: <20160130184646.6ea9c5f8@redhat.com>
-References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
-	<20160128184749.7bdee246@redhat.com>
-	<21684.1454137770@turing-police.cc.vt.edu>
-	<20160130184646.6ea9c5f8@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9886B0005
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2016 07:09:45 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id uo6so67419778pac.1
+        for <linux-mm@kvack.org>; Sun, 31 Jan 2016 04:09:45 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id po3si17658441pac.148.2016.01.31.04.09.43
+        for <linux-mm@kvack.org>;
+        Sun, 31 Jan 2016 04:09:44 -0800 (PST)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH v4 4/8] mincore: Add support for PUDs
+Date: Sun, 31 Jan 2016 23:09:31 +1100
+Message-Id: <1454242175-16870-5-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1454242175-16870-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1454242175-16870-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Valdis.Kletnieks@vt.edu, kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-Hi Jesper,
+From: Matthew Wilcox <willy@linux.intel.com>
 
-On Sat, 30 Jan 2016 18:46:46 +0100 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
->
-> Let me know, if the linux-next tree need's an explicit fix?
+We don't actually care about the contents of the PUD, as long as it's
+present (which is checked by the pagewalk code), so just set the bits
+to indicate presence and return.
 
-It would be a good idea if you could send a fix against linux-next to
-me as Andrew is currently travelling.
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ mm/mincore.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 563f320..948a906 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -108,6 +108,18 @@ static int mincore_unmapped_range(unsigned long addr, unsigned long end,
+ 	return 0;
+ }
+ 
++static int mincore_pud_range(pud_t *pud, unsigned long addr, unsigned long end,
++			struct mm_walk *walk)
++{
++	unsigned char *vec = walk->private;
++	int nr = (end - addr) >> PAGE_SHIFT;
++
++	memset(vec, 1, nr);
++	walk->private += nr;
++
++	return 0;
++}
++
+ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			struct mm_walk *walk)
+ {
+@@ -177,6 +189,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+ 	unsigned long end;
+ 	int err;
+ 	struct mm_walk mincore_walk = {
++		.pud_entry = mincore_pud_range,
+ 		.pmd_entry = mincore_pte_range,
+ 		.pte_hole = mincore_unmapped_range,
+ 		.hugetlb_entry = mincore_hugetlb,
 -- 
-Cheers,
-Stephen Rothwell
+2.7.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
