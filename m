@@ -1,44 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 50C1F6B0005
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2016 07:13:27 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id yy13so66137709pab.3
-        for <linux-mm@kvack.org>; Sun, 31 Jan 2016 04:13:27 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id dg7si16546795pad.75.2016.01.31.04.13.26
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C93D4828DF
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2016 07:19:58 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id uo6so67490960pac.1
+        for <linux-mm@kvack.org>; Sun, 31 Jan 2016 04:19:58 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id sb2si16574417pac.161.2016.01.31.04.19.58
         for <linux-mm@kvack.org>;
-        Sun, 31 Jan 2016 04:13:26 -0800 (PST)
+        Sun, 31 Jan 2016 04:19:58 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH] mm: Use linear_page_index() in do_fault()
-Date: Sun, 31 Jan 2016 23:13:21 +1100
-Message-Id: <1454242401-17005-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 0/6] DAX cleanups
+Date: Sun, 31 Jan 2016 23:19:49 +1100
+Message-Id: <1454242795-18038-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
 
-do_fault assumes that PAGE_SIZE is the same as PAGE_CACHE_SIZE.
-Use linear_page_index() to calculate pgoff in the correct units.
+Very little exciting in here.  This is all based on the PUD support code
+that I just sent, mostly addressing things that came up during review
+of the PUD code but weren't really justifiable as being mixed into the
+adding of PUD support.
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- mm/memory.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+Matthew Wilcox (6):
+  dax: Use vmf->gfp_mask
+  dax: Remove unnecessary rechecking of i_size
+  dax: Use vmf->pgoff in fault handlers
+  dax: Use PAGE_CACHE_SIZE where appropriate
+  dax: Factor dax_insert_pmd_mapping out of dax_pmd_fault
+  dax: Factor dax_insert_pud_mapping out of dax_pud_fault
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 554816b..5224c06 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3161,8 +3161,7 @@ static int do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
- 		unsigned int flags, pte_t orig_pte)
- {
--	pgoff_t pgoff = (((address & PAGE_MASK)
--			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+	pgoff_t pgoff = linear_page_index(vma, address);
- 
- 	pte_unmap(page_table);
- 	/* The VMA was not fully populated on mmap() or missing VM_DONTEXPAND */
+ fs/dax.c | 395 ++++++++++++++++++++++++++-------------------------------------
+ 1 file changed, 164 insertions(+), 231 deletions(-)
+
 -- 
 2.7.0.rc3
 
