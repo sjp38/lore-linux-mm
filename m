@@ -1,121 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3CC6B0005
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2016 15:34:29 -0500 (EST)
-Received: by mail-io0-f172.google.com with SMTP id f81so136666333iof.0
-        for <linux-mm@kvack.org>; Sun, 31 Jan 2016 12:34:29 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id n102si8940488ioi.144.2016.01.31.12.34.27
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 592BD6B0005
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2016 15:52:13 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id mw1so20509996igb.1
+        for <linux-mm@kvack.org>; Sun, 31 Jan 2016 12:52:13 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id pi9si10603041igb.76.2016.01.31.12.52.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 31 Jan 2016 12:34:27 -0800 (PST)
-Date: Mon, 1 Feb 2016 07:34:22 +1100
+        Sun, 31 Jan 2016 12:52:11 -0800 (PST)
+Date: Mon, 1 Feb 2016 07:52:07 +1100
 From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at
- kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
-Message-ID: <20160201073422.6dd72721@canb.auug.org.au>
-In-Reply-To: <20160131194048.6f7add16@redhat.com>
-References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
-	<20160128184749.7bdee246@redhat.com>
-	<21684.1454137770@turing-police.cc.vt.edu>
-	<20160130184646.6ea9c5f8@redhat.com>
-	<20160131131506.4aad01b5@canb.auug.org.au>
-	<20160131194048.6f7add16@redhat.com>
+Subject: Re: [linux-next:master 1875/2100] include/linux/jump_label.h:122:2:
+ error: implicit declaration of function 'atomic_read'
+Message-ID: <20160201075207.24869290@canb.auug.org.au>
+In-Reply-To: <56AB4C1D.5090801@suse.cz>
+References: <201601291512.vqk4lpvV%fengguang.wu@intel.com>
+	<56AB3EEB.8090808@suse.cz>
+	<20160129215335.1a049964@canb.auug.org.au>
+	<56AB4C1D.5090801@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Valdis.Kletnieks@vt.edu, kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kbuild-all@01.org, linux-s390@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
 
-Hi Jesper,
+Hi Vlastimil,
 
-On Sun, 31 Jan 2016 19:40:48 +0100 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+On Fri, 29 Jan 2016 12:25:17 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
 >
-> On Sun, 31 Jan 2016 13:15:06 +1100
-> Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> Please replace the -fix with this patch. Sorry again.
 > 
-> > On Sat, 30 Jan 2016 18:46:46 +0100 Jesper Dangaard Brouer <brouer@redhat.com> wrote:  
-> > >
-> > > Let me know, if the linux-next tree need's an explicit fix?    
-> > 
-> > It would be a good idea if you could send a fix against linux-next to
-> > me as Andrew is currently travelling.  
+> ----8<----
+> From 1e6b1ae6bf55410fb816cf910c4d91533642072b Mon Sep 17 00:00:00 2001
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Fri, 29 Jan 2016 12:18:21 +0100
+> Subject: [PATCH] mm, printk: introduce new format string for flags-fix
 > 
-> My analysis before was wrong, the fix was much simpler. No need to
-> revert my FAILSLAB patch.  Just forgot to mask flags with gfp_allowed_mask.
+> Due to rebasing mistake, mmdebug.h keeps including tracepoint.h, causing
+> header dependency issues on some arches.
+> Remove the include, and related declarations of flags arrays, which reside
+> in mm/internal.h and lib/vsprintf.c already includes that header.
 > 
-> I expect AKPM can pickup these two small fixes to my patches.
-> 
-> Below is a patch for linux-next. 
-> 
-> - - 
-> Best regards,
->   Jesper Dangaard Brouer
->   MSc.CS, Principal Kernel Engineer at Red Hat
->   Author of http://www.iptv-analyzer.org
->   LinkedIn: http://www.linkedin.com/in/brouer
-> 
-> 
-> [PATCH] mm: temporary fix for SLAB in linux-next
-> 
-> From: Jesper Dangaard Brouer <brouer@redhat.com>
-> 
-> This is only for linux-next, until AKPM pickup fixes two patches:
->  base url: http://ozlabs.org/~akpm/mmots/broken-out/
->  [1] mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
->  [2] slab-use-slab_pre_alloc_hook-in-slab-allocator-shared-with-slub.patch
-> 
-> First fix is for compiling with CONFIG_FAILSLAB. The linux-next commit
-> needing this fix is 074b6f53c320 ("mm: fault-inject take over
-> bootstrap kmem_cache check").
-> 
-> Second fix is for correct masking of allowed GFP flags (gfp_allowed_mask),
-> in SLAB allocator.  This triggered a WARN, by percpu_init_late ->
-> pcpu_mem_zalloc invoking kzalloc with GFP_KERNEL flags. The linux-next
-> commit needing this fix is a1fd55538cae ("slab: use
-> slab_pre_alloc_hook in SLAB allocator shared with SLUB").
-> 
-> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > ---
->  mm/failslab.c |    1 +
->  mm/slab.c     |    2 ++
->  2 files changed, 3 insertions(+)
+>  include/linux/mmdebug.h | 6 ------
+>  1 file changed, 6 deletions(-)
 > 
-> diff --git a/mm/failslab.c b/mm/failslab.c
-> index 0c5b3f31f310..b0fac98cd938 100644
-> --- a/mm/failslab.c
-> +++ b/mm/failslab.c
-> @@ -1,5 +1,6 @@
->  #include <linux/fault-inject.h>
->  #include <linux/slab.h>
-> +#include <linux/mm.h>
->  #include "slab.h"
+> diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+> index 3fb9bc65d61d..de7be78c6f0e 100644
+> --- a/include/linux/mmdebug.h
+> +++ b/include/linux/mmdebug.h
+> @@ -3,17 +3,11 @@
 >  
->  static struct {
-> diff --git a/mm/slab.c b/mm/slab.c
-> index e90d259b3242..ddd974e6b3bb 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3190,6 +3190,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
->  	void *ptr;
->  	int slab_node = numa_mem_id();
+>  #include <linux/bug.h>
+>  #include <linux/stringify.h>
+> -#include <linux/types.h>
+> -#include <linux/tracepoint.h>
 >  
-> +	flags &= gfp_allowed_mask;
->  	cachep = slab_pre_alloc_hook(cachep, flags);
->  	if (unlikely(!cachep))
->  		return NULL;
-> @@ -3268,6 +3269,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
->  	unsigned long save_flags;
->  	void *objp;
+>  struct page;
+>  struct vm_area_struct;
+>  struct mm_struct;
 >  
-> +	flags &= gfp_allowed_mask;
->  	cachep = slab_pre_alloc_hook(cachep, flags);
->  	if (unlikely(!cachep))
->  		return NULL;
+> -extern const struct trace_print_flags pageflag_names[];
+> -extern const struct trace_print_flags vmaflag_names[];
+> -extern const struct trace_print_flags gfpflag_names[];
+> -
+>  extern void dump_page(struct page *page, const char *reason);
+>  extern void __dump_page(struct page *page, const char *reason);
+>  void dump_vma(const struct vm_area_struct *vma);
+> -- 
+> 2.7.0
 
-Applied to linux-next today.
+OK, I have done that from today.
 
 -- 
 Cheers,
