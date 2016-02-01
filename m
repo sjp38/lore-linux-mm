@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5EA6B0005
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 09:38:56 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id p63so74292656wmp.1
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 06:38:56 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id i142si12146305wmd.8.2016.02.01.06.38.55
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D71D6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 10:46:11 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id b35so120673436qge.0
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 07:46:11 -0800 (PST)
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
+        by mx.google.com with ESMTPS id b84si31959130qhd.120.2016.02.01.07.46.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Feb 2016 06:38:55 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id l66so9428078wml.2
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 06:38:55 -0800 (PST)
-Date: Mon, 1 Feb 2016 16:38:53 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/2] mm: fix bogus VM_BUG_ON_PAGE() in isolate_lru_page()
-Message-ID: <20160201143853.GA30090@node.shutemov.name>
-References: <1454333169-121369-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454333169-121369-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20160201142446.GB24008@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 01 Feb 2016 07:46:10 -0800 (PST)
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 1 Feb 2016 08:46:09 -0700
+Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 93AF13E4003F
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 08:46:06 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u11Fk67Z29688002
+	for <linux-mm@kvack.org>; Mon, 1 Feb 2016 08:46:06 -0700
+Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u11Fk60r008798
+	for <linux-mm@kvack.org>; Mon, 1 Feb 2016 08:46:06 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+In-Reply-To: <20160128175536.GA20797@gmail.com>
+References: <20160128175536.GA20797@gmail.com>
+Date: Mon, 01 Feb 2016 21:16:02 +0530
+Message-ID: <87bn805t8l.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160201142446.GB24008@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Feb 01, 2016 at 03:24:46PM +0100, Michal Hocko wrote:
-> On Mon 01-02-16 16:26:08, Kirill A. Shutemov wrote:
-> > We don't care if there's a tail pages which is not on LRU. We are not
-> > going to isolate them anyway.
-> 
-> yes we are not going to isolate them but calling this function on a
-> tail page is wrong in principle, no? PageLRU check is racy outside of
-> lru_lock so what if we are racing here. I know, highly unlikely but not
-> impossible. So I am not really sure this is an improvement. When would
-> we hit this VM_BUG_ON and it wouldn't be a bug or at least suspicious
-> usage?
+Jerome Glisse <j.glisse@gmail.com> writes:
 
-Yes, there is no point in calling isolate_lru_page() for tail pages, but
-we do this anyway -- see the second patch.
+> Hi,
+>
+> I would like to attend LSF/MM this year to discuss about HMM
+> (Heterogeneous Memory Manager) and more generaly all topics
+> related to GPU and heterogeneous memory architecture (including
+> persistent memory).
+>
+> I want to discuss how to move forward with HMM merging and i
+> hope that by MM summit time i will be able to share more
+> informations publicly on devices which rely on HMM.
+>
 
-And we need to validate all drivers, that they don't forget to set VM_IO
-or make vma_migratable() return false in other way.
+I mentioned in my request to attend mail, I would like to attend this
+discussion. I am wondering whether we can split the series further to
+mmu_notifier bits and then the page table mirroring bits. Can the mmu notifier
+changes go in early so that we can merge the page table mirroring later ?
 
-Alternative approach would be to downgrate the VM_BUG_ON_PAGE() to
-WARN_ONCE_ON(). This way we would have chance to catch bad callers.
+Can be page table mirroring bits be built as a kernel module ?
 
--- 
- Kirill A. Shutemov
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
