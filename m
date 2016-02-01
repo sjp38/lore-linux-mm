@@ -1,90 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 707016B0005
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 07:24:16 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l66so68542967wml.0
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 04:24:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kq9si39575544wjc.90.2016.02.01.04.24.14
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8257A6B0253
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 08:03:33 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p63so69304741wmp.1
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 05:03:33 -0800 (PST)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id av4si39753101wjc.234.2016.02.01.05.03.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 01 Feb 2016 04:24:14 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] proposals for topics
-References: <20160125133357.GC23939@dhcp22.suse.cz>
- <20160125184559.GE29291@cmpxchg.org> <20160126095022.GC27563@dhcp22.suse.cz>
- <20160128205525.GO6033@dastard> <20160128220422.GG621@dhcp22.suse.cz>
- <20160131232901.GO20456@dastard>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56AF4E6C.7010408@suse.cz>
-Date: Mon, 1 Feb 2016 13:24:12 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Feb 2016 05:03:32 -0800 (PST)
+Received: by mail-wm0-x22b.google.com with SMTP id r129so69368496wmr.0
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 05:03:32 -0800 (PST)
+Date: Mon, 1 Feb 2016 15:03:29 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Fix(?) memory leak in copy_huge_pmd()
+Message-ID: <20160201130328.GA29337@node.shutemov.name>
+References: <1454242929-18164-1-git-send-email-matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160131232901.GO20456@dastard>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454242929-18164-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-On 02/01/2016 12:29 AM, Dave Chinner wrote:
-> On Thu, Jan 28, 2016 at 11:04:23PM +0100, Michal Hocko wrote:
->> On Fri 29-01-16 07:55:25, Dave Chinner wrote:
->>> On Tue, Jan 26, 2016 at 10:50:23AM +0100, Michal Hocko wrote:
->> [...]
->>>> There have been patches posted during the year to fortify those places
->>>> which cannot cope with allocation failures for ext[34] and testing
->>>> has shown that ext* resp. xfs are quite ready to see NOFS allocation
->>>> failures.
->>>
->>> The XFS situation is compeletely unchanged from last year, and the
->>> fact that you say it handles NOFS allocation failures just fine
->>> makes me seriously question your testing methodology.
->>
->> I am quite confused now. I remember you were the one who complained
->> about the silent nofail behavior of the allocator because that means
->> you cannot implement an appropriate fallback strategy.
->
-> I complained about the fact the allocator did not behave as
-> documented (or expected) in that it didn't fail allocations we
-> expected it to fail.
+On Sun, Jan 31, 2016 at 11:22:09PM +1100, Matthew Wilcox wrote:
+> We allocate a pgtable but do not attach it to anything if the PMD is in
+> a DAX VMA, causing it to leak.
+> 
+> We certainly try to not free pgtables associated with the huge zero page
+> if the zero page is in a DAX VMA, so I think this is the right solution.
+> This needs to be properly audited.
+> 
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> ---
+>  mm/huge_memory.c | 17 ++++++++++-------
+>  1 file changed, 10 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 4b9f2cb..1632e02 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -889,7 +889,8 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>  		return false;
+>  	entry = mk_pmd(zero_page, vma->vm_page_prot);
+>  	entry = pmd_mkhuge(entry);
+> -	pgtable_trans_huge_deposit(mm, pmd, pgtable);
+> +	if (pgtable)
+> +		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+>  	set_pmd_at(mm, haddr, pmd, entry);
+>  	atomic_long_inc(&mm->nr_ptes);
+>  	return true;
+> @@ -1176,13 +1177,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  	spinlock_t *dst_ptl, *src_ptl;
+>  	struct page *src_page;
+>  	pmd_t pmd;
+> -	pgtable_t pgtable;
+> +	pgtable_t pgtable = NULL;
+>  	int ret;
+>  
+> -	ret = -ENOMEM;
+> -	pgtable = pte_alloc_one(dst_mm, addr);
+> -	if (unlikely(!pgtable))
+> -		goto out;
+> +	if (!vma_is_dax(vma)) {
+> +		ret = -ENOMEM;
+> +		pgtable = pte_alloc_one(dst_mm, addr);
+> +		if (unlikely(!pgtable))
+> +			goto out;
+> +	}
+>  
+>  	dst_ptl = pmd_lock(dst_mm, dst_pmd);
+>  	src_ptl = pmd_lockptr(src_mm, src_pmd);
+> @@ -1213,7 +1216,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  		goto out_unlock;
+>  	}
+>  
+> -	if (pmd_trans_huge(pmd)) {
+> +	if (!vma_is_dax(vma)) {
 
-Yes, I believe this is exactly what Michal was talking about in the 
-original e-mail:
+Why? It looks equivalent in this situation, no?
 
-> - GFP_NOFS is another one which would be good to discuss. Its primary
->   use is to prevent from reclaim recursion back into FS. This makes
->   such an allocation context weaker and historically we haven't
->   triggered OOM killer and rather hopelessly retry the request and
->   rely on somebody else to make a progress for us. There are two issues
->   here.
->   First we shouldn't retry endlessly and rather fail the allocation and
->   allow the FS to handle the error. As per my experiments most FS cope
->   with that quite reasonably. Btrfs unfortunately handles many of those
->   failures by BUG_ON which is really unfortunate.
+Otherwise:
 
-So this should address your complain above.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
->> That being said, I do understand that allowing GFP_NOFS allocation to
->> fail is not an easy task and nothing to be done tomorrow or in few
->> months, but I believe that a discussion with FS people about what
->> can/should be done in order to make this happen is valuable.
->
-> The discussion - from my perspective - is likely to be no different
-> to previous years. None of the proposals that FS people have come up
-> to address the "need memory allocation guarantees" issue have got
-> any traction on the mm side. Unless there's something fundamentally
-> new from the MM side that provides filesystems with a replacement
-> for __GFP_NOFAIL type behaviour, I don't think further discussion is
-> going to change the status quo.
+>  		/* thp accounting separate from pmd_devmap accounting */
+>  		src_page = pmd_page(pmd);
+>  		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+> -- 
+> 2.7.0.rc3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Yeah, the guaranteed reserves as discussed last year didn't happen so 
-far. But that's a separate issue than GPF_NOFS *without* __GFP_NOFAIL.
-It just got mixed up in this thread.
-
-> Cheers,
->
-> Dave.
->
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
