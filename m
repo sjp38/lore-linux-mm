@@ -1,215 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 879FD6B0253
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 22:23:04 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id o185so90069769pfb.1
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 19:23:04 -0800 (PST)
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7D66B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 00:31:39 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id n128so96062649pfn.3
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 21:31:39 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a7si17622559pas.120.2016.02.01.19.23.03
+        by mx.google.com with ESMTPS id ym10si29002769pab.146.2016.02.01.21.31.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Feb 2016 19:23:03 -0800 (PST)
-Date: Mon, 1 Feb 2016 19:25:50 -0800
+        Mon, 01 Feb 2016 21:31:38 -0800 (PST)
+Date: Mon, 1 Feb 2016 21:34:27 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: GPF in shm_lock ipc
-Message-Id: <20160201192550.6da19ac1.akpm@linux-foundation.org>
-In-Reply-To: <CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
-References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
-	<20151012122702.GC2544@node>
-	<20151012174945.GC3170@linux-uzut.site>
-	<20151012181040.GC6447@node>
-	<20151012185533.GD3170@linux-uzut.site>
-	<20151013031821.GA3052@linux-uzut.site>
-	<20151013123028.GA12934@node>
-	<CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
-	<20151105142336.46D907FD@black.fi.intel.com>
-	<CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
+Subject: Re: [PATCH v1 1/8] kasan: Change the behavior of
+ kmalloc_large_oob_right test
+Message-Id: <20160201213427.f428b08d.akpm@linux-foundation.org>
+In-Reply-To: <35b553cafcd5b77838aeaf5548b457dfa09e30cf.1453918525.git.glider@google.com>
+References: <cover.1453918525.git.glider@google.com>
+	<35b553cafcd5b77838aeaf5548b457dfa09e30cf.1453918525.git.glider@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, ryabinin.a.a@gmail.com, rostedt@goodmis.org, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 21 Dec 2015 16:44:34 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+On Wed, 27 Jan 2016 19:25:06 +0100 Alexander Potapenko <glider@google.com> wrote:
 
-> On Thu, Nov 5, 2015 at 3:23 PM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > What about this:
+> depending on which allocator (SLAB or SLUB) is being used
 > 
-> 
-> Ping. This is still happening for me on tip. Can we pull in this fix
-> if it looks good to everybody?
-> 
+> ...
+>
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -68,7 +68,22 @@ static noinline void __init kmalloc_node_oob_right(void)
+>  static noinline void __init kmalloc_large_oob_right(void)
+>  {
+>  	char *ptr;
+> -	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+> +	size_t size;
+> +
+> +	if (KMALLOC_MAX_CACHE_SIZE == KMALLOC_MAX_SIZE) {
+> +		/*
+> +		 * We're using the SLAB allocator. Allocate a chunk that fits
+> +		 * into a slab.
+> +		 */
+> +		size = KMALLOC_MAX_CACHE_SIZE - 256;
+> +	} else {
+> +		/*
+> +		 * KMALLOC_MAX_SIZE > KMALLOC_MAX_CACHE_SIZE.
+> +		 * We're using the SLUB allocator. Allocate a chunk that does
+> +		 * not fit into a slab to trigger the page allocator.
+> +		 */
+> +		size = KMALLOC_MAX_CACHE_SIZE + 10;
+> +	}
 
-Well we have at least three patches to choose from in this thread, most
-of them missing most signs of having been reviewed or tested.
+This seems a weird way of working out whether we're using SLAB or SLUB.
 
-So I grabbed the last one, below.  Can we please rev this up again,
-test it, see if we can agree that this is the way to go forward?
+Can't we use, umm, #ifdef CONFIG_SLAB?  If not that then let's cook up
+something standardized rather than a weird just-happens-to-work like
+this.
 
-Thanks.
-
-
-
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: ipc/shm: handle removed segments gracefully in shm_mmap()
-
-remap_file_pages(2) emulation can reach file which represents removed IPC
-ID as long as a memory segment is mapped.  It breaks expectations of IPC
-subsystem.
-
-Test case (rewritten to be more human readable, originally autogenerated
-by syzkaller[1]):
-
-	#define _GNU_SOURCE
-	#include <stdlib.h>
-	#include <sys/ipc.h>
-	#include <sys/mman.h>
-	#include <sys/shm.h>
-
-	#define PAGE_SIZE 4096
-
-	int main()
-	{
-		int id;
-		void *p;
-
-		id = shmget(IPC_PRIVATE, 3 * PAGE_SIZE, 0);
-		p = shmat(id, NULL, 0);
-		shmctl(id, IPC_RMID, NULL);
-		remap_file_pages(p, 3 * PAGE_SIZE, 0, 7, 0);
-
-	        return 0;
-	}
-
-The patch changes shm_mmap() and code around shm_lock() to propagate
-locking error back to caller of shm_mmap().
-
-[1] http://github.com/google/syzkaller
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Manfred Spraul <manfred@colorfullife.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- ipc/shm.c |   53 ++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 43 insertions(+), 10 deletions(-)
-
-diff -puN ipc/shm.c~gpf-in-shm_lock-ipc ipc/shm.c
---- a/ipc/shm.c~gpf-in-shm_lock-ipc
-+++ a/ipc/shm.c
-@@ -156,11 +156,12 @@ static inline struct shmid_kernel *shm_l
- 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
- 
- 	/*
--	 * We raced in the idr lookup or with shm_destroy().  Either way, the
--	 * ID is busted.
-+	 * Callers of shm_lock() must validate the status of the returned ipc
-+	 * object pointer (as returned by ipc_lock()), and error out as
-+	 * appropriate.
- 	 */
--	WARN_ON(IS_ERR(ipcp));
--
-+	if (IS_ERR(ipcp))
-+		return (void *)ipcp;
- 	return container_of(ipcp, struct shmid_kernel, shm_perm);
- }
- 
-@@ -186,18 +187,33 @@ static inline void shm_rmid(struct ipc_n
- }
- 
- 
--/* This is called by fork, once for every shm attach. */
--static void shm_open(struct vm_area_struct *vma)
-+static int __shm_open(struct vm_area_struct *vma)
- {
- 	struct file *file = vma->vm_file;
- 	struct shm_file_data *sfd = shm_file_data(file);
- 	struct shmid_kernel *shp;
- 
- 	shp = shm_lock(sfd->ns, sfd->id);
-+
-+	if (IS_ERR(shp))
-+		return PTR_ERR(shp);
-+
- 	shp->shm_atim = get_seconds();
- 	shp->shm_lprid = task_tgid_vnr(current);
- 	shp->shm_nattch++;
- 	shm_unlock(shp);
-+	return 0;
-+}
-+
-+/* This is called by fork, once for every shm attach. */
-+static void shm_open(struct vm_area_struct *vma)
-+{
-+	int err = __shm_open(vma);
-+	/*
-+	 * We raced in the idr lookup or with shm_destroy().
-+	 * Either way, the ID is busted.
-+	 */
-+	WARN_ON_ONCE(err);
- }
- 
- /*
-@@ -260,6 +276,14 @@ static void shm_close(struct vm_area_str
- 	down_write(&shm_ids(ns).rwsem);
- 	/* remove from the list of attaches of the shm segment */
- 	shp = shm_lock(ns, sfd->id);
-+
-+	/*
-+	 * We raced in the idr lookup or with shm_destroy().
-+	 * Either way, the ID is busted.
-+	 */
-+	if (WARN_ON_ONCE(IS_ERR(shp)))
-+		goto done; /* no-op */
-+
- 	shp->shm_lprid = task_tgid_vnr(current);
- 	shp->shm_dtim = get_seconds();
- 	shp->shm_nattch--;
-@@ -267,6 +291,7 @@ static void shm_close(struct vm_area_str
- 		shm_destroy(ns, shp);
- 	else
- 		shm_unlock(shp);
-+done:
- 	up_write(&shm_ids(ns).rwsem);
- }
- 
-@@ -388,17 +413,25 @@ static int shm_mmap(struct file *file, s
- 	struct shm_file_data *sfd = shm_file_data(file);
- 	int ret;
- 
-+	/*
-+	 * In case of remap_file_pages() emulation, the file can represent
-+	 * removed IPC ID: propogate shm_lock() error to caller.
-+	 */
-+	ret =__shm_open(vma);
-+	if (ret)
-+		return ret;
-+
- 	ret = sfd->file->f_op->mmap(sfd->file, vma);
--	if (ret != 0)
-+	if (ret) {
-+		shm_close(vma);
- 		return ret;
-+	}
- 	sfd->vm_ops = vma->vm_ops;
- #ifdef CONFIG_MMU
- 	WARN_ON(!sfd->vm_ops->fault);
- #endif
- 	vma->vm_ops = &shm_vm_ops;
--	shm_open(vma);
--
--	return ret;
-+	return 0;
- }
- 
- static int shm_release(struct inode *ino, struct file *file)
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
