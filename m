@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B316B0254
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:14:43 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id l66so124524185wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:14:43 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id l142si5653630wmb.55.2016.02.02.08.14.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 08:14:42 -0800 (PST)
-Date: Tue, 2 Feb 2016 11:14:21 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation
- from IRQ context.
-Message-ID: <20160202161421.GA30012@cmpxchg.org>
-References: <201602022233.FFF65148.QVOLOtOMFJHSFF@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201602022233.FFF65148.QVOLOtOMFJHSFF@I-love.SAKURA.ne.jp>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 93D636B0254
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:21:33 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id cy9so101478854pac.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:21:33 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id mi6si2749821pab.95.2016.02.02.08.21.32
+        for <linux-mm@kvack.org>;
+        Tue, 02 Feb 2016 08:21:32 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 2/2] mm: downgrade VM_BUG in isolate_lru_page() to warning
+Date: Tue,  2 Feb 2016 19:21:01 +0300
+Message-Id: <1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, rientjes@google.com, jstancek@redhat.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Feb 02, 2016 at 10:33:22PM +0900, Tetsuo Handa wrote:
-> >From 20b3c1c9ef35547395c3774c6208a867cf0046d4 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Tue, 2 Feb 2016 16:50:45 +0900
-> Subject: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation from IRQ context.
-> 
-> Jan Stancek hit a hard lockup problem due to flood of memory allocation
-> failure messages which lasted for 10 seconds with IRQ disabled. Printing
-> traces using warn_alloc_failed() is very slow (which can take up to about
-> 1 second for each warn_alloc_failed() call). The caller used GFP_NOWARN
-> inside a loop. If the caller used __GFP_NOWARN, it would not have lasted
-> for 10 seconds.
+Calling isolate_lru_page() is wrong and shouldn't happen, but it not
+nessesary fatal: the page just will not be isolated if it's not on LRU.
 
-Who is doing page allocations in a loop with irqs disabled?!
+Let's downgrade the VM_BUG_ON_PAGE() to WARN_RATELIMIT().
 
-And then, why does it take that long? Is that a serial console? Most
-of the output is KERN_INFO, it might be better to raise the loglevel
-and still have all the debugging output in the logs.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-If that's not enough, we could consider changing the ratelimit or make
-should_suppress_show_mem() filter interrupts regardless of NODES_SHIFT.
-
-Or ratelimit show_mem() in a different way than the single page alloc
-failure line. It's not that the state changes significantly while an
-avalanche of allocations are failing.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eb3dd37ccd7c..71b1c29948db 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
+ 	int ret = -EBUSY;
+ 
+ 	VM_BUG_ON_PAGE(!page_count(page), page);
+-	VM_BUG_ON_PAGE(PageTail(page), page);
++	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
+ 
+ 	if (PageLRU(page)) {
+ 		struct zone *zone = page_zone(page);
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
