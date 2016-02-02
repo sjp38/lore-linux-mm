@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C5C056B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:21:59 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id cy9so1425699pac.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:21:59 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ly9si4351066pab.115.2016.02.02.14.21.59
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E80BB6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:33:55 -0500 (EST)
+Received: by mail-io0-f172.google.com with SMTP id g73so34916124ioe.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:33:55 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id n9si25803661iga.37.2016.02.02.14.33.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 14:21:59 -0800 (PST)
-Date: Tue, 2 Feb 2016 14:21:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
-Message-Id: <20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
-In-Reply-To: <56B12560.4010201@de.ibm.com>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
-	<1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
-	<alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
-	<56A9E3D1.3090001@de.ibm.com>
-	<alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
-	<56B12560.4010201@de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 02 Feb 2016 14:33:55 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH] mm/hugetlb: fix gigantic page initialization/allocation
+Date: Tue,  2 Feb 2016 14:33:40 -0800
+Message-Id: <1454452420-25007-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Tue, 2 Feb 2016 22:53:36 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+Attempting to preallocate 1G gigantic huge pages at boot time with
+"hugepagesz=1G hugepages=1" on the kernel command line will prevent
+booting with the following:
 
-> >> I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
-> >> and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
-> >> to enable more stuff.  It should either be all enabled by the commandline 
-> >> (or config option) or split into a separate entity.  
-> >> CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
-> >> the current state is very confusing about what is being done and what 
-> >> isn't.
-> >>
-> > 
-> > Ping?
-> > 
-> https://lkml.org/lkml/2016/1/29/266 
+kernel BUG at mm/hugetlb.c:1218!
 
-That's already in linux-next so I can't apply it.
+When mapcount accounting was reworked, the setting of compound_mapcount_ptr
+in prep_compound_gigantic_page was overlooked.  As a result, the validation
+of mapcount in free_huge_page fails.
 
-Well, I can, but it's a hassle.  What's happening here?
+The "BUG_ON" checks in free_huge_page were also changed to "VM_BUG_ON_PAGE"
+to assist with debugging.
+
+Fixes: af5642a8af ("mm: rework mapcount accounting to enable 4k mapping of THPs")
+Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ mm/hugetlb.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 12908dc..d7a8024 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1214,8 +1214,8 @@ void free_huge_page(struct page *page)
+ 
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
+-	BUG_ON(page_count(page));
+-	BUG_ON(page_mapcount(page));
++	VM_BUG_ON_PAGE(page_count(page), page);
++	VM_BUG_ON_PAGE(page_mapcount(page), page);
+ 	restore_reserve = PagePrivate(page);
+ 	ClearPagePrivate(page);
+ 
+@@ -1286,6 +1286,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
+ 		set_page_count(p, 0);
+ 		set_compound_head(p, page);
+ 	}
++	atomic_set(compound_mapcount_ptr(page), -1);
+ }
+ 
+ /*
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
