@@ -1,42 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id F025F6B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 14:04:25 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id uo6so105469040pac.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 11:04:25 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id v86si3507419pfi.16.2016.02.02.11.04.24
-        for <linux-mm@kvack.org>;
-        Tue, 02 Feb 2016 11:04:25 -0800 (PST)
-Subject: Re: [PATCH 22/31] x86, pkeys: dump pkey from VMA in /proc/pid/smaps
-References: <20160129181642.98E7D468@viggo.jf.intel.com>
- <20160129181713.3F22714C@viggo.jf.intel.com> <56B0D54C.3010901@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <56B0FDB7.4070500@sr71.net>
-Date: Tue, 2 Feb 2016 11:04:23 -0800
-MIME-Version: 1.0
-In-Reply-To: <56B0D54C.3010901@suse.cz>
-Content-Type: text/plain; charset=utf-8
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 792C16B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 14:14:01 -0500 (EST)
+Received: by mail-qg0-f50.google.com with SMTP id u30so22673249qge.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 11:14:01 -0800 (PST)
+Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2607:b400:92:8400:0:33:fb76:806e])
+        by mx.google.com with ESMTPS id 78si2300887qge.4.2016.02.02.11.14.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Feb 2016 11:14:00 -0800 (PST)
+Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
+From: Valdis.Kletnieks@vt.edu
+In-Reply-To: <20160201073422.6dd72721@canb.auug.org.au>
+References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com> <20160128184749.7bdee246@redhat.com> <21684.1454137770@turing-police.cc.vt.edu> <20160130184646.6ea9c5f8@redhat.com> <20160131131506.4aad01b5@canb.auug.org.au> <20160131194048.6f7add16@redhat.com>
+ <20160201073422.6dd72721@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1454440363_5025P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 02 Feb 2016 14:12:43 -0500
+Message-ID: <21792.1454440363@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, dave.hansen@linux.intel.com
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 02/02/2016 08:11 AM, Vlastimil Babka wrote:
->> +void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct
->> *vma)
->> +{
->> +}
-> 
-> Is it valid that this serves also as a declaration? Or should it be also
-> in some header?
+--==_Exmh_1454440363_5025P
+Content-Type: text/plain; charset=us-ascii
 
-I guess having it in a header would make it less likely that someone
-screws up a definition farther down the line.  But, it also seemed a wee
-bit of overkill for a single user.
+On Mon, 01 Feb 2016 07:34:22 +1100, Stephen Rothwell said:
+> Hi Jesper,
 
-I'm happy to send a follow-on patch to add it to a header somewhere.
+> > [PATCH] mm: temporary fix for SLAB in linux-next
+> >
+> > From: Jesper Dangaard Brouer <brouer@redhat.com>
+> >
+> > This is only for linux-next, until AKPM pickup fixes two patches:
+> >  base url: http://ozlabs.org/~akpm/mmots/broken-out/
+> >  [1] mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
+> >  [2] slab-use-slab_pre_alloc_hook-in-slab-allocator-shared-with-slub.patch
+
+> Applied to linux-next today.
+
+Confirming that next-2016201 doesn't throw the warning on my laptop, thanks...
+
+--==_Exmh_1454440363_5025P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBVrD/qwdmEQWDXROgAQJ+DBAAmi8urkNIoMf0aR3vXZkvDSzq83TE9Anl
+oOyIM4/VhwDHA3KC8XrogEM9yhevdkg/8J64oZHktXxyDB/Hh9cCMMfFDT4DAFp+
+SqGmToHzGkxIM+/ITVE147Xye8b4dEslzGPURT9+5niuIWzo2Eu5h4+JYRnq/AAH
+fp3syjU79EVeOF1bSrlxsfZSL0rIzhwwd5U2KCbzJhI39cjGgadSxeXJhNHm9RzO
+/wx0wt+5kLkNhjrkla2oVHUTQgPoN0RH7/ECI8ySKlApnZR12w5IlGy4V2szq5pR
+Kb/HL98oR6pPdvdtkATDmIbBh3sbLuHk6dx55dBPISsnkHbjiIbUii2+UMd6+Bp6
+Kk4PR9y7CCZNfGj/e57BFpvbQyaC+8UsCtgM0hiwbnatbeKWXKGSe3q+rZyw7kcf
+gD3nEMlhrX4v0PGCr6UXlfJ4lXkV3Of9DLtzhn5Ir/y1CiVEEO8x0csz9rkYEU6x
+eScWeO8rcqMe4/SoEhhPIiwn2aM0LRsroaHDFwlMa1azTgL08E6fBKRTHLGCu0cY
+pSAmmNP8rtQdwtBZ/zV/W8Gsr9hr6b/ChMxx7o0IirMrKG2fNPlPBpl3WHrFnFgy
+2RfIS3xDPzlw9mK2dQj/t1aiDjtxdClj1ErjrAKU4BacpOIMEbmLSwHEFUl6JS7j
+2sNhazRzoVo=
+=IGB6
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1454440363_5025P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
