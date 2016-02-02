@@ -1,113 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A76066B0253
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:25:22 -0500 (EST)
-Received: by mail-yk0-f170.google.com with SMTP id r207so142834811ykd.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:25:22 -0800 (PST)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id f205si1820747yba.30.2016.02.02.08.25.21
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EB256B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:57:15 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id p63so32203729wmp.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:57:15 -0800 (PST)
+Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
+        by mx.google.com with ESMTPS id d7si3276510wjy.94.2016.02.02.08.57.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 08:25:21 -0800 (PST)
-Received: by mail-yk0-x236.google.com with SMTP id z7so112722195yka.3
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:25:21 -0800 (PST)
+        Tue, 02 Feb 2016 08:57:13 -0800 (PST)
+Date: Tue, 02 Feb 2016 11:57:12 -0500
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
+Message-ID: <qvVTaQKlPcv3yV_yRzjQVtTRtMVGX9NpOV1sjZIY-Xb-VOJqd-sXep_WbIhFMq4hzwcf4f-jingbgLsilBRwjQ==@protonmail.ch>
+In-Reply-To: <MlEP9uqReCv7NftCLWPAYNaNKA8U9H41_UgMHwMv0qelG9Q4NiVURosYKMck7en52IocTne6nvaTEcJRk2qTrQ==@protonmail.ch>
+References: <uywjiEnwKZXpN_45W7m7NCUzBWvntcu6YsAFaAgM2kJLHBFbArd1Z3pDt1Hxpx6XUgp8iI36V9_v53lGBNBT1A==@protonmail.ch>
+ <MlEP9uqReCv7NftCLWPAYNaNKA8U9H41_UgMHwMv0qelG9Q4NiVURosYKMck7en52IocTne6nvaTEcJRk2qTrQ==@protonmail.ch>
 MIME-Version: 1.0
-In-Reply-To: <56B0CB60.1080506@gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<35b553cafcd5b77838aeaf5548b457dfa09e30cf.1453918525.git.glider@google.com>
-	<20160201213427.f428b08d.akpm@linux-foundation.org>
-	<56B0CB60.1080506@gmail.com>
-Date: Tue, 2 Feb 2016 17:25:21 +0100
-Message-ID: <CAG_fn=VN3+otwrjBbut365D=F0YAnow7-OHkNArLAAntBQmYvw@mail.gmail.com>
-Subject: Re: [PATCH v1 1/8] kasan: Change the behavior of kmalloc_large_oob_right
- test
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/alternative;
+	boundary="b1_f81364070c8769fa9855c578623bc240"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
 
-The intention was to detect the situation in which a new allocator
-appears for which we don't know how it behaves if we allocate more
-than KMALLOC_MAX_CACHE_SIZE.
-I agree this makes little sense and we can just stick to
-CONFIG_SLAB/CONFIG_SLUB cases.
+This is a multi-part message in MIME format.
 
-However I think it's better to keep 'size =3D KMALLOC_MAX_CACHE_SIZE +
-something' to keep this code working in the case the value of
-KMALLOC_MAX_CACHE_SIZE changes.
+--b1_f81364070c8769fa9855c578623bc240
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 
-On Tue, Feb 2, 2016 at 4:29 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wr=
-ote:
->
->
-> On 02/02/2016 08:34 AM, Andrew Morton wrote:
->> On Wed, 27 Jan 2016 19:25:06 +0100 Alexander Potapenko <glider@google.co=
-m> wrote:
->>
->>> depending on which allocator (SLAB or SLUB) is being used
->>>
->>> ...
->>>
->>> --- a/lib/test_kasan.c
->>> +++ b/lib/test_kasan.c
->>> @@ -68,7 +68,22 @@ static noinline void __init kmalloc_node_oob_right(v=
-oid)
->>>  static noinline void __init kmalloc_large_oob_right(void)
->>>  {
->>>      char *ptr;
->>> -    size_t size =3D KMALLOC_MAX_CACHE_SIZE + 10;
->>> +    size_t size;
->>> +
->>> +    if (KMALLOC_MAX_CACHE_SIZE =3D=3D KMALLOC_MAX_SIZE) {
->>> +            /*
->>> +             * We're using the SLAB allocator. Allocate a chunk that f=
-its
->>> +             * into a slab.
->>> +             */
->>> +            size =3D KMALLOC_MAX_CACHE_SIZE - 256;
->>> +    } else {
->>> +            /*
->>> +             * KMALLOC_MAX_SIZE > KMALLOC_MAX_CACHE_SIZE.
->>> +             * We're using the SLUB allocator. Allocate a chunk that d=
-oes
->>> +             * not fit into a slab to trigger the page allocator.
->>> +             */
->>> +            size =3D KMALLOC_MAX_CACHE_SIZE + 10;
->>> +    }
->>
->> This seems a weird way of working out whether we're using SLAB or SLUB.
->>
->> Can't we use, umm, #ifdef CONFIG_SLAB?  If not that then let's cook up
->> something standardized rather than a weird just-happens-to-work like
->> this.
->>
->
-> Actually it would be simpler to not use KMALLOC_MAX_CACHE_SIZE at all.
-> Simply replace it with 2 or 3 PAGE_SIZEs.
+SGFsbG8/PwoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVjdDogUmU6
+ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09
+PT09PT09PQpMb2NhbCBUaW1lOiBKYW51YXJ5IDgsIDIwMTYgNTozNiBwbQpVVEMgVGltZTogSmFu
+dWFyeSA4LCAyMDE2IDQ6MzYgUE0KRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4
+LW1tQGt2YWNrLm9yZyxicEBhbGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5v
+cmcsY2xAbGludXgtZm91bmRhdGlvbi5vcmcKCkhlbGxvPyA6KQoKCi0tLS0tLS0tIE9yaWdpbmFs
+IE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0
+aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PQpMb2NhbCBUaW1lOiBPY3RvYmVy
+IDggMjAxNSA3OjMwIGFtClVUQyBUaW1lOiBPY3RvYmVyIDggMjAxNSA1OjMwIGFtCkZyb206IG5n
+YWJvckBwcm90b25tYWlsLmNoClRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxp
+emVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgpQ
+bGVhc2UgcmVwbHk/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJqZWN0
+OiBSZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQ
+VSA9PT09PT09PT09ClRpbWUgKFVUQyk6IFNlcHRlbWJlciAzIDIwMTUgMjoyOSBwbQpGcm9tOiBu
+Z2Fib3JAcHJvdG9ubWFpbC5jaApUbzogbGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxs
+aXplZmFuQGh1YXdlaS5jb20sdGpAa2VybmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoK
+SXMgYW55Ym9keSBoZXJlPyA6KQoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0K
+U3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3Rvcmlu
+ZyBpbiBDUFUgPT09PT09PT09PQpUaW1lIChVVEMpOiBBdWd1c3QgNCAyMDE1IDc6NDIgYW0KRnJv
+bTogbmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4LW1tQGt2YWNrLm9yZyxicEBhbGllbjgu
+ZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGludXgtZm91bmRhdGlvbi5v
+cmcKCkhhbGxvPwoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpTdWJqZWN0OiA9
+PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09
+PT09PT0KVGltZSAoR01UKTogSnVuIDIzIDIwMTUgMDQ6NDI6MzQKRnJvbTogbmdhYm9yQHByb3Rv
+bm1haWwuY2gKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1
+YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgpJcyBhbnli
+b2R5IHJlYWRpbmcgdGhpcz8KCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3Vi
+amVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKVGltZSAoR01U
+KTogSnVuIDE5IDIwMTUgMTc6MjI6NDkKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxp
+bnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtl
+cm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgpIYWxsbz8gOikKCi0tLS0tLS0tIE9y
+aWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBr
+ZXkgc3RvcmluZyBpbiBDUFUKVGltZSAoR01UKTogTWF5IDIzIDIwMTUgMDk6MDE6MjYKRnJvbTog
+bmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRl
+LCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24u
+b3JnCgpBbnkgY29tbWVudHM/CgotLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tClN1
+YmplY3Q6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKVGltZSAoR01UKTog
+TWF5IDIxIDIwMTUgMTA6MTc6MjUKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4
+LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
+bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgpIZWxsbywKCj09PT09PT09PT0KUHJvYmxl
+bToKCkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LgoKU28g
+aWYgYWx0aG91Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBhIExpbnV4IERlc2t0
+b3AsIGl0IGlzIHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSwgd2hp
+bGUgdGhlIG5vdGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5uaW5nOgoKaHR0cHM6
+Ly9jaXRwLnByaW5jZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5L21lZGlhLwoKPT09PT09PT09PQpT
+b2x1dGlvbjoKCkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhl
+IG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2
+b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPwoKaHR0cHM6Ly93d3cxLmluZm9y
+bWF0aWsudW5pLWVybGFuZ2VuLmRlL3RyZXNvcgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGlu
+IHRoZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBp
+dCBvbj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5l
+PyBXaGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/CgoqaWYgc29tZW9uZSB3b3VsZCB3
+YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3VsZCBi
+ZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xp
+Y3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQuCgpU
+aGFuayB5b3UgZm9yIHlvdXIgY29tbWVudHMu
+
+
+--b1_f81364070c8769fa9855c578623bc240
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdj5IYWxsbz8/PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxibG9ja3F1b3RlIGNsYXNzPSJw
+cm90b25tYWlsX3F1b3RlIiB0eXBlPSJjaXRlIj48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3Nh
+Z2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogPT09PT09PT09PSBSZTogUkFN
+IGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09PT09PT09PGJyPjwvZGl2Pjxk
+aXY+TG9jYWwgVGltZTogSmFudWFyeSA4LCAyMDE2IDU6MzYgcG08YnI+PC9kaXY+PGRpdj5VVEMg
+VGltZTogSmFudWFyeSA4LCAyMDE2IDQ6MzYgUE08YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JA
+cHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxp
+ZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRp
+b24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SGVsbG8/IDopPGJyPjwvZGl2Pjxk
+aXY+PGJyPjwvZGl2PjxibG9ja3F1b3RlIGNsYXNzPSJwcm90b25tYWlsX3F1b3RlIj48ZGl2Pi0t
+LS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBS
+ZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9
+PT09PT09PT09PGJyPjwvZGl2PjxkaXY+TG9jYWwgVGltZTogT2N0b2JlciA4IDIwMTUgNzozMCBh
+bTxicj48L2Rpdj48ZGl2PlVUQyBUaW1lOiBPY3RvYmVyIDggMjAxNSA1OjMwIGFtPGJyPjwvZGl2
+PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgt
+bW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxsaXplZmFuQGh1YXdlaS5jb20sdGpAa2VybmVsLm9y
+ZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlBs
+ZWFzZSByZXBseT8gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxibG9ja3F1b3RlIGNsYXNzPSJw
+cm90b25tYWlsX3F1b3RlIj48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08
+YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24g
+YW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09PT09PT09PGJyPjwvZGl2PjxkaXY+VGltZSAoVVRD
+KTogU2VwdGVtYmVyIDMgMjAxNSAyOjI5IHBtPGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHBy
+b3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVu
+OC5kZSxsaXplZmFuQGh1YXdlaS5jb20sdGpAa2VybmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9u
+Lm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PklzIGFueWJvZHkgaGVyZT8gOik8YnI+
+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBN
+ZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6
+IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PTxicj48L2Rp
+dj48ZGl2PlRpbWUgKFVUQyk6IEF1Z3VzdCA0IDIwMTUgNzo0MiBhbTxicj48L2Rpdj48ZGl2PkZy
+b206IG5nYWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNr
+Lm9yZyxicEBhbGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGlu
+dXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IYWxsbz8gPGJy
+PjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0t
+LTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFu
+ZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6
+IEp1biAyMyAyMDE1IDA0OjQyOjM0PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1h
+aWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUs
+IGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5v
+cmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8g
+PGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0t
+LS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0
+b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6
+NDk8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2
+PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29t
+LCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxi
+cj48L2Rpdj48ZGl2PkhhbGxvPyA6KTxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0t
+IE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFN
+IGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdN
+VCk6IE1heSAyMyAyMDE1IDA5OjAxOjI2PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rv
+bm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjgu
+ZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlv
+bi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rp
+dj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+
+PC9kaXY+PGRpdj5TdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BV
+PGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+
+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1t
+bUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwu
+b3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
+PkhlbGxvLCA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2
+PjxkaXY+PGI+UHJvYmxlbTwvYj46IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5
+dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRp
+dj48YnI+PC9kaXY+PGRpdj5TbyBpZiBhbHRob3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1
+c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVu
+dCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQg
+d2FzIHJ1bm5pbmc6IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBz
+Oi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0
+cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+
+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjog
+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlw
+dCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0
+aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4gZ2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/
+IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZv
+cm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3IiPmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVu
+aS1lcmxhbmdlbi5kZS90cmVzb3I8L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMg
+dGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRoZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNh
+biBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBvbj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBj
+b2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBXaGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3Qg
+aXQ/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQg
+dG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0
+b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0
+byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwv
+ZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+
+PC9kaXY+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3Rl
+PjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PGRpdj48YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwv
+YmxvY2txdW90ZT4=
 
 
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
-leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+--b1_f81364070c8769fa9855c578623bc240--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
