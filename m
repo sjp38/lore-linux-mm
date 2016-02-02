@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E80BB6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:33:55 -0500 (EST)
-Received: by mail-io0-f172.google.com with SMTP id g73so34916124ioe.3
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:33:55 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id n9si25803661iga.37.2016.02.02.14.33.54
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EB70B6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:37:55 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id 128so139949032wmz.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:37:55 -0800 (PST)
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com. [195.75.94.103])
+        by mx.google.com with ESMTPS id ce10si5262181wjc.152.2016.02.02.14.37.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 14:33:55 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH] mm/hugetlb: fix gigantic page initialization/allocation
-Date: Tue,  2 Feb 2016 14:33:40 -0800
-Message-Id: <1454452420-25007-1-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 Feb 2016 14:37:55 -0800 (PST)
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Tue, 2 Feb 2016 22:37:54 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2315F17D8059
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 22:38:03 +0000 (GMT)
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u12Mbpct9175494
+	for <linux-mm@kvack.org>; Tue, 2 Feb 2016 22:37:51 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u12Mbopk030730
+	for <linux-mm@kvack.org>; Tue, 2 Feb 2016 15:37:51 -0700
+Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
+References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
+ <1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
+ <alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
+ <56A9E3D1.3090001@de.ibm.com>
+ <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
+ <56B12560.4010201@de.ibm.com>
+ <20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Message-ID: <56B12FBE.3070909@de.ibm.com>
+Date: Tue, 2 Feb 2016 23:37:50 +0100
+MIME-Version: 1.0
+In-Reply-To: <20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
 
-Attempting to preallocate 1G gigantic huge pages at boot time with
-"hugepagesz=1G hugepages=1" on the kernel command line will prevent
-booting with the following:
+On 02/02/2016 11:21 PM, Andrew Morton wrote:
+> On Tue, 2 Feb 2016 22:53:36 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+> 
+>>>> I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
+>>>> and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
+>>>> to enable more stuff.  It should either be all enabled by the commandline 
+>>>> (or config option) or split into a separate entity.  
+>>>> CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
+>>>> the current state is very confusing about what is being done and what 
+>>>> isn't.
+>>>>
+>>>
+>>> Ping?
+>>>
+>> https://lkml.org/lkml/2016/1/29/266 
+> 
+> That's already in linux-next so I can't apply it.
+> 
+> Well, I can, but it's a hassle.  What's happening here?
 
-kernel BUG at mm/hugetlb.c:1218!
+I pushed it on my tree for kbuild testing purposes some days ago. 
+Will drop so that it can go via mm.
 
-When mapcount accounting was reworked, the setting of compound_mapcount_ptr
-in prep_compound_gigantic_page was overlooked.  As a result, the validation
-of mapcount in free_huge_page fails.
-
-The "BUG_ON" checks in free_huge_page were also changed to "VM_BUG_ON_PAGE"
-to assist with debugging.
-
-Fixes: af5642a8af ("mm: rework mapcount accounting to enable 4k mapping of THPs")
-Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/hugetlb.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 12908dc..d7a8024 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1214,8 +1214,8 @@ void free_huge_page(struct page *page)
- 
- 	set_page_private(page, 0);
- 	page->mapping = NULL;
--	BUG_ON(page_count(page));
--	BUG_ON(page_mapcount(page));
-+	VM_BUG_ON_PAGE(page_count(page), page);
-+	VM_BUG_ON_PAGE(page_mapcount(page), page);
- 	restore_reserve = PagePrivate(page);
- 	ClearPagePrivate(page);
- 
-@@ -1286,6 +1286,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
- 		set_page_count(p, 0);
- 		set_compound_head(p, page);
- 	}
-+	atomic_set(compound_mapcount_ptr(page), -1);
- }
- 
- /*
--- 
-2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
