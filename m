@@ -1,113 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2296F6B0256
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:21:46 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id 65so107599876pfd.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:21:46 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id os10si2715892pac.121.2016.02.02.08.21.45
-        for <linux-mm@kvack.org>;
-        Tue, 02 Feb 2016 08:21:45 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/2] mempolicy: do not try to queue pages from !vma_migratable()
-Date: Tue,  2 Feb 2016 19:21:00 +0300
-Message-Id: <1454430061-116955-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 410696B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:24:30 -0500 (EST)
+Received: by mail-io0-f176.google.com with SMTP id g73so22908938ioe.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:24:30 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id p9si5580147ioe.174.2016.02.02.08.24.28
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 02 Feb 2016 08:24:29 -0800 (PST)
+Date: Wed, 3 Feb 2016 01:24:27 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
+Message-ID: <20160202162427.GA21239@bbox>
+References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
+ <20160121161656.GA16564@node.shutemov.name>
+ <loom.20160123T165232-709@post.gmane.org>
+ <20160125103853.GD11095@node.shutemov.name>
+ <loom.20160125T174557-678@post.gmane.org>
+ <20160202135950.GA5026@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160202135950.GA5026@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Greenberg <hugh@galliumos.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Maybe I miss some point, but I don't see a reason why we try to queue
-pages from non migratable VMAs.
+On Tue, Feb 02, 2016 at 03:59:50PM +0200, Kirill A. Shutemov wrote:
+> On Mon, Jan 25, 2016 at 04:46:58PM +0000, Hugh Greenberg wrote:
+> > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
+> > 
+> > > 
+> > > On Sat, Jan 23, 2016 at 03:57:21PM +0000, Hugh Greenberg wrote:
+> > > > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
+> > > > > 
+> > > > > Could you try to insert 
+> > "late_initcall(set_recommended_min_free_kbytes);"
+> > > > > back and check if makes any difference.
+> > > > > 
+> > > > 
+> > > > We tested adding late_initcall(set_recommended_min_free_kbytes); 
+> > > > back in 4.1.14 and it made a huge difference. We aren't sure if the
+> > > > issue is 100% fixed, but it could be. We will keep testing it.
+> > > 
+> > > It would be nice to have values of min_free_kbytes before and after
+> > > set_recommended_min_free_kbytes() in your configuration.
+> > > 
+> > 
+> > Before adding set_recommended_min_free_kbytes: 5391
+> > After: 67584
+> 
+> [ add more people to the thread ]
+> 
+> The 'before' value look low to me for machine with 2G of RAM.
+> 
+> In the bugzilla[1], you've mentioned zram. I wounder if we need to
+> increase min_free_kbytes when zram is in use as we do for THP.
+> 
+> [1] https://bugzilla.kernel.org/show_bug.cgi?id=110501
 
-This testcase steps on VM_BUG_ON_PAGE() in isolate_lru_page():
+Normally, it's recommended to increate min_free_kbytes when zram is
+used for swap because zram should allocate a page in reclaim path
+dynamically to keep compressed page.
 
-	#include <fcntl.h>
-	#include <unistd.h>
-	#include <stdio.h>
-	#include <sys/mman.h>
-	#include <numaif.h>
+However, when I read bugzilla's perf profile, I can't find
+any zram related things and if there is lack of free memory for
+zram page allocation due to changing min_free_kbytes, user will see
+below error message.
 
-	#define SIZE 0x2000
-
-	int foo;
-
-	int main()
-	{
-		int fd;
-		char *p;
-		unsigned long mask = 2;
-
-		fd = open("/dev/sg0", O_RDWR);
-		p = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-		/* Faultin pages */
-		foo = p[0] + p[0x1000];
-		mbind(p, SIZE, MPOL_BIND, &mask, 4, MPOL_MF_MOVE | MPOL_MF_STRICT);
-		return 0;
-	}
-
-The only case when we can queue pages from such VMA is MPOL_MF_STRICT
-plus MPOL_MF_MOVE or MPOL_MF_MOVE_ALL for VMA which has pages on LRU,
-but gfp mask is not sutable for migaration (see mapping_gfp_mask() check
-in vma_migratable()). That's looks like a bug to me.
-
-Let's filter out non-migratable vma at start of queue_pages_test_walk()
-and go to queue_pages_pte_range() only if MPOL_MF_MOVE or
-MPOL_MF_MOVE_ALL flag is set.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
----
- mm/mempolicy.c | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 27d135408a22..4c4187c0e1de 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -548,8 +548,7 @@ retry:
- 			goto retry;
- 		}
- 
--		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
--			migrate_page_add(page, qp->pagelist, flags);
-+		migrate_page_add(page, qp->pagelist, flags);
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
-@@ -625,7 +624,7 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
- 	unsigned long endvma = vma->vm_end;
- 	unsigned long flags = qp->flags;
- 
--	if (vma->vm_flags & VM_PFNMAP)
-+	if (!vma_migratable(vma))
- 		return 1;
- 
- 	if (endvma > end)
-@@ -644,16 +643,13 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
- 
- 	if (flags & MPOL_MF_LAZY) {
- 		/* Similar to task_numa_work, skip inaccessible VMAs */
--		if (vma_migratable(vma) &&
--			vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
-+		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
- 			change_prot_numa(vma, start, endvma);
- 		return 1;
- 	}
- 
--	if ((flags & MPOL_MF_STRICT) ||
--	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
--	     vma_migratable(vma)))
--		/* queue pages from current vma */
-+	/* queue pages from current vma */
-+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
- 		return 0;
- 	return 1;
- }
--- 
-2.7.0
+pr_err("Error allocating memory for compressed page: %u, size=%zu\n"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
