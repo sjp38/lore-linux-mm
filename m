@@ -1,76 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 410696B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:24:30 -0500 (EST)
-Received: by mail-io0-f176.google.com with SMTP id g73so22908938ioe.3
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:24:30 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id p9si5580147ioe.174.2016.02.02.08.24.28
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A76066B0253
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 11:25:22 -0500 (EST)
+Received: by mail-yk0-f170.google.com with SMTP id r207so142834811ykd.2
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:25:22 -0800 (PST)
+Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
+        by mx.google.com with ESMTPS id f205si1820747yba.30.2016.02.02.08.25.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Feb 2016 08:24:29 -0800 (PST)
-Date: Wed, 3 Feb 2016 01:24:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
-Message-ID: <20160202162427.GA21239@bbox>
-References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
- <20160121161656.GA16564@node.shutemov.name>
- <loom.20160123T165232-709@post.gmane.org>
- <20160125103853.GD11095@node.shutemov.name>
- <loom.20160125T174557-678@post.gmane.org>
- <20160202135950.GA5026@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Feb 2016 08:25:21 -0800 (PST)
+Received: by mail-yk0-x236.google.com with SMTP id z7so112722195yka.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 08:25:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160202135950.GA5026@node.shutemov.name>
+In-Reply-To: <56B0CB60.1080506@gmail.com>
+References: <cover.1453918525.git.glider@google.com>
+	<35b553cafcd5b77838aeaf5548b457dfa09e30cf.1453918525.git.glider@google.com>
+	<20160201213427.f428b08d.akpm@linux-foundation.org>
+	<56B0CB60.1080506@gmail.com>
+Date: Tue, 2 Feb 2016 17:25:21 +0100
+Message-ID: <CAG_fn=VN3+otwrjBbut365D=F0YAnow7-OHkNArLAAntBQmYvw@mail.gmail.com>
+Subject: Re: [PATCH v1 1/8] kasan: Change the behavior of kmalloc_large_oob_right
+ test
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Greenberg <hugh@galliumos.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Feb 02, 2016 at 03:59:50PM +0200, Kirill A. Shutemov wrote:
-> On Mon, Jan 25, 2016 at 04:46:58PM +0000, Hugh Greenberg wrote:
-> > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
-> > 
-> > > 
-> > > On Sat, Jan 23, 2016 at 03:57:21PM +0000, Hugh Greenberg wrote:
-> > > > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
-> > > > > 
-> > > > > Could you try to insert 
-> > "late_initcall(set_recommended_min_free_kbytes);"
-> > > > > back and check if makes any difference.
-> > > > > 
-> > > > 
-> > > > We tested adding late_initcall(set_recommended_min_free_kbytes); 
-> > > > back in 4.1.14 and it made a huge difference. We aren't sure if the
-> > > > issue is 100% fixed, but it could be. We will keep testing it.
-> > > 
-> > > It would be nice to have values of min_free_kbytes before and after
-> > > set_recommended_min_free_kbytes() in your configuration.
-> > > 
-> > 
-> > Before adding set_recommended_min_free_kbytes: 5391
-> > After: 67584
-> 
-> [ add more people to the thread ]
-> 
-> The 'before' value look low to me for machine with 2G of RAM.
-> 
-> In the bugzilla[1], you've mentioned zram. I wounder if we need to
-> increase min_free_kbytes when zram is in use as we do for THP.
-> 
-> [1] https://bugzilla.kernel.org/show_bug.cgi?id=110501
+The intention was to detect the situation in which a new allocator
+appears for which we don't know how it behaves if we allocate more
+than KMALLOC_MAX_CACHE_SIZE.
+I agree this makes little sense and we can just stick to
+CONFIG_SLAB/CONFIG_SLUB cases.
 
-Normally, it's recommended to increate min_free_kbytes when zram is
-used for swap because zram should allocate a page in reclaim path
-dynamically to keep compressed page.
+However I think it's better to keep 'size =3D KMALLOC_MAX_CACHE_SIZE +
+something' to keep this code working in the case the value of
+KMALLOC_MAX_CACHE_SIZE changes.
 
-However, when I read bugzilla's perf profile, I can't find
-any zram related things and if there is lack of free memory for
-zram page allocation due to changing min_free_kbytes, user will see
-below error message.
+On Tue, Feb 2, 2016 at 4:29 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wr=
+ote:
+>
+>
+> On 02/02/2016 08:34 AM, Andrew Morton wrote:
+>> On Wed, 27 Jan 2016 19:25:06 +0100 Alexander Potapenko <glider@google.co=
+m> wrote:
+>>
+>>> depending on which allocator (SLAB or SLUB) is being used
+>>>
+>>> ...
+>>>
+>>> --- a/lib/test_kasan.c
+>>> +++ b/lib/test_kasan.c
+>>> @@ -68,7 +68,22 @@ static noinline void __init kmalloc_node_oob_right(v=
+oid)
+>>>  static noinline void __init kmalloc_large_oob_right(void)
+>>>  {
+>>>      char *ptr;
+>>> -    size_t size =3D KMALLOC_MAX_CACHE_SIZE + 10;
+>>> +    size_t size;
+>>> +
+>>> +    if (KMALLOC_MAX_CACHE_SIZE =3D=3D KMALLOC_MAX_SIZE) {
+>>> +            /*
+>>> +             * We're using the SLAB allocator. Allocate a chunk that f=
+its
+>>> +             * into a slab.
+>>> +             */
+>>> +            size =3D KMALLOC_MAX_CACHE_SIZE - 256;
+>>> +    } else {
+>>> +            /*
+>>> +             * KMALLOC_MAX_SIZE > KMALLOC_MAX_CACHE_SIZE.
+>>> +             * We're using the SLUB allocator. Allocate a chunk that d=
+oes
+>>> +             * not fit into a slab to trigger the page allocator.
+>>> +             */
+>>> +            size =3D KMALLOC_MAX_CACHE_SIZE + 10;
+>>> +    }
+>>
+>> This seems a weird way of working out whether we're using SLAB or SLUB.
+>>
+>> Can't we use, umm, #ifdef CONFIG_SLAB?  If not that then let's cook up
+>> something standardized rather than a weird just-happens-to-work like
+>> this.
+>>
+>
+> Actually it would be simpler to not use KMALLOC_MAX_CACHE_SIZE at all.
+> Simply replace it with 2 or 3 PAGE_SIZEs.
 
-pr_err("Error allocating memory for compressed page: %u, size=%zu\n"
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
+leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
