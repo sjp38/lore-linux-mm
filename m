@@ -1,93 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AB5BB6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:03:27 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id l66so137601104wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:03:27 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id uj7si5139080wjc.0.2016.02.02.14.03.26
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C056B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 17:21:59 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id cy9so1425699pac.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:21:59 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ly9si4351066pab.115.2016.02.02.14.21.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 14:03:26 -0800 (PST)
-Received: by mail-wm0-x235.google.com with SMTP id l66so43671079wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 14:03:26 -0800 (PST)
-Date: Wed, 3 Feb 2016 00:03:23 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 2/2] mm: downgrade VM_BUG in isolate_lru_page() to
- warning
-Message-ID: <20160202220323.GA7561@node.shutemov.name>
-References: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20160202125844.43f23e2f8637b5a304b887dc@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160202125844.43f23e2f8637b5a304b887dc@linux-foundation.org>
+        Tue, 02 Feb 2016 14:21:59 -0800 (PST)
+Date: Tue, 2 Feb 2016 14:21:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
+Message-Id: <20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
+In-Reply-To: <56B12560.4010201@de.ibm.com>
+References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
+	<1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
+	<alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
+	<56A9E3D1.3090001@de.ibm.com>
+	<alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
+	<alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
+	<56B12560.4010201@de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dmitry Vyukov <dvyukov@google.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
 
-On Tue, Feb 02, 2016 at 12:58:44PM -0800, Andrew Morton wrote:
-> On Tue,  2 Feb 2016 19:21:01 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > Calling isolate_lru_page() is wrong and shouldn't happen, but it not
-> > nessesary fatal: the page just will not be isolated if it's not on LRU.
+On Tue, 2 Feb 2016 22:53:36 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+
+> >> I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
+> >> and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
+> >> to enable more stuff.  It should either be all enabled by the commandline 
+> >> (or config option) or split into a separate entity.  
+> >> CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
+> >> the current state is very confusing about what is being done and what 
+> >> isn't.
+> >>
 > > 
-> > Let's downgrade the VM_BUG_ON_PAGE() to WARN_RATELIMIT().
+> > Ping?
 > > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/vmscan.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index eb3dd37ccd7c..71b1c29948db 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
-> >  	int ret = -EBUSY;
-> >  
-> >  	VM_BUG_ON_PAGE(!page_count(page), page);
-> > -	VM_BUG_ON_PAGE(PageTail(page), page);
-> > +	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
-> >  
-> >  	if (PageLRU(page)) {
-> >  		struct zone *zone = page_zone(page);
-> 
-> Confused.  I thought mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page.patch:
-> 
-> --- a/mm/vmscan.c~mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page
-> +++ a/mm/vmscan.c
-> @@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
->  	int ret = -EBUSY;
->  
->  	VM_BUG_ON_PAGE(!page_count(page), page);
-> -	VM_BUG_ON_PAGE(PageTail(page), page);
-> +	VM_BUG_ON_PAGE(PageLRU(page) && PageTail(page), page);
->  
->  	if (PageLRU(page)) {
->  		struct zone *zone = page_zone(page);
-> 
-> was better.  We *know* that we sometimes encounter LRU pages here and
-> we know that we handle them correctly.  So why scare users by blurting
-> out a warning about something for which we won't be taking any action?
+> https://lkml.org/lkml/2016/1/29/266 
 
-We will.
+That's already in linux-next so I can't apply it.
 
-If we try to isolate tail page something went wrong. It just shouldn't
-happen. Compound pages should be isolated by head page as only whole
-compound page is on LRU, not subpages.
-
-If we see tail page here it's most probably from broken driver which
-forgot to set VM_IO. With setting VM_IO on such VMA we would avoid useless
-scan through pte in them and save some time.
-
-Or maybe something else is broken. Like we forgot to split THP before
-migration.
-
--- 
- Kirill A. Shutemov
+Well, I can, but it's a hassle.  What's happening here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
