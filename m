@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B8AD46B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 08:59:53 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id 128so119478683wmz.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 05:59:53 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id t4si4876327wme.83.2016.02.02.05.59.52
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1186B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 09:18:47 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id yy13so99627447pab.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 06:18:47 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id l84si2203608pfb.158.2016.02.02.06.18.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 05:59:52 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id l66so118262931wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 05:59:52 -0800 (PST)
-Date: Tue, 2 Feb 2016 15:59:50 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
-Message-ID: <20160202135950.GA5026@node.shutemov.name>
-References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
- <20160121161656.GA16564@node.shutemov.name>
- <loom.20160123T165232-709@post.gmane.org>
- <20160125103853.GD11095@node.shutemov.name>
- <loom.20160125T174557-678@post.gmane.org>
+        Tue, 02 Feb 2016 06:18:46 -0800 (PST)
+Date: Tue, 2 Feb 2016 17:18:25 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH v2 1/5] mm: memcontrol: generalize locking for the
+ page->mem_cgroup binding
+Message-ID: <20160202141825.GB21016@esperanza>
+References: <1454090047-1790-1-git-send-email-hannes@cmpxchg.org>
+ <1454090047-1790-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <loom.20160125T174557-678@post.gmane.org>
+In-Reply-To: <1454090047-1790-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Greenberg <hugh@galliumos.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jan 25, 2016 at 04:46:58PM +0000, Hugh Greenberg wrote:
-> Kirill A. Shutemov <kirill <at> shutemov.name> writes:
+On Fri, Jan 29, 2016 at 12:54:03PM -0500, Johannes Weiner wrote:
+> So far the only sites that needed to exclude charge migration to
+> stabilize page->mem_cgroup have been per-cgroup page statistics, hence
+> the name mem_cgroup_begin_page_stat(). But per-cgroup thrash detection
+> will add another site that needs to ensure page->mem_cgroup lifetime.
 > 
-> > 
-> > On Sat, Jan 23, 2016 at 03:57:21PM +0000, Hugh Greenberg wrote:
-> > > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
-> > > > 
-> > > > Could you try to insert 
-> "late_initcall(set_recommended_min_free_kbytes);"
-> > > > back and check if makes any difference.
-> > > > 
-> > > 
-> > > We tested adding late_initcall(set_recommended_min_free_kbytes); 
-> > > back in 4.1.14 and it made a huge difference. We aren't sure if the
-> > > issue is 100% fixed, but it could be. We will keep testing it.
-> > 
-> > It would be nice to have values of min_free_kbytes before and after
-> > set_recommended_min_free_kbytes() in your configuration.
-> > 
+> Rename these locking functions to the more generic lock_page_memcg()
+> and unlock_page_memcg(). Since charge migration is a cgroup1 feature
+> only, we might be able to delete it at some point, and these now easy
+> to identify locking sites along with it.
 > 
-> Before adding set_recommended_min_free_kbytes: 5391
-> After: 67584
+> Suggested-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-[ add more people to the thread ]
-
-The 'before' value look low to me for machine with 2G of RAM.
-
-In the bugzilla[1], you've mentioned zram. I wounder if we need to
-increase min_free_kbytes when zram is in use as we do for THP.
-
-[1] https://bugzilla.kernel.org/show_bug.cgi?id=110501
-
--- 
- Kirill A. Shutemov
+Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
