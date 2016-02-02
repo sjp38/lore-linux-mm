@@ -1,174 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B38676B0009
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 22:02:09 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id uo6so94471657pac.1
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 19:02:09 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id a78si44818465pfj.116.2016.02.01.19.02.08
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 879FD6B0253
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2016 22:23:04 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id o185so90069769pfb.1
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 19:23:04 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a7si17622559pas.120.2016.02.01.19.23.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Feb 2016 19:02:08 -0800 (PST)
-Received: by mail-pa0-x231.google.com with SMTP id ho8so92765965pac.2
-        for <linux-mm@kvack.org>; Mon, 01 Feb 2016 19:02:08 -0800 (PST)
-Date: Mon, 1 Feb 2016 19:02:06 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
-In-Reply-To: <20160128214247.GD621@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1602011843250.31751@chino.kir.corp.google.com>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org> <1452094975-551-2-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1601271651530.17979@chino.kir.corp.google.com> <20160128214247.GD621@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 01 Feb 2016 19:23:03 -0800 (PST)
+Date: Mon, 1 Feb 2016 19:25:50 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: GPF in shm_lock ipc
+Message-Id: <20160201192550.6da19ac1.akpm@linux-foundation.org>
+In-Reply-To: <CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
+References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
+	<20151012122702.GC2544@node>
+	<20151012174945.GC3170@linux-uzut.site>
+	<20151012181040.GC6447@node>
+	<20151012185533.GD3170@linux-uzut.site>
+	<20151013031821.GA3052@linux-uzut.site>
+	<20151013123028.GA12934@node>
+	<CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
+	<20151105142336.46D907FD@black.fi.intel.com>
+	<CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzkaller <syzkaller@googlegroups.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On Thu, 28 Jan 2016, Michal Hocko wrote:
+On Mon, 21 Dec 2015 16:44:34 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
 
-> [...]
-> > > +static bool __oom_reap_vmas(struct mm_struct *mm)
-> > > +{
-> > > +	struct mmu_gather tlb;
-> > > +	struct vm_area_struct *vma;
-> > > +	struct zap_details details = {.check_swap_entries = true,
-> > > +				      .ignore_dirty = true};
-> > > +	bool ret = true;
-> > > +
-> > > +	/* We might have raced with exit path */
-> > > +	if (!atomic_inc_not_zero(&mm->mm_users))
-> > > +		return true;
-> > > +
-> > > +	if (!down_read_trylock(&mm->mmap_sem)) {
-> > > +		ret = false;
-> > > +		goto out;
-> > > +	}
-> > > +
-> > > +	tlb_gather_mmu(&tlb, mm, 0, -1);
-> > > +	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-> > > +		if (is_vm_hugetlb_page(vma))
-> > > +			continue;
-> > > +
-> > > +		/*
-> > > +		 * mlocked VMAs require explicit munlocking before unmap.
-> > > +		 * Let's keep it simple here and skip such VMAs.
-> > > +		 */
-> > > +		if (vma->vm_flags & VM_LOCKED)
-> > > +			continue;
-> > 
-> > Shouldn't there be VM_PFNMAP handling here?
+> On Thu, Nov 5, 2015 at 3:23 PM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > What about this:
 > 
-> What would be the reason to exclude them?
+> 
+> Ping. This is still happening for me on tip. Can we pull in this fix
+> if it looks good to everybody?
 > 
 
-Not exclude them, but I would have expected untrack_pfn().
+Well we have at least three patches to choose from in this thread, most
+of them missing most signs of having been reviewed or tested.
 
-> > I'm wondering why zap_page_range() for vma->vm_start to vma->vm_end wasn't 
-> > used here for simplicity?
-> 
-> I didn't use zap_page_range because I wanted to have a full control over
-> what and how gets torn down. E.g. it is much more easier to skip over
-> hugetlb pages than relying on i_mmap_lock_write which might be blocked
-> and the whole oom_reaper will get stuck.
-> 
+So I grabbed the last one, below.  Can we please rev this up again,
+test it, see if we can agree that this is the way to go forward?
 
-Let me be clear that I think the implementation is fine, minus the missing 
-handling for VM_PFNMAP.  However, I think this implementation is better 
-placed into mm/memory.c to do the iteration, selection criteria, and then 
-unmap_page_range().  I don't think we should be exposing 
-unmap_page_range() globally, but rather add a new function to do the 
-iteration in mm/memory.c with the others.
+Thanks.
 
-> [...]
-> > > +static void wake_oom_reaper(struct mm_struct *mm)
-> > > +{
-> > > +	struct mm_struct *old_mm;
-> > > +
-> > > +	if (!oom_reaper_th)
-> > > +		return;
-> > > +
-> > > +	/*
-> > > +	 * Pin the given mm. Use mm_count instead of mm_users because
-> > > +	 * we do not want to delay the address space tear down.
-> > > +	 */
-> > > +	atomic_inc(&mm->mm_count);
-> > > +
-> > > +	/*
-> > > +	 * Make sure that only a single mm is ever queued for the reaper
-> > > +	 * because multiple are not necessary and the operation might be
-> > > +	 * disruptive so better reduce it to the bare minimum.
-> > > +	 */
-> > > +	old_mm = cmpxchg(&mm_to_reap, NULL, mm);
-> > > +	if (!old_mm)
-> > > +		wake_up(&oom_reaper_wait);
-> > > +	else
-> > > +		mmdrop(mm);
-> > 
-> > This behavior is probably the only really significant concern I have about 
-> > the patch: we just drop the mm and don't try any reaping if there is 
-> > already reaping in progress.
-> 
-> This is based on the assumption that OOM killer will not select another
-> task to kill until the previous one drops its TIF_MEMDIE. Should this
-> change in the future we will have to come up with a queuing mechanism. I
-> didn't want to do it right away to make the change as simple as
-> possible.
-> 
 
-The problem is that this is racy and quite easy to trigger: imagine if 
-__oom_reap_vmas() finds mm->mm_users == 0, because the memory of the 
-victim has been freed, and then another system-wide oom condition occurs 
-before the oom reaper's mm_to_reap has been set to NULL.  No 
-synchronization prevents that from happening (not sure what the reference 
-to TIF_MEMDIE is about).
 
-In this case, the oom reaper has ignored the next victim and doesn't do 
-anything; the simple race has prevented it from zapping memory and does 
-not reduce the livelock probability.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: ipc/shm: handle removed segments gracefully in shm_mmap()
 
-This can be solved either by queueing mm's to reap or involving the oom 
-reaper into the oom killer synchronization itself.
+remap_file_pages(2) emulation can reach file which represents removed IPC
+ID as long as a memory segment is mapped.  It breaks expectations of IPC
+subsystem.
 
-> > > +static int __init oom_init(void)
-> > > +{
-> > > +	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
-> > > +	if (IS_ERR(oom_reaper_th)) {
-> > > +		pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
-> > > +				PTR_ERR(oom_reaper_th));
-> > > +		oom_reaper_th = NULL;
-> > > +	} else {
-> > > +		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
-> > > +
-> > > +		/*
-> > > +		 * Make sure our oom reaper thread will get scheduled when
-> > > +		 * ASAP and that it won't get preempted by malicious userspace.
-> > > +		 */
-> > > +		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &param);
-> > 
-> > Eeek, do you really show this is necessary?  I would imagine that we would 
-> > want to limit high priority processes system-wide and that we wouldn't 
-> > want to be interferred with by memcg oom conditions that trigger the oom 
-> > reaper, for example.
-> 
-> The idea was that we do not want to allow a high priority userspace to
-> preempt this important operation. I do understand your concern about the
-> memcg oom interference but I find it more important that oom_reaper is
-> runnable when needed. I guess that memcg oom heavy loads can change the
-> priority from userspace if necessary?
-> 
+Test case (rewritten to be more human readable, originally autogenerated
+by syzkaller[1]):
 
-I'm baffled by any reference to "memcg oom heavy loads", I don't 
-understand this paragraph, sorry.  If a memcg is oom, we shouldn't be
-disrupting the global runqueue by running oom_reaper at a high priority.  
-The disruption itself is not only in first wakeup but also in how long the 
-reaper can run and when it is rescheduled: for a lot of memory this is 
-potentially long.  The reaper is best-effort, as the changelog indicates, 
-and we shouldn't have a reliance on this high priority: oom kill exiting 
-can't possibly be expected to be immediate.  This high priority should be 
-removed so memcg oom conditions are isolated and don't affect other loads.
+	#define _GNU_SOURCE
+	#include <stdlib.h>
+	#include <sys/ipc.h>
+	#include <sys/mman.h>
+	#include <sys/shm.h>
 
-"Memcg oom heavy loads" cannot always be determined and the suggested fix 
-cannot possibly be to adjust the priority of a global resource.  ??
+	#define PAGE_SIZE 4096
+
+	int main()
+	{
+		int id;
+		void *p;
+
+		id = shmget(IPC_PRIVATE, 3 * PAGE_SIZE, 0);
+		p = shmat(id, NULL, 0);
+		shmctl(id, IPC_RMID, NULL);
+		remap_file_pages(p, 3 * PAGE_SIZE, 0, 7, 0);
+
+	        return 0;
+	}
+
+The patch changes shm_mmap() and code around shm_lock() to propagate
+locking error back to caller of shm_mmap().
+
+[1] http://github.com/google/syzkaller
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Manfred Spraul <manfred@colorfullife.com>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ ipc/shm.c |   53 ++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 43 insertions(+), 10 deletions(-)
+
+diff -puN ipc/shm.c~gpf-in-shm_lock-ipc ipc/shm.c
+--- a/ipc/shm.c~gpf-in-shm_lock-ipc
++++ a/ipc/shm.c
+@@ -156,11 +156,12 @@ static inline struct shmid_kernel *shm_l
+ 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+ 
+ 	/*
+-	 * We raced in the idr lookup or with shm_destroy().  Either way, the
+-	 * ID is busted.
++	 * Callers of shm_lock() must validate the status of the returned ipc
++	 * object pointer (as returned by ipc_lock()), and error out as
++	 * appropriate.
+ 	 */
+-	WARN_ON(IS_ERR(ipcp));
+-
++	if (IS_ERR(ipcp))
++		return (void *)ipcp;
+ 	return container_of(ipcp, struct shmid_kernel, shm_perm);
+ }
+ 
+@@ -186,18 +187,33 @@ static inline void shm_rmid(struct ipc_n
+ }
+ 
+ 
+-/* This is called by fork, once for every shm attach. */
+-static void shm_open(struct vm_area_struct *vma)
++static int __shm_open(struct vm_area_struct *vma)
+ {
+ 	struct file *file = vma->vm_file;
+ 	struct shm_file_data *sfd = shm_file_data(file);
+ 	struct shmid_kernel *shp;
+ 
+ 	shp = shm_lock(sfd->ns, sfd->id);
++
++	if (IS_ERR(shp))
++		return PTR_ERR(shp);
++
+ 	shp->shm_atim = get_seconds();
+ 	shp->shm_lprid = task_tgid_vnr(current);
+ 	shp->shm_nattch++;
+ 	shm_unlock(shp);
++	return 0;
++}
++
++/* This is called by fork, once for every shm attach. */
++static void shm_open(struct vm_area_struct *vma)
++{
++	int err = __shm_open(vma);
++	/*
++	 * We raced in the idr lookup or with shm_destroy().
++	 * Either way, the ID is busted.
++	 */
++	WARN_ON_ONCE(err);
+ }
+ 
+ /*
+@@ -260,6 +276,14 @@ static void shm_close(struct vm_area_str
+ 	down_write(&shm_ids(ns).rwsem);
+ 	/* remove from the list of attaches of the shm segment */
+ 	shp = shm_lock(ns, sfd->id);
++
++	/*
++	 * We raced in the idr lookup or with shm_destroy().
++	 * Either way, the ID is busted.
++	 */
++	if (WARN_ON_ONCE(IS_ERR(shp)))
++		goto done; /* no-op */
++
+ 	shp->shm_lprid = task_tgid_vnr(current);
+ 	shp->shm_dtim = get_seconds();
+ 	shp->shm_nattch--;
+@@ -267,6 +291,7 @@ static void shm_close(struct vm_area_str
+ 		shm_destroy(ns, shp);
+ 	else
+ 		shm_unlock(shp);
++done:
+ 	up_write(&shm_ids(ns).rwsem);
+ }
+ 
+@@ -388,17 +413,25 @@ static int shm_mmap(struct file *file, s
+ 	struct shm_file_data *sfd = shm_file_data(file);
+ 	int ret;
+ 
++	/*
++	 * In case of remap_file_pages() emulation, the file can represent
++	 * removed IPC ID: propogate shm_lock() error to caller.
++	 */
++	ret =__shm_open(vma);
++	if (ret)
++		return ret;
++
+ 	ret = sfd->file->f_op->mmap(sfd->file, vma);
+-	if (ret != 0)
++	if (ret) {
++		shm_close(vma);
+ 		return ret;
++	}
+ 	sfd->vm_ops = vma->vm_ops;
+ #ifdef CONFIG_MMU
+ 	WARN_ON(!sfd->vm_ops->fault);
+ #endif
+ 	vma->vm_ops = &shm_vm_ops;
+-	shm_open(vma);
+-
+-	return ret;
++	return 0;
+ }
+ 
+ static int shm_release(struct inode *ino, struct file *file)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
