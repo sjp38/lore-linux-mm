@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 300D56B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 03:24:23 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id cy9so97494078pac.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 00:24:23 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id x2si408117pfi.97.2016.02.02.00.24.22
-        for <linux-mm@kvack.org>;
-        Tue, 02 Feb 2016 00:24:22 -0800 (PST)
-Message-ID: <1454401454.2992.5.camel@kernel.org>
-Subject: LSF/MM ATTEND (resend)] Persistent Memory Error Handling
-From: Vishal Verma <vishal@kernel.org>
-Date: Tue, 02 Feb 2016 01:24:14 -0700
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5FA6B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 03:41:48 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id p63so11277972wmp.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 00:41:48 -0800 (PST)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id h6si530377wjw.25.2016.02.02.00.41.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Feb 2016 00:41:47 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 218771C23C0
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 08:41:47 +0000 (GMT)
+Date: Tue, 2 Feb 2016 08:41:45 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm/Kconfig: correct description of
+ DEFERRED_STRUCT_PAGE_INIT
+Message-ID: <20160202084145.GC8337@techsingularity.net>
+References: <1453995448-27582-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1453995448-27582-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-[ Resending because my original email was caught in spam filters ]
+On Thu, Jan 28, 2016 at 04:37:28PM +0100, Vlastimil Babka wrote:
+> The description mentions kswapd threads, while the deferred struct page
+> initialization is actually done by one-off "pgdatinitX" threads. Fix the
+> description so that potentially users are not confused about pgdatinit threads
+> using CPU after boot instead of kswapd.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Hi,
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-I'd like to attend LSF/MM. My primary topic of interest is the above as
-proposed by Jeff Moyer:
+This was an oversight when I moved to using kernel threads to do the
+initialisation instead. Thanks for catching it.
 
-http://www.spinics.net/lists/linux-mm/msg100560.html
-
-I wrote the initial enabling for error handling that was merged for 4.5
-(Building a poison list in the libnvdimm subsystem, exposing it as
-'badblocks'), and am working on subsequent improvements in this areaa.
-These would include making the initial poison gathering asynchronous,
-and finer grained DAX control instead of turning DAX off entirely in
-the presence of poison which we currently do.
-
-Another topic of discussion I'd like to propose within this session is
-to explore if there are use cases that the now-generic badblocks
-implementation can fit. There is at least one opportunity of
-consolidation between md-raid's sysfs representation of badblocks, and
-the generically available one in gendisk.
-
-Thanks,
-A A A A A A A A -Vishal
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
