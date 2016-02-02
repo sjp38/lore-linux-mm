@@ -1,73 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 30B816B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 15:58:47 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id uo6so317656pac.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 12:58:47 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n16si3972145pfa.122.2016.02.02.12.58.46
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5386B0253
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 15:59:43 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id 128so136923297wmz.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 12:59:42 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id k5si4703406wjf.120.2016.02.02.12.59.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 12:58:46 -0800 (PST)
-Date: Tue, 2 Feb 2016 12:58:44 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv2 2/2] mm: downgrade VM_BUG in isolate_lru_page() to
- warning
-Message-Id: <20160202125844.43f23e2f8637b5a304b887dc@linux-foundation.org>
-In-Reply-To: <1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 02 Feb 2016 12:59:41 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id 128so136922785wmz.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 12:59:41 -0800 (PST)
+MIME-Version: 1.0
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 2 Feb 2016 21:59:21 +0100
+Message-ID: <CACT4Y+ZqQte+9Uk2FsixfWw7sAR7E5rK_BBr8EJe1M+Sv-i_RQ@mail.gmail.com>
+Subject: mm: uninterruptable tasks hanged on mmap_sem
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jiri Kosina <jikos@kernel.org>, Takashi Iwai <tiwai@suse.de>
+Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue,  2 Feb 2016 19:21:01 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+Hello,
 
-> Calling isolate_lru_page() is wrong and shouldn't happen, but it not
-> nessesary fatal: the page just will not be isolated if it's not on LRU.
-> 
-> Let's downgrade the VM_BUG_ON_PAGE() to WARN_RATELIMIT().
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/vmscan.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eb3dd37ccd7c..71b1c29948db 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
->  	int ret = -EBUSY;
->  
->  	VM_BUG_ON_PAGE(!page_count(page), page);
-> -	VM_BUG_ON_PAGE(PageTail(page), page);
-> +	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
->  
->  	if (PageLRU(page)) {
->  		struct zone *zone = page_zone(page);
+If the following program run in a parallel loop, eventually it leaves
+hanged uninterruptable tasks on mmap_sem.
 
-Confused.  I thought mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page.patch:
+[ 4074.740298] sysrq: SysRq : Show Locks Held
+[ 4074.740780] Showing all locks held in the system:
+...
+[ 4074.762133] 1 lock held by a.out/1276:
+[ 4074.762427]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff816df89c>]
+__mm_populate+0x25c/0x350
+[ 4074.763149] 1 lock held by a.out/1147:
+[ 4074.763438]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff816b3bbc>]
+vm_mmap_pgoff+0x12c/0x1b0
+[ 4074.764164] 1 lock held by a.out/1284:
+[ 4074.764447]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff816df89c>]
+__mm_populate+0x25c/0x350
+[ 4074.765287]
 
---- a/mm/vmscan.c~mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page
-+++ a/mm/vmscan.c
-@@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
- 	int ret = -EBUSY;
- 
- 	VM_BUG_ON_PAGE(!page_count(page), page);
--	VM_BUG_ON_PAGE(PageTail(page), page);
-+	VM_BUG_ON_PAGE(PageLRU(page) && PageTail(page), page);
- 
- 	if (PageLRU(page)) {
- 		struct zone *zone = page_zone(page);
+They all look as follows:
 
-was better.  We *know* that we sometimes encounter LRU pages here and
-we know that we handle them correctly.  So why scare users by blurting
-out a warning about something for which we won't be taking any action?
+# cat /proc/1284/task/**/stack
+[<ffffffff82c14d13>] call_rwsem_down_write_failed+0x13/0x20
+[<ffffffff816b3bbc>] vm_mmap_pgoff+0x12c/0x1b0
+[<ffffffff81700c58>] SyS_mmap_pgoff+0x208/0x580
+[<ffffffff811aeeb6>] SyS_mmap+0x16/0x20
+[<ffffffff86660276>] entry_SYSCALL_64_fastpath+0x16/0x7a
+[<ffffffffffffffff>] 0xffffffffffffffff
+[<ffffffff8164893e>] wait_on_page_bit+0x1de/0x210
+[<ffffffff8165572b>] filemap_fault+0xfeb/0x14d0
+[<ffffffff816e1972>] __do_fault+0x1b2/0x3e0
+[<ffffffff816f080e>] handle_mm_fault+0x1b4e/0x49a0
+[<ffffffff816ddae0>] __get_user_pages+0x2c0/0x11a0
+[<ffffffff816df5a8>] populate_vma_page_range+0x198/0x230
+[<ffffffff816df83b>] __mm_populate+0x1fb/0x350
+[<ffffffff816f90c1>] do_mlock+0x291/0x360
+[<ffffffff816f962b>] SyS_mlock2+0x4b/0x70
+[<ffffffff86660276>] entry_SYSCALL_64_fastpath+0x16/0x7a
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+# cat /proc/1284/status
+Name: a.out
+State: D (disk sleep)
+Tgid: 1147
+Ngid: 0
+Pid: 1284
+PPid: 28436
+TracerPid: 0
+Uid: 0 0 0 0
+Gid: 0 0 0 0
+FDSize: 64
+Groups: 0
+NStgid: 1147
+NSpid: 1284
+NSpgid: 28436
+NSsid: 6529
+VmPeak:   50356 kB
+VmSize:   50356 kB
+VmLck:      16 kB
+VmPin:       0 kB
+VmHWM:       8 kB
+VmRSS:       8 kB
+RssAnon:       8 kB
+RssFile:       0 kB
+RssShmem:       0 kB
+VmData:   49348 kB
+VmStk:     136 kB
+VmExe:     828 kB
+VmLib:       8 kB
+VmPTE:      44 kB
+VmPMD:      12 kB
+VmSwap:       0 kB
+HugetlbPages:       0 kB
+Threads: 2
+SigQ: 1/3189
+SigPnd: 0000000000000100
+ShdPnd: 0000000000000100
+SigBlk: 0000000000000000
+SigIgn: 0000000000000000
+SigCgt: 0000000180000000
+CapInh: 0000000000000000
+CapPrm: 0000003fffffffff
+CapEff: 0000003fffffffff
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000
+Seccomp: 0
+Cpus_allowed: f
+Cpus_allowed_list: 0-3
+Mems_allowed: 00000000,00000003
+Mems_allowed_list: 0-1
+voluntary_ctxt_switches: 3
+nonvoluntary_ctxt_switches: 1
+
+
+There are no BUGs, WARNINGs, stalls on console.
+
+Not sure if its mm or floppy fault.
+
+
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
+#include <pthread.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+#ifndef SYS_mlock2
+#define SYS_mlock2 325
+#endif
+
+long r[7];
+
+void* thr(void* arg)
+{
+  switch ((long)arg) {
+  case 0:
+    r[0] = syscall(SYS_mmap, 0x20000000ul, 0x1000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 1:
+    memcpy((void*)0x20000000, "\x2f\x64\x65\x76\x2f\x66\x64\x23", 8);
+    r[2] = syscall(SYS_open, "/dev/fd0", 0x800ul, 0, 0, 0);
+    break;
+  case 2:
+    r[3] = syscall(SYS_mmap, 0x20001000ul, 0x1000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 3:
+    r[4] = syscall(SYS_mmap, 0x20002000ul, 0x1000ul, 0x3ul, 0x812ul,
+                   r[2], 0x0ul);
+    break;
+  case 4:
+    r[5] = syscall(SYS_mmap, 0x20003000ul, 0x1000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 5:
+    r[6] = syscall(SYS_mlock2, 0x20000000ul, 0x4000ul, 0x0ul, 0, 0, 0);
+    break;
+  }
+  return 0;
+}
+
+int main()
+{
+  long i;
+  pthread_t th[6];
+
+  srand(getpid());
+  memset(r, -1, sizeof(r));
+  for (i = 0; i < 6; i++) {
+    pthread_create(&th[i], 0, thr, (void*)i);
+    usleep(10000);
+  }
+  for (i = 0; i < 6; i++) {
+    pthread_create(&th[i], 0, thr, (void*)i);
+    if (rand() % 2)
+      usleep(rand() % 10000);
+  }
+  usleep(100000);
+  return 0;
+}
+
+On commit 36f90b0a2ddd60823fe193a85e60ff1906c2a9b3.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
