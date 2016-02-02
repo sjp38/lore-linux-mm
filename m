@@ -1,81 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B73246B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 09:43:33 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id w123so13590936pfb.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 06:43:33 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id p11si2337912par.72.2016.02.02.06.43.32
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C6CD6B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 10:01:51 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id cy9so100430184pac.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 07:01:51 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id c26si2447294pfj.47.2016.02.02.07.01.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 06:43:32 -0800 (PST)
-Received: by mail-pa0-x22a.google.com with SMTP id yy13so99932451pab.3
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 06:43:32 -0800 (PST)
-Date: Tue, 2 Feb 2016 23:41:40 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [REGRESSION] [BISECTED] kswapd high CPU usage
-Message-ID: <20160202144140.GA460@swordfish>
-References: <CAPKbV49wfVWqwdgNu9xBnXju-4704t2QF97C+6t3aff_8bVbdA@mail.gmail.com>
- <20160121161656.GA16564@node.shutemov.name>
- <loom.20160123T165232-709@post.gmane.org>
- <20160125103853.GD11095@node.shutemov.name>
- <loom.20160125T174557-678@post.gmane.org>
- <20160202135950.GA5026@node.shutemov.name>
+        Tue, 02 Feb 2016 07:01:50 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCH] mm/slab: fix race with dereferencing NULL ptr in alloc_calls_show
+Date: Tue, 2 Feb 2016 18:01:13 +0300
+Message-ID: <1454425273-1740-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160202135950.GA5026@node.shutemov.name>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Greenberg <hugh@galliumos.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>
+To: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Safonov <dsafonov@virtuozzo.com>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On (02/02/16 15:59), Kirill A. Shutemov wrote:
-> > > On Sat, Jan 23, 2016 at 03:57:21PM +0000, Hugh Greenberg wrote:
-> > > > Kirill A. Shutemov <kirill <at> shutemov.name> writes:
-> > > > > 
-> > > > > Could you try to insert 
-> > "late_initcall(set_recommended_min_free_kbytes);"
-> > > > > back and check if makes any difference.
-> > > > > 
-> > > > 
-> > > > We tested adding late_initcall(set_recommended_min_free_kbytes); 
-> > > > back in 4.1.14 and it made a huge difference. We aren't sure if the
-> > > > issue is 100% fixed, but it could be. We will keep testing it.
-> > > 
-> > > It would be nice to have values of min_free_kbytes before and after
-> > > set_recommended_min_free_kbytes() in your configuration.
-> > > 
-> > 
-> > Before adding set_recommended_min_free_kbytes: 5391
-> > After: 67584
-> 
-> [ add more people to the thread ]
-> 
-> The 'before' value look low to me for machine with 2G of RAM.
-> 
-> In the bugzilla[1], you've mentioned zram. I wounder if we need to
-> increase min_free_kbytes when zram is in use as we do for THP.
-> 
-> [1] https://bugzilla.kernel.org/show_bug.cgi?id=110501
+memcg_destroy_kmem_caches shutdowns in the first place kmem_caches under
+slab_mutex which involves freeing NUMA node structures for kmem_cache
+and only then under release_caches removes corresponding sysfs files for
+these caches. Which may lead to dereferencing NULL ptr on read.
+Lets remove sysfs files right there.
 
-[add Seth Jennings]
+Fixes the following panic:
+[43963.463055] BUG: unable to handle kernel
+[43963.463090] NULL pointer dereference at 0000000000000020
+[43963.463146] IP: [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.463185] PGD 257304067 PUD 438456067 PMD 0
+[43963.463220] Oops: 0000 [#1] SMP
+[43963.463850] CPU: 3 PID: 973074 Comm: cat ve: 0 Not tainted 3.10.0-229.7.2.ovz.9.30-00007-japdoll-dirty #2 9.30
+[43963.463913] Hardware name: DEPO Computers To Be Filled By O.E.M./H67DE3, BIOS L1.60c 07/14/2011
+[43963.463976] task: ffff88042a5dc5b0 ti: ffff88037f8d8000 task.ti: ffff88037f8d8000
+[43963.464036] RIP: 0010:[<ffffffff811c6959>]  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.464725] Call Trace:
+[43963.464756]  [<ffffffff811c6d1d>] alloc_calls_show+0x1d/0x30
+[43963.464793]  [<ffffffff811c15ab>] slab_attr_show+0x1b/0x30
+[43963.464829]  [<ffffffff8125d27a>] sysfs_read_file+0x9a/0x1a0
+[43963.464865]  [<ffffffff811e3c6c>] vfs_read+0x9c/0x170
+[43963.464900]  [<ffffffff811e4798>] SyS_read+0x58/0xb0
+[43963.464936]  [<ffffffff81612d49>] system_call_fastpath+0x16/0x1b
+[43963.464970] Code: 5e 07 12 00 b9 00 04 00 00 3d 00 04 00 00 0f 4f c1 3d 00 04 00 00 89 45 b0 0f 84 c3 00 00 00 48 63 45 b0 49 8b 9c c4 f8 00 00 00 <48> 8b 43 20 48 85 c0 74 b6 48 89 df e8 46 37 44 00 48 8b 53 10
+[43963.465119] RIP  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.465155]  RSP <ffff88037f8dbe28>
+[43963.465185] CR2: 0000000000000020
 
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ mm/slab_common.c | 10 ++++------
+ mm/slub.c        |  6 ------
+ 2 files changed, 4 insertions(+), 12 deletions(-)
 
-additional info: http://marc.info/?l=linux-mm&m=145373987224270
-> The reports are coming from 2GB Haswell chromebooks. I have a 4GB haswell
-> chromebook and I cannot reproduce the issue, even if I boot the kernel with
-> 2GB or less.
->
-> After more testing, we were still able to reproduce the issue. It seems to
-> have taken longer to show up this time.
-
-
-a small note,
-I assume, IF min_free_kbytes must be set then probably in zsmalloc (zbud?)
-init, not in zram. zswap can use both -- zsmalloc and zbud.
-
-	-ss
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index b50aef0..6725eb3 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -468,13 +468,8 @@ static void release_caches(struct list_head *release, bool need_rcu_barrier)
+ 	if (need_rcu_barrier)
+ 		rcu_barrier();
+ 
+-	list_for_each_entry_safe(s, s2, release, list) {
+-#ifdef SLAB_SUPPORTS_SYSFS
+-		sysfs_slab_remove(s);
+-#else
++	list_for_each_entry_safe(s, s2, release, list)
+ 		slab_kmem_cache_release(s);
+-#endif
+-	}
+ }
+ 
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+@@ -614,6 +609,9 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+ 	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+ 		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
+ 			continue;
++
++		sysfs_slab_remove(s);
++
+ 		/*
+ 		 * The cgroup is about to be freed and therefore has no charges
+ 		 * left. Hence, all its caches must be empty by now.
+diff --git a/mm/slub.c b/mm/slub.c
+index 2e1355a..b6a68b7 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5296,11 +5296,6 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
+ #endif
+ }
+ 
+-static void kmem_cache_release(struct kobject *k)
+-{
+-	slab_kmem_cache_release(to_slab(k));
+-}
+-
+ static const struct sysfs_ops slab_sysfs_ops = {
+ 	.show = slab_attr_show,
+ 	.store = slab_attr_store,
+@@ -5308,7 +5303,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
+ 
+ static struct kobj_type slab_ktype = {
+ 	.sysfs_ops = &slab_sysfs_ops,
+-	.release = kmem_cache_release,
+ };
+ 
+ static int uevent_filter(struct kset *kset, struct kobject *kobj)
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
