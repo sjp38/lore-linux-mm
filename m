@@ -1,216 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E28E26B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 16:32:25 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id p63so42724792wmp.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:32:25 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id q3si7503417wmb.104.2016.02.02.13.32.24
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A72FB6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 16:50:28 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id yy13so918390pab.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:50:28 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id uk9si4170293pac.166.2016.02.02.13.50.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 13:32:24 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id 128so138006789wmz.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:32:24 -0800 (PST)
+        Tue, 02 Feb 2016 13:50:27 -0800 (PST)
+Received: by mail-pa0-x22c.google.com with SMTP id ho8so944810pac.2
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:50:27 -0800 (PST)
+Date: Tue, 2 Feb 2016 13:50:25 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCHv2] mm/slab: fix race with dereferencing NULL ptr in
+ alloc_calls_show
+In-Reply-To: <1454428630-22930-1-git-send-email-dsafonov@virtuozzo.com>
+Message-ID: <alpine.DEB.2.10.1602021348230.4977@chino.kir.corp.google.com>
+References: <1454428630-22930-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20160201192550.6da19ac1.akpm@linux-foundation.org>
-References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
- <20151012122702.GC2544@node> <20151012174945.GC3170@linux-uzut.site>
- <20151012181040.GC6447@node> <20151012185533.GD3170@linux-uzut.site>
- <20151013031821.GA3052@linux-uzut.site> <20151013123028.GA12934@node>
- <CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
- <20151105142336.46D907FD@black.fi.intel.com> <CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
- <20160201192550.6da19ac1.akpm@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 2 Feb 2016 22:32:04 +0100
-Message-ID: <CACT4Y+amW=fKgKrxmZfLtr1satTH4qujp808-bPVcNr-infc7g@mail.gmail.com>
-Subject: Re: GPF in shm_lock ipc
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: syzkaller <syzkaller@googlegroups.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Chen Gang <gang.chen.5i5j@gmail.com>, Peter Feiner <pfeiner@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On Tue, Feb 2, 2016 at 4:25 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Mon, 21 Dec 2015 16:44:34 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
->
->> On Thu, Nov 5, 2015 at 3:23 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> > What about this:
->>
->>
->> Ping. This is still happening for me on tip. Can we pull in this fix
->> if it looks good to everybody?
->>
->
-> Well we have at least three patches to choose from in this thread, most
-> of them missing most signs of having been reviewed or tested.
->
-> So I grabbed the last one, below.  Can we please rev this up again,
-> test it, see if we can agree that this is the way to go forward?
+On Tue, 2 Feb 2016, Dmitry Safonov wrote:
 
-
-Well, I can say that this patch fixes the original reproducer for me.
-I will restart the fuzzer with it.
-
-
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Subject: ipc/shm: handle removed segments gracefully in shm_mmap()
->
-> remap_file_pages(2) emulation can reach file which represents removed IPC
-> ID as long as a memory segment is mapped.  It breaks expectations of IPC
-> subsystem.
->
-> Test case (rewritten to be more human readable, originally autogenerated
-> by syzkaller[1]):
->
->         #define _GNU_SOURCE
->         #include <stdlib.h>
->         #include <sys/ipc.h>
->         #include <sys/mman.h>
->         #include <sys/shm.h>
->
->         #define PAGE_SIZE 4096
->
->         int main()
->         {
->                 int id;
->                 void *p;
->
->                 id = shmget(IPC_PRIVATE, 3 * PAGE_SIZE, 0);
->                 p = shmat(id, NULL, 0);
->                 shmctl(id, IPC_RMID, NULL);
->                 remap_file_pages(p, 3 * PAGE_SIZE, 0, 7, 0);
->
->                 return 0;
->         }
->
-> The patch changes shm_mmap() and code around shm_lock() to propagate
-> locking error back to caller of shm_mmap().
->
-> [1] http://github.com/google/syzkaller
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Davidlohr Bueso <dave@stgolabs.net>
-> Cc: Manfred Spraul <manfred@colorfullife.com>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->
->  ipc/shm.c |   53 ++++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 43 insertions(+), 10 deletions(-)
->
-> diff -puN ipc/shm.c~gpf-in-shm_lock-ipc ipc/shm.c
-> --- a/ipc/shm.c~gpf-in-shm_lock-ipc
-> +++ a/ipc/shm.c
-> @@ -156,11 +156,12 @@ static inline struct shmid_kernel *shm_l
->         struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
->
->         /*
-> -        * We raced in the idr lookup or with shm_destroy().  Either way, the
-> -        * ID is busted.
-> +        * Callers of shm_lock() must validate the status of the returned ipc
-> +        * object pointer (as returned by ipc_lock()), and error out as
-> +        * appropriate.
->          */
-> -       WARN_ON(IS_ERR(ipcp));
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index b7e57927..43634cd 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -101,16 +101,6 @@ struct kmem_cache {
+>  	struct kmem_cache_node *node[MAX_NUMNODES];
+>  };
+>  
+> -#ifdef CONFIG_SYSFS
+> -#define SLAB_SUPPORTS_SYSFS
+> -void sysfs_slab_remove(struct kmem_cache *);
+> -#else
+> -static inline void sysfs_slab_remove(struct kmem_cache *s)
+> -{
+> -}
+> -#endif
 > -
-> +       if (IS_ERR(ipcp))
-> +               return (void *)ipcp;
->         return container_of(ipcp, struct shmid_kernel, shm_perm);
->  }
->
-> @@ -186,18 +187,33 @@ static inline void shm_rmid(struct ipc_n
->  }
->
->
-> -/* This is called by fork, once for every shm attach. */
-> -static void shm_open(struct vm_area_struct *vma)
-> +static int __shm_open(struct vm_area_struct *vma)
->  {
->         struct file *file = vma->vm_file;
->         struct shm_file_data *sfd = shm_file_data(file);
->         struct shmid_kernel *shp;
->
->         shp = shm_lock(sfd->ns, sfd->id);
-> +
-> +       if (IS_ERR(shp))
-> +               return PTR_ERR(shp);
-> +
->         shp->shm_atim = get_seconds();
->         shp->shm_lprid = task_tgid_vnr(current);
->         shp->shm_nattch++;
->         shm_unlock(shp);
-> +       return 0;
-> +}
-> +
-> +/* This is called by fork, once for every shm attach. */
-> +static void shm_open(struct vm_area_struct *vma)
-> +{
-> +       int err = __shm_open(vma);
-> +       /*
-> +        * We raced in the idr lookup or with shm_destroy().
-> +        * Either way, the ID is busted.
-> +        */
-> +       WARN_ON_ONCE(err);
->  }
->
->  /*
-> @@ -260,6 +276,14 @@ static void shm_close(struct vm_area_str
->         down_write(&shm_ids(ns).rwsem);
->         /* remove from the list of attaches of the shm segment */
->         shp = shm_lock(ns, sfd->id);
-> +
-> +       /*
-> +        * We raced in the idr lookup or with shm_destroy().
-> +        * Either way, the ID is busted.
-> +        */
-> +       if (WARN_ON_ONCE(IS_ERR(shp)))
-> +               goto done; /* no-op */
-> +
->         shp->shm_lprid = task_tgid_vnr(current);
->         shp->shm_dtim = get_seconds();
->         shp->shm_nattch--;
-> @@ -267,6 +291,7 @@ static void shm_close(struct vm_area_str
->                 shm_destroy(ns, shp);
->         else
->                 shm_unlock(shp);
-> +done:
->         up_write(&shm_ids(ns).rwsem);
->  }
->
-> @@ -388,17 +413,25 @@ static int shm_mmap(struct file *file, s
->         struct shm_file_data *sfd = shm_file_data(file);
->         int ret;
->
-> +       /*
-> +        * In case of remap_file_pages() emulation, the file can represent
-> +        * removed IPC ID: propogate shm_lock() error to caller.
-> +        */
-> +       ret =__shm_open(vma);
-> +       if (ret)
-> +               return ret;
-> +
->         ret = sfd->file->f_op->mmap(sfd->file, vma);
-> -       if (ret != 0)
-> +       if (ret) {
-> +               shm_close(vma);
->                 return ret;
-> +       }
->         sfd->vm_ops = vma->vm_ops;
->  #ifdef CONFIG_MMU
->         WARN_ON(!sfd->vm_ops->fault);
+> -
+>  /**
+>   * virt_to_obj - returns address of the beginning of object.
+>   * @s: object's kmem_cache
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 834ad24..2983ab2 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -367,6 +367,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+>  
 >  #endif
->         vma->vm_ops = &shm_vm_ops;
-> -       shm_open(vma);
-> -
-> -       return ret;
-> +       return 0;
+>  
+> +#if defined(CONFIG_SLUB) && defined(CONFIG_SYSFS)
+> +void sysfs_slab_remove(struct kmem_cache *);
+> +#else
+> +static inline void sysfs_slab_remove(struct kmem_cache *s)
+> +{
+> +}
+> +#endif
+> +
+>  void *slab_start(struct seq_file *m, loff_t *pos);
+>  void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+>  void slab_stop(struct seq_file *m, void *p);
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index b50aef0..6725eb3 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -468,13 +468,8 @@ static void release_caches(struct list_head *release, bool need_rcu_barrier)
+>  	if (need_rcu_barrier)
+>  		rcu_barrier();
+>  
+> -	list_for_each_entry_safe(s, s2, release, list) {
+> -#ifdef SLAB_SUPPORTS_SYSFS
+> -		sysfs_slab_remove(s);
+> -#else
+> +	list_for_each_entry_safe(s, s2, release, list)
+>  		slab_kmem_cache_release(s);
+> -#endif
+> -	}
 >  }
->
->  static int shm_release(struct inode *ino, struct file *file)
-> _
->
+>  
+>  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> @@ -614,6 +609,9 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+>  	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>  		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
+>  			continue;
+> +
+> +		sysfs_slab_remove(s);
+> +
+
+I would have expected to have seen this added to shutdown_cache() instead.
+
+>  		/*
+>  		 * The cgroup is about to be freed and therefore has no charges
+>  		 * left. Hence, all its caches must be empty by now.
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2e1355a..b6a68b7 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5296,11 +5296,6 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
+>  #endif
+>  }
+>  
+> -static void kmem_cache_release(struct kobject *k)
+> -{
+> -	slab_kmem_cache_release(to_slab(k));
+> -}
+> -
+>  static const struct sysfs_ops slab_sysfs_ops = {
+>  	.show = slab_attr_show,
+>  	.store = slab_attr_store,
+> @@ -5308,7 +5303,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
+>  
+>  static struct kobj_type slab_ktype = {
+>  	.sysfs_ops = &slab_sysfs_ops,
+> -	.release = kmem_cache_release,
+>  };
+>  
+>  static int uevent_filter(struct kset *kset, struct kobject *kobj)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
