@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 221356B0253
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 18:04:37 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id 65so1985838pfd.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 15:04:37 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 3si4536877pfo.227.2016.02.02.15.04.36
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 047866B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 18:23:52 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id ba1so5721287obb.3
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 15:23:52 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r7si4848675oew.52.2016.02.02.15.23.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 15:04:36 -0800 (PST)
-Date: Tue, 2 Feb 2016 15:04:35 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
-Message-Id: <20160202150435.60076ce1d603a99c17c08edf@linux-foundation.org>
-In-Reply-To: <56B12FBE.3070909@de.ibm.com>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
-	<1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
-	<alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
-	<56A9E3D1.3090001@de.ibm.com>
-	<alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
-	<56B12560.4010201@de.ibm.com>
-	<20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
-	<56B12FBE.3070909@de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 02 Feb 2016 15:23:50 -0800 (PST)
+Subject: Re: [PATCH] mm/hugetlb: fix gigantic page initialization/allocation
+References: <1454452420-25007-1-git-send-email-mike.kravetz@oracle.com>
+ <alpine.DEB.2.10.1602021457500.9118@chino.kir.corp.google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56B138F6.70704@oracle.com>
+Date: Tue, 2 Feb 2016 15:17:10 -0800
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1602021457500.9118@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
 
-On Tue, 2 Feb 2016 23:37:50 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
-
-> On 02/02/2016 11:21 PM, Andrew Morton wrote:
-> > On Tue, 2 Feb 2016 22:53:36 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
-> > 
-> >>>> I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
-> >>>> and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
-> >>>> to enable more stuff.  It should either be all enabled by the commandline 
-> >>>> (or config option) or split into a separate entity.  
-> >>>> CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
-> >>>> the current state is very confusing about what is being done and what 
-> >>>> isn't.
-> >>>>
-> >>>
-> >>> Ping?
-> >>>
-> >> https://lkml.org/lkml/2016/1/29/266 
-> > 
-> > That's already in linux-next so I can't apply it.
-> > 
-> > Well, I can, but it's a hassle.  What's happening here?
+On 02/02/2016 02:59 PM, David Rientjes wrote:
+> On Tue, 2 Feb 2016, Mike Kravetz wrote:
 > 
-> I pushed it on my tree for kbuild testing purposes some days ago. 
-> Will drop so that it can go via mm.
+>> Attempting to preallocate 1G gigantic huge pages at boot time with
+>> "hugepagesz=1G hugepages=1" on the kernel command line will prevent
+>> booting with the following:
+>>
+>> kernel BUG at mm/hugetlb.c:1218!
+>>
+>> When mapcount accounting was reworked, the setting of compound_mapcount_ptr
+>> in prep_compound_gigantic_page was overlooked.  As a result, the validation
+>> of mapcount in free_huge_page fails.
+>>
+>> The "BUG_ON" checks in free_huge_page were also changed to "VM_BUG_ON_PAGE"
+>> to assist with debugging.
+>>
+>> Fixes: af5642a8af ("mm: rework mapcount accounting to enable 4k mapping of THPs")
+>> Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> 
+> I'm not sure whether this should have a "From: Naoya Horiguchi" line with 
+> an accompanying sign-off or not, since Naoya debugged and wrote the actual 
+> fix to prep_compound_gigantic_page().
 
-There are other patches that I haven't merged because they were already
-in -next.  In fact I think I dropped them because they later popped up
-in -next.
+I agree.  Naoya did debug and provide fix via e-mail exchange.  He did not
+sign-off and I could not tell if he was going to pursue.  My only intention
+was to fix ASAP.
 
-Some or all of:
+More than happy to give Naoya credit.
+-- 
+Mike Kravetz
 
-lib-spinlock_debugc-prevent-an-infinite-recursive-cycle-in-spin_dump.patch
-mm-provide-debug_pagealloc_enabled-without-config_debug_pagealloc.patch
-x86-query-dynamic-debug_pagealloc-setting.patch
-s390-query-dynamic-debug_pagealloc-setting.patch
-mm-provide-debug_pagealloc_enabled-without-config_debug_pagealloc.patch
-x86-query-dynamic-debug_pagealloc-setting.patch
-s390-query-dynamic-debug_pagealloc-setting.patch
-
-So please resend everything which you think is needed.
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
