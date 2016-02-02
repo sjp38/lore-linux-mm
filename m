@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 792C16B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 14:14:01 -0500 (EST)
-Received: by mail-qg0-f50.google.com with SMTP id u30so22673249qge.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 11:14:01 -0800 (PST)
-Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2607:b400:92:8400:0:33:fb76:806e])
-        by mx.google.com with ESMTPS id 78si2300887qge.4.2016.02.02.11.14.00
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 30B816B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 15:58:47 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id uo6so317656pac.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 12:58:47 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n16si3972145pfa.122.2016.02.02.12.58.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 11:14:00 -0800 (PST)
-Subject: Re: [slab] a1fd55538c: WARNING: CPU: 0 PID: 0 at kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
-From: Valdis.Kletnieks@vt.edu
-In-Reply-To: <20160201073422.6dd72721@canb.auug.org.au>
-References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com> <20160128184749.7bdee246@redhat.com> <21684.1454137770@turing-police.cc.vt.edu> <20160130184646.6ea9c5f8@redhat.com> <20160131131506.4aad01b5@canb.auug.org.au> <20160131194048.6f7add16@redhat.com>
- <20160201073422.6dd72721@canb.auug.org.au>
+        Tue, 02 Feb 2016 12:58:46 -0800 (PST)
+Date: Tue, 2 Feb 2016 12:58:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv2 2/2] mm: downgrade VM_BUG in isolate_lru_page() to
+ warning
+Message-Id: <20160202125844.43f23e2f8637b5a304b887dc@linux-foundation.org>
+In-Reply-To: <1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1454430061-116955-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1454430061-116955-3-git-send-email-kirill.shutemov@linux.intel.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1454440363_5025P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 02 Feb 2016 14:12:43 -0500
-Message-ID: <21792.1454440363@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, wfg@linux.intel.com, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---==_Exmh_1454440363_5025P
-Content-Type: text/plain; charset=us-ascii
+On Tue,  2 Feb 2016 19:21:01 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-On Mon, 01 Feb 2016 07:34:22 +1100, Stephen Rothwell said:
-> Hi Jesper,
+> Calling isolate_lru_page() is wrong and shouldn't happen, but it not
+> nessesary fatal: the page just will not be isolated if it's not on LRU.
+> 
+> Let's downgrade the VM_BUG_ON_PAGE() to WARN_RATELIMIT().
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/vmscan.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index eb3dd37ccd7c..71b1c29948db 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
+>  	int ret = -EBUSY;
+>  
+>  	VM_BUG_ON_PAGE(!page_count(page), page);
+> -	VM_BUG_ON_PAGE(PageTail(page), page);
+> +	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
+>  
+>  	if (PageLRU(page)) {
+>  		struct zone *zone = page_zone(page);
 
-> > [PATCH] mm: temporary fix for SLAB in linux-next
-> >
-> > From: Jesper Dangaard Brouer <brouer@redhat.com>
-> >
-> > This is only for linux-next, until AKPM pickup fixes two patches:
-> >  base url: http://ozlabs.org/~akpm/mmots/broken-out/
-> >  [1] mm-fault-inject-take-over-bootstrap-kmem_cache-check.patch
-> >  [2] slab-use-slab_pre_alloc_hook-in-slab-allocator-shared-with-slub.patch
+Confused.  I thought mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page.patch:
 
-> Applied to linux-next today.
+--- a/mm/vmscan.c~mm-fix-bogus-vm_bug_on_page-in-isolate_lru_page
++++ a/mm/vmscan.c
+@@ -1443,7 +1443,7 @@ int isolate_lru_page(struct page *page)
+ 	int ret = -EBUSY;
+ 
+ 	VM_BUG_ON_PAGE(!page_count(page), page);
+-	VM_BUG_ON_PAGE(PageTail(page), page);
++	VM_BUG_ON_PAGE(PageLRU(page) && PageTail(page), page);
+ 
+ 	if (PageLRU(page)) {
+ 		struct zone *zone = page_zone(page);
 
-Confirming that next-2016201 doesn't throw the warning on my laptop, thanks...
-
---==_Exmh_1454440363_5025P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Exmh version 2.5 07/13/2001
-
-iQIVAwUBVrD/qwdmEQWDXROgAQJ+DBAAmi8urkNIoMf0aR3vXZkvDSzq83TE9Anl
-oOyIM4/VhwDHA3KC8XrogEM9yhevdkg/8J64oZHktXxyDB/Hh9cCMMfFDT4DAFp+
-SqGmToHzGkxIM+/ITVE147Xye8b4dEslzGPURT9+5niuIWzo2Eu5h4+JYRnq/AAH
-fp3syjU79EVeOF1bSrlxsfZSL0rIzhwwd5U2KCbzJhI39cjGgadSxeXJhNHm9RzO
-/wx0wt+5kLkNhjrkla2oVHUTQgPoN0RH7/ECI8ySKlApnZR12w5IlGy4V2szq5pR
-Kb/HL98oR6pPdvdtkATDmIbBh3sbLuHk6dx55dBPISsnkHbjiIbUii2+UMd6+Bp6
-Kk4PR9y7CCZNfGj/e57BFpvbQyaC+8UsCtgM0hiwbnatbeKWXKGSe3q+rZyw7kcf
-gD3nEMlhrX4v0PGCr6UXlfJ4lXkV3Of9DLtzhn5Ir/y1CiVEEO8x0csz9rkYEU6x
-eScWeO8rcqMe4/SoEhhPIiwn2aM0LRsroaHDFwlMa1azTgL08E6fBKRTHLGCu0cY
-pSAmmNP8rtQdwtBZ/zV/W8Gsr9hr6b/ChMxx7o0IirMrKG2fNPlPBpl3WHrFnFgy
-2RfIS3xDPzlw9mK2dQj/t1aiDjtxdClj1ErjrAKU4BacpOIMEbmLSwHEFUl6JS7j
-2sNhazRzoVo=
-=IGB6
------END PGP SIGNATURE-----
-
---==_Exmh_1454440363_5025P--
+was better.  We *know* that we sometimes encounter LRU pages here and
+we know that we handle them correctly.  So why scare users by blurting
+out a warning about something for which we won't be taking any action?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
