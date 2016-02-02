@@ -1,56 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id F33C26B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 16:30:07 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l66so42626028wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:30:07 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id u8si4882618wje.114.2016.02.02.13.30.06
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E28E26B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 16:32:25 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p63so42724792wmp.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:32:25 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id q3si7503417wmb.104.2016.02.02.13.32.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 13:30:06 -0800 (PST)
-Received: by mail-wm0-x22f.google.com with SMTP id p63so137734252wmp.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:30:06 -0800 (PST)
+        Tue, 02 Feb 2016 13:32:24 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id 128so138006789wmz.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 13:32:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1602022222060.22727@cbobk.fhfr.pm>
-References: <CACT4Y+ZqQte+9Uk2FsixfWw7sAR7E5rK_BBr8EJe1M+Sv-i_RQ@mail.gmail.com>
- <alpine.LNX.2.00.1602022204190.22727@cbobk.fhfr.pm> <CACT4Y+YHX-P0X8Y8530FoG2weg39edujD=1JyXZf6c67FM_xzw@mail.gmail.com>
- <CACT4Y+Z=qaJjzOFsksSHur-kED=Jf-JFk_M0jnMNq1y5RG278A@mail.gmail.com> <alpine.LNX.2.00.1602022222060.22727@cbobk.fhfr.pm>
+In-Reply-To: <20160201192550.6da19ac1.akpm@linux-foundation.org>
+References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
+ <20151012122702.GC2544@node> <20151012174945.GC3170@linux-uzut.site>
+ <20151012181040.GC6447@node> <20151012185533.GD3170@linux-uzut.site>
+ <20151013031821.GA3052@linux-uzut.site> <20151013123028.GA12934@node>
+ <CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
+ <20151105142336.46D907FD@black.fi.intel.com> <CACT4Y+bwixTW5YZjPsN7qgCbhR=HR=SMoZi9yHfBaFWdqDkoXQ@mail.gmail.com>
+ <20160201192550.6da19ac1.akpm@linux-foundation.org>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 2 Feb 2016 22:29:46 +0100
-Message-ID: <CACT4Y+ZYGHA5K0JPVOJa2bNiWgQPq1Z3QRjX70LZDH9bME9jnw@mail.gmail.com>
-Subject: Re: mm: uninterruptable tasks hanged on mmap_sem
+Date: Tue, 2 Feb 2016 22:32:04 +0100
+Message-ID: <CACT4Y+amW=fKgKrxmZfLtr1satTH4qujp808-bPVcNr-infc7g@mail.gmail.com>
+Subject: Re: GPF in shm_lock ipc
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Takashi Iwai <tiwai@suse.de>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: syzkaller <syzkaller@googlegroups.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Chen Gang <gang.chen.5i5j@gmail.com>, Peter Feiner <pfeiner@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On Tue, Feb 2, 2016 at 10:24 PM, Jiri Kosina <jikos@kernel.org> wrote:
-> On Tue, 2 Feb 2016, Dmitry Vyukov wrote:
+On Tue, Feb 2, 2016 at 4:25 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 21 Dec 2015 16:44:34 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
 >
->> Original log from fuzzer contained the following WARNING in
->> mm/rmap.c:412. But when I tried to reproduce it, I hit these hanged
->> processes instead. I can't reliably detect what program triggered
->> what. So it may be related, or maybe a separate issue.
+>> On Thu, Nov 5, 2015 at 3:23 PM, Kirill A. Shutemov
+>> <kirill.shutemov@linux.intel.com> wrote:
+>> > What about this:
 >>
->> ------------[ cut here ]------------
->> kernel BUG at mm/rmap.c:412!
+>>
+>> Ping. This is still happening for me on tip. Can we pull in this fix
+>> if it looks good to everybody?
+>>
 >
-> Are you by any chance in this test sending signals to the fuzzer?
+> Well we have at least three patches to choose from in this thread, most
+> of them missing most signs of having been reviewed or tested.
 >
-> If so, the bug I just fixed in floppy driver can cause all kinds of memory
-> corruptions in case you're running multithreaded accessess to /dev/fd0 and
-> sending singals to the threads that are trying to access /dev/fd0 at the
-> same time.
->
-> Could you please double check that the other floppy fix I've sent you a
-> couple days ago doesn't fix this as well? (this test makes sense only if
-> signals are involved though).
+> So I grabbed the last one, below.  Can we please rev this up again,
+> test it, see if we can agree that this is the way to go forward?
 
-I have "floppy: fix lock_fdc() signal handling" applied (the final,
-second version).
-The process is multithreaded and it can well receive SIGKILLs.
+
+Well, I can say that this patch fixes the original reproducer for me.
+I will restart the fuzzer with it.
+
+
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Subject: ipc/shm: handle removed segments gracefully in shm_mmap()
+>
+> remap_file_pages(2) emulation can reach file which represents removed IPC
+> ID as long as a memory segment is mapped.  It breaks expectations of IPC
+> subsystem.
+>
+> Test case (rewritten to be more human readable, originally autogenerated
+> by syzkaller[1]):
+>
+>         #define _GNU_SOURCE
+>         #include <stdlib.h>
+>         #include <sys/ipc.h>
+>         #include <sys/mman.h>
+>         #include <sys/shm.h>
+>
+>         #define PAGE_SIZE 4096
+>
+>         int main()
+>         {
+>                 int id;
+>                 void *p;
+>
+>                 id = shmget(IPC_PRIVATE, 3 * PAGE_SIZE, 0);
+>                 p = shmat(id, NULL, 0);
+>                 shmctl(id, IPC_RMID, NULL);
+>                 remap_file_pages(p, 3 * PAGE_SIZE, 0, 7, 0);
+>
+>                 return 0;
+>         }
+>
+> The patch changes shm_mmap() and code around shm_lock() to propagate
+> locking error back to caller of shm_mmap().
+>
+> [1] http://github.com/google/syzkaller
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Cc: Manfred Spraul <manfred@colorfullife.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  ipc/shm.c |   53 ++++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 43 insertions(+), 10 deletions(-)
+>
+> diff -puN ipc/shm.c~gpf-in-shm_lock-ipc ipc/shm.c
+> --- a/ipc/shm.c~gpf-in-shm_lock-ipc
+> +++ a/ipc/shm.c
+> @@ -156,11 +156,12 @@ static inline struct shmid_kernel *shm_l
+>         struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+>
+>         /*
+> -        * We raced in the idr lookup or with shm_destroy().  Either way, the
+> -        * ID is busted.
+> +        * Callers of shm_lock() must validate the status of the returned ipc
+> +        * object pointer (as returned by ipc_lock()), and error out as
+> +        * appropriate.
+>          */
+> -       WARN_ON(IS_ERR(ipcp));
+> -
+> +       if (IS_ERR(ipcp))
+> +               return (void *)ipcp;
+>         return container_of(ipcp, struct shmid_kernel, shm_perm);
+>  }
+>
+> @@ -186,18 +187,33 @@ static inline void shm_rmid(struct ipc_n
+>  }
+>
+>
+> -/* This is called by fork, once for every shm attach. */
+> -static void shm_open(struct vm_area_struct *vma)
+> +static int __shm_open(struct vm_area_struct *vma)
+>  {
+>         struct file *file = vma->vm_file;
+>         struct shm_file_data *sfd = shm_file_data(file);
+>         struct shmid_kernel *shp;
+>
+>         shp = shm_lock(sfd->ns, sfd->id);
+> +
+> +       if (IS_ERR(shp))
+> +               return PTR_ERR(shp);
+> +
+>         shp->shm_atim = get_seconds();
+>         shp->shm_lprid = task_tgid_vnr(current);
+>         shp->shm_nattch++;
+>         shm_unlock(shp);
+> +       return 0;
+> +}
+> +
+> +/* This is called by fork, once for every shm attach. */
+> +static void shm_open(struct vm_area_struct *vma)
+> +{
+> +       int err = __shm_open(vma);
+> +       /*
+> +        * We raced in the idr lookup or with shm_destroy().
+> +        * Either way, the ID is busted.
+> +        */
+> +       WARN_ON_ONCE(err);
+>  }
+>
+>  /*
+> @@ -260,6 +276,14 @@ static void shm_close(struct vm_area_str
+>         down_write(&shm_ids(ns).rwsem);
+>         /* remove from the list of attaches of the shm segment */
+>         shp = shm_lock(ns, sfd->id);
+> +
+> +       /*
+> +        * We raced in the idr lookup or with shm_destroy().
+> +        * Either way, the ID is busted.
+> +        */
+> +       if (WARN_ON_ONCE(IS_ERR(shp)))
+> +               goto done; /* no-op */
+> +
+>         shp->shm_lprid = task_tgid_vnr(current);
+>         shp->shm_dtim = get_seconds();
+>         shp->shm_nattch--;
+> @@ -267,6 +291,7 @@ static void shm_close(struct vm_area_str
+>                 shm_destroy(ns, shp);
+>         else
+>                 shm_unlock(shp);
+> +done:
+>         up_write(&shm_ids(ns).rwsem);
+>  }
+>
+> @@ -388,17 +413,25 @@ static int shm_mmap(struct file *file, s
+>         struct shm_file_data *sfd = shm_file_data(file);
+>         int ret;
+>
+> +       /*
+> +        * In case of remap_file_pages() emulation, the file can represent
+> +        * removed IPC ID: propogate shm_lock() error to caller.
+> +        */
+> +       ret =__shm_open(vma);
+> +       if (ret)
+> +               return ret;
+> +
+>         ret = sfd->file->f_op->mmap(sfd->file, vma);
+> -       if (ret != 0)
+> +       if (ret) {
+> +               shm_close(vma);
+>                 return ret;
+> +       }
+>         sfd->vm_ops = vma->vm_ops;
+>  #ifdef CONFIG_MMU
+>         WARN_ON(!sfd->vm_ops->fault);
+>  #endif
+>         vma->vm_ops = &shm_vm_ops;
+> -       shm_open(vma);
+> -
+> -       return ret;
+> +       return 0;
+>  }
+>
+>  static int shm_release(struct inode *ino, struct file *file)
+> _
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
