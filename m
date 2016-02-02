@@ -1,89 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BE21A6B0009
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 03:18:31 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id 128so105816826wmz.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 00:18:31 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id y41si2965466wmh.107.2016.02.02.00.18.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 00:18:30 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id l66so1220594wml.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 00:18:30 -0800 (PST)
-Date: Tue, 2 Feb 2016 09:18:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/2] mm, vmstat: cancel pending work of the cpu_stat_off
- CPU
-Message-ID: <20160202081828.GC19910@dhcp22.suse.cz>
-References: <1454001466-27398-1-git-send-email-mhocko@kernel.org>
- <1454001466-27398-2-git-send-email-mhocko@kernel.org>
- <1454399605.11183.8.camel@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1454399605.11183.8.camel@suse.de>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 300D56B0009
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 03:24:23 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id cy9so97494078pac.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 00:24:23 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id x2si408117pfi.97.2016.02.02.00.24.22
+        for <linux-mm@kvack.org>;
+        Tue, 02 Feb 2016 00:24:22 -0800 (PST)
+Message-ID: <1454401454.2992.5.camel@kernel.org>
+Subject: LSF/MM ATTEND (resend)] Persistent Memory Error Handling
+From: Vishal Verma <vishal@kernel.org>
+Date: Tue, 02 Feb 2016 01:24:14 -0700
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <mgalbraith@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cristopher Lameter <clameter@sgi.com>, Mike Galbraith <mgalbraith@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Tue 02-02-16 08:53:25, Mike Galbraith wrote:
-> Cancel pending work of the cpu_stat_off CPU.
+[ Resending because my original email was caught in spam filters ]
 
-Thanks for catching that Mike. This was a last minute change and I
-screwed it...
+Hi,
 
-Andrew could you fold this into the original patch, please?
+I'd like to attend LSF/MM. My primary topic of interest is the above as
+proposed by Jeff Moyer:
 
-Thanks!
+http://www.spinics.net/lists/linux-mm/msg100560.html
 
-> Signed-off-by: Mike Galbraith <mgalbraith@suse.de>
+I wrote the initial enabling for error handling that was merged for 4.5
+(Building a poison list in the libnvdimm subsystem, exposing it as
+'badblocks'), and am working on subsequent improvements in this areaa.
+These would include making the initial poison gathering asynchronous,
+and finer grained DAX control instead of turning DAX off entirely in
+the presence of poison which we currently do.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Another topic of discussion I'd like to propose within this session is
+to explore if there are use cases that the now-generic badblocks
+implementation can fit. There is at least one opportunity of
+consolidation between md-raid's sysfs representation of badblocks, and
+the generically available one in gendisk.
 
-> ---
->  mm/vmstat.c |   12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
-> 
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1486,25 +1486,25 @@ static void vmstat_shepherd(struct work_
->  
->  	get_online_cpus();
->  	/* Check processors whose vmstat worker threads have been disabled */
-> -	for_each_cpu(cpu, cpu_stat_off)
-> +	for_each_cpu(cpu, cpu_stat_off) {
-> +		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
-> +
->  		if (need_update(cpu)) {
->  			if (cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
-> -				queue_delayed_work_on(cpu, vmstat_wq,
-> -					&per_cpu(vmstat_work, cpu), 0);
-> +				queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
->  		} else {
->  			/*
->  			 * Cancel the work if quiet_vmstat has put this
->  			 * cpu on cpu_stat_off because the work item might
->  			 * be still scheduled
->  			 */
-> -			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
-> +			cancel_delayed_work(dw);
->  		}
-> -
-> +	}
->  	put_online_cpus();
->  
->  	schedule_delayed_work(&shepherd,
->  		round_jiffies_relative(sysctl_stat_interval));
-> -
->  }
->  
->  static void __init start_shepherd_timer(void)
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+A A A A A A A A -Vishal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
