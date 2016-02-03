@@ -1,45 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1939A82963
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:50:35 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id o185so21464870pfb.1
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:50:35 -0800 (PST)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id hg4si11893434pac.180.2016.02.03.14.50.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 14:50:34 -0800 (PST)
-Received: by mail-pf0-x22e.google.com with SMTP id 65so21488533pfd.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:50:34 -0800 (PST)
-Date: Wed, 3 Feb 2016 14:50:33 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v4 4/4] x86: also use debug_pagealloc_enabled() for
- free_init_pages
-In-Reply-To: <1454488775-108777-5-git-send-email-borntraeger@de.ibm.com>
-Message-ID: <alpine.DEB.2.10.1602031448470.10331@chino.kir.corp.google.com>
-References: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com> <1454488775-108777-5-git-send-email-borntraeger@de.ibm.com>
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id CA84482963
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:53:11 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id 65so21551384pfd.2
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:53:11 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id c8si11981001pat.62.2016.02.03.14.53.11
+        for <linux-mm@kvack.org>;
+        Wed, 03 Feb 2016 14:53:11 -0800 (PST)
+Date: Thu, 4 Feb 2016 01:53:04 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 4/4] thp: rewrite freeze_page()/unfreeze_page() with
+ generic rmap walkers
+Message-ID: <20160203225304.GB22605@black.fi.intel.com>
+References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1454512459-94334-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <56B21FC9.9040009@intel.com>
+ <20160203144316.f01573516f186071bb2cf1bf@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160203144316.f01573516f186071bb2cf1bf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 3 Feb 2016, Christian Borntraeger wrote:
-
-> we want to couple all debugging features with debug_pagealloc_enabled()
-> and not with the config option CONFIG_DEBUG_PAGEALLOC.
+On Wed, Feb 03, 2016 at 02:43:16PM -0800, Andrew Morton wrote:
+> On Wed, 3 Feb 2016 07:42:01 -0800 Dave Hansen <dave.hansen@intel.com> wrote:
 > 
-> Suggested-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+> > On 02/03/2016 07:14 AM, Kirill A. Shutemov wrote:
+> > > But the new variant is somewhat slower. Current helpers iterates over
+> > > VMAs the compound page is mapped to, and then over ptes within this VMA.
+> > > New helpers iterates over small page, then over VMA the small page
+> > > mapped to, and only then find relevant pte.
+> > 
+> > The code simplification here is really attractive.  Can you quantify
+> > what the slowdown is?  Is it noticeable, or would it be in the noise
+> > during all the other stuff that happens under memory pressure?
+> 
+> yup.
 
-Acked-by: David Rientjes <rientjes@google.com>
+It is not really clear, how to quantify this properly. Let me think more
+about it.
 
-[+Joonsoo]
+> And the "more testing is required" is a bit worrisome.  Is this
+> code really ready for getting pounded upon in -next?
 
-Joonso has indicated that he will work on converting other code using 
-CONFIG_DEBUG_PAGEALLOC to instead consider debug_pagealloc_enabled(), so 
-more work in this area will probably be forthcoming.
+By now it survived 5+ hours of fuzzing in 16 VM in parallel. I'll continue
+with other tests tomorrow.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
