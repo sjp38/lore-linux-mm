@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DCD836B0258
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:39:47 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id 128so153927897wmz.1
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:39:47 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 034076B0259
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:39:50 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id r129so153589691wmr.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:39:49 -0800 (PST)
 Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com. [195.75.94.101])
-        by mx.google.com with ESMTPS id cc7si8459795wjc.43.2016.02.03.00.39.45
+        by mx.google.com with ESMTPS id d95si5097689wma.48.2016.02.03.00.39.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 03 Feb 2016 00:39:45 -0800 (PST)
@@ -13,19 +13,19 @@ Received: from localhost
 	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
 	Wed, 3 Feb 2016 08:39:44 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id B62991B08072
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 08:39:51 +0000 (GMT)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u138dfiO65405028
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 08:39:41 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u138deHT017393
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 01:39:41 -0700
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 650122190019
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 08:39:29 +0000 (GMT)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u138dgcC4653478
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 08:39:42 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u138dels027095
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 01:39:42 -0700
 From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v4 3/4] s390: query dynamic DEBUG_PAGEALLOC setting
-Date: Wed,  3 Feb 2016 09:39:34 +0100
-Message-Id: <1454488775-108777-9-git-send-email-borntraeger@de.ibm.com>
+Subject: [PATCH v4 1/4] mm: provide debug_pagealloc_enabled() without CONFIG_DEBUG_PAGEALLOC
+Date: Wed,  3 Feb 2016 09:39:32 +0100
+Message-Id: <1454488775-108777-7-git-send-email-borntraeger@de.ibm.com>
 In-Reply-To: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
 References: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,84 +33,41 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-We can use debug_pagealloc_enabled() to check if we can map
-the identity mapping with 1MB/2GB pages as well as to print
-the current setting in dump_stack.
+We can provide debug_pagealloc_enabled() also if CONFIG_DEBUG_PAGEALLOC
+is not set. It will return false in that case.
 
 Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Reviewed-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/s390/kernel/dumpstack.c |  6 +++---
- arch/s390/mm/vmem.c          | 10 ++++------
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ include/linux/mm.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/arch/s390/kernel/dumpstack.c b/arch/s390/kernel/dumpstack.c
-index 02bd02f..14c1ed3 100644
---- a/arch/s390/kernel/dumpstack.c
-+++ b/arch/s390/kernel/dumpstack.c
-@@ -11,6 +11,7 @@
- #include <linux/export.h>
- #include <linux/kdebug.h>
- #include <linux/ptrace.h>
-+#include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/sched.h>
- #include <asm/processor.h>
-@@ -184,9 +185,8 @@ void die(struct pt_regs *regs, const char *str)
- #ifdef CONFIG_SMP
- 	printk("SMP ");
- #endif
--#ifdef CONFIG_DEBUG_PAGEALLOC
--	printk("DEBUG_PAGEALLOC");
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f1cd22f..ae84716 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2194,13 +2194,18 @@ kernel_map_pages(struct page *page, int numpages, int enable)
+ #ifdef CONFIG_HIBERNATION
+ extern bool kernel_page_present(struct page *page);
+ #endif /* CONFIG_HIBERNATION */
+-#else
++#else  /* CONFIG_DEBUG_PAGEALLOC */
++static inline bool debug_pagealloc_enabled(void)
++{
++	return false;
++}
++
+ static inline void
+ kernel_map_pages(struct page *page, int numpages, int enable) {}
+ #ifdef CONFIG_HIBERNATION
+ static inline bool kernel_page_present(struct page *page) { return true; }
+ #endif /* CONFIG_HIBERNATION */
 -#endif
-+	if (debug_pagealloc_enabled())
-+		printk("DEBUG_PAGEALLOC");
- 	printk("\n");
- 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
- 	print_modules();
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index ef7d6c8..d27fccba 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -94,16 +94,15 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
- 			pgd_populate(&init_mm, pg_dir, pu_dir);
- 		}
- 		pu_dir = pud_offset(pg_dir, address);
--#ifndef CONFIG_DEBUG_PAGEALLOC
- 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
--		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
-+		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
-+		     !debug_pagealloc_enabled()) {
- 			pud_val(*pu_dir) = __pa(address) |
- 				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
- 				(ro ? _REGION_ENTRY_PROTECT : 0);
- 			address += PUD_SIZE;
- 			continue;
- 		}
--#endif
- 		if (pud_none(*pu_dir)) {
- 			pm_dir = vmem_pmd_alloc();
- 			if (!pm_dir)
-@@ -111,9 +110,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
- 			pud_populate(&init_mm, pu_dir, pm_dir);
- 		}
- 		pm_dir = pmd_offset(pu_dir, address);
--#ifndef CONFIG_DEBUG_PAGEALLOC
- 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
--		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
-+		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
-+		    !debug_pagealloc_enabled()) {
- 			pmd_val(*pm_dir) = __pa(address) |
- 				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
- 				_SEGMENT_ENTRY_YOUNG |
-@@ -121,7 +120,6 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
- 			address += PMD_SIZE;
- 			continue;
- 		}
--#endif
- 		if (pmd_none(*pm_dir)) {
- 			pt_dir = vmem_pte_alloc(address);
- 			if (!pt_dir)
++#endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
+ #ifdef __HAVE_ARCH_GATE_AREA
+ extern struct vm_area_struct *get_gate_vma(struct mm_struct *mm);
 -- 
 2.3.0
 
