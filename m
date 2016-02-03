@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DB10B6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 06:35:55 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id w123so12713089pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 03:35:55 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C336B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 06:41:55 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id cy9so12485992pac.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 03:41:55 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id x72si3764304pfi.196.2016.02.03.03.35.55
+        by mx.google.com with ESMTPS id kv12si8839831pab.194.2016.02.03.03.41.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 03:35:55 -0800 (PST)
-Message-ID: <1454499350.4788.170.camel@infradead.org>
+        Wed, 03 Feb 2016 03:41:55 -0800 (PST)
+Message-ID: <1454499710.4788.176.camel@infradead.org>
 Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
 From: David Woodhouse <dwmw2@infradead.org>
-Date: Wed, 03 Feb 2016 11:35:50 +0000
-In-Reply-To: <CAFCwf12U2iQS2xUoRx4W7cVQJOcso+QK2_PdYYD-k_J1V8KJsQ@mail.gmail.com>
+Date: Wed, 03 Feb 2016 11:41:50 +0000
+In-Reply-To: <1454499350.4788.170.camel@infradead.org>
 References: <20160128175536.GA20797@gmail.com>
 	 <1454460057.4788.117.camel@infradead.org>
 	 <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
@@ -22,8 +22,9 @@ References: <20160128175536.GA20797@gmail.com>
 	 <1454494508.4788.154.camel@infradead.org>
 	 <CAFCwf10tLwQiZ0ROeuf2FHcWa9iTBwJ-0X_WWfU8tjTSvGH_0w@mail.gmail.com>
 	 <CAFCwf12U2iQS2xUoRx4W7cVQJOcso+QK2_PdYYD-k_J1V8KJsQ@mail.gmail.com>
+	 <1454499350.4788.170.camel@infradead.org>
 Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
-	boundary="=-LVl6c2/rXDT6cGV14bp8"
+	boundary="=-ZvPHwSq+j4tWP9vHU58T"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -31,68 +32,43 @@ To: Oded Gabbay <oded.gabbay@gmail.com>
 Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
 
 
---=-LVl6c2/rXDT6cGV14bp8
+--=-ZvPHwSq+j4tWP9vHU58T
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 2016-02-03 at 13:07 +0200, Oded Gabbay wrote:
-> > Another, perhaps trivial, question.
-> > When there is an address fault, who handles it ? the SVM driver, or
-> > each device driver ?
-> >
-> > In other words, is the model the same as (AMD) IOMMU where it binds
-> > amd_iommu driver to the IOMMU H/W, and that driver (amd_iommu/v2) is
-> > the only one which handles the PPR events ?
-> >
-> > If that is the case, then with SVM, how will the device driver be made
-> > aware of faults, if the SVM driver won't notify him about them,
-> > because it has already severed the connection between PASID and
-> > process ?
+On Wed, 2016-02-03 at 11:35 +0000, David Woodhouse wrote:
+>=20
+> In the ideal case, there's no need for the device driver to get
+> involved at all. When a page isn't found in the page tables, the IOMMU
+> code calls handle_mm_fault() and either populates the page and sends a
+> a 'success' response, or sends an 'invalid fault' response back.
 
-In the ideal case, there's no need for the device driver to get
-involved at all. When a page isn't found in the page tables, the IOMMU
-code calls handle_mm_fault() and either populates the page and sends a
-a 'success' response, or sends an 'invalid fault' response back.
+I missed a bit here; I should have made it explicit:
 
-To account for broken hardware, we *have* added a callback into the
-device driver when these faults happen. Ideally it should never be
-used, of course.
+The device hardware receives that page-request response, successful or
+otherwise, and is supposed to act on it accordingly. The device's own
+request then fails, and it should have some coherent way of reporting
+that to the device driver.
 
-In the case where the process has gone away, the PASID is still
-assigned and we still hold mm_count on the MM, just not mm_users. This
-callback into the device driver still occurs if a fault happens during
-process exit between the exit_mm() and exit_files() stage.
+The point is that there should be no need to 'short-circuit' that and
+pass notification directly from the IOMMU code to the device driver
+that "there was a fault on PASID x". That direct notification hack
+doesn't even *tell* us which device-side context was affected, if
+there's more than one context accessing a given PASID.
 
-> And another question, if I may, aren't you afraid of "false positive"
-> prints to dmesg ? I mean, I'm pretty sure page faults / pasid faults
-> errors will be logged somewhere, probably to dmesg. Aren't you
-> concerned of the users seeing those errors and thinking they may have
-> a bug, while actually the errors were only caused by process
-> termination ?
-
-If that's the case, it's easy enough to silence them. We are already
-explicitly testing for the 'defunct mm' case in our fault handler, to
-prevent us from faulting more pages into an obsolescent MM after its
-mm_users reaches zero and its page tables are supposed to have been
-torn down. That's the 'if(!atomic_inc_not_zere(&svm->mm->mm_users))
-goto bad_req;' part.
-
-> Or in that case you say that the application is broken, because if it
-> still had something running in the H/W, it should not have closed
-> itself ?
-
-That's also true but it's still nice to avoid confusion. Even if only
-to disambiguate cause and effect =E2=80=94 we don't want people to see PASI=
-D
-faults which were caused by the process crashing, and to think that
-they might be involved in *causing* that process to crash...
+(Actually, in the Intel case for integrated devices, there *are* some
+opaque=C2=B9 bits in the page-request which do include that information. Bu=
+t
+that's horrid, and not a solution for the general case.)
 
 --=20
 David Woodhouse                            Open Source Technology Centre
 David.Woodhouse@intel.com                              Intel Corporation
 
 
---=-LVl6c2/rXDT6cGV14bp8
+=C2=B9 to the IOMMU code.
+
+--=-ZvPHwSq+j4tWP9vHU58T
 Content-Type: application/x-pkcs7-signature; name="smime.p7s"
 Content-Disposition: attachment; filename="smime.p7s"
 Content-Transfer-Encoding: base64
@@ -185,21 +161,21 @@ Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
 YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
 ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
 AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
-CQUxDxcNMTYwMjAzMTEzNTUwWjAjBgkqhkiG9w0BCQQxFgQULvYMS2covLYbYnH3jw18xRcGFT4w
+CQUxDxcNMTYwMjAzMTE0MTUwWjAjBgkqhkiG9w0BCQQxFgQU2fTYtYiRKdcuVz6Wliai9IMEqEkw
 gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
 ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
 L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
 CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
 LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
 U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
-hkiG9w0BAQEFAASCAQCZkHXKKCkqslm5oAFRNmgC8klpDbKujto1IB0es3w2GgZAorNyYuFAOkC3
-labicOY6EvajysKA+OwvfccurotqgZQIAYwlySBShG0rO1No47z4raj1A5TlFQKJI7pzsBdlQ+6U
-TmAF34UMfX1gutMv+Yn2YA34a97XkvrF0MVpRCoGHYdbhPkC9QQ0ZG+BJ7ccaCdV49ztVvd8vrL1
-EJ8YEf1mQ/wPt3hM57vd2IftdP00PBwp8v4kORTk8FbkKSdqA5NErRMZWt4aEnt9p+yxyZO+kcuc
-MfbkpscZszEfSP6nCoBx114b+lV3BeDR1zwE0GLgTRyQairW8z0LjEexAAAAAAAA
+hkiG9w0BAQEFAASCAQBB2a1z0C4Z9hWIP3XWF5I9rkBBfTQXF9gpEyVJixliPU6rLr1xbX3ozKFC
+YVbyctML92GftSFNWXzt44IJF31jHWFeqit1j3+Id89a+SuKO4WoJrv6h81t65Kxmq/qhGmMHqTa
+03Ipn6oqMhw0a4vGO4nMpKGF6qhuPOcOErjkOQlx3TuKko+FVa6DJJ8UWaq4+id4iTd8ItzcII6r
+p307YLCTRaoUW3m2ANx6/ZViG43fhAwTclVX+/APBsj25pScrz7wuNV23rCP/+eeoHcig9gXlnpo
+tVOFrQzS64hWpIY+9FJ+YgOQRiPT9BDrykczJOBN6ciPyS5Z6jQygAZrAAAAAAAA
 
 
---=-LVl6c2/rXDT6cGV14bp8--
+--=-ZvPHwSq+j4tWP9vHU58T--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
