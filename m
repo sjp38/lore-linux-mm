@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7391E6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:39:33 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l66so152307248wml.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:39:33 -0800 (PST)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id g67si28894167wmc.58.2016.02.03.00.39.32
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE826B0009
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:39:38 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id 128so153922226wmz.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:39:38 -0800 (PST)
+Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com. [195.75.94.102])
+        by mx.google.com with ESMTPS id er8si8401401wjd.174.2016.02.03.00.39.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 Feb 2016 00:39:32 -0800 (PST)
+        Wed, 03 Feb 2016 00:39:37 -0800 (PST)
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 3 Feb 2016 08:39:31 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id B49FE1B08069
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 08:39:39 +0000 (GMT)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u138dTca10617294
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 08:39:29 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u138dSC6015144
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 01:39:28 -0700
+	Wed, 3 Feb 2016 08:39:36 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id ECB241B08067
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 08:39:44 +0000 (GMT)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u138dYRI60686454
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 08:39:34 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u138dXoH017148
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 01:39:34 -0700
 From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v4 0/4 (resend)] Optimize CONFIG_DEBUG_PAGEALLOC (x86 and s390)
-Date: Wed,  3 Feb 2016 09:39:26 +0100
-Message-Id: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
+Subject: [PATCH v4 1/4] mm: provide debug_pagealloc_enabled() without CONFIG_DEBUG_PAGEALLOC
+Date: Wed,  3 Feb 2016 09:39:27 +0100
+Message-Id: <1454488775-108777-2-git-send-email-borntraeger@de.ibm.com>
+In-Reply-To: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
+References: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-Andrew, here is a resend as these patches were dropped as I also 
-had them on my linux-next branch (instead of a private one)
+We can provide debug_pagealloc_enabled() also if CONFIG_DEBUG_PAGEALLOC
+is not set. It will return false in that case.
 
-As CONFIG_DEBUG_PAGEALLOC can be enabled/disabled via kernel
-parameters we can optimize some cases by checking the enablement
-state.
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
+---
+ include/linux/mm.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-I have done s390 and x86. Other architecture can follow as necessary.
-
-Christian Borntraeger (4):
-  mm: provide debug_pagealloc_enabled() without CONFIG_DEBUG_PAGEALLOC
-  x86: query dynamic DEBUG_PAGEALLOC setting
-  s390: query dynamic DEBUG_PAGEALLOC setting
-  x86: also use debug_pagealloc_enabled() for free_init_pages
-
- arch/s390/kernel/dumpstack.c |  6 +++---
- arch/s390/mm/vmem.c          | 10 ++++------
- arch/x86/kernel/dumpstack.c  |  5 ++---
- arch/x86/mm/init.c           | 36 +++++++++++++++++++-----------------
- arch/x86/mm/pageattr.c       | 14 ++++----------
- include/linux/mm.h           |  9 +++++++--
- 6 files changed, 39 insertions(+), 41 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f1cd22f..ae84716 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2194,13 +2194,18 @@ kernel_map_pages(struct page *page, int numpages, int enable)
+ #ifdef CONFIG_HIBERNATION
+ extern bool kernel_page_present(struct page *page);
+ #endif /* CONFIG_HIBERNATION */
+-#else
++#else  /* CONFIG_DEBUG_PAGEALLOC */
++static inline bool debug_pagealloc_enabled(void)
++{
++	return false;
++}
++
+ static inline void
+ kernel_map_pages(struct page *page, int numpages, int enable) {}
+ #ifdef CONFIG_HIBERNATION
+ static inline bool kernel_page_present(struct page *page) { return true; }
+ #endif /* CONFIG_HIBERNATION */
+-#endif
++#endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
+ #ifdef __HAVE_ARCH_GATE_AREA
+ extern struct vm_area_struct *get_gate_vma(struct mm_struct *mm);
 -- 
 2.3.0
 
