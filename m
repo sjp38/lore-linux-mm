@@ -1,56 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6B2828DF
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 05:41:04 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id w123so12004153pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 02:41:04 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 137si8577626pfb.80.2016.02.03.02.41.03
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DE8C06B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 05:44:23 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id l66so63711303wml.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 02:44:23 -0800 (PST)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id le8si9104846wjb.80.2016.02.03.02.44.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 Feb 2016 02:41:03 -0800 (PST)
-Subject: Re: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation from IRQ context.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201602022233.FFF65148.QVOLOtOMFJHSFF@I-love.SAKURA.ne.jp>
-	<20160202161421.GA30012@cmpxchg.org>
-In-Reply-To: <20160202161421.GA30012@cmpxchg.org>
-Message-Id: <201602031940.IFH52643.JLOOFtMQOFFHVS@I-love.SAKURA.ne.jp>
-Date: Wed, 3 Feb 2016 19:40:52 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 03 Feb 2016 02:44:23 -0800 (PST)
+Date: Wed, 3 Feb 2016 11:43:14 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v4 4/4] x86: also use debug_pagealloc_enabled() for
+ free_init_pages
+In-Reply-To: <1454488775-108777-5-git-send-email-borntraeger@de.ibm.com>
+Message-ID: <alpine.DEB.2.11.1602031142320.25254@nanos>
+References: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com> <1454488775-108777-5-git-send-email-borntraeger@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: mhocko@kernel.org, rientjes@google.com, jstancek@redhat.com, linux-mm@kvack.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, David Rientjes <rientjes@google.com>
 
-Johannes Weiner wrote:
-> On Tue, Feb 02, 2016 at 10:33:22PM +0900, Tetsuo Handa wrote:
-> > >From 20b3c1c9ef35547395c3774c6208a867cf0046d4 Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Tue, 2 Feb 2016 16:50:45 +0900
-> > Subject: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation from IRQ context.
-> > 
-> > Jan Stancek hit a hard lockup problem due to flood of memory allocation
-> > failure messages which lasted for 10 seconds with IRQ disabled. Printing
-> > traces using warn_alloc_failed() is very slow (which can take up to about
-> > 1 second for each warn_alloc_failed() call). The caller used GFP_NOWARN
+On Wed, 3 Feb 2016, Christian Borntraeger wrote:
 
-                                                                s/GFP_NOWARN/GFP_NOWAIT/
-
-> > inside a loop. If the caller used __GFP_NOWARN, it would not have lasted
-> > for 10 seconds.
+> we want to couple all debugging features with debug_pagealloc_enabled()
+> and not with the config option CONFIG_DEBUG_PAGEALLOC.
 > 
-> Who is doing page allocations in a loop with irqs disabled?!
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
 
-lib/dma-debug.c functions which are called with irqs disabled.
-http://lkml.kernel.org/r/201601292135.DHG60988.SOQFJFOHFVMLOt@I-love.SAKURA.ne.jp
-
-> 
-> And then, why does it take that long? Is that a serial console? Most
-> of the output is KERN_INFO, it might be better to raise the loglevel
-> and still have all the debugging output in the logs.
-
-Yes, I think it is a serial console.
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
