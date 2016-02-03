@@ -1,49 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BB946B0256
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 11:24:18 -0500 (EST)
-Received: by mail-lf0-f53.google.com with SMTP id m1so17882772lfg.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 08:24:18 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 134si4490585lfz.13.2016.02.03.08.24.16
+Received: from mail-lf0-f51.google.com (mail-lf0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2A4828DF
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 11:39:52 -0500 (EST)
+Received: by mail-lf0-f51.google.com with SMTP id 78so17785347lfy.3
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 08:39:52 -0800 (PST)
+Received: from asavdk4.altibox.net (asavdk4.altibox.net. [109.247.116.15])
+        by mx.google.com with ESMTPS id l187si4505156lfe.219.2016.02.03.08.39.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 08:24:17 -0800 (PST)
-Date: Wed, 3 Feb 2016 11:24:00 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/workingset: do not forget to unlock page
-Message-ID: <20160203162400.GB10440@cmpxchg.org>
-References: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20160203104136.GA517@swordfish>
+        Wed, 03 Feb 2016 08:39:50 -0800 (PST)
+Date: Wed, 3 Feb 2016 17:39:46 +0100
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [PATCH] [RFC] ARM: modify pgd_t definition for
+ TRANSPARENT_HUGEPAGE_PUD
+Message-ID: <20160203163946.GA20360@ravnborg.org>
+References: <1773775.QWf7OyDGPh@wuerfel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160203104136.GA517@swordfish>
+In-Reply-To: <1773775.QWf7OyDGPh@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Russell King <rmk@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-arch@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
 
-On Wed, Feb 03, 2016 at 07:41:36PM +0900, Sergey Senozhatsky wrote:
-> From 1d6315221f2f81c53c99f9980158f8ae49dbd582 Mon Sep 17 00:00:00 2001
-> From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Date: Wed, 3 Feb 2016 18:49:16 +0900
-> Subject: [PATCH] mm/workingset: do not forget to unlock_page in workingset_activation
+On Wed, Feb 03, 2016 at 02:21:48PM +0100, Arnd Bergmann wrote:
+> I ran into build errors on ARM after Willy's newly added generic
+> TRANSPARENT_HUGEPAGE_PUD support. We don't support this feature
+> on ARM at all, but the patch causes a build error anyway:
 > 
-> Do not return from workingset_activation() with locked rcu and page.
+> In file included from ../kernel/memremap.c:17:0:
+> ../include/linux/pfn_t.h:108:7: error: 'pud_mkdevmap' declared as function returning an array
+>  pud_t pud_mkdevmap(pud_t pud);
 > 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> We don't use a PUD on ARM, so pud_t is defined as pmd_t, which
+> in turn is defined as
+> 
+> typedef unsigned long pgd_t[2];
+> 
+> on NOMMU and on 2-level MMU configurations. There is an (unused)
+> other definition using a struct around the array, which happens to
+> work fine here.
+> 
+> There is a comment in the file about the fact the other version
+> is "easier on the compiler", and I've traced that version back
+> to linux-2.1.80 when ARM support was first merged back in 1998.
+> 
+> It's probably a safe assumption that this is no longer necessary:
+> The same logic existed in asm-i386 at the time but was removed
+> a year later in 2.3.23pre3. The STRICT_MM_TYPECHECKS logic
+> also ended up getting copied into these files:
+> 
+> arch/alpha/include/asm/page.h
+> arch/arc/include/asm/page.h
+> arch/arm/include/asm/pgtable-3level-types.h
+> arch/arm64/include/asm/pgtable-types.h
+> arch/ia64/include/asm/page.h
+> arch/parisc/include/asm/page.h
+> arch/powerpc/include/asm/page.h
+> arch/sparc/include/asm/page_32.h
+> arch/sparc/include/asm/page_64.h
 
-Thanks Sergey. Even though I wrote this function, my brain must have
-gone "it can't be locking anything when it returns NULL, right?" It's
-a dumb interface. Luckily, that's fixed with follow-up patches in -mm.
+For the sparc32 case we use the simpler variants.
+According to the comment this is due to limitation in
+the way we pass arguments in the sparc32 ABI.
+But I have not tried to compare a kernel for sparc32 with
+and without the use of structs.
 
-As for this one:
+For sparc64 we use the stricter types (structs).
+I did not check other architectures - but just wanted to
+tell that the right choice may be architecture dependent.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Fixes: mm: workingset: per-cgroup cache thrash detection
-
-Andrew, can you please fold this?
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
