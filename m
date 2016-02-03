@@ -1,57 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CA84482963
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:53:11 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id 65so21551384pfd.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:53:11 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id c8si11981001pat.62.2016.02.03.14.53.11
-        for <linux-mm@kvack.org>;
-        Wed, 03 Feb 2016 14:53:11 -0800 (PST)
-Date: Thu, 4 Feb 2016 01:53:04 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 4/4] thp: rewrite freeze_page()/unfreeze_page() with
- generic rmap walkers
-Message-ID: <20160203225304.GB22605@black.fi.intel.com>
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 571B882963
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:56:09 -0500 (EST)
+Received: by mail-qg0-f47.google.com with SMTP id b35so28152500qge.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:56:09 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z107si7626260qge.1.2016.02.03.14.56.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Feb 2016 14:56:08 -0800 (PST)
+Date: Wed, 3 Feb 2016 14:56:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] rmap: introduce rmap_walk_locked()
+Message-Id: <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
+In-Reply-To: <20160203224507.GA22605@black.fi.intel.com>
 References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454512459-94334-5-git-send-email-kirill.shutemov@linux.intel.com>
- <56B21FC9.9040009@intel.com>
- <20160203144316.f01573516f186071bb2cf1bf@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160203144316.f01573516f186071bb2cf1bf@linux-foundation.org>
+	<1454512459-94334-2-git-send-email-kirill.shutemov@linux.intel.com>
+	<20160203144019.9b58b1ba496371a11cc86568@linux-foundation.org>
+	<20160203224507.GA22605@black.fi.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Feb 03, 2016 at 02:43:16PM -0800, Andrew Morton wrote:
-> On Wed, 3 Feb 2016 07:42:01 -0800 Dave Hansen <dave.hansen@intel.com> wrote:
-> 
-> > On 02/03/2016 07:14 AM, Kirill A. Shutemov wrote:
-> > > But the new variant is somewhat slower. Current helpers iterates over
-> > > VMAs the compound page is mapped to, and then over ptes within this VMA.
-> > > New helpers iterates over small page, then over VMA the small page
-> > > mapped to, and only then find relevant pte.
+On Thu, 4 Feb 2016 01:45:07 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> On Wed, Feb 03, 2016 at 02:40:19PM -0800, Andrew Morton wrote:
+> > On Wed,  3 Feb 2016 18:14:16 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > > 
-> > The code simplification here is really attractive.  Can you quantify
-> > what the slowdown is?  Is it noticeable, or would it be in the noise
-> > during all the other stuff that happens under memory pressure?
+> > > rmap_walk_locked() is the same as rmap_walk(), but caller takes care
+> > > about relevant rmap lock. It only supports anonymous pages for now.
+> > > 
+> > > It's preparation to switch THP splitting from custom rmap walk in
+> > > freeze_page()/unfreeze_page() to generic one.
+> > > 
+> > > ...
+> > >
+> > > +/* Like rmap_walk, but caller holds relevant rmap lock */
+> > > +int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
+> > > +{
+> > > +	/* only for anon pages for now */
+> > > +	VM_BUG_ON_PAGE(!PageAnon(page) || PageKsm(page), page);
+> > > +	return rmap_walk_anon(page, rwc, true);
+> > > +}
+> > 
+> > Should be rmap_walk_anon_locked()?
 > 
-> yup.
+> I leave interface open for further extension for file mappings, once it
+> will be needed. Interface is mirroring plain rmap_walk()
 
-It is not really clear, how to quantify this properly. Let me think more
-about it.
+hm, yes, I see.
 
-> And the "more testing is required" is a bit worrisome.  Is this
-> code really ready for getting pounded upon in -next?
+> If you prefer to rename the function, I can do it too.
 
-By now it survived 5+ hours of fuzzing in 16 VM in parallel. I'll continue
-with other tests tomorrow.
+Well, what does "unlocked" mean in the context of rmap_walk_ksm() and
+rmap_walk_file()?  That the caller holds totally different locks.  I
+expect that sitting down and writing out the interface definition for
+such an rmap_walk_locked() would reveal that we shouldn't have created
+it.
 
--- 
- Kirill A. Shutemov
+I mean, if the caller is to call such an rmap_walk_locked(), he first
+needs to work out if it's a ksm page or an anon page or a file page,
+then take the appropriate lock and then call rmap_walk_locked(). 
+That's silly - at this point he should directly call
+rmap_walk_ksm_locked()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
