@@ -1,79 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CADB6B025A
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 15:43:02 -0500 (EST)
-Received: by mail-lb0-f171.google.com with SMTP id bc4so19334412lbc.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 12:43:01 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id r15si5166515lfr.132.2016.02.03.12.43.00
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C14B1828F6
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 16:06:36 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id hb3so21253618igb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:06:36 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id k2si33216765igx.32.2016.02.03.13.06.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 12:43:00 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] [RFC] ARM: modify pgd_t definition for TRANSPARENT_HUGEPAGE_PUD
-Date: Wed, 03 Feb 2016 21:36:38 +0100
-Message-ID: <15001627.5KATBhJaXU@wuerfel>
-In-Reply-To: <20160203163946.GA20360@ravnborg.org>
-References: <1773775.QWf7OyDGPh@wuerfel> <20160203163946.GA20360@ravnborg.org>
+        Wed, 03 Feb 2016 13:06:36 -0800 (PST)
+Received: by mail-ig0-x22b.google.com with SMTP id xg9so11906035igb.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:06:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <56B24B01.30306@redhat.com>
+References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org>
+	<20160126070320.GB28254@js1304-P5Q-DELUXE>
+	<56B24B01.30306@redhat.com>
+Date: Wed, 3 Feb 2016 13:06:35 -0800
+Message-ID: <CAGXu5jJK1UhNX7h2YmxxTrCABr8oS=Y2OBLMr4KTxk7LctRaiQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/3] Speed up SLUB poisoning + disable checks
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Sam Ravnborg <sam@ravnborg.org>, linux-arch@vger.kernel.org, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@fedoraproject.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Wednesday 03 February 2016 17:39:46 Sam Ravnborg wrote:
-> On Wed, Feb 03, 2016 at 02:21:48PM +0100, Arnd Bergmann wrote:
-> > arch/alpha/include/asm/page.h
-> > arch/arc/include/asm/page.h
-> > arch/arm/include/asm/pgtable-3level-types.h
-> > arch/arm64/include/asm/pgtable-types.h
-> > arch/ia64/include/asm/page.h
-> > arch/parisc/include/asm/page.h
-> > arch/powerpc/include/asm/page.h
-> > arch/sparc/include/asm/page_32.h
-> > arch/sparc/include/asm/page_64.h
-> 
-> For the sparc32 case we use the simpler variants.
-> According to the comment this is due to limitation in
-> the way we pass arguments in the sparc32 ABI.
-> But I have not tried to compare a kernel for sparc32 with
-> and without the use of structs.
-> 
-> For sparc64 we use the stricter types (structs).
-> I did not check other architectures - but just wanted to
-> tell that the right choice may be architecture dependent.
-> 
+On Wed, Feb 3, 2016 at 10:46 AM, Laura Abbott <labbott@redhat.com> wrote:
+> On 01/25/2016 11:03 PM, Joonsoo Kim wrote:
+>>
+>> On Mon, Jan 25, 2016 at 05:15:10PM -0800, Laura Abbott wrote:
+>>>
+>>> Hi,
+>>>
+>>> Based on the discussion from the series to add slab sanitization
+>>> (lkml.kernel.org/g/<1450755641-7856-1-git-send-email-laura@labbott.name>)
+>>> the existing SLAB_POISON mechanism already covers similar behavior.
+>>> The performance of SLAB_POISON isn't very good. With hackbench -g 20 -l
+>>> 1000
+>>> on QEMU with one cpu:
+>>
+>>
+>> I doesn't follow up that discussion, but, I think that reusing
+>> SLAB_POISON for slab sanitization needs more changes. I assume that
+>> completeness and performance is matter for slab sanitization.
+>>
+>> 1) SLAB_POISON isn't applied to specific kmem_cache which has
+>> constructor or SLAB_DESTROY_BY_RCU flag. For debug, it's not necessary
+>> to be applied, but, for slab sanitization, it is better to apply it to
+>> all caches.
+>
+>
+> The grsecurity patches get around this by calling the constructor again
+> after poisoning. It could be worth investigating doing that as well
+> although my focus was on the cases without the constructor.
+>>
+>>
+>> 2) SLAB_POISON makes object size bigger so natural alignment will be
+>> broken. For example, kmalloc(256) cache's size is 256 in normal
+>> case but it would be 264 when SLAB_POISON is enabled. This causes
+>> memory waste.
+>
+>
+> The grsecurity patches also bump the size up to put the free pointer
+> outside the object. For sanitization purposes it is cleaner to have
+> no pointers in the object after free
+>
+>>
+>> In fact, I'd prefer not reusing SLAB_POISON. It would make thing
+>> simpler. But, it's up to Christoph.
+>>
+>> Thanks.
+>>
+>
+> It basically looks like trying to poison on the fast path at all
+> will have a negative impact even with the feature is turned off.
+> Christoph has indicated this is not acceptable so we are forced
+> to limit it to the slow path only if we want runtime enablement.
 
-I see. I was assuming that they all (wrongly) default to the simple
-definitions.
+Is it possible to have both? i.e fast path via CONFIG, and slow path
+via runtime options?
 
-It seems we have these categories:
+> If we're limited to the slow path only, we might as well work
+> with SLAB_POISON to make it faster. We can reevaluate if it turns
+> out the poisoning isn't fast enough to be useful.
 
-* both defined, but using strict:
-arch/alpha/include/asm/page.h:#define STRICT_MM_TYPECHECKS
-arch/sparc/include/asm/page_64.h:#define STRICT_MM_TYPECHECKS
-arch/ia64/include/asm/page.h:#  define STRICT_MM_TYPECHECKS
-arch/parisc/include/asm/page.h:#define STRICT_MM_TYPECHECKS
+And since I'm new to this area, I know of fast/slow path in the
+syscall sense. What happens in the allocation/free fast/slow path that
+makes it fast or slow?
 
-* both defined, but using non-strict:
-arch/arc/include/asm/page.h:#undef STRICT_MM_TYPECHECKS
-arch/arm/include/asm/pgtable-2level-types.h:#undef STRICT_MM_TYPECHECKS
-arch/arm/include/asm/pgtable-3level-types.h:#undef STRICT_MM_TYPECHECKS
-arch/arm64/include/asm/pgtable-types.h:#undef STRICT_MM_TYPECHECKS
-arch/sparc/include/asm/page_32.h:/* #define STRICT_MM_TYPECHECKS */
-arch/unicore32/include/asm/page.h:#undef STRICT_MM_TYPECHECKS
+-Kees
 
-* Kconfig option:
-arch/powerpc/Kconfig.debug:config STRICT_MM_TYPECHECKS
-			 	default n
-
-* only strict defined:
-everything else
-
-
-	Arnd
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
