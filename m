@@ -1,136 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 659F66B025B
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:39:54 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id l66so152319989wml.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:39:54 -0800 (PST)
-Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com. [195.75.94.102])
-        by mx.google.com with ESMTPS id i7si11066259wmf.59.2016.02.03.00.39.45
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6186B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:40:58 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id ho8so9971193pac.2
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:40:58 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id tc5si7838902pab.176.2016.02.03.00.40.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 Feb 2016 00:39:46 -0800 (PST)
-Received: from localhost
-	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 3 Feb 2016 08:39:44 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id E715E17D8062
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 08:39:52 +0000 (GMT)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u138dfWf4522374
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 08:39:41 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u138de1I001896
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2016 03:39:40 -0500
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v4 2/4] x86: query dynamic DEBUG_PAGEALLOC setting
-Date: Wed,  3 Feb 2016 09:39:33 +0100
-Message-Id: <1454488775-108777-8-git-send-email-borntraeger@de.ibm.com>
-In-Reply-To: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
-References: <1454488775-108777-1-git-send-email-borntraeger@de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Feb 2016 00:40:57 -0800 (PST)
+Message-ID: <1454488853.4788.142.camel@infradead.org>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+From: David Woodhouse <dwmw2@infradead.org>
+Date: Wed, 03 Feb 2016 08:40:53 +0000
+In-Reply-To: <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
+References: <20160128175536.GA20797@gmail.com>
+	 <1454460057.4788.117.camel@infradead.org>
+	 <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
+Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
+	boundary="=-gxnqeKZlpm2pRfnVHCKF"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: Oded Gabbay <oded.gabbay@gmail.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
 
-We can use debug_pagealloc_enabled() to check if we can map
-the identity mapping with 2MB pages. We can also add the state
-into the dump_stack output.
 
-The patch does not touch the code for the 1GB pages, which ignored
-CONFIG_DEBUG_PAGEALLOC. Do we need to fence this as well?
+--=-gxnqeKZlpm2pRfnVHCKF
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
----
- arch/x86/kernel/dumpstack.c |  5 ++---
- arch/x86/mm/init.c          |  7 ++++---
- arch/x86/mm/pageattr.c      | 14 ++++----------
- 3 files changed, 10 insertions(+), 16 deletions(-)
+On Wed, 2016-02-03 at 10:13 +0200, Oded Gabbay wrote:
+>=20
+> > So on process exit, the MM doesn't die because the PASID binding still
+> > exists. The VMA of the mmap doesn't die because the MM still exists. So
+> > the underlying file remains open because the VMA still exists. And the
+> > PASID binding thus doesn't die because the file is still open.
+> >
+> Why connect the PASID to the FD in the first place ?
+> Why not tie everything to the MM ?
 
-diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
-index 9c30acf..32e5699 100644
---- a/arch/x86/kernel/dumpstack.c
-+++ b/arch/x86/kernel/dumpstack.c
-@@ -265,9 +265,8 @@ int __die(const char *str, struct pt_regs *regs, long err)
- #ifdef CONFIG_SMP
- 	printk("SMP ");
- #endif
--#ifdef CONFIG_DEBUG_PAGEALLOC
--	printk("DEBUG_PAGEALLOC ");
--#endif
-+	if (debug_pagealloc_enabled())
-+		printk("DEBUG_PAGEALLOC ");
- #ifdef CONFIG_KASAN
- 	printk("KASAN");
- #endif
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 493f541..39823fd 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -150,13 +150,14 @@ static int page_size_mask;
- 
- static void __init probe_page_size_mask(void)
- {
--#if !defined(CONFIG_DEBUG_PAGEALLOC) && !defined(CONFIG_KMEMCHECK)
-+#if !defined(CONFIG_KMEMCHECK)
- 	/*
--	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
-+	 * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
-+	 * use small pages.
- 	 * This will simplify cpa(), which otherwise needs to support splitting
- 	 * large pages into small in interrupt context, etc.
- 	 */
--	if (cpu_has_pse)
-+	if (cpu_has_pse && !debug_pagealloc_enabled())
- 		page_size_mask |= 1 << PG_LEVEL_2M;
- #endif
- 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 2440814..1ef9c2c 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -106,12 +106,6 @@ static inline unsigned long highmap_end_pfn(void)
- 
- #endif
- 
--#ifdef CONFIG_DEBUG_PAGEALLOC
--# define debug_pagealloc 1
--#else
--# define debug_pagealloc 0
--#endif
--
- static inline int
- within(unsigned long addr, unsigned long start, unsigned long end)
- {
-@@ -708,10 +702,10 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
- {
- 	struct page *base;
- 
--	if (!debug_pagealloc)
-+	if (!debug_pagealloc_enabled())
- 		spin_unlock(&cpa_lock);
- 	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
--	if (!debug_pagealloc)
-+	if (!debug_pagealloc_enabled())
- 		spin_lock(&cpa_lock);
- 	if (!base)
- 		return -ENOMEM;
-@@ -1331,10 +1325,10 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
- 		if (cpa->flags & (CPA_ARRAY | CPA_PAGES_ARRAY))
- 			cpa->numpages = 1;
- 
--		if (!debug_pagealloc)
-+		if (!debug_pagealloc_enabled())
- 			spin_lock(&cpa_lock);
- 		ret = __change_page_attr(cpa, checkalias);
--		if (!debug_pagealloc)
-+		if (!debug_pagealloc_enabled())
- 			spin_unlock(&cpa_lock);
- 		if (ret)
- 			return ret;
--- 
-2.3.0
+That's actually a question for the device driver in question, of
+course; it's not the generic SVM support code which chooses *when* to
+bind/unbind PASIDs. We just provide those functions for the driver to
+call.
+
+But the answer is that that's the normal resource tracking model.
+Resources hang off the file and are cleared up when the file is closed.
+
+(And exit_files() is called later than exit_mm()).
+
+> > I've posted a patch=C2=B9 which moves us closer to the amd_iommu_v2 mod=
+el,
+> > although I'm still *strongly* resisting the temptation to call out into
+> > device driver code from the mmu_notifier's release callback.
+>=20
+> You mean you are resisting doing this (taken from amdkfd):
+>=20
+> --------------
+> static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops =3D {
+> .release =3D kfd_process_notifier_release,
+> };
+>=20
+> process->mmu_notifier.ops =3D &kfd_process_mmu_notifier_ops;
+> -----------
+>=20
+> Why, if I may ask ?
+
+The KISS principle, especially as it relates to device drivers.
+We just Do Not Want random device drivers being called in that context.
+
+It's OK for amdkfd where you have sufficient clue to deal with it =E2=80=94
+it's more than "just a device driver".
+
+But when we get discrete devices with PASID support (and the required
+TLP prefix support in our root ports at last!) we're going to see SVM
+supported in many more device drivers, and we should make it simple.
+
+Having the mmu_notifier release callback exposed to drivers is going to
+strongly encourage them to do the WRONG thing, because they need to
+interact with their hardware and *wait* for the PASID to be entirely
+retired through the pipeline before they tell the IOMMU to flush it.
+
+The patch at=C2=A0http://www.spinics.net/lists/linux-mm/msg100230.html
+addresses this by clearing the PASID from the PASID table (in core
+IOMMU code) when the process exits so that all subsequent accesses to
+that PASID then take faults. The device driver can then clean up its
+binding for that PASID in its own time.
+
+It is a fairly fundamental rule that faulting access to *one* PASID
+should not adversely affect behaviour for *other* PASIDs, of course.
+
+--=20
+David Woodhouse                            Open Source Technology Centre
+David.Woodhouse@intel.com                              Intel Corporation
+
+
+--=-gxnqeKZlpm2pRfnVHCKF
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Transfer-Encoding: base64
+
+MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIISjjCCBicw
+ggUPoAMCAQICAw3vNzANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+MB4XDTE1MDUwNTA5NDM0MVoXDTE2MDUwNTA5NTMzNlowQjEcMBoGA1UEAwwTZHdtdzJAaW5mcmFk
+ZWFkLm9yZzEiMCAGCSqGSIb3DQEJARYTZHdtdzJAaW5mcmFkZWFkLm9yZzCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBAMkbm9kPbx1j/X4RVyf/pPKSYwelcco69TvnQQbKM8m8xkWjXJI1
+jpJ1jMaGUZGFToINMSZi7lZawUozudWbXSKy1SikENSTJHffsdRAIlsp+hR8vWvjsKUry6sEdqPG
+doa5RY7+N4WRusWZDYW/RRWE6i9EL9qV86CVPYqw22UBOUw4/j/HVGCV6TSB8yE5iEwhk/hUuzRr
+FZm1MJMR7mCS7BCR8Lr5jFY61lWpBiXNXIxLZCvDc26KR5L5tYX43iUVO3fzES1GRVoYnxxk2tmz
+fcsZG5vK+Trc9L8OZJfkYrEHH3+Iw41MQ0w/djVtYr1+HYldx0QmYXAtnhIj+UMCAwEAAaOCAtkw
+ggLVMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgSwMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
+BDAdBgNVHQ4EFgQUszC96C3w5/2+d+atSr0IpT26YI4wHwYDVR0jBBgwFoAUU3Ltkpzg2ssBXHx+
+ljVO8tS4UYIwHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzCCAUwGA1UdIASCAUMwggE/
+MIIBOwYLKwYBBAGBtTcBAgMwggEqMC4GCCsGAQUFBwIBFiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNv
+bS9wb2xpY3kucGRmMIH3BggrBgEFBQcCAjCB6jAnFiBTdGFydENvbSBDZXJ0aWZpY2F0aW9uIEF1
+dGhvcml0eTADAgEBGoG+VGhpcyBjZXJ0aWZpY2F0ZSB3YXMgaXNzdWVkIGFjY29yZGluZyB0byB0
+aGUgQ2xhc3MgMSBWYWxpZGF0aW9uIHJlcXVpcmVtZW50cyBvZiB0aGUgU3RhcnRDb20gQ0EgcG9s
+aWN5LCByZWxpYW5jZSBvbmx5IGZvciB0aGUgaW50ZW5kZWQgcHVycG9zZSBpbiBjb21wbGlhbmNl
+IG9mIHRoZSByZWx5aW5nIHBhcnR5IG9ibGlnYXRpb25zLjA2BgNVHR8ELzAtMCugKaAnhiVodHRw
+Oi8vY3JsLnN0YXJ0c3NsLmNvbS9jcnR1MS1jcmwuY3JsMIGOBggrBgEFBQcBAQSBgTB/MDkGCCsG
+AQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20vc3ViL2NsYXNzMS9jbGllbnQvY2EwQgYI
+KwYBBQUHMAKGNmh0dHA6Ly9haWEuc3RhcnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuY2xpZW50
+LmNhLmNydDAjBgNVHRIEHDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEF
+BQADggEBAHMQmxHHodpS85X8HRyxhvfkys7r+taCNOaNU9cxQu/cZ/6k5nS2qGNMzZ6jb7ueY/V7
+7p+4DW/9ZWODDTf4Fz00mh5SSVc20Bz7t+hhxwHd62PZgENh5i76Qq2tw48U8AsYo5damHby1epf
+neZafLpUkLLO7AGBJIiRVTevdvyXQ0qnixOmKMWyvrhSNGuVIKVdeqLP+102Dwf+dpFyw+j1hz28
+jEEKpHa+NR1b2kXuSPi/rMGhexwlJOh4tK8KQ6Ryr0rIN//NSbOgbyYZrzc/ZUWX9V5OA84ChFb2
+vkFl0OcYrttp/rhDBLITwffPxSZeoBh9H7zYzkbCXKL3BUIwggYnMIIFD6ADAgECAgMN7zcwDQYJ
+KoZIhvcNAQEFBQAwgYwxCzAJBgNVBAYTAklMMRYwFAYDVQQKEw1TdGFydENvbSBMdGQuMSswKQYD
+VQQLEyJTZWN1cmUgRGlnaXRhbCBDZXJ0aWZpY2F0ZSBTaWduaW5nMTgwNgYDVQQDEy9TdGFydENv
+bSBDbGFzcyAxIFByaW1hcnkgSW50ZXJtZWRpYXRlIENsaWVudCBDQTAeFw0xNTA1MDUwOTQzNDFa
+Fw0xNjA1MDUwOTUzMzZaMEIxHDAaBgNVBAMME2R3bXcyQGluZnJhZGVhZC5vcmcxIjAgBgkqhkiG
+9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+AQDJG5vZD28dY/1+EVcn/6TykmMHpXHKOvU750EGyjPJvMZFo1ySNY6SdYzGhlGRhU6CDTEmYu5W
+WsFKM7nVm10istUopBDUkyR337HUQCJbKfoUfL1r47ClK8urBHajxnaGuUWO/jeFkbrFmQ2Fv0UV
+hOovRC/alfOglT2KsNtlATlMOP4/x1Rglek0gfMhOYhMIZP4VLs0axWZtTCTEe5gkuwQkfC6+YxW
+OtZVqQYlzVyMS2Qrw3NuikeS+bWF+N4lFTt38xEtRkVaGJ8cZNrZs33LGRubyvk63PS/DmSX5GKx
+Bx9/iMONTENMP3Y1bWK9fh2JXcdEJmFwLZ4SI/lDAgMBAAGjggLZMIIC1TAJBgNVHRMEAjAAMAsG
+A1UdDwQEAwIEsDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwHQYDVR0OBBYEFLMwvegt
+8Of9vnfmrUq9CKU9umCOMB8GA1UdIwQYMBaAFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB4GA1UdEQQX
+MBWBE2R3bXcyQGluZnJhZGVhZC5vcmcwggFMBgNVHSAEggFDMIIBPzCCATsGCysGAQQBgbU3AQID
+MIIBKjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjCB9wYI
+KwYBBQUHAgIwgeowJxYgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwAwIBARqBvlRo
+aXMgY2VydGlmaWNhdGUgd2FzIGlzc3VlZCBhY2NvcmRpbmcgdG8gdGhlIENsYXNzIDEgVmFsaWRh
+dGlvbiByZXF1aXJlbWVudHMgb2YgdGhlIFN0YXJ0Q29tIENBIHBvbGljeSwgcmVsaWFuY2Ugb25s
+eSBmb3IgdGhlIGludGVuZGVkIHB1cnBvc2UgaW4gY29tcGxpYW5jZSBvZiB0aGUgcmVseWluZyBw
+YXJ0eSBvYmxpZ2F0aW9ucy4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5zdGFydHNzbC5j
+b20vY3J0dTEtY3JsLmNybDCBjgYIKwYBBQUHAQEEgYEwfzA5BggrBgEFBQcwAYYtaHR0cDovL29j
+c3Auc3RhcnRzc2wuY29tL3N1Yi9jbGFzczEvY2xpZW50L2NhMEIGCCsGAQUFBzAChjZodHRwOi8v
+YWlhLnN0YXJ0c3NsLmNvbS9jZXJ0cy9zdWIuY2xhc3MxLmNsaWVudC5jYS5jcnQwIwYDVR0SBBww
+GoYYaHR0cDovL3d3dy5zdGFydHNzbC5jb20vMA0GCSqGSIb3DQEBBQUAA4IBAQBzEJsRx6HaUvOV
+/B0csYb35MrO6/rWgjTmjVPXMULv3Gf+pOZ0tqhjTM2eo2+7nmP1e+6fuA1v/WVjgw03+Bc9NJoe
+UklXNtAc+7foYccB3etj2YBDYeYu+kKtrcOPFPALGKOXWph28tXqX53mWny6VJCyzuwBgSSIkVU3
+r3b8l0NKp4sTpijFsr64UjRrlSClXXqiz/tdNg8H/naRcsPo9Yc9vIxBCqR2vjUdW9pF7kj4v6zB
+oXscJSToeLSvCkOkcq9KyDf/zUmzoG8mGa83P2VFl/VeTgPOAoRW9r5BZdDnGK7baf64QwSyE8H3
+z8UmXqAYfR+82M5Gwlyi9wVCMIIGNDCCBBygAwIBAgIBHjANBgkqhkiG9w0BAQUFADB9MQswCQYD
+VQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
+Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRo
+b3JpdHkwHhcNMDcxMDI0MjEwMTU1WhcNMTcxMDI0MjEwMTU1WjCBjDELMAkGA1UEBhMCSUwxFjAU
+BgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRl
+IFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUg
+Q2xpZW50IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwmDzM4t2BqxKaQuE6uW
+vooyg4ymiEGWVUet1G8SD+rqvyNH4QrvnEIaFHxOhESip7vMz39ScLpNLbL1QpOlPW/tFIzNHS3q
+d2XRNYG5Sv9RcGE+T4qbLtsjjJbi6sL7Ls/f/X9ftTyhxvxWkf8KW37iKrueKsxw2HqolH7GM6FX
+5UfNAwAu4ZifkpmZzU1slBhyWwaQPEPPZRsWoTb7q8hmgv6Nv3Hg9rmA1/VPBIOQ6SKRkHXG0Hhm
+q1dOFoAFI411+a/9nWm5rcVjGcIWZ2v/43Yksq60jExipA4l5uv9/+Hm33mbgmCszdj/Dthf13tg
+Av2O83hLJ0exTqfrlwIDAQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AQYwHQYDVR0OBBYEFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB8GA1UdIwQYMBaAFE4L7xqkQFulF2mH
+MMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDovL29jc3Auc3RhcnRz
+c2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9zZnNjYS5jcnQw
+WwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAj
+hiFodHRwOi8vY3JsLnN0YXJ0c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGB
+tTcBAgEwZjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
+BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRlLnBkZjANBgkq
+hkiG9w0BAQUFAAOCAgEACoMIfXirLAZcuGOMXq4cuSN3TaFx2H2GvD5VSy/6rV55BYHbWNaPeQn3
+oBSU8KgQZn/Kck1JxbLpAxVCNtsxeW1R87ifhsYZ0qjdrA9anrW2MAWCtosmAOT4OxK9QPoSjCMx
+M3HbkZCDJgnlE8jMopH21BbyAYr7b5EfGRQJNtgWcvqSXwKHnTutR08+Kkn0KAkXCzeQNLeA5LlY
+UzFyM7kPAp8pIRMQ+seHunmyG642S2+y/qHEdMuGIwpfz3eDF1PdctL04qYK/zu+Qg1Bw0RwgigV
+Zs/0c5HP2/e9DBHh7eSwtzYlk4AUr6yxLlcwSjOfOmKEQ/Q8tzh0IFiNu9IPuTGAPBn4CPxD0+Ru
+8T2wg8/s43R/PT3kd1OEqOJUl7q+h+r6fpvU0Fzxd2tC8Ga6fDEPme+1Nbi+03pVjuZQKbGwKJ66
+gEn06WqaxVZC+J8hh/jR0k9mST1iAZPNYulcNJ8tKmVtjYsv0L1TSm2+NwON58tO+pIVzu3DWwSE
+XSf+qkDavQam+QtEOZxLBXI++aMUEapSn+k3Lxm48ZCYfAWLb/Xj7F5JQMbZvCexglAbYR0kIHqW
+5DnsYSdMD/IplJMojx0NBrxJ3fN9dvX2Y6BIXRsF1du4qESm4/3CKuyUV7p9DW3mPlHTGLvYxnyK
+Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
+CQUxDxcNMTYwMjAzMDg0MDUzWjAjBgkqhkiG9w0BCQQxFgQUAGd0h17Fe1dtvfaz4lSOVHigGfIw
+gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
+ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
+L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
+CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
+LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
+U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
+hkiG9w0BAQEFAASCAQCQ66OxoDs1fk+5YYeNCbAtsDXXnlPWABgmwsqFVOPk1wDIX6xVEPUDltk+
+qz7thv1gXU+ehvIWAb/bpMH2VSF10iSMncbSgMaLuuvjBZIRd6YfDt5b85e48bF7ho5XFi7nZghp
+pEmzbeUuXDHWvOgUa7lJPNp+nO2rPJ6TKUBIqrQzIXnKUTE10oFDOw/cONIv2OcjgPDx62d3Y4Mm
+6CfFdKR8822MGtDmMKGb9wWf49IfphsvSKyt1WL98dHhMt3++XpOlQ1yTe44VmIMIvp3xWfmtR9s
+hw7M/7dbXsD+BJvhvLK4AVXTdPo9NK/JlOQlx7qbXyRRw22HwfJp0yxJAAAAAAAA
+
+
+--=-gxnqeKZlpm2pRfnVHCKF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
