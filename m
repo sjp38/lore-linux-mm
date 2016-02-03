@@ -1,209 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6186B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:40:58 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id ho8so9971193pac.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:40:58 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id tc5si7838902pab.176.2016.02.03.00.40.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 00:40:57 -0800 (PST)
-Message-ID: <1454488853.4788.142.camel@infradead.org>
-Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
-From: David Woodhouse <dwmw2@infradead.org>
-Date: Wed, 03 Feb 2016 08:40:53 +0000
-In-Reply-To: <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
-References: <20160128175536.GA20797@gmail.com>
-	 <1454460057.4788.117.camel@infradead.org>
-	 <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
-Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
-	boundary="=-gxnqeKZlpm2pRfnVHCKF"
-Mime-Version: 1.0
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C927E6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 04:17:07 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id w123so10839819pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 01:17:07 -0800 (PST)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id r70si8098001pfr.123.2016.02.03.01.17.05
+        for <linux-mm@kvack.org>;
+        Wed, 03 Feb 2016 01:17:06 -0800 (PST)
+Message-ID: <56B1C504.4060905@cn.fujitsu.com>
+Date: Wed, 3 Feb 2016 17:14:44 +0800
+From: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 RESEND 0/5] Make cpuid <-> nodeid mapping persistent
+References: <1453702100-2597-1-git-send-email-tangchen@cn.fujitsu.com> <56A5BCDB.4090208@cn.fujitsu.com>
+In-Reply-To: <56A5BCDB.4090208@cn.fujitsu.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oded Gabbay <oded.gabbay@gmail.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
+To: chen.tang@easystack.cn, cl@linux.com, tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
---=-gxnqeKZlpm2pRfnVHCKF
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On 01/25/2016 02:12 PM, Tang Chen wrote:
+> Hi Rafael, Len,
+>
+> Would you please help to review the ACPI part of this patch-set ?
 
-On Wed, 2016-02-03 at 10:13 +0200, Oded Gabbay wrote:
->=20
-> > So on process exit, the MM doesn't die because the PASID binding still
-> > exists. The VMA of the mmap doesn't die because the MM still exists. So
-> > the underlying file remains open because the VMA still exists. And the
-> > PASID binding thus doesn't die because the file is still open.
-> >
-> Why connect the PASID to the FD in the first place ?
-> Why not tie everything to the MM ?
+Can anyone help to review this?
 
-That's actually a question for the device driver in question, of
-course; it's not the generic SVM support code which chooses *when* to
-bind/unbind PASIDs. We just provide those functions for the driver to
-call.
+Cc tj:
+Can you add acked-by into this patchset?
 
-But the answer is that that's the normal resource tracking model.
-Resources hang off the file and are cleared up when the file is closed.
+Thanks.
+>
+> Thanks.
+>
+> On 01/25/2016 02:08 PM, Tang Chen wrote:
+>> [Problem]
+>>
+>> cpuid <-> nodeid mapping is firstly established at boot time. And 
+>> workqueue caches
+>> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+>>
+>> When doing node online/offline, cpuid <-> nodeid mapping is 
+>> established/destroyed,
+>> which means, cpuid <-> nodeid mapping will change if node hotplug 
+>> happens. But
+>> workqueue does not update wq_numa_possible_cpumask.
+>>
+>> So here is the problem:
+>>
+>> Assume we have the following cpuid <-> nodeid in the beginning:
+>>
+>>    Node | CPU
+>> ------------------------
+>> node 0 |  0-14, 60-74
+>> node 1 | 15-29, 75-89
+>> node 2 | 30-44, 90-104
+>> node 3 | 45-59, 105-119
+>>
+>> and we hot-remove node2 and node3, it becomes:
+>>
+>>    Node | CPU
+>> ------------------------
+>> node 0 |  0-14, 60-74
+>> node 1 | 15-29, 75-89
+>>
+>> and we hot-add node4 and node5, it becomes:
+>>
+>>    Node | CPU
+>> ------------------------
+>> node 0 |  0-14, 60-74
+>> node 1 | 15-29, 75-89
+>> node 4 | 30-59
+>> node 5 | 90-119
+>>
+>> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and 
+>> the like.
+>>
+>> When a pool workqueue is initialized, if its cpumask belongs to a 
+>> node, its
+>> pool->node will be mapped to that node. And memory used by this 
+>> workqueue will
+>> also be allocated on that node.
+>>
+>> static struct worker_pool *get_unbound_pool(const struct 
+>> workqueue_attrs *attrs){
+>> ...
+>>          /* if cpumask is contained inside a NUMA node, we belong to 
+>> that node */
+>>          if (wq_numa_enabled) {
+>>                  for_each_node(node) {
+>>                          if (cpumask_subset(pool->attrs->cpumask,
+>> wq_numa_possible_cpumask[node])) {
+>>                                  pool->node = node;
+>>                                  break;
+>>                          }
+>>                  }
+>>          }
+>>
+>> Since wq_numa_possible_cpumask is not updated, it could be mapped to 
+>> an offline node,
+>> which will lead to memory allocation failure:
+>>
+>>   SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+>>    cache: kmalloc-192, object size: 192, buffer size: 192, default 
+>> order: 1, min order: 0
+>>    node 0: slabs: 6172, objs: 259224, free: 245741
+>>    node 1: slabs: 3261, objs: 136962, free: 127656
+>>
+>> It happens here:
+>>
+>> create_worker(struct worker_pool *pool)
+>>   |--> worker = alloc_worker(pool->node);
+>>
+>> static struct worker *alloc_worker(int node)
+>> {
+>>          struct worker *worker;
+>>
+>>          worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); 
+>> --> Here, useing the wrong node.
+>>
+>>          ......
+>>
+>>          return worker;
+>> }
+>>
+>>
+>> [Solution]
+>>
+>> There are four mappings in the kernel:
+>> 1. nodeid (logical node id)   <->   pxm
+>> 2. apicid (physical cpu id)   <->   nodeid
+>> 3. cpuid (logical cpu id)     <->   apicid
+>> 4. cpuid (logical cpu id)     <->   nodeid
+>>
+>> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and 
+>> nodeid <-> pxm
+>>     mapping is setup at boot time. This mapping is persistent, won't 
+>> change.
+>>
+>> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is 
+>> setup at boot
+>>     time and CPU hotadd time, and cleared at CPU hotremove time. This 
+>> mapping is also
+>>     persistent.
+>>
+>> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd 
+>> time. cpuid is
+>>     allocated, lower ids first, and released at CPU hotremove time, 
+>> reused for other
+>>     hotadded CPUs. So this mapping is not persistent.
+>>
+>> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd 
+>> time, and
+>>     cleared at CPU hotremove time. As a result of 3, this mapping is 
+>> not persistent.
+>>
+>> To fix this problem, we establish cpuid <-> nodeid mapping for all 
+>> the possible
+>> cpus at boot time, and make it persistent. And according to 
+>> init_cpu_to_node(),
+>> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and 
+>> cpuid <-> apicid
+>> mapping. So the key point is obtaining all cpus' apicid.
+>>
+>> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or 
+>> found in
+>> MADT (Multiple APIC Description Table). So we finish the job in the 
+>> following steps:
+>>
+>> 1. Enable apic registeration flow to handle both enabled and disabled 
+>> cpus.
+>>     This is done by introducing an extra parameter to 
+>> generic_processor_info to let the
+>>     caller control if disabled cpus are ignored.
+>>
+>> 2. Introduce a new array storing all possible cpuid <-> apicid 
+>> mapping. And also modify
+>>     the way cpuid is calculated. Establish all possible cpuid <-> 
+>> apicid mapping when
+>>     registering local apic. Store the mapping in this array.
+>>
+>> 3. Enable _MAT and MADT relative apis to return non-presnet or 
+>> disabled cpus' apicid.
+>>     This is also done by introducing an extra parameter to these apis 
+>> to let the caller
+>>     control if disabled cpus are ignored.
+>>
+>> 4. Establish all possible cpuid <-> nodeid mapping.
+>>     This is done via an additional acpi namespace walk for processors.
+>>
+>>
+>> For previous discussion, please refer to:
+>> https://lkml.org/lkml/2015/2/27/145
+>> https://lkml.org/lkml/2015/3/25/989
+>> https://lkml.org/lkml/2015/5/14/244
+>> https://lkml.org/lkml/2015/7/7/200
+>> https://lkml.org/lkml/2015/9/27/209
+>>
+>> Change log v4 -> v5:
+>> 1. Remove useless code in patch 1.
+>> 2. Small improvement of commit message.
+>>
+>> Change log v3 -> v4:
+>> 1. Fix the kernel panic at boot time. The cause is that I tried to 
+>> build zonelists
+>>     before per cpu areas were initialized.
+>>
+>> Change log v2 -> v3:
+>> 1. Online memory-less nodes at boot time to map cpus of memory-less 
+>> nodes.
+>> 2. Build zonelists for memory-less nodes so that memory allocator 
+>> will fall
+>>     back to proper nodes automatically.
+>>
+>> Change log v1 -> v2:
+>> 1. Split code movement and actual changes. Add patch 1.
+>> 2. Synchronize best near online node record when node hotplug 
+>> happens. In patch 2.
+>> 3. Fix some comment.
+>>
+>> Gu Zheng (4):
+>>    x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+>>      boot time.
+>>    x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+>>      persistent cpuid <-> apicid mapping.
+>>    x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+>>    x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+>>      booting.
+>>
+>> Tang Chen (1):
+>>    x86, memhp, numa: Online memory-less nodes at boot time.
+>>
+>>   arch/ia64/kernel/acpi.c       |   2 +-
+>>   arch/x86/include/asm/mpspec.h |   1 +
+>>   arch/x86/kernel/acpi/boot.c   |   8 ++-
+>>   arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++----
+>>   arch/x86/mm/numa.c            |  27 +++++-----
+>>   drivers/acpi/acpi_processor.c |   5 +-
+>>   drivers/acpi/bus.c            |   3 ++
+>>   drivers/acpi/processor_core.c | 122 
+>> ++++++++++++++++++++++++++++++++++--------
+>>   include/linux/acpi.h          |   2 +
+>>   9 files changed, 204 insertions(+), 51 deletions(-)
+>>
+>
+>
+>
+> .
+>
 
-(And exit_files() is called later than exit_mm()).
 
-> > I've posted a patch=C2=B9 which moves us closer to the amd_iommu_v2 mod=
-el,
-> > although I'm still *strongly* resisting the temptation to call out into
-> > device driver code from the mmu_notifier's release callback.
->=20
-> You mean you are resisting doing this (taken from amdkfd):
->=20
-> --------------
-> static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops =3D {
-> .release =3D kfd_process_notifier_release,
-> };
->=20
-> process->mmu_notifier.ops =3D &kfd_process_mmu_notifier_ops;
-> -----------
->=20
-> Why, if I may ask ?
-
-The KISS principle, especially as it relates to device drivers.
-We just Do Not Want random device drivers being called in that context.
-
-It's OK for amdkfd where you have sufficient clue to deal with it =E2=80=94
-it's more than "just a device driver".
-
-But when we get discrete devices with PASID support (and the required
-TLP prefix support in our root ports at last!) we're going to see SVM
-supported in many more device drivers, and we should make it simple.
-
-Having the mmu_notifier release callback exposed to drivers is going to
-strongly encourage them to do the WRONG thing, because they need to
-interact with their hardware and *wait* for the PASID to be entirely
-retired through the pipeline before they tell the IOMMU to flush it.
-
-The patch at=C2=A0http://www.spinics.net/lists/linux-mm/msg100230.html
-addresses this by clearing the PASID from the PASID table (in core
-IOMMU code) when the process exits so that all subsequent accesses to
-that PASID then take faults. The device driver can then clean up its
-binding for that PASID in its own time.
-
-It is a fairly fundamental rule that faulting access to *one* PASID
-should not adversely affect behaviour for *other* PASIDs, of course.
-
---=20
-David Woodhouse                            Open Source Technology Centre
-David.Woodhouse@intel.com                              Intel Corporation
-
-
---=-gxnqeKZlpm2pRfnVHCKF
-Content-Type: application/x-pkcs7-signature; name="smime.p7s"
-Content-Disposition: attachment; filename="smime.p7s"
-Content-Transfer-Encoding: base64
-
-MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIISjjCCBicw
-ggUPoAMCAQICAw3vNzANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
-YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
-ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
-MB4XDTE1MDUwNTA5NDM0MVoXDTE2MDUwNTA5NTMzNlowQjEcMBoGA1UEAwwTZHdtdzJAaW5mcmFk
-ZWFkLm9yZzEiMCAGCSqGSIb3DQEJARYTZHdtdzJAaW5mcmFkZWFkLm9yZzCCASIwDQYJKoZIhvcN
-AQEBBQADggEPADCCAQoCggEBAMkbm9kPbx1j/X4RVyf/pPKSYwelcco69TvnQQbKM8m8xkWjXJI1
-jpJ1jMaGUZGFToINMSZi7lZawUozudWbXSKy1SikENSTJHffsdRAIlsp+hR8vWvjsKUry6sEdqPG
-doa5RY7+N4WRusWZDYW/RRWE6i9EL9qV86CVPYqw22UBOUw4/j/HVGCV6TSB8yE5iEwhk/hUuzRr
-FZm1MJMR7mCS7BCR8Lr5jFY61lWpBiXNXIxLZCvDc26KR5L5tYX43iUVO3fzES1GRVoYnxxk2tmz
-fcsZG5vK+Trc9L8OZJfkYrEHH3+Iw41MQ0w/djVtYr1+HYldx0QmYXAtnhIj+UMCAwEAAaOCAtkw
-ggLVMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgSwMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
-BDAdBgNVHQ4EFgQUszC96C3w5/2+d+atSr0IpT26YI4wHwYDVR0jBBgwFoAUU3Ltkpzg2ssBXHx+
-ljVO8tS4UYIwHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzCCAUwGA1UdIASCAUMwggE/
-MIIBOwYLKwYBBAGBtTcBAgMwggEqMC4GCCsGAQUFBwIBFiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNv
-bS9wb2xpY3kucGRmMIH3BggrBgEFBQcCAjCB6jAnFiBTdGFydENvbSBDZXJ0aWZpY2F0aW9uIEF1
-dGhvcml0eTADAgEBGoG+VGhpcyBjZXJ0aWZpY2F0ZSB3YXMgaXNzdWVkIGFjY29yZGluZyB0byB0
-aGUgQ2xhc3MgMSBWYWxpZGF0aW9uIHJlcXVpcmVtZW50cyBvZiB0aGUgU3RhcnRDb20gQ0EgcG9s
-aWN5LCByZWxpYW5jZSBvbmx5IGZvciB0aGUgaW50ZW5kZWQgcHVycG9zZSBpbiBjb21wbGlhbmNl
-IG9mIHRoZSByZWx5aW5nIHBhcnR5IG9ibGlnYXRpb25zLjA2BgNVHR8ELzAtMCugKaAnhiVodHRw
-Oi8vY3JsLnN0YXJ0c3NsLmNvbS9jcnR1MS1jcmwuY3JsMIGOBggrBgEFBQcBAQSBgTB/MDkGCCsG
-AQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20vc3ViL2NsYXNzMS9jbGllbnQvY2EwQgYI
-KwYBBQUHMAKGNmh0dHA6Ly9haWEuc3RhcnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuY2xpZW50
-LmNhLmNydDAjBgNVHRIEHDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEF
-BQADggEBAHMQmxHHodpS85X8HRyxhvfkys7r+taCNOaNU9cxQu/cZ/6k5nS2qGNMzZ6jb7ueY/V7
-7p+4DW/9ZWODDTf4Fz00mh5SSVc20Bz7t+hhxwHd62PZgENh5i76Qq2tw48U8AsYo5damHby1epf
-neZafLpUkLLO7AGBJIiRVTevdvyXQ0qnixOmKMWyvrhSNGuVIKVdeqLP+102Dwf+dpFyw+j1hz28
-jEEKpHa+NR1b2kXuSPi/rMGhexwlJOh4tK8KQ6Ryr0rIN//NSbOgbyYZrzc/ZUWX9V5OA84ChFb2
-vkFl0OcYrttp/rhDBLITwffPxSZeoBh9H7zYzkbCXKL3BUIwggYnMIIFD6ADAgECAgMN7zcwDQYJ
-KoZIhvcNAQEFBQAwgYwxCzAJBgNVBAYTAklMMRYwFAYDVQQKEw1TdGFydENvbSBMdGQuMSswKQYD
-VQQLEyJTZWN1cmUgRGlnaXRhbCBDZXJ0aWZpY2F0ZSBTaWduaW5nMTgwNgYDVQQDEy9TdGFydENv
-bSBDbGFzcyAxIFByaW1hcnkgSW50ZXJtZWRpYXRlIENsaWVudCBDQTAeFw0xNTA1MDUwOTQzNDFa
-Fw0xNjA1MDUwOTUzMzZaMEIxHDAaBgNVBAMME2R3bXcyQGluZnJhZGVhZC5vcmcxIjAgBgkqhkiG
-9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
-AQDJG5vZD28dY/1+EVcn/6TykmMHpXHKOvU750EGyjPJvMZFo1ySNY6SdYzGhlGRhU6CDTEmYu5W
-WsFKM7nVm10istUopBDUkyR337HUQCJbKfoUfL1r47ClK8urBHajxnaGuUWO/jeFkbrFmQ2Fv0UV
-hOovRC/alfOglT2KsNtlATlMOP4/x1Rglek0gfMhOYhMIZP4VLs0axWZtTCTEe5gkuwQkfC6+YxW
-OtZVqQYlzVyMS2Qrw3NuikeS+bWF+N4lFTt38xEtRkVaGJ8cZNrZs33LGRubyvk63PS/DmSX5GKx
-Bx9/iMONTENMP3Y1bWK9fh2JXcdEJmFwLZ4SI/lDAgMBAAGjggLZMIIC1TAJBgNVHRMEAjAAMAsG
-A1UdDwQEAwIEsDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwHQYDVR0OBBYEFLMwvegt
-8Of9vnfmrUq9CKU9umCOMB8GA1UdIwQYMBaAFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB4GA1UdEQQX
-MBWBE2R3bXcyQGluZnJhZGVhZC5vcmcwggFMBgNVHSAEggFDMIIBPzCCATsGCysGAQQBgbU3AQID
-MIIBKjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjCB9wYI
-KwYBBQUHAgIwgeowJxYgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwAwIBARqBvlRo
-aXMgY2VydGlmaWNhdGUgd2FzIGlzc3VlZCBhY2NvcmRpbmcgdG8gdGhlIENsYXNzIDEgVmFsaWRh
-dGlvbiByZXF1aXJlbWVudHMgb2YgdGhlIFN0YXJ0Q29tIENBIHBvbGljeSwgcmVsaWFuY2Ugb25s
-eSBmb3IgdGhlIGludGVuZGVkIHB1cnBvc2UgaW4gY29tcGxpYW5jZSBvZiB0aGUgcmVseWluZyBw
-YXJ0eSBvYmxpZ2F0aW9ucy4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5zdGFydHNzbC5j
-b20vY3J0dTEtY3JsLmNybDCBjgYIKwYBBQUHAQEEgYEwfzA5BggrBgEFBQcwAYYtaHR0cDovL29j
-c3Auc3RhcnRzc2wuY29tL3N1Yi9jbGFzczEvY2xpZW50L2NhMEIGCCsGAQUFBzAChjZodHRwOi8v
-YWlhLnN0YXJ0c3NsLmNvbS9jZXJ0cy9zdWIuY2xhc3MxLmNsaWVudC5jYS5jcnQwIwYDVR0SBBww
-GoYYaHR0cDovL3d3dy5zdGFydHNzbC5jb20vMA0GCSqGSIb3DQEBBQUAA4IBAQBzEJsRx6HaUvOV
-/B0csYb35MrO6/rWgjTmjVPXMULv3Gf+pOZ0tqhjTM2eo2+7nmP1e+6fuA1v/WVjgw03+Bc9NJoe
-UklXNtAc+7foYccB3etj2YBDYeYu+kKtrcOPFPALGKOXWph28tXqX53mWny6VJCyzuwBgSSIkVU3
-r3b8l0NKp4sTpijFsr64UjRrlSClXXqiz/tdNg8H/naRcsPo9Yc9vIxBCqR2vjUdW9pF7kj4v6zB
-oXscJSToeLSvCkOkcq9KyDf/zUmzoG8mGa83P2VFl/VeTgPOAoRW9r5BZdDnGK7baf64QwSyE8H3
-z8UmXqAYfR+82M5Gwlyi9wVCMIIGNDCCBBygAwIBAgIBHjANBgkqhkiG9w0BAQUFADB9MQswCQYD
-VQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
-Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRo
-b3JpdHkwHhcNMDcxMDI0MjEwMTU1WhcNMTcxMDI0MjEwMTU1WjCBjDELMAkGA1UEBhMCSUwxFjAU
-BgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRl
-IFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUg
-Q2xpZW50IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwmDzM4t2BqxKaQuE6uW
-vooyg4ymiEGWVUet1G8SD+rqvyNH4QrvnEIaFHxOhESip7vMz39ScLpNLbL1QpOlPW/tFIzNHS3q
-d2XRNYG5Sv9RcGE+T4qbLtsjjJbi6sL7Ls/f/X9ftTyhxvxWkf8KW37iKrueKsxw2HqolH7GM6FX
-5UfNAwAu4ZifkpmZzU1slBhyWwaQPEPPZRsWoTb7q8hmgv6Nv3Hg9rmA1/VPBIOQ6SKRkHXG0Hhm
-q1dOFoAFI411+a/9nWm5rcVjGcIWZ2v/43Yksq60jExipA4l5uv9/+Hm33mbgmCszdj/Dthf13tg
-Av2O83hLJ0exTqfrlwIDAQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
-AQYwHQYDVR0OBBYEFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB8GA1UdIwQYMBaAFE4L7xqkQFulF2mH
-MMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDovL29jc3Auc3RhcnRz
-c2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9zZnNjYS5jcnQw
-WwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAj
-hiFodHRwOi8vY3JsLnN0YXJ0c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGB
-tTcBAgEwZjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
-BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRlLnBkZjANBgkq
-hkiG9w0BAQUFAAOCAgEACoMIfXirLAZcuGOMXq4cuSN3TaFx2H2GvD5VSy/6rV55BYHbWNaPeQn3
-oBSU8KgQZn/Kck1JxbLpAxVCNtsxeW1R87ifhsYZ0qjdrA9anrW2MAWCtosmAOT4OxK9QPoSjCMx
-M3HbkZCDJgnlE8jMopH21BbyAYr7b5EfGRQJNtgWcvqSXwKHnTutR08+Kkn0KAkXCzeQNLeA5LlY
-UzFyM7kPAp8pIRMQ+seHunmyG642S2+y/qHEdMuGIwpfz3eDF1PdctL04qYK/zu+Qg1Bw0RwgigV
-Zs/0c5HP2/e9DBHh7eSwtzYlk4AUr6yxLlcwSjOfOmKEQ/Q8tzh0IFiNu9IPuTGAPBn4CPxD0+Ru
-8T2wg8/s43R/PT3kd1OEqOJUl7q+h+r6fpvU0Fzxd2tC8Ga6fDEPme+1Nbi+03pVjuZQKbGwKJ66
-gEn06WqaxVZC+J8hh/jR0k9mST1iAZPNYulcNJ8tKmVtjYsv0L1TSm2+NwON58tO+pIVzu3DWwSE
-XSf+qkDavQam+QtEOZxLBXI++aMUEapSn+k3Lxm48ZCYfAWLb/Xj7F5JQMbZvCexglAbYR0kIHqW
-5DnsYSdMD/IplJMojx0NBrxJ3fN9dvX2Y6BIXRsF1du4qESm4/3CKuyUV7p9DW3mPlHTGLvYxnyK
-Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
-YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
-ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
-AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
-CQUxDxcNMTYwMjAzMDg0MDUzWjAjBgkqhkiG9w0BCQQxFgQUAGd0h17Fe1dtvfaz4lSOVHigGfIw
-gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
-ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
-L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
-CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
-LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
-U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
-hkiG9w0BAQEFAASCAQCQ66OxoDs1fk+5YYeNCbAtsDXXnlPWABgmwsqFVOPk1wDIX6xVEPUDltk+
-qz7thv1gXU+ehvIWAb/bpMH2VSF10iSMncbSgMaLuuvjBZIRd6YfDt5b85e48bF7ho5XFi7nZghp
-pEmzbeUuXDHWvOgUa7lJPNp+nO2rPJ6TKUBIqrQzIXnKUTE10oFDOw/cONIv2OcjgPDx62d3Y4Mm
-6CfFdKR8822MGtDmMKGb9wWf49IfphsvSKyt1WL98dHhMt3++XpOlQ1yTe44VmIMIvp3xWfmtR9s
-hw7M/7dbXsD+BJvhvLK4AVXTdPo9NK/JlOQlx7qbXyRRw22HwfJp0yxJAAAAAAAA
-
-
---=-gxnqeKZlpm2pRfnVHCKF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
