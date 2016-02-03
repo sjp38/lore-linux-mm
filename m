@@ -1,103 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7146B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 07:15:39 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id ho8so12791458pac.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 04:15:39 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id q82si9104678pfq.25.2016.02.03.04.15.38
-        for <linux-mm@kvack.org>;
-        Wed, 03 Feb 2016 04:15:38 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] thp: cleanup split_huge_page()
-Date: Wed,  3 Feb 2016 15:14:42 +0300
-Message-Id: <1454501682-78445-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 36DB66B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 07:16:49 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id p63so67381157wmp.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 04:16:49 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id k5si9589729wjf.120.2016.02.03.04.16.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Feb 2016 04:16:48 -0800 (PST)
+Received: by mail-wm0-f50.google.com with SMTP id p63so67380456wmp.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 04:16:47 -0800 (PST)
+Date: Wed, 3 Feb 2016 13:16:46 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mmotm 2016-02-02-17-08 uploaded
+Message-ID: <20160203121646.GE6757@dhcp22.suse.cz>
+References: <56b1532f.mwdov6KmWTCFuZoC%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56b1532f.mwdov6KmWTCFuZoC%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-After one of bugfixes to freeze_page(), we don't have freezed pages in
-rmap, therefore mapcount of all subpages of freezed THP is zero. And we
-have assert for that.
 
-Let's drop code which deal with non-zero mapcount of subpages.
+On Tue 02-02-16 17:09:03, Andrew Morton wrote:
+> A git tree which contains the memory management portion of this tree is
+> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> by Michal Hocko.  It contains the patches which are between the
+> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+> file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/huge_memory.c | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+JFYI DAX changes are really hard to track properly because there are
+some changes coming from different trees, the code changes permanently
+and it is really hard to see what is the current base so I have skipped
+those fixes which depend on the code which is outside of mmotm patches +
+linus tree.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1632e02f859c..edcc8ac07338 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3539,28 +3539,26 @@ static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
- 	}
- }
- 
--static int __split_huge_page_tail(struct page *head, int tail,
-+static void __split_huge_page_tail(struct page *head, int tail,
- 		struct lruvec *lruvec, struct list_head *list)
- {
--	int mapcount;
- 	struct page *page_tail = head + tail;
- 
--	mapcount = atomic_read(&page_tail->_mapcount) + 1;
-+	VM_BUG_ON_PAGE(atomic_read(&page_tail->_mapcount) != -1, page_tail);
- 	VM_BUG_ON_PAGE(atomic_read(&page_tail->_count) != 0, page_tail);
- 
- 	/*
- 	 * tail_page->_count is zero and not changing from under us. But
- 	 * get_page_unless_zero() may be running from under us on the
--	 * tail_page. If we used atomic_set() below instead of atomic_add(), we
-+	 * tail_page. If we used atomic_set() below instead of atomic_inc(), we
- 	 * would then run atomic_set() concurrently with
- 	 * get_page_unless_zero(), and atomic_set() is implemented in C not
- 	 * using locked ops. spin_unlock on x86 sometime uses locked ops
- 	 * because of PPro errata 66, 92, so unless somebody can guarantee
- 	 * atomic_set() here would be safe on all archs (and not only on x86),
--	 * it's safer to use atomic_add().
-+	 * it's safer to use atomic_inc().
- 	 */
--	atomic_add(mapcount + 1, &page_tail->_count);
--
-+	atomic_inc(&page_tail->_count);
- 
- 	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 	page_tail->flags |= (head->flags &
-@@ -3594,8 +3592,6 @@ static int __split_huge_page_tail(struct page *head, int tail,
- 	page_tail->index = head->index + tail;
- 	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
- 	lru_add_page_tail(head, page_tail, lruvec, list);
--
--	return mapcount;
- }
- 
- static void __split_huge_page(struct page *page, struct list_head *list)
-@@ -3603,7 +3599,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	struct page *head = compound_head(page);
- 	struct zone *zone = page_zone(head);
- 	struct lruvec *lruvec;
--	int i, tail_mapcount;
-+	int i;
- 
- 	/* prevent PageLRU to go away from under us, and freeze lru stats */
- 	spin_lock_irq(&zone->lru_lock);
-@@ -3612,10 +3608,8 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(head);
- 
--	tail_mapcount = 0;
- 	for (i = HPAGE_PMD_NR - 1; i >= 1; i--)
--		tail_mapcount += __split_huge_page_tail(head, i, lruvec, list);
--	atomic_sub(tail_mapcount, &head->_count);
-+		__split_huge_page_tail(head, i, lruvec, list);
- 
- 	ClearPageCompound(head);
- 	spin_unlock_irq(&zone->lru_lock);
+If you want to develop for DAX or something that might clash there
+please use linux-next instead.
 -- 
-2.7.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
