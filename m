@@ -1,96 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id ADBEA6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 23:15:45 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id ho8so6121257pac.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 20:15:45 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q66si6331800pfi.84.2016.02.02.20.15.43
+Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C521A6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 01:27:05 -0500 (EST)
+Received: by mail-lf0-f44.google.com with SMTP id m1so7196088lfg.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 22:27:05 -0800 (PST)
+Received: from mail-lb0-x244.google.com (mail-lb0-x244.google.com. [2a00:1450:4010:c04::244])
+        by mx.google.com with ESMTPS id r72si3057891lfr.149.2016.02.02.22.27.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 20:15:45 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlb: fix gigantic page initialization/allocation
-References: <1454452420-25007-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.DEB.2.10.1602021457500.9118@chino.kir.corp.google.com>
- <56B138F6.70704@oracle.com>
- <20160203030137.GA22446@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56B17ED2.2070205@oracle.com>
-Date: Tue, 2 Feb 2016 20:15:14 -0800
+        Tue, 02 Feb 2016 22:27:04 -0800 (PST)
+Received: by mail-lb0-x244.google.com with SMTP id bc4so287215lbc.0
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 22:27:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160203030137.GA22446@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALYGNiMYZMk6qmjfgcnz5Z0k3DLA3CihOdNjR+D0fqsoJn2mVQ@mail.gmail.com>
+References: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com>
+	<CALYGNiMYZMk6qmjfgcnz5Z0k3DLA3CihOdNjR+D0fqsoJn2mVQ@mail.gmail.com>
+Date: Wed, 3 Feb 2016 09:27:03 +0300
+Message-ID: <CALYGNiMUu31A+L2zi1HVKtVu1SyWQBxv=HKciCuCzM8JU0qROg@mail.gmail.com>
+Subject: Re: [PATCH 0/5] Fix races & improve the radix tree iterator patterns
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ohad Ben-Cohen <ohad@wizery.com>, Matthew Wilcox <willy@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 02/02/2016 07:01 PM, Naoya Horiguchi wrote:
-> On Tue, Feb 02, 2016 at 03:17:10PM -0800, Mike Kravetz wrote:
->> I agree.  Naoya did debug and provide fix via e-mail exchange.  He did not
->> sign-off and I could not tell if he was going to pursue.  My only intention
->> was to fix ASAP.
+On Thu, Jan 28, 2016 at 10:17 AM, Konstantin Khlebnikov
+<koct9i@gmail.com> wrote:
+> On Thu, Jan 28, 2016 at 12:17 AM, Matthew Wilcox
+> <matthew.r.wilcox@intel.com> wrote:
+>> From: Matthew Wilcox <willy@linux.intel.com>
 >>
->> More than happy to give Naoya credit.
-> 
-> Thank you! It's great if you append my signed-off below yours.
-> 
-> Naoya
+>> The first two patches here are bugfixes, and I would like to see them
+>> make their way into stable ASAP since they can lead to data corruption
+>> (very low probabilty).
+>>
+>> The last three patches do not qualify as bugfixes.  They simply improve
+>> the standard pattern used to do radix tree iterations by removing the
+>> 'goto restart' part.  Partially this is because this is an ugly &
+>> confusing goto, and partially because with multi-order entries in the
+>> tree, it'll be more likely that we'll see an indirect_ptr bit, and
+>> it's more efficient to kep going from the point of the iteration we're
+>> currently in than restart from the beginning each time.
+>
+> Ack  whole set.
+>
+> I think we should go deeper in hide dereference/retry inside iterator.
+> Something like radix_tree_for_each_data(data, slot, root, iter, start).
+> I'll prepare patch for that.
 
-Adding Naoya's sign off and Acks received
+After second thought: there'ra not so many users for new sugar.
+This scheme with radix_tree_deref_retry - radix_tree_iter_retry
+complicated but fine.
 
-mm/hugetlb: fix gigantic page initialization/allocation
-
-Attempting to preallocate 1G gigantic huge pages at boot time with
-"hugepagesz=1G hugepages=1" on the kernel command line will prevent
-booting with the following:
-
-kernel BUG at mm/hugetlb.c:1218!
-
-When mapcount accounting was reworked, the setting of compound_mapcount_ptr
-in prep_compound_gigantic_page was overlooked.  As a result, the validation
-of mapcount in free_huge_page fails.
-
-The "BUG_ON" checks in free_huge_page were also changed to "VM_BUG_ON_PAGE"
-to assist with debugging.
-
-Fixes: af5642a8af ("mm: rework mapcount accounting to enable 4k mapping
-of THPs")
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: David Rientjes <rientjes@google.com>
----
- mm/hugetlb.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 12908dc..d7a8024 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1214,8 +1214,8 @@ void free_huge_page(struct page *page)
-
- 	set_page_private(page, 0);
- 	page->mapping = NULL;
--	BUG_ON(page_count(page));
--	BUG_ON(page_mapcount(page));
-+	VM_BUG_ON_PAGE(page_count(page), page);
-+	VM_BUG_ON_PAGE(page_mapcount(page), page);
- 	restore_reserve = PagePrivate(page);
- 	ClearPagePrivate(page);
-
-@@ -1286,6 +1286,7 @@ static void prep_compound_gigantic_page(struct
-page *page, unsigned int order)
- 		set_page_count(p, 0);
- 		set_compound_head(p, page);
- 	}
-+	atomic_set(compound_mapcount_ptr(page), -1);
- }
-
- /*
--- 
-2.4.3
+>
+>>
+>> Matthew Wilcox (5):
+>>   radix-tree: Fix race in gang lookup
+>>   hwspinlock: Fix race between radix tree insertion and lookup
+>>   btrfs: Use radix_tree_iter_retry()
+>>   mm: Use radix_tree_iter_retry()
+>>   radix-tree,shmem: Introduce radix_tree_iter_next()
+>>
+>>  drivers/hwspinlock/hwspinlock_core.c |  4 +++
+>>  fs/btrfs/tests/btrfs-tests.c         |  3 +-
+>>  include/linux/radix-tree.h           | 31 +++++++++++++++++++++
+>>  lib/radix-tree.c                     | 12 ++++++--
+>>  mm/filemap.c                         | 53 ++++++++++++------------------------
+>>  mm/shmem.c                           | 30 ++++++++++----------
+>>  6 files changed, 78 insertions(+), 55 deletions(-)
+>>
+>> --
+>> 2.7.0.rc3
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
