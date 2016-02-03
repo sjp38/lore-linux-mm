@@ -1,226 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C17ED828F6
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 16:11:44 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id 128so184448537wmz.1
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:11:44 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id m8si15324914wmb.66.2016.02.03.13.11.43
-        for <linux-mm@kvack.org>;
-        Wed, 03 Feb 2016 13:11:43 -0800 (PST)
-Date: Wed, 3 Feb 2016 22:11:38 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v9 1/4] x86: Expand exception table to allow new handling
- options
-Message-ID: <20160203211137.GC20682@pd.tnic>
-References: <cover.1454455138.git.tony.luck@intel.com>
- <c825688875c358f6f39a295a02091452b666947d.1454455138.git.tony.luck@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <c825688875c358f6f39a295a02091452b666947d.1454455138.git.tony.luck@intel.com>
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C20E9828F6
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 16:19:41 -0500 (EST)
+Received: by mail-qg0-f43.google.com with SMTP id o11so26161590qge.2
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:19:41 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 70si7232679qha.1.2016.02.03.13.19.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Feb 2016 13:19:41 -0800 (PST)
+Date: Wed, 3 Feb 2016 13:19:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/workingset: do not forget to unlock page
+Message-Id: <20160203131939.1a35d9bc03f13b2b143d27c0@linux-foundation.org>
+In-Reply-To: <20160203162400.GB10440@cmpxchg.org>
+References: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
+	<20160203104136.GA517@swordfish>
+	<20160203162400.GB10440@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri, Jan 08, 2016 at 12:49:38PM -0800, Tony Luck wrote:
-> Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
-> produce this. Andy provided the inspiration to add classes to the
-> exception table with a clever bit-squeezing trick, Boris pointed
-> out how much cleaner it would all be if we just had a new field.
+On Wed, 3 Feb 2016 11:24:00 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> On Wed, Feb 03, 2016 at 07:41:36PM +0900, Sergey Senozhatsky wrote:
+> > From 1d6315221f2f81c53c99f9980158f8ae49dbd582 Mon Sep 17 00:00:00 2001
+> > From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Date: Wed, 3 Feb 2016 18:49:16 +0900
+> > Subject: [PATCH] mm/workingset: do not forget to unlock_page in workingset_activation
+> > 
+> > Do not return from workingset_activation() with locked rcu and page.
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > 
-> Linus Torvalds blessed the expansion with:
->   I'd rather not be clever in order to save just a tiny amount of space
->   in the exception table, which isn't really criticial for anybody.
+> Thanks Sergey. Even though I wrote this function, my brain must have
+> gone "it can't be locking anything when it returns NULL, right?" It's
+> a dumb interface. Luckily, that's fixed with follow-up patches in -mm.
 > 
-> The third field is another relative function pointer, this one to a
-> handler that executes the actions.
+> As for this one:
 > 
-> We start out with three handlers:
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Fixes: mm: workingset: per-cgroup cache thrash detection
 > 
-> 1: Legacy - just jumps the to fixup IP
-> 2: Fault - provide the trap number in %ax to the fixup code
-> 3: Cleaned up legacy for the uaccess error hack
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> ---
->  Documentation/x86/exception-tables.txt |  33 +++++++++++
->  arch/x86/include/asm/asm.h             |  40 +++++++------
->  arch/x86/include/asm/uaccess.h         |  16 +++---
->  arch/x86/kernel/kprobes/core.c         |   2 +-
->  arch/x86/kernel/traps.c                |   6 +-
->  arch/x86/mm/extable.c                  | 100 ++++++++++++++++++++++++---------
->  arch/x86/mm/fault.c                    |   2 +-
->  scripts/sortextable.c                  |  32 +++++++++++
->  8 files changed, 174 insertions(+), 57 deletions(-)
-> 
-> diff --git a/Documentation/x86/exception-tables.txt b/Documentation/x86/exception-tables.txt
-> index 32901aa36f0a..d4ca5f8b22ff 100644
-> --- a/Documentation/x86/exception-tables.txt
-> +++ b/Documentation/x86/exception-tables.txt
-> @@ -290,3 +290,36 @@ Due to the way that the exception table is built and needs to be ordered,
->  only use exceptions for code in the .text section.  Any other section
->  will cause the exception table to not be sorted correctly, and the
->  exceptions will fail.
-> +
-> +Things changed when 64-bit support was added to x86 Linux. Rather than
-> +double the size of the exception table by expanding the two entries
-> +from 32-bits to 64 bits, a clever trick was used to store addreesses
+> Andrew, can you please fold this?
 
-s/addreesses/addresses/
+Yup.  I turned it into a fix against
+mm-workingset-per-cgroup-cache-thrash-detection.patch, which is where
+the bug was added.  And I did the goto thing instead, so the final
+result will be
 
-> +as relative offsets from the table itself. The assembly code changed
-> +from:
-> +	.long 1b,3b
-> +to:
-> +        .long (from) - .
-> +        .long (to) - .
+void workingset_activation(struct page *page)
+{
+	struct lruvec *lruvec;
 
-\n here
+	lock_page_memcg(page);
+	/*
+	 * Filter non-memcg pages here, e.g. unmap can call
+	 * mark_page_accessed() on VDSO pages.
+	 *
+	 * XXX: See workingset_refault() - this should return
+	 * root_mem_cgroup even for !CONFIG_MEMCG.
+	 */
+	if (!mem_cgroup_disabled() && !page_memcg(page))
+		goto out;
+	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));
+	atomic_long_inc(&lruvec->inactive_age);
+out:
+	unlock_page_memcg(page);
+}
 
-> +and the C-code that uses these values converts back to absolute addresses
-> +like this:
-
-<-- and here
-
-> +	ex_insn_addr(const struct exception_table_entry *x)
-> +	{
-> +		return (unsigned long)&x->insn + x->insn;
-> +	}
-> +
-> +In v4.5 the exception table entry was given a new field "handler".
-> +This is also 32-bits wide and contains a third relative function
-> +pointer which points to one of:
-> +
-> +1) int ex_handler_default(const struct exception_table_entry *fixup,
-									^
-					closing brace ------------------|
-
-
-> +   This is legacy case that just jumps to the fixup code
-> +2) int ex_handler_fault(const struct exception_table_entry *fixup,
-
-Ditto.
-
-> +   This case provides the fault number of the trap that occurred at
-> +   entry->insn. It is used to distinguish page faults from machine
-> +   check.
-> +3) int ex_handler_ext(const struct exception_table_entry *fixup,
-
-Ditto.
-
-> +   This case is used to for uaccess_err ... we need to set a flag
-
-s/to //
-
-> +   in the task structure. Before the handler functions existed this
-> +   case was handled by adding a large offset to the fixup to tag
-> +   it as special.
-> +More functions can easily be added.
-> diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-> index 189679aba703..f5063b6659eb 100644
-> --- a/arch/x86/include/asm/asm.h
-> +++ b/arch/x86/include/asm/asm.h
-> @@ -44,19 +44,22 @@
->  
->  /* Exception table entry */
->  #ifdef __ASSEMBLY__
-> -# define _ASM_EXTABLE(from,to)					\
-> +# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
->  	.pushsection "__ex_table","a" ;				\
-> -	.balign 8 ;						\
-> +	.balign 4 ;						\
->  	.long (from) - . ;					\
->  	.long (to) - . ;					\
-> +	.long (handler) - . ;					\
->  	.popsection
->  
-> -# define _ASM_EXTABLE_EX(from,to)				\
-> -	.pushsection "__ex_table","a" ;				\
-> -	.balign 8 ;						\
-> -	.long (from) - . ;					\
-> -	.long (to) - . + 0x7ffffff0 ;				\
-> -	.popsection
-> +# define _ASM_EXTABLE(from, to)					\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
-> +
-> +# define _ASM_EXTABLE_FAULT(from, to)				\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
-> +
-> +# define _ASM_EXTABLE_EX(from, to)				\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_ext)
->  
->  # define _ASM_NOKPROBE(entry)					\
->  	.pushsection "_kprobe_blacklist","aw" ;			\
-> @@ -89,19 +92,24 @@
->  	.endm
->  
->  #else
-> -# define _ASM_EXTABLE(from,to)					\
-> +# define _EXPAND_EXTABLE_HANDLE(x) #x
-> +# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
->  	" .pushsection \"__ex_table\",\"a\"\n"			\
-> -	" .balign 8\n"						\
-> +	" .balign 4\n"						\
->  	" .long (" #from ") - .\n"				\
->  	" .long (" #to ") - .\n"				\
-> +	" .long (" _EXPAND_EXTABLE_HANDLE(handler) ") - .\n"	\
->  	" .popsection\n"
->  
-> -# define _ASM_EXTABLE_EX(from,to)				\
-> -	" .pushsection \"__ex_table\",\"a\"\n"			\
-> -	" .balign 8\n"						\
-> -	" .long (" #from ") - .\n"				\
-> -	" .long (" #to ") - . + 0x7ffffff0\n"			\
-> -	" .popsection\n"
-> +# define _ASM_EXTABLE(from, to)					\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
-> +
-> +# define _ASM_EXTABLE_FAULT(from, to)				\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
-> +
-> +# define _ASM_EXTABLE_EX(from, to)				\
-> +	_ASM_EXTABLE_HANDLE(from, to, ex_handler_ext)
-> +
->  /* For C file, we already have NOKPROBE_SYMBOL macro */
->  #endif
->  
-> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-> index a4a30e4b2d34..cbcc3b3e034c 100644
-> --- a/arch/x86/include/asm/uaccess.h
-> +++ b/arch/x86/include/asm/uaccess.h
-> @@ -90,12 +90,11 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
->  	likely(!__range_not_ok(addr, size, user_addr_max()))
->  
->  /*
-> - * The exception table consists of pairs of addresses relative to the
-> - * exception table enty itself: the first is the address of an
-> - * instruction that is allowed to fault, and the second is the address
-> - * at which the program should continue.  No registers are modified,
-> - * so it is entirely up to the continuation code to figure out what to
-> - * do.
-> + * The exception table consists of triples of addresses relative to the
-> + * exception table enty itself. The first address is of an instruction
-
-s/enty/entry/
-
-> + * that is allowed to fault, the second is the target at which the program
-> + * should continue. The third is a handler function to deal with the fault
-> + * referenced by the instruction in the first field.a
-
-s/referenced/caused/ i better, methinks. And the "a" at the end can go - I do
-those too, btw. Lemme guess: vim user?
-
-:-)
-
-The rest looks good.
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
