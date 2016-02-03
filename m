@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 571B882963
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:56:09 -0500 (EST)
-Received: by mail-qg0-f47.google.com with SMTP id b35so28152500qge.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:56:09 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z107si7626260qge.1.2016.02.03.14.56.08
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF5182963
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 17:58:02 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l66so92687758wml.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 14:58:02 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
+        by mx.google.com with ESMTPS id 201si15982266wml.102.2016.02.03.14.58.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 14:56:08 -0800 (PST)
-Date: Wed, 3 Feb 2016 14:56:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] rmap: introduce rmap_walk_locked()
-Message-Id: <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
-In-Reply-To: <20160203224507.GA22605@black.fi.intel.com>
-References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1454512459-94334-2-git-send-email-kirill.shutemov@linux.intel.com>
-	<20160203144019.9b58b1ba496371a11cc86568@linux-foundation.org>
-	<20160203224507.GA22605@black.fi.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 03 Feb 2016 14:58:01 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] mm/debug-pagealloc: add missing debug_pagealloc_enabled
+Date: Wed, 03 Feb 2016 23:51:17 +0100
+Message-ID: <1715666.B0erB7v9pc@wuerfel>
+In-Reply-To: <56B27F71.2000700@redhat.com>
+References: <1454537757-3760706-1-git-send-email-arnd@arndb.de> <56B27F71.2000700@redhat.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
 
-On Thu, 4 Feb 2016 01:45:07 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-
-> On Wed, Feb 03, 2016 at 02:40:19PM -0800, Andrew Morton wrote:
-> > On Wed,  3 Feb 2016 18:14:16 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > 
-> > > rmap_walk_locked() is the same as rmap_walk(), but caller takes care
-> > > about relevant rmap lock. It only supports anonymous pages for now.
-> > > 
-> > > It's preparation to switch THP splitting from custom rmap walk in
-> > > freeze_page()/unfreeze_page() to generic one.
-> > > 
-> > > ...
-> > >
-> > > +/* Like rmap_walk, but caller holds relevant rmap lock */
-> > > +int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
-> > > +{
-> > > +	/* only for anon pages for now */
-> > > +	VM_BUG_ON_PAGE(!PageAnon(page) || PageKsm(page), page);
-> > > +	return rmap_walk_anon(page, rwc, true);
-> > > +}
-> > 
-> > Should be rmap_walk_anon_locked()?
+On Wednesday 03 February 2016 14:30:09 Laura Abbott wrote:
+> On 02/03/2016 02:15 PM, Arnd Bergmann wrote:
+> > The change to move the pagealloc logic broke the slab allocator
+> > check when it's disabled at compile time:
+> >
+> > mm/slab.c: In function 'is_debug_pagealloc_cache':
+> > mm/slab.c:1608:29: error: implicit declaration of function 'debug_pagealloc_enabled' [-Werror=implicit-function-declaration]
+> >
+> > This adds an inline helper to get it to work again.
+> >
+> > Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> > Fixes: 0a244aea1a61 ("mm/slab: clean up DEBUG_PAGEALLOC processing code")
+> > ---
+> >   include/linux/mm.h | 1 +
+> >   1 file changed, 1 insertion(+)
+> >
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 5d86eb2e8584..90d600ce56ad 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -2242,6 +2242,7 @@ kernel_map_pages(struct page *page, int numpages, int enable)
+> >   extern bool kernel_page_present(struct page *page);
+> >   #endif /* CONFIG_HIBERNATION */
+> >   #else
+> > +static inline bool debug_pagealloc_enabled(void) { return 0; }
+> >   static inline void
+> >   kernel_map_pages(struct page *page, int numpages, int enable) {}
+> >   #ifdef CONFIG_HIBERNATION
+> >
 > 
-> I leave interface open for further extension for file mappings, once it
-> will be needed. Interface is mirroring plain rmap_walk()
+> I believe this should be fixed with http://article.gmane.org/gmane.linux.kernel.mm/145655
 
-hm, yes, I see.
+Yes, Christian's version looks nicer too (correct return type).
 
-> If you prefer to rename the function, I can do it too.
+Thanks,
 
-Well, what does "unlocked" mean in the context of rmap_walk_ksm() and
-rmap_walk_file()?  That the caller holds totally different locks.  I
-expect that sitting down and writing out the interface definition for
-such an rmap_walk_locked() would reveal that we shouldn't have created
-it.
-
-I mean, if the caller is to call such an rmap_walk_locked(), he first
-needs to work out if it's a ksm page or an anon page or a file page,
-then take the appropriate lock and then call rmap_walk_locked(). 
-That's silly - at this point he should directly call
-rmap_walk_ksm_locked()?
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
