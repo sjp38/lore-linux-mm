@@ -1,167 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id F3DDD6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 02:52:54 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id ho8so9302246pac.2
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 23:52:54 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ey8si7657410pab.2.2016.02.02.23.52.53
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3142E6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 03:13:38 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id l66so151402294wml.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:13:38 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id y190si28797097wme.93.2016.02.03.00.13.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Feb 2016 23:52:54 -0800 (PST)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv3] mm/slab: fix race with dereferencing NULL ptr in alloc_calls_show
-Date: Wed, 3 Feb 2016 10:52:13 +0300
-Message-ID: <1454485933-762-1-git-send-email-dsafonov@virtuozzo.com>
+        Wed, 03 Feb 2016 00:13:37 -0800 (PST)
+Received: by mail-wm0-x22e.google.com with SMTP id 128so152997813wmz.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 00:13:37 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1454460057.4788.117.camel@infradead.org>
+References: <20160128175536.GA20797@gmail.com> <1454460057.4788.117.camel@infradead.org>
+From: Oded Gabbay <oded.gabbay@gmail.com>
+Date: Wed, 3 Feb 2016 10:13:07 +0200
+Message-ID: <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
 
-memcg_destroy_kmem_caches shutdowns in the first place kmem_caches under
-slab_mutex which involves freeing NUMA node structures for kmem_cache
-and only then under release_caches removes corresponding sysfs files for
-these caches. Which may lead to dereferencing NULL ptr on read.
-Lets remove sysfs files right there.
+On Wed, Feb 3, 2016 at 2:40 AM, David Woodhouse <dwmw2@infradead.org> wrote=
+:
+> On Thu, 2016-01-28 at 18:55 +0100, Jerome Glisse wrote:
+>>
+>> I would like to attend LSF/MM this year to discuss about HMM
+>> (Heterogeneous Memory Manager) and more generaly all topics
+>> related to GPU and heterogeneous memory architecture (including
+>> persistent memory).
+>>
+>> I want to discuss how to move forward with HMM merging and i
+>> hope that by MM summit time i will be able to share more
+>> informations publicly on devices which rely on HMM.
+>
+> There are a few related issues here around Shared Virtual Memory, and
+> lifetime management of the associated MM, and the proposal discussed at
+> the Kernel Summit for "off-CPU tasks".
+>
+> I've hit a situation with the Intel SVM code in 4.4 where the device
+> driver binds a PASID, and also has mmap() functionality on the same
+> file descriptor that the PASID is associated with.
+>
+> So on process exit, the MM doesn't die because the PASID binding still
+> exists. The VMA of the mmap doesn't die because the MM still exists. So
+> the underlying file remains open because the VMA still exists. And the
+> PASID binding thus doesn't die because the file is still open.
+>
+Why connect the PASID to the FD in the first place ?
+Why not tie everything to the MM ?
 
-Fixes the following panic:
-[43963.463055] BUG: unable to handle kernel
-[43963.463090] NULL pointer dereference at 0000000000000020
-[43963.463146] IP: [<ffffffff811c6959>] list_locations+0x169/0x4e0
-[43963.463185] PGD 257304067 PUD 438456067 PMD 0
-[43963.463220] Oops: 0000 [#1] SMP
-[43963.463850] CPU: 3 PID: 973074 Comm: cat ve: 0 Not tainted 3.10.0-229.7.2.ovz.9.30-00007-japdoll-dirty #2 9.30
-[43963.463913] Hardware name: DEPO Computers To Be Filled By O.E.M./H67DE3, BIOS L1.60c 07/14/2011
-[43963.463976] task: ffff88042a5dc5b0 ti: ffff88037f8d8000 task.ti: ffff88037f8d8000
-[43963.464036] RIP: 0010:[<ffffffff811c6959>]  [<ffffffff811c6959>] list_locations+0x169/0x4e0
-[43963.464725] Call Trace:
-[43963.464756]  [<ffffffff811c6d1d>] alloc_calls_show+0x1d/0x30
-[43963.464793]  [<ffffffff811c15ab>] slab_attr_show+0x1b/0x30
-[43963.464829]  [<ffffffff8125d27a>] sysfs_read_file+0x9a/0x1a0
-[43963.464865]  [<ffffffff811e3c6c>] vfs_read+0x9c/0x170
-[43963.464900]  [<ffffffff811e4798>] SyS_read+0x58/0xb0
-[43963.464936]  [<ffffffff81612d49>] system_call_fastpath+0x16/0x1b
-[43963.464970] Code: 5e 07 12 00 b9 00 04 00 00 3d 00 04 00 00 0f 4f c1 3d 00 04 00 00 89 45 b0 0f 84 c3 00 00 00 48 63 45 b0 49 8b 9c c4 f8 00 00 00 <48> 8b 43 20 48 85 c0 74 b6 48 89 df e8 46 37 44 00 48 8b 53 10
-[43963.465119] RIP  [<ffffffff811c6959>] list_locations+0x169/0x4e0
-[43963.465155]  RSP <ffff88037f8dbe28>
-[43963.465185] CR2: 0000000000000020
+> I've posted a patch=C2=B9 which moves us closer to the amd_iommu_v2 model=
+,
+> although I'm still *strongly* resisting the temptation to call out into
+> device driver code from the mmu_notifier's release callback.
 
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
-v2: Down with SLAB_SUPPORTS_SYSFS thing.
-v3: Moved sysfs_slab_remove inside shutdown_cache
+You mean you are resisting doing this (taken from amdkfd):
 
- include/linux/slub_def.h | 10 ----------
- mm/slab.h                |  8 ++++++++
- mm/slab_common.c         | 10 ++++------
- mm/slub.c                |  6 ------
- 4 files changed, 12 insertions(+), 22 deletions(-)
+--------------
+static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops =3D {
+.release =3D kfd_process_notifier_release,
+};
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index b7e57927..43634cd 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -101,16 +101,6 @@ struct kmem_cache {
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- };
- 
--#ifdef CONFIG_SYSFS
--#define SLAB_SUPPORTS_SYSFS
--void sysfs_slab_remove(struct kmem_cache *);
--#else
--static inline void sysfs_slab_remove(struct kmem_cache *s)
--{
--}
--#endif
--
--
- /**
-  * virt_to_obj - returns address of the beginning of object.
-  * @s: object's kmem_cache
-diff --git a/mm/slab.h b/mm/slab.h
-index 834ad24..2983ab2 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -367,6 +367,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- 
- #endif
- 
-+#if defined(CONFIG_SLUB) && defined(CONFIG_SYSFS)
-+void sysfs_slab_remove(struct kmem_cache *);
-+#else
-+static inline void sysfs_slab_remove(struct kmem_cache *s)
-+{
-+}
-+#endif
-+
- void *slab_start(struct seq_file *m, loff_t *pos);
- void *slab_next(struct seq_file *m, void *p, loff_t *pos);
- void slab_stop(struct seq_file *m, void *p);
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index b50aef0..2bfc0b1 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -451,6 +451,8 @@ EXPORT_SYMBOL(kmem_cache_create);
- static int shutdown_cache(struct kmem_cache *s,
- 		struct list_head *release, bool *need_rcu_barrier)
- {
-+	sysfs_slab_remove(s);
-+
- 	if (__kmem_cache_shutdown(s) != 0)
- 		return -EBUSY;
- 
-@@ -468,13 +470,8 @@ static void release_caches(struct list_head *release, bool need_rcu_barrier)
- 	if (need_rcu_barrier)
- 		rcu_barrier();
- 
--	list_for_each_entry_safe(s, s2, release, list) {
--#ifdef SLAB_SUPPORTS_SYSFS
--		sysfs_slab_remove(s);
--#else
-+	list_for_each_entry_safe(s, s2, release, list)
- 		slab_kmem_cache_release(s);
--#endif
--	}
- }
- 
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-@@ -614,6 +611,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
- 	list_for_each_entry_safe(s, s2, &slab_caches, list) {
- 		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
- 			continue;
-+
- 		/*
- 		 * The cgroup is about to be freed and therefore has no charges
- 		 * left. Hence, all its caches must be empty by now.
-diff --git a/mm/slub.c b/mm/slub.c
-index 2e1355a..b6a68b7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5296,11 +5296,6 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
- #endif
- }
- 
--static void kmem_cache_release(struct kobject *k)
--{
--	slab_kmem_cache_release(to_slab(k));
--}
--
- static const struct sysfs_ops slab_sysfs_ops = {
- 	.show = slab_attr_show,
- 	.store = slab_attr_store,
-@@ -5308,7 +5303,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
- 
- static struct kobj_type slab_ktype = {
- 	.sysfs_ops = &slab_sysfs_ops,
--	.release = kmem_cache_release,
- };
- 
- static int uevent_filter(struct kset *kset, struct kobject *kobj)
--- 
-2.7.0
+process->mmu_notifier.ops =3D &kfd_process_mmu_notifier_ops;
+-----------
+
+Why, if I may ask ?
+
+Oded
+>
+> I would like to attend LSF/MM this year so we can continue to work on
+> those issues =E2=80=94 now that we actually have some hardware in the fie=
+ld and
+> a better idea of how we can build a unified access model for SVM across
+> the different IOMMU types.
+>
+> --
+> David Woodhouse                            Open Source Technology Centre
+> David.Woodhouse@intel.com                              Intel Corporation
+>
+>
+> =C2=B9 http://www.spinics.net/lists/linux-mm/msg100230.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
