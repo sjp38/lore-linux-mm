@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C20E9828F6
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 16:19:41 -0500 (EST)
-Received: by mail-qg0-f43.google.com with SMTP id o11so26161590qge.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:19:41 -0800 (PST)
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5FF828F6
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 16:28:02 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id y9so21530737qgd.3
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 13:28:02 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 70si7232679qha.1.2016.02.03.13.19.40
+        by mx.google.com with ESMTPS id l14si7250437qhl.37.2016.02.03.13.28.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 13:19:41 -0800 (PST)
-Date: Wed, 3 Feb 2016 13:19:39 -0800
+        Wed, 03 Feb 2016 13:28:02 -0800 (PST)
+Date: Wed, 3 Feb 2016 13:28:00 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/workingset: do not forget to unlock page
-Message-Id: <20160203131939.1a35d9bc03f13b2b143d27c0@linux-foundation.org>
-In-Reply-To: <20160203162400.GB10440@cmpxchg.org>
-References: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
-	<20160203104136.GA517@swordfish>
-	<20160203162400.GB10440@cmpxchg.org>
+Subject: Re: [linux-next:master 2619/2735] fs/dax.c:988:42: error: implicit
+ declaration of function '__dax_dbg'
+Message-Id: <20160203132800.b0811df604334a3364812be5@linux-foundation.org>
+In-Reply-To: <201602031647.zWSCV1Gh%fengguang.wu@intel.com>
+References: <201602031647.zWSCV1Gh%fengguang.wu@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Wed, 3 Feb 2016 11:24:00 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wed, 3 Feb 2016 16:26:49 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-> On Wed, Feb 03, 2016 at 07:41:36PM +0900, Sergey Senozhatsky wrote:
-> > From 1d6315221f2f81c53c99f9980158f8ae49dbd582 Mon Sep 17 00:00:00 2001
-> > From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > Date: Wed, 3 Feb 2016 18:49:16 +0900
-> > Subject: [PATCH] mm/workingset: do not forget to unlock_page in workingset_activation
-> > 
-> > Do not return from workingset_activation() with locked rcu and page.
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   8babd99a86f51315697523470924eeb7435b9c34
+> commit: c1da6853b50923e8e400acefcdc51c558d5cc02e [2619/2735] dax: support for transparent PUD pages
+> config: x86_64-randconfig-s4-02031530 (attached as .config)
+> reproduce:
+>         git checkout c1da6853b50923e8e400acefcdc51c558d5cc02e
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 > 
-> Thanks Sergey. Even though I wrote this function, my brain must have
-> gone "it can't be locking anything when it returns NULL, right?" It's
-> a dumb interface. Luckily, that's fixed with follow-up patches in -mm.
+> All error/warnings (new ones prefixed by >>):
 > 
-> As for this one:
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Fixes: mm: workingset: per-cgroup cache thrash detection
-> 
-> Andrew, can you please fold this?
+>    fs/dax.c: In function 'dax_pud_fault':
+> >> fs/dax.c:988:42: error: implicit declaration of function '__dax_dbg' [-Werror=implicit-function-declaration]
+>     #define dax_pud_dbg(bh, address, reason) __dax_dbg(bh, address, reason, "dax_pud")
 
-Yup.  I turned it into a fix against
-mm-workingset-per-cgroup-cache-thrash-detection.patch, which is where
-the bug was added.  And I did the goto thing instead, so the final
-result will be
+These patches are being a problem.  I'll disable
 
-void workingset_activation(struct page *page)
-{
-	struct lruvec *lruvec;
+mm-convert-an-open-coded-vm_bug_on_vma.patch
+mmfsdax-change-pmd_fault-to-huge_fault.patch
+mmfsdax-change-pmd_fault-to-huge_fault-fix.patch
+mm-add-support-for-pud-sized-transparent-hugepages.patch
+mm-add-support-for-pud-sized-transparent-hugepages-fix.patch
+mm-add-support-for-pud-sized-transparent-hugepages-fix-2.patch
+procfs-add-support-for-puds-to-smaps-clear_refs-and-pagemap.patch
+x86-add-support-for-pud-sized-transparent-hugepages.patch
+x86-add-support-for-pud-sized-transparent-hugepages-fix.patch
+x86-add-support-for-pud-sized-transparent-hugepages-checkpatch-fixes.patch
+dax-support-for-transparent-pud-pages.patch
+ext4-support-for-pud-sized-transparent-huge-pages.patch
 
-	lock_page_memcg(page);
-	/*
-	 * Filter non-memcg pages here, e.g. unmap can call
-	 * mark_page_accessed() on VDSO pages.
-	 *
-	 * XXX: See workingset_refault() - this should return
-	 * root_mem_cgroup even for !CONFIG_MEMCG.
-	 */
-	if (!mem_cgroup_disabled() && !page_memcg(page))
-		goto out;
-	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));
-	atomic_long_inc(&lruvec->inactive_age);
-out:
-	unlock_page_memcg(page);
-}
-
+and shall do another mmotm in a couple of hours.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
