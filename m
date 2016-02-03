@@ -1,118 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C996B0256
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 18:27:27 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id uo6so2220929pac.1
-        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 15:27:26 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id n81si4728054pfi.46.2016.02.02.15.27.21
-        for <linux-mm@kvack.org>;
-        Tue, 02 Feb 2016 15:27:21 -0800 (PST)
-Message-Id: <ac4eca4ca3dfe383a07eaea92217625cbda45ca6.1454455138.git.tony.luck@intel.com>
-In-Reply-To: <cover.1454455138.git.tony.luck@intel.com>
-References: <cover.1454455138.git.tony.luck@intel.com>
-From: Tony Luck <tony.luck@intel.com>
-Date: Fri, 29 Jan 2016 16:00:19 -0800
-Subject: [PATCH v9 4/4] x86: Create a new synthetic cpu capability for machine
- check recovery
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF3C6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2016 19:13:12 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id z14so73882131igp.1
+        for <linux-mm@kvack.org>; Tue, 02 Feb 2016 16:13:12 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id 82si7982862ioo.17.2016.02.02.16.13.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Feb 2016 16:13:11 -0800 (PST)
+Date: Wed, 3 Feb 2016 11:13:07 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
+Message-ID: <20160203111307.5d67c60a@canb.auug.org.au>
+In-Reply-To: <20160202150435.60076ce1d603a99c17c08edf@linux-foundation.org>
+References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
+	<1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
+	<alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
+	<56A9E3D1.3090001@de.ibm.com>
+	<alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
+	<alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
+	<56B12560.4010201@de.ibm.com>
+	<20160202142157.1bfc6f81807faaa026957917@linux-foundation.org>
+	<56B12FBE.3070909@de.ibm.com>
+	<20160202150435.60076ce1d603a99c17c08edf@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net, Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
 
-The Intel Software Developer Manual describes bit 24 in the MCG_CAP
-MSR:
-   MCG_SER_P (software error recovery support present) flag,
-   bit 24 a?? Indicates (when set) that the processor supports
-   software error recovery
-But only some models with this capability bit set will actually
-generate recoverable machine checks.
+Hi Andrew,
 
-Check the model name and set a synthetic capability bit. Provide
-a command line option to set this bit anyway in case the kernel
-doesn't recognise the model name.
+On Tue, 2 Feb 2016 15:04:35 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Tue, 2 Feb 2016 23:37:50 +0100 Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+> 
+> > 
+> > I pushed it on my tree for kbuild testing purposes some days ago. 
+> > Will drop so that it can go via mm.  
+> 
+> There are other patches that I haven't merged because they were already
+> in -next.  In fact I think I dropped them because they later popped up
+> in -next.
+> 
+> Some or all of:
+> 
+> lib-spinlock_debugc-prevent-an-infinite-recursive-cycle-in-spin_dump.patch
+> mm-provide-debug_pagealloc_enabled-without-config_debug_pagealloc.patch
+> x86-query-dynamic-debug_pagealloc-setting.patch
+> s390-query-dynamic-debug_pagealloc-setting.patch
+> mm-provide-debug_pagealloc_enabled-without-config_debug_pagealloc.patch
+> x86-query-dynamic-debug_pagealloc-setting.patch
+> s390-query-dynamic-debug_pagealloc-setting.patch
+> 
+> So please resend everything which you think is needed.
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
----
- Documentation/x86/x86_64/boot-options.txt |  4 ++++
- arch/x86/include/asm/cpufeature.h         |  1 +
- arch/x86/include/asm/mce.h                |  1 +
- arch/x86/kernel/cpu/mcheck/mce.c          | 11 +++++++++++
- 4 files changed, 17 insertions(+)
+Christian's tree will be empty in today's linux-next (I just refetched it).
 
-diff --git a/Documentation/x86/x86_64/boot-options.txt b/Documentation/x86/x86_64/boot-options.txt
-index 68ed3114c363..8423c04ae7b3 100644
---- a/Documentation/x86/x86_64/boot-options.txt
-+++ b/Documentation/x86/x86_64/boot-options.txt
-@@ -60,6 +60,10 @@ Machine check
- 		threshold to 1. Enabling this may make memory predictive failure
- 		analysis less effective if the bios sets thresholds for memory
- 		errors since we will not see details for all errors.
-+   mce=recovery
-+		Tell the kernel that this system can generate recoverable
-+		machine checks (useful when the kernel doesn't recognize
-+		the cpuid x86_model_id[])
- 
-    nomce (for compatibility with i386): same as mce=off
- 
-diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
-index 7ad8c9464297..06c6c2d2fea0 100644
---- a/arch/x86/include/asm/cpufeature.h
-+++ b/arch/x86/include/asm/cpufeature.h
-@@ -106,6 +106,7 @@
- #define X86_FEATURE_APERFMPERF	( 3*32+28) /* APERFMPERF */
- #define X86_FEATURE_EAGER_FPU	( 3*32+29) /* "eagerfpu" Non lazy FPU restore */
- #define X86_FEATURE_NONSTOP_TSC_S3 ( 3*32+30) /* TSC doesn't stop in S3 state */
-+#define X86_FEATURE_MCE_RECOVERY ( 3*32+31) /* cpu has recoverable machine checks */
- 
- /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
- #define X86_FEATURE_XMM3	( 4*32+ 0) /* "pni" SSE-3 */
-diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
-index 2ea4527e462f..18d2ba9c8e44 100644
---- a/arch/x86/include/asm/mce.h
-+++ b/arch/x86/include/asm/mce.h
-@@ -113,6 +113,7 @@ struct mca_config {
- 	bool ignore_ce;
- 	bool disabled;
- 	bool ser;
-+	bool recovery;
- 	bool bios_cmci_threshold;
- 	u8 banks;
- 	s8 bootlog;
-diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-index 028409a376e3..da2866e1c52a 100644
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -1697,6 +1697,15 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
- 		return;
- 	}
- 
-+	/*
-+	 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
-+	 * whether this processor will actually generate recoverable
-+	 * machine checks. Check to see if this is an E7 model Xeon.
-+	 */
-+	if (mca_cfg.recovery || (mca_cfg.ser &&
-+		!strncmp(c->x86_model_id, "Intel(R) Xeon(R) CPU E7-", 24)))
-+		set_cpu_cap(c, X86_FEATURE_MCE_RECOVERY);
-+
- 	if (mce_gen_pool_init()) {
- 		mca_cfg.disabled = true;
- 		pr_emerg("Couldn't allocate MCE records pool!\n");
-@@ -2031,6 +2040,8 @@ static int __init mcheck_enable(char *str)
- 		cfg->bootlog = (str[0] == 'b');
- 	else if (!strcmp(str, "bios_cmci_threshold"))
- 		cfg->bios_cmci_threshold = true;
-+	else if (!strcmp(str, "recovery"))
-+		cfg->recovery = true;
- 	else if (isdigit(str[0])) {
- 		if (get_option(&str, &cfg->tolerant) == 2)
- 			get_option(&str, &(cfg->monarch_timeout));
 -- 
-2.5.0
+Cheers,
+Stephen Rothwell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
