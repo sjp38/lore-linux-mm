@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A47AB6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 07:22:35 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id 65so13237736pfd.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 04:22:35 -0800 (PST)
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F13C6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 07:53:00 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id o185so13601046pfb.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 04:53:00 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id qo15si9121265pab.12.2016.02.03.04.22.32
+        by mx.google.com with ESMTPS id vo4si9207403pab.143.2016.02.03.04.52.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 04:22:32 -0800 (PST)
-Message-ID: <1454502148.4788.185.camel@infradead.org>
-Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+        Wed, 03 Feb 2016 04:52:59 -0800 (PST)
+Message-ID: <1454503975.4788.188.camel@infradead.org>
+Subject: Re: [PATCH] iommu/vt-d: Fix mm refcounting to hold mm_count not
+ mm_users
 From: David Woodhouse <dwmw2@infradead.org>
-Date: Wed, 03 Feb 2016 12:22:28 +0000
-In-Reply-To: <CAFCwf12hkEzLbdop760Vuc6t-J71Vb2pu=y-8GPYLPFoguFRbw@mail.gmail.com>
-References: <20160128175536.GA20797@gmail.com>
-	 <1454460057.4788.117.camel@infradead.org>
-	 <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
-	 <1454488853.4788.142.camel@infradead.org>
-	 <CAFCwf13VCoJvWbmxa7mZByseHc97VGzYZvi0zv6ww8_7hqF7Gw@mail.gmail.com>
-	 <1454494508.4788.154.camel@infradead.org>
-	 <CAFCwf10tLwQiZ0ROeuf2FHcWa9iTBwJ-0X_WWfU8tjTSvGH_0w@mail.gmail.com>
-	 <CAFCwf12U2iQS2xUoRx4W7cVQJOcso+QK2_PdYYD-k_J1V8KJsQ@mail.gmail.com>
-	 <1454499350.4788.170.camel@infradead.org>
-	 <CAFCwf12hkEzLbdop760Vuc6t-J71Vb2pu=y-8GPYLPFoguFRbw@mail.gmail.com>
+Date: Wed, 03 Feb 2016 12:52:55 +0000
+In-Reply-To: <1452720905.88154.75.camel@infradead.org>
+References: <1452720905.88154.75.camel@infradead.org>
 Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
-	boundary="=-KhBbKOHbAAL91o7W84Vq"
+	boundary="=-w4P8ws0VrQycjzf17lRv"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oded Gabbay <oded.gabbay@gmail.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
+To: iommu@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: "Tang, CQ" <cq.tang@intel.com>
 
 
---=-KhBbKOHbAAL91o7W84Vq
+--=-w4P8ws0VrQycjzf17lRv
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 2016-02-03 at 13:41 +0200, Oded Gabbay wrote:
+On Wed, 2016-01-13 at 21:35 +0000, David Woodhouse wrote:
+> Holding mm_users works OK for graphics, which was the first user of SVM
+> with VT-d. However, it works less well for other devices, where we actual=
+ly
+> do a mmap() from the file descriptor to which the SVM PASID state is tied=
+.
 >=20
-> It seems you have most of your bases covered. I'll stop harassing you now=
- :)
-> But in seriousness, its interesting to see the different approaches
-> taken to handling pretty much the same type of H/W (IOMMU).
+> In this case on process exit we end up with a recursive reference count:
+> =C2=A0- The MM remains alive until the file is closed and the driver's re=
+lease()
+> =C2=A0=C2=A0=C2=A0call ends up unbinding the PASID.
+> =C2=A0- The VMA corresponding to the mmap() remains intact until the MM i=
+s
+> =C2=A0=C2=A0=C2=A0destroyed.
+> =C2=A0- Thus the file isn't closed, even when exit_files() runs, because =
+the
+> =C2=A0=C2=A0=C2=A0VMA is still holding a reference to it. And the MM rema=
+ins alive=E2=80=A6
+>=20
+> To address this issue, we *stop* holding mm_users while the PASID is boun=
+d.
+> We already hold mm_count by virtue of the MMU notifier, and that can be
+> made to be sufficient.
+>=20
+> It means that for a period during process exit, the fun part of mmput()
+> has happened and exit_mmap() has been called so the MM is basically
+> defunct. But the PGD still exists and the PASID is still bound to it.
+>=20
+> During this period, we have to be very careful =E2=80=94 exit_mmap() does=
+n't use
+> mm->mmap_sem because it doesn't expect anyone else to be touching the MM
+> (quite reasonably, since mm_users is zero). So we also need to fix the
+> fault handler to just report failure if mm_users is already zero, and to
+> temporarily bump mm_users while handling any faults.
+>=20
+> Additionally, exit_mmap() calls mmu_notifier_release() *before* it tears
+> down the page tables, which is too early for us to flush the IOTLB for
+> this PASID. And __mmu_notifier_release() removes every notifier from the
+> list, so when exit_mmap() finally *does* tear down the mappings and
+> clear the page tables, we don't get notified. So we work around this by
+> clearing the PASID table entry in our MMU notifier release() callback.
+> That way, the hardware *can't* get any pages back from the page tables
+> before they get cleared.
+>=20
+> Hardware designers have confirmed that the resulting 'PASID not present'
+> faults should be handled just as gracefully as 'page not present' faults,
+> the important criterion being that they don't perturb the operation for
+> any *other* PASID in the system.
+>=20
+> Signed-off-by: David Woodhouse <David.Woodhouse@intel.com>
+> Cc: stable@vger.kernel.org
 
-Well, the point is that we need to settle on a model we can *all* use.
+OK, I've finally managed to test this on SKL hardware, having brought
+the i915 SVM support up to date:
+http://git.infradead.org/users/dwmw2/linux-svm.git/shortlog/refs/heads/i915=
+-svm
 
-It's all very well having vendor-specific intel_svm_bind_mm() and
-amd_iommu_bind_pasid() functions with subtly different semantics, while
-the only devices we support for Intel are integrated graphics and our
-PCIe root ports don't even support discrete devices with PASID
-capabilities =E2=80=94 and while the only device using the AMD version is t=
-he
-AMD GPU.
-
-But we *are* starting to see additional devices with PASID
-capabilities, and it won't be long before we really do have to support
-third-party discrete devices.
-
-So we do need a coherent API for SVM, as an extension of the DMA API.
-And that means we have to settle on the semantics we want for it :)
-
-With the commit I showed earlier, I've moved the Intel model somewhat
-closer to the AMD model =E2=80=94 no longer holding mm_users on the MM in
-question. I think we can come up with something acceptable.=C2=A0
-
-There are Power and ARM incarnations of SVM also in the works, I
-believe.
+I believe it's working =E2=80=94 CQ can you confirm that you're still happy
+with it, please? I'll send it to Linus if so.
 
 --=20
 David Woodhouse                            Open Source Technology Centre
 David.Woodhouse@intel.com                              Intel Corporation
 
 
---=-KhBbKOHbAAL91o7W84Vq
+--=-w4P8ws0VrQycjzf17lRv
 Content-Type: application/x-pkcs7-signature; name="smime.p7s"
 Content-Disposition: attachment; filename="smime.p7s"
 Content-Transfer-Encoding: base64
@@ -166,21 +187,21 @@ Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
 YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
 ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
 AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
-CQUxDxcNMTYwMjAzMTIyMjI4WjAjBgkqhkiG9w0BCQQxFgQUDMreXl4UvEjI1UE4cNK4tHlMKWcw
+CQUxDxcNMTYwMjAzMTI1MjU1WjAjBgkqhkiG9w0BCQQxFgQUsu5gDeIsFMXLBJGtu0aTegUgijsw
 gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
 ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
 L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
 CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
 LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
 U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
-hkiG9w0BAQEFAASCAQBO3keKpCYILHBz4R8ts98WtZALMd9imWXRN0mmFwnrrw4NGKkMwfeG/F5h
-42uX6f/TZiS82OMK8iK0Zi6mWLPCntsIadajwOZ14UVFUzj4J7d+QfwK4iskC155NQxLCc0BfegP
-dVVzc/5QtByAvHCb3FsaE4BhJAEKbQTxuP1ABLRDeugdwsJkcXyRVnoJjHOsgpSnrmI0ReEX6Z+m
-ToGG9t6ZuwQoHhwq8GY2ZANge1MoekC9zGtUlnpCuhVhaSL5MTFCSuEyVgzZ8HnjTQ91RLXk8SZ0
-RsoBY3H/kSZq23oke7bUmmH49njQCVDlKsNqoKt7s45r9aoqDMcmyy1eAAAAAAAA
+hkiG9w0BAQEFAASCAQAWUW3RSkhBDcTAvhIJsQlTDDyPEBp2GopxYgmj6PB2u+wtReY6XrVsocLl
+bwhnKmR01A7imel2kO04JoOcpwTRJM1czJhzZ+KSQpIEs1xJmgoRxCEHScmLWIAxLdWYEGAscvpu
+b+iNjZTCvZegbPEKUlK1JPe0TNPwoq5674D3tPbyhO2Mc/Azu59yClUslinywPKPg80H5lAsKhcU
+4QiYQ6j8xrTsHDx/FAvkqrJw+VCEwelZkmrf7FW0p1+gnF+xuYZ5KwcpQNNhtfXOxLHnr9Gw8vb3
+piwy9bT03kqaUAs2UQ0L+MRJvu5VvYsWtXFIjVMSEOaqNc6DTseh7w+FAAAAAAAA
 
 
---=-KhBbKOHbAAL91o7W84Vq--
+--=-w4P8ws0VrQycjzf17lRv--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
