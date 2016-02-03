@@ -1,110 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E858828DF
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 06:31:09 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id n128so12448381pfn.3
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 03:31:09 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id p70si8809664pfj.241.2016.02.03.03.31.08
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DB10B6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 06:35:55 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id w123so12713089pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 03:35:55 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id x72si3764304pfi.196.2016.02.03.03.35.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 03:31:08 -0800 (PST)
-Subject: Re: [PATCHv3] mm/slab: fix race with dereferencing NULL ptr in
- alloc_calls_show
-References: <1454485933-762-1-git-send-email-dsafonov@virtuozzo.com>
- <20160203094420.GH21016@esperanza>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <56B1E4F3.5050806@virtuozzo.com>
-Date: Wed, 3 Feb 2016 14:30:59 +0300
-MIME-Version: 1.0
-In-Reply-To: <20160203094420.GH21016@esperanza>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 03 Feb 2016 03:35:55 -0800 (PST)
+Message-ID: <1454499350.4788.170.camel@infradead.org>
+Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
+From: David Woodhouse <dwmw2@infradead.org>
+Date: Wed, 03 Feb 2016 11:35:50 +0000
+In-Reply-To: <CAFCwf12U2iQS2xUoRx4W7cVQJOcso+QK2_PdYYD-k_J1V8KJsQ@mail.gmail.com>
+References: <20160128175536.GA20797@gmail.com>
+	 <1454460057.4788.117.camel@infradead.org>
+	 <CAFCwf11mtbOKJkde74g06ud7qpEckBFs3Ov3fYPyzt96rMgRmg@mail.gmail.com>
+	 <1454488853.4788.142.camel@infradead.org>
+	 <CAFCwf13VCoJvWbmxa7mZByseHc97VGzYZvi0zv6ww8_7hqF7Gw@mail.gmail.com>
+	 <1454494508.4788.154.camel@infradead.org>
+	 <CAFCwf10tLwQiZ0ROeuf2FHcWa9iTBwJ-0X_WWfU8tjTSvGH_0w@mail.gmail.com>
+	 <CAFCwf12U2iQS2xUoRx4W7cVQJOcso+QK2_PdYYD-k_J1V8KJsQ@mail.gmail.com>
+Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
+	boundary="=-LVl6c2/rXDT6cGV14bp8"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com
-
-On 02/03/2016 12:44 PM, Vladimir Davydov wrote:
-> On Wed, Feb 03, 2016 at 10:52:13AM +0300, Dmitry Safonov wrote:
-> ...
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index b50aef0..2bfc0b1 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -451,6 +451,8 @@ EXPORT_SYMBOL(kmem_cache_create);
->>   static int shutdown_cache(struct kmem_cache *s,
->>   		struct list_head *release, bool *need_rcu_barrier)
->>   {
->> +	sysfs_slab_remove(s);
->> +
-> shutdown_cache is called with slab_mutex held. slab_attr_store may take
-> the mutex. So placing sysfs_slab_remove here introduces a potential
-> deadlock.
->
->>   	if (__kmem_cache_shutdown(s) != 0)
->>   		return -EBUSY;
->>   
->> @@ -468,13 +470,8 @@ static void release_caches(struct list_head *release, bool need_rcu_barrier)
->>   	if (need_rcu_barrier)
->>   		rcu_barrier();
->>   
->> -	list_for_each_entry_safe(s, s2, release, list) {
->> -#ifdef SLAB_SUPPORTS_SYSFS
->> -		sysfs_slab_remove(s);
->> -#else
->> +	list_for_each_entry_safe(s, s2, release, list)
->>   		slab_kmem_cache_release(s);
->> -#endif
->> -	}
->>   }
->>   
->>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->> @@ -614,6 +611,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
->>   	list_for_each_entry_safe(s, s2, &slab_caches, list) {
->>   		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
->>   			continue;
->> +
-> Please remove this hunk.
->
->>   		/*
->>   		 * The cgroup is about to be freed and therefore has no charges
->>   		 * left. Hence, all its caches must be empty by now.
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 2e1355a..b6a68b7 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -5296,11 +5296,6 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
->>   #endif
->>   }
->>   
->> -static void kmem_cache_release(struct kobject *k)
->> -{
->> -	slab_kmem_cache_release(to_slab(k));
->> -}
->> -
->>   static const struct sysfs_ops slab_sysfs_ops = {
->>   	.show = slab_attr_show,
->>   	.store = slab_attr_store,
->> @@ -5308,7 +5303,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
->>   
->>   static struct kobj_type slab_ktype = {
->>   	.sysfs_ops = &slab_sysfs_ops,
->> -	.release = kmem_cache_release,
-> I surmise this will resurrect the bug that was fixed by 41a212859a4dd
-> ("slub: use sysfs'es release mechanism for kmem_cache").
-So, I move __kmem_cache_shutdown into slab_kmem_cache_release,
-release list will still be collected under slab_mutex.
-Seems like no other way to do this.
-Will resend mended version.
->
-> Thanks,
-> Vladimir
+To: Oded Gabbay <oded.gabbay@gmail.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>
 
 
--- 
-Regards,
-Dmitry Safonov
+--=-LVl6c2/rXDT6cGV14bp8
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Wed, 2016-02-03 at 13:07 +0200, Oded Gabbay wrote:
+> > Another, perhaps trivial, question.
+> > When there is an address fault, who handles it ? the SVM driver, or
+> > each device driver ?
+> >
+> > In other words, is the model the same as (AMD) IOMMU where it binds
+> > amd_iommu driver to the IOMMU H/W, and that driver (amd_iommu/v2) is
+> > the only one which handles the PPR events ?
+> >
+> > If that is the case, then with SVM, how will the device driver be made
+> > aware of faults, if the SVM driver won't notify him about them,
+> > because it has already severed the connection between PASID and
+> > process ?
+
+In the ideal case, there's no need for the device driver to get
+involved at all. When a page isn't found in the page tables, the IOMMU
+code calls handle_mm_fault() and either populates the page and sends a
+a 'success' response, or sends an 'invalid fault' response back.
+
+To account for broken hardware, we *have* added a callback into the
+device driver when these faults happen. Ideally it should never be
+used, of course.
+
+In the case where the process has gone away, the PASID is still
+assigned and we still hold mm_count on the MM, just not mm_users. This
+callback into the device driver still occurs if a fault happens during
+process exit between the exit_mm() and exit_files() stage.
+
+> And another question, if I may, aren't you afraid of "false positive"
+> prints to dmesg ? I mean, I'm pretty sure page faults / pasid faults
+> errors will be logged somewhere, probably to dmesg. Aren't you
+> concerned of the users seeing those errors and thinking they may have
+> a bug, while actually the errors were only caused by process
+> termination ?
+
+If that's the case, it's easy enough to silence them. We are already
+explicitly testing for the 'defunct mm' case in our fault handler, to
+prevent us from faulting more pages into an obsolescent MM after its
+mm_users reaches zero and its page tables are supposed to have been
+torn down. That's the 'if(!atomic_inc_not_zere(&svm->mm->mm_users))
+goto bad_req;' part.
+
+> Or in that case you say that the application is broken, because if it
+> still had something running in the H/W, it should not have closed
+> itself ?
+
+That's also true but it's still nice to avoid confusion. Even if only
+to disambiguate cause and effect =E2=80=94 we don't want people to see PASI=
+D
+faults which were caused by the process crashing, and to think that
+they might be involved in *causing* that process to crash...
+
+--=20
+David Woodhouse                            Open Source Technology Centre
+David.Woodhouse@intel.com                              Intel Corporation
+
+
+--=-LVl6c2/rXDT6cGV14bp8
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Transfer-Encoding: base64
+
+MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIISjjCCBicw
+ggUPoAMCAQICAw3vNzANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+MB4XDTE1MDUwNTA5NDM0MVoXDTE2MDUwNTA5NTMzNlowQjEcMBoGA1UEAwwTZHdtdzJAaW5mcmFk
+ZWFkLm9yZzEiMCAGCSqGSIb3DQEJARYTZHdtdzJAaW5mcmFkZWFkLm9yZzCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBAMkbm9kPbx1j/X4RVyf/pPKSYwelcco69TvnQQbKM8m8xkWjXJI1
+jpJ1jMaGUZGFToINMSZi7lZawUozudWbXSKy1SikENSTJHffsdRAIlsp+hR8vWvjsKUry6sEdqPG
+doa5RY7+N4WRusWZDYW/RRWE6i9EL9qV86CVPYqw22UBOUw4/j/HVGCV6TSB8yE5iEwhk/hUuzRr
+FZm1MJMR7mCS7BCR8Lr5jFY61lWpBiXNXIxLZCvDc26KR5L5tYX43iUVO3fzES1GRVoYnxxk2tmz
+fcsZG5vK+Trc9L8OZJfkYrEHH3+Iw41MQ0w/djVtYr1+HYldx0QmYXAtnhIj+UMCAwEAAaOCAtkw
+ggLVMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgSwMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
+BDAdBgNVHQ4EFgQUszC96C3w5/2+d+atSr0IpT26YI4wHwYDVR0jBBgwFoAUU3Ltkpzg2ssBXHx+
+ljVO8tS4UYIwHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzCCAUwGA1UdIASCAUMwggE/
+MIIBOwYLKwYBBAGBtTcBAgMwggEqMC4GCCsGAQUFBwIBFiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNv
+bS9wb2xpY3kucGRmMIH3BggrBgEFBQcCAjCB6jAnFiBTdGFydENvbSBDZXJ0aWZpY2F0aW9uIEF1
+dGhvcml0eTADAgEBGoG+VGhpcyBjZXJ0aWZpY2F0ZSB3YXMgaXNzdWVkIGFjY29yZGluZyB0byB0
+aGUgQ2xhc3MgMSBWYWxpZGF0aW9uIHJlcXVpcmVtZW50cyBvZiB0aGUgU3RhcnRDb20gQ0EgcG9s
+aWN5LCByZWxpYW5jZSBvbmx5IGZvciB0aGUgaW50ZW5kZWQgcHVycG9zZSBpbiBjb21wbGlhbmNl
+IG9mIHRoZSByZWx5aW5nIHBhcnR5IG9ibGlnYXRpb25zLjA2BgNVHR8ELzAtMCugKaAnhiVodHRw
+Oi8vY3JsLnN0YXJ0c3NsLmNvbS9jcnR1MS1jcmwuY3JsMIGOBggrBgEFBQcBAQSBgTB/MDkGCCsG
+AQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20vc3ViL2NsYXNzMS9jbGllbnQvY2EwQgYI
+KwYBBQUHMAKGNmh0dHA6Ly9haWEuc3RhcnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuY2xpZW50
+LmNhLmNydDAjBgNVHRIEHDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEF
+BQADggEBAHMQmxHHodpS85X8HRyxhvfkys7r+taCNOaNU9cxQu/cZ/6k5nS2qGNMzZ6jb7ueY/V7
+7p+4DW/9ZWODDTf4Fz00mh5SSVc20Bz7t+hhxwHd62PZgENh5i76Qq2tw48U8AsYo5damHby1epf
+neZafLpUkLLO7AGBJIiRVTevdvyXQ0qnixOmKMWyvrhSNGuVIKVdeqLP+102Dwf+dpFyw+j1hz28
+jEEKpHa+NR1b2kXuSPi/rMGhexwlJOh4tK8KQ6Ryr0rIN//NSbOgbyYZrzc/ZUWX9V5OA84ChFb2
+vkFl0OcYrttp/rhDBLITwffPxSZeoBh9H7zYzkbCXKL3BUIwggYnMIIFD6ADAgECAgMN7zcwDQYJ
+KoZIhvcNAQEFBQAwgYwxCzAJBgNVBAYTAklMMRYwFAYDVQQKEw1TdGFydENvbSBMdGQuMSswKQYD
+VQQLEyJTZWN1cmUgRGlnaXRhbCBDZXJ0aWZpY2F0ZSBTaWduaW5nMTgwNgYDVQQDEy9TdGFydENv
+bSBDbGFzcyAxIFByaW1hcnkgSW50ZXJtZWRpYXRlIENsaWVudCBDQTAeFw0xNTA1MDUwOTQzNDFa
+Fw0xNjA1MDUwOTUzMzZaMEIxHDAaBgNVBAMME2R3bXcyQGluZnJhZGVhZC5vcmcxIjAgBgkqhkiG
+9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+AQDJG5vZD28dY/1+EVcn/6TykmMHpXHKOvU750EGyjPJvMZFo1ySNY6SdYzGhlGRhU6CDTEmYu5W
+WsFKM7nVm10istUopBDUkyR337HUQCJbKfoUfL1r47ClK8urBHajxnaGuUWO/jeFkbrFmQ2Fv0UV
+hOovRC/alfOglT2KsNtlATlMOP4/x1Rglek0gfMhOYhMIZP4VLs0axWZtTCTEe5gkuwQkfC6+YxW
+OtZVqQYlzVyMS2Qrw3NuikeS+bWF+N4lFTt38xEtRkVaGJ8cZNrZs33LGRubyvk63PS/DmSX5GKx
+Bx9/iMONTENMP3Y1bWK9fh2JXcdEJmFwLZ4SI/lDAgMBAAGjggLZMIIC1TAJBgNVHRMEAjAAMAsG
+A1UdDwQEAwIEsDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwHQYDVR0OBBYEFLMwvegt
+8Of9vnfmrUq9CKU9umCOMB8GA1UdIwQYMBaAFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB4GA1UdEQQX
+MBWBE2R3bXcyQGluZnJhZGVhZC5vcmcwggFMBgNVHSAEggFDMIIBPzCCATsGCysGAQQBgbU3AQID
+MIIBKjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjCB9wYI
+KwYBBQUHAgIwgeowJxYgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwAwIBARqBvlRo
+aXMgY2VydGlmaWNhdGUgd2FzIGlzc3VlZCBhY2NvcmRpbmcgdG8gdGhlIENsYXNzIDEgVmFsaWRh
+dGlvbiByZXF1aXJlbWVudHMgb2YgdGhlIFN0YXJ0Q29tIENBIHBvbGljeSwgcmVsaWFuY2Ugb25s
+eSBmb3IgdGhlIGludGVuZGVkIHB1cnBvc2UgaW4gY29tcGxpYW5jZSBvZiB0aGUgcmVseWluZyBw
+YXJ0eSBvYmxpZ2F0aW9ucy4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5zdGFydHNzbC5j
+b20vY3J0dTEtY3JsLmNybDCBjgYIKwYBBQUHAQEEgYEwfzA5BggrBgEFBQcwAYYtaHR0cDovL29j
+c3Auc3RhcnRzc2wuY29tL3N1Yi9jbGFzczEvY2xpZW50L2NhMEIGCCsGAQUFBzAChjZodHRwOi8v
+YWlhLnN0YXJ0c3NsLmNvbS9jZXJ0cy9zdWIuY2xhc3MxLmNsaWVudC5jYS5jcnQwIwYDVR0SBBww
+GoYYaHR0cDovL3d3dy5zdGFydHNzbC5jb20vMA0GCSqGSIb3DQEBBQUAA4IBAQBzEJsRx6HaUvOV
+/B0csYb35MrO6/rWgjTmjVPXMULv3Gf+pOZ0tqhjTM2eo2+7nmP1e+6fuA1v/WVjgw03+Bc9NJoe
+UklXNtAc+7foYccB3etj2YBDYeYu+kKtrcOPFPALGKOXWph28tXqX53mWny6VJCyzuwBgSSIkVU3
+r3b8l0NKp4sTpijFsr64UjRrlSClXXqiz/tdNg8H/naRcsPo9Yc9vIxBCqR2vjUdW9pF7kj4v6zB
+oXscJSToeLSvCkOkcq9KyDf/zUmzoG8mGa83P2VFl/VeTgPOAoRW9r5BZdDnGK7baf64QwSyE8H3
+z8UmXqAYfR+82M5Gwlyi9wVCMIIGNDCCBBygAwIBAgIBHjANBgkqhkiG9w0BAQUFADB9MQswCQYD
+VQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
+Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRo
+b3JpdHkwHhcNMDcxMDI0MjEwMTU1WhcNMTcxMDI0MjEwMTU1WjCBjDELMAkGA1UEBhMCSUwxFjAU
+BgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRl
+IFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUg
+Q2xpZW50IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwmDzM4t2BqxKaQuE6uW
+vooyg4ymiEGWVUet1G8SD+rqvyNH4QrvnEIaFHxOhESip7vMz39ScLpNLbL1QpOlPW/tFIzNHS3q
+d2XRNYG5Sv9RcGE+T4qbLtsjjJbi6sL7Ls/f/X9ftTyhxvxWkf8KW37iKrueKsxw2HqolH7GM6FX
+5UfNAwAu4ZifkpmZzU1slBhyWwaQPEPPZRsWoTb7q8hmgv6Nv3Hg9rmA1/VPBIOQ6SKRkHXG0Hhm
+q1dOFoAFI411+a/9nWm5rcVjGcIWZ2v/43Yksq60jExipA4l5uv9/+Hm33mbgmCszdj/Dthf13tg
+Av2O83hLJ0exTqfrlwIDAQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AQYwHQYDVR0OBBYEFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB8GA1UdIwQYMBaAFE4L7xqkQFulF2mH
+MMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDovL29jc3Auc3RhcnRz
+c2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9zZnNjYS5jcnQw
+WwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAj
+hiFodHRwOi8vY3JsLnN0YXJ0c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGB
+tTcBAgEwZjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
+BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRlLnBkZjANBgkq
+hkiG9w0BAQUFAAOCAgEACoMIfXirLAZcuGOMXq4cuSN3TaFx2H2GvD5VSy/6rV55BYHbWNaPeQn3
+oBSU8KgQZn/Kck1JxbLpAxVCNtsxeW1R87ifhsYZ0qjdrA9anrW2MAWCtosmAOT4OxK9QPoSjCMx
+M3HbkZCDJgnlE8jMopH21BbyAYr7b5EfGRQJNtgWcvqSXwKHnTutR08+Kkn0KAkXCzeQNLeA5LlY
+UzFyM7kPAp8pIRMQ+seHunmyG642S2+y/qHEdMuGIwpfz3eDF1PdctL04qYK/zu+Qg1Bw0RwgigV
+Zs/0c5HP2/e9DBHh7eSwtzYlk4AUr6yxLlcwSjOfOmKEQ/Q8tzh0IFiNu9IPuTGAPBn4CPxD0+Ru
+8T2wg8/s43R/PT3kd1OEqOJUl7q+h+r6fpvU0Fzxd2tC8Ga6fDEPme+1Nbi+03pVjuZQKbGwKJ66
+gEn06WqaxVZC+J8hh/jR0k9mST1iAZPNYulcNJ8tKmVtjYsv0L1TSm2+NwON58tO+pIVzu3DWwSE
+XSf+qkDavQam+QtEOZxLBXI++aMUEapSn+k3Lxm48ZCYfAWLb/Xj7F5JQMbZvCexglAbYR0kIHqW
+5DnsYSdMD/IplJMojx0NBrxJ3fN9dvX2Y6BIXRsF1du4qESm4/3CKuyUV7p9DW3mPlHTGLvYxnyK
+Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
+CQUxDxcNMTYwMjAzMTEzNTUwWjAjBgkqhkiG9w0BCQQxFgQULvYMS2covLYbYnH3jw18xRcGFT4w
+gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
+ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
+L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
+CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
+LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
+U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
+hkiG9w0BAQEFAASCAQCZkHXKKCkqslm5oAFRNmgC8klpDbKujto1IB0es3w2GgZAorNyYuFAOkC3
+labicOY6EvajysKA+OwvfccurotqgZQIAYwlySBShG0rO1No47z4raj1A5TlFQKJI7pzsBdlQ+6U
+TmAF34UMfX1gutMv+Yn2YA34a97XkvrF0MVpRCoGHYdbhPkC9QQ0ZG+BJ7ccaCdV49ztVvd8vrL1
+EJ8YEf1mQ/wPt3hM57vd2IftdP00PBwp8v4kORTk8FbkKSdqA5NErRMZWt4aEnt9p+yxyZO+kcuc
+MfbkpscZszEfSP6nCoBx114b+lV3BeDR1zwE0GLgTRyQairW8z0LjEexAAAAAAAA
+
+
+--=-LVl6c2/rXDT6cGV14bp8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
