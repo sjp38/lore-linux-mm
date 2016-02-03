@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9146B0253
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 05:40:25 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id 65so11925909pfd.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 02:40:25 -0800 (PST)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id bw10si8600392pab.22.2016.02.03.02.40.24
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F6B2828DF
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 05:41:04 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id w123so12004153pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 02:41:04 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 137si8577626pfb.80.2016.02.03.02.41.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 02:40:24 -0800 (PST)
-Received: by mail-pf0-x234.google.com with SMTP id w123so11995744pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 02:40:24 -0800 (PST)
-Date: Wed, 3 Feb 2016 19:41:36 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm/workingset: do not forget to unlock page
-Message-ID: <20160203104136.GA517@swordfish>
-References: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 03 Feb 2016 02:41:03 -0800 (PST)
+Subject: Re: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation from IRQ context.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201602022233.FFF65148.QVOLOtOMFJHSFF@I-love.SAKURA.ne.jp>
+	<20160202161421.GA30012@cmpxchg.org>
+In-Reply-To: <20160202161421.GA30012@cmpxchg.org>
+Message-Id: <201602031940.IFH52643.JLOOFtMQOFFHVS@I-love.SAKURA.ne.jp>
+Date: Wed, 3 Feb 2016 19:40:52 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: hannes@cmpxchg.org
+Cc: mhocko@kernel.org, rientjes@google.com, jstancek@redhat.com, linux-mm@kvack.org
 
-On (02/03/16 18:58), Sergey Senozhatsky wrote:
+Johannes Weiner wrote:
+> On Tue, Feb 02, 2016 at 10:33:22PM +0900, Tetsuo Handa wrote:
+> > >From 20b3c1c9ef35547395c3774c6208a867cf0046d4 Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Tue, 2 Feb 2016 16:50:45 +0900
+> > Subject: [RFC][PATCH] mm, page_alloc: Warn on !__GFP_NOWARN allocation from IRQ context.
+> > 
+> > Jan Stancek hit a hard lockup problem due to flood of memory allocation
+> > failure messages which lasted for 10 seconds with IRQ disabled. Printing
+> > traces using warn_alloc_failed() is very slow (which can take up to about
+> > 1 second for each warn_alloc_failed() call). The caller used GFP_NOWARN
+
+                                                                s/GFP_NOWARN/GFP_NOWAIT/
+
+> > inside a loop. If the caller used __GFP_NOWARN, it would not have lasted
+> > for 10 seconds.
 > 
-> Do not leave page locked (and RCU read side locked) when
-> return from workingset_activation() due to disabled memcg
-> or page not being a page_memcg().
+> Who is doing page allocations in a loop with irqs disabled?!
 
-d'oh... sorry, the commit message is simply insane.
+lib/dma-debug.c functions which are called with irqs disabled.
+http://lkml.kernel.org/r/201601292135.DHG60988.SOQFJFOHFVMLOt@I-love.SAKURA.ne.jp
 
+> 
+> And then, why does it take that long? Is that a serial console? Most
+> of the output is KERN_INFO, it might be better to raise the loglevel
+> and still have all the debugging output in the logs.
 
-apparently the patch fixes a new code
-	mm-workingset-per-cgroup-cache-thrash-detection.patch added to -mm tree
-	mm-simplify-lock_page_memcg.patch added to -mm tree
+Yes, I think it is a serial console.
 
-
-so if there is an option to fold this patch into mm-simplify-lock_page_memcg,
-for example, as a -fix, then I wouldn't mind at all.
-
-
-
-a better commit message
-===8<====8<====
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
