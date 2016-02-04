@@ -1,141 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E78294403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 03:50:36 -0500 (EST)
-Received: by mail-lb0-f178.google.com with SMTP id bc4so26980302lbc.2
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 00:50:36 -0800 (PST)
-Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
-        by mx.google.com with ESMTPS id r200si6638089lfe.208.2016.02.04.00.50.35
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 68BE64403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 04:30:30 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l66so107992970wml.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 01:30:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lp7si16520727wjb.73.2016.02.04.01.30.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 00:50:35 -0800 (PST)
-Received: by mail-lf0-x22d.google.com with SMTP id m1so31935779lfg.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 00:50:35 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 04 Feb 2016 01:30:29 -0800 (PST)
+Subject: Re: [PATCH] mm, hugetlb: don't require CMA for runtime gigantic pages
+References: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
+ <20160204060221.GA14877@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56B31A31.3070406@suse.cz>
+Date: Thu, 4 Feb 2016 10:30:25 +0100
 MIME-Version: 1.0
-In-Reply-To: <1453929472-25566-6-git-send-email-matthew.r.wilcox@intel.com>
-References: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com>
-	<1453929472-25566-6-git-send-email-matthew.r.wilcox@intel.com>
-Date: Thu, 4 Feb 2016 11:50:35 +0300
-Message-ID: <CALYGNiOr42QxHh4GrmB3REzXYDXaa7U=903VKHcDDWtd2Wureg@mail.gmail.com>
-Subject: Re: [PATCH 5/5] radix-tree,shmem: Introduce radix_tree_iter_next()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160204060221.GA14877@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu, Jan 28, 2016 at 12:17 AM, Matthew Wilcox
-<matthew.r.wilcox@intel.com> wrote:
-> From: Matthew Wilcox <willy@linux.intel.com>
+On 02/04/2016 07:02 AM, Joonsoo Kim wrote:
+> On Wed, Feb 03, 2016 at 06:50:11PM +0100, Vlastimil Babka wrote:
+>> Commit 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at
+>> runtime") has added the runtime gigantic page allocation via
+>> alloc_contig_range(), making this support available only when CONFIG_CMA is
+>> enabled. Because it doesn't depend on MIGRATE_CMA pageblocks and the
+>> associated infrastructure, it is possible with few simple adjustments to
+>> require only CONFIG_MEMORY_ISOLATION instead of full CONFIG_CMA.
+>>
+>> After this patch, alloc_contig_range() and related functions are available
+>> and used for gigantic pages with just CONFIG_MEMORY_ISOLATION enabled. Note
+>> CONFIG_CMA selects CONFIG_MEMORY_ISOLATION. This allows supporting runtime
+>> gigantic pages without the CMA-specific checks in page allocator fastpaths.
 >
-> shmem likes to occasionally drop the lock, schedule, then reacqire
-> the lock and continue with the iteration from the last place it
-> left off.  This is currently done with a pretty ugly goto.  Introduce
-> radix_tree_iter_next() and use it throughout shmem.c.
->
-> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-> ---
->  include/linux/radix-tree.h | 15 +++++++++++++++
->  mm/shmem.c                 | 12 +++---------
->  2 files changed, 18 insertions(+), 9 deletions(-)
->
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index db0ed595749b..dec2c6c77eea 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -403,6 +403,21 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
->  }
->
->  /**
-> + * radix_tree_iter_next - resume iterating when the chunk may be invalid
-> + * @iter:      iterator state
-> + *
-> + * If the iterator needs to release then reacquire a lock, the chunk may
-> + * have been invalidated by an insertion or deletion.  Call this function
-> + * to continue the iteration from the next index.
-> + */
-> +static inline __must_check
-> +void **radix_tree_iter_next(struct radix_tree_iter *iter)
-> +{
-> +       iter->next_index = iter->index + 1;
-> +       return NULL;
-> +}
-> +
-> +/**
+> You need to set CONFIG_COMPACTION or CONFIG_CMA to use
+> isolate_migratepages_range() and others in alloc_contig_range().
 
-This works for normal iterator but not for tagged.
-It must also reset iter->tags to zero.
+Hm, right, thanks for catching this. I admit I didn't try disabling 
+compaction during the tests.
 
->   * radix_tree_chunk_size - get current chunk size
->   *
->   * @iter:      pointer to radix tree iterator
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 6ec14b70d82d..438ea8004c26 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -376,7 +376,6 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+> Thanks.
 >
->         rcu_read_lock();
->
-> -restart:
->         radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
->                 if (iter.index >= end)
->                         break;
-> @@ -398,8 +397,7 @@ restart:
->
->                 if (need_resched()) {
->                         cond_resched_rcu();
-> -                       start = iter.index + 1;
-> -                       goto restart;
-> +                       slot = radix_tree_iter_next(&iter);
->                 }
->         }
->
-> @@ -1950,7 +1948,6 @@ static void shmem_tag_pins(struct address_space *mapping)
->         start = 0;
->         rcu_read_lock();
->
-> -restart:
->         radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
->                 page = radix_tree_deref_slot(slot);
->                 if (!page || radix_tree_exception(page)) {
-> @@ -1967,8 +1964,7 @@ restart:
->
->                 if (need_resched()) {
->                         cond_resched_rcu();
-> -                       start = iter.index + 1;
-> -                       goto restart;
-> +                       slot = radix_tree_iter_next(&iter);
->                 }
->         }
->         rcu_read_unlock();
-> @@ -2005,7 +2001,6 @@ static int shmem_wait_for_pins(struct address_space *mapping)
->
->                 start = 0;
->                 rcu_read_lock();
-> -restart:
->                 radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
->                                            start, SHMEM_TAG_PINNED) {
->
-> @@ -2039,8 +2034,7 @@ restart:
->  continue_resched:
->                         if (need_resched()) {
->                                 cond_resched_rcu();
-> -                               start = iter.index + 1;
-> -                               goto restart;
-> +                               slot = radix_tree_iter_next(&iter);
->                         }
->                 }
->                 rcu_read_unlock();
-> --
-> 2.7.0.rc3
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
