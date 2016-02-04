@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9F74403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 00:57:35 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id 65so33125097pfd.2
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:35 -0800 (PST)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id lu9si14279029pab.215.2016.02.03.21.57.34
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 582604403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 00:57:39 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id 65so33127012pfd.2
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:39 -0800 (PST)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id e71si14384740pfd.76.2016.02.03.21.57.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 21:57:34 -0800 (PST)
-Received: by mail-pf0-x22c.google.com with SMTP id n128so32834608pfn.3
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:34 -0800 (PST)
+        Wed, 03 Feb 2016 21:57:38 -0800 (PST)
+Received: by mail-pf0-x236.google.com with SMTP id w123so33242942pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:38 -0800 (PST)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/5] mm/slub: query dynamic DEBUG_PAGEALLOC setting
-Date: Thu,  4 Feb 2016 14:56:23 +0900
-Message-Id: <1454565386-10489-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/5] sound: query dynamic DEBUG_PAGEALLOC setting
+Date: Thu,  4 Feb 2016 14:56:24 +0900
+Message-Id: <1454565386-10489-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,31 +28,37 @@ whether it is enabled or not in runtime.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slub.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ sound/drivers/pcsp/pcsp.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 7d4da68..7b5a965 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -256,11 +256,12 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
- {
- 	void *p;
+diff --git a/sound/drivers/pcsp/pcsp.c b/sound/drivers/pcsp/pcsp.c
+index 27e25bb..72e2d00 100644
+--- a/sound/drivers/pcsp/pcsp.c
++++ b/sound/drivers/pcsp/pcsp.c
+@@ -14,6 +14,7 @@
+ #include <linux/input.h>
+ #include <linux/delay.h>
+ #include <linux/bitops.h>
++#include <linux/mm.h>
+ #include "pcsp_input.h"
+ #include "pcsp.h"
+ 
+@@ -148,11 +149,11 @@ static int alsa_card_pcsp_init(struct device *dev)
+ 		return err;
+ 	}
  
 -#ifdef CONFIG_DEBUG_PAGEALLOC
--	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
--#else
--	p = get_freepointer(s, object);
+ 	/* Well, CONFIG_DEBUG_PAGEALLOC makes the sound horrible. Lets alert */
+-	printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
+-	       "which may make the sound noisy.\n");
 -#endif
 +	if (debug_pagealloc_enabled()) {
-+		probe_kernel_read(&p,
-+			(void **)(object + s->offset), sizeof(p));
-+	} else
-+		p = get_freepointer(s, object);
-+
- 	return p;
- }
++		printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
++		       "which may make the sound noisy.\n");
++	}
  
+ 	return 0;
+ }
 -- 
 1.9.1
 
