@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3BD44044D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:37:42 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id g62so7425293wme.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:37:42 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id n67si11125454wmf.61.2016.02.04.06.37.41
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F41F044044D
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:43:22 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id g62so7667471wme.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:43:22 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id g66si20759396wmc.19.2016.02.04.06.43.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 06:37:41 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id r129so12488698wmr.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:37:41 -0800 (PST)
-Date: Thu, 4 Feb 2016 16:37:37 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/4] rmap: introduce rmap_walk_locked()
-Message-ID: <20160204143737.GC20399@node.shutemov.name>
-References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454512459-94334-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20160203144019.9b58b1ba496371a11cc86568@linux-foundation.org>
- <20160203224507.GA22605@black.fi.intel.com>
- <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
+        Thu, 04 Feb 2016 06:43:22 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id g62so750878wme.2
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:43:21 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:43:19 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to
+ unmap the address space
+Message-ID: <20160204144319.GD14425@dhcp22.suse.cz>
+References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
+ <1454505240-23446-4-git-send-email-mhocko@kernel.org>
+ <201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
+In-Reply-To: <201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 03, 2016 at 02:56:07PM -0800, Andrew Morton wrote:
-> On Thu, 4 Feb 2016 01:45:07 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > On Wed, Feb 03, 2016 at 02:40:19PM -0800, Andrew Morton wrote:
-> > > On Wed,  3 Feb 2016 18:14:16 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > 
-> > > > rmap_walk_locked() is the same as rmap_walk(), but caller takes care
-> > > > about relevant rmap lock. It only supports anonymous pages for now.
-> > > > 
-> > > > It's preparation to switch THP splitting from custom rmap walk in
-> > > > freeze_page()/unfreeze_page() to generic one.
-> > > > 
-> > > > ...
-> > > >
-> > > > +/* Like rmap_walk, but caller holds relevant rmap lock */
-> > > > +int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
-> > > > +{
-> > > > +	/* only for anon pages for now */
-> > > > +	VM_BUG_ON_PAGE(!PageAnon(page) || PageKsm(page), page);
-> > > > +	return rmap_walk_anon(page, rwc, true);
-> > > > +}
-> > > 
-> > > Should be rmap_walk_anon_locked()?
+On Thu 04-02-16 23:22:18, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > I leave interface open for further extension for file mappings, once it
-> > will be needed. Interface is mirroring plain rmap_walk()
+> > When oom_reaper manages to unmap all the eligible vmas there shouldn't
+> > be much of the freable memory held by the oom victim left anymore so it
+> > makes sense to clear the TIF_MEMDIE flag for the victim and allow the
+> > OOM killer to select another task.
 > 
-> hm, yes, I see.
+> Just a confirmation. Is it safe to clear TIF_MEMDIE without reaching do_exit()
+> with regard to freezing_slow_path()? Since clearing TIF_MEMDIE from the OOM
+> reaper confuses
 > 
-> > If you prefer to rename the function, I can do it too.
+>     wait_event(oom_victims_wait, !atomic_read(&oom_victims));
 > 
-> Well, what does "unlocked" mean in the context of rmap_walk_ksm() and
-> rmap_walk_file()?
+> in oom_killer_disable(), I'm worrying that the freezing operation continues
+> before the OOM victim which escaped the __refrigerator() actually releases
+> memory. Does this cause consistency problem?
 
-For rmap_walk_file(), caller should take i_mmap_lock for page->mapping at
-least for read.
+This is a good question! At first sight it seems this is not safe and we
+might need to make the oom_reaper freezable so that it doesn't wake up
+during suspend and interfere. Let me think about that.
 
-Not sure about KSM..
-
-> That the caller holds totally different locks.  I expect that sitting
-> down and writing out the interface definition for such an
-> rmap_walk_locked() would reveal that we shouldn't have created it.
+> > +	/*
+> > +	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
+> > +	 * reasonably reclaimable memory anymore. OOM killer can continue
+> > +	 * by selecting other victim if unmapping hasn't led to any
+> > +	 * improvements. This also means that selecting this task doesn't
+> > +	 * make any sense.
+> > +	 */
+> > +	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
+> > +	exit_oom_victim(tsk);
 > 
-> I mean, if the caller is to call such an rmap_walk_locked(), he first
-> needs to work out if it's a ksm page or an anon page or a file page,
-> then take the appropriate lock and then call rmap_walk_locked(). 
-> That's silly - at this point he should directly call
-> rmap_walk_ksm_locked()?
+> I noticed that updating only one thread group's oom_score_adj disables
+> further wake_oom_reaper() calls due to rough-grained can_oom_reap check at
+> 
+>   p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN
+> 
+> in oom_kill_process(). I think we need to either update all thread groups'
+> oom_score_adj using the reaped mm equally or use more fine-grained can_oom_reap
+> check which ignores OOM_SCORE_ADJ_MIN if all threads in that thread group are
+> dying or exiting.
 
-It makes sense if you have multiple pages to process and it's known that
-they share reverse mapping.
-
-Or if you want to keep the reverse mapping locked to keep continuity with
-other operations.
-
-In THP case, we have 512 subpages to unmap and we want to keep anon_vma
-locked until the THP is split.
-
+I do not understand. Why would you want to reap the mm again when
+this has been done already? The mm is shared, right?
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
