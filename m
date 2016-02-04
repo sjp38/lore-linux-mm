@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B2644044D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 10:08:42 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id j125so16966309oih.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 07:08:42 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y125si3884216oia.53.2016.02.04.07.08.40
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Feb 2016 07:08:41 -0800 (PST)
-Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
-	<1454505240-23446-4-git-send-email-mhocko@kernel.org>
-	<201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
-	<20160204144319.GD14425@dhcp22.suse.cz>
-In-Reply-To: <20160204144319.GD14425@dhcp22.suse.cz>
-Message-Id: <201602050008.HEG12919.FFOMOHVtQFSLJO@I-love.SAKURA.ne.jp>
-Date: Fri, 5 Feb 2016 00:08:25 +0900
-Mime-Version: 1.0
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C4EEE4403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 10:51:59 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id o185so48788540pfb.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 07:51:59 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id s14si17462099pfa.120.2016.02.04.07.51.58
+        for <linux-mm@kvack.org>;
+        Thu, 04 Feb 2016 07:51:59 -0800 (PST)
+Date: Thu, 4 Feb 2016 08:50:39 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] dax: dirty inode only if required
+Message-ID: <20160204155039.GA17818@linux.intel.com>
+References: <87k2mkr2ud.fsf@openvz.org>
+ <20160204143344.GA6895@quack.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160204143344.GA6895@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Dmitry Monakhov <dmonakhov@openvz.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-Michal Hocko wrote:
-> > > +	/*
-> > > +	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
-> > > +	 * reasonably reclaimable memory anymore. OOM killer can continue
-> > > +	 * by selecting other victim if unmapping hasn't led to any
-> > > +	 * improvements. This also means that selecting this task doesn't
-> > > +	 * make any sense.
-> > > +	 */
-> > > +	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
-> > > +	exit_oom_victim(tsk);
+On Thu, Feb 04, 2016 at 03:33:44PM +0100, Jan Kara wrote:
+> On Thu 04-02-16 17:02:02, Dmitry Monakhov wrote:
 > > 
-> > I noticed that updating only one thread group's oom_score_adj disables
-> > further wake_oom_reaper() calls due to rough-grained can_oom_reap check at
-> > 
-> >   p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN
-> > 
-> > in oom_kill_process(). I think we need to either update all thread groups'
-> > oom_score_adj using the reaped mm equally or use more fine-grained can_oom_reap
-> > check which ignores OOM_SCORE_ADJ_MIN if all threads in that thread group are
-> > dying or exiting.
+> > Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
 > 
-> I do not understand. Why would you want to reap the mm again when
-> this has been done already? The mm is shared, right?
+> Makes sense. You can add:
+> 
+> Reviewed-by: Jan Kara <jack@suse.cz>
 
-The mm is shared between previous victim and next victim, but these victims
-are in different thread groups. The OOM killer selects next victim whose mm
-was already reaped due to sharing previous victim's memory. We don't want
-the OOM killer to select such next victim. Maybe set MMF_OOM_REAP_DONE on
-the previous victim's mm and check it instead of TIF_MEMDIE when selecting
-a victim? That will also avoid problems caused by clearing TIF_MEMDIE?
+Looks good to me as well.
+
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+
+> 								Honza
+> > ---
+> >  fs/dax.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index e0e9358..fc2e314 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -358,7 +358,8 @@ static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
+> >  	void *entry;
+> >  
+> >  	WARN_ON_ONCE(pmd_entry && !dirty);
+> > -	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+> > +	if (dirty)
+> > +		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+> >  
+> >  	spin_lock_irq(&mapping->tree_lock);
+> >  
+> > -- 
+> > 1.8.3.1
+> > 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
