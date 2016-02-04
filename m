@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F41F044044D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:43:22 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id g62so7667471wme.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:43:22 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id g66si20759396wmc.19.2016.02.04.06.43.21
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F080144044D
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:54:00 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id 128so30738742wmz.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:54:00 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id d84si38651643wmc.17.2016.02.04.06.53.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 06:43:22 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id g62so750878wme.2
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:43:21 -0800 (PST)
-Date: Thu, 4 Feb 2016 15:43:19 +0100
+        Thu, 04 Feb 2016 06:53:59 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id r129so12553290wmr.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:53:59 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:53:58 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to
- unmap the address space
-Message-ID: <20160204144319.GD14425@dhcp22.suse.cz>
+Subject: Re: [PATCH 5/5] mm, oom_reaper: implement OOM victims queuing
+Message-ID: <20160204145357.GE14425@dhcp22.suse.cz>
 References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
- <1454505240-23446-4-git-send-email-mhocko@kernel.org>
- <201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
+ <1454505240-23446-6-git-send-email-mhocko@kernel.org>
+ <201602041949.BIG30715.QVFLFOOOHMtSFJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201602041949.BIG30715.QVFLFOOOHMtSFJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 04-02-16 23:22:18, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > When oom_reaper manages to unmap all the eligible vmas there shouldn't
-> > be much of the freable memory held by the oom victim left anymore so it
-> > makes sense to clear the TIF_MEMDIE flag for the victim and allow the
-> > OOM killer to select another task.
+On Thu 04-02-16 19:49:29, Tetsuo Handa wrote:
+[...]
+> I think we want to rewrite this patch's description from a different point
+> of view.
 > 
-> Just a confirmation. Is it safe to clear TIF_MEMDIE without reaching do_exit()
-> with regard to freezing_slow_path()? Since clearing TIF_MEMDIE from the OOM
-> reaper confuses
+> As of "[PATCH 1/5] mm, oom: introduce oom reaper", we assumed that we try to
+> manage OOM livelock caused by system-wide OOM events using the OOM reaper.
+> Therefore, the OOM reaper had high scheduling priority and we considered side
+> effect of the OOM reaper as a reasonable constraint.
 > 
->     wait_event(oom_victims_wait, !atomic_read(&oom_victims));
-> 
-> in oom_killer_disable(), I'm worrying that the freezing operation continues
-> before the OOM victim which escaped the __refrigerator() actually releases
-> memory. Does this cause consistency problem?
+> But as the discussion went by, we started to try to manage OOM livelock
+> caused by non system-wide OOM events (e.g. memcg OOM) using the OOM reaper.
+> Therefore, the OOM reaper now has normal scheduling priority. For non
+> system-wide OOM events, side effect of the OOM reaper might not be a
+> reasonable constraint. Some administrator might expect that the OOM reaper
+> does not break coredumping unless the system is under system-wide OOM events.
 
-This is a good question! At first sight it seems this is not safe and we
-might need to make the oom_reaper freezable so that it doesn't wake up
-during suspend and interfere. Let me think about that.
+I am willing to discuss this as an option after we actually hear about a
+_real_ usecase.
 
-> > +	/*
-> > +	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
-> > +	 * reasonably reclaimable memory anymore. OOM killer can continue
-> > +	 * by selecting other victim if unmapping hasn't led to any
-> > +	 * improvements. This also means that selecting this task doesn't
-> > +	 * make any sense.
-> > +	 */
-> > +	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
-> > +	exit_oom_victim(tsk);
-> 
-> I noticed that updating only one thread group's oom_score_adj disables
-> further wake_oom_reaper() calls due to rough-grained can_oom_reap check at
-> 
->   p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN
-> 
-> in oom_kill_process(). I think we need to either update all thread groups'
-> oom_score_adj using the reaped mm equally or use more fine-grained can_oom_reap
-> check which ignores OOM_SCORE_ADJ_MIN if all threads in that thread group are
-> dying or exiting.
+[...]
 
-I do not understand. Why would you want to reap the mm again when
-this has been done already? The mm is shared, right?
+> But if we consider non system-wide OOM events, it is not very unlikely to hit
+> this race. This queue is useful for situations where memcg1 and memcg2 hit
+> memcg OOM at the same time and victim1 in memcg1 cannot terminate immediately.
+
+This can happen of course but the likelihood is _much_ smaller without
+the global OOM because the memcg OOM killer is invoked from a lockless
+context so the oom context cannot block the victim to proceed.
+
+> I expect parallel reaping (shown below) because there is no need to serialize
+> victim tasks (e.g. wait for reaping victim1 in memcg1 which can take up to
+> 1 second to complete before start reaping victim2 in memcg2) if we implement
+> this queue.
+
+I would really prefer to go a simpler way first and extend the code when
+we see the current approach insufficient for real life loads. Please do
+not get me wrong, of course the code can be enhanced in many different
+ways and optimize for lots of pathological cases but I really believe
+that we should start with correctness first and only later care about
+optimizing corner cases. Realistically, who really cares about
+oom_reaper acting on an Nth completely stuck tasks after N seconds?
+For now, my target is to guarantee that oom_reaper will _eventually_
+process a queued task and reap its memory if the target hasn't exited
+yet. I do not think this is an unreasonable goal...
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
