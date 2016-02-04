@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 315204403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 15:26:38 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id r129so229231390wmr.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 12:26:38 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE2B4403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 15:34:20 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p63so134528707wmp.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 12:34:20 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id gk5si19835231wjb.9.2016.02.04.12.26.37
+        by mx.google.com with ESMTPS id rx6si11397403wjb.4.2016.02.04.12.34.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 12:26:37 -0800 (PST)
-Date: Thu, 4 Feb 2016 15:25:46 -0500
+        Thu, 04 Feb 2016 12:34:19 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:33:28 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: vmpressure: make vmpressure_window a tunable.
-Message-ID: <20160204202546.GB8208@cmpxchg.org>
-References: <001a114b360c7fdb9b052adb91d6@google.com>
- <20160203161910.GA10440@cmpxchg.org>
- <CA+_MTtwE5NYV2SURj3j1X-RYDL=a0CHZ_UnEi9Giofy9i-JtDA@mail.gmail.com>
+Subject: Re: [PATCH] mm: memcontrol: do not bypass slab charge if memcg is
+ offline
+Message-ID: <20160204203328.GC8208@cmpxchg.org>
+References: <1454588275-7615-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+_MTtwE5NYV2SURj3j1X-RYDL=a0CHZ_UnEi9Giofy9i-JtDA@mail.gmail.com>
+In-Reply-To: <1454588275-7615-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martijn Coenen <maco@google.com>
-Cc: linux-mm@kvack.org, Anton Vorontsov <anton@enomsg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 04, 2016 at 12:18:34PM +0100, Martijn Coenen wrote:
-> I like this idea; I'm happy to come up with a window size and scaling
-> factors that we think works well, and get your feedback on that. My
-> only concern again would be that what works well for us may not work
-> well for others.
+On Thu, Feb 04, 2016 at 03:17:55PM +0300, Vladimir Davydov wrote:
+> Slab pages are charged in two steps. First, an appropriate per memcg
+> cache is selected (see memcg_kmem_get_cache) basing on the current
+> context, then the new slab page is charged to the memory cgroup which
+> the selected cache was created for (see memcg_charge_slab ->
+> __memcg_kmem_charge_memcg). It is OK to bypass kmemcg charge at step 1,
+> but if step 1 succeeded and we successfully allocated a new slab page,
+> step 2 must be performed, otherwise we would get a per memcg kmem cache
+> which contains a slab that does not hold a reference to the memory
+> cgroup owning the cache. Since per memcg kmem caches are destroyed on
+> memcg css free, this could result in freeing a cache while there are
+> still active objects in it.
+> 
+> However, currently we will bypass slab page charge if the memory cgroup
+> owning the cache is offline (see __memcg_kmem_charge_memcg). This is
+> very unlikely to occur in practice, because for this to happen a process
+> must be migrated to a different cgroup and the old cgroup must be
+> removed while the process is in kmalloc somewhere between steps 1 and 2
+> (e.g.  trying to allocate a new page). Nevertheless, it's still better
+> to eliminate such a possibility.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Thanks for doing this. There is a good chance that this will work just
-fine for others as well, so I think it's preferable to speculatively
-change the implementation than adding ABI for potentially no reason.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
