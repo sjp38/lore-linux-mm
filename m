@@ -1,53 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE2B4403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 15:34:20 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p63so134528707wmp.1
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 12:34:20 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 040894403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 15:46:32 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id 128so44749777wmz.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 12:46:31 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id rx6si11397403wjb.4.2016.02.04.12.34.19
+        by mx.google.com with ESMTPS id mo12si13585683wjc.138.2016.02.04.12.46.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 12:34:19 -0800 (PST)
-Date: Thu, 4 Feb 2016 15:33:28 -0500
+        Thu, 04 Feb 2016 12:46:31 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:45:40 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: do not bypass slab charge if memcg is
- offline
-Message-ID: <20160204203328.GC8208@cmpxchg.org>
-References: <1454588275-7615-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 1/3] mm: memcontrol: make tree_{stat,events} fetch all
+ stats
+Message-ID: <20160204204540.GD8208@cmpxchg.org>
+References: <57ff0330b597738127ae0f9ca331016719bea7d8.1454589800.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1454588275-7615-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <57ff0330b597738127ae0f9ca331016719bea7d8.1454589800.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 04, 2016 at 03:17:55PM +0300, Vladimir Davydov wrote:
-> Slab pages are charged in two steps. First, an appropriate per memcg
-> cache is selected (see memcg_kmem_get_cache) basing on the current
-> context, then the new slab page is charged to the memory cgroup which
-> the selected cache was created for (see memcg_charge_slab ->
-> __memcg_kmem_charge_memcg). It is OK to bypass kmemcg charge at step 1,
-> but if step 1 succeeded and we successfully allocated a new slab page,
-> step 2 must be performed, otherwise we would get a per memcg kmem cache
-> which contains a slab that does not hold a reference to the memory
-> cgroup owning the cache. Since per memcg kmem caches are destroyed on
-> memcg css free, this could result in freeing a cache while there are
-> still active objects in it.
-> 
-> However, currently we will bypass slab page charge if the memory cgroup
-> owning the cache is offline (see __memcg_kmem_charge_memcg). This is
-> very unlikely to occur in practice, because for this to happen a process
-> must be migrated to a different cgroup and the old cgroup must be
-> removed while the process is in kmalloc somewhere between steps 1 and 2
-> (e.g.  trying to allocate a new page). Nevertheless, it's still better
-> to eliminate such a possibility.
+On Thu, Feb 04, 2016 at 04:03:37PM +0300, Vladimir Davydov wrote:
+> Currently, tree_{stat,events} helpers can only get one stat index at a
+> time, so when there are a lot of stats to be reported one has to call it
+> over and over again (see memory_stat_show). This is neither effective,
+> nor does it look good. Instead, let's make these helpers take a snapshot
+> of all available counters.
 > 
 > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+This looks much better, and most of the callstacks involved here are
+very flat, so the increased stack consumption should be alright.
+
+The only exception there is the threshold code, which can happen from
+the direct reclaim path and thus with a fairly deep stack already.
+
+Would it be better to leave mem_cgroup_usage() alone, open-code it,
+and then use tree_stat() and tree_events() only for v2 memory.stat?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
