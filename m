@@ -1,74 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 324874403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 00:57:47 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id w123so33246829pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:47 -0800 (PST)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id d26si14349870pfb.137.2016.02.03.21.57.46
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B53D4403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 01:02:26 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id w123so33396030pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 22:02:26 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id m23si14331879pfi.250.2016.02.03.22.02.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 21:57:46 -0800 (PST)
-Received: by mail-pf0-x235.google.com with SMTP id o185so33083973pfb.1
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 21:57:46 -0800 (PST)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 5/5] tile: query dynamic DEBUG_PAGEALLOC setting
-Date: Thu,  4 Feb 2016 14:56:26 +0900
-Message-Id: <1454565386-10489-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 03 Feb 2016 22:02:25 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:02:21 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm, hugetlb: don't require CMA for runtime gigantic pages
+Message-ID: <20160204060221.GA14877@js1304-P5Q-DELUXE>
+References: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Takashi Iwai <tiwai@suse.com>, Chris Metcalf <cmetcalf@ezchip.com>, Christoph Lameter <cl@linux.com>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-We can disable debug_pagealloc processing even if the code is complied
-with CONFIG_DEBUG_PAGEALLOC. This patch changes the code to query
-whether it is enabled or not in runtime.
+On Wed, Feb 03, 2016 at 06:50:11PM +0100, Vlastimil Babka wrote:
+> Commit 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at
+> runtime") has added the runtime gigantic page allocation via
+> alloc_contig_range(), making this support available only when CONFIG_CMA is
+> enabled. Because it doesn't depend on MIGRATE_CMA pageblocks and the
+> associated infrastructure, it is possible with few simple adjustments to
+> require only CONFIG_MEMORY_ISOLATION instead of full CONFIG_CMA.
+> 
+> After this patch, alloc_contig_range() and related functions are available
+> and used for gigantic pages with just CONFIG_MEMORY_ISOLATION enabled. Note
+> CONFIG_CMA selects CONFIG_MEMORY_ISOLATION. This allows supporting runtime
+> gigantic pages without the CMA-specific checks in page allocator fastpaths.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- arch/tile/mm/init.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+You need to set CONFIG_COMPACTION or CONFIG_CMA to use
+isolate_migratepages_range() and others in alloc_contig_range().
 
-diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
-index d4e1fc4..a0582b7 100644
---- a/arch/tile/mm/init.c
-+++ b/arch/tile/mm/init.c
-@@ -896,17 +896,15 @@ void __init pgtable_cache_init(void)
- 		panic("pgtable_cache_init(): Cannot create pgd cache");
- }
- 
--#ifdef CONFIG_DEBUG_PAGEALLOC
--static long __write_once initfree;
--#else
- static long __write_once initfree = 1;
--#endif
-+static bool __write_once set_initfree_done;
- 
- /* Select whether to free (1) or mark unusable (0) the __init pages. */
- static int __init set_initfree(char *str)
- {
- 	long val;
- 	if (kstrtol(str, 0, &val) == 0) {
-+		set_initfree_done = true;
- 		initfree = val;
- 		pr_info("initfree: %s free init pages\n",
- 			initfree ? "will" : "won't");
-@@ -919,6 +917,11 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
- {
- 	unsigned long addr = (unsigned long) begin;
- 
-+	/* Prefer user request first */
-+	if (!set_initfree_done) {
-+		if (debug_pagealloc_enabled())
-+			initfree = 0;
-+	}
- 	if (kdata_huge && !initfree) {
- 		pr_warn("Warning: ignoring initfree=0: incompatible with kdata=huge\n");
- 		initfree = 1;
--- 
-1.9.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
