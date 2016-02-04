@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E02244044D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:33:35 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p63so119999799wmp.1
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:33:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o69si20645269wmg.74.2016.02.04.06.33.34
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3BD44044D
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:37:42 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id g62so7425293wme.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:37:42 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id n67si11125454wmf.61.2016.02.04.06.37.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 04 Feb 2016 06:33:34 -0800 (PST)
-Date: Thu, 4 Feb 2016 15:33:44 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] dax: dirty inode only if required
-Message-ID: <20160204143344.GA6895@quack.suse.cz>
-References: <87k2mkr2ud.fsf@openvz.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Feb 2016 06:37:41 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id r129so12488698wmr.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:37:41 -0800 (PST)
+Date: Thu, 4 Feb 2016 16:37:37 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/4] rmap: introduce rmap_walk_locked()
+Message-ID: <20160204143737.GC20399@node.shutemov.name>
+References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1454512459-94334-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160203144019.9b58b1ba496371a11cc86568@linux-foundation.org>
+ <20160203224507.GA22605@black.fi.intel.com>
+ <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87k2mkr2ud.fsf@openvz.org>
+In-Reply-To: <20160203145607.ec7fe6f46208a5da1a8f795a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Monakhov <dmonakhov@openvz.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 04-02-16 17:02:02, Dmitry Monakhov wrote:
+On Wed, Feb 03, 2016 at 02:56:07PM -0800, Andrew Morton wrote:
+> On Thu, 4 Feb 2016 01:45:07 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
-> Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
-
-Makes sense. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-> ---
->  fs/dax.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> > On Wed, Feb 03, 2016 at 02:40:19PM -0800, Andrew Morton wrote:
+> > > On Wed,  3 Feb 2016 18:14:16 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > > 
+> > > > rmap_walk_locked() is the same as rmap_walk(), but caller takes care
+> > > > about relevant rmap lock. It only supports anonymous pages for now.
+> > > > 
+> > > > It's preparation to switch THP splitting from custom rmap walk in
+> > > > freeze_page()/unfreeze_page() to generic one.
+> > > > 
+> > > > ...
+> > > >
+> > > > +/* Like rmap_walk, but caller holds relevant rmap lock */
+> > > > +int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
+> > > > +{
+> > > > +	/* only for anon pages for now */
+> > > > +	VM_BUG_ON_PAGE(!PageAnon(page) || PageKsm(page), page);
+> > > > +	return rmap_walk_anon(page, rwc, true);
+> > > > +}
+> > > 
+> > > Should be rmap_walk_anon_locked()?
+> > 
+> > I leave interface open for further extension for file mappings, once it
+> > will be needed. Interface is mirroring plain rmap_walk()
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index e0e9358..fc2e314 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -358,7 +358,8 @@ static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
->  	void *entry;
->  
->  	WARN_ON_ONCE(pmd_entry && !dirty);
-> -	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> +	if (dirty)
-> +		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
->  
->  	spin_lock_irq(&mapping->tree_lock);
->  
-> -- 
-> 1.8.3.1
+> hm, yes, I see.
 > 
+> > If you prefer to rename the function, I can do it too.
+> 
+> Well, what does "unlocked" mean in the context of rmap_walk_ksm() and
+> rmap_walk_file()?
+
+For rmap_walk_file(), caller should take i_mmap_lock for page->mapping at
+least for read.
+
+Not sure about KSM..
+
+> That the caller holds totally different locks.  I expect that sitting
+> down and writing out the interface definition for such an
+> rmap_walk_locked() would reveal that we shouldn't have created it.
+> 
+> I mean, if the caller is to call such an rmap_walk_locked(), he first
+> needs to work out if it's a ksm page or an anon page or a file page,
+> then take the appropriate lock and then call rmap_walk_locked(). 
+> That's silly - at this point he should directly call
+> rmap_walk_ksm_locked()?
+
+It makes sense if you have multiple pages to process and it's known that
+they share reverse mapping.
+
+Or if you want to keep the reverse mapping locked to keep continuity with
+other operations.
+
+In THP case, we have 512 subpages to unmap and we want to keep anon_vma
+locked until the THP is split.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
