@@ -1,112 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 19A9844044D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:27:40 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id r129so214344724wmr.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:27:40 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id 134si20640998wmr.40.2016.02.04.06.27.38
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E02244044D
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 09:33:35 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id p63so119999799wmp.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:33:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o69si20645269wmg.74.2016.02.04.06.33.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 06:27:39 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id g62so688009wme.2
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 06:27:38 -0800 (PST)
-Date: Thu, 4 Feb 2016 16:27:36 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/4] thp: rewrite freeze_page()/unfreeze_page() with
- generic rmap walkers
-Message-ID: <20160204142736.GB20399@node.shutemov.name>
-References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454512459-94334-5-git-send-email-kirill.shutemov@linux.intel.com>
- <56B21FC9.9040009@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 04 Feb 2016 06:33:34 -0800 (PST)
+Date: Thu, 4 Feb 2016 15:33:44 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] dax: dirty inode only if required
+Message-ID: <20160204143344.GA6895@quack.suse.cz>
+References: <87k2mkr2ud.fsf@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <56B21FC9.9040009@intel.com>
+In-Reply-To: <87k2mkr2ud.fsf@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dmitry Monakhov <dmonakhov@openvz.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Wed, Feb 03, 2016 at 07:42:01AM -0800, Dave Hansen wrote:
-> On 02/03/2016 07:14 AM, Kirill A. Shutemov wrote:
-> > But the new variant is somewhat slower. Current helpers iterates over
-> > VMAs the compound page is mapped to, and then over ptes within this VMA.
-> > New helpers iterates over small page, then over VMA the small page
-> > mapped to, and only then find relevant pte.
+On Thu 04-02-16 17:02:02, Dmitry Monakhov wrote:
 > 
-> The code simplification here is really attractive.  Can you quantify
-> what the slowdown is?  Is it noticeable, or would it be in the noise
-> during all the other stuff that happens under memory pressure?
+> Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
 
-I don't know how to quantify it within whole memory pressure picture.
-There're just too many variables to get some sense from split_huge_page()
-contribution.
+Makes sense. You can add:
 
-I've tried to measure split_huge_page() performance itself.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Testcase:
-
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <unistd.h>
-	#include <sys/mman.h>
-
-	#define MB (1024UL * 1024)
-	#define SIZE (4 * 1024 * 2 * MB)
-	#define BASE ((void *)0x400000000000)
-
-	#define FORKS 0
-
-	int main()
-	{
-		char *p;
-		unsigned long i;
-
-		p = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
-				MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
-				-1, 0);
-		if (p == MAP_FAILED)
-			perror("mmap"), exit(1);
-
-		for (i = 0; i < SIZE; i += 2 * MB) {
-			munmap(p + i, 4096);
-		}
-
-		for (i = 0; i < FORKS; i++) {
-			if (!fork())
-				pause();
-		}
-
-		system("grep thp /proc/vmstat");
-		system("time /bin/echo 3 > /proc/sys/vm/drop_caches");
-		system("grep thp /proc/vmstat");
-		return 0;
-	}
-
-Basically, we allocate 4k THP, make them partially unmapped, optionally
-fork() the process multiple times and then trigger shrinker, measuring how
-long would it take.
-
-Optional fork() will make THP shared, meaning we need to freeze/unfreeze
-ptes in multiple VMAs.
-
-Numbers doesn't look pretty:
-
-		FORKS == 0		FORKS == 100
-Baseline:	1.93s +- 0.017s		32.08s +- 0.246s
-Patched:	5.636s +- 0.021s		405.943s +- 6.126s
-Slowdown:	2.92x			12.65x
-
-With FORKS == 100, it looks especially bad. But having that many mapping
-of the page is uncommon.
-
-Any comments?
-
+								Honza
+> ---
+>  fs/dax.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index e0e9358..fc2e314 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -358,7 +358,8 @@ static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
+>  	void *entry;
+>  
+>  	WARN_ON_ONCE(pmd_entry && !dirty);
+> -	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+> +	if (dirty)
+> +		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+>  
+>  	spin_lock_irq(&mapping->tree_lock);
+>  
+> -- 
+> 1.8.3.1
+> 
 -- 
- Kirill A. Shutemov
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
