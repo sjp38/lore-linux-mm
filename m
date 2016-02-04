@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E63B680F7F
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 19:17:03 -0500 (EST)
-Received: by mail-pf0-f176.google.com with SMTP id w123so23772496pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 16:17:03 -0800 (PST)
-Date: Thu, 4 Feb 2016 09:18:16 +0900
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9159C680F7F
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 19:17:47 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id 65so23696726pfd.2
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 16:17:47 -0800 (PST)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id i79si12434148pfj.103.2016.02.03.16.17.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Feb 2016 16:17:46 -0800 (PST)
+Received: by mail-pf0-x22c.google.com with SMTP id w123so23792043pfb.0
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 16:17:46 -0800 (PST)
+Date: Thu, 4 Feb 2016 09:19:00 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [mm -next] mapping->tree_lock inconsistent lock state
-Message-ID: <20160204001816.GA1861@swordfish>
-References: <20160203153633.GA32219@swordfish>
- <20160203184509.GB4007@cmpxchg.org>
+Subject: Re: [PATCH] mm/workingset: do not forget to unlock page
+Message-ID: <20160204001900.GB1861@swordfish>
+References: <1454493513-19316-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20160203104136.GA517@swordfish>
+ <20160203162400.GB10440@cmpxchg.org>
+ <20160203131939.1a35d9bc03f13b2b143d27c0@linux-foundation.org>
+ <20160203220253.GA6859@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160203184509.GB4007@cmpxchg.org>
+In-Reply-To: <20160203220253.GA6859@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Benjamin LaHaise <bcrl@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On (02/03/16 13:45), Johannes Weiner wrote:
-> On Thu, Feb 04, 2016 at 12:36:33AM +0900, Sergey Senozhatsky wrote:
-> > Hello,
+On (02/03/16 17:02), Johannes Weiner wrote:
+> On Wed, Feb 03, 2016 at 01:19:39PM -0800, Andrew Morton wrote:
+> > Yup.  I turned it into a fix against
+> > mm-workingset-per-cgroup-cache-thrash-detection.patch, which is where
+> > the bug was added.  And I did the goto thing instead, so the final
+> > result will be
 > > 
-> > next-20160203
+> > void workingset_activation(struct page *page)
+> > {
+> > 	struct lruvec *lruvec;
 > > 
-> > [ 3587.997451] =================================
-> > [ 3587.997453] [ INFO: inconsistent lock state ]
-> > [ 3587.997456] 4.5.0-rc2-next-20160203-dbg-00007-g37a0a9d-dirty #377 Not tainted
-> > [ 3587.997457] ---------------------------------
-> > [ 3587.997459] inconsistent {IN-SOFTIRQ-W} -> {SOFTIRQ-ON-W} usage.
+> > 	lock_page_memcg(page);
+> > 	/*
+> > 	 * Filter non-memcg pages here, e.g. unmap can call
+> > 	 * mark_page_accessed() on VDSO pages.
+> > 	 *
+> > 	 * XXX: See workingset_refault() - this should return
+> > 	 * root_mem_cgroup even for !CONFIG_MEMCG.
+> > 	 */
+> > 	if (!mem_cgroup_disabled() && !page_memcg(page))
+> > 		goto out;
+> > 	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));
+> > 	atomic_long_inc(&lruvec->inactive_age);
+> > out:
+> > 	unlock_page_memcg(page);
+> > }
 > 
-> Thanks Sergey. Vladimir sent a patch to move mem_cgroup_migrate() out
-> of the IRQ-disabled section:
-> 
-> http://marc.info/?l=linux-mm&m=145452460721208&w=2
-> 
-> It looks like Vladimir's original message didn't make it to linux-mm,
-> only my reply to it; CC Ben LaHaise.
+> LGTM, thank you.
 
-Thanks Johannes. Will test it (well, just in case) later today.
+Thanks!
 
 	-ss
 
