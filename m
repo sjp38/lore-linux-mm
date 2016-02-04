@@ -1,76 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 67C9B4403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 03:32:20 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id l66so15081162wml.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 00:32:20 -0800 (PST)
-Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com. [195.75.94.102])
-        by mx.google.com with ESMTPS id q127si18933037wmd.3.2016.02.04.00.32.19
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 11EA64403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 03:41:34 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id dx2so26889816lbd.3
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 00:41:34 -0800 (PST)
+Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
+        by mx.google.com with ESMTPS id pm3si6632059lbc.99.2016.02.04.00.41.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Feb 2016 00:32:19 -0800 (PST)
-Received: from localhost
-	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 4 Feb 2016 08:32:18 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 938771B08072
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 08:32:26 +0000 (GMT)
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u148WFS066322432
-	for <linux-mm@kvack.org>; Thu, 4 Feb 2016 08:32:15 GMT
-Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u148WEWS008878
-	for <linux-mm@kvack.org>; Thu, 4 Feb 2016 03:32:15 -0500
-Subject: Re: [PATCH 1/5] mm/vmalloc: query dynamic DEBUG_PAGEALLOC setting
-References: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1454565386-10489-2-git-send-email-iamjoonsoo.kim@lge.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Message-ID: <56B30C8E.200@de.ibm.com>
-Date: Thu, 4 Feb 2016 09:32:14 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Feb 2016 00:41:32 -0800 (PST)
+Received: by mail-lb0-x230.google.com with SMTP id x4so27401591lbm.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 00:41:32 -0800 (PST)
+Subject: [PATCH] radix-tree: fix oops after radix_tree_iter_retry
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Thu, 04 Feb 2016 11:41:27 +0300
+Message-ID: <145457528789.31321.4441662473067711123.stgit@zurg>
 MIME-Version: 1.0
-In-Reply-To: <1454565386-10489-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Takashi Iwai <tiwai@suse.com>, Chris Metcalf <cmetcalf@ezchip.com>, Christoph Lameter <cl@linux.com>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Ohad Ben-Cohen <ohad@wizery.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hughd@google.com>, stable@vger.kernel.org
 
-On 02/04/2016 06:56 AM, Joonsoo Kim wrote:
-> We can disable debug_pagealloc processing even if the code is complied
-> with CONFIG_DEBUG_PAGEALLOC. This patch changes the code to query
-> whether it is enabled or not in runtime.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Helper radix_tree_iter_retry resets next_index to the current index.
+In following radix_tree_next_slot current chunk size becomes zero.
+This isn't checked and it tries to dereference null pointer in slot.
 
-Reviewed-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Tagged iterator is fine because retry happens only at slot 0 where
+tag bitmask in iter->tags is filled with single bit.
 
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Fixes: 46437f9a554f ("radix-tree: fix race in gang lookup")
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Ohad Ben-Cohen <ohad@wizery.com>
+Cc: <stable@vger.kernel.org>
+---
+ include/linux/radix-tree.h |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> ---
->  mm/vmalloc.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index fb42a5b..e0e51bd 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -543,10 +543,10 @@ static void vmap_debug_free_range(unsigned long start, unsigned long end)
->  	 * debugging doesn't do a broadcast TLB flush so it is a lot
->  	 * faster).
->  	 */
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> -	vunmap_page_range(start, end);
-> -	flush_tlb_kernel_range(start, end);
-> -#endif
-> +	if (debug_pagealloc_enabled()) {
-> +		vunmap_page_range(start, end);
-> +		flush_tlb_kernel_range(start, end);
-> +	}
->  }
-> 
->  /*
-> 
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 00b17c526c1f..f54be7082207 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -400,7 +400,7 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
+  * @iter:	pointer to radix tree iterator
+  * Returns:	current chunk size
+  */
+-static __always_inline unsigned
++static __always_inline long
+ radix_tree_chunk_size(struct radix_tree_iter *iter)
+ {
+ 	return iter->next_index - iter->index;
+@@ -434,9 +434,9 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
+ 			return slot + offset + 1;
+ 		}
+ 	} else {
+-		unsigned size = radix_tree_chunk_size(iter) - 1;
++		long size = radix_tree_chunk_size(iter);
+ 
+-		while (size--) {
++		while (--size > 0) {
+ 			slot++;
+ 			iter->index++;
+ 			if (likely(*slot))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
