@@ -1,66 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FD444403D8
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 20:39:20 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id o185so25879896pfb.1
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 17:39:20 -0800 (PST)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id af6si12822583pad.226.2016.02.03.17.39.19
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 139D74403D8
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2016 22:23:14 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id mw1so50770640igb.1
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 19:23:14 -0800 (PST)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id p9si35093321igr.62.2016.02.03.19.23.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Feb 2016 17:39:19 -0800 (PST)
-Received: by mail-pf0-x233.google.com with SMTP id w123so26014409pfb.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2016 17:39:19 -0800 (PST)
-Date: Wed, 3 Feb 2016 17:39:08 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/3] mm: migrate: do not touch page->mem_cgroup of live
- pages
-In-Reply-To: <20160203183547.GA4007@cmpxchg.org>
-Message-ID: <alpine.LSU.2.11.1602031648050.1497@eggly.anvils>
-References: <1454109573-29235-1-git-send-email-hannes@cmpxchg.org> <1454109573-29235-2-git-send-email-hannes@cmpxchg.org> <20160203131748.GB15520@mguzik> <20160203140824.GJ21016@esperanza> <20160203183547.GA4007@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 03 Feb 2016 19:23:13 -0800 (PST)
+Date: Wed, 3 Feb 2016 21:23:11 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/3] Speed up SLUB poisoning + disable checks
+In-Reply-To: <56B29F77.1010607@redhat.com>
+Message-ID: <alpine.DEB.2.20.1602032120060.22468@east.gentwo.org>
+References: <1453770913-32287-1-git-send-email-labbott@fedoraproject.org> <20160126070320.GB28254@js1304-P5Q-DELUXE> <56B24B01.30306@redhat.com> <CAGXu5jJK1UhNX7h2YmxxTrCABr8oS=Y2OBLMr4KTxk7LctRaiQ@mail.gmail.com> <56B272B8.2050808@redhat.com>
+ <alpine.DEB.2.20.1602031658060.6707@east.gentwo.org> <56B29F77.1010607@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Mateusz Guzik <mguzik@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Kees Cook <keescook@chromium.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@fedoraproject.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Wed, 3 Feb 2016, Johannes Weiner wrote:
+On Wed, 3 Feb 2016, Laura Abbott wrote:
 
-> CCing Hugh and Greg, they have worked on the memcg migration code most
-> recently. AFAIK the only reason newpage->mem_cgroup had to be set up
-> that early in migration was because of the way dirty accounting used
-> to work. But Hugh took memcg out of the equation there, so moving
-> mem_cgroup_migrate() to the end should be safe, as long as the pages
-> are still locked and off the LRU.
+> I also notice that __CMPXCHG_DOUBLE is turned off when the debug
+> options are turned on. I don't see any details about why. What's
+> the reason for turning it off when the debug options are enabled?
 
-Yes, that should be safe now: Vladimir's patch looks okay to me,
-fixing the immediate irq issue.
-
-But it would be nicer, if mem_cgroup_migrate() were called solely
-from migrate_page_copy() - deleting the other calls in mm/migrate.c,
-including that from migrate_misplaced_transhuge_page() (which does
-some rewinding on error after its migrate_page_copy(): but just as
-you now let a successfully migrated old page be uncharged when it's
-freed, so you can leave a failed new_page to be uncharged when it's
-freed, no extra code needed).
-
-And (even more off-topic), I'm slightly sad to see that the lrucare
-arg which mem_cgroup_migrate() used to have (before I renamed it and
-you renamed it back!) has gone, so mem_cgroup_migrate() now always
-demands lrucare of commit_charge().  I'd hoped that with your
-separation of new from old charge, mem_cgroup_migrate() would never
-need lrucare; but that's not true for the fuse case, though true
-for everyone else.  Maybe just not worth bothering about?  Or the
-reintroduction of some unnecessary zone->lru_lock-ing in page
-migration, which we ought to try to avoid?
-
-Or am I wrong, and even fuse doesn't need it?  That early return
-"if (newpage->mem_cgroup)": isn't mem_cgroup_migrate() a no-op for
-fuse, or is there some corner case by which newpage can be on LRU
-but its mem_cgroup unset?
-
-Hugh
+Because operations on the object need to be locked out while the debug
+code is running. Otherwise concurrent operations from other processors
+could lead to weird object states. The object needs to be stable for
+debug checks. Poisoning and the related checks need that otherwise you
+will get sporadic false positives.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
