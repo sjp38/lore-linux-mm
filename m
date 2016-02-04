@@ -1,64 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 995EE4403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 08:10:54 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id p63so211059012wmp.1
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 05:10:54 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id ay10si17522598wjb.181.2016.02.04.05.10.53
-        for <linux-mm@kvack.org>;
-        Thu, 04 Feb 2016 05:10:53 -0800 (PST)
-Date: Thu, 4 Feb 2016 14:10:47 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v9 2/4] x86, mce: Check for faults tagged in
- EXTABLE_CLASS_FAULT exception table entries
-Message-ID: <20160204131047.GA5343@pd.tnic>
-References: <cover.1454455138.git.tony.luck@intel.com>
- <6d5ca2f80f3da2b898ac2501175ac170d746a388.1454455138.git.tony.luck@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <6d5ca2f80f3da2b898ac2501175ac170d746a388.1454455138.git.tony.luck@intel.com>
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 811624403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 08:11:19 -0500 (EST)
+Received: by mail-oi0-f52.google.com with SMTP id x21so14755461oix.3
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 05:11:19 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k9si3254494oif.143.2016.02.04.05.11.18
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Feb 2016 05:11:18 -0800 (PST)
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+	<20160203132718.GI6757@dhcp22.suse.cz>
+	<alpine.DEB.2.10.1602031457120.10331@chino.kir.corp.google.com>
+	<20160204125700.GA14425@dhcp22.suse.cz>
+In-Reply-To: <20160204125700.GA14425@dhcp22.suse.cz>
+Message-Id: <201602042210.BCG18704.HOMFFJOStQFOLV@I-love.SAKURA.ne.jp>
+Date: Thu, 4 Feb 2016 22:10:54 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: mhocko@kernel.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 31, 2015 at 11:40:27AM -0800, Tony Luck wrote:
-> Extend the severity checking code to add a new context IN_KERN_RECOV
-> which is used to indicate that the machine check was triggered by code
-> in the kernel with a EXTABLE_CLASS_FAULT fixup entry.
-> 
-> Major re-work to the tail code in do_machine_check() to make all this
-> readable/maintainable. One functional change is that tolerant=3 no longer
-> stops recovery actions. Revert to only skipping sending SIGBUS to the
-> current process.
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> ---
->  arch/x86/kernel/cpu/mcheck/mce-severity.c | 23 +++++++++-
->  arch/x86/kernel/cpu/mcheck/mce.c          | 71 ++++++++++++++++---------------
->  2 files changed, 58 insertions(+), 36 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/cpu/mcheck/mce-severity.c b/arch/x86/kernel/cpu/mcheck/mce-severity.c
-> index 9c682c222071..bca8b3936740 100644
-> --- a/arch/x86/kernel/cpu/mcheck/mce-severity.c
-> +++ b/arch/x86/kernel/cpu/mcheck/mce-severity.c
-> @@ -13,7 +13,9 @@
->  #include <linux/seq_file.h>
->  #include <linux/init.h>
->  #include <linux/debugfs.h>
-> +#include <linux/module.h>
+Michal Hocko wrote:
+> I am not sure we can fix these pathological loads where we hit the
+> higher order depletion and there is a chance that one of the thousands
+> tasks terminates in an unpredictable way which happens to race with the
+> OOM killer.
 
-That module.h include is not needed anymore, right?
+When I hit this problem on Dec 24th, I didn't run thousands of tasks.
+I think there were less than one hundred tasks in the system and only
+a few tasks were running. Not a pathological load at all.
 
-You have the same in mce.c too.
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+I'm running thousands of tasks only for increasing the possibility
+in the reproducer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
