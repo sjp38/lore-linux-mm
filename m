@@ -1,66 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2574403D8
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 11:03:29 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p63so32937031wmp.1
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:03:29 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id u187si15512353wmu.82.2016.02.05.08.03.28
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A946C4403D8
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 11:11:38 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id uo6so36823262pac.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:11:38 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id e64si24760376pfd.66.2016.02.05.08.11.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Feb 2016 08:03:28 -0800 (PST)
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 5 Feb 2016 16:03:27 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id E011817D805F
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 16:03:36 +0000 (GMT)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u15G3O4L41418968
-	for <linux-mm@kvack.org>; Fri, 5 Feb 2016 16:03:24 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u15G3Ngj021129
-	for <linux-mm@kvack.org>; Fri, 5 Feb 2016 09:03:23 -0700
-Date: Fri, 5 Feb 2016 17:03:17 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH RFC 1/1] numa: fix /proc/<pid>/numa_maps for THP
-Message-ID: <20160205170317.4906cba3@thinkpad>
-In-Reply-To: <56B4C1E1.6060408@intel.com>
-References: <1454686440-31218-1-git-send-email-gerald.schaefer@de.ibm.com>
-	<1454686440-31218-2-git-send-email-gerald.schaefer@de.ibm.com>
-	<56B4C1E1.6060408@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Feb 2016 08:11:37 -0800 (PST)
+Date: Fri, 5 Feb 2016 19:11:24 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCHv6] mm: slab: free kmem_cache_node after destroy sysfs file
+Message-ID: <20160205161124.GA26693@esperanza>
+References: <1454687136-19298-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1454687136-19298-1-git-send-email-dsafonov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michael Holzheu <holzheu@linux.vnet.ibm.com>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, 5 Feb 2016 07:38:09 -0800
-Dave Hansen <dave.hansen@intel.com> wrote:
-
-> On 02/05/2016 07:34 AM, Gerald Schaefer wrote:
-> > +static struct page *can_gather_numa_stats_pmd(pmd_t pmd,
-> > +					      struct vm_area_struct *vma,
-> > +					      unsigned long addr)
-> > +{
+On Fri, Feb 05, 2016 at 06:45:36PM +0300, Dmitry Safonov wrote:
+> With enabled slub_debug alloc_calls_show will try to track location and
+> user of slab object on each online node, kmem_cache_node structure
+> shouldn't be freed till there is the last reference to sysfs file.
 > 
-> Is there a way to do this without making a copy of most of
-> can_gather_numa_stats()?  Seems like the kind of thing where the pmd
-> version will bitrot.
+> Fixes the following panic:
+> [43963.463055] BUG: unable to handle kernel
+> [43963.463090] NULL pointer dereference at 0000000000000020
+> [43963.463146] IP: [<ffffffff811c6959>] list_locations+0x169/0x4e0
+> [43963.463185] PGD 257304067 PUD 438456067 PMD 0
+> [43963.463220] Oops: 0000 [#1] SMP
+> [43963.463850] CPU: 3 PID: 973074 Comm: cat ve: 0 Not tainted 3.10.0-229.7.2.ovz.9.30-00007-japdoll-dirty #2 9.30
+> [43963.463913] Hardware name: DEPO Computers To Be Filled By O.E.M./H67DE3, BIOS L1.60c 07/14/2011
+> [43963.463976] task: ffff88042a5dc5b0 ti: ffff88037f8d8000 task.ti: ffff88037f8d8000
+> [43963.464036] RIP: 0010:[<ffffffff811c6959>]  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+> [43963.464725] Call Trace:
+> [43963.464756]  [<ffffffff811c6d1d>] alloc_calls_show+0x1d/0x30
+> [43963.464793]  [<ffffffff811c15ab>] slab_attr_show+0x1b/0x30
+> [43963.464829]  [<ffffffff8125d27a>] sysfs_read_file+0x9a/0x1a0
+> [43963.464865]  [<ffffffff811e3c6c>] vfs_read+0x9c/0x170
+> [43963.464900]  [<ffffffff811e4798>] SyS_read+0x58/0xb0
+> [43963.464936]  [<ffffffff81612d49>] system_call_fastpath+0x16/0x1b
+> [43963.464970] Code: 5e 07 12 00 b9 00 04 00 00 3d 00 04 00 00 0f 4f c1 3d 00 04 00 00 89 45 b0 0f 84 c3 00 00 00 48 63 45 b0 49 8b 9c c4 f8 00 00 00 <48> 8b 43 20 48 85 c0 74 b6 48 89 df e8 46 37 44 00 48 8b 53 10
+> [43963.465119] RIP  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+> [43963.465155]  RSP <ffff88037f8dbe28>
+> [43963.465185] CR2: 0000000000000020
 > 
+> Separated nodes structures freeing into __kmem_cache_free_nodes and use
+> it at kmem_cache_release.
 
-Yes, that also gave me a little headache, even more with the vm_normal_page()
-code duplication, but I didn't see a much better way. Separate _pte/_pmd
-functions that largely do the same thing seem not so uncommon to me.
+Well, that's better indeed, although still not perfect.
 
-The best I could think of would be splitting the !HAVE_PTE_SPECIAL path
-in vm_normal_page() into a separate function, but I see not much room for
-improvement for can_gather_numa_stats(), other than maybe not having
-a _pmd version at all and doing all the work inside gather_pte_stats(),
-but that would probably just relocate the code duplication.
+...
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 6ecc697..3ccdf3c 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2276,6 +2276,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+>  	err = setup_cpu_cache(cachep, gfp);
+>  	if (err) {
+>  		__kmem_cache_shutdown(cachep);
+> +		__kmem_cache_free_nodes(cachep);
+
+You don't need to call the whole shutdown procedure here - the cache
+hasn't been used yet. __kmem_cache_release (about it below) would be
+enough.
+
+>  		return err;
+>  	}
+>  
+> @@ -2414,8 +2415,6 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+>  
+>  int __kmem_cache_shutdown(struct kmem_cache *cachep)
+>  {
+> -	int i;
+> -	struct kmem_cache_node *n;
+>  	int rc = __kmem_cache_shrink(cachep, false);
+>  
+>  	if (rc)
+> @@ -2423,6 +2422,14 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+>  
+>  	free_percpu(cachep->cpu_cache);
+
+And how come ->cpu_cache (and ->cpu_slab in case of SLUB) is special?
+Can't sysfs access it either? I propose to introduce a method called
+__kmem_cache_release (instead of __kmem_cache_free_nodes), which would
+do all freeing, both per-cpu and per-node.
+
+Thanks,
+Vladimir
+
+>  
+> +	return 0;
+> +}
+> +
+> +void __kmem_cache_free_nodes(struct kmem_cache *cachep)
+> +{
+> +	int i;
+> +	struct kmem_cache_node *n;
+> +
+>  	/* NUMA: free the node structures */
+>  	for_each_kmem_cache_node(cachep, i, n) {
+>  		kfree(n->shared);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
