@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 818F04403D8
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 06:52:22 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id r129so23232116wmr.0
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 03:52:22 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B65A4403D8
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 07:02:12 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p63so23379384wmp.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 04:02:12 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m80si14076412wmd.112.2016.02.05.03.52.21
+        by mx.google.com with ESMTPS id dh8si13939941wjb.102.2016.02.05.04.02.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 05 Feb 2016 03:52:21 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlb: fix gigantic page initialization/allocation
-References: <1454452420-25007-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.DEB.2.10.1602021457500.9118@chino.kir.corp.google.com>
- <56B138F6.70704@oracle.com>
- <20160203030137.GA22446@hori1.linux.bs1.fc.nec.co.jp>
- <56B17ED2.2070205@oracle.com>
+        Fri, 05 Feb 2016 04:02:11 -0800 (PST)
+Subject: Re: [PATCH] mm, hugetlb: don't require CMA for runtime gigantic pages
+References: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
+ <20160204060221.GA14877@js1304-P5Q-DELUXE> <56B31A31.3070406@suse.cz>
+ <56B324D4.6030703@suse.cz> <20160205001459.GA24412@node.shutemov.name>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56B48CF1.1040103@suse.cz>
-Date: Fri, 5 Feb 2016 12:52:17 +0100
+Message-ID: <56B48F40.1060205@suse.cz>
+Date: Fri, 5 Feb 2016 13:02:08 +0100
 MIME-Version: 1.0
-In-Reply-To: <56B17ED2.2070205@oracle.com>
-Content-Type: text/plain; charset=iso-2022-jp
+In-Reply-To: <20160205001459.GA24412@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 02/03/2016 05:15 AM, Mike Kravetz wrote:
-> On 02/02/2016 07:01 PM, Naoya Horiguchi wrote:
->> On Tue, Feb 02, 2016 at 03:17:10PM -0800, Mike Kravetz wrote:
->>> I agree.  Naoya did debug and provide fix via e-mail exchange.  He did not
->>> sign-off and I could not tell if he was going to pursue.  My only intention
->>> was to fix ASAP.
->>>
->>> More than happy to give Naoya credit.
->>
->> Thank you! It's great if you append my signed-off below yours.
->>
->> Naoya
+On 02/05/2016 01:14 AM, Kirill A. Shutemov wrote:
+>>  include/linux/gfp.h | 6 +++---
+>>  mm/hugetlb.c        | 2 +-
+>>  mm/page_alloc.c     | 2 +-
+>>  3 files changed, 5 insertions(+), 5 deletions(-)
 > 
-> Adding Naoya's sign off and Acks received
-> 
-> mm/hugetlb: fix gigantic page initialization/allocation
-> 
-> Attempting to preallocate 1G gigantic huge pages at boot time with
-> "hugepagesz=1G hugepages=1" on the kernel command line will prevent
-> booting with the following:
-> 
-> kernel BUG at mm/hugetlb.c:1218!
-> 
-> When mapcount accounting was reworked, the setting of compound_mapcount_ptr
-> in prep_compound_gigantic_page was overlooked.  As a result, the validation
-> of mapcount in free_huge_page fails.
-> 
-> The "BUG_ON" checks in free_huge_page were also changed to "VM_BUG_ON_PAGE"
-> to assist with debugging.
-> 
-> Fixes: af5642a8af ("mm: rework mapcount accounting to enable 4k mapping
-> of THPs")
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Acked-by: David Rientjes <rientjes@google.com>
+> One more place missed: gigantic_pages_init() in arch/x86/mm/hugetlbpage.c
+> Could you relax the check there as well?
 
-Tested-by: Vlastimil Babka <vbabka@suse.cz>
+Crap, thanks. This file was hidden in different commit and didn't cause
+compilation failure. Patch below, tested that 1gb pages are available
+with COMPACTION+ISOLATION.
+
+----8<----
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Fri, 5 Feb 2016 10:59:38 +0100
+Subject: [PATCH 2/2] 
+ mm-hugetlb-dont-require-cma-for-runtime-gigantic-pages-fix2
+
+Update also arch-specific code as Kirill pointed out.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ arch/x86/mm/hugetlbpage.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 42982b26e32b..740d7ac03a55 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -173,10 +173,10 @@ static __init int setup_hugepagesz(char *opt)
+ }
+ __setup("hugepagesz=", setup_hugepagesz);
+ 
+-#ifdef CONFIG_CMA
++#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+ static __init int gigantic_pages_init(void)
+ {
+-	/* With CMA we can allocate gigantic pages at runtime */
++	/* With compaction or CMA we can allocate gigantic pages at runtime */
+ 	if (cpu_has_gbpages && !size_to_hstate(1UL << PUD_SHIFT))
+ 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+ 	return 0;
+-- 
+2.7.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
