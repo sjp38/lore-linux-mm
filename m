@@ -1,91 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 52F3B4403D8
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 11:11:52 -0500 (EST)
-Received: by mail-oi0-f47.google.com with SMTP id w5so43673537oie.1
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:11:52 -0800 (PST)
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A907A4403D8
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 11:13:16 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id wb13so93739373obb.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:13:16 -0800 (PST)
 Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id v18si4053340oif.44.2016.02.05.08.11.51
+        by mx.google.com with ESMTPS id 80si8658597oic.99.2016.02.05.08.13.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Feb 2016 08:11:51 -0800 (PST)
-Received: by mail-ob0-x231.google.com with SMTP id wb13so93701340obb.1
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:11:51 -0800 (PST)
+        Fri, 05 Feb 2016 08:13:16 -0800 (PST)
+Received: by mail-ob0-x231.google.com with SMTP id xk3so92465353obc.2
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 08:13:15 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160204164929.a2f12b8a7edcdfa596abd850@linux-foundation.org>
-References: <1454566775-30973-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1454566775-30973-3-git-send-email-iamjoonsoo.kim@lge.com>
-	<20160204164929.a2f12b8a7edcdfa596abd850@linux-foundation.org>
-Date: Sat, 6 Feb 2016 01:11:51 +0900
-Message-ID: <CAAmzW4Pps1gSXb5qCvbkC=wNjcySgVYZu1jLeBWy31q7RNWVYg@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] mm/compaction: speed up pageblock_pfn_to_page()
- when zone is contiguous
+In-Reply-To: <alpine.DEB.2.10.1602041417330.29117@chino.kir.corp.google.com>
+References: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1454565386-10489-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<alpine.DEB.2.10.1602041417330.29117@chino.kir.corp.google.com>
+Date: Sat, 6 Feb 2016 01:13:15 +0900
+Message-ID: <CAAmzW4P-09yqdCiZJpYbpueih7+gq0Qcg302nsaHLZASHUki9w@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm/vmalloc: query dynamic DEBUG_PAGEALLOC setting
 From: Joonsoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Takashi Iwai <tiwai@suse.com>, Chris Metcalf <cmetcalf@ezchip.com>, Christoph Lameter <cl@linux.com>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2016-02-05 9:49 GMT+09:00 Andrew Morton <akpm@linux-foundation.org>:
-> On Thu,  4 Feb 2016 15:19:35 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
+2016-02-05 7:18 GMT+09:00 David Rientjes <rientjes@google.com>:
+> On Thu, 4 Feb 2016, Joonsoo Kim wrote:
 >
->> There is a performance drop report due to hugepage allocation and in there
->> half of cpu time are spent on pageblock_pfn_to_page() in compaction [1].
->> In that workload, compaction is triggered to make hugepage but most of
->> pageblocks are un-available for compaction due to pageblock type and
->> skip bit so compaction usually fails. Most costly operations in this case
->> is to find valid pageblock while scanning whole zone range. To check
->> if pageblock is valid to compact, valid pfn within pageblock is required
->> and we can obtain it by calling pageblock_pfn_to_page(). This function
->> checks whether pageblock is in a single zone and return valid pfn
->> if possible. Problem is that we need to check it every time before
->> scanning pageblock even if we re-visit it and this turns out to
->> be very expensive in this workload.
+>> We can disable debug_pagealloc processing even if the code is complied
+>> with CONFIG_DEBUG_PAGEALLOC. This patch changes the code to query
+>> whether it is enabled or not in runtime.
 >>
->> Although we have no way to skip this pageblock check in the system
->> where hole exists at arbitrary position, we can use cached value for
->> zone continuity and just do pfn_to_page() in the system where hole doesn't
->> exist. This optimization considerably speeds up in above workload.
->>
->> Before vs After
->> Max: 1096 MB/s vs 1325 MB/s
->> Min: 635 MB/s 1015 MB/s
->> Avg: 899 MB/s 1194 MB/s
->>
->> Avg is improved by roughly 30% [2].
->>
->> [1]: http://www.spinics.net/lists/linux-mm/msg97378.html
->> [2]: https://lkml.org/lkml/2015/12/9/23
->>
->> ...
->>
->> --- a/include/linux/memory_hotplug.h
->> +++ b/include/linux/memory_hotplug.h
->> @@ -196,6 +196,9 @@ void put_online_mems(void);
->>  void mem_hotplug_begin(void);
->>  void mem_hotplug_done(void);
->>
->> +extern void set_zone_contiguous(struct zone *zone);
->> +extern void clear_zone_contiguous(struct zone *zone);
->> +
->>  #else /* ! CONFIG_MEMORY_HOTPLUG */
->>  /*
->>   * Stub functions for when hotplug is off
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
-> Was it really intended that these declarations only exist if
-> CONFIG_MEMORY_HOTPLUG?  Seems unrelated.
+> I think the comment immediately before this code referencing
+> CONFIG_DEBUG_PAGEALLOC should be changed to refer to pagealloc debugging
+> being enabled.
 
-These are called for caching memory layout whether it is contiguous
-or not. So, they are always called in memory initialization. Then,
-hotplug could change memory layout so they should be called
-there, too. So, they are defined in page_alloc.c and exported only
-if CONFIG_MEMORY_HOTPLUG.
+Andrew kindly did it. Thanks, Andrew.
 
-> The i386 allnocofnig build fails in preditable ways so I fixed that up
-> as below, but it seems wrong.
+> After that:
+>
+>         Acked-by: David Rientjes <rientjes@google.com>
 
-Yeah, it seems wrong to me. :)
-Here goes fix.
+Thanks.
 
------------>8------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
