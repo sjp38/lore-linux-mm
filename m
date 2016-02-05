@@ -1,76 +1,383 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B65A4403D8
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 07:02:12 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p63so23379384wmp.1
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 04:02:12 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dh8si13939941wjb.102.2016.02.05.04.02.11
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 613B64403D8
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 08:22:48 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id cy9so34289651pac.0
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 05:22:48 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id sb2si23935495pac.161.2016.02.05.05.22.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 05 Feb 2016 04:02:11 -0800 (PST)
-Subject: Re: [PATCH] mm, hugetlb: don't require CMA for runtime gigantic pages
-References: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
- <20160204060221.GA14877@js1304-P5Q-DELUXE> <56B31A31.3070406@suse.cz>
- <56B324D4.6030703@suse.cz> <20160205001459.GA24412@node.shutemov.name>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56B48F40.1060205@suse.cz>
-Date: Fri, 5 Feb 2016 13:02:08 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Feb 2016 05:22:47 -0800 (PST)
+Date: Fri, 5 Feb 2016 16:22:32 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCHv4] mm: slab: shutdown caches only after releasing sysfs
+ file
+Message-ID: <20160205132232.GD29522@esperanza>
+References: <1454603988-24856-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20160205001459.GA24412@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1454603988-24856-1-git-send-email-dsafonov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com
 
-On 02/05/2016 01:14 AM, Kirill A. Shutemov wrote:
->>  include/linux/gfp.h | 6 +++---
->>  mm/hugetlb.c        | 2 +-
->>  mm/page_alloc.c     | 2 +-
->>  3 files changed, 5 insertions(+), 5 deletions(-)
-> 
-> One more place missed: gigantic_pages_init() in arch/x86/mm/hugetlbpage.c
-> Could you relax the check there as well?
+On Thu, Feb 04, 2016 at 07:39:48PM +0300, Dmitry Safonov wrote:
+...
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index b7e57927..a6bf41a 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -103,9 +103,10 @@ struct kmem_cache {
+>  
+>  #ifdef CONFIG_SYSFS
+>  #define SLAB_SUPPORTS_SYSFS
+> -void sysfs_slab_remove(struct kmem_cache *);
+> +int sysfs_slab_remove(struct kmem_cache *);
+> +void sysfs_slab_remove_cancel(struct kmem_cache *s);
+>  #else
+> -static inline void sysfs_slab_remove(struct kmem_cache *s)
+> +void sysfs_slab_remove_cancel(struct kmem_cache *s)
+>  {
+>  }
+>  #endif
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 834ad24..ec87600 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -141,7 +141,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+>  
+>  int __kmem_cache_shutdown(struct kmem_cache *);
+>  int __kmem_cache_shrink(struct kmem_cache *, bool);
+> -void slab_kmem_cache_release(struct kmem_cache *);
+> +int slab_kmem_cache_release(struct kmem_cache *);
+>  
+>  struct seq_file;
+>  struct file;
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index b50aef0..3ad3d22 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -448,33 +448,58 @@ out_unlock:
+>  }
+>  EXPORT_SYMBOL(kmem_cache_create);
+>  
+> -static int shutdown_cache(struct kmem_cache *s,
+> +static void prepare_caches_release(struct kmem_cache *s,
+>  		struct list_head *release, bool *need_rcu_barrier)
+>  {
+> -	if (__kmem_cache_shutdown(s) != 0)
+> -		return -EBUSY;
+> -
+>  	if (s->flags & SLAB_DESTROY_BY_RCU)
+>  		*need_rcu_barrier = true;
+>  
+>  	list_move(&s->list, release);
+> -	return 0;
+>  }
+>  
+> -static void release_caches(struct list_head *release, bool need_rcu_barrier)
+> +#ifdef SLAB_SUPPORTS_SYSFS
+> +#define release_one_cache sysfs_slab_remove
+> +#else
+> +#define release_one_cache slab_kmem_cache_release
+> +#endif
+> +
+> +static int release_caches_type(struct list_head *release, bool children)
+>  {
+>  	struct kmem_cache *s, *s2;
+> +	int ret = 0;
+>  
+> +	list_for_each_entry_safe(s, s2, release, list) {
+> +		if (is_root_cache(s) == children)
+> +			continue;
+> +
+> +		ret += release_one_cache(s);
+> +	}
+> +	return ret;
+> +}
+> +
+> +static void release_caches(struct list_head *release, bool need_rcu_barrier)
+> +{
+>  	if (need_rcu_barrier)
+>  		rcu_barrier();
 
-Crap, thanks. This file was hidden in different commit and didn't cause
-compilation failure. Patch below, tested that 1gb pages are available
-with COMPACTION+ISOLATION.
+You must issue an rcu barrier before freeing kmem_cache structure, not
+before issuing __kmem_cache_shutdown. Otherwise a slab freed by
+__kmem_cache_shutdown might hit use-after-free bug.
 
-----8<----
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Fri, 5 Feb 2016 10:59:38 +0100
-Subject: [PATCH 2/2] 
- mm-hugetlb-dont-require-cma-for-runtime-gigantic-pages-fix2
+>  
+> -	list_for_each_entry_safe(s, s2, release, list) {
+> -#ifdef SLAB_SUPPORTS_SYSFS
+> -		sysfs_slab_remove(s);
+> -#else
+> -		slab_kmem_cache_release(s);
+> -#endif
+> -	}
+> +	/* remove children in the first place, remove root on success */
+> +	if (!release_caches_type(release, true))
+> +		release_caches_type(release, false);
+> +}
+> +
+> +static void release_cache_cancel(struct kmem_cache *s)
+> +{
+> +	sysfs_slab_remove_cancel(s);
+> +
+> +	get_online_cpus();
+> +	get_online_mems();
 
-Update also arch-specific code as Kirill pointed out.
+What's point taking these locks when you just want to add a cache to the
+slab_list?
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- arch/x86/mm/hugetlbpage.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Besides, if cpu/mem hotplug happens *between* prepare_cache_release and
+release_cache_cancel we'll get a cache on the list with not all per
+node/cpu structures allocated.
 
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 42982b26e32b..740d7ac03a55 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -173,10 +173,10 @@ static __init int setup_hugepagesz(char *opt)
- }
- __setup("hugepagesz=", setup_hugepagesz);
- 
--#ifdef CONFIG_CMA
-+#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
- static __init int gigantic_pages_init(void)
- {
--	/* With CMA we can allocate gigantic pages at runtime */
-+	/* With compaction or CMA we can allocate gigantic pages at runtime */
- 	if (cpu_has_gbpages && !size_to_hstate(1UL << PUD_SHIFT))
- 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
- 	return 0;
--- 
-2.7.0
+> +	mutex_lock(&slab_mutex);
+> +
+> +	list_move(&s->list, &slab_caches);
+> +
+> +	mutex_unlock(&slab_mutex);
+> +	put_online_mems();
+> +	put_online_cpus();
+>  }
+>  
+>  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> @@ -589,16 +614,14 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
+>  	put_online_cpus();
+>  }
+>  
+> -static int __shutdown_memcg_cache(struct kmem_cache *s,
+> +static void prepare_memcg_empty_caches(struct kmem_cache *s,
+>  		struct list_head *release, bool *need_rcu_barrier)
+>  {
+>  	BUG_ON(is_root_cache(s));
+>  
+> -	if (shutdown_cache(s, release, need_rcu_barrier))
+> -		return -EBUSY;
+> +	prepare_caches_release(s, release, need_rcu_barrier);
+>  
+> -	list_del(&s->memcg_params.list);
+> -	return 0;
+> +	list_del_init(&s->memcg_params.list);
 
+AFAICS if kmem_cache_destroy fails, you don't add per-memcg cache back
+to the list. Not good.
+
+>  }
+>  
+>  void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+> @@ -614,11 +637,12 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+>  	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>  		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
+>  			continue;
+> +
+>  		/*
+>  		 * The cgroup is about to be freed and therefore has no charges
+>  		 * left. Hence, all its caches must be empty by now.
+>  		 */
+> -		BUG_ON(__shutdown_memcg_cache(s, &release, &need_rcu_barrier));
+
+It was a nice little check if everything works fine on memcg side. And
+you wiped it out. Sad.
+
+> +		prepare_memcg_empty_caches(s, &release, &need_rcu_barrier);
+>  	}
+>  	mutex_unlock(&slab_mutex);
+>  
+> @@ -628,81 +652,53 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+>  	release_caches(&release, need_rcu_barrier);
+>  }
+>  
+> -static int shutdown_memcg_caches(struct kmem_cache *s,
+> +static void prepare_memcg_filled_caches(struct kmem_cache *s,
+>  		struct list_head *release, bool *need_rcu_barrier)
+>  {
+>  	struct memcg_cache_array *arr;
+>  	struct kmem_cache *c, *c2;
+> -	LIST_HEAD(busy);
+> -	int i;
+>  
+>  	BUG_ON(!is_root_cache(s));
+>  
+> -	/*
+> -	 * First, shutdown active caches, i.e. caches that belong to online
+> -	 * memory cgroups.
+> -	 */
+
+>  	arr = rcu_dereference_protected(s->memcg_params.memcg_caches,
+>  					lockdep_is_held(&slab_mutex));
+
+And now what's that for?
+
+> -	for_each_memcg_cache_index(i) {
+> -		c = arr->entries[i];
+> -		if (!c)
+> -			continue;
+> -		if (__shutdown_memcg_cache(c, release, need_rcu_barrier))
+> -			/*
+> -			 * The cache still has objects. Move it to a temporary
+> -			 * list so as not to try to destroy it for a second
+> -			 * time while iterating over inactive caches below.
+> -			 */
+> -			list_move(&c->memcg_params.list, &busy);
+> -		else
+> -			/*
+> -			 * The cache is empty and will be destroyed soon. Clear
+> -			 * the pointer to it in the memcg_caches array so that
+> -			 * it will never be accessed even if the root cache
+> -			 * stays alive.
+> -			 */
+> -			arr->entries[i] = NULL;
+
+So you don't clean arr->entries on global cache destruction. If we fail
+to destroy a cache, this will result in use-after-free when the global
+cache gets reused.
+
+> -	}
+>  
+> -	/*
+> -	 * Second, shutdown all caches left from memory cgroups that are now
+> -	 * offline.
+> -	 */
+> +	/* move children caches to release list */
+>  	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
+>  				 memcg_params.list)
+> -		__shutdown_memcg_cache(c, release, need_rcu_barrier);
+> -
+> -	list_splice(&busy, &s->memcg_params.list);
+> +		prepare_caches_release(c, release, need_rcu_barrier);
+>  
+> -	/*
+> -	 * A cache being destroyed must be empty. In particular, this means
+> -	 * that all per memcg caches attached to it must be empty too.
+> -	 */
+> -	if (!list_empty(&s->memcg_params.list))
+> -		return -EBUSY;
+> -	return 0;
+> +	/* root cache to the same place */
+> +	prepare_caches_release(s, release, need_rcu_barrier);
+>  }
+> +
+>  #else
+> -static inline int shutdown_memcg_caches(struct kmem_cache *s,
+> -		struct list_head *release, bool *need_rcu_barrier)
+> -{
+> -	return 0;
+> -}
+> +#define prepare_memcg_filled_caches prepare_caches_release
+>  #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+>  
+> -void slab_kmem_cache_release(struct kmem_cache *s)
+> +int slab_kmem_cache_release(struct kmem_cache *s)
+>  {
+> +	if (__kmem_cache_shutdown(s)) {
+> +		WARN(1, "release slub cache %s failed: it still has objects\n",
+> +			s->name);
+> +		release_cache_cancel(s);
+> +		return 1;
+> +	}
+> +
+> +#ifdef CONFIG_MEMCG
+> +	list_del(&s->memcg_params.list);
+> +#endif
+> +
+>  	destroy_memcg_params(s);
+>  	kfree_const(s->name);
+>  	kmem_cache_free(kmem_cache, s);
+> +	return 0;
+>  }
+>  
+>  void kmem_cache_destroy(struct kmem_cache *s)
+>  {
+>  	LIST_HEAD(release);
+>  	bool need_rcu_barrier = false;
+> -	int err;
+>  
+>  	if (unlikely(!s))
+>  		return;
+> @@ -716,15 +712,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
+>  	if (s->refcount)
+>  		goto out_unlock;
+>  
+> -	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
+> -	if (!err)
+> -		err = shutdown_cache(s, &release, &need_rcu_barrier);
+> +	prepare_memcg_filled_caches(s, &release, &need_rcu_barrier);
+>  
+> -	if (err) {
+> -		pr_err("kmem_cache_destroy %s: "
+> -		       "Slab cache still has objects\n", s->name);
+> -		dump_stack();
+> -	}
+>  out_unlock:
+>  	mutex_unlock(&slab_mutex);
+>  
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2e1355a..373aa6d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5429,14 +5429,14 @@ out_del_kobj:
+>  	goto out;
+>  }
+>  
+> -void sysfs_slab_remove(struct kmem_cache *s)
+> +int sysfs_slab_remove(struct kmem_cache *s)
+>  {
+>  	if (slab_state < FULL)
+>  		/*
+>  		 * Sysfs has not been setup yet so no need to remove the
+>  		 * cache from sysfs.
+>  		 */
+> -		return;
+> +		return 0;
+>  
+>  #ifdef CONFIG_MEMCG
+>  	kset_unregister(s->memcg_kset);
+> @@ -5444,6 +5444,24 @@ void sysfs_slab_remove(struct kmem_cache *s)
+>  	kobject_uevent(&s->kobj, KOBJ_REMOVE);
+>  	kobject_del(&s->kobj);
+>  	kobject_put(&s->kobj);
+> +	return 0;
+> +}
+> +
+> +void sysfs_slab_remove_cancel(struct kmem_cache *s)
+> +{
+> +	int ret;
+> +
+> +	if (slab_state < FULL)
+> +		return;
+> +
+> +	/* tricky */
+
+What purpose is this comment supposed to serve for?
+
+> +	kobject_get(&s->kobj);
+> +	ret = kobject_add(&s->kobj, NULL, "%s", s->name);
+
+ret is not used.
+
+> +	kobject_uevent(&s->kobj, KOBJ_ADD);
+> +
+> +#ifdef CONFIG_MEMCG
+> +	s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
+> +#endif
+
+For per-memcg cache we must not create memcg_kset.
+
+And what if any of these functions fail? I don't think that silently
+ignoring failures is good.
+
+Anyway, I really don't like how this patch approaches the problem. AFAIU
+we only want to postpone kmem_cache_node free until sysfs file is
+destroyed. Can't we just move the code freeing kmem_cache_node to a
+separate function which will be called from sysfs release instead of
+messing things up?
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
