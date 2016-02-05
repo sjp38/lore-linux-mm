@@ -1,226 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AECEA440441
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 12:04:58 -0500 (EST)
-Received: by mail-oi0-f46.google.com with SMTP id s2so45232462oie.2
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 09:04:58 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id d1si5207705oeo.79.2016.02.05.09.04.57
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A0F746B026B
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 12:17:09 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id n128so71330181pfn.3
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 09:17:09 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id i68si25000622pfi.222.2016.02.05.09.17.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Feb 2016 09:04:57 -0800 (PST)
-Received: by mail-oi0-x22a.google.com with SMTP id j125so44836656oih.0
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 09:04:57 -0800 (PST)
+        Fri, 05 Feb 2016 09:17:08 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCH] mm: slab: free kmem_cache_node after destroy sysfs file
+Date: Fri, 5 Feb 2016 20:16:52 +0300
+Message-ID: <1454692612-14856-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20160205103248.GA5210@techsingularity.net>
-References: <1454571612-9486-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<20160205103248.GA5210@techsingularity.net>
-Date: Sat, 6 Feb 2016 02:04:57 +0900
-Message-ID: <CAAmzW4N-dg6h+nT7bMavAyxzmvF1M5mY+MmfPen327zY6rzKEQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/slab: re-implement pfmemalloc support
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, vdavydov@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2016-02-05 19:33 GMT+09:00 Mel Gorman <mgorman@techsingularity.net>:
-> On Thu, Feb 04, 2016 at 04:40:12PM +0900, Joonsoo Kim wrote:
->> Current implementation of pfmemalloc handling in SLAB has some problems.
->>
->> 1) pfmemalloc_active is set to true when there is just one or more
->> pfmemalloc slabs in the system, but it is cleared when there is
->> no pfmemalloc slab in one arbitrary kmem_cache. So, pfmemalloc_active
->> could be wrongly cleared.
->>
->
-> Ok.
->
->> 2) Search to partial and free list doesn't happen when non-pfmemalloc
->> object are not found in cpu cache. Instead, allocating new slab happens
->> and it is not optimal.
->>
->
-> It was intended to be conservative on the use of slabs that are
-> potentially pfmemalloc.
->
->> 3) Even after sk_memalloc_socks() is disabled, cpu cache would keep
->> pfmemalloc objects tagged with SLAB_OBJ_PFMEMALLOC. It isn't cleared if
->> sk_memalloc_socks() is disabled so it could cause problem.
->>
->
-> Ok.
->
->> 4) If cpu cache is filled with pfmemalloc objects, it would cause slow
->> down non-pfmemalloc allocation.
->>
->
-> It may slow down non-pfmemalloc allocations but the alternative is
-> potentially livelocking the system if it cannot allocate the memory it
-> needs to swap over the network. It was expected that a system that really
-> wants to swap over the network is not going to be worried about slowdowns
-> when it happens.
+With enabled slub_debug alloc_calls_show will try to track location and
+user of slab object on each online node, kmem_cache_node structure and
+cpu_cache/cpu_slub shouldn't be freed till there is the last reference
+to sysfs file.
 
-Okay.
+Fixes the following panic:
+[43963.463055] BUG: unable to handle kernel
+[43963.463090] NULL pointer dereference at 0000000000000020
+[43963.463146] IP: [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.463185] PGD 257304067 PUD 438456067 PMD 0
+[43963.463220] Oops: 0000 [#1] SMP
+[43963.463850] CPU: 3 PID: 973074 Comm: cat ve: 0 Not tainted 3.10.0-229.7.2.ovz.9.30-00007-japdoll-dirty #2 9.30
+[43963.463913] Hardware name: DEPO Computers To Be Filled By O.E.M./H67DE3, BIOS L1.60c 07/14/2011
+[43963.463976] task: ffff88042a5dc5b0 ti: ffff88037f8d8000 task.ti: ffff88037f8d8000
+[43963.464036] RIP: 0010:[<ffffffff811c6959>]  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.464725] Call Trace:
+[43963.464756]  [<ffffffff811c6d1d>] alloc_calls_show+0x1d/0x30
+[43963.464793]  [<ffffffff811c15ab>] slab_attr_show+0x1b/0x30
+[43963.464829]  [<ffffffff8125d27a>] sysfs_read_file+0x9a/0x1a0
+[43963.464865]  [<ffffffff811e3c6c>] vfs_read+0x9c/0x170
+[43963.464900]  [<ffffffff811e4798>] SyS_read+0x58/0xb0
+[43963.464936]  [<ffffffff81612d49>] system_call_fastpath+0x16/0x1b
+[43963.464970] Code: 5e 07 12 00 b9 00 04 00 00 3d 00 04 00 00 0f 4f c1 3d 00 04 00 00 89 45 b0 0f 84 c3 00 00 00 48 63 45 b0 49 8b 9c c4 f8 00 00 00 <48> 8b 43 20 48 85 c0 74 b6 48 89 df e8 46 37 44 00 48 8b 53 10
+[43963.465119] RIP  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.465155]  RSP <ffff88037f8dbe28>
+[43963.465185] CR2: 0000000000000020
 
->> To me, current pointer tagging approach looks complex and fragile
->> so this patch re-implement whole thing instead of fixing problems
->> one by one.
->>
->> Design principle for new implementation is that
->>
->> 1) Don't disrupt non-pfmemalloc allocation in fast path even if
->> sk_memalloc_socks() is enabled. It's more likely case than pfmemalloc
->> allocation.
->>
->> 2) Ensure that pfmemalloc slab is used only for pfmemalloc allocation.
->>
->> 3) Don't consider performance of pfmemalloc allocation in memory
->> deficiency state.
->>
->> As a result, all pfmemalloc alloc/free in memory tight state will
->> be handled in slow-path. If there is non-pfmemalloc free object,
->> it will be returned first even for pfmemalloc user in fast-path so that
->> performance of pfmemalloc user isn't affected in normal case and
->> pfmemalloc objects will be kept as long as possible.
->>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Just out of curiousity, is there any measurable impact to this patch? It
-> seems that it only has an impact when swap over network is used.
+Separated nodes structures and per-cpu freeing into __kmem_cache_release
+and use it at kmem_cache_release.
 
-No, I didn't measure that.
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Suggested-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+v2: Down with SLAB_SUPPORTS_SYSFS thing.                                         
+v3: Moved sysfs_slab_remove inside shutdown_cache                                
+v4: Reworked all to shutdown & free caches on object->release()
+v5: Made separate __kmem_cache_free_nodes function and call it on release.
+v6: Fixed silly error: call to __kmem_cache_free_nodes from kmem_cache_close
+v7: by Vladimir's suggestion renamed __kmem_cache_{free_nodes,_release}
+    and put inside per-cpu freeing of cpu_slub, cpu_cache,
+    renamed kmem_cache_close to __kmem_cache_release as it's inline functon
 
->> ---
->>  mm/slab.c | 285 ++++++++++++++++++++++++++------------------------------------
->>  1 file changed, 118 insertions(+), 167 deletions(-)
->>
->> Hello, Mel.
->>
->> May I ask you to review the patch and test it on your swap over nbd setup
->> in order to check that it has no regression? For me, it's not easy
->> to setup this environment.
->>
->
-> Unfortunately I do not have that setup available at this time as the
-> machine that co-ordinated it has died. It's on my todo list to setup a
-> replacement for it but it will take time.
+ mm/slab.c        | 11 ++++++++---
+ mm/slab.h        |  1 +
+ mm/slab_common.c |  1 +
+ mm/slob.c        |  4 ++++
+ mm/slub.c        | 26 +++++++++++---------------
+ 5 files changed, 25 insertions(+), 18 deletions(-)
 
-Okay.
-
-> As a general approach, I like what you did. The pfmemalloc slabs may be
-> slower to manage but that is not a concern because someone concerned with
-> the performance of swap over network needs their head examined.  However,
-> it needs testing because I think there is at least one leak in there.
-
-Okay.
-
->> <SNIP>
->>
->> @@ -2820,7 +2695,46 @@ static inline void fixup_slab_list(struct kmem_cache *cachep,
->>               list_add(&page->lru, &n->slabs_partial);
->>  }
->>
->> -static struct page *get_first_slab(struct kmem_cache_node *n)
->> +/* Try to find non-pfmemalloc slab if needed */
->> +static noinline struct page *get_valid_first_slab(struct kmem_cache_node *n,
->> +                                     struct page *page, bool pfmemalloc)
->> +{
->> +     if (!page)
->> +             return NULL;
->> +
->> +     if (pfmemalloc)
->> +             return page;
->> +
->> +     if (!PageSlabPfmemalloc(page))
->> +             return page;
->> +
->> +     /* No need to keep pfmemalloc slab if we have enough free objects */
->> +     if (n->free_objects > n->free_limit) {
->> +             ClearPageSlabPfmemalloc(page);
->> +             return page;
->> +     }
->> +
->
-> This seems a bit arbitrary. It's not known in advance how much memory
-> will be needed by the network but if PageSlabPfmemalloc is set, then at
-> least that much was needed in the past. I don't see what the
-> relationship is betwewen n->free_limit and the memory requirements for
-> swapping over a network.
-
-n->free_limit is the criteria that we decide to keep a frees slab or free it to
-page allocator. Over this number imply that we cache too much memory so
-we don't need to keep pfmemalloc memory, too. *Used* pfmemalloc memory
-could grow over this number sometimes, but, it doesn't mean that we need to
-keep that much *free* memory continuously. Pfmemalloc memory can only be
-used by pfmemalloc user so it will be in cache too long. Clearing it
-and using it
-by non-pfmemalloc user in this enough free memory situation will help
-not to cache too much memory.
-
->> +     /* Move pfmemalloc slab to the end of list to speed up next search */
->> +     list_del(&page->lru);
->> +     if (!page->active)
->> +             list_add_tail(&page->lru, &n->slabs_free);
->> +     else
->> +             list_add_tail(&page->lru, &n->slabs_partial);
->> +
->
-> Potentially this is a premature optimisation. We really don't care about
-> the performance of swap over network as long as it works.
-
-Why premature? This case only happens, there are some pfmemalloc slab
-and some non-pfmemalloc slab. Moving pfmemalloc slab to the end of list will
-help to use non-pfmemalloc slab first and to find it quickly.
-
->> -static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags,
->> -                                                     bool force_refill)
->> +static noinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
->> +                             struct kmem_cache_node *n, gfp_t flags)
->> +{
->> +     struct page *page;
->> +     void *obj;
->> +     void *list = NULL;
->> +
->> +     if (!gfp_pfmemalloc_allowed(flags))
->> +             return NULL;
->> +
->> +     /* Racy check if there is free objects */
->> +     if (!n->free_objects)
->> +             return NULL;
->> +
->
-> Yes, it's racy. Just take the lock and check it. Sure there may be
-> contention but being slow is ok in this particular case.
-
-Okay.
-
->> @@ -3407,7 +3353,12 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
->>               cache_flusharray(cachep, ac);
->>       }
->>
->> -     ac_put_obj(cachep, ac, objp);
->> +     if (sk_memalloc_socks()) {
->> +             cache_free_pfmemalloc(cachep, objp);
->> +             return;
->> +     }
->> +
->> +     ac->entry[ac->avail++] = objp;
->
-> cache_free_pfmemalloc() only handles PageSlabPfmemalloc() pages so it
-> appears this thing is leaking objects on !PageSlabPfmemalloc pages.
-> Either cache_free_pfmemalloc needs update ac->entry or it needs to
-> return bool to indicate whether __cache_free needs to handle it.
-
-Oops... I will fix it.
-
-> I'll look into setting up some sort of test rig in case a v2 comes
-> along.
-
-Thanks for detailed review and trying to rig test machine.
-
-Thanks.
+diff --git a/mm/slab.c b/mm/slab.c
+index 6ecc697..41176dd 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2414,13 +2414,19 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	int i;
+-	struct kmem_cache_node *n;
+ 	int rc = __kmem_cache_shrink(cachep, false);
+ 
+ 	if (rc)
+ 		return rc;
+ 
++	return 0;
++}
++
++void __kmem_cache_release(struct kmem_cache *cachep)
++{
++	int i;
++	struct kmem_cache_node *n;
++
+ 	free_percpu(cachep->cpu_cache);
+ 
+ 	/* NUMA: free the node structures */
+@@ -2430,7 +2436,6 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ 		kfree(n);
+ 		cachep->node[i] = NULL;
+ 	}
+-	return 0;
+ }
+ 
+ /*
+diff --git a/mm/slab.h b/mm/slab.h
+index 834ad24..2eedace 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -140,6 +140,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+ #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *);
++void __kmem_cache_release(struct kmem_cache *);
+ int __kmem_cache_shrink(struct kmem_cache *, bool);
+ void slab_kmem_cache_release(struct kmem_cache *);
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index b50aef0..065b7bd 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -693,6 +693,7 @@ static inline int shutdown_memcg_caches(struct kmem_cache *s,
+ 
+ void slab_kmem_cache_release(struct kmem_cache *s)
+ {
++	__kmem_cache_release(s);
+ 	destroy_memcg_params(s);
+ 	kfree_const(s->name);
+ 	kmem_cache_free(kmem_cache, s);
+diff --git a/mm/slob.c b/mm/slob.c
+index 17e8f8c..5ec1580 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -630,6 +630,10 @@ int __kmem_cache_shutdown(struct kmem_cache *c)
+ 	return 0;
+ }
+ 
++void __kmem_cache_release(struct kmem_cache *c)
++{
++}
++
+ int __kmem_cache_shrink(struct kmem_cache *d, bool deactivate)
+ {
+ 	return 0;
+diff --git a/mm/slub.c b/mm/slub.c
+index 2e1355a..ce21ce2 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3173,11 +3173,12 @@ static void early_kmem_cache_node_alloc(int node)
+ 	__add_partial(n, page, DEACTIVATE_TO_HEAD);
+ }
+ 
+-static void free_kmem_cache_nodes(struct kmem_cache *s)
++void __kmem_cache_release(struct kmem_cache *s)
+ {
+ 	int node;
+ 	struct kmem_cache_node *n;
+ 
++	free_percpu(s->cpu_slab);
+ 	for_each_kmem_cache_node(s, node, n) {
+ 		kmem_cache_free(kmem_cache_node, n);
+ 		s->node[node] = NULL;
+@@ -3199,7 +3200,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
+ 						GFP_KERNEL, node);
+ 
+ 		if (!n) {
+-			free_kmem_cache_nodes(s);
++			__kmem_cache_release(s);
+ 			return 0;
+ 		}
+ 
+@@ -3405,7 +3406,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ 	if (alloc_kmem_cache_cpus(s))
+ 		return 0;
+ 
+-	free_kmem_cache_nodes(s);
++	__kmem_cache_release(s);
+ error:
+ 	if (flags & SLAB_PANIC)
+ 		panic("Cannot create slab %s size=%lu realsize=%u "
+@@ -3443,7 +3444,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ 
+ /*
+  * Attempt to free all partial slabs on a node.
+- * This is called from kmem_cache_close(). We must be the last thread
++ * This is called from __kmem_cache_shutdown(). We must be the last thread
+  * using the cache and therefore we do not need to lock anymore.
+  */
+ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+@@ -3456,7 +3457,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ 			discard_slab(s, page);
+ 		} else {
+ 			list_slab_objects(s, page,
+-			"Objects remaining in %s on kmem_cache_close()");
++			"Objects remaining in %s on __kmem_cache_shutdown()");
+ 		}
+ 	}
+ }
+@@ -3464,7 +3465,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ /*
+  * Release all resources used by a slab cache.
+  */
+-static inline int kmem_cache_close(struct kmem_cache *s)
++int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+ 	int node;
+ 	struct kmem_cache_node *n;
+@@ -3476,16 +3477,9 @@ static inline int kmem_cache_close(struct kmem_cache *s)
+ 		if (n->nr_partial || slabs_node(s, node))
+ 			return 1;
+ 	}
+-	free_percpu(s->cpu_slab);
+-	free_kmem_cache_nodes(s);
+ 	return 0;
+ }
+ 
+-int __kmem_cache_shutdown(struct kmem_cache *s)
+-{
+-	return kmem_cache_close(s);
+-}
+-
+ /********************************************************************
+  *		Kmalloc subsystem
+  *******************************************************************/
+@@ -3979,8 +3973,10 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
+ 
+ 	memcg_propagate_slab_attrs(s);
+ 	err = sysfs_slab_add(s);
+-	if (err)
+-		kmem_cache_close(s);
++	if (err) {
++		__kmem_cache_shutdown(s);
++		__kmem_cache_release(s);
++	}
+ 
+ 	return err;
+ }
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
