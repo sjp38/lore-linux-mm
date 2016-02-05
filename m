@@ -1,111 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F144403D8
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 18:59:02 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id g62so5304106wme.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 15:59:02 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 89E124403D8
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2016 19:15:02 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id g62so5664149wme.0
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 16:15:02 -0800 (PST)
 Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id c133si10470294wmf.44.2016.02.04.15.59.01
+        by mx.google.com with ESMTPS id vn10si20812070wjc.166.2016.02.04.16.15.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Feb 2016 15:59:01 -0800 (PST)
-Received: by mail-wm0-x230.google.com with SMTP id g62so27249137wme.0
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 15:59:01 -0800 (PST)
-Date: Fri, 5 Feb 2016 01:58:58 +0200
+        Thu, 04 Feb 2016 16:15:01 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id p63so5579360wmp.1
+        for <linux-mm@kvack.org>; Thu, 04 Feb 2016 16:15:01 -0800 (PST)
+Date: Fri, 5 Feb 2016 02:14:59 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/4] thp: rewrite freeze_page()/unfreeze_page() with
- generic rmap walkers
-Message-ID: <20160204235858.GA24336@node.shutemov.name>
-References: <1454512459-94334-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1454512459-94334-5-git-send-email-kirill.shutemov@linux.intel.com>
- <56B21FC9.9040009@intel.com>
+Subject: Re: [PATCH] mm, hugetlb: don't require CMA for runtime gigantic pages
+Message-ID: <20160205001459.GA24412@node.shutemov.name>
+References: <1454521811-11409-1-git-send-email-vbabka@suse.cz>
+ <20160204060221.GA14877@js1304-P5Q-DELUXE>
+ <56B31A31.3070406@suse.cz>
+ <56B324D4.6030703@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <56B21FC9.9040009@intel.com>
+In-Reply-To: <56B324D4.6030703@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Wed, Feb 03, 2016 at 07:42:01AM -0800, Dave Hansen wrote:
-> On 02/03/2016 07:14 AM, Kirill A. Shutemov wrote:
-> > But the new variant is somewhat slower. Current helpers iterates over
-> > VMAs the compound page is mapped to, and then over ptes within this VMA.
-> > New helpers iterates over small page, then over VMA the small page
-> > mapped to, and only then find relevant pte.
+On Thu, Feb 04, 2016 at 11:15:48AM +0100, Vlastimil Babka wrote:
+> On 02/04/2016 10:30 AM, Vlastimil Babka wrote:
+> > On 02/04/2016 07:02 AM, Joonsoo Kim wrote:
+> >> On Wed, Feb 03, 2016 at 06:50:11PM +0100, Vlastimil Babka wrote:
+> >>> Commit 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at
+> >>> runtime") has added the runtime gigantic page allocation via
+> >>> alloc_contig_range(), making this support available only when CONFIG_CMA is
+> >>> enabled. Because it doesn't depend on MIGRATE_CMA pageblocks and the
+> >>> associated infrastructure, it is possible with few simple adjustments to
+> >>> require only CONFIG_MEMORY_ISOLATION instead of full CONFIG_CMA.
+> >>>
+> >>> After this patch, alloc_contig_range() and related functions are available
+> >>> and used for gigantic pages with just CONFIG_MEMORY_ISOLATION enabled. Note
+> >>> CONFIG_CMA selects CONFIG_MEMORY_ISOLATION. This allows supporting runtime
+> >>> gigantic pages without the CMA-specific checks in page allocator fastpaths.
+> >>
+> >> You need to set CONFIG_COMPACTION or CONFIG_CMA to use
+> >> isolate_migratepages_range() and others in alloc_contig_range().
+> > 
+> > Hm, right, thanks for catching this. I admit I didn't try disabling
+> > compaction during the tests.
 > 
-> The code simplification here is really attractive.  Can you quantify
-> what the slowdown is?  Is it noticeable, or would it be in the noise
-> during all the other stuff that happens under memory pressure?
+> Here's a v2. Not the prettiest thing, admittedly.
+> 
+> ----8<----
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Wed, 3 Feb 2016 17:45:26 +0100
+> Subject: [PATCH v2] mm, hugetlb: don't require CMA for runtime gigantic pages
+> 
+> Commit 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at
+> runtime") has added the runtime gigantic page allocation via
+> alloc_contig_range(), making this support available only when CONFIG_CMA is
+> enabled. Because it doesn't depend on MIGRATE_CMA pageblocks and the
+> associated infrastructure, it is possible with few simple adjustments to
+> require only CONFIG_MEMORY_ISOLATION and CONFIG_COMPACTION instead of full
+> CONFIG_CMA.
+> 
+> After this patch, alloc_contig_range() and related functions are available
+> and used for gigantic pages with just CONFIG_MEMORY_ISOLATION and
+> CONFIG_COMPACTION enabled (or CONFIG_CMA as before). Note CONFIG_CMA selects
+> CONFIG_MEMORY_ISOLATION. This allows supporting runtime gigantic pages without
+> the CMA-specific checks in page allocator fastpaths.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Luiz Capitulino <lcapitulino@redhat.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  include/linux/gfp.h | 6 +++---
+>  mm/hugetlb.c        | 2 +-
+>  mm/page_alloc.c     | 2 +-
+>  3 files changed, 5 insertions(+), 5 deletions(-)
 
-Okay, here's more realistic scenario: migration 8GiB worth of THP.
-
-Testcase:
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <unistd.h>
-	#include <sys/mman.h>
-	#include <linux/mempolicy.h>
-	#include <numaif.h>
-
-	#define MB (1024UL * 1024)
-	#define SIZE (4 * 1024 * 2 * MB)
-	#define BASE ((void *)0x400000000000)
-
-	#include <time.h>
-
-	void timespec_diff(struct timespec *start, struct timespec *stop,
-			struct timespec *result)
-	{
-		if ((stop->tv_nsec - start->tv_nsec) < 0) {
-			result->tv_sec = stop->tv_sec - start->tv_sec - 1;
-			result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
-		} else {
-			result->tv_sec = stop->tv_sec - start->tv_sec;
-			result->tv_nsec = stop->tv_nsec - start->tv_nsec;
-		}
-	}
-
-	int main()
-	{
-		char *p;
-		unsigned long ret, node_mask;
-		struct timespec start, stop, result;
-
-		node_mask = 0b01;
-		ret = set_mempolicy(MPOL_BIND, &node_mask, 64);
-		if (ret == -1)
-			perror("set_mempolicy"), exit(1);
-		p = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
-				MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
-				-1, 0);
-		if (p == MAP_FAILED)
-			perror("mmap"), exit(1);
-
-		system("grep thp /proc/vmstat");
-		clock_gettime(CLOCK_MONOTONIC, &start);
-		node_mask = 0b10;
-		ret = mbind(p, SIZE, MPOL_BIND, &node_mask, 64, MPOL_MF_MOVE);
-		if (ret == -1)
-			perror("mbind"), exit(1);
-		clock_gettime(CLOCK_MONOTONIC, &stop);
-		system("grep thp /proc/vmstat");
-
-		timespec_diff(&start, &stop, &result);
-		printf("--------------------------\n");
-		printf("%ld.%09lds\n", result.tv_sec, result.tv_nsec);
-
-		return 0;
-	}
-
-Baseline: 25.146 +- 0.141
-Patched:  28.684 +- 0.298
-Slowdown: 1.14x
-
-Can we tolerate this?
+One more place missed: gigantic_pages_init() in arch/x86/mm/hugetlbpage.c
+Could you relax the check there as well?
 
 -- 
  Kirill A. Shutemov
