@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 97729440441
-	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 00:54:40 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id g73so150365290ioe.3
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 21:54:40 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id s205si9164845ios.148.2016.02.05.21.54.39
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D08440441
+	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 01:34:06 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p63so53622666wmp.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:34:06 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id g2si28840749wje.67.2016.02.05.22.34.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Feb 2016 21:54:39 -0800 (PST)
-Subject: Re: [PATCH 5/5] mm, oom_reaper: implement OOM victims queuing
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Feb 2016 22:34:05 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id r129so6168004wmr.0
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:34:05 -0800 (PST)
+Date: Sat, 6 Feb 2016 07:34:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/5] mm, oom_reaper: report success/failure
+Message-ID: <20160206063403.GA20537@dhcp22.suse.cz>
 References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
-	<1454505240-23446-6-git-send-email-mhocko@kernel.org>
-	<201602041949.BIG30715.QVFLFOOOHMtSFJ@I-love.SAKURA.ne.jp>
-	<20160204145357.GE14425@dhcp22.suse.cz>
-In-Reply-To: <20160204145357.GE14425@dhcp22.suse.cz>
-Message-Id: <201602061454.GDG43774.LSHtOOMFOFVJQF@I-love.SAKURA.ne.jp>
-Date: Sat, 6 Feb 2016 14:54:24 +0900
-Mime-Version: 1.0
+ <1454505240-23446-5-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1602031505210.10331@chino.kir.corp.google.com>
+ <20160204064636.GD8581@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1602041428120.29117@chino.kir.corp.google.com>
+ <20160205092640.GA5477@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160205092640.GA5477@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> > But if we consider non system-wide OOM events, it is not very unlikely to hit
-> > this race. This queue is useful for situations where memcg1 and memcg2 hit
-> > memcg OOM at the same time and victim1 in memcg1 cannot terminate immediately.
+On Fri 05-02-16 10:26:40, Michal Hocko wrote:
+[...]
+> From 402090df64de7f80d7d045b0b17e860220837fa6 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Fri, 5 Feb 2016 10:24:23 +0100
+> Subject: [PATCH] mm-oom_reaper-report-success-failure-fix
 > 
-> This can happen of course but the likelihood is _much_ smaller without
-> the global OOM because the memcg OOM killer is invoked from a lockless
-> context so the oom context cannot block the victim to proceed.
+> update the log message to be more specific
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/oom_kill.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 87d644c97ac9..ca61e6cfae52 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -479,7 +479,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
+>  		}
+>  	}
+>  	tlb_finish_mmu(&tlb, 0, -1);
+> -	pr_info("oom_reaper: reaped process :%d (%s) anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lulB\n",
+> +	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lulB\n",
 
-Suppose mem_cgroup_out_of_memory() is called from a lockless context via
-mem_cgroup_oom_synchronize() called from pagefault_out_of_memory(), that
-"lockless" is talking about only current thread, doesn't it?
+Dohh, s@lulB@ulkB@
 
-Since oom_kill_process() sets TIF_MEMDIE on first mm!=NULL thread of a
-victim process, it is possible that non-first mm!=NULL thread triggers
-pagefault_out_of_memory() and first mm!=NULL thread gets TIF_MEMDIE,
-isn't it?
+>  			task_pid_nr(tsk), tsk->comm,
+>  			K(get_mm_counter(mm, MM_ANONPAGES)),
+>  			K(get_mm_counter(mm, MM_FILEPAGES)),
+> -- 
+> 2.7.0
+> 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Then, where is the guarantee that victim1 (first mm!=NULL thread in memcg1
-which got TIF_MEMDIE) is not waiting at down_read(&victim2->mm->mmap_sem)
-when victim2 (first mm!=NULL thread in memcg2 which got TIF_MEMDIE) is
-waiting at down_write(&victim2->mm->mmap_sem) or both victim1 and victim2
-are waiting on a lock somewhere in memory reclaim path (e.g.
-mutex_lock(&inode->i_mutex))?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
