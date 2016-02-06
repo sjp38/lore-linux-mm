@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3A5440441
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 20:29:08 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id r129so48763770wmr.0
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:29:08 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id a8si1746685wmi.35.2016.02.05.17.29.07
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 349D3440441
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 20:49:50 -0500 (EST)
+Received: by mail-yk0-f175.google.com with SMTP id z13so67731151ykd.0
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:49:50 -0800 (PST)
+Received: from mail-yw0-x22c.google.com (mail-yw0-x22c.google.com. [2607:f8b0:4002:c05::22c])
+        by mx.google.com with ESMTPS id a187si6514509ywc.277.2016.02.05.17.49.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Feb 2016 17:29:07 -0800 (PST)
-Subject: [PATCH] mm: fix filemap.c kernel-doc warning
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <56B54C5E.5010208@infradead.org>
-Date: Fri, 5 Feb 2016 17:29:02 -0800
+        Fri, 05 Feb 2016 17:49:49 -0800 (PST)
+Received: by mail-yw0-x22c.google.com with SMTP id h129so66188656ywb.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:49:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1454722827-15744-1-git-send-email-toshi.kani@hpe.com>
+References: <1454722827-15744-1-git-send-email-toshi.kani@hpe.com>
+Date: Fri, 5 Feb 2016 17:49:48 -0800
+Message-ID: <CAPcyv4hAQMjAndt0YaR6Tpz93=9XHtU10mWLHvypYQmBBeuERQ@mail.gmail.com>
+Subject: Re: [PATCH] devm_memremap: Fix error value when memremap failed
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Randy Dunlap <rdunlap@infradead.org>
+On Fri, Feb 5, 2016 at 5:40 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> devm_memremap() returns an ERR_PTR() value in case of error.
+> However, it returns NULL when memremap() failed.  This causes
+> the caller, such as the pmem driver, to proceed and oops later.
+>
+> Change devm_memremap() to return ERR_PTR(-ENXIO) when memremap()
+> failed.
+>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Add missing kernel-doc notation for function parameter 'gfp_mask' to
-fix kernel-doc warning.
-
-..//mm/filemap.c:1898: warning: No description found for parameter 'gfp_mask'
-
-Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
----
- mm/filemap.c |    1 +
- 1 file changed, 1 insertion(+)
-
---- lnx-45-rc2.orig/mm/filemap.c
-+++ lnx-45-rc2/mm/filemap.c
-@@ -1890,6 +1890,7 @@ EXPORT_SYMBOL(generic_file_read_iter);
-  * page_cache_read - adds requested page to the page cache if not already there
-  * @file:	file to read
-  * @offset:	page index
-+ * @gfp_mask:	memory allocation flags
-  *
-  * This adds the requested page to the page cache if it isn't already there,
-  * and schedules an I/O to read in its contents from disk.
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
