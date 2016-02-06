@@ -1,53 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 02E43440441
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 19:47:21 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id j125so51656855oih.0
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 16:47:20 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id x3si6109889obs.70.2016.02.05.16.47.20
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B4B440441
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 20:23:05 -0500 (EST)
+Received: by mail-ob0-f177.google.com with SMTP id xk3so103752615obc.2
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:23:05 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id w184si10110776oig.131.2016.02.05.17.23.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Feb 2016 16:47:20 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH] devm_memremap: Fix error value when memremap failed
-Date: Fri,  5 Feb 2016 18:40:27 -0700
-Message-Id: <1454722827-15744-1-git-send-email-toshi.kani@hpe.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Feb 2016 17:23:04 -0800 (PST)
+Message-ID: <56B54A2C.5010407@huawei.com>
+Date: Sat, 6 Feb 2016 09:19:40 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] why the amount of cache from "free -m" and /proc/meminfo
+ are different?
+References: <56B45457.4010702@huawei.com> <56B48B2D.4020502@syse.no>
+In-Reply-To: <56B48B2D.4020502@syse.no>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: "Daniel K." <dk@syse.no>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-devm_memremap() returns an ERR_PTR() value in case of error.
-However, it returns NULL when memremap() failed.  This causes
-the caller, such as the pmem driver, to proceed and oops later.
+On 2016/2/5 19:44, Daniel K. wrote:
 
-Change devm_memremap() to return ERR_PTR(-ENXIO) when memremap()
-failed.
+> On 02/05/2016 07:50 AM, Xishi Qiu wrote:
+>> [root@localhost ~]# free -m
+>>               total        used        free      shared  buff/cache   available
+>> Mem:          48295         574       41658           8        6062       46344
+>> Swap:         24191           0       24191
+>>
+>> [root@localhost ~]# cat /proc/meminfo
+>> Buffers:               0 kB
+>> Cached:          3727824 kB
+>> Slab:            2480092 kB
+> 
+> free and meminfo seems to match up pretty well to me.
+> 
+> Are you really asking about display in MB vs kB?
+> 
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- kernel/memremap.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+Hi Daniel,
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 70ee377..3427cca 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -136,8 +136,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
- 	if (addr) {
- 		*ptr = addr;
- 		devres_add(dev, ptr);
--	} else
-+	} else {
- 		devres_free(ptr);
-+		return ERR_PTR(-ENXIO);
-+	}
- 
- 	return addr;
- }
+No, I mean "Cached: 3727824 kB" and "buff/cache 6062M" are different.
+
+Does "buff/cache" include Buffers, Cached, and Slab?
+
+Thanks,
+Xishi Qiu
+
+> Drop the -m switch to free.
+> 
+> Also, give 'man free' a spin, it explains what's behind the numbers.
+> 
+> 
+> Daniel K.
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
