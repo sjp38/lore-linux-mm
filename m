@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B4B440441
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 20:23:05 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id xk3so103752615obc.2
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:23:05 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id w184si10110776oig.131.2016.02.05.17.23.03
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Feb 2016 17:23:04 -0800 (PST)
-Message-ID: <56B54A2C.5010407@huawei.com>
-Date: Sat, 6 Feb 2016 09:19:40 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 08A59440441
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2016 20:24:35 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id yy13so42561265pab.3
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 17:24:35 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id qe4si27369375pab.195.2016.02.05.17.24.34
+        for <linux-mm@kvack.org>;
+        Fri, 05 Feb 2016 17:24:34 -0800 (PST)
+Date: Fri, 5 Feb 2016 18:24:26 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] devm_memremap: Fix error value when memremap failed
+Message-ID: <20160206012426.GA12447@linux.intel.com>
+References: <1454722827-15744-1-git-send-email-toshi.kani@hpe.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] why the amount of cache from "free -m" and /proc/meminfo
- are different?
-References: <56B45457.4010702@huawei.com> <56B48B2D.4020502@syse.no>
-In-Reply-To: <56B48B2D.4020502@syse.no>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454722827-15744-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Daniel K." <dk@syse.no>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
 
-On 2016/2/5 19:44, Daniel K. wrote:
-
-> On 02/05/2016 07:50 AM, Xishi Qiu wrote:
->> [root@localhost ~]# free -m
->>               total        used        free      shared  buff/cache   available
->> Mem:          48295         574       41658           8        6062       46344
->> Swap:         24191           0       24191
->>
->> [root@localhost ~]# cat /proc/meminfo
->> Buffers:               0 kB
->> Cached:          3727824 kB
->> Slab:            2480092 kB
+On Fri, Feb 05, 2016 at 06:40:27PM -0700, Toshi Kani wrote:
+> devm_memremap() returns an ERR_PTR() value in case of error.
+> However, it returns NULL when memremap() failed.  This causes
+> the caller, such as the pmem driver, to proceed and oops later.
 > 
-> free and meminfo seems to match up pretty well to me.
+> Change devm_memremap() to return ERR_PTR(-ENXIO) when memremap()
+> failed.
 > 
-> Are you really asking about display in MB vs kB?
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+
+Yep, good catch.
+
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+
+> ---
+>  kernel/memremap.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
-
-Hi Daniel,
-
-No, I mean "Cached: 3727824 kB" and "buff/cache 6062M" are different.
-
-Does "buff/cache" include Buffers, Cached, and Slab?
-
-Thanks,
-Xishi Qiu
-
-> Drop the -m switch to free.
-> 
-> Also, give 'man free' a spin, it explains what's behind the numbers.
-> 
-> 
-> Daniel K.
-> 
-> .
-> 
-
-
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 70ee377..3427cca 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -136,8 +136,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
+>  	if (addr) {
+>  		*ptr = addr;
+>  		devres_add(dev, ptr);
+> -	} else
+> +	} else {
+>  		devres_free(ptr);
+> +		return ERR_PTR(-ENXIO);
+> +	}
+>  
+>  	return addr;
+>  }
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
