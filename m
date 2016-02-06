@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D6D08440441
-	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 01:34:06 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p63so53622666wmp.1
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:34:06 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id g2si28840749wje.67.2016.02.05.22.34.05
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EEA2440441
+	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 01:45:08 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id p63so52862750wmp.1
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:45:08 -0800 (PST)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id br5si19541944wjb.69.2016.02.05.22.45.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Feb 2016 22:34:05 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id r129so6168004wmr.0
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:34:05 -0800 (PST)
-Date: Sat, 6 Feb 2016 07:34:03 +0100
+        Fri, 05 Feb 2016 22:45:07 -0800 (PST)
+Received: by mail-wm0-f66.google.com with SMTP id 128so6187417wmz.3
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2016 22:45:07 -0800 (PST)
+Date: Sat, 6 Feb 2016 07:45:06 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/5] mm, oom_reaper: report success/failure
-Message-ID: <20160206063403.GA20537@dhcp22.suse.cz>
+Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to
+ unmap the address space
+Message-ID: <20160206064505.GB20537@dhcp22.suse.cz>
 References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
- <1454505240-23446-5-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1602031505210.10331@chino.kir.corp.google.com>
- <20160204064636.GD8581@dhcp22.suse.cz>
- <alpine.DEB.2.10.1602041428120.29117@chino.kir.corp.google.com>
- <20160205092640.GA5477@dhcp22.suse.cz>
+ <1454505240-23446-4-git-send-email-mhocko@kernel.org>
+ <201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
+ <20160204144319.GD14425@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160205092640.GA5477@dhcp22.suse.cz>
+In-Reply-To: <20160204144319.GD14425@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 05-02-16 10:26:40, Michal Hocko wrote:
-[...]
-> From 402090df64de7f80d7d045b0b17e860220837fa6 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Fri, 5 Feb 2016 10:24:23 +0100
-> Subject: [PATCH] mm-oom_reaper-report-success-failure-fix
+On Thu 04-02-16 15:43:19, Michal Hocko wrote:
+> On Thu 04-02-16 23:22:18, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > When oom_reaper manages to unmap all the eligible vmas there shouldn't
+> > > be much of the freable memory held by the oom victim left anymore so it
+> > > makes sense to clear the TIF_MEMDIE flag for the victim and allow the
+> > > OOM killer to select another task.
+> > 
+> > Just a confirmation. Is it safe to clear TIF_MEMDIE without reaching do_exit()
+> > with regard to freezing_slow_path()? Since clearing TIF_MEMDIE from the OOM
+> > reaper confuses
+> > 
+> >     wait_event(oom_victims_wait, !atomic_read(&oom_victims));
+> > 
+> > in oom_killer_disable(), I'm worrying that the freezing operation continues
+> > before the OOM victim which escaped the __refrigerator() actually releases
+> > memory. Does this cause consistency problem?
 > 
-> update the log message to be more specific
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/oom_kill.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 87d644c97ac9..ca61e6cfae52 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -479,7 +479,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
->  		}
->  	}
->  	tlb_finish_mmu(&tlb, 0, -1);
-> -	pr_info("oom_reaper: reaped process :%d (%s) anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lulB\n",
-> +	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lulB\n",
+> This is a good question! At first sight it seems this is not safe and we
+> might need to make the oom_reaper freezable so that it doesn't wake up
+> during suspend and interfere. Let me think about that.
 
-Dohh, s@lulB@ulkB@
+OK, I was thinking about it some more and it seems you are right here.
+oom_reaper as a kernel thread is not freezable automatically and so it
+might interfere after all the processes/kernel threads are considered
+frozen. Then it really might shut down TIF_MEMDIE too early and wake out
+oom_killer_disable. wait_event_freezable is not sufficient because the
+oom_reaper might running while the PM freezer is freezing tasks and it
+will miss it because it doesn't see it.
 
->  			task_pid_nr(tsk), tsk->comm,
->  			K(get_mm_counter(mm, MM_ANONPAGES)),
->  			K(get_mm_counter(mm, MM_FILEPAGES)),
-> -- 
-> 2.7.0
-> 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+So I think we might need this. I am heading to vacation today and will
+be offline for the next week so I will prepare the full patch with the
+proper changelog after I get back:
 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ca61e6cfae52..7e9953a64489 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -521,6 +521,8 @@ static void oom_reap_task(struct task_struct *tsk)
+ 
+ static int oom_reaper(void *unused)
+ {
++	set_freezable();
++
+ 	while (true) {
+ 		struct task_struct *tsk = NULL;
+ 
 -- 
 Michal Hocko
 SUSE Labs
