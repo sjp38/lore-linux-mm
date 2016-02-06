@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D60EB440441
-	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 09:33:37 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id is5so111348107obc.0
-        for <linux-mm@kvack.org>; Sat, 06 Feb 2016 06:33:37 -0800 (PST)
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E663C440441
+	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 10:33:52 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id xk3so112814655obc.2
+        for <linux-mm@kvack.org>; Sat, 06 Feb 2016 07:33:52 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m128si12158451oig.50.2016.02.06.06.33.36
+        by mx.google.com with ESMTPS id ca4si8510016obb.88.2016.02.06.07.33.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 06 Feb 2016 06:33:36 -0800 (PST)
-Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
+        Sat, 06 Feb 2016 07:33:51 -0800 (PST)
+Subject: Re: [PATCH 5/5] mm, oom_reaper: implement OOM victims queuing
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
-	<1454505240-23446-4-git-send-email-mhocko@kernel.org>
-	<201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp>
-	<20160204144319.GD14425@dhcp22.suse.cz>
-	<20160206064505.GB20537@dhcp22.suse.cz>
-In-Reply-To: <20160206064505.GB20537@dhcp22.suse.cz>
-Message-Id: <201602062333.CCI64980.MFJFFVOLtOOQSH@I-love.SAKURA.ne.jp>
-Date: Sat, 6 Feb 2016 23:33:24 +0900
+References: <1454505240-23446-6-git-send-email-mhocko@kernel.org>
+	<201602041949.BIG30715.QVFLFOOOHMtSFJ@I-love.SAKURA.ne.jp>
+	<20160204145357.GE14425@dhcp22.suse.cz>
+	<201602061454.GDG43774.LSHtOOMFOFVJQF@I-love.SAKURA.ne.jp>
+	<20160206083757.GB25220@dhcp22.suse.cz>
+In-Reply-To: <20160206083757.GB25220@dhcp22.suse.cz>
+Message-Id: <201602070033.GFC13307.MOJQtFHOFOVLFS@I-love.SAKURA.ne.jp>
+Date: Sun, 7 Feb 2016 00:33:38 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -27,70 +27,61 @@ To: mhocko@kernel.org
 Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Michal Hocko wrote:
-> On Thu 04-02-16 15:43:19, Michal Hocko wrote:
-> > On Thu 04-02-16 23:22:18, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > When oom_reaper manages to unmap all the eligible vmas there shouldn't
-> > > > be much of the freable memory held by the oom victim left anymore so it
-> > > > makes sense to clear the TIF_MEMDIE flag for the victim and allow the
-> > > > OOM killer to select another task.
+> On Sat 06-02-16 14:54:24, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > But if we consider non system-wide OOM events, it is not very unlikely to hit
+> > > > this race. This queue is useful for situations where memcg1 and memcg2 hit
+> > > > memcg OOM at the same time and victim1 in memcg1 cannot terminate immediately.
 > > > 
-> > > Just a confirmation. Is it safe to clear TIF_MEMDIE without reaching do_exit()
-> > > with regard to freezing_slow_path()? Since clearing TIF_MEMDIE from the OOM
-> > > reaper confuses
-> > > 
-> > >     wait_event(oom_victims_wait, !atomic_read(&oom_victims));
-> > > 
-> > > in oom_killer_disable(), I'm worrying that the freezing operation continues
-> > > before the OOM victim which escaped the __refrigerator() actually releases
-> > > memory. Does this cause consistency problem?
+> > > This can happen of course but the likelihood is _much_ smaller without
+> > > the global OOM because the memcg OOM killer is invoked from a lockless
+> > > context so the oom context cannot block the victim to proceed.
 > > 
-> > This is a good question! At first sight it seems this is not safe and we
-> > might need to make the oom_reaper freezable so that it doesn't wake up
-> > during suspend and interfere. Let me think about that.
+> > Suppose mem_cgroup_out_of_memory() is called from a lockless context via
+> > mem_cgroup_oom_synchronize() called from pagefault_out_of_memory(), that
+> > "lockless" is talking about only current thread, doesn't it?
 > 
-> OK, I was thinking about it some more and it seems you are right here.
-> oom_reaper as a kernel thread is not freezable automatically and so it
-> might interfere after all the processes/kernel threads are considered
-> frozen. Then it really might shut down TIF_MEMDIE too early and wake out
-> oom_killer_disable. wait_event_freezable is not sufficient because the
-> oom_reaper might running while the PM freezer is freezing tasks and it
-> will miss it because it doesn't see it.
+> Yes and you need the OOM context to sit on the same lock as the victim
+> to form a deadlock. So while the victim might be blocked somewhere it is
+> much less likely it would be deadlocked.
+> 
+> > Since oom_kill_process() sets TIF_MEMDIE on first mm!=NULL thread of a
+> > victim process, it is possible that non-first mm!=NULL thread triggers
+> > pagefault_out_of_memory() and first mm!=NULL thread gets TIF_MEMDIE,
+> > isn't it?
+> 
+> I got lost here completely. Maybe it is your usage of thread terminology
+> again.
 
-I'm not using PM freezer, but your answer is opposite to my guess.
-I thought try_to_freeze_tasks(false) is called by freeze_kernel_threads()
-after oom_killer_disable() succeeded, and try_to_freeze_tasks(false) will
-freeze both userspace tasks (including OOM victims which got TIF_MEMDIE
-cleared by the OOM reaper) and kernel threads (including the OOM reaper).
-Thus, I was guessing that clearing TIF_MEMDIE without reaching do_exit() is
-safe.
+I'm using "process" == "thread group" which contains at least one "thread",
+and "thread" == "struct task_struct".
+My assumption is
 
-> 
-> So I think we might need this. I am heading to vacation today and will
-> be offline for the next week so I will prepare the full patch with the
-> proper changelog after I get back:
-> 
-I can't judge whether we need this set_freezable().
+   (1) app1 process has two threads named app1t1 and app1t2
+   (2) app2 process has two threads named app2t1 and app2t2
+   (3) app1t1->mm == app1t2->mm != NULL and app2t1->mm == app2t2->mm != NULL
+   (4) app1 is in memcg1 and app2 is in memcg2
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ca61e6cfae52..7e9953a64489 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -521,6 +521,8 @@ static void oom_reap_task(struct task_struct *tsk)
->  
->  static int oom_reaper(void *unused)
->  {
-> +	set_freezable();
-> +
->  	while (true) {
->  		struct task_struct *tsk = NULL;
->  
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+and sequence is
+
+   (1) app1t2 triggers pagefault_out_of_memory()
+   (2) app1t2 calls mem_cgroup_out_of_memory() via mem_cgroup_oom_synchronize()
+   (3) oom_scan_process_thread() selects app1 as an OOM victim process
+   (4) find_lock_task_mm() selects app1t1 as an OOM victim thread
+   (5) app1t1 gets TIF_MEMDIE
+   (6) app2t2 triggers pagefault_out_of_memory()
+   (7) app2t2 calls mem_cgroup_out_of_memory() via mem_cgroup_oom_synchronize()
+   (8) oom_scan_process_thread() selects app2 as an OOM victim process
+   (9) find_lock_task_mm() selects app2t1 as an OOM victim thread
+   (10) app2t1 gets TIF_MEMDIE
+
+.
+
+I'm talking about situation where app1t1 is blocked at down_write(&app1t1->mm->mmap_sem)
+because somebody else is already waiting at down_read(&app1t1->mm->mmap_sem) or is
+doing memory allocation between down_read(&app1t1->mm->mmap_sem) and
+up_read(&app1t1->mm->mmap_sem). In this case, this [PATCH 5/5] helps the OOM reaper to
+reap app2t1->mm after giving up waiting for down_read(&app1t1->mm->mmap_sem) to succeed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
