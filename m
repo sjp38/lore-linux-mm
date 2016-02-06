@@ -1,312 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E94440441
-	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 05:06:37 -0500 (EST)
-Received: by mail-lb0-f178.google.com with SMTP id cw1so61704030lbb.1
-        for <linux-mm@kvack.org>; Sat, 06 Feb 2016 02:06:37 -0800 (PST)
-Received: from mail-lb0-x231.google.com (mail-lb0-x231.google.com. [2a00:1450:4010:c04::231])
-        by mx.google.com with ESMTPS id a127si11635368lfe.86.2016.02.06.02.06.35
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 348BF440441
+	for <linux-mm@kvack.org>; Sat,  6 Feb 2016 06:23:55 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id o185so83175226pfb.1
+        for <linux-mm@kvack.org>; Sat, 06 Feb 2016 03:23:55 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id cn4si30803951pad.162.2016.02.06.03.23.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 06 Feb 2016 02:06:35 -0800 (PST)
-Received: by mail-lb0-x231.google.com with SMTP id cw1so61703901lbb.1
-        for <linux-mm@kvack.org>; Sat, 06 Feb 2016 02:06:35 -0800 (PST)
-Subject: [PATCH] tools/vm/page-types.c: add memory cgroup dumping and
- filtering
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 06 Feb 2016 13:06:29 +0300
-Message-ID: <145475318946.9321.5193007062423922667.stgit@zurg>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 06 Feb 2016 03:23:54 -0800 (PST)
+Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160204144319.GD14425@dhcp22.suse.cz>
+	<201602050008.HEG12919.FFOMOHVtQFSLJO@I-love.SAKURA.ne.jp>
+	<20160204163113.GF14425@dhcp22.suse.cz>
+	<201602052014.HBG52666.HFMOQVLFOSFJtO@I-love.SAKURA.ne.jp>
+	<20160206083014.GA25220@dhcp22.suse.cz>
+In-Reply-To: <20160206083014.GA25220@dhcp22.suse.cz>
+Message-Id: <201602062023.ECG12960.QVStLJOHFOFMOF@I-love.SAKURA.ne.jp>
+Date: Sat, 6 Feb 2016 20:23:43 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This adds two command line keys:
+Michal Hocko wrote:
+> I am not really sure I understand what you are trying to tell here to be honest
+> but no I am not going to add any timers at this stage.
 
- -c|--cgroup path|@inode	Walk only pages owned by this memory cgroup
- -C|--list-cgroup		Show memory cgroup inodes
+> Dropping TIF_MEMDIE will help to unlock OOM killer as soon as we know
+> the current victim is no longer interesting for the OOM killer to allow
+> further victims selection. If we add MMF_OOM_REAP_DONE after reaping and
+> oom_scan_process_thread is taught to ignore those you will get all cases
+> of shared memory handles properly AFAICS. Such a patch should be really
+> trivial enhancement on top of the current code.
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
----
- tools/vm/page-types.c |   92 ++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 79 insertions(+), 13 deletions(-)
+What I'm trying to tell is that we should prepare for corner cases where
+dropping TIF_MEMDIE (or reaping the victim's memory) is not taken place.
 
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index 5a6016224bb9..a444741fa95d 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -73,6 +73,7 @@
- 
- #define KPF_BYTES		8
- #define PROC_KPAGEFLAGS		"/proc/kpageflags"
-+#define PROC_KPAGECGROUP	"/proc/kpagecgroup"
- 
- /* [32-] kernel hacking assistances */
- #define KPF_RESERVED		32
-@@ -164,7 +165,9 @@ static int		opt_raw;	/* for kernel developers */
- static int		opt_list;	/* list pages (in ranges) */
- static int		opt_no_summary;	/* don't show summary */
- static pid_t		opt_pid;	/* process to walk */
--const char *		opt_file;
-+const char *		opt_file;	/* file or directory path */
-+static int64_t		opt_cgroup = -1;/* cgroup inode */
-+static int		opt_list_cgroup;/* list page cgroup */
- 
- #define MAX_ADDR_RANGES	1024
- static int		nr_addr_ranges;
-@@ -185,6 +188,7 @@ static int		page_size;
- 
- static int		pagemap_fd;
- static int		kpageflags_fd;
-+static int		kpagecgroup_fd = -1;
- 
- static int		opt_hwpoison;
- static int		opt_unpoison;
-@@ -278,6 +282,16 @@ static unsigned long kpageflags_read(uint64_t *buf,
- 	return do_u64_read(kpageflags_fd, PROC_KPAGEFLAGS, buf, index, pages);
- }
- 
-+static unsigned long kpagecgroup_read(uint64_t *buf,
-+				      unsigned long index,
-+				      unsigned long pages)
-+{
-+	if (kpagecgroup_fd < 0)
-+		return pages;
-+
-+	return do_u64_read(kpagecgroup_fd, PROC_KPAGEFLAGS, buf, index, pages);
-+}
-+
- static unsigned long pagemap_read(uint64_t *buf,
- 				  unsigned long index,
- 				  unsigned long pages)
-@@ -346,14 +360,15 @@ static char *page_flag_longname(uint64_t flags)
-  */
- 
- static void show_page_range(unsigned long voffset, unsigned long offset,
--			    unsigned long size, uint64_t flags)
-+			    unsigned long size, uint64_t flags, uint64_t cgroup)
- {
- 	static uint64_t      flags0;
-+	static uint64_t	     cgroup0;
- 	static unsigned long voff;
- 	static unsigned long index;
- 	static unsigned long count;
- 
--	if (flags == flags0 && offset == index + count &&
-+	if (flags == flags0 && cgroup == cgroup0 && offset == index + count &&
- 	    size && voffset == voff + count) {
- 		count += size;
- 		return;
-@@ -364,11 +379,14 @@ static void show_page_range(unsigned long voffset, unsigned long offset,
- 			printf("%lx\t", voff);
- 		if (opt_file)
- 			printf("%lu\t", voff);
-+		if (opt_list_cgroup)
-+			printf("@%llu\t", (unsigned long long)cgroup0);
- 		printf("%lx\t%lx\t%s\n",
- 				index, count, page_flag_name(flags0));
- 	}
- 
- 	flags0 = flags;
-+	cgroup0= cgroup;
- 	index  = offset;
- 	voff   = voffset;
- 	count  = size;
-@@ -376,16 +394,18 @@ static void show_page_range(unsigned long voffset, unsigned long offset,
- 
- static void flush_page_range(void)
- {
--	show_page_range(0, 0, 0, 0);
-+	show_page_range(0, 0, 0, 0, 0);
- }
- 
--static void show_page(unsigned long voffset,
--		      unsigned long offset, uint64_t flags)
-+static void show_page(unsigned long voffset, unsigned long offset,
-+		      uint64_t flags, uint64_t cgroup)
- {
- 	if (opt_pid)
- 		printf("%lx\t", voffset);
- 	if (opt_file)
- 		printf("%lu\t", voffset);
-+	if (opt_list_cgroup)
-+		printf("@%llu\t", (unsigned long long)cgroup);
- 	printf("%lx\t%s\n", offset, page_flag_name(flags));
- }
- 
-@@ -566,23 +586,26 @@ static size_t hash_slot(uint64_t flags)
- 	exit(EXIT_FAILURE);
- }
- 
--static void add_page(unsigned long voffset,
--		     unsigned long offset, uint64_t flags, uint64_t pme)
-+static void add_page(unsigned long voffset, unsigned long offset,
-+		     uint64_t flags, uint64_t cgroup, uint64_t pme)
- {
- 	flags = kpageflags_flags(flags, pme);
- 
- 	if (!bit_mask_ok(flags))
- 		return;
- 
-+	if (opt_cgroup >= 0 && cgroup != (uint64_t)opt_cgroup)
-+		return;
-+
- 	if (opt_hwpoison)
- 		hwpoison_page(offset);
- 	if (opt_unpoison)
- 		unpoison_page(offset);
- 
- 	if (opt_list == 1)
--		show_page_range(voffset, offset, 1, flags);
-+		show_page_range(voffset, offset, 1, flags, cgroup);
- 	else if (opt_list == 2)
--		show_page(voffset, offset, flags);
-+		show_page(voffset, offset, flags, cgroup);
- 
- 	nr_pages[hash_slot(flags)]++;
- 	total_pages++;
-@@ -595,18 +618,24 @@ static void walk_pfn(unsigned long voffset,
- 		     uint64_t pme)
- {
- 	uint64_t buf[KPAGEFLAGS_BATCH];
-+	uint64_t cgi[KPAGEFLAGS_BATCH];
- 	unsigned long batch;
- 	unsigned long pages;
- 	unsigned long i;
- 
-+	memset(cgi, 0, sizeof cgi);
-+
- 	while (count) {
- 		batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
- 		pages = kpageflags_read(buf, index, batch);
- 		if (pages == 0)
- 			break;
- 
-+		if (kpagecgroup_read(cgi, index, pages) != pages)
-+			fatal("kpagecgroup returned fewer pages than expected");
-+
- 		for (i = 0; i < pages; i++)
--			add_page(voffset + i, index + i, buf[i], pme);
-+			add_page(voffset + i, index + i, buf[i], cgi[i], pme);
- 
- 		index += pages;
- 		count -= pages;
-@@ -713,10 +742,12 @@ static void usage(void)
- "            -d|--describe flags        Describe flags\n"
- "            -a|--addr    addr-spec     Walk a range of pages\n"
- "            -b|--bits    bits-spec     Walk pages with specified bits\n"
-+"            -c|--cgroup  path|@inode   Walk pages within memory cgroup\n"
- "            -p|--pid     pid           Walk process address space\n"
- "            -f|--file    filename      Walk file address space\n"
- "            -l|--list                  Show page details in ranges\n"
- "            -L|--list-each             Show page details one by one\n"
-+"            -C|--list-cgroup           Show cgroup inode for pages\n"
- "            -N|--no-summary            Don't show summary info\n"
- "            -X|--hwpoison              hwpoison pages\n"
- "            -x|--unpoison              unpoison pages\n"
-@@ -851,6 +882,7 @@ static void walk_file(const char *name, const struct stat *st)
- {
- 	uint8_t vec[PAGEMAP_BATCH];
- 	uint64_t buf[PAGEMAP_BATCH], flags;
-+	uint64_t cgroup = 0;
- 	unsigned long nr_pages, pfn, i;
- 	off_t off, end = st->st_size;
- 	int fd;
-@@ -908,12 +940,15 @@ got_sigbus:
- 				continue;
- 			if (!kpageflags_read(&flags, pfn, 1))
- 				continue;
-+			if (!kpagecgroup_read(&cgroup, pfn, 1))
-+				fatal("kpagecgroup_read failed");
- 			if (first && opt_list) {
- 				first = 0;
- 				flush_page_range();
- 				show_file(name, st);
- 			}
--			add_page(off / page_size + i, pfn, flags, buf[i]);
-+			add_page(off / page_size + i, pfn,
-+				 flags, cgroup, buf[i]);
- 		}
- 	}
- 
-@@ -965,6 +1000,24 @@ static void parse_file(const char *name)
- 	opt_file = name;
- }
- 
-+static void parse_cgroup(const char *path)
-+{
-+	if (path[0] == '@') {
-+		opt_cgroup = parse_number(path + 1);
-+		return;
-+	}
-+
-+	struct stat st;
-+
-+	if (stat(path, &st))
-+		fatal("stat failed: %s: %m\n", path);
-+
-+	if (!S_ISDIR(st.st_mode))
-+		fatal("cgroup supposed to be a directory: %s\n", path);
-+
-+	opt_cgroup = st.st_ino;
-+}
-+
- static void parse_addr_range(const char *optarg)
- {
- 	unsigned long offset;
-@@ -1088,9 +1141,11 @@ static const struct option opts[] = {
- 	{ "file"      , 1, NULL, 'f' },
- 	{ "addr"      , 1, NULL, 'a' },
- 	{ "bits"      , 1, NULL, 'b' },
-+	{ "cgroup"    , 1, NULL, 'c' },
- 	{ "describe"  , 1, NULL, 'd' },
- 	{ "list"      , 0, NULL, 'l' },
- 	{ "list-each" , 0, NULL, 'L' },
-+	{ "list-cgroup", 0, NULL, 'C' },
- 	{ "no-summary", 0, NULL, 'N' },
- 	{ "hwpoison"  , 0, NULL, 'X' },
- 	{ "unpoison"  , 0, NULL, 'x' },
-@@ -1105,7 +1160,7 @@ int main(int argc, char *argv[])
- 	page_size = getpagesize();
- 
- 	while ((c = getopt_long(argc, argv,
--				"rp:f:a:b:d:lLNXxh", opts, NULL)) != -1) {
-+				"rp:f:a:b:d:c:ClLNXxh", opts, NULL)) != -1) {
- 		switch (c) {
- 		case 'r':
- 			opt_raw = 1;
-@@ -1122,6 +1177,12 @@ int main(int argc, char *argv[])
- 		case 'b':
- 			parse_bits_mask(optarg);
- 			break;
-+		case 'c':
-+			parse_cgroup(optarg);
-+			break;
-+		case 'C':
-+			opt_list_cgroup = 1;
-+			break;
- 		case 'd':
- 			describe_flags(optarg);
- 			exit(0);
-@@ -1151,10 +1212,15 @@ int main(int argc, char *argv[])
- 		}
- 	}
- 
-+	if (opt_cgroup >= 0 || opt_list_cgroup)
-+		kpagecgroup_fd = checked_open(PROC_KPAGECGROUP, O_RDONLY);
-+
- 	if (opt_list && opt_pid)
- 		printf("voffset\t");
- 	if (opt_list && opt_file)
- 		printf("foffset\t");
-+	if (opt_list && opt_list_cgroup)
-+		printf("cgroup\t");
- 	if (opt_list == 1)
- 		printf("offset\tlen\tflags\n");
- 	if (opt_list == 2)
+What happens if TIF_MEMDIE was set at
+
+	if (current->mm &&
+	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+		mark_oom_victim(current);
+		return true;
+	}
+
+in out_of_memory() because current thread received SIGKILL while doing
+a GFP_KERNEL allocation of
+
+  Do a GFP_KERNEL allocation.
+  Bail out if GFP_KERNEL allocation failed.
+  Hold a lock.
+  Do a GFP_NOFS allocation.
+  Release a lock.
+
+sequence? If current thread is blocked at waiting for that lock held by
+somebody else doing memory allocation, nothing will unlock the OOM killer
+(because the OOM reaper is not woken up and a timer for unlocking the OOM
+killer does not exist).
+
+What happens if TIF_MEMDIE was set at
+
+	task_lock(p);
+	if (p->mm && task_will_free_mem(p)) {
+		mark_oom_victim(p);
+		task_unlock(p);
+		put_task_struct(p);
+		return;
+	}
+	task_unlock(p);
+
+in oom_kill_process() when p is waiting for a lock held by somebody else
+doing memory allocation? Since the OOM reaper will not be woken up,
+nothing will unlock the OOM killer.
+
+If TIF_MEMDIE was set at
+
+	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+	mark_oom_victim(victim);
+	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+
+in oom_kill_process() but the OOM reaper was not woken up because of
+p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN case, nothing will unlock
+the OOM killer.
+
+By always waking the OOM reaper up, we can delegate the duty of unlocking
+the OOM killer (by clearing TIF_MEMDIE or some other means) to the OOM
+reaper because the OOM reaper is tracking all TIF_MEMDIE tasks.
+
+Of course, it is possible that we handle such corner cases by adding
+a timer for unlocking the OOM killer (regardless of availability of the
+OOM reaper). But if we do "whether a mm is reapable or not" check at the
+OOM reaper side by waking the OOM reaper up whenever TIF_MEMDIE is set
+on some task, we can increase likeliness of dropping TIF_MEMDIE (after
+reaping the victim's memory) being taken place and reduce frequency of
+killing more OOM victims by using a timer for unlocking the OOM killer.
+
+> I would like to target the next merge window rather than have this out
+> of tree for another release cycle which means that we should really
+> focus on the current functionality and make sure we haven't missed
+> anything. As there is no fundamental disagreement to the approach all
+> the rest are just technicalities.
+
+Of course, we can target the OOM reaper for the next merge window. I'm
+suggesting you that my changes would help handling corner cases (bugs)
+you are not paying attention to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
