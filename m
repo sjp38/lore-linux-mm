@@ -1,256 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E9A8309E
-	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 11:55:36 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id g62so87969841wme.0
-        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 08:55:36 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8292E6B0284
+	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 12:10:52 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id g62so106093356wme.0
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 09:10:52 -0800 (PST)
 Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id z132si11599812wme.43.2016.02.07.08.55.34
+        by mx.google.com with ESMTP id s10si11652359wmf.41.2016.02.07.09.10.51
         for <linux-mm@kvack.org>;
-        Sun, 07 Feb 2016 08:55:35 -0800 (PST)
-Date: Sun, 7 Feb 2016 17:55:24 +0100
+        Sun, 07 Feb 2016 09:10:51 -0800 (PST)
+Date: Sun, 7 Feb 2016 18:10:41 +0100
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v10 3/4] x86, mce: Add __mcsafe_copy()
-Message-ID: <20160207165524.GF5862@pd.tnic>
+Subject: Re: [PATCH v10 4/4] x86: Create a new synthetic cpu capability for
+ machine check recovery
+Message-ID: <20160207171041.GG5862@pd.tnic>
 References: <cover.1454618190.git.tony.luck@intel.com>
- <6b63a88e925bbc821dc87f209909c3c1166b3261.1454618190.git.tony.luck@intel.com>
+ <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <6b63a88e925bbc821dc87f209909c3c1166b3261.1454618190.git.tony.luck@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>, Richard Weinberger <richard@nod.at>
+To: Tony Luck <tony.luck@intel.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Fri, Jan 08, 2016 at 01:18:03PM -0800, Tony Luck wrote:
-> Make use of the EXTABLE_FAULT exception table entries. This routine
-> returns a structure to indicate the result of the copy:
+On Fri, Jan 29, 2016 at 04:00:19PM -0800, Tony Luck wrote:
+> The Intel Software Developer Manual describes bit 24 in the MCG_CAP
+> MSR:
+>    MCG_SER_P (software error recovery support present) flag,
+>    bit 24 a?? Indicates (when set) that the processor supports
+>    software error recovery
+> But only some models with this capability bit set will actually
+> generate recoverable machine checks.
 > 
-> struct mcsafe_ret {
->         u64 trapnr;
->         u64 remain;
-> };
-> 
-> If the copy is successful, then both 'trapnr' and 'remain' are zero.
-> 
-> If we faulted during the copy, then 'trapnr' will say which type
-> of trap (X86_TRAP_PF or X86_TRAP_MC) and 'remain' says how many
-> bytes were not copied.
-> 
-> Note that this is probably the first of several copy functions.
-> We can make new ones for non-temporal cache handling etc.
+> Check the model name and set a synthetic capability bit. Provide
+> a command line option to set this bit anyway in case the kernel
+> doesn't recognise the model name.
 > 
 > Signed-off-by: Tony Luck <tony.luck@intel.com>
 > ---
->  arch/x86/include/asm/string_64.h |   8 +++
->  arch/x86/kernel/x8664_ksyms_64.c |   2 +
->  arch/x86/lib/memcpy_64.S         | 134 +++++++++++++++++++++++++++++++++++++++
->  3 files changed, 144 insertions(+)
+>  Documentation/x86/x86_64/boot-options.txt |  4 ++++
+>  arch/x86/include/asm/cpufeature.h         |  1 +
+>  arch/x86/include/asm/mce.h                |  1 +
+>  arch/x86/kernel/cpu/mcheck/mce.c          | 11 +++++++++++
+>  4 files changed, 17 insertions(+)
 > 
-> diff --git a/arch/x86/include/asm/string_64.h b/arch/x86/include/asm/string_64.h
-> index ff8b9a17dc4b..5b24039463a4 100644
-> --- a/arch/x86/include/asm/string_64.h
-> +++ b/arch/x86/include/asm/string_64.h
-> @@ -78,6 +78,14 @@ int strcmp(const char *cs, const char *ct);
->  #define memset(s, c, n) __memset(s, c, n)
->  #endif
+> diff --git a/Documentation/x86/x86_64/boot-options.txt b/Documentation/x86/x86_64/boot-options.txt
+> index 68ed3114c363..8423c04ae7b3 100644
+> --- a/Documentation/x86/x86_64/boot-options.txt
+> +++ b/Documentation/x86/x86_64/boot-options.txt
+> @@ -60,6 +60,10 @@ Machine check
+>  		threshold to 1. Enabling this may make memory predictive failure
+>  		analysis less effective if the bios sets thresholds for memory
+>  		errors since we will not see details for all errors.
+> +   mce=recovery
+> +		Tell the kernel that this system can generate recoverable
+> +		machine checks (useful when the kernel doesn't recognize
+> +		the cpuid x86_model_id[])
+
+I'd say		"Force-enable generation of recoverable MCEs."
+
+and not mention implementation details in the description text.
+
+>     nomce (for compatibility with i386): same as mce=off
 >  
-> +struct mcsafe_ret {
-> +	u64 trapnr;
-> +	u64 remain;
-> +};
-> +
-> +struct mcsafe_ret __mcsafe_copy(void *dst, const void __user *src, size_t cnt);
-> +extern void __mcsafe_copy_end(void);
-> +
->  #endif /* __KERNEL__ */
+> diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
+> index 7ad8c9464297..06c6c2d2fea0 100644
+> --- a/arch/x86/include/asm/cpufeature.h
+> +++ b/arch/x86/include/asm/cpufeature.h
+> @@ -106,6 +106,7 @@
+>  #define X86_FEATURE_APERFMPERF	( 3*32+28) /* APERFMPERF */
+>  #define X86_FEATURE_EAGER_FPU	( 3*32+29) /* "eagerfpu" Non lazy FPU restore */
+>  #define X86_FEATURE_NONSTOP_TSC_S3 ( 3*32+30) /* TSC doesn't stop in S3 state */
+> +#define X86_FEATURE_MCE_RECOVERY ( 3*32+31) /* cpu has recoverable machine checks */
 >  
->  #endif /* _ASM_X86_STRING_64_H */
-> diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
-> index a0695be19864..fff245462a8c 100644
-> --- a/arch/x86/kernel/x8664_ksyms_64.c
-> +++ b/arch/x86/kernel/x8664_ksyms_64.c
-> @@ -37,6 +37,8 @@ EXPORT_SYMBOL(__copy_user_nocache);
->  EXPORT_SYMBOL(_copy_from_user);
->  EXPORT_SYMBOL(_copy_to_user);
+>  /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
+>  #define X86_FEATURE_XMM3	( 4*32+ 0) /* "pni" SSE-3 */
+> diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
+> index 2ea4527e462f..18d2ba9c8e44 100644
+> --- a/arch/x86/include/asm/mce.h
+> +++ b/arch/x86/include/asm/mce.h
+> @@ -113,6 +113,7 @@ struct mca_config {
+>  	bool ignore_ce;
+>  	bool disabled;
+>  	bool ser;
+> +	bool recovery;
+>  	bool bios_cmci_threshold;
+>  	u8 banks;
+>  	s8 bootlog;
+> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+> index 905f3070f412..16a3d0e29f84 100644
+> --- a/arch/x86/kernel/cpu/mcheck/mce.c
+> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
+> @@ -1696,6 +1696,15 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
+>  		return;
+>  	}
 >  
-> +EXPORT_SYMBOL_GPL(__mcsafe_copy);
-> +
->  EXPORT_SYMBOL(copy_page);
->  EXPORT_SYMBOL(clear_page);
->  
-> diff --git a/arch/x86/lib/memcpy_64.S b/arch/x86/lib/memcpy_64.S
-> index 16698bba87de..f576acad485e 100644
-> --- a/arch/x86/lib/memcpy_64.S
-> +++ b/arch/x86/lib/memcpy_64.S
-> @@ -177,3 +177,137 @@ ENTRY(memcpy_orig)
->  .Lend:
->  	retq
->  ENDPROC(memcpy_orig)
-> +
-> +#ifndef CONFIG_UML
-
-So this is because we get a link failure on UML:
-
-arch/x86/um/built-in.o:(__ex_table+0x8): undefined reference to `ex_handler_fault'
-arch/x86/um/built-in.o:(__ex_table+0x14): undefined reference to `ex_handler_fault'
-arch/x86/um/built-in.o:(__ex_table+0x20): undefined reference to `ex_handler_fault'
-arch/x86/um/built-in.o:(__ex_table+0x2c): undefined reference to `ex_handler_fault'
-arch/x86/um/built-in.o:(__ex_table+0x38): undefined reference to `ex_handler_fault'
-arch/x86/um/built-in.o:(__ex_table+0x44): more undefined references to `ex_handler_fault' follow
-collect2: error: ld returned 1 exit status
-make: *** [vmlinux] Error 1
-
-due to those
-
-> +     _ASM_EXTABLE_FAULT(0b,30b)
-> +     _ASM_EXTABLE_FAULT(1b,31b)
-> +     _ASM_EXTABLE_FAULT(2b,32b)
-> +     _ASM_EXTABLE_FAULT(3b,33b)
-> +     _ASM_EXTABLE_FAULT(4b,34b)
-
-things below and that's because ex_handler_fault() is defined in
-arch/x86/mm/extable.c and UML doesn't include that file in the build. It
-takes kernel/extable.c and lib/extable.c only.
-
-Richi, what's the usual way to address that in UML? I.e., make an
-x86-only symbol visible to the UML build too? Define a dummy one, just
-so that it builds?
-
-> + * __mcsafe_copy - memory copy with machine check exception handling
-> + * Note that we only catch machine checks when reading the source addresses.
-> + * Writes to target are posted and don't generate machine checks.
-> + */
-> +ENTRY(__mcsafe_copy)
-> +	cmpl $8,%edx
-> +	jb 20f		/* less then 8 bytes, go to byte copy loop */
-> +
-> +	/* check for bad alignment of source */
-> +	movl %esi,%ecx
-> +	andl $7,%ecx
-> +	jz 102f				/* already aligned */
-> +	subl $8,%ecx
-> +	negl %ecx
-> +	subl %ecx,%edx
-> +0:	movb (%rsi),%al
-> +	movb %al,(%rdi)
-> +	incq %rsi
-> +	incq %rdi
-> +	decl %ecx
-> +	jnz 0b
-> +102:
-> +	movl %edx,%ecx
-> +	andl $63,%edx
-> +	shrl $6,%ecx
-> +	jz 17f
-> +1:	movq (%rsi),%r8
-> +2:	movq 1*8(%rsi),%r9
-> +3:	movq 2*8(%rsi),%r10
-> +4:	movq 3*8(%rsi),%r11
-> +	mov %r8,(%rdi)
-> +	mov %r9,1*8(%rdi)
-> +	mov %r10,2*8(%rdi)
-> +	mov %r11,3*8(%rdi)
-> +9:	movq 4*8(%rsi),%r8
-> +10:	movq 5*8(%rsi),%r9
-> +11:	movq 6*8(%rsi),%r10
-> +12:	movq 7*8(%rsi),%r11
-> +	mov %r8,4*8(%rdi)
-> +	mov %r9,5*8(%rdi)
-> +	mov %r10,6*8(%rdi)
-> +	mov %r11,7*8(%rdi)
-> +	leaq 64(%rsi),%rsi
-> +	leaq 64(%rdi),%rdi
-> +	decl %ecx
-> +	jnz 1b
-> +17:	movl %edx,%ecx
-> +	andl $7,%edx
-> +	shrl $3,%ecx
-> +	jz 20f
-> +18:	movq (%rsi),%r8
-> +	mov %r8,(%rdi)
-> +	leaq 8(%rsi),%rsi
-> +	leaq 8(%rdi),%rdi
-> +	decl %ecx
-> +	jnz 18b
-> +20:	andl %edx,%edx
-> +	jz 23f
-> +	movl %edx,%ecx
-> +21:	movb (%rsi),%al
-> +	movb %al,(%rdi)
-> +	incq %rsi
-> +	incq %rdi
-> +	decl %ecx
-> +	jnz 21b
-> +23:	xorq %rax, %rax
-> +	xorq %rdx, %rdx
-> +	/* copy successful. return 0 */
-> +	ret
-> +
-> +	.section .fixup,"ax"
 > +	/*
-> +	 * machine check handler loaded %rax with trap number
-> +	 * We just need to make sure %edx has the number of
-> +	 * bytes remaining
+> +	 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
+> +	 * whether this processor will actually generate recoverable
+> +	 * machine checks. Check to see if this is an E7 model Xeon.
 > +	 */
-> +30:
-> +	add %ecx,%edx
-> +	ret
-> +31:
-> +	shl $6,%ecx
-> +	add %ecx,%edx
-> +	ret
-> +32:
-> +	shl $6,%ecx
-> +	lea -8(%ecx,%edx),%edx
-> +	ret
-> +33:
-> +	shl $6,%ecx
-> +	lea -16(%ecx,%edx),%edx
-> +	ret
-> +34:
-> +	shl $6,%ecx
-> +	lea -24(%ecx,%edx),%edx
-> +	ret
-> +35:
-> +	shl $6,%ecx
-> +	lea -32(%ecx,%edx),%edx
-> +	ret
-> +36:
-> +	shl $6,%ecx
-> +	lea -40(%ecx,%edx),%edx
-> +	ret
-> +37:
-> +	shl $6,%ecx
-> +	lea -48(%ecx,%edx),%edx
-> +	ret
-> +38:
-> +	shl $6,%ecx
-> +	lea -56(%ecx,%edx),%edx
-> +	ret
-> +39:
-> +	lea (%rdx,%rcx,8),%rdx
-> +	ret
-> +40:
-> +	mov %ecx,%edx
-> +	ret
-> +	.previous
-> +
-> +	_ASM_EXTABLE_FAULT(0b,30b)
-> +	_ASM_EXTABLE_FAULT(1b,31b)
-> +	_ASM_EXTABLE_FAULT(2b,32b)
-> +	_ASM_EXTABLE_FAULT(3b,33b)
-> +	_ASM_EXTABLE_FAULT(4b,34b)
-> +	_ASM_EXTABLE_FAULT(9b,35b)
-> +	_ASM_EXTABLE_FAULT(10b,36b)
-> +	_ASM_EXTABLE_FAULT(11b,37b)
-> +	_ASM_EXTABLE_FAULT(12b,38b)
-> +	_ASM_EXTABLE_FAULT(18b,39b)
-> +	_ASM_EXTABLE_FAULT(21b,40b)
-> +#endif
-> -- 
-> 2.5.0
+> +	if (mca_cfg.recovery || (mca_cfg.ser &&
+> +		!strncmp(c->x86_model_id, "Intel(R) Xeon(R) CPU E7-", 24)))
+
+Eeww, a model string check :-(
+
+Lemme guess: those E7s can't be represented by a range of
+model/steppings, can they?
+
+Similar to AMD_MODEL_RANGE() thing in cpu/amd.c, for example.
+
+In any case, that chunk belongs in the Intel part of
+__mcheck_cpu_apply_quirks().
 
 -- 
 Regards/Gruss,
