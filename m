@@ -1,123 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EEFDB8309E
-	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 12:28:05 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id uo6so62372712pac.1
-        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 09:28:05 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rf10si11387183pab.213.2016.02.07.09.28.05
+Received: from mail-yw0-f176.google.com (mail-yw0-f176.google.com [209.85.161.176])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BA9830AE
+	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 13:19:30 -0500 (EST)
+Received: by mail-yw0-f176.google.com with SMTP id q190so88161314ywd.3
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 10:19:30 -0800 (PST)
+Received: from mail-yw0-x236.google.com (mail-yw0-x236.google.com. [2607:f8b0:4002:c05::236])
+        by mx.google.com with ESMTPS id f126si9391395ywc.329.2016.02.07.10.19.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Feb 2016 09:28:05 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 5/5] mm: workingset: make shadow node shrinker memcg aware
-Date: Sun, 7 Feb 2016 20:27:35 +0300
-Message-ID: <934ce4e1cfe42b57e8114c72a447656fe5a01267.1454864628.git.vdavydov@virtuozzo.com>
-In-Reply-To: <cover.1454864628.git.vdavydov@virtuozzo.com>
-References: <cover.1454864628.git.vdavydov@virtuozzo.com>
+        Sun, 07 Feb 2016 10:19:29 -0800 (PST)
+Received: by mail-yw0-x236.google.com with SMTP id g127so88032688ywf.2
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 10:19:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1454829553-29499-2-git-send-email-ross.zwisler@linux.intel.com>
+References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1454829553-29499-2-git-send-email-ross.zwisler@linux.intel.com>
+Date: Sun, 7 Feb 2016 10:19:29 -0800
+Message-ID: <CAPcyv4jOAKeTXt0EvZzfxzqcaf+ZWrtsFeN2JFP_sf1HcTpVOw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] dax: pass bdev argument to dax_clear_blocks()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>
 
-Workingset code was recently made memcg aware, but shadow node shrinker
-is still global. As a result, one small cgroup can consume all memory
-available for shadow nodes, possibly hurting other cgroups by reclaiming
-their shadow nodes, even though reclaim distances stored in its shadow
-nodes have no effect. To avoid this, we need to make shadow node
-shrinker memcg aware.
+On Sat, Feb 6, 2016 at 11:19 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> dax_clear_blocks() needs a valid struct block_device and previously it was
+> using inode->i_sb->s_bdev in all cases.  This is correct for normal inodes
+> on mounted ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+> block devices and for XFS real-time devices.
+>
+> Instead, have the caller pass in a struct block_device pointer which it
+> knows to be correct.
+>
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  fs/dax.c               | 4 ++--
+>  fs/ext2/inode.c        | 5 +++--
+>  fs/xfs/xfs_aops.c      | 2 +-
+>  fs/xfs/xfs_aops.h      | 1 +
+>  fs/xfs/xfs_bmap_util.c | 4 +++-
+>  include/linux/dax.h    | 3 ++-
+>  6 files changed, 12 insertions(+), 7 deletions(-)
+>
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 227974a..4592241 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -83,9 +83,9 @@ struct page *read_dax_sector(struct block_device *bdev, sector_t n)
+>   * and hence this means the stack from this point must follow GFP_NOFS
+>   * semantics for all operations.
+>   */
+> -int dax_clear_blocks(struct inode *inode, sector_t block, long _size)
+> +int dax_clear_blocks(struct inode *inode, struct block_device *bdev,
+> +               sector_t block, long _size)
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
- include/linux/memcontrol.h | 10 ++++++++++
- mm/memcontrol.c            |  5 ++---
- mm/workingset.c            | 11 ++++++++---
- 3 files changed, 20 insertions(+), 6 deletions(-)
+Since this is a bdev relative routine we should also resolve the
+sector, i.e. the signature should drop the inode:
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index bc8e4e22f58f..1191d79aa495 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -403,6 +403,9 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
- 		int nr_pages);
- 
-+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+					   int nid, unsigned int lru_mask);
-+
- static inline
- unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- {
-@@ -661,6 +664,13 @@ mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
- {
- }
- 
-+static inline unsigned long
-+mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+			     int nid, unsigned int lru_mask)
-+{
-+	return 0;
-+}
-+
- static inline void
- mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 341bf86d26c2..ae8b81c55685 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -638,9 +638,8 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
- }
- 
--static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
--						  int nid,
--						  unsigned int lru_mask)
-+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+					   int nid, unsigned int lru_mask)
- {
- 	unsigned long nr = 0;
- 	int zid;
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 6130ba0b2641..8c07cd8af15e 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -349,7 +349,12 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
- 	local_irq_enable();
- 
--	pages = node_present_pages(sc->nid);
-+	if (memcg_kmem_enabled())
-+		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
-+						     BIT(LRU_ACTIVE_FILE));
-+	else
-+		pages = node_page_state(sc->nid, NR_ACTIVE_FILE);
-+
- 	/*
- 	 * Active cache pages are limited to 50% of memory, and shadow
- 	 * entries that represent a refault distance bigger than that
-@@ -364,7 +369,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 	 *
- 	 * PAGE_SIZE / radix_tree_nodes / node_entries / PAGE_SIZE
- 	 */
--	max_nodes = pages >> (1 + RADIX_TREE_MAP_SHIFT - 3);
-+	max_nodes = pages >> (RADIX_TREE_MAP_SHIFT - 3);
- 
- 	if (shadow_nodes <= max_nodes)
- 		return 0;
-@@ -458,7 +463,7 @@ static struct shrinker workingset_shadow_shrinker = {
- 	.count_objects = count_shadow_nodes,
- 	.scan_objects = scan_shadow_nodes,
- 	.seeks = DEFAULT_SEEKS,
--	.flags = SHRINKER_NUMA_AWARE,
-+	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
- };
- 
- /*
--- 
-2.1.4
+int dax_clear_sectors(struct block_device *bdev, sector_t sector, long _size)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
