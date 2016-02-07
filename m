@@ -1,204 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9922C830B2
-	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 14:10:24 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id ho8so62034765pac.2
-        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 11:10:24 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id x77si40720280pfa.33.2016.02.07.11.10.23
+Received: from mail-yw0-f173.google.com (mail-yw0-f173.google.com [209.85.161.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E1B6830B2
+	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 14:13:53 -0500 (EST)
+Received: by mail-yw0-f173.google.com with SMTP id u200so10075299ywf.0
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 11:13:53 -0800 (PST)
+Received: from mail-yw0-x235.google.com (mail-yw0-x235.google.com. [2607:f8b0:4002:c05::235])
+        by mx.google.com with ESMTPS id e82si6888709ybh.194.2016.02.07.11.13.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Feb 2016 11:10:23 -0800 (PST)
-Date: Sun, 7 Feb 2016 22:10:07 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: slab: free kmem_cache_node after destroy sysfs file
-Message-ID: <20160207191006.GC19151@esperanza>
-References: <1454692612-14856-1-git-send-email-dsafonov@virtuozzo.com>
+        Sun, 07 Feb 2016 11:13:52 -0800 (PST)
+Received: by mail-yw0-x235.google.com with SMTP id h129so88781003ywb.1
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 11:13:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1454692612-14856-1-git-send-email-dsafonov@virtuozzo.com>
+In-Reply-To: <1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
+References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
+Date: Sun, 7 Feb 2016 11:13:51 -0800
+Message-ID: <CAPcyv4jT=yAb2_yLfMGqV1SdbQwoWQj7joroeJGAJAcjsMY_oQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] dax: move writeback calls into the filesystems
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>, jmoyer <jmoyer@redhat.com>
 
-On Fri, Feb 05, 2016 at 08:16:52PM +0300, Dmitry Safonov wrote:
-...
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 6ecc697..41176dd 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2414,13 +2414,19 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
->  
->  int __kmem_cache_shutdown(struct kmem_cache *cachep)
->  {
-> -	int i;
-> -	struct kmem_cache_node *n;
->  	int rc = __kmem_cache_shrink(cachep, false);
->  
->  	if (rc)
->  		return rc;
+On Sat, Feb 6, 2016 at 11:19 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> Previously calls to dax_writeback_mapping_range() for all DAX filesystems
+> (ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
+> dax_writeback_mapping_range() needs a struct block_device, and it used to
+> get that from inode->i_sb->s_bdev.  This is correct for normal inodes
+> mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+> block devices and for XFS real-time files.
+>
+> Instead, call dax_writeback_mapping_range() directly from the filesystem or
+> raw block device fsync/msync code so that they can supply us with a valid
+> block device.
+>
+> It should be noted that this will reduce the number of calls to
+> dax_writeback_mapping_range() because filemap_write_and_wait_range() is
+> called in the various filesystems for operations other than just
+> fsync/msync.  Both ext4 & XFS call filemap_write_and_wait_range() outside
+> of ->fsync for hole punch, truncate, and block relocation
+> (xfs_shift_file_space() && ext4_collapse_range()/ext4_insert_range()).
+>
+> I don't believe that these extra flushes are necessary in the DAX case.  In
+> the page cache case when we have dirty data in the page cache, that data
+> will be actively lost if we evict a dirty page cache page without flushing
+> it to media first.  For DAX, though, the data will remain consistent with
+> the physical address to which it was written regardless of whether it's in
+> the processor cache or not - really the only reason I see to flush is in
+> response to a fsync or msync so that our data is durable on media in case
+> of a power loss.  The case where we could throw dirty data out of the page
+> cache and essentially lose writes simply doesn't exist.
+>
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  fs/block_dev.c      |  7 +++++++
+>  fs/dax.c            |  5 ++---
+>  fs/ext2/file.c      | 10 ++++++++++
+>  fs/ext4/fsync.c     | 10 +++++++++-
+>  fs/xfs/xfs_file.c   | 12 ++++++++++--
+>  include/linux/dax.h |  4 ++--
+>  mm/filemap.c        |  6 ------
+>  7 files changed, 40 insertions(+), 14 deletions(-)
 
-Nit:
+This sprinkling of dax specific fixups outside of vm_operations_struct
+routines still has me thinking that we are going in the wrong
+direction for fsync/msync support.
 
- int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	int rc = __kmem_cache_shrink(cachep, false);
--
--	if (rc)
--		return rc;
--
--	return 0;
-+	return __kmem_cache_shrink(cachep, false);
- }
+If an application is both unaware of DAX and doing mmap I/O it is
+better served by the page cache where writeback is durable by default.
+We expect DAX-aware applications to assume responsibility for cpu
+cache management [1].  Making DAX mmap semantics explicit opt-in
+solves not only durability support, but also the current problem that
+DAX gets silently disabled leaving an app to wonder if it really got a
+direct mapping. DAX also silently picks pud, pmd, or pte mappings
+which is information an application would really like to know at map
+time.
 
->  
-> +	return 0;
-> +}
-> +
-> +void __kmem_cache_release(struct kmem_cache *cachep)
-> +{
-> +	int i;
-> +	struct kmem_cache_node *n;
-> +
->  	free_percpu(cachep->cpu_cache);
->  
->  	/* NUMA: free the node structures */
-> @@ -2430,7 +2436,6 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
->  		kfree(n);
->  		cachep->node[i] = NULL;
->  	}
-> -	return 0;
->  }
->  
->  /*
+The proposal: make applications explicitly request DAX semantics with
+a new MAP_DAX flag and fail if DAX is unavailable.  Document that a
+successful MAP_DAX request mandates that the application assumes
+responsibility for cpu cache management.  Require that all
+applications that mmap the file agree on MAP_DAX.  This also solves
+the future problem of DAX support on virtually tagged cache
+architectures where it is difficult for the kernel to know what alias
+addresses need flushing.
 
-You seem to forget to replace __kmem_cache_shutdown with
-__kmem_cache_release in __kmem_cache_create error path:
-
-@@ -2168,7 +2168,7 @@ done:
- 
- 	err = setup_cpu_cache(cachep, gfp);
- 	if (err) {
--		__kmem_cache_shutdown(cachep);
-+		__kmem_cache_release(cachep);
- 		return err;
- 	}
-
-...
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 2e1355a..ce21ce2 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3173,11 +3173,12 @@ static void early_kmem_cache_node_alloc(int node)
->  	__add_partial(n, page, DEACTIVATE_TO_HEAD);
->  }
->  
-> -static void free_kmem_cache_nodes(struct kmem_cache *s)
-> +void __kmem_cache_release(struct kmem_cache *s)
->  {
->  	int node;
->  	struct kmem_cache_node *n;
->  
-> +	free_percpu(s->cpu_slab);
-
-That's rather nit-picking, but this kinda disrupts
-init_kmem_cache_nodes/free_kmem_cache_nodes symmetry.
-I'd leave free_kmem_cache_nodes alone and make
-__kmem_cache_release call it along with free_percpu.
-This would also reduce the patch footprint, because
-the two hunks below wouldn't be needed.
-
->  	for_each_kmem_cache_node(s, node, n) {
->  		kmem_cache_free(kmem_cache_node, n);
->  		s->node[node] = NULL;
-> @@ -3199,7 +3200,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
->  						GFP_KERNEL, node);
->  
->  		if (!n) {
-> -			free_kmem_cache_nodes(s);
-> +			__kmem_cache_release(s);
->  			return 0;
->  		}
->  
-> @@ -3405,7 +3406,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
->  	if (alloc_kmem_cache_cpus(s))
->  		return 0;
->  
-> -	free_kmem_cache_nodes(s);
-> +	__kmem_cache_release(s);
->  error:
->  	if (flags & SLAB_PANIC)
->  		panic("Cannot create slab %s size=%lu realsize=%u "
-> @@ -3443,7 +3444,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
->  
->  /*
->   * Attempt to free all partial slabs on a node.
-> - * This is called from kmem_cache_close(). We must be the last thread
-> + * This is called from __kmem_cache_shutdown(). We must be the last thread
->   * using the cache and therefore we do not need to lock anymore.
-
-Well, that's not true as we've found out - sysfs might still access the
-cache in parallel. And alloc_calls_show -> list_locations does walk over
-the kmem_cache_node->partial list, which we prune on shutdown.
-
-I guess we should reintroduce locking for free_partial() in the scope of
-this patch, partially reverting 69cb8e6b7c298.
-
->   */
->  static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
-> @@ -3456,7 +3457,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
->  			discard_slab(s, page);
->  		} else {
->  			list_slab_objects(s, page,
-> -			"Objects remaining in %s on kmem_cache_close()");
-> +			"Objects remaining in %s on __kmem_cache_shutdown()");
->  		}
->  	}
->  }
-> @@ -3464,7 +3465,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
->  /*
->   * Release all resources used by a slab cache.
->   */
-> -static inline int kmem_cache_close(struct kmem_cache *s)
-> +int __kmem_cache_shutdown(struct kmem_cache *s)
->  {
->  	int node;
->  	struct kmem_cache_node *n;
-> @@ -3476,16 +3477,9 @@ static inline int kmem_cache_close(struct kmem_cache *s)
->  		if (n->nr_partial || slabs_node(s, node))
->  			return 1;
->  	}
-> -	free_percpu(s->cpu_slab);
-> -	free_kmem_cache_nodes(s);
->  	return 0;
->  }
->  
-> -int __kmem_cache_shutdown(struct kmem_cache *s)
-> -{
-> -	return kmem_cache_close(s);
-> -}
-> -
->  /********************************************************************
->   *		Kmalloc subsystem
->   *******************************************************************/
-> @@ -3979,8 +3973,10 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
->  
->  	memcg_propagate_slab_attrs(s);
->  	err = sysfs_slab_add(s);
-> -	if (err)
-> -		kmem_cache_close(s);
-> +	if (err) {
-> +		__kmem_cache_shutdown(s);
-> +		__kmem_cache_release(s);
-> +	}
-
-No point calling __kmem_cache_shutdown on __kmem_cache_create error path
-- the cache hasn't been used yet.
-
-Thanks,
-Vladimir
+[1]: https://github.com/pmem/nvml
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
