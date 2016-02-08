@@ -1,128 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f180.google.com (mail-yw0-f180.google.com [209.85.161.180])
-	by kanga.kvack.org (Postfix) with ESMTP id CC5118309E
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 03:18:12 -0500 (EST)
-Received: by mail-yw0-f180.google.com with SMTP id u200so18168832ywf.0
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:18:12 -0800 (PST)
-Received: from mail-yw0-x233.google.com (mail-yw0-x233.google.com. [2607:f8b0:4002:c05::233])
-        by mx.google.com with ESMTPS id w83si9965480ybb.238.2016.02.08.00.18.11
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EA328309E
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 03:43:36 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id c200so4439914wme.0
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:43:36 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id w76si15180290wmw.53.2016.02.08.00.43.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 00:18:12 -0800 (PST)
-Received: by mail-yw0-x233.google.com with SMTP id u200so18168629ywf.0
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:18:11 -0800 (PST)
+        Mon, 08 Feb 2016 00:43:34 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id g62so14439863wme.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:43:34 -0800 (PST)
+Date: Mon, 8 Feb 2016 10:43:32 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 2/2] mm: Some arch may want to use HPAGE_PMD related
+ values as variables
+Message-ID: <20160208084332.GD9075@node.shutemov.name>
+References: <1454913660-27031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1454913660-27031-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20160207215047.GJ31407@dastard>
-References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
-	<CAPcyv4jT=yAb2_yLfMGqV1SdbQwoWQj7joroeJGAJAcjsMY_oQ@mail.gmail.com>
-	<20160207215047.GJ31407@dastard>
-Date: Mon, 8 Feb 2016 00:18:11 -0800
-Message-ID: <CAPcyv4jNmdm-ATTBaLLLzBT+RXJ0YrxxXLYZ=T7xUgEJ8PaSKw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] dax: move writeback calls into the filesystems
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454913660-27031-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>, jmoyer <jmoyer@redhat.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Feb 7, 2016 at 1:50 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Sun, Feb 07, 2016 at 11:13:51AM -0800, Dan Williams wrote:
->> On Sat, Feb 6, 2016 at 11:19 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > Previously calls to dax_writeback_mapping_range() for all DAX filesystems
->> > (ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
->> > dax_writeback_mapping_range() needs a struct block_device, and it used to
->> > get that from inode->i_sb->s_bdev.  This is correct for normal inodes
->> > mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
->> > block devices and for XFS real-time files.
->> >
->> > Instead, call dax_writeback_mapping_range() directly from the filesystem or
->> > raw block device fsync/msync code so that they can supply us with a valid
->> > block device.
->> >
->> > It should be noted that this will reduce the number of calls to
->> > dax_writeback_mapping_range() because filemap_write_and_wait_range() is
->> > called in the various filesystems for operations other than just
->> > fsync/msync.  Both ext4 & XFS call filemap_write_and_wait_range() outside
->> > of ->fsync for hole punch, truncate, and block relocation
->> > (xfs_shift_file_space() && ext4_collapse_range()/ext4_insert_range()).
->> >
->> > I don't believe that these extra flushes are necessary in the DAX case.  In
->> > the page cache case when we have dirty data in the page cache, that data
->> > will be actively lost if we evict a dirty page cache page without flushing
->> > it to media first.  For DAX, though, the data will remain consistent with
->> > the physical address to which it was written regardless of whether it's in
->> > the processor cache or not - really the only reason I see to flush is in
->> > response to a fsync or msync so that our data is durable on media in case
->> > of a power loss.  The case where we could throw dirty data out of the page
->> > cache and essentially lose writes simply doesn't exist.
->> >
->> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
->> > ---
->> >  fs/block_dev.c      |  7 +++++++
->> >  fs/dax.c            |  5 ++---
->> >  fs/ext2/file.c      | 10 ++++++++++
->> >  fs/ext4/fsync.c     | 10 +++++++++-
->> >  fs/xfs/xfs_file.c   | 12 ++++++++++--
->> >  include/linux/dax.h |  4 ++--
->> >  mm/filemap.c        |  6 ------
->> >  7 files changed, 40 insertions(+), 14 deletions(-)
->>
->> This sprinkling of dax specific fixups outside of vm_operations_struct
->> routines still has me thinking that we are going in the wrong
->> direction for fsync/msync support.
->>
->> If an application is both unaware of DAX and doing mmap I/O it is
->> better served by the page cache where writeback is durable by default.
->> We expect DAX-aware applications to assume responsibility for cpu
->> cache management [1].  Making DAX mmap semantics explicit opt-in
->> solves not only durability support, but also the current problem that
->> DAX gets silently disabled leaving an app to wonder if it really got a
->> direct mapping. DAX also silently picks pud, pmd, or pte mappings
->> which is information an application would really like to know at map
->> time.
->>
->> The proposal: make applications explicitly request DAX semantics with
->> a new MAP_DAX flag and fail if DAX is unavailable.
->
-> No.
->
-> As I've stated before, the entire purpose of enabling DAX through
-> existing filesytsems like XFS and ext4 is so that existing
-> applications work with DAX *without modification*.
->
-> That is, applications can be entirely unaware of the fact that the
-> filesystem is giving them direct access to the storage because the
-> access and failure semantics of DAX enabled mmap are *identical to
-> the existing mmap semantics*.
->
-> Given this, the app doesn't need to care whether DAX is enabled or
-> not; all that will be seen is a difference in speed of access.
-> Enabling and disabling DAX is, at this point, purely an
-> administration decision - if the hardware and filesystem supports
-> it, it can be turned on without having to wait years for application
-> developers to add support for it....
+On Mon, Feb 08, 2016 at 12:11:00PM +0530, Aneesh Kumar K.V wrote:
+> With next generation power processor, we are having a new mmu model
+> [1] that require us to maintain a different linux page table format.
+> 
+> Inorder to support both current and future ppc64 systems with a single
+> kernel we need to make sure kernel can select between different page
+> table format at runtime. With the new MMU (radix MMU) added, we will
+> have two different pmd hugepage size 16MB for hash model and 2MB for
+> Radix model. Hence make HPAGE_PMD related values as a variable.
+> 
+> [1] http://ibm.biz/power-isa3 (Needs registration).
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  arch/arm/include/asm/pgtable-3level.h | 8 ++++++++
+>  arch/arm64/include/asm/pgtable.h      | 7 +++++++
+>  arch/mips/include/asm/pgtable.h       | 8 ++++++++
+>  arch/powerpc/mm/pgtable_64.c          | 7 +++++++
+>  arch/s390/include/asm/pgtable.h       | 8 ++++++++
+>  arch/sparc/include/asm/pgtable_64.h   | 7 +++++++
+>  arch/tile/include/asm/pgtable.h       | 9 +++++++++
+>  arch/x86/include/asm/pgtable.h        | 8 ++++++++
+>  include/linux/huge_mm.h               | 3 ---
+>  mm/huge_memory.c                      | 8 +++++---
+>  10 files changed, 67 insertions(+), 6 deletions(-)
 
-Setting aside the current block zeroing problem you seem to assuming
-that DAX will always be faster and that may not be true at a media
-level.  Waiting years for some applications to determine if DAX makes
-sense for their use case seems completely reasonable.  In the meantime
-the apps that are already making these changes want to know that a DAX
-mapping request has not silently dropped backed to page cache.  They
-also want to know if they successfully jumped through all the hoops to
-get a larger than pte mapping.
+That is ugly. What about this:
 
-I agree it is useful to be able to force DAX on an unmodified
-application to see what happens, and it follows that if those
-applications want to run in that mode they will need functional
-fsync()...
-
-I would feel better if we were talking about specific applications and
-performance numbers to know if forcing DAX on application is a debug
-facility or a production level capability.  You seem to have already
-made that determination and I'm curious what I'm missing.
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 459fd25b378e..f12513a20a06 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+                        __split_huge_pmd(__vma, __pmd, __address);      \
+        }  while (0)
+ 
+-#if HPAGE_PMD_ORDER >= MAX_ORDER
+-#error "hugepages can't be allocated by the buddy allocator"
+-#endif
+ extern int hugepage_madvise(struct vm_area_struct *vma,
+                            unsigned long *vm_flags, int advice);
+ extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 08fc0ba2207e..bc33330b5547 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
+        (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+ 
+ /* default scan 8*512 pte (or vmas) every 30 second */
+-static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
++static unsigned int khugepaged_pages_to_scan __read_mostly;
+ static unsigned int khugepaged_pages_collapsed;
+ static unsigned int khugepaged_full_scans;
+ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+@@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+  * it would have happened if the vma was large enough during page
+  * fault.
+  */
+-static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
++static unsigned int khugepaged_max_ptes_none __read_mostly;
+ 
+ static int khugepaged(void *none);
+ static int khugepaged_slab_init(void);
+@@ -650,16 +650,36 @@ static inline void hugepage_exit_sysfs(struct kobject *hugepage_kobj)
+ }
+ #endif /* CONFIG_SYSFS */
+ 
++#define MAYBE_BUILD_BUG_ON(cond)               \
++({                                             \
++       if (__builtin_constant_p((cond)))       \
++               BUILD_BUG_ON(cond);             \
++       else                                    \
++               BUG_ON(cond);                   \
++})
++
+ static int __init hugepage_init(void)
+ {
+        int err;
+        struct kobject *hugepage_kobj;
+ 
++       khugepaged_pages_to_scan = HPAGE_PMD_NR*8;
++       khugepaged_max_ptes_none = HPAGE_PMD_NR-1;
++
+        if (!has_transparent_hugepage()) {
+                transparent_hugepage_flags = 0;
+                return -EINVAL;
+        }
+ 
++       /* hugepages can't be allocated by the buddy allocator */
++       MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER >= MAX_ORDER);
++
++       /*
++        * we use page->mapping and page->index in second tail page
++        * as list_head: assuming THP order >= 2
++        */
++       MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
++
+        err = hugepage_init_sysfs(&hugepage_kobj);
+        if (err)
+                goto err_sysfs;
+@@ -760,12 +780,6 @@ static inline struct list_head *page_deferred_list(struct page *page)
+ 
+ void prep_transhuge_page(struct page *page)
+ {
+-       /*
+-        * we use page->mapping and page->indexlru in second tail page
+-        * as list_head: assuming THP order >= 2
+-        */
+-       BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
+-
+        INIT_LIST_HEAD(page_deferred_list(page));
+        set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+ }
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
