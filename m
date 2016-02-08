@@ -1,198 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F9E828DF
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 17:53:57 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id c10so49977300pfc.2
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 14:53:57 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id b27si49330019pfd.82.2016.02.08.14.53.55
-        for <linux-mm@kvack.org>;
-        Mon, 08 Feb 2016 14:53:56 -0800 (PST)
-Subject: [PATCH] mm: CONFIG_NR_ZONES_EXTENDED
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 08 Feb 2016 14:53:31 -0800
-Message-ID: <20160208224925.29185.29044.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 55EE1828E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 17:58:44 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id q63so13098649pfb.0
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 14:58:44 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v16si49398898pfa.129.2016.02.08.14.58.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Feb 2016 14:58:43 -0800 (PST)
+Date: Mon, 8 Feb 2016 14:58:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with
+ waking up kcompactd
+Message-Id: <20160208145841.c356612c210c95b02863584f@linux-foundation.org>
+In-Reply-To: <1454938691-2197-5-git-send-email-vbabka@suse.cz>
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
-mm zones that are bumping up against the current maximum limit of 4
-zones, i.e. 2 bits in page->flags.  When adding a zone this equation
-still needs to be satisified:
+On Mon,  8 Feb 2016 14:38:10 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-    SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
-	  <= BITS_PER_LONG - NR_PAGEFLAGS
+> Similarly to direct reclaim/compaction, kswapd attempts to combine reclaim and
+> compaction to attempt making memory allocation of given order available. The
+> details differ from direct reclaim e.g. in having high watermark as a goal.
+> The code involved in kswapd's reclaim/compaction decisions has evolved to be
+> quite complex. Testing reveals that it doesn't actually work in at least one
+> scenario, and closer inspection suggests that it could be greatly simplified
+> without compromising on the goal (make high-order page available) or efficiency
+> (don't reclaim too much). The simplification relieas of doing all compaction in
+> kcompactd, which is simply woken up when high watermarks are reached by
+> kswapd's reclaim.
+> 
+> The scenario where kswapd compaction doesn't work was found with mmtests test
+> stress-highalloc configured to attempt order-9 allocations without direct
+> reclaim, just waking up kswapd. There was no compaction attempt from kswapd
+> during the whole test. Some added instrumentation shows what happens:
+> 
+> - balance_pgdat() sets end_zone to Normal, as it's not balanced
+> - reclaim is attempted on DMA zone, which sets nr_attempted to 99, but it
+>   cannot reclaim anything, so sc.nr_reclaimed is 0
+> - for zones DMA32 and Normal, kswapd_shrink_zone uses testorder=0, so it
+>   merely checks if high watermarks were reached for base pages. This is true,
+>   so no reclaim is attempted. For DMA, testorder=0 wasn't used, as
+>   compaction_suitable() returned COMPACT_SKIPPED
+> - even though the pgdat_needs_compaction flag wasn't set to false, no
+>   compaction happens due to the condition sc.nr_reclaimed > nr_attempted
+>   being false (as 0 < 99)
+> - priority-- due to nr_reclaimed being 0, repeat until priority reaches 0
+>   pgdat_balanced() is false as only the small zone DMA appears balanced
+>   (curiously in that check, watermark appears OK and compaction_suitable()
+>   returns COMPACT_PARTIAL, because a lower classzone_idx is used there)
+> 
+> Now, even if it was decided that reclaim shouldn't be attempted on the DMA
+> zone, the scenario would be the same, as (sc.nr_reclaimed=0 > nr_attempted=0)
+> is also false. The condition really should use >= as the comment suggests.
+> Then there is a mismatch in the check for setting pgdat_needs_compaction to
+> false using low watermark, while the rest uses high watermark, and who knows
+> what other subtlety. Hopefully this demonstrates that this is unsustainable.
+> 
+> Luckily we can simplify this a lot. The reclaim/compaction decisions make
+> sense for direct reclaim scenario, but in kswapd, our primary goal is to reach
+> high watermark in order-0 pages. Afterwards we can attempt compaction just
+> once. Unlike direct reclaim, we don't reclaim extra pages (over the high
+> watermark), the current code already disallows it for good reasons.
+> 
+> After this patch, we simply wake up kcompactd to process the pgdat, after we
+> have either succeeded or failed to reach the high watermarks in kswapd, which
+> goes to sleep. We pass kswapd's order and classzone_idx, so kcompactd can apply
+> the same criteria to determine which zones are worth compacting. Note that we
+> use the classzone_idx from wakeup_kswapd(), not balanced_classzone_idx which
+> can include higher zones that kswapd tried to balance too, but didn't consider
+> them in pgdat_balanced().
+> 
+> Since kswapd now cannot create high-order pages itself, we need to adjust how
+> it determines the zones to be balanced. The key element here is adding a
+> "highorder" parameter to zone_balanced, which, when set to false, makes it
+> consider only order-0 watermark instead of the desired higher order (this was
+> done previously by kswapd_shrink_zone(), but not elsewhere).  This false is
+> passed for example in pgdat_balanced(). Importantly, wakeup_kswapd() uses true
+> to make sure kswapd and thus kcompactd are woken up for a high-order allocation
+> failure.
+> 
+> For testing, I used stress-highalloc configured to do order-9 allocations with
+> GFP_NOWAIT|__GFP_HIGH|__GFP_COMP, so they relied just on kswapd/kcompactd
+> reclaim/compaction (the interfering kernel builds in phases 1 and 2 work as
+> usual):
+> 
+> stress-highalloc
+>                               4.5-rc1               4.5-rc1
+>                                3-test                4-test
 
-ZONE_DEVICE currently tries to satisfy this equation by requiring that
-ZONE_DMA be disabled, but this is untenable given generic kernels want
-to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
-to increase the amount of memory covered per section, but that limits
-the minimum granularity at which consecutive memory ranges can be added
-via devm_memremap_pages().
+What are "3-test" and "4-test"?  I'm assuming (hoping) they mean
+"before and after this patchset", but the nomenclature is odd.
 
-The trade-off of what is acceptable to sacrifice depends heavily on the
-platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
-page->flags is constrained, but those platforms likely do not care about
-the minimum granularity of memory hotplug.  A big iron machine with 1024
-numa nodes can likely sacrifice ZONE_DMA where a general purpose
-distribution kernel can not.
+> Success 1 Min          1.00 (  0.00%)        3.00 (-200.00%)
+> Success 1 Mean         1.40 (  0.00%)        4.00 (-185.71%)
+> Success 1 Max          2.00 (  0.00%)        6.00 (-200.00%)
+> Success 2 Min          1.00 (  0.00%)        3.00 (-200.00%)
+> Success 2 Mean         1.80 (  0.00%)        4.20 (-133.33%)
+> Success 2 Max          3.00 (  0.00%)        6.00 (-100.00%)
+> Success 3 Min         34.00 (  0.00%)       63.00 (-85.29%)
+> Success 3 Mean        41.80 (  0.00%)       64.60 (-54.55%)
+> Success 3 Max         53.00 (  0.00%)       67.00 (-26.42%)
+> 
+>              4.5-rc1     4.5-rc1
+>               3-test      4-test
+> User         3166.67     3088.82
+> System       1153.37     1142.01
+> Elapsed      1768.53     1780.91
+>
+>                                   4.5-rc1     4.5-rc1
+>                                    3-test      4-test
+> Minor Faults                    106940795   106582816
+> Major Faults                          829         813
+> Swap Ins                              482         311
+> Swap Outs                            6278        5598
+> Allocation stalls                     128         184
+> DMA allocs                            145          32
+> DMA32 allocs                     74646161    74843238
+> Normal allocs                    26090955    25886668
+> Movable allocs                          0           0
+> Direct pages scanned                32938       31429
+> Kswapd pages scanned              2183166     2185293
+> Kswapd pages reclaimed            2152359     2134389
+> Direct pages reclaimed              32735       31234
+> Kswapd efficiency                     98%         97%
+> Kswapd velocity                  1243.877    1228.666
+> Direct efficiency                     99%         99%
+> Direct velocity                    18.767      17.671
 
-CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
-when the number of configured zones exceeds 4.  It documents the
-configuration symbols and definitions that get modified when ZONES_WIDTH
-is greater than 2.
+What do "efficiency" and "velocity" refer to here?
 
-For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
-document the definitions that get modified when a 32-bit configuration
-wants more zone bits.
+> Percentage direct scans                1%          1%
+> Zone normal velocity              299.981     291.409
+> Zone dma32 velocity               962.522     954.928
+> Zone dma velocity                   0.142       0.000
+> Page writes by reclaim           6278.800    5598.600
+> Page writes file                        0           0
+> Page writes anon                     6278        5598
+> Page reclaim immediate                 93          96
+> Sector Reads                      4357114     4307161
+> Sector Writes                    11053628    11053091
+> Page rescued immediate                  0           0
+> Slabs scanned                     1592829     1555770
+> Direct inode steals                  1557        2025
+> Kswapd inode steals                 46056       45418
+> Kswapd skipped wait                     0           0
+> THP fault alloc                       579         614
+> THP collapse alloc                    304         324
+> THP splits                              0           0
+> THP fault fallback                    793         730
+> THP collapse fail                      11          14
+> Compaction stalls                    1013         959
+> Compaction success                     92          69
+> Compaction failures                   920         890
+> Page migrate success               238457      662054
+> Page migrate failure                23021       32846
+> Compaction pages isolated          504695     1370326
+> Compaction migrate scanned         661390     7025772
+> Compaction free scanned          13476658    73302642
+> Compaction cost                       262         762
+> 
+> After this patch we see improvements in allocation success rate (especially for
+> phase 3) along with increased compaction activity. The compaction stalls
+> (direct compaction) in the interfering kernel builds (probably THP's) also
+> decreased somewhat to kcompactd activity, yet THP alloc successes improved a
+> bit.
+> 
+> We can also configure stress-highalloc to perform both direct
+> reclaim/compaction and wakeup kswapd/kcompactd, by using
+> GFP_KERNEL|__GFP_HIGH|__GFP_COMP:
+> 
+> stress-highalloc
+>                               4.5-rc1               4.5-rc1
+>                               3-test2               4-test2
+> Success 1 Min          4.00 (  0.00%)        6.00 (-50.00%)
+> Success 1 Mean         8.00 (  0.00%)        8.40 ( -5.00%)
+> Success 1 Max         12.00 (  0.00%)       13.00 ( -8.33%)
+> Success 2 Min          4.00 (  0.00%)        6.00 (-50.00%)
+> Success 2 Mean         8.20 (  0.00%)        8.60 ( -4.88%)
+> Success 2 Max         13.00 (  0.00%)       12.00 (  7.69%)
+> Success 3 Min         75.00 (  0.00%)       75.00 (  0.00%)
+> Success 3 Mean        75.60 (  0.00%)       75.60 (  0.00%)
+> Success 3 Max         77.00 (  0.00%)       76.00 (  1.30%)
+> 
+>              4.5-rc1     4.5-rc1
+>              3-test2     4-test2
+> User         3344.73     3258.62
+> System       1194.24     1177.92
+> Elapsed      1838.04     1837.02
 
-Note that GFP_ZONE_TABLE poses an interesting constraint since
-include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
-build.  We need to be careful to only build the table for zones that
-have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
-purpose.  This patch does not attempt to solve the problem of adding a
-new zone that also has a corresponding GFP_ flag.
+Elapsed time increased in both test runs.  But you later say "There's
+however significant reduction in direct compaction stalls, made
+entirely of the successful stalls".  This seems inconsistent - less
+stalls should mean less time stuck in D state.
 
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
-Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
-Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Reported-by: Mark <markk@clara.co.uk>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
+>                                   4.5-rc1     4.5-rc1
+>                                   3-test2     4-test2
+> Minor Faults                    111269736   109392253
+> Major Faults                          806         755
+> Swap Ins                              671         155
+> Swap Outs                            5390        5790
+> Allocation stalls                    4610        4562
+> DMA allocs                            250          34
+> DMA32 allocs                     78091501    76901680
+> Normal allocs                    27004414    26587089
+> Movable allocs                          0           0
+> Direct pages scanned               125146      108854
+> Kswapd pages scanned              2119757     2131589
+> Kswapd pages reclaimed            2073183     2090937
+> Direct pages reclaimed             124909      108699
+> Kswapd efficiency                     97%         98%
+> Kswapd velocity                  1161.027    1160.870
+> Direct efficiency                     99%         99%
+> Direct velocity                    68.545      59.283
+> Percentage direct scans                5%          4%
+> Zone normal velocity              296.678     294.389
+> Zone dma32 velocity               932.841     925.764
+> Zone dma velocity                   0.053       0.000
+> Page writes by reclaim           5392.000    5790.600
+> Page writes file                        1           0
+> Page writes anon                     5390        5790
+> Page reclaim immediate                104         218
+> Sector Reads                      4350232     4376989
+> Sector Writes                    11126496    11102113
+> Page rescued immediate                  0           0
+> Slabs scanned                     1705294     1692486
+> Direct inode steals                  8700       16266
+> Kswapd inode steals                 36352       28364
+> Kswapd skipped wait                     0           0
+> THP fault alloc                       599         567
+> THP collapse alloc                    323         326
+> THP splits                              0           0
+> THP fault fallback                    806         805
+> THP collapse fail                      17          18
+> Compaction stalls                    2457        2070
+> Compaction success                    906         527
+> Compaction failures                  1551        1543
+> Page migrate success              2031423     2423657
+> Page migrate failure                32845       28790
+> Compaction pages isolated         4129761     4916017
+> Compaction migrate scanned       11996712    19370264
+> Compaction free scanned         214970969   360662356
+> Compaction cost                      2271        2745
+> 
+> Here, this patch doesn't change the success rate as direct compaction already
+> tries what it can. There's however significant reduction in direct compaction
+> stalls, made entirely of the successful stalls. This means the offload to
+> kcompactd is working as expected, and direct compaction is reduced either due
+> to detecting contention, or compaction deferred by kcompactd. In the previous
+> version of this patchset there was some apparent reduction of success rate,
+> but the changes in this version (such as using sync compaction only), new
+> baseline kernel, and/or averaging results from 5 executions (my bet), made this
+> go away.
+> 
 
-No changes from the initial RFC [1].
+A general thought: are we being as nice as possible to small systems in
+this patchset?  Does a small single-node machine which doesn't even use
+hugepages really need the additional overhead and bloat which we're
+adding?  A system which either doesn't use networking at all or uses
+NICs which never request more than an order-1 page?
 
-The requested documentation of GFP_ZONE_TABLE [2] is already included in
-include/linux/gfp.h.
-
-[1]: https://lkml.org/lkml/2016/1/28/24
-[2]: https://lkml.org/lkml/2016/2/7/11
-
- arch/x86/Kconfig                  |    6 ++++--
- include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
- include/linux/page-flags-layout.h |    2 ++
- mm/Kconfig                        |    7 +++++--
- 4 files changed, 31 insertions(+), 17 deletions(-)
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 9af2e6338400..263e9332ee35 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1408,8 +1408,10 @@ config NUMA_EMU
- 
- config NODES_SHIFT
- 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
--	range 1 10
--	default "10" if MAXSMP
-+	range 1 10 if !NR_ZONES_EXTENDED
-+	range 1 9 if NR_ZONES_EXTENDED
-+	default "10" if MAXSMP && !NR_ZONES_EXTENDED
-+	default "9" if MAXSMP && NR_ZONES_EXTENDED
- 	default "6" if X86_64
- 	default "3"
- 	depends on NEED_MULTIPLE_NODES
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index af1f2b24bbe4..d201d8ad8937 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
-  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
-  *
-- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
-+ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
-  */
- 
--#if 16 * ZONES_SHIFT > BITS_PER_LONG
--#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
-+#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
-+/* ZONE_DEVICE is not a valid GFP zone specifier */
-+#define GFP_ZONES_SHIFT 2
-+#else
-+#define GFP_ZONES_SHIFT ZONES_SHIFT
-+#endif
-+
-+#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
-+#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
- #endif
- 
- #define GFP_ZONE_TABLE ( \
--	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
--	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
--	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
--	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
--	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
--	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
--	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
--	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
-+	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)					\
-+	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)			\
-+	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)		\
-+	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		      	\
-+	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)			\
-+	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)	\
-+	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)	\
-+	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)	\
- )
- 
- /*
-@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- 	enum zone_type z;
- 	int bit = (__force int) (flags & GFP_ZONEMASK);
- 
--	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
--					 ((1 << ZONES_SHIFT) - 1);
-+	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-+					 ((1 << GFP_ZONES_SHIFT) - 1);
- 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
- 	return z;
- }
-diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-index da523661500a..77b078c103b2 100644
---- a/include/linux/page-flags-layout.h
-+++ b/include/linux/page-flags-layout.h
-@@ -17,6 +17,8 @@
- #define ZONES_SHIFT 1
- #elif MAX_NR_ZONES <= 4
- #define ZONES_SHIFT 2
-+#elif MAX_NR_ZONES <= 8
-+#define ZONES_SHIFT 3
- #else
- #error ZONES_SHIFT -- too many zones configured adjust calculation
- #endif
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 03cbfa072f42..363ee0ca189f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -652,8 +652,6 @@ config IDLE_PAGE_TRACKING
- 
- config ZONE_DEVICE
- 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
--	default !ZONE_DMA
--	depends on !ZONE_DMA
- 	depends on MEMORY_HOTPLUG
- 	depends on MEMORY_HOTREMOVE
- 	depends on X86_64 #arch_add_memory() comprehends device memory
-@@ -667,5 +665,10 @@ config ZONE_DEVICE
- 
- 	  If FS_DAX is enabled, then say Y.
- 
-+config NR_ZONES_EXTENDED
-+	bool
-+	default n if !64BIT
-+	default y if ZONE_DEVICE && ZONE_DMA && ZONE_DMA32
-+
- config FRAME_VECTOR
- 	bool
+Maybe the answer there is "turn off compaction".  If so, I wonder if
+we've done all we can to tell the builders of such systems that this is
+what we think they should do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
