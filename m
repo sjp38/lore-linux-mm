@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9A2830A0
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 08:38:33 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id p63so116001814wmp.1
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 05:38:33 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4A5830A0
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 08:38:35 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id c200so15928946wme.0
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 05:38:35 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cu9si28409060wjc.53.2016.02.08.05.38.28
+        by mx.google.com with ESMTPS id vu8si42368671wjc.28.2016.02.08.05.38.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 08 Feb 2016 05:38:29 -0800 (PST)
+        Mon, 08 Feb 2016 05:38:28 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 0/5] introduce kcompactd and stop compacting in kswapd
-Date: Mon,  8 Feb 2016 14:38:06 +0100
-Message-Id: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 1/5] mm, kswapd: remove bogus check of balance_classzone_idx
+Date: Mon,  8 Feb 2016 14:38:07 +0100
+Message-Id: <1454938691-2197-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-The previous RFC is here [1]. It didn't have a cover letter, so the description
-and results are in the individual patches.
+During work on kcompactd integration I have spotted a confusing check of
+balance_classzone_idx, which I believe is bogus.
 
-Changes since v1:
-- do only sync compaction in kcompactd (Mel)
-- only compact zones up to classzone_idx (Mel)
-- move wakeup_kcompactd() call from patch 2 to patch 4 (Mel)
-- Patch 3 is separate from Patch 2 for review purposes, although I would just
-  fold it in the end (Mel)
-- Patch 5 is new
-- retested on 4.5-rc1 with 5 repeats, which removed some counter-intuitive
-  results and added more confidence
+The balanced_classzone_idx is filled by balance_pgdat() as the highest zone
+it attempted to balance. This was introduced by commit dc83edd941f4 ("mm:
+kswapd: use the classzone idx that kswapd was using for
+sleeping_prematurely()"). The intention is that (as expressed in today's
+function names), the value used for kswapd_shrink_zone() calls in
+balance_pgdat() is the same as for the decisions in kswapd_try_to_sleep().
+An unwanted side-effect of that commit was breaking the checks in kswapd()
+whether there was another kswapd_wakeup with a tighter (=lower) classzone_idx.
+Commits 215ddd6664ce ("mm: vmscan: only read new_classzone_idx from pgdat
+when reclaiming successfully") and d2ebd0f6b895 ("kswapd: avoid unnecessary
+rebalance after an unsuccessful balancing") tried to fixed, but apparently
+introduced a bogus check that this patch removes.
 
-[1] https://lkml.org/lkml/2016/1/26/558
+Consider zone indexes X < Y < Z, where:
+- Z is the value used for the first kswapd wakeup.
+- Y is returned as balanced_classzone_idx, which means zones with index higher
+  than Y (including Z) were found to be unreclaimable.
+- X is the value used for the second kswapd wakeup
 
-Vlastimil Babka (5):
-  mm, kswapd: remove bogus check of balance_classzone_idx
-  mm, compaction: introduce kcompactd
-  mm, memory hotplug: small cleanup in online_pages()
-  mm, kswapd: replace kswapd compaction with waking up kcompactd
-  mm, compaction: adapt isolation_suitable flushing to kcompactd
+The new wakeup with value X means that kswapd is now supposed to balance harder
+all zones with index <= X. But instead, due to Y < Z, it will go sleep and
+won't read the new value X. This is subtly wrong.
 
- include/linux/compaction.h        |  16 +++
- include/linux/mmzone.h            |   6 +
- include/linux/vm_event_item.h     |   1 +
- include/trace/events/compaction.h |  55 +++++++++
- mm/compaction.c                   | 230 +++++++++++++++++++++++++++++++++++++-
- mm/internal.h                     |   1 +
- mm/memory_hotplug.c               |  15 ++-
- mm/page_alloc.c                   |   3 +
- mm/vmscan.c                       | 147 ++++++++----------------
- mm/vmstat.c                       |   1 +
- 10 files changed, 366 insertions(+), 109 deletions(-)
+The effect of this patch is that kswapd will react better in some situations,
+where e.g. the first wakeup is for ZONE_DMA32, the second is for ZONE_DMA, and
+due to unreclaimable ZONE_NORMAL. Before this patch, kswapd would go sleep
+instead of reclaiming ZONE_DMA harder. I expect these situations are very rare,
+and more value is in better maintainability due to the removal of confusing
+and bogus check.
 
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/vmscan.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 18b3767136f4..c67df4831565 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3451,8 +3451,7 @@ static int kswapd(void *p)
+ 		 * new request of a similar or harder type will succeed soon
+ 		 * so consider going to sleep on the basis we reclaimed at
+ 		 */
+-		if (balanced_classzone_idx >= new_classzone_idx &&
+-					balanced_order == new_order) {
++		if (balanced_order == new_order) {
+ 			new_order = pgdat->kswapd_max_order;
+ 			new_classzone_idx = pgdat->classzone_idx;
+ 			pgdat->kswapd_max_order =  0;
 -- 
 2.7.0
 
