@@ -1,118 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DAEE1828DF
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 17:07:17 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id yy13so79971820pab.3
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 14:07:17 -0800 (PST)
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F9E828DF
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 17:53:57 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id c10so49977300pfc.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 14:53:57 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id y22si49115458pfi.57.2016.02.08.14.07.16
+        by mx.google.com with ESMTP id b27si49330019pfd.82.2016.02.08.14.53.55
         for <linux-mm@kvack.org>;
-        Mon, 08 Feb 2016 14:07:16 -0800 (PST)
-Date: Mon, 8 Feb 2016 15:06:50 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v8 6/9] dax: add support for fsync/msync
-Message-ID: <20160208220650.GG2343@linux.intel.com>
-References: <1452230879-18117-1-git-send-email-ross.zwisler@linux.intel.com>
- <1452230879-18117-7-git-send-email-ross.zwisler@linux.intel.com>
- <878u2xrjrw.fsf@openvz.org>
+        Mon, 08 Feb 2016 14:53:56 -0800 (PST)
+Subject: [PATCH] mm: CONFIG_NR_ZONES_EXTENDED
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 08 Feb 2016 14:53:31 -0800
+Message-ID: <20160208224925.29185.29044.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <878u2xrjrw.fsf@openvz.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Monakhov <dmonlist@gmail.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com
+To: akpm@linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On Sat, Feb 06, 2016 at 05:33:07PM +0300, Dmitry Monakhov wrote:
-> Ross Zwisler <ross.zwisler@linux.intel.com> writes:
-<>
-> > +static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
-> IMHO it would be sane to call that function as dax_radix_entry_insert() 
+ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
+mm zones that are bumping up against the current maximum limit of 4
+zones, i.e. 2 bits in page->flags.  When adding a zone this equation
+still needs to be satisified:
 
-I think I may have actually had it named that at some point. :)  I changed it
-because it doesn't always insert an entry - in the read case for example we
-insert a clean entry, and then on the following dax_pfn_mkwrite() we call back
-in and mark it as dirty.
+    SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
+	  <= BITS_PER_LONG - NR_PAGEFLAGS
 
-<>
-> > +/*
-> > + * Flush the mapping to the persistent domain within the byte range of [start,
-> > + * end]. This is required by data integrity operations to ensure file data is
-> > + * on persistent storage prior to completion of the operation.
-> > + */
-> > +int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
-> > +		loff_t end)
-> > +{
-> > +	struct inode *inode = mapping->host;
-> > +	struct block_device *bdev = inode->i_sb->s_bdev;
-> > +	pgoff_t indices[PAGEVEC_SIZE];
-> > +	pgoff_t start_page, end_page;
-> > +	struct pagevec pvec;
-> > +	void *entry;
-> > +	int i, ret = 0;
-> > +
-> > +	if (WARN_ON_ONCE(inode->i_blkbits != PAGE_SHIFT))
-> > +		return -EIO;
-> > +
-> > +	rcu_read_lock();
-> > +	entry = radix_tree_lookup(&mapping->page_tree, start & PMD_MASK);
-> > +	rcu_read_unlock();
-> > +
-> > +	/* see if the start of our range is covered by a PMD entry */
-> > +	if (entry && RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-> > +		start &= PMD_MASK;
-> > +
-> > +	start_page = start >> PAGE_CACHE_SHIFT;
-> > +	end_page = end >> PAGE_CACHE_SHIFT;
-> > +
-> > +	tag_pages_for_writeback(mapping, start_page, end_page);
-> > +
-> > +	pagevec_init(&pvec, 0);
-> > +	while (1) {
-> > +		pvec.nr = find_get_entries_tag(mapping, start_page,
-> > +				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,
-> > +				pvec.pages, indices);
-> > +
-> > +		if (pvec.nr == 0)
-> > +			break;
-> > +
-> > +		for (i = 0; i < pvec.nr; i++) {
-> > +			ret = dax_writeback_one(bdev, mapping, indices[i],
-> > +					pvec.pages[i]);
-> > +			if (ret < 0)
-> > +				return ret;
-> > +		}
-> I think it would be more efficient to use batched locking like follows:
->                 spin_lock_irq(&mapping->tree_lock);
-> 		for (i = 0; i < pvec.nr; i++) {
->                     struct blk_dax_ctl dax[PAGEVEC_SIZE];                
->                     radix_tree_tag_clear(page_tree, indices[i], PAGECACHE_TAG_TOWRITE);
->                     /* It is also reasonable to merge adjacent dax
->                      * regions in to one */
->                     dax[i].sector = RADIX_DAX_SECTOR(entry);
->                     dax[i].size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);                    
-> 
->                 }
->                 spin_unlock_irq(&mapping->tree_lock);
->                	if (blk_queue_enter(q, true) != 0)
->                     goto error;
->                 for (i = 0; i < pvec.nr; i++) {
->                     rc = bdev_direct_access(bdev, dax[i]);
->                     wb_cache_pmem(dax[i].addr, dax[i].size);
->                 }
->                 ret = blk_queue_exit(q, true)
+ZONE_DEVICE currently tries to satisfy this equation by requiring that
+ZONE_DMA be disabled, but this is untenable given generic kernels want
+to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
+to increase the amount of memory covered per section, but that limits
+the minimum granularity at which consecutive memory ranges can be added
+via devm_memremap_pages().
 
-I guess this could be more efficient, but as Jan said in his response we're
-currently focused on correctness.  I also wonder if it would be measurably
-better?
+The trade-off of what is acceptable to sacrifice depends heavily on the
+platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
+page->flags is constrained, but those platforms likely do not care about
+the minimum granularity of memory hotplug.  A big iron machine with 1024
+numa nodes can likely sacrifice ZONE_DMA where a general purpose
+distribution kernel can not.
 
-In any case, Jan is right - you have to clear the TOWRITE tag only after
-you've flushed, and you also need to include the entry verification code from
-dax_writeback_one() after you grab the tree lock.  Basically, I believe all
-the code in dax_writeback_one() is needed - this change would essentially just
-be inlining that code in dax_writeback_mapping_range() so you could do
-multiple operations without giving up a lock.
+CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
+when the number of configured zones exceeds 4.  It documents the
+configuration symbols and definitions that get modified when ZONES_WIDTH
+is greater than 2.
+
+For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
+document the definitions that get modified when a 32-bit configuration
+wants more zone bits.
+
+Note that GFP_ZONE_TABLE poses an interesting constraint since
+include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
+build.  We need to be careful to only build the table for zones that
+have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
+purpose.  This patch does not attempt to solve the problem of adding a
+new zone that also has a corresponding GFP_ flag.
+
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
+Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
+Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Reported-by: Mark <markk@clara.co.uk>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+
+No changes from the initial RFC [1].
+
+The requested documentation of GFP_ZONE_TABLE [2] is already included in
+include/linux/gfp.h.
+
+[1]: https://lkml.org/lkml/2016/1/28/24
+[2]: https://lkml.org/lkml/2016/2/7/11
+
+ arch/x86/Kconfig                  |    6 ++++--
+ include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
+ include/linux/page-flags-layout.h |    2 ++
+ mm/Kconfig                        |    7 +++++--
+ 4 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 9af2e6338400..263e9332ee35 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1408,8 +1408,10 @@ config NUMA_EMU
+ 
+ config NODES_SHIFT
+ 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
+-	range 1 10
+-	default "10" if MAXSMP
++	range 1 10 if !NR_ZONES_EXTENDED
++	range 1 9 if NR_ZONES_EXTENDED
++	default "10" if MAXSMP && !NR_ZONES_EXTENDED
++	default "9" if MAXSMP && NR_ZONES_EXTENDED
+ 	default "6" if X86_64
+ 	default "3"
+ 	depends on NEED_MULTIPLE_NODES
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index af1f2b24bbe4..d201d8ad8937 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+  *
+- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
++ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
+  */
+ 
+-#if 16 * ZONES_SHIFT > BITS_PER_LONG
+-#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
++#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
++/* ZONE_DEVICE is not a valid GFP zone specifier */
++#define GFP_ZONES_SHIFT 2
++#else
++#define GFP_ZONES_SHIFT ZONES_SHIFT
++#endif
++
++#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
++#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+ #endif
+ 
+ #define GFP_ZONE_TABLE ( \
+-	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+-	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
+-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
+-	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
+-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
+-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
++	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)					\
++	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)			\
++	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)		\
++	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		      	\
++	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)			\
++	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)	\
++	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)	\
++	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)	\
+ )
+ 
+ /*
+@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+ 	enum zone_type z;
+ 	int bit = (__force int) (flags & GFP_ZONEMASK);
+ 
+-	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+-					 ((1 << ZONES_SHIFT) - 1);
++	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
++					 ((1 << GFP_ZONES_SHIFT) - 1);
+ 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+ 	return z;
+ }
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+index da523661500a..77b078c103b2 100644
+--- a/include/linux/page-flags-layout.h
++++ b/include/linux/page-flags-layout.h
+@@ -17,6 +17,8 @@
+ #define ZONES_SHIFT 1
+ #elif MAX_NR_ZONES <= 4
+ #define ZONES_SHIFT 2
++#elif MAX_NR_ZONES <= 8
++#define ZONES_SHIFT 3
+ #else
+ #error ZONES_SHIFT -- too many zones configured adjust calculation
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 03cbfa072f42..363ee0ca189f 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -652,8 +652,6 @@ config IDLE_PAGE_TRACKING
+ 
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
+-	default !ZONE_DMA
+-	depends on !ZONE_DMA
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on X86_64 #arch_add_memory() comprehends device memory
+@@ -667,5 +665,10 @@ config ZONE_DEVICE
+ 
+ 	  If FS_DAX is enabled, then say Y.
+ 
++config NR_ZONES_EXTENDED
++	bool
++	default n if !64BIT
++	default y if ZONE_DEVICE && ZONE_DMA && ZONE_DMA32
++
+ config FRAME_VECTOR
+ 	bool
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
