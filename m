@@ -1,60 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 869008309E
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 01:24:11 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id p63so101210101wmp.1
-        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 22:24:11 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id x189si14660498wmg.13.2016.02.07.22.24.10
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BD5A78309E
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 01:41:13 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id xk3so140909467obc.2
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 22:41:13 -0800 (PST)
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
+        by mx.google.com with ESMTPS id sc8si14685613obb.67.2016.02.07.22.41.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Feb 2016 22:24:10 -0800 (PST)
-Date: Mon, 8 Feb 2016 01:23:53 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/5] mm: workingset: make shadow node shrinker memcg aware
-Message-ID: <20160208062353.GE22202@cmpxchg.org>
-References: <cover.1454864628.git.vdavydov@virtuozzo.com>
- <934ce4e1cfe42b57e8114c72a447656fe5a01267.1454864628.git.vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <934ce4e1cfe42b57e8114c72a447656fe5a01267.1454864628.git.vdavydov@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 07 Feb 2016 22:41:13 -0800 (PST)
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 7 Feb 2016 23:41:12 -0700
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 35E5419D8041
+	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 23:29:10 -0700 (MST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u186fB9133488912
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 06:41:11 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u186fAcg020956
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 01:41:10 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] mm: Make vm_get_page_prot arch specific.
+Date: Mon,  8 Feb 2016 12:10:59 +0530
+Message-Id: <1454913660-27031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Sun, Feb 07, 2016 at 08:27:35PM +0300, Vladimir Davydov wrote:
-> Workingset code was recently made memcg aware, but shadow node shrinker
-> is still global. As a result, one small cgroup can consume all memory
-> available for shadow nodes, possibly hurting other cgroups by reclaiming
-> their shadow nodes, even though reclaim distances stored in its shadow
-> nodes have no effect. To avoid this, we need to make shadow node
-> shrinker memcg aware.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+With next generation power processor, we are having a new mmu model
+[1] that require us to maintain a different linux page table format.
 
-This patch is straight forward, but there is one tiny thing that bugs
-me about it, and that is switching from available memory to the size
-of the active list. Because the active list can shrink drastically at
-runtime.
+Inorder to support both current and future ppc64 systems with a single
+kernel we need to make sure kernel can select between different page
+table format at runtime. With the new MMU (radix MMU) added, we will
+have to dynamically switch between different protection map. Hence
+override vm_get_page_prot instead of using arch_vm_get_page_prot. We
+also drop arch_vm_get_page_prot since only powerpc used it.
 
-It's true that both the shrinking of the active list and subsequent
-activations to regrow it will reduce the number of actionable
-refaults, and so it wouldn't be unreasonable to also shrink shadow
-nodes when the active list shrinks.
+[1] http://ibm.biz/power-isa3 (Needs registration).
 
-However, I think these are too many assumptions to encode in the
-shrinker, because it is only meant to prevent a worst-case explosion
-of radix tree nodes. I'd prefer it to be dumb and conservative.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/hash.h |  3 +++
+ arch/powerpc/include/asm/mman.h           |  6 ------
+ arch/powerpc/mm/hash_utils_64.c           | 19 +++++++++++++++++++
+ include/linux/mman.h                      |  4 ----
+ mm/mmap.c                                 |  9 ++++++---
+ 5 files changed, 28 insertions(+), 13 deletions(-)
 
-Could we instead go with the current usage of the memcg? Whether
-reclaim happens globally or due to the memory limit, the usage at the
-time of reclaim gives a good idea of the memory is available to the
-group. But it's making less assumptions about the internal composition
-of the memcg's memory, and the consequences associated with that.
-
-What do you think?
+diff --git a/arch/powerpc/include/asm/book3s/64/hash.h b/arch/powerpc/include/asm/book3s/64/hash.h
+index 6aae0b0b649b..c568eaa1c26d 100644
+--- a/arch/powerpc/include/asm/book3s/64/hash.h
++++ b/arch/powerpc/include/asm/book3s/64/hash.h
+@@ -538,6 +538,9 @@ static inline pgprot_t pgprot_writecombine(pgprot_t prot)
+ 	return pgprot_noncached_wc(prot);
+ }
+ 
++extern pgprot_t vm_get_page_prot(unsigned long vm_flags);
++#define vm_get_page_prot vm_get_page_prot
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ extern void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
+ 				   pmd_t *pmdp, unsigned long old_pmd);
+diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
+index 8565c254151a..9f48698af024 100644
+--- a/arch/powerpc/include/asm/mman.h
++++ b/arch/powerpc/include/asm/mman.h
+@@ -24,12 +24,6 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot)
+ }
+ #define arch_calc_vm_prot_bits(prot) arch_calc_vm_prot_bits(prot)
+ 
+-static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
+-{
+-	return (vm_flags & VM_SAO) ? __pgprot(_PAGE_SAO) : __pgprot(0);
+-}
+-#define arch_vm_get_page_prot(vm_flags) arch_vm_get_page_prot(vm_flags)
+-
+ static inline int arch_validate_prot(unsigned long prot)
+ {
+ 	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | PROT_SAO))
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index ba59d5977f34..3199bbc654c5 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -1564,3 +1564,22 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 	/* Finally limit subsequent allocations */
+ 	memblock_set_current_limit(ppc64_rma_size);
+ }
++
++static pgprot_t hash_protection_map[16] = {
++	__P000, __P001, __P010, __P011, __P100,
++	__P101, __P110, __P111, __S000, __S001,
++	__S010, __S011, __S100, __S101, __S110, __S111
++};
++
++pgprot_t vm_get_page_prot(unsigned long vm_flags)
++{
++	pgprot_t prot_soa = __pgprot(0);
++
++	if (vm_flags & VM_SAO)
++		prot_soa = __pgprot(_PAGE_SAO);
++
++	return __pgprot(pgprot_val(hash_protection_map[vm_flags &
++				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
++			pgprot_val(prot_soa));
++}
++EXPORT_SYMBOL(vm_get_page_prot);
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 16373c8f5f57..d44abea464e2 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -38,10 +38,6 @@ static inline void vm_unacct_memory(long pages)
+ #define arch_calc_vm_prot_bits(prot) 0
+ #endif
+ 
+-#ifndef arch_vm_get_page_prot
+-#define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+-#endif
+-
+ #ifndef arch_validate_prot
+ /*
+  * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+diff --git a/mm/mmap.c b/mm/mmap.c
+index cfc0cdca421e..aa2e901029d0 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -92,6 +92,10 @@ static void unmap_region(struct mm_struct *mm,
+  *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
+  *
+  */
++/*
++ * Give arch an option to override the below in dynamic matter
++ */
++#ifndef vm_get_page_prot
+ pgprot_t protection_map[16] = {
+ 	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
+ 	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
+@@ -99,11 +103,10 @@ pgprot_t protection_map[16] = {
+ 
+ pgprot_t vm_get_page_prot(unsigned long vm_flags)
+ {
+-	return __pgprot(pgprot_val(protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+-			pgprot_val(arch_vm_get_page_prot(vm_flags)));
++	return protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
+ }
+ EXPORT_SYMBOL(vm_get_page_prot);
++#endif
+ 
+ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+ {
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
