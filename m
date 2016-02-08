@@ -1,108 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A8A828E1
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 06:35:48 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id is5so147670504obc.0
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 03:35:48 -0800 (PST)
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
-        by mx.google.com with ESMTPS id ny9si15820491obc.30.2016.02.08.03.35.47
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C2C828E1
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 07:14:58 -0500 (EST)
+Received: by mail-qg0-f47.google.com with SMTP id y9so111364086qgd.3
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 04:14:58 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g60si25568190qgf.118.2016.02.08.04.14.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Feb 2016 03:35:47 -0800 (PST)
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Mon, 8 Feb 2016 04:35:46 -0700
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6C5511FF0045
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:23:41 -0700 (MST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u18BZV386815818
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 11:35:31 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u18BZTOb017434
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 06:35:30 -0500
-Message-ID: <56B87E32.4050003@linux.vnet.ibm.com>
-Date: Mon, 08 Feb 2016 17:08:26 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Feb 2016 04:14:57 -0800 (PST)
+Subject: [net-next PATCH V2 0/3] net: mitigating kmem_cache free slowpath
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Mon, 08 Feb 2016 13:14:54 +0100
+Message-ID: <20160208121328.8860.67014.stgit@localhost>
+In-Reply-To: <20160207.142526.1252110536030712971.davem@davemloft.net>
+References: <20160207.142526.1252110536030712971.davem@davemloft.net>
 MIME-Version: 1.0
-Subject: Re: [tip:sched/urgent] sched: Fix crash in sched_init_numa()
-References: <1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <tip-9c03ee147193645be4c186d3688232fa438c57c7@git.kernel.org>
-In-Reply-To: <tip-9c03ee147193645be4c186d3688232fa438c57c7@git.kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@kernel.org, linux-mm@kvack.org, mpe@ellerman.id.au, hpa@zytor.com, nikunj@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, peterz@infradead.org, vdavydov@parallels.com, gkurz@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, raghavendra.kt@linux.vnet.ibm.com, jstancek@redhat.com, benh@kernel.crashing.org, anton@samba.org, grant.likely@linaro.org, paulus@samba.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
-Cc: tip-bot for Raghavendra K T <tipbot@zytor.com>, linux-tip-commits@vger.kernel.org
+To: netdev@vger.kernel.org, Jeff Kirsher <jeffrey.t.kirsher@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tom@herbertland.com, Alexander Duyck <alexander.duyck@gmail.com>, alexei.starovoitov@gmail.com, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>
 
-On 01/19/2016 07:08 PM, tip-bot for Raghavendra K T wrote:
-> Commit-ID:  9c03ee147193645be4c186d3688232fa438c57c7
-> Gitweb:     http://git.kernel.org/tip/9c03ee147193645be4c186d3688232fa438c57c7
-> Author:     Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> AuthorDate: Sat, 16 Jan 2016 00:31:23 +0530
-> Committer:  Ingo Molnar <mingo@kernel.org>
-> CommitDate: Tue, 19 Jan 2016 08:42:20 +0100
->
-> sched: Fix crash in sched_init_numa()
->
-> The following PowerPC commit:
->
->    c118baf80256 ("arch/powerpc/mm/numa.c: do not allocate bootmem memory for non existing nodes")
->
-> avoids allocating bootmem memory for non existent nodes.
->
-> But when DEBUG_PER_CPU_MAPS=y is enabled, my powerNV system failed to boot
-> because in sched_init_numa(), cpumask_or() operation was done on
-> unallocated nodes.
->
-> Fix that by making cpumask_or() operation only on existing nodes.
->
-> [ Tested with and w/o DEBUG_PER_CPU_MAPS=y on x86 and PowerPC. ]
->
-> Reported-by: Jan Stancek <jstancek@redhat.com>
-> Tested-by: Jan Stancek <jstancek@redhat.com>
-> Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> Cc: <gkurz@linux.vnet.ibm.com>
-> Cc: <grant.likely@linaro.org>
-> Cc: <nikunj@linux.vnet.ibm.com>
-> Cc: <vdavydov@parallels.com>
-> Cc: <linuxppc-dev@lists.ozlabs.org>
-> Cc: <linux-mm@kvack.org>
-> Cc: <peterz@infradead.org>
-> Cc: <benh@kernel.crashing.org>
-> Cc: <paulus@samba.org>
-> Cc: <mpe@ellerman.id.au>
-> Cc: <anton@samba.org>
-> Link: http://lkml.kernel.org/r/1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com
-> Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> ---
->   kernel/sched/core.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 44253ad..474658b 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -6840,7 +6840,7 @@ static void sched_init_numa(void)
->
->   			sched_domains_numa_masks[i][j] = mask;
->
-> -			for (k = 0; k < nr_node_ids; k++) {
-> +			for_each_node(k) {
->   				if (node_distance(j, k) > sched_domains_numa_distance[i])
->   					continue;
->
->
->
->
+This patchset is the first real use-case for kmem_cache bulk _free_.
+The use of bulk _alloc_ is NOT included in this patchset. The full use
+have previously been posted here [1].
 
-Hello Greg,
-Above commit fixes the debug kernel crash in 4.4 kernel [ when
-DEBUG_PER_CPU_MAPS=y to be precise]. This is a regression in 4.4 from
-4.3 and should be ideally present in 4.4-stable.
+The bulk free side have the largest benefit for the network stack
+use-case, because network stack is hitting the kmem_cache/SLUB
+slowpath when freeing SKBs, due to the amount of outstanding SKBs.
+This is solved by using the new API kmem_cache_free_bulk().
 
-Could you please pull in this change.?
+Introduce new API napi_consume_skb(), that hides/handles bulk freeing
+for the caller.  The drivers simply need to use this call when freeing
+SKBs in NAPI context, e.g. replacing their calles to dev_kfree_skb() /
+dev_consume_skb_any().
+
+Driver ixgbe is the first user of this new API.
+
+[1] http://thread.gmane.org/gmane.linux.network/384302/focus=397373
+
+---
+
+Jesper Dangaard Brouer (3):
+      net: bulk free infrastructure for NAPI context, use napi_consume_skb
+      net: bulk free SKBs that were delay free'ed due to IRQ context
+      ixgbe: bulk free SKBs during TX completion cleanup cycle
+
+
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    6 +-
+ include/linux/skbuff.h                        |    4 +
+ net/core/dev.c                                |    9 ++-
+ net/core/skbuff.c                             |   87 +++++++++++++++++++++++--
+ 4 files changed, 96 insertions(+), 10 deletions(-)
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
