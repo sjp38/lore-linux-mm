@@ -1,78 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 83F91828E2
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 18:15:15 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id ho8so80862428pac.2
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:15:15 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id d89si49457209pfj.146.2016.02.08.15.15.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 15:15:14 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id e127so21586447pfe.3
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:15:14 -0800 (PST)
-Subject: Re: [RFC V5] Add gup trace points support
-References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
- <56955B76.2060503@linaro.org> <20160112151052.168bba85@gandalf.local.home>
- <56969400.6020805@linaro.org> <20160114094007.5b5c6e4d@gandalf.local.home>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <56B92176.7030609@linaro.org>
-Date: Mon, 8 Feb 2016 15:15:02 -0800
-MIME-Version: 1.0
-In-Reply-To: <20160114094007.5b5c6e4d@gandalf.local.home>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1968C828E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 18:49:08 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id c10so50666091pfc.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:49:08 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id wc6si49585997pab.33.2016.02.08.15.49.07
+        for <linux-mm@kvack.org>;
+        Mon, 08 Feb 2016 15:49:07 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, dax: check for pmd_none() after split_huge_pmd()
+Date: Tue,  9 Feb 2016 02:48:32 +0300
+Message-Id: <1454975312-27120-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org
-Cc: mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Andrew,
+DAX implements split_huge_pmd() by clearing pmd. This simple approach
+reduces memory overhead, as we don't need to deposit page table on huge
+page mapping to make split_huge_pmd() never-fail. PTE table can be
+allocated and populated later on page fault from backing store.
 
-This series already got acked from Steven and arch maintainers except 
-for x86. How should I proceed? Any comment is appreciated.
+But one side effect is that have to check if pmd is pmd_none() after
+split_huge_pmd(). In most places we do this already to deal with
+parallel MADV_DONTNEED.
 
-Thanks,
-Yang
+But I found two call sites which is not affected by MADV_DONTNEED
+(due down_write(mmap_sem)), but need to have the check to work with
+DAX properly.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/mprotect.c | 6 ++++--
+ mm/mremap.c   | 2 ++
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-On 1/14/2016 6:40 AM, Steven Rostedt wrote:
->
-> Andrew,
->
-> Do you want to pull in this series? You can add my Acked-by to the whole
-> set.
->
-> -- Steve
->
->
-> On Wed, 13 Jan 2016 10:14:24 -0800
-> "Shi, Yang" <yang.shi@linaro.org> wrote:
->
->> On 1/12/2016 12:10 PM, Steven Rostedt wrote:
->>> On Tue, 12 Jan 2016 12:00:54 -0800
->>> "Shi, Yang" <yang.shi@linaro.org> wrote:
->>>
->>>> Hi Steven,
->>>>
->>>> Any more comments on this series? How should I proceed it?
->>>>
->>>
->>> The tracing part looks fine to me. Now you just need to get the arch
->>> maintainers to ack each of the arch patches, and I can pull them in for
->>> 4.6. Too late for 4.5. Probably need Andrew Morton's ack for the
->>> mm/gup.c patch.
->>
->> Thanks Steven. Already sent email to x86, s390 and sparc maintainers.
->> Ralf already acked the MIPS part since v1.
->>
->> Regards,
->> Yang
->>
->>>
->>> -- Steve
->>>
->
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 1b9597f05d7d..6ff5dfa65b33 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -160,9 +160,11 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		}
+ 
+ 		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+-			if (next - addr != HPAGE_PMD_SIZE)
++			if (next - addr != HPAGE_PMD_SIZE) {
+ 				split_huge_pmd(vma, pmd, addr);
+-			else {
++				if (pmd_none(*pmd))
++					continue;
++			} else {
+ 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
+ 						newprot, prot_numa);
+ 
+diff --git a/mm/mremap.c b/mm/mremap.c
+index f1d18f8baa35..b43027a25982 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -220,6 +220,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+ 				}
+ 			}
+ 			split_huge_pmd(vma, old_pmd, old_addr);
++			if (pmd_none(*old_pmd))
++				continue;
+ 			VM_BUG_ON(pmd_trans_huge(*old_pmd));
+ 		}
+ 		if (pmd_none(*new_pmd) && __pte_alloc(new_vma->vm_mm, new_vma,
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
