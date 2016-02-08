@@ -1,269 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 438708309E
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 01:41:16 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id wb13so142381476obb.1
-        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 22:41:16 -0800 (PST)
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
-        by mx.google.com with ESMTPS id px4si14658806oec.72.2016.02.07.22.41.15
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 011738309E
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 02:52:51 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id p63so100720536wmp.1
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 23:52:50 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id a8si14993077wmi.35.2016.02.07.23.52.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 07 Feb 2016 22:41:15 -0800 (PST)
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 7 Feb 2016 23:41:15 -0700
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9EF0319D803F
-	for <linux-mm@kvack.org>; Sun,  7 Feb 2016 23:29:11 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u186fC3K24838240
-	for <linux-mm@kvack.org>; Sun, 7 Feb 2016 23:41:12 -0700
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u186fCIA006004
-	for <linux-mm@kvack.org>; Sun, 7 Feb 2016 23:41:12 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm: Some arch may want to use HPAGE_PMD related values as variables
-Date: Mon,  8 Feb 2016 12:11:00 +0530
-Message-Id: <1454913660-27031-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1454913660-27031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1454913660-27031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Feb 2016 23:52:49 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id p63so14246131wmp.1
+        for <linux-mm@kvack.org>; Sun, 07 Feb 2016 23:52:49 -0800 (PST)
+Date: Mon, 8 Feb 2016 09:52:47 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V2] powerpc/mm: Fix Multi hit ERAT cause by recent THP
+ update
+Message-ID: <20160208075247.GB9075@node.shutemov.name>
+References: <1454912062-9681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454912062-9681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-With next generation power processor, we are having a new mmu model
-[1] that require us to maintain a different linux page table format.
+On Mon, Feb 08, 2016 at 11:44:22AM +0530, Aneesh Kumar K.V wrote:
+> With ppc64 we use the deposited pgtable_t to store the hash pte slot
+> information. We should not withdraw the deposited pgtable_t without
+> marking the pmd none. This ensure that low level hash fault handling
+> will skip this huge pte and we will handle them at upper levels.
+> 
+> Recent change to pmd splitting changed the above in order to handle the
+> race between pmd split and exit_mmap. The race is explained below.
+> 
+> Consider following race:
+> 
+> 		CPU0				CPU1
+> shrink_page_list()
+>   add_to_swap()
+>     split_huge_page_to_list()
+>       __split_huge_pmd_locked()
+>         pmdp_huge_clear_flush_notify()
+> 	// pmd_none() == true
+> 					exit_mmap()
+> 					  unmap_vmas()
+> 					    zap_pmd_range()
+> 					      // no action on pmd since pmd_none() == true
+> 	pmd_populate()
+> 
+> As result the THP will not be freed. The leak is detected by check_mm():
+> 
+> 	BUG: Bad rss-counter state mm:ffff880058d2e580 idx:1 val:512
+> 
+> The above required us to not mark pmd none during a pmd split.
+> 
+> The fix for ppc is to clear the huge pte of _PAGE_USER, so that low
+> level fault handling code skip this pte. At higher level we do take ptl
+> lock. That should serialze us against the pmd split. Once the lock is
+> acquired we do check the pmd again using pmd_same. That should always
+> return false for us and hence we should retry the access.
 
-Inorder to support both current and future ppc64 systems with a single
-kernel we need to make sure kernel can select between different page
-table format at runtime. With the new MMU (radix MMU) added, we will
-have two different pmd hugepage size 16MB for hash model and 2MB for
-Radix model. Hence make HPAGE_PMD related values as a variable.
+I guess it worth mention that this serialization against ptl happens in
+huge_pmd_set_accessed(), if I didn't miss anything.
 
-[1] http://ibm.biz/power-isa3 (Needs registration).
+> 
+> Also make sure we wait for irq disable section in other cpus to finish
+> before flipping a huge pte entry with a regular pmd entry. Code paths
+> like find_linux_pte_or_hugepte depend on irq disable to get
+> a stable pte_t pointer. A parallel thp split need to make sure we
+> don't convert a pmd pte to a regular pmd entry without waiting for the
+> irq disable section to finish.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  arch/powerpc/include/asm/book3s/64/pgtable.h |  4 ++++
+>  arch/powerpc/mm/pgtable_64.c                 | 35 +++++++++++++++++++++++++++-
+>  include/asm-generic/pgtable.h                |  8 +++++++
+>  mm/huge_memory.c                             |  1 +
+>  4 files changed, 47 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> index 8d1c41d28318..0415856941e0 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> @@ -281,6 +281,10 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+>  extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+>  			    pmd_t *pmdp);
+>  
+> +#define __HAVE_ARCH_PMDP_HUGE_SPLITTING_FLUSH
+> +extern void pmdp_huge_splitting_flush(struct vm_area_struct *vma,
+> +				      unsigned long address, pmd_t *pmdp);
+> +
+>  #define pmd_move_must_withdraw pmd_move_must_withdraw
+>  struct spinlock;
+>  static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+> index 3124a20d0fab..e8214b7f2210 100644
+> --- a/arch/powerpc/mm/pgtable_64.c
+> +++ b/arch/powerpc/mm/pgtable_64.c
+> @@ -646,6 +646,30 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+>  	return pgtable;
+>  }
+>  
+> +void pmdp_huge_splitting_flush(struct vm_area_struct *vma,
+> +			       unsigned long address, pmd_t *pmdp)
+> +{
+> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> +
+> +#ifdef CONFIG_DEBUG_VM
+> +	BUG_ON(REGION_ID(address) != USER_REGION_ID);
+> +#endif
+> +	/*
+> +	 * We can't mark the pmd none here, because that will cause a race
+> +	 * against exit_mmap. We need to continue mark pmd TRANS HUGE, while
+> +	 * we spilt, but at the same time we wan't rest of the ppc64 code
+> +	 * not to insert hash pte on this, because we will be modifying
+> +	 * the deposited pgtable in the caller of this function. Hence
+> +	 * clear the _PAGE_USER so that we move the fault handling to
+> +	 * higher level function and that will serialize against ptl.
+> +	 * We need to flush existing hash pte entries here even though,
+> +	 * the translation is still valid, because we will withdraw
+> +	 * pgtable_t after this.
+> +	 */
+> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_USER, 0);
+> +}
+> +
+> +
+>  /*
+>   * set a new huge pmd. We should not be called for updating
+>   * an existing pmd entry. That should go via pmd_hugepage_update.
+> @@ -663,10 +687,19 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+>  	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
+>  }
+>  
+> +/*
+> + * We use this to invalidate a pmdp entry before switching from a
+> + * hugepte to regular pmd entry.
+> + */
+>  void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+>  		     pmd_t *pmdp)
+>  {
+> -	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
+> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, ~0UL, 0);
+> +	/*
+> +	 * This ensures that generic code that rely on IRQ disabling
+> +	 * to prevent a parallel THP split work as expected.
+> +	 */
+> +	kick_all_cpus_sync();
+>  }
+>  
+>  /*
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 0b3c0d39ef75..93a0937652ec 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -239,6 +239,14 @@ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+>  			    pmd_t *pmdp);
+>  #endif
+>  
+> +#ifndef __HAVE_ARCH_PMDP_HUGE_SPLITTING_FLUSH
+> +static inline void pmdp_huge_splitting_flush(struct vm_area_struct *vma,
+> +					     unsigned long address, pmd_t *pmdp)
+> +{
+> +
+> +}
+> +#endif
+> +
+>  #ifndef __HAVE_ARCH_PTE_SAME
+>  static inline int pte_same(pte_t pte_a, pte_t pte_b)
+>  {
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 36c070167b71..b52d16a86e91 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2860,6 +2860,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>  	young = pmd_young(*pmd);
+>  	dirty = pmd_dirty(*pmd);
+>  
+> +	pmdp_huge_splitting_flush(vma, haddr, pmd);
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/arm/include/asm/pgtable-3level.h | 8 ++++++++
- arch/arm64/include/asm/pgtable.h      | 7 +++++++
- arch/mips/include/asm/pgtable.h       | 8 ++++++++
- arch/powerpc/mm/pgtable_64.c          | 7 +++++++
- arch/s390/include/asm/pgtable.h       | 8 ++++++++
- arch/sparc/include/asm/pgtable_64.h   | 7 +++++++
- arch/tile/include/asm/pgtable.h       | 9 +++++++++
- arch/x86/include/asm/pgtable.h        | 8 ++++++++
- include/linux/huge_mm.h               | 3 ---
- mm/huge_memory.c                      | 8 +++++---
- 10 files changed, 67 insertions(+), 6 deletions(-)
+Let's call it pmdp_huge_split_prepare().
 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index dc46398bc3a5..4b934de4d088 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -281,6 +281,14 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 	flush_pmd_entry(pmdp);
- }
- 
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
-+
- static inline int has_transparent_hugepage(void)
- {
- 	return 1;
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index bf464de33f52..6bc4605d0d58 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -378,6 +378,13 @@ static inline pgprot_t mk_sect_prot(pgprot_t prot)
- 
- #define set_pmd_at(mm, addr, pmdp, pmd)	set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd))
- 
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
- static inline int has_transparent_hugepage(void)
- {
- 	return 1;
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index 9a4fe0133ff1..005839fd438d 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -468,6 +468,14 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
-+
- extern int has_transparent_hugepage(void);
- 
- static inline int pmd_trans_huge(pmd_t pmd)
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index e8214b7f2210..8840d31a5586 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -818,6 +818,13 @@ pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
- 
- int has_transparent_hugepage(void)
- {
-+
-+	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) >= MAX_ORDER,
-+		"hugepages can't be allocated by the buddy allocator");
-+
-+	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) < 2,
-+			 "We need more than 2 pages to do deferred thp split");
-+
- 	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
- 		return 0;
- 	/*
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 64ead8091248..79e7ea6e272c 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1617,6 +1617,14 @@ static inline int pmd_trans_huge(pmd_t pmd)
- 	return pmd_val(pmd) & _SEGMENT_ENTRY_LARGE;
- }
- 
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
-+
- static inline int has_transparent_hugepage(void)
- {
- 	return MACHINE_HAS_HPAGE ? 1 : 0;
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 7a38d6a576c5..1f3884687f80 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -681,6 +681,13 @@ static inline unsigned long pmd_trans_huge(pmd_t pmd)
- 	return pte_val(pte) & _PAGE_PMD_HUGE;
- }
- 
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
- #define has_transparent_hugepage() 1
- 
- static inline pmd_t pmd_mkold(pmd_t pmd)
-diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
-index 96cecf55522e..70c5a44e8909 100644
---- a/arch/tile/include/asm/pgtable.h
-+++ b/arch/tile/include/asm/pgtable.h
-@@ -487,6 +487,15 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
-+
- #define has_transparent_hugepage() 1
- #define pmd_trans_huge pmd_huge_page
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 0687c4748b8f..7f3a39d98ad5 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -178,6 +178,14 @@ static inline int pmd_devmap(pmd_t pmd)
- 	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
- }
- #endif
-+
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
-+#error "hugepages can't be allocated by the buddy allocator"
-+#endif
-+
-+#if HPAGE_PMD_ORDER < 2
-+#error "We need more than 2 pages to do deferred thp split"
-+#endif
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 459fd25b378e..f12513a20a06 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			__split_huge_pmd(__vma, __pmd, __address);	\
- 	}  while (0)
- 
--#if HPAGE_PMD_ORDER >= MAX_ORDER
--#error "hugepages can't be allocated by the buddy allocator"
--#endif
- extern int hugepage_madvise(struct vm_area_struct *vma,
- 			    unsigned long *vm_flags, int advice);
- extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b52d16a86e91..db1362d015ce 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
- 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
- 
- /* default scan 8*512 pte (or vmas) every 30 second */
--static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
-+static unsigned int khugepaged_pages_to_scan __read_mostly;
- static unsigned int khugepaged_pages_collapsed;
- static unsigned int khugepaged_full_scans;
- static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
-@@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-  * it would have happened if the vma was large enough during page
-  * fault.
-  */
--static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-+static unsigned int khugepaged_max_ptes_none __read_mostly;
- 
- static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
-@@ -655,6 +655,9 @@ static int __init hugepage_init(void)
- 	int err;
- 	struct kobject *hugepage_kobj;
- 
-+	khugepaged_pages_to_scan = HPAGE_PMD_NR*8;
-+	khugepaged_max_ptes_none = HPAGE_PMD_NR-1;
-+
- 	if (!has_transparent_hugepage()) {
- 		transparent_hugepage_flags = 0;
- 		return -EINVAL;
-@@ -764,7 +767,6 @@ void prep_transhuge_page(struct page *page)
- 	 * we use page->mapping and page->indexlru in second tail page
- 	 * as list_head: assuming THP order >= 2
- 	 */
--	BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
- 
- 	INIT_LIST_HEAD(page_deferred_list(page));
- 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+"_flush" part is ppc-specific implementation detail and generic code
+should not expect tlb to be flushed there.
+
+Otherwise,
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+>  	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+>  	pmd_populate(mm, &_pmd, pgtable);
+>  
+> -- 
+> 2.5.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-2.5.0
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
