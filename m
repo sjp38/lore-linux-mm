@@ -1,80 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E2E830A0
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 10:34:53 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id yy13so75149457pab.3
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 07:34:53 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id s77si30726622pfs.76.2016.02.08.07.34.52
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABF3828E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 11:12:22 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id o185so111650215pfb.1
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 08:12:22 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id mi6si47359711pab.95.2016.02.08.08.12.21
         for <linux-mm@kvack.org>;
-        Mon, 08 Feb 2016 07:34:53 -0800 (PST)
-Date: Mon, 8 Feb 2016 08:34:43 -0700
+        Mon, 08 Feb 2016 08:12:21 -0800 (PST)
+Date: Mon, 8 Feb 2016 09:12:11 -0700
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/2] dax: pass bdev argument to dax_clear_blocks()
-Message-ID: <20160208153443.GC2343@linux.intel.com>
+Subject: Re: [PATCH 2/2] dax: move writeback calls into the filesystems
+Message-ID: <20160208161211.GE2343@linux.intel.com>
 References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
- <1454829553-29499-2-git-send-email-ross.zwisler@linux.intel.com>
- <20160207220329.GK31407@dastard>
- <20160208014409.GA2343@linux.intel.com>
- <20160208051725.GM31407@dastard>
+ <1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
+ <20160208104849.GB9451@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160208051725.GM31407@dastard>
+In-Reply-To: <20160208104849.GB9451@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-On Mon, Feb 08, 2016 at 04:17:25PM +1100, Dave Chinner wrote:
-> On Sun, Feb 07, 2016 at 06:44:09PM -0700, Ross Zwisler wrote:
-> > On Mon, Feb 08, 2016 at 09:03:29AM +1100, Dave Chinner wrote:
-> > > On Sun, Feb 07, 2016 at 12:19:12AM -0700, Ross Zwisler wrote:
-> > > > dax_clear_blocks() needs a valid struct block_device and previously it was
-> > > > using inode->i_sb->s_bdev in all cases.  This is correct for normal inodes
-> > > > on mounted ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
-> > > > block devices and for XFS real-time devices.
-> > > > 
-> > > > Instead, have the caller pass in a struct block_device pointer which it
-> > > > knows to be correct.
-> > > ....
-> > > > diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-> > > > index 07ef29b..f722ba2 100644
-> > > > --- a/fs/xfs/xfs_bmap_util.c
-> > > > +++ b/fs/xfs/xfs_bmap_util.c
-> > > > @@ -73,9 +73,11 @@ xfs_zero_extent(
-> > > >  	xfs_daddr_t	sector = xfs_fsb_to_db(ip, start_fsb);
-> > > >  	sector_t	block = XFS_BB_TO_FSBT(mp, sector);
-> > > >  	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
-> > > > +	struct inode	*inode = VFS_I(ip);
-> > > >  
-> > > >  	if (IS_DAX(VFS_I(ip)))
-> > > > -		return dax_clear_blocks(VFS_I(ip), block, size);
-> > > > +		return dax_clear_blocks(inode, xfs_find_bdev_for_inode(inode),
-> > > > +				block, size);
-> > > 
-> > > Get rid of the local inode variable and use VFS_I(ip) like the code
-> > > originally did. Do not change code that is unrelated to the
-> > > modifcation being made, especially when it results in making
-> > > the code an inconsistent mess of mixed pointer constructs....
+On Mon, Feb 08, 2016 at 11:48:50AM +0100, Jan Kara wrote:
+> On Sun 07-02-16 00:19:13, Ross Zwisler wrote:
+> > Previously calls to dax_writeback_mapping_range() for all DAX filesystems
+> > (ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
+> > dax_writeback_mapping_range() needs a struct block_device, and it used to
+> > get that from inode->i_sb->s_bdev.  This is correct for normal inodes
+> > mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+> > block devices and for XFS real-time files.
 > > 
-> > The local 'inode' variable was added to avoid multiple calls for VFS_I() for
-> > the same 'ip'.
+> > Instead, call dax_writeback_mapping_range() directly from the filesystem or
+> > raw block device fsync/msync code so that they can supply us with a valid
+> > block device.
+> > 
+> > It should be noted that this will reduce the number of calls to
+> > dax_writeback_mapping_range() because filemap_write_and_wait_range() is
+> > called in the various filesystems for operations other than just
+> > fsync/msync.  Both ext4 & XFS call filemap_write_and_wait_range() outside
+> > of ->fsync for hole punch, truncate, and block relocation
+> > (xfs_shift_file_space() && ext4_collapse_range()/ext4_insert_range()).
+> > 
+> > I don't believe that these extra flushes are necessary in the DAX case.  In
+> > the page cache case when we have dirty data in the page cache, that data
+> > will be actively lost if we evict a dirty page cache page without flushing
+> > it to media first.  For DAX, though, the data will remain consistent with
+> > the physical address to which it was written regardless of whether it's in
+> > the processor cache or not - really the only reason I see to flush is in
+> > response to a fsync or msync so that our data is durable on media in case
+> > of a power loss.  The case where we could throw dirty data out of the page
+> > cache and essentially lose writes simply doesn't exist.
 > 
-> My point is you didn't achieve that. The end result of your patch
-> is:
+> You should at least note that sync(2) won't make data durable with this
+> patch in the changelog. Dave and Christoph have told you that Linux users
+> depend on sync(2) to make data durable and I fully agree with them.  Given
+> current options, I think we can live with this for 4.5 but long term this
+> is IMO unacceptable.
 > 
-> 	struct inode	*inode = VFS_I(ip);
-> 
-> 	if (IS_DAX(VFS_I(ip)))
-> 		return dax_clear_blocks(inode, xfs_find_bdev_for_inode(inode),
-> 					block, size);
-> 
-> So now we have a local variable, but we still have 2 calls to
-> VFS_I(ip). i.e. this makes the code harder to read and understand
-> than before for no benefit.
+> 								Honza
 
-*facepalm*  Yep, thanks for the correction.
+I agree.  I'll add a note to the changelog and will work on adding support for
+sync(2).
+
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > ---
+> >  fs/block_dev.c      |  7 +++++++
+> >  fs/dax.c            |  5 ++---
+> >  fs/ext2/file.c      | 10 ++++++++++
+> >  fs/ext4/fsync.c     | 10 +++++++++-
+> >  fs/xfs/xfs_file.c   | 12 ++++++++++--
+> >  include/linux/dax.h |  4 ++--
+> >  mm/filemap.c        |  6 ------
+> >  7 files changed, 40 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/fs/block_dev.c b/fs/block_dev.c
+> > index fa0507a..312ad44 100644
+> > --- a/fs/block_dev.c
+> > +++ b/fs/block_dev.c
+> > @@ -356,8 +356,15 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+> >  {
+> >  	struct inode *bd_inode = bdev_file_inode(filp);
+> >  	struct block_device *bdev = I_BDEV(bd_inode);
+> > +	struct address_space *mapping = bd_inode->i_mapping;
+> >  	int error;
+> >  	
+> > +	if (dax_mapping(mapping) && mapping->nrexceptional) {
+> > +		error = dax_writeback_mapping_range(mapping, bdev, start, end);
+> > +		if (error)
+> > +			return error;
+> > +	}
+> > +
+> >  	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
+> >  	if (error)
+> >  		return error;
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index 4592241..4b5006a 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -484,11 +484,10 @@ static int dax_writeback_one(struct block_device *bdev,
+> >   * end]. This is required by data integrity operations to ensure file data is
+> >   * on persistent storage prior to completion of the operation.
+> >   */
+> > -int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+> > -		loff_t end)
+> > +int dax_writeback_mapping_range(struct address_space *mapping,
+> > +		struct block_device *bdev, loff_t start, loff_t end)
+> >  {
+> >  	struct inode *inode = mapping->host;
+> > -	struct block_device *bdev = inode->i_sb->s_bdev;
+> >  	pgoff_t start_index, end_index, pmd_index;
+> >  	pgoff_t indices[PAGEVEC_SIZE];
+> >  	struct pagevec pvec;
+> > diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+> > index 2c88d68..d1abf53 100644
+> > --- a/fs/ext2/file.c
+> > +++ b/fs/ext2/file.c
+> > @@ -162,6 +162,16 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+> >  	int ret;
+> >  	struct super_block *sb = file->f_mapping->host->i_sb;
+> >  	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+> > +#ifdef CONFIG_FS_DAX
+> > +	struct address_space *inode_mapping = file->f_inode->i_mapping;
+> > +
+> > +	if (dax_mapping(inode_mapping) && inode_mapping->nrexceptional) {
+> > +		ret = dax_writeback_mapping_range(inode_mapping, sb->s_bdev,
+> > +				start, end);
+> > +		if (ret)
+> > +			return ret;
+> > +	}
+> > +#endif
+> >  
+> >  	ret = generic_file_fsync(file, start, end, datasync);
+> >  	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
+> > diff --git a/fs/ext4/fsync.c b/fs/ext4/fsync.c
+> > index 8850254..e9cf53b 100644
+> > --- a/fs/ext4/fsync.c
+> > +++ b/fs/ext4/fsync.c
+> > @@ -27,6 +27,7 @@
+> >  #include <linux/sched.h>
+> >  #include <linux/writeback.h>
+> >  #include <linux/blkdev.h>
+> > +#include <linux/dax.h>
+> >  
+> >  #include "ext4.h"
+> >  #include "ext4_jbd2.h"
+> > @@ -83,10 +84,10 @@ static int ext4_sync_parent(struct inode *inode)
+> >   * What we do is just kick off a commit and wait on it.  This will snapshot the
+> >   * inode to disk.
+> >   */
+> > -
+> >  int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+> >  {
+> >  	struct inode *inode = file->f_mapping->host;
+> > +	struct address_space *mapping = inode->i_mapping;
+> >  	struct ext4_inode_info *ei = EXT4_I(inode);
+> >  	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+> >  	int ret = 0, err;
+> > @@ -97,6 +98,13 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+> >  
+> >  	trace_ext4_sync_file_enter(file, datasync);
+> >  
+> > +	if (dax_mapping(mapping) && mapping->nrexceptional) {
+> > +		err = dax_writeback_mapping_range(mapping, inode->i_sb->s_bdev,
+> > +				start, end);
+> > +		if (err)
+> > +			goto out;
+> > +	}
+> > +
+> >  	if (inode->i_sb->s_flags & MS_RDONLY) {
+> >  		/* Make sure that we read updated s_mount_flags value */
+> >  		smp_rmb();
+> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> > index 52883ac..84e95cc 100644
+> > --- a/fs/xfs/xfs_file.c
+> > +++ b/fs/xfs/xfs_file.c
+> > @@ -209,7 +209,8 @@ xfs_file_fsync(
+> >  	loff_t			end,
+> >  	int			datasync)
+> >  {
+> > -	struct inode		*inode = file->f_mapping->host;
+> > +	struct address_space	*mapping = file->f_mapping;
+> > +	struct inode		*inode = mapping->host;
+> >  	struct xfs_inode	*ip = XFS_I(inode);
+> >  	struct xfs_mount	*mp = ip->i_mount;
+> >  	int			error = 0;
+> > @@ -218,7 +219,14 @@ xfs_file_fsync(
+> >  
+> >  	trace_xfs_file_fsync(ip);
+> >  
+> > -	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
+> > +	if (dax_mapping(mapping) && mapping->nrexceptional) {
+> > +		error = dax_writeback_mapping_range(mapping,
+> > +				xfs_find_bdev_for_inode(inode), start, end);
+> > +		if (error)
+> > +			return error;
+> > +	}
+> > +
+> > +	error = filemap_write_and_wait_range(mapping, start, end);
+> >  	if (error)
+> >  		return error;
+> >  
+> > diff --git a/include/linux/dax.h b/include/linux/dax.h
+> > index bad27b0..8e9f114 100644
+> > --- a/include/linux/dax.h
+> > +++ b/include/linux/dax.h
+> > @@ -42,6 +42,6 @@ static inline bool dax_mapping(struct address_space *mapping)
+> >  {
+> >  	return mapping->host && IS_DAX(mapping->host);
+> >  }
+> > -int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+> > -		loff_t end);
+> > +int dax_writeback_mapping_range(struct address_space *mapping,
+> > +		struct block_device *bdev, loff_t start, loff_t end);
+> >  #endif
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index bc94386..c4286eb 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -482,12 +482,6 @@ int filemap_write_and_wait_range(struct address_space *mapping,
+> >  {
+> >  	int err = 0;
+> >  
+> > -	if (dax_mapping(mapping) && mapping->nrexceptional) {
+> > -		err = dax_writeback_mapping_range(mapping, lstart, lend);
+> > -		if (err)
+> > -			return err;
+> > -	}
+> > -
+> >  	if (mapping->nrpages) {
+> >  		err = __filemap_fdatawrite_range(mapping, lstart, lend,
+> >  						 WB_SYNC_ALL);
+> > -- 
+> > 2.5.0
+> > 
+> > 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
