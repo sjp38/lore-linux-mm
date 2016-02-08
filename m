@@ -1,119 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8709C828E2
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 18:07:37 -0500 (EST)
-Received: by mail-oi0-f52.google.com with SMTP id s4so5420383oif.3
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:07:37 -0800 (PST)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id pq9si14462278oeb.21.2016.02.08.15.07.36
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 83F91828E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 18:15:15 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id ho8so80862428pac.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:15:15 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id d89si49457209pfj.146.2016.02.08.15.15.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 15:07:36 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH] x86/mm/vmfault: Make vmalloc_fault() handle large pages
-Date: Mon,  8 Feb 2016 17:00:38 -0700
-Message-Id: <1454976038-22486-1-git-send-email-toshi.kani@hpe.com>
+        Mon, 08 Feb 2016 15:15:14 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id e127so21586447pfe.3
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:15:14 -0800 (PST)
+Subject: Re: [RFC V5] Add gup trace points support
+References: <1449696151-4195-1-git-send-email-yang.shi@linaro.org>
+ <56955B76.2060503@linaro.org> <20160112151052.168bba85@gandalf.local.home>
+ <56969400.6020805@linaro.org> <20160114094007.5b5c6e4d@gandalf.local.home>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <56B92176.7030609@linaro.org>
+Date: Mon, 8 Feb 2016 15:15:02 -0800
+MIME-Version: 1.0
+In-Reply-To: <20160114094007.5b5c6e4d@gandalf.local.home>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@alien8.de
-Cc: henning.schild@siemens.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org
+Cc: mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-Since 4.1, ioremap() supports large page (pud/pmd) mappings in
-x86_64 and PAE.  vmalloc_fault() however assumes that the vmalloc
-range is limited to pte mappings.
+Hi Andrew,
 
-pgd_ctor() sets the kernel's pgd entries to user's during fork(),
-which makes user processes share the same page tables for the
-kernel ranges.  When a call to ioremap() is made at run-time that
-leads to allocate a new 2nd level table (pud in 64-bit and pmd in
-PAE), user process needs to re-sync with the updated kernel pgd
-entry with vmalloc_fault().
+This series already got acked from Steven and arch maintainers except 
+for x86. How should I proceed? Any comment is appreciated.
 
-Following changes are made to vmalloc_fault().
+Thanks,
+Yang
 
-64-bit:
-- No change for the sync operation as set_pgd() takes care of
-  huge pages as well.
-- Add pud_huge() and pmd_huge() to the validation code to
-  handle huge pages.
-- Change pud_page_vaddr() to pud_pfn() since an ioremap range
-  is not directly mapped (although the if-statement still works
-  with a bogus addr).
-- Change pmd_page() to pmd_pfn() since an ioremap range is not
-  backed by struct page table (although the if-statement still
-  works with a bogus addr).
 
-PAE:
-- No change for the sync operation since the index3 pgd entry
-  covers the entire vmalloc range, which is always valid.
-  (A separate change will be needed if this assumption gets
-  changed regardless of the page size.)
-- Add pmd_huge() to the validation code to handle huge pages.
-  This is only for completeness since vmalloc_fault() won't
-  happen for ioremap'd ranges as its pgd entry is always valid.
-  (I was unable to test this part of the changes as a result.)
-
-Reported-by: Henning Schild <henning.schild@siemens.com>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Borislav Petkov <bp@alien8.de>
----
-When this patch is accepted, please copy to stable up to 4.1.
----
- arch/x86/mm/fault.c |   15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index eef44d9..e830c71 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -287,6 +287,9 @@ static noinline int vmalloc_fault(unsigned long address)
- 	if (!pmd_k)
- 		return -1;
- 
-+	if (pmd_huge(*pmd_k))
-+		return 0;
-+
- 	pte_k = pte_offset_kernel(pmd_k, address);
- 	if (!pte_present(*pte_k))
- 		return -1;
-@@ -360,8 +363,6 @@ void vmalloc_sync_all(void)
-  * 64-bit:
-  *
-  *   Handle a fault on the vmalloc area
-- *
-- * This assumes no large pages in there.
-  */
- static noinline int vmalloc_fault(unsigned long address)
- {
-@@ -403,17 +404,23 @@ static noinline int vmalloc_fault(unsigned long address)
- 	if (pud_none(*pud_ref))
- 		return -1;
- 
--	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
-+	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
- 		BUG();
- 
-+	if (pud_huge(*pud))
-+		return 0;
-+
- 	pmd = pmd_offset(pud, address);
- 	pmd_ref = pmd_offset(pud_ref, address);
- 	if (pmd_none(*pmd_ref))
- 		return -1;
- 
--	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
-+	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
- 		BUG();
- 
-+	if (pmd_huge(*pmd))
-+		return 0;
-+
- 	pte_ref = pte_offset_kernel(pmd_ref, address);
- 	if (!pte_present(*pte_ref))
- 		return -1;
+On 1/14/2016 6:40 AM, Steven Rostedt wrote:
+>
+> Andrew,
+>
+> Do you want to pull in this series? You can add my Acked-by to the whole
+> set.
+>
+> -- Steve
+>
+>
+> On Wed, 13 Jan 2016 10:14:24 -0800
+> "Shi, Yang" <yang.shi@linaro.org> wrote:
+>
+>> On 1/12/2016 12:10 PM, Steven Rostedt wrote:
+>>> On Tue, 12 Jan 2016 12:00:54 -0800
+>>> "Shi, Yang" <yang.shi@linaro.org> wrote:
+>>>
+>>>> Hi Steven,
+>>>>
+>>>> Any more comments on this series? How should I proceed it?
+>>>>
+>>>
+>>> The tracing part looks fine to me. Now you just need to get the arch
+>>> maintainers to ack each of the arch patches, and I can pull them in for
+>>> 4.6. Too late for 4.5. Probably need Andrew Morton's ack for the
+>>> mm/gup.c patch.
+>>
+>> Thanks Steven. Already sent email to x86, s390 and sparc maintainers.
+>> Ralf already acked the MIPS part since v1.
+>>
+>> Regards,
+>> Yang
+>>
+>>>
+>>> -- Steve
+>>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
