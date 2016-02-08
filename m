@@ -1,55 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CC5A0828E5
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 15:44:09 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id g62so149151260wme.0
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 12:44:09 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bf2si44496095wjb.6.2016.02.08.12.44.08
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 54285828E5
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 15:55:25 -0500 (EST)
+Received: by mail-yk0-f181.google.com with SMTP id u9so92300888ykd.1
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 12:55:25 -0800 (PST)
+Received: from mail-yw0-x229.google.com (mail-yw0-x229.google.com. [2607:f8b0:4002:c05::229])
+        by mx.google.com with ESMTPS id p74si6235982yba.63.2016.02.08.12.55.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 12:44:08 -0800 (PST)
-Date: Mon, 8 Feb 2016 15:43:11 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/5] mm: workingset: make shadow node shrinker memcg aware
-Message-ID: <20160208204311.GA23389@cmpxchg.org>
-References: <cover.1454864628.git.vdavydov@virtuozzo.com>
- <934ce4e1cfe42b57e8114c72a447656fe5a01267.1454864628.git.vdavydov@virtuozzo.com>
- <20160208062353.GE22202@cmpxchg.org>
- <20160208142835.GB13379@esperanza>
+        Mon, 08 Feb 2016 12:55:24 -0800 (PST)
+Received: by mail-yw0-x229.google.com with SMTP id u200so33307144ywf.0
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 12:55:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160208142835.GB13379@esperanza>
+In-Reply-To: <20160208201808.GK27429@dastard>
+References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
+	<CAPcyv4jT=yAb2_yLfMGqV1SdbQwoWQj7joroeJGAJAcjsMY_oQ@mail.gmail.com>
+	<20160207215047.GJ31407@dastard>
+	<CAPcyv4jNmdm-ATTBaLLLzBT+RXJ0YrxxXLYZ=T7xUgEJ8PaSKw@mail.gmail.com>
+	<20160208201808.GK27429@dastard>
+Date: Mon, 8 Feb 2016 12:55:24 -0800
+Message-ID: <CAPcyv4iHi17pv_VC=WgEP4_GgN9OvSr8xbw1bvbEFMiQ83GbWw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] dax: move writeback calls into the filesystems
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>, jmoyer <jmoyer@redhat.com>
 
-On Mon, Feb 08, 2016 at 05:28:35PM +0300, Vladimir Davydov wrote:
-> On Mon, Feb 08, 2016 at 01:23:53AM -0500, Johannes Weiner wrote:
-> > It's true that both the shrinking of the active list and subsequent
-> > activations to regrow it will reduce the number of actionable
-> > refaults, and so it wouldn't be unreasonable to also shrink shadow
-> > nodes when the active list shrinks.
-> > 
-> > However, I think these are too many assumptions to encode in the
-> > shrinker, because it is only meant to prevent a worst-case explosion
-> > of radix tree nodes. I'd prefer it to be dumb and conservative.
-> > 
-> > Could we instead go with the current usage of the memcg? Whether
-> > reclaim happens globally or due to the memory limit, the usage at the
-> > time of reclaim gives a good idea of the memory is available to the
-> > group. But it's making less assumptions about the internal composition
-> > of the memcg's memory, and the consequences associated with that.
-> 
-> But that would likely result in wasting a considerable chunk of memory
-> for stale shadow nodes in case file caches constitute only a small part
-> of memcg memory consumption, which isn't good IMHO.
+On Mon, Feb 8, 2016 at 12:18 PM, Dave Chinner <david@fromorbit.com> wrote:
+[..]
+>> Setting aside the current block zeroing problem you seem to assuming
+>> that DAX will always be faster and that may not be true at a media
+>> level.  Waiting years for some applications to determine if DAX makes
+>> sense for their use case seems completely reasonable.  In the meantime
+>> the apps that are already making these changes want to know that a DAX
+>> mapping request has not silently dropped backed to page cache.  They
+>> also want to know if they successfully jumped through all the hoops to
+>> get a larger than pte mapping.
+>>
+>> I agree it is useful to be able to force DAX on an unmodified
+>> application to see what happens, and it follows that if those
+>> applications want to run in that mode they will need functional
+>> fsync()...
+>>
+>> I would feel better if we were talking about specific applications and
+>> performance numbers to know if forcing DAX on application is a debug
+>> facility or a production level capability.  You seem to have already
+>> made that determination and I'm curious what I'm missing.
+>
+> I'm not setting any policy here at all.  This whole argument is
+> based around the DAX mount option doing "global fs enable or
+> silently turning it off" and the application not knowing about that.
+>
+> The whole point of having a persistent per-inode DAX flags is that
+> it is a policy mechanism, not a policy.  The application can, if it
+> is DAX aware, directly control whether DAX is used on a file or not.
+> The application can even query and clear that persistent inode flag
+> if it is configured not to (or cannot) use DAX.
+>
+> If the filesystem cannot support DAX, then we can error out attempts
+> to set the DAX flag and then the app knows DAX is not available.
+> i.e. the attempt to set policy failed. If the flag is set, then the
+> inode will *always* use DAX - there is no "fall back to page cache"
+> when DAX is enabled.
+>
+> If the applicaiton is not DAX aware, then the admin can control the
+> DAX policy by manipulating these flags themselves, and hence control
+> whether DAX is used by the application or not.
+>
+> If you think I'm dictating policy for DAX users and application,
+> then you haven't understood anything I've previously said about why
+> the DAX mount option needs to die before any of this is considered
+> production ready. DAX is not an opaque "all or nothing" option. XFS
+> will provide apps and admins with fine-grained, persistent,
+> discoverable policy flags to allow admins and applications to set
+> DAX policies however they see fit. This simply cannot be done if the
+> only knob you have is a mount option that may or may not stick.
 
-Hm, that's probably true. But I think it's a separate patch at this
-point - going from total memory to the cache portion for overhead
-reasons - that shouldn't be conflated with the memcg awareness patch.
+I agree the mount option needs to die, and I fully grok the reasoning.
+  What I'm concerned with is that a system using fully-DAX-aware
+applications is forced to incur the overhead of maintaining *sync
+semantics, periodic sync(2) in particular,  even if it is not relying
+on those semantics.
+
+However, like I said in my other mail, we can solve that with
+alternate interfaces to persistent memory if that becomes an issue and
+not require that "disable *sync" capability to come through DAX.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
