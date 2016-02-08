@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 18908830C6
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:21:58 -0500 (EST)
-Received: by mail-qg0-f47.google.com with SMTP id b67so25819711qgb.1
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 01:21:58 -0800 (PST)
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
-        by mx.google.com with ESMTPS id 80si22970577qhq.125.2016.02.08.01.21.57
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 98D49830C6
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:22:07 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id xk3so144746606obc.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 01:22:07 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id b6si15262266obq.6.2016.02.08.01.22.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Feb 2016 01:21:57 -0800 (PST)
+        Mon, 08 Feb 2016 01:22:06 -0800 (PST)
 Received: from localhost
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 8 Feb 2016 04:21:57 -0500
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 3F92CC9003E
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:21:52 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u189LseL29687900
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 09:21:54 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u189Lrdj018794
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 04:21:54 -0500
+	Mon, 8 Feb 2016 02:22:06 -0700
+Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 50BBF19D8041
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 02:09:45 -0700 (MST)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u189Lk1v29687842
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 02:21:46 -0700
+Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u189Lj5H026273
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 02:21:46 -0700
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 29/29] powerpc/mm: Hash linux abstraction for pte swap encoding
-Date: Mon,  8 Feb 2016 14:50:41 +0530
-Message-Id: <1454923241-6681-30-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2 24/29] powerpc/mm: Hash linux abstractions for early init routines
+Date: Mon,  8 Feb 2016 14:50:36 +0530
+Message-Id: <1454923241-6681-25-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -35,168 +35,298 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/hash.h    | 35 +++++++----------
- arch/powerpc/include/asm/book3s/64/pgtable.h | 57 ++++++++++++++++++++++++++++
- arch/powerpc/mm/slb.c                        |  1 -
- 3 files changed, 70 insertions(+), 23 deletions(-)
+ arch/powerpc/include/asm/book3s/32/mmu-hash.h |  6 +-
+ arch/powerpc/include/asm/book3s/64/mmu-hash.h | 61 +-----------------
+ arch/powerpc/include/asm/book3s/64/mmu.h      | 92 +++++++++++++++++++++++++++
+ arch/powerpc/include/asm/mmu.h                | 25 ++++----
+ arch/powerpc/mm/hash_utils_64.c               |  6 +-
+ 5 files changed, 115 insertions(+), 75 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/book3s/64/mmu.h
 
-diff --git a/arch/powerpc/include/asm/book3s/64/hash.h b/arch/powerpc/include/asm/book3s/64/hash.h
-index 5e66915f47ee..2039587c11ea 100644
---- a/arch/powerpc/include/asm/book3s/64/hash.h
-+++ b/arch/powerpc/include/asm/book3s/64/hash.h
-@@ -234,34 +234,25 @@
- #define hlpmd_index(address) (((address) >> (H_PMD_SHIFT)) & (H_PTRS_PER_PMD - 1))
- #define hlpte_index(address) (((address) >> (PAGE_SHIFT)) & (H_PTRS_PER_PTE - 1))
- 
--/* Encode and de-code a swap entry */
--#define MAX_SWAPFILES_CHECK() do { \
--	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
--	/*							\
--	 * Don't have overlapping bits with _PAGE_HPTEFLAGS	\
--	 * We filter HPTEFLAGS on set_pte.			\
--	 */							\
--	BUILD_BUG_ON(H_PAGE_HPTEFLAGS & (0x1f << H_PAGE_BIT_SWAP_TYPE)); \
--	BUILD_BUG_ON(H_PAGE_HPTEFLAGS & H_PAGE_SWP_SOFT_DIRTY);	\
--	} while (0)
+diff --git a/arch/powerpc/include/asm/book3s/32/mmu-hash.h b/arch/powerpc/include/asm/book3s/32/mmu-hash.h
+index 16f513e5cbd7..b82e063494dd 100644
+--- a/arch/powerpc/include/asm/book3s/32/mmu-hash.h
++++ b/arch/powerpc/include/asm/book3s/32/mmu-hash.h
+@@ -1,5 +1,5 @@
+-#ifndef _ASM_POWERPC_MMU_HASH32_H_
+-#define _ASM_POWERPC_MMU_HASH32_H_
++#ifndef _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
++#define _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
  /*
-  * on pte we don't need handle RADIX_TREE_EXCEPTIONAL_SHIFT;
-+ * We encode swap type in the lower part of pte, skipping the lowest two bits.
-+ * Offset is encoded as pfn.
+  * 32-bit hash table MMU support
   */
--#define SWP_TYPE_BITS 5
--#define __swp_type(x)		(((x).val >> H_PAGE_BIT_SWAP_TYPE) \
--				& ((1UL << SWP_TYPE_BITS) - 1))
--#define __swp_offset(x)		((x).val >> H_PTE_RPN_SHIFT)
--#define __swp_entry(type, offset)	((swp_entry_t) { \
--					((type) << H_PAGE_BIT_SWAP_TYPE) \
--					| ((offset) << H_PTE_RPN_SHIFT) })
-+#define hl_swp_type(x)		(((x).val >> H_PAGE_BIT_SWAP_TYPE)	\
-+				 & ((1UL << SWP_TYPE_BITS) - 1))
-+#define hl_swp_offset(x)	((x).val >> H_PTE_RPN_SHIFT)
-+#define hl_swp_entry(type, offset)	((swp_entry_t) {		\
-+				((type) << H_PAGE_BIT_SWAP_TYPE)	\
-+				| ((offset) << H_PTE_RPN_SHIFT) })
+@@ -90,4 +90,4 @@ typedef struct {
+ #define mmu_virtual_psize	MMU_PAGE_4K
+ #define mmu_linear_psize	MMU_PAGE_256M
+ 
+-#endif /* _ASM_POWERPC_MMU_HASH32_H_ */
++#endif /* _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_ */
+diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+index 95ee27564804..ee929cb1a150 100644
+--- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
++++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+@@ -1,5 +1,5 @@
+-#ifndef _ASM_POWERPC_MMU_HASH64_H_
+-#define _ASM_POWERPC_MMU_HASH64_H_
++#ifndef _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
++#define _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
  /*
-  * swp_entry_t must be independent of pte bits. We build a swp_entry_t from
-  * swap type and offset we get from swap and convert that to pte to find a
-  * matching pte in linux page table.
-  * Clear bits not found in swap entries here.
+  * PowerPC64 memory management structures
+  *
+@@ -126,24 +126,6 @@ extern struct hash_pte *htab_address;
+ extern unsigned long htab_size_bytes;
+ extern unsigned long htab_hash_mask;
+ 
+-/*
+- * Page size definition
+- *
+- *    shift : is the "PAGE_SHIFT" value for that page size
+- *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
+- *            directly to a slbmte "vsid" value
+- *    penc  : is the HPTE encoding mask for the "LP" field:
+- *
+- */
+-struct mmu_psize_def
+-{
+-	unsigned int	shift;	/* number of bits */
+-	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
+-	unsigned int	tlbiel;	/* tlbiel supported for that page size */
+-	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
+-	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
+-};
+-extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+ 
+ static inline int shift_to_mmu_psize(unsigned int shift)
+ {
+@@ -209,11 +191,6 @@ static inline int segment_shift(int ssize)
+ /*
+  * The current system page and segment sizes
   */
--#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~H_PAGE_PTE })
--#define __swp_entry_to_pte(x)	__pte((x).val | H_PAGE_PTE)
-+#define hl_pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~H_PAGE_PTE })
-+#define hl_swp_entry_to_pte(x)	__pte((x).val | H_PAGE_PTE)
+-extern int mmu_linear_psize;
+-extern int mmu_virtual_psize;
+-extern int mmu_vmalloc_psize;
+-extern int mmu_vmemmap_psize;
+-extern int mmu_io_psize;
+ extern int mmu_kernel_ssize;
+ extern int mmu_highuser_ssize;
+ extern u16 mmu_slb_size;
+@@ -511,38 +488,6 @@ static inline void subpage_prot_free(struct mm_struct *mm) {}
+ static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
+ #endif /* CONFIG_PPC_SUBPAGE_PROT */
  
- #ifdef CONFIG_MEM_SOFT_DIRTY
- #define H_PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + H_PAGE_BIT_SWAP_TYPE))
-@@ -270,17 +261,17 @@
- #endif /* CONFIG_MEM_SOFT_DIRTY */
- 
- #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
--static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
-+static inline pte_t hl_pte_swp_mksoft_dirty(pte_t pte)
- {
- 	return __pte(pte_val(pte) | H_PAGE_SWP_SOFT_DIRTY);
+-typedef unsigned long mm_context_id_t;
+-struct spinlock;
+-
+-typedef struct {
+-	mm_context_id_t id;
+-	u16 user_psize;		/* page size index */
+-
+-#ifdef CONFIG_PPC_MM_SLICES
+-	u64 low_slices_psize;	/* SLB page size encodings */
+-	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+-#else
+-	u16 sllp;		/* SLB page size encoding */
+-#endif
+-	unsigned long vdso_base;
+-#ifdef CONFIG_PPC_SUBPAGE_PROT
+-	struct subpage_prot_table spt;
+-#endif /* CONFIG_PPC_SUBPAGE_PROT */
+-#ifdef CONFIG_PPC_ICSWX
+-	struct spinlock *cop_lockp; /* guard acop and cop_pid */
+-	unsigned long acop;	/* mask of enabled coprocessor types */
+-	unsigned int cop_pid;	/* pid value used with coprocessors */
+-#endif /* CONFIG_PPC_ICSWX */
+-#ifdef CONFIG_PPC_64K_PAGES
+-	/* for 4K PTE fragment support */
+-	void *pte_frag;
+-#endif
+-#ifdef CONFIG_SPAPR_TCE_IOMMU
+-	struct list_head iommu_group_mem_list;
+-#endif
+-} mm_context_t;
+-
+-
+ #if 0
+ /*
+  * The code below is equivalent to this function for arguments
+@@ -609,4 +554,4 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
  }
+ #endif /* __ASSEMBLY__ */
  
--static inline bool pte_swp_soft_dirty(pte_t pte)
-+static inline bool hl_pte_swp_soft_dirty(pte_t pte)
- {
- 	return !!(pte_val(pte) & H_PAGE_SWP_SOFT_DIRTY);
- }
- 
--static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
-+static inline pte_t hl_pte_swp_clear_soft_dirty(pte_t pte)
- {
- 	return __pte(pte_val(pte) & ~H_PAGE_SWP_SOFT_DIRTY);
- }
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 61f4d26bdaa9..c8269c71ba75 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -5,6 +5,7 @@
-  * the ppc64 hashed page table.
-  */
- 
-+#define SWP_TYPE_BITS 5
- #include <asm/book3s/64/hash.h>
- #include <asm/barrier.h>
- 
-@@ -325,6 +326,62 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- {
- 	return set_hlpte_at(mm, addr, ptep, pte);
- }
+-#endif /* _ASM_POWERPC_MMU_HASH64_H_ */
++#endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */
+diff --git a/arch/powerpc/include/asm/book3s/64/mmu.h b/arch/powerpc/include/asm/book3s/64/mmu.h
+new file mode 100644
+index 000000000000..44a47bc81fb2
+--- /dev/null
++++ b/arch/powerpc/include/asm/book3s/64/mmu.h
+@@ -0,0 +1,92 @@
++#ifndef _ASM_POWERPC_BOOK3S_64_MMU_H_
++#define _ASM_POWERPC_BOOK3S_64_MMU_H_
++
++#ifndef __ASSEMBLY__
 +/*
-+ * Swap definitions
++ * Page size definition
++ *
++ *    shift : is the "PAGE_SHIFT" value for that page size
++ *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
++ *            directly to a slbmte "vsid" value
++ *    penc  : is the HPTE encoding mask for the "LP" field:
++ *
 + */
++struct mmu_psize_def {
++	unsigned int	shift;	/* number of bits */
++	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
++	unsigned int	tlbiel;	/* tlbiel supported for that page size */
++	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
++	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
++};
++extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
++#endif /* __ASSEMBLY__ */
 +
-+/* Encode and de-code a swap entry */
-+#define MAX_SWAPFILES_CHECK() do {					\
-+		BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS);	\
-+		/*							\
-+		 * Don't have overlapping bits with _PAGE_HPTEFLAGS	\
-+		 * We filter HPTEFLAGS on set_pte.			\
-+		 */							\
-+		BUILD_BUG_ON(H_PAGE_HPTEFLAGS & (0x1f << H_PAGE_BIT_SWAP_TYPE)); \
-+		BUILD_BUG_ON(H_PAGE_HPTEFLAGS & H_PAGE_SWP_SOFT_DIRTY);	\
-+	} while (0)
++#ifdef CONFIG_PPC_STD_MMU_64
++/* 64-bit classic hash table MMU */
++#include <asm/book3s/64/mmu-hash.h>
++#endif
++
++#ifndef __ASSEMBLY__
++
++typedef unsigned long mm_context_id_t;
++struct spinlock;
++
++typedef struct {
++	mm_context_id_t id;
++	u16 user_psize;		/* page size index */
++
++#ifdef CONFIG_PPC_MM_SLICES
++	u64 low_slices_psize;	/* SLB page size encodings */
++	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
++#else
++	u16 sllp;		/* SLB page size encoding */
++#endif
++	unsigned long vdso_base;
++#ifdef CONFIG_PPC_SUBPAGE_PROT
++	struct subpage_prot_table spt;
++#endif /* CONFIG_PPC_SUBPAGE_PROT */
++#ifdef CONFIG_PPC_ICSWX
++	struct spinlock *cop_lockp; /* guard acop and cop_pid */
++	unsigned long acop;	/* mask of enabled coprocessor types */
++	unsigned int cop_pid;	/* pid value used with coprocessors */
++#endif /* CONFIG_PPC_ICSWX */
++#ifdef CONFIG_PPC_64K_PAGES
++	/* for 4K PTE fragment support */
++	void *pte_frag;
++#endif
++#ifdef CONFIG_SPAPR_TCE_IOMMU
++	struct list_head iommu_group_mem_list;
++#endif
++} mm_context_t;
++
 +/*
-+ * on pte we don't need handle RADIX_TREE_EXCEPTIONAL_SHIFT;
++ * The current system page and segment sizes
 + */
-+static inline swp_entry_t __pte_to_swp_entry(pte_t pte)
++extern int mmu_linear_psize;
++extern int mmu_virtual_psize;
++extern int mmu_vmalloc_psize;
++extern int mmu_vmemmap_psize;
++extern int mmu_io_psize;
++
++/* MMU initialization */
++extern void hlearly_init_mmu(void);
++static inline void early_init_mmu(void)
 +{
-+	return hl_pte_to_swp_entry(pte);
++	return hlearly_init_mmu();
++}
++extern void hlearly_init_mmu_secondary(void);
++static inline void early_init_mmu_secondary(void)
++{
++	return hlearly_init_mmu_secondary();
 +}
 +
-+static inline pte_t __swp_entry_to_pte(swp_entry_t entry)
++extern void hlsetup_initial_memory_limit(phys_addr_t first_memblock_base,
++					 phys_addr_t first_memblock_size);
++static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
++					      phys_addr_t first_memblock_size)
 +{
-+	return hl_swp_entry_to_pte(entry);
++	return hlsetup_initial_memory_limit(first_memblock_base,
++					   first_memblock_size);
 +}
-+
-+static inline unsigned long __swp_type(swp_entry_t entry)
-+{
-+	return hl_swp_type(entry);
-+}
-+
-+static inline pgoff_t __swp_offset(swp_entry_t entry)
-+{
-+	return hl_swp_offset(entry);
-+}
-+
-+static inline swp_entry_t __swp_entry(unsigned long type, pgoff_t offset)
-+{
-+	return hl_swp_entry(type, offset);
-+}
-+
-+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
-+static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
-+{
-+	return hl_pte_swp_mksoft_dirty(pte);
-+}
-+static inline bool pte_swp_soft_dirty(pte_t pte)
-+{
-+	return hl_pte_swp_soft_dirty(pte);
-+}
-+static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
-+{
-+	return hl_pte_swp_clear_soft_dirty(pte);
-+}
-+#endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
++#endif /* __ASSEMBLY__ */
++#endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */
+diff --git a/arch/powerpc/include/asm/mmu.h b/arch/powerpc/include/asm/mmu.h
+index 18a1b7dbf5fb..e4117df50156 100644
+--- a/arch/powerpc/include/asm/mmu.h
++++ b/arch/powerpc/include/asm/mmu.h
+@@ -121,13 +121,6 @@ static inline void mmu_clear_feature(unsigned long feature)
  
- static inline void pmd_set(pmd_t *pmdp, unsigned long val)
+ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
+ 
+-/* MMU initialization */
+-extern void early_init_mmu(void);
+-extern void early_init_mmu_secondary(void);
+-
+-extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+-				       phys_addr_t first_memblock_size);
+-
+ #ifdef CONFIG_PPC64
+ /* This is our real memory area size on ppc64 server, on embedded, we
+  * make it match the size our of bolted TLB area
+@@ -180,10 +173,20 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
+ 
+ #define MMU_PAGE_COUNT	15
+ 
+-#if defined(CONFIG_PPC_STD_MMU_64)
+-/* 64-bit classic hash table MMU */
+-#include <asm/book3s/64/mmu-hash.h>
+-#elif defined(CONFIG_PPC_STD_MMU_32)
++#ifdef CONFIG_PPC_BOOK3S_64
++#include <asm/book3s/64/mmu.h>
++#else /* CONFIG_PPC_BOOK3S_64 */
++
++#ifndef __ASSEMBLY__
++/* MMU initialization */
++extern void early_init_mmu(void);
++extern void early_init_mmu_secondary(void);
++extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
++				       phys_addr_t first_memblock_size);
++#endif /* __ASSEMBLY__ */
++#endif
++
++#if defined(CONFIG_PPC_STD_MMU_32)
+ /* 32-bit classic hash table MMU */
+ #include <asm/book3s/32/mmu-hash.h>
+ #elif defined(CONFIG_40x)
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index aec47cf45db2..aac47ca6a618 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -798,7 +798,7 @@ static void __init htab_initialize(void)
+ #undef KB
+ #undef MB
+ 
+-void __init early_init_mmu(void)
++void __init hlearly_init_mmu(void)
  {
-diff --git a/arch/powerpc/mm/slb.c b/arch/powerpc/mm/slb.c
-index 24af734fcbd7..e80da474997c 100644
---- a/arch/powerpc/mm/slb.c
-+++ b/arch/powerpc/mm/slb.c
-@@ -14,7 +14,6 @@
-  *      2 of the License, or (at your option) any later version.
-  */
+ 	/*
+ 	 * initialize global variables
+@@ -842,7 +842,7 @@ void __init early_init_mmu(void)
+ }
  
--#include <asm/pgtable.h>
- #include <asm/mmu.h>
- #include <asm/mmu_context.h>
- #include <asm/paca.h>
+ #ifdef CONFIG_SMP
+-void early_init_mmu_secondary(void)
++void hlearly_init_mmu_secondary(void)
+ {
+ 	/* Initialize hash table for that CPU */
+ 	if (!firmware_has_feature(FW_FEATURE_LPAR))
+@@ -1576,7 +1576,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ }
+ #endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
+-void setup_initial_memory_limit(phys_addr_t first_memblock_base,
++void hlsetup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 				phys_addr_t first_memblock_size)
+ {
+ 	/* We don't currently support the first MEMBLOCK not mapping 0
 -- 
 2.5.0
 
