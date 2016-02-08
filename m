@@ -1,99 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D88E4830A0
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 09:28:46 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id g73so196167309ioe.3
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 06:28:46 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id g9si16884640iga.78.2016.02.08.06.28.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 06:28:46 -0800 (PST)
-Date: Mon, 8 Feb 2016 17:28:35 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 5/5] mm: workingset: make shadow node shrinker memcg aware
-Message-ID: <20160208142835.GB13379@esperanza>
-References: <cover.1454864628.git.vdavydov@virtuozzo.com>
- <934ce4e1cfe42b57e8114c72a447656fe5a01267.1454864628.git.vdavydov@virtuozzo.com>
- <20160208062353.GE22202@cmpxchg.org>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E2E830A0
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 10:34:53 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id yy13so75149457pab.3
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 07:34:53 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id s77si30726622pfs.76.2016.02.08.07.34.52
+        for <linux-mm@kvack.org>;
+        Mon, 08 Feb 2016 07:34:53 -0800 (PST)
+Date: Mon, 8 Feb 2016 08:34:43 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 1/2] dax: pass bdev argument to dax_clear_blocks()
+Message-ID: <20160208153443.GC2343@linux.intel.com>
+References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1454829553-29499-2-git-send-email-ross.zwisler@linux.intel.com>
+ <20160207220329.GK31407@dastard>
+ <20160208014409.GA2343@linux.intel.com>
+ <20160208051725.GM31407@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160208062353.GE22202@cmpxchg.org>
+In-Reply-To: <20160208051725.GM31407@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-On Mon, Feb 08, 2016 at 01:23:53AM -0500, Johannes Weiner wrote:
-> On Sun, Feb 07, 2016 at 08:27:35PM +0300, Vladimir Davydov wrote:
-> > Workingset code was recently made memcg aware, but shadow node shrinker
-> > is still global. As a result, one small cgroup can consume all memory
-> > available for shadow nodes, possibly hurting other cgroups by reclaiming
-> > their shadow nodes, even though reclaim distances stored in its shadow
-> > nodes have no effect. To avoid this, we need to make shadow node
-> > shrinker memcg aware.
+On Mon, Feb 08, 2016 at 04:17:25PM +1100, Dave Chinner wrote:
+> On Sun, Feb 07, 2016 at 06:44:09PM -0700, Ross Zwisler wrote:
+> > On Mon, Feb 08, 2016 at 09:03:29AM +1100, Dave Chinner wrote:
+> > > On Sun, Feb 07, 2016 at 12:19:12AM -0700, Ross Zwisler wrote:
+> > > > dax_clear_blocks() needs a valid struct block_device and previously it was
+> > > > using inode->i_sb->s_bdev in all cases.  This is correct for normal inodes
+> > > > on mounted ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+> > > > block devices and for XFS real-time devices.
+> > > > 
+> > > > Instead, have the caller pass in a struct block_device pointer which it
+> > > > knows to be correct.
+> > > ....
+> > > > diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
+> > > > index 07ef29b..f722ba2 100644
+> > > > --- a/fs/xfs/xfs_bmap_util.c
+> > > > +++ b/fs/xfs/xfs_bmap_util.c
+> > > > @@ -73,9 +73,11 @@ xfs_zero_extent(
+> > > >  	xfs_daddr_t	sector = xfs_fsb_to_db(ip, start_fsb);
+> > > >  	sector_t	block = XFS_BB_TO_FSBT(mp, sector);
+> > > >  	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
+> > > > +	struct inode	*inode = VFS_I(ip);
+> > > >  
+> > > >  	if (IS_DAX(VFS_I(ip)))
+> > > > -		return dax_clear_blocks(VFS_I(ip), block, size);
+> > > > +		return dax_clear_blocks(inode, xfs_find_bdev_for_inode(inode),
+> > > > +				block, size);
+> > > 
+> > > Get rid of the local inode variable and use VFS_I(ip) like the code
+> > > originally did. Do not change code that is unrelated to the
+> > > modifcation being made, especially when it results in making
+> > > the code an inconsistent mess of mixed pointer constructs....
 > > 
-> > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> > The local 'inode' variable was added to avoid multiple calls for VFS_I() for
+> > the same 'ip'.
 > 
-> This patch is straight forward, but there is one tiny thing that bugs
-> me about it, and that is switching from available memory to the size
-> of the active list. Because the active list can shrink drastically at
-> runtime.
-
-Yeah, active file lru is a volatile thing indeed. Not only can it shrink
-rapidly, it can also grow in an instant (e.g. due to mark_page_accessed)
-so you're right - sizing shadow node lru basing solely on the active lru
-size would be too unpredictable.
-
+> My point is you didn't achieve that. The end result of your patch
+> is:
 > 
-> It's true that both the shrinking of the active list and subsequent
-> activations to regrow it will reduce the number of actionable
-> refaults, and so it wouldn't be unreasonable to also shrink shadow
-> nodes when the active list shrinks.
+> 	struct inode	*inode = VFS_I(ip);
 > 
-> However, I think these are too many assumptions to encode in the
-> shrinker, because it is only meant to prevent a worst-case explosion
-> of radix tree nodes. I'd prefer it to be dumb and conservative.
+> 	if (IS_DAX(VFS_I(ip)))
+> 		return dax_clear_blocks(inode, xfs_find_bdev_for_inode(inode),
+> 					block, size);
 > 
-> Could we instead go with the current usage of the memcg? Whether
-> reclaim happens globally or due to the memory limit, the usage at the
-> time of reclaim gives a good idea of the memory is available to the
-> group. But it's making less assumptions about the internal composition
-> of the memcg's memory, and the consequences associated with that.
+> So now we have a local variable, but we still have 2 calls to
+> VFS_I(ip). i.e. this makes the code harder to read and understand
+> than before for no benefit.
 
-But that would likely result in wasting a considerable chunk of memory
-for stale shadow nodes in case file caches constitute only a small part
-of memcg memory consumption, which isn't good IMHO.
-
-May be, we'd better use LRU_ALL_FILE / 2 instead?
-
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 8c07cd8af15e..8a75f8d2916a 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -351,9 +351,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 
- 	if (memcg_kmem_enabled())
- 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
--						     BIT(LRU_ACTIVE_FILE));
-+						     LRU_ALL_FILE);
- 	else
--		pages = node_page_state(sc->nid, NR_ACTIVE_FILE);
-+		pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
-+			node_page_state(sc->nid, NR_INACTIVE_FILE);
- 
- 	/*
- 	 * Active cache pages are limited to 50% of memory, and shadow
-@@ -369,7 +370,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 	 *
- 	 * PAGE_SIZE / radix_tree_nodes / node_entries / PAGE_SIZE
- 	 */
--	max_nodes = pages >> (RADIX_TREE_MAP_SHIFT - 3);
-+	max_nodes = pages >> (1 + RADIX_TREE_MAP_SHIFT - 3);
- 
- 	if (shadow_nodes <= max_nodes)
- 		return 0;
+*facepalm*  Yep, thanks for the correction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
