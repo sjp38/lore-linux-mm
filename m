@@ -1,322 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 40269830E0
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:22:10 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id wb13so146232289obb.1
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 01:22:10 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id uv5si15264605obc.18.2016.02.08.01.22.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DE990830E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 04:32:06 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id ho8so71053725pac.2
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 01:32:06 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id kn6si45337524pab.36.2016.02.08.01.32.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Feb 2016 01:22:07 -0800 (PST)
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 8 Feb 2016 02:22:06 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 02BF619D8041
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 02:09:47 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u189LmMr30212130
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 02:21:48 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u189LldS009752
-	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 02:21:48 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 26/29] powerpc/mm: Hash linux abstraction for HugeTLB
-Date: Mon,  8 Feb 2016 14:50:38 +0530
-Message-Id: <1454923241-6681-27-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Feb 2016 01:32:06 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv8] mm: slab: free kmem_cache_node after destroy sysfs file
+Date: Mon, 8 Feb 2016 12:31:47 +0300
+Message-ID: <1454923907-25901-1-git-send-email-dsafonov@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, vdavydov@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+With enabled slub_debug alloc_calls_show will try to track location and
+user of slab object on each online node, kmem_cache_node structure and
+cpu_cache/cpu_slub shouldn't be freed till there is the last reference
+to sysfs file.
+
+Fixes the following panic:
+[43963.463055] BUG: unable to handle kernel
+[43963.463090] NULL pointer dereference at 0000000000000020
+[43963.463146] IP: [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.463185] PGD 257304067 PUD 438456067 PMD 0
+[43963.463220] Oops: 0000 [#1] SMP
+[43963.463850] CPU: 3 PID: 973074 Comm: cat ve: 0 Not tainted 3.10.0-229.7.2.ovz.9.30-00007-japdoll-dirty #2 9.30
+[43963.463913] Hardware name: DEPO Computers To Be Filled By O.E.M./H67DE3, BIOS L1.60c 07/14/2011
+[43963.463976] task: ffff88042a5dc5b0 ti: ffff88037f8d8000 task.ti: ffff88037f8d8000
+[43963.464036] RIP: 0010:[<ffffffff811c6959>]  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.464725] Call Trace:
+[43963.464756]  [<ffffffff811c6d1d>] alloc_calls_show+0x1d/0x30
+[43963.464793]  [<ffffffff811c15ab>] slab_attr_show+0x1b/0x30
+[43963.464829]  [<ffffffff8125d27a>] sysfs_read_file+0x9a/0x1a0
+[43963.464865]  [<ffffffff811e3c6c>] vfs_read+0x9c/0x170
+[43963.464900]  [<ffffffff811e4798>] SyS_read+0x58/0xb0
+[43963.464936]  [<ffffffff81612d49>] system_call_fastpath+0x16/0x1b
+[43963.464970] Code: 5e 07 12 00 b9 00 04 00 00 3d 00 04 00 00 0f 4f c1 3d 00 04 00 00 89 45 b0 0f 84 c3 00 00 00 48 63 45 b0 49 8b 9c c4 f8 00 00 00 <48> 8b 43 20 48 85 c0 74 b6 48 89 df e8 46 37 44 00 48 8b 53 10
+[43963.465119] RIP  [<ffffffff811c6959>] list_locations+0x169/0x4e0
+[43963.465155]  RSP <ffff88037f8dbe28>
+[43963.465185] CR2: 0000000000000020
+
+Separated __kmem_cache_release from __kmem_cache_shutdown which now
+called on slab_kmem_cache_release (after the last reference to sysfs
+file object has dropped).
+Reintroduced locking in free_partial as sysfs file might access cache's
+partial list after shutdowning - partiall revert of the
+commit 69cb8e6b7c2982 ("slub: free slabs without holding locks")
+
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Suggested-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/powerpc/include/asm/book3s/64/hash-4k.h      | 10 ++++----
- arch/powerpc/include/asm/book3s/64/hash-64k.h     | 14 +++++------
- arch/powerpc/include/asm/book3s/64/pgalloc-hash.h |  7 ++++++
- arch/powerpc/include/asm/book3s/64/pgalloc.h      |  9 +++++++
- arch/powerpc/include/asm/book3s/64/pgtable.h      | 30 +++++++++++++++++++++++
- arch/powerpc/include/asm/hugetlb.h                |  4 ---
- arch/powerpc/include/asm/nohash/pgalloc.h         |  7 ++++++
- arch/powerpc/mm/hugetlbpage-hash64.c              | 11 ++++-----
- arch/powerpc/mm/hugetlbpage.c                     | 16 ++++++++++++
- 9 files changed, 86 insertions(+), 22 deletions(-)
+v2: Down with SLAB_SUPPORTS_SYSFS thing.                                         
+v3: Moved sysfs_slab_remove inside shutdown_cache                                
+v4: Reworked all to shutdown & free caches on object->release()
+v5: Made separate __kmem_cache_free_nodes function and call it on release.
+v6: Fixed silly error: call to __kmem_cache_free_nodes from kmem_cache_close
+v7: by Vladimir's suggestion renamed __kmem_cache_{free_nodes,_release}
+    and put inside per-cpu freeing of cpu_slub, cpu_cache,
+    renamed kmem_cache_close to __kmem_cache_release as it's inline functon
+v8: reintroduce locking in free_partial & nits from Vladimir
 
-diff --git a/arch/powerpc/include/asm/book3s/64/hash-4k.h b/arch/powerpc/include/asm/book3s/64/hash-4k.h
-index 1ef4b39f96fd..5fc9e4e1db5f 100644
---- a/arch/powerpc/include/asm/book3s/64/hash-4k.h
-+++ b/arch/powerpc/include/asm/book3s/64/hash-4k.h
-@@ -66,23 +66,23 @@
- /*
-  * For 4k page size, we support explicit hugepage via hugepd
-  */
--static inline int pmd_huge(pmd_t pmd)
-+static inline int hlpmd_huge(pmd_t pmd)
+ mm/slab.c        | 12 ++++++------
+ mm/slab.h        |  1 +
+ mm/slab_common.c |  1 +
+ mm/slob.c        |  4 ++++
+ mm/slub.c        | 26 ++++++++++++++------------
+ 5 files changed, 26 insertions(+), 18 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 6ecc697..621fbcb 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2275,7 +2275,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+ 
+ 	err = setup_cpu_cache(cachep, gfp);
+ 	if (err) {
+-		__kmem_cache_shutdown(cachep);
++		__kmem_cache_release(cachep);
+ 		return err;
+ 	}
+ 
+@@ -2414,12 +2414,13 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *cachep)
  {
- 	return 0;
- }
- 
--static inline int pud_huge(pud_t pud)
-+static inline int hlpud_huge(pud_t pud)
- {
- 	return 0;
- }
- 
--static inline int pgd_huge(pgd_t pgd)
-+static inline int hlpgd_huge(pgd_t pgd)
- {
- 	return 0;
- }
- #define pgd_huge pgd_huge
- 
--static inline int hugepd_ok(hugepd_t hpd)
-+static inline int hlhugepd_ok(hugepd_t hpd)
- {
- 	/*
- 	 * if it is not a pte and have hugepd shift mask
-@@ -93,7 +93,7 @@ static inline int hugepd_ok(hugepd_t hpd)
- 		return true;
- 	return false;
- }
--#define is_hugepd(hpd)		(hugepd_ok(hpd))
-+#define is_hlhugepd(hpd)	(hlhugepd_ok(hpd))
- #endif
- 
- #endif /* !__ASSEMBLY__ */
-diff --git a/arch/powerpc/include/asm/book3s/64/hash-64k.h b/arch/powerpc/include/asm/book3s/64/hash-64k.h
-index e697fc528c0a..4fff8b12ba0f 100644
---- a/arch/powerpc/include/asm/book3s/64/hash-64k.h
-+++ b/arch/powerpc/include/asm/book3s/64/hash-64k.h
-@@ -146,7 +146,7 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
-  * Defined in such a way that we can optimize away code block at build time
-  * if CONFIG_HUGETLB_PAGE=n.
-  */
--static inline int pmd_huge(pmd_t pmd)
-+static inline int hlpmd_huge(pmd_t pmd)
- {
- 	/*
- 	 * leaf pte for huge page
-@@ -154,7 +154,7 @@ static inline int pmd_huge(pmd_t pmd)
- 	return !!(pmd_val(pmd) & H_PAGE_PTE);
- }
- 
--static inline int pud_huge(pud_t pud)
-+static inline int hlpud_huge(pud_t pud)
- {
- 	/*
- 	 * leaf pte for huge page
-@@ -162,7 +162,7 @@ static inline int pud_huge(pud_t pud)
- 	return !!(pud_val(pud) & H_PAGE_PTE);
- }
- 
--static inline int pgd_huge(pgd_t pgd)
-+static inline int hlpgd_huge(pgd_t pgd)
- {
- 	/*
- 	 * leaf pte for huge page
-@@ -172,19 +172,19 @@ static inline int pgd_huge(pgd_t pgd)
- #define pgd_huge pgd_huge
- 
- #ifdef CONFIG_DEBUG_VM
--extern int hugepd_ok(hugepd_t hpd);
--#define is_hugepd(hpd)               (hugepd_ok(hpd))
-+extern int hlhugepd_ok(hugepd_t hpd);
-+#define is_hlhugepd(hpd)               (hlhugepd_ok(hpd))
- #else
- /*
-  * With 64k page size, we have hugepage ptes in the pgd and pmd entries. We don't
-  * need to setup hugepage directory for them. Our pte and page directory format
-  * enable us to have this enabled.
-  */
--static inline int hugepd_ok(hugepd_t hpd)
-+static inline int hlhugepd_ok(hugepd_t hpd)
- {
- 	return 0;
- }
--#define is_hugepd(pdep)			0
-+#define is_hlhugepd(pdep)			0
- #endif /* CONFIG_DEBUG_VM */
- 
- #endif /* CONFIG_HUGETLB_PAGE */
-diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc-hash.h b/arch/powerpc/include/asm/book3s/64/pgalloc-hash.h
-index dbf680970c12..1dcfe7b75f06 100644
---- a/arch/powerpc/include/asm/book3s/64/pgalloc-hash.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgalloc-hash.h
-@@ -56,4 +56,11 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
- {
- 	pgtable_free_tlb(tlb, pud, H_PUD_INDEX_SIZE);
- }
-+
-+extern pte_t *huge_hlpte_alloc(struct mm_struct *mm, unsigned long addr,
-+			       unsigned long sz);
-+extern void hugetlb_free_hlpgd_range(struct mmu_gather *tlb, unsigned long addr,
-+				     unsigned long end, unsigned long floor,
-+				     unsigned long ceiling);
-+
- #endif /* _ASM_POWERPC_BOOK3S_64_PGALLOC_HASH_H */
-diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc.h b/arch/powerpc/include/asm/book3s/64/pgalloc.h
-index ff3c0e36fe3d..fa2ddda14b3d 100644
---- a/arch/powerpc/include/asm/book3s/64/pgalloc.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgalloc.h
-@@ -66,4 +66,13 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
- #include <asm/book3s/64/pgalloc-hash.h>
- #endif
- 
-+#ifdef CONFIG_HUGETLB_PAGE
-+static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
-+					  unsigned long end, unsigned long floor,
-+					  unsigned long ceiling)
-+{
-+	return hugetlb_free_hlpgd_range(tlb, addr, end, floor, ceiling);
-+}
-+#endif
-+
- #endif /* __ASM_POWERPC_BOOK3S_64_PGALLOC_H */
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 921784c0aa05..61f4d26bdaa9 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -718,6 +718,36 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
- 	return true;
- }
- 
-+#ifdef CONFIG_HUGETLB_PAGE
-+
-+static inline int pmd_huge(pmd_t pmd)
-+{
-+	return hlpmd_huge(pmd);
++	return __kmem_cache_shrink(cachep, false);
 +}
 +
-+static inline int pud_huge(pud_t pud)
++void __kmem_cache_release(struct kmem_cache *cachep)
 +{
-+	return hlpud_huge(pud);
-+}
-+
-+static inline int pgd_huge(pgd_t pgd)
-+{
-+	return hlpgd_huge(pgd);
-+}
-+
-+static inline bool hugepd_ok(hugepd_t hpd)
-+{
-+	return hlhugepd_ok(hpd);
-+}
-+
-+static inline bool is_hugepd(hugepd_t hpd)
-+{
-+	return is_hlhugepd(hpd);
-+}
-+#define is_hugepd is_hugepd
-+
-+#endif /* CONFIG_HUGETLB_PAGE */
-+
- #define pgprot_noncached pgprot_noncached
- static inline pgprot_t pgprot_noncached(pgprot_t prot)
- {
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index 0525f1c29afb..c938150c440c 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -88,10 +88,6 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
- 			    pte_t pte);
- void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
- 
--void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
--			    unsigned long end, unsigned long floor,
--			    unsigned long ceiling);
+ 	int i;
+ 	struct kmem_cache_node *n;
+-	int rc = __kmem_cache_shrink(cachep, false);
 -
- /*
-  * The version of vma_mmu_pagesize() in arch/powerpc/mm/hugetlbpage.c needs
-  * to override the version in mm/hugetlb.c
-diff --git a/arch/powerpc/include/asm/nohash/pgalloc.h b/arch/powerpc/include/asm/nohash/pgalloc.h
-index b39ec956d71e..2967ca3148da 100644
---- a/arch/powerpc/include/asm/nohash/pgalloc.h
-+++ b/arch/powerpc/include/asm/nohash/pgalloc.h
-@@ -20,4 +20,11 @@ static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
- #else
- #include <asm/nohash/32/pgalloc.h>
- #endif
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
-+			    unsigned long end, unsigned long floor,
-+			    unsigned long ceiling);
-+#endif
-+
- #endif /* _ASM_POWERPC_NOHASH_PGALLOC_H */
-diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index 0126900c696e..84dd590b4a93 100644
---- a/arch/powerpc/mm/hugetlbpage-hash64.c
-+++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -132,7 +132,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
-  * This enables us to catch the wrong page directory format
-  * Moved here so that we can use WARN() in the call.
-  */
--int hugepd_ok(hugepd_t hpd)
-+int hlhugepd_ok(hugepd_t hpd)
- {
- 	bool is_hugepd;
+-	if (rc)
+-		return rc;
  
-@@ -176,7 +176,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
-  * At this point we do the placement change only for BOOK3S 64. This would
-  * possibly work on other subarchs.
-  */
--pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
-+pte_t *huge_hlpte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pg;
- 	pud_t *pu;
-@@ -335,9 +335,9 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
- /*
-  * This function frees user-level page tables of a process.
-  */
--void hugetlb_free_pgd_range(struct mmu_gather *tlb,
--			    unsigned long addr, unsigned long end,
--			    unsigned long floor, unsigned long ceiling)
-+void hugetlb_free_hlpgd_range(struct mmu_gather *tlb,
-+			      unsigned long addr, unsigned long end,
-+			      unsigned long floor, unsigned long ceiling)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
-@@ -373,7 +373,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 	} while (addr = next, addr != end);
+ 	free_percpu(cachep->cpu_cache);
+ 
+@@ -2430,7 +2431,6 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ 		kfree(n);
+ 		cachep->node[i] = NULL;
+ 	}
+-	return 0;
  }
  
--
- /* Build list of addresses of gigantic pages.  This function is used in early
-  * boot before the buddy allocator is setup.
-  */
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 26fb814f289f..1e5e4d4cac55 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -454,3 +454,19 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+ /*
+diff --git a/mm/slab.h b/mm/slab.h
+index 834ad24..2eedace 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -140,6 +140,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+ #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
  
- 	return 1;
+ int __kmem_cache_shutdown(struct kmem_cache *);
++void __kmem_cache_release(struct kmem_cache *);
+ int __kmem_cache_shrink(struct kmem_cache *, bool);
+ void slab_kmem_cache_release(struct kmem_cache *);
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index b50aef0..065b7bd 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -693,6 +693,7 @@ static inline int shutdown_memcg_caches(struct kmem_cache *s,
+ 
+ void slab_kmem_cache_release(struct kmem_cache *s)
+ {
++	__kmem_cache_release(s);
+ 	destroy_memcg_params(s);
+ 	kfree_const(s->name);
+ 	kmem_cache_free(kmem_cache, s);
+diff --git a/mm/slob.c b/mm/slob.c
+index 17e8f8c..5ec1580 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -630,6 +630,10 @@ int __kmem_cache_shutdown(struct kmem_cache *c)
+ 	return 0;
  }
-+
-+#ifdef CONFIG_PPC_BOOK3S_64
-+/*
-+ * Generic book3s code. We didn't want to create a separate header just for this
-+ * ideally we want this static inline. But that require larger changes
-+ */
-+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
+ 
++void __kmem_cache_release(struct kmem_cache *c)
 +{
-+#ifdef CONFIG_HUGETLB_PAGE
-+	return huge_hlpte_alloc(mm, addr, sz);
-+#else
-+	WARN(1, "%s called with HUGETLB disabled\n", __func__);
-+	return NULL;
-+#endif
 +}
-+#endif
++
+ int __kmem_cache_shrink(struct kmem_cache *d, bool deactivate)
+ {
+ 	return 0;
+diff --git a/mm/slub.c b/mm/slub.c
+index 2e1355a..8a47d96 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3184,6 +3184,12 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ 	}
+ }
+ 
++void __kmem_cache_release(struct kmem_cache *s)
++{
++	free_percpu(s->cpu_slab);
++	free_kmem_cache_nodes(s);
++}
++
+ static int init_kmem_cache_nodes(struct kmem_cache *s)
+ {
+ 	int node;
+@@ -3443,28 +3449,31 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ 
+ /*
+  * Attempt to free all partial slabs on a node.
+- * This is called from kmem_cache_close(). We must be the last thread
+- * using the cache and therefore we do not need to lock anymore.
++ * This is called from __kmem_cache_shutdown(). We must take list_lock
++ * because sysfs file might still access partial list after the shutdowning.
+  */
+ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ {
++	unsigned long flags;
+ 	struct page *page, *h;
+ 
++	spin_lock_irqsave(&n->list_lock, flags);
+ 	list_for_each_entry_safe(page, h, &n->partial, lru) {
+ 		if (!page->inuse) {
+ 			__remove_partial(n, page);
+ 			discard_slab(s, page);
+ 		} else {
+ 			list_slab_objects(s, page,
+-			"Objects remaining in %s on kmem_cache_close()");
++			"Objects remaining in %s on __kmem_cache_shutdown()");
+ 		}
+ 	}
++	spin_unlock_irqrestore(&n->list_lock, flags);
+ }
+ 
+ /*
+  * Release all resources used by a slab cache.
+  */
+-static inline int kmem_cache_close(struct kmem_cache *s)
++int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+ 	int node;
+ 	struct kmem_cache_node *n;
+@@ -3476,16 +3485,9 @@ static inline int kmem_cache_close(struct kmem_cache *s)
+ 		if (n->nr_partial || slabs_node(s, node))
+ 			return 1;
+ 	}
+-	free_percpu(s->cpu_slab);
+-	free_kmem_cache_nodes(s);
+ 	return 0;
+ }
+ 
+-int __kmem_cache_shutdown(struct kmem_cache *s)
+-{
+-	return kmem_cache_close(s);
+-}
+-
+ /********************************************************************
+  *		Kmalloc subsystem
+  *******************************************************************/
+@@ -3980,7 +3982,7 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
+ 	memcg_propagate_slab_attrs(s);
+ 	err = sysfs_slab_add(s);
+ 	if (err)
+-		kmem_cache_close(s);
++		__kmem_cache_release(s);
+ 
+ 	return err;
+ }
 -- 
-2.5.0
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
