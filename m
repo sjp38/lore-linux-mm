@@ -1,148 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA328309E
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 03:43:36 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id c200so4439914wme.0
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:43:36 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id w76si15180290wmw.53.2016.02.08.00.43.34
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A26308309E
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 03:48:48 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id q63so2758003pfb.0
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:48:48 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id qe4si45053511pab.195.2016.02.08.00.48.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 00:43:34 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id g62so14439863wme.2
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 00:43:34 -0800 (PST)
-Date: Mon, 8 Feb 2016 10:43:32 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2] mm: Some arch may want to use HPAGE_PMD related
- values as variables
-Message-ID: <20160208084332.GD9075@node.shutemov.name>
-References: <1454913660-27031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1454913660-27031-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Mon, 08 Feb 2016 00:48:47 -0800 (PST)
+Subject: Re: [PATCH] mm: slab: free kmem_cache_node after destroy sysfs file
+References: <1454692612-14856-1-git-send-email-dsafonov@virtuozzo.com>
+ <20160207191006.GC19151@esperanza>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <56B85663.9030406@virtuozzo.com>
+Date: Mon, 8 Feb 2016 11:48:35 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1454913660-27031-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20160207191006.GC19151@esperanza>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Feb 08, 2016 at 12:11:00PM +0530, Aneesh Kumar K.V wrote:
-> With next generation power processor, we are having a new mmu model
-> [1] that require us to maintain a different linux page table format.
-> 
-> Inorder to support both current and future ppc64 systems with a single
-> kernel we need to make sure kernel can select between different page
-> table format at runtime. With the new MMU (radix MMU) added, we will
-> have two different pmd hugepage size 16MB for hash model and 2MB for
-> Radix model. Hence make HPAGE_PMD related values as a variable.
-> 
-> [1] http://ibm.biz/power-isa3 (Needs registration).
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  arch/arm/include/asm/pgtable-3level.h | 8 ++++++++
->  arch/arm64/include/asm/pgtable.h      | 7 +++++++
->  arch/mips/include/asm/pgtable.h       | 8 ++++++++
->  arch/powerpc/mm/pgtable_64.c          | 7 +++++++
->  arch/s390/include/asm/pgtable.h       | 8 ++++++++
->  arch/sparc/include/asm/pgtable_64.h   | 7 +++++++
->  arch/tile/include/asm/pgtable.h       | 9 +++++++++
->  arch/x86/include/asm/pgtable.h        | 8 ++++++++
->  include/linux/huge_mm.h               | 3 ---
->  mm/huge_memory.c                      | 8 +++++---
->  10 files changed, 67 insertions(+), 6 deletions(-)
+On 02/07/2016 10:10 PM, Vladimir Davydov wrote:
+> On Fri, Feb 05, 2016 at 08:16:52PM +0300, Dmitry Safonov wrote:
+> ...
+>> diff --git a/mm/slab.c b/mm/slab.c
+>> index 6ecc697..41176dd 100644
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -2414,13 +2414,19 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+>>   
+>>   int __kmem_cache_shutdown(struct kmem_cache *cachep)
+>>   {
+>> -	int i;
+>> -	struct kmem_cache_node *n;
+>>   	int rc = __kmem_cache_shrink(cachep, false);
+>>   
+>>   	if (rc)
+>>   		return rc;
+> Nit:
+>
+>   int __kmem_cache_shutdown(struct kmem_cache *cachep)
+>   {
+> -	int rc = __kmem_cache_shrink(cachep, false);
+> -
+> -	if (rc)
+> -		return rc;
+> -
+> -	return 0;
+> +	return __kmem_cache_shrink(cachep, false);
+>   }
+Will do
+>
+>>   
+>> +	return 0;
+>> +}
+>> +
+>> +void __kmem_cache_release(struct kmem_cache *cachep)
+>> +{
+>> +	int i;
+>> +	struct kmem_cache_node *n;
+>> +
+>>   	free_percpu(cachep->cpu_cache);
+>>   
+>>   	/* NUMA: free the node structures */
+>> @@ -2430,7 +2436,6 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+>>   		kfree(n);
+>>   		cachep->node[i] = NULL;
+>>   	}
+>> -	return 0;
+>>   }
+>>   
+>>   /*
+> You seem to forget to replace __kmem_cache_shutdown with
+> __kmem_cache_release in __kmem_cache_create error path:
+>
+> @@ -2168,7 +2168,7 @@ done:
+>   
+>   	err = setup_cpu_cache(cachep, gfp);
+>   	if (err) {
+> -		__kmem_cache_shutdown(cachep);
+> +		__kmem_cache_release(cachep);
+>   		return err;
+>   	}
+>
+> ...
+Yeah, thanks
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 2e1355a..ce21ce2 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -3173,11 +3173,12 @@ static void early_kmem_cache_node_alloc(int node)
+>>   	__add_partial(n, page, DEACTIVATE_TO_HEAD);
+>>   }
+>>   
+>> -static void free_kmem_cache_nodes(struct kmem_cache *s)
+>> +void __kmem_cache_release(struct kmem_cache *s)
+>>   {
+>>   	int node;
+>>   	struct kmem_cache_node *n;
+>>   
+>> +	free_percpu(s->cpu_slab);
+> That's rather nit-picking, but this kinda disrupts
+> init_kmem_cache_nodes/free_kmem_cache_nodes symmetry.
+> I'd leave free_kmem_cache_nodes alone and make
+> __kmem_cache_release call it along with free_percpu.
+> This would also reduce the patch footprint, because
+> the two hunks below wouldn't be needed.
+Ok
+>
+>>   	for_each_kmem_cache_node(s, node, n) {
+>>   		kmem_cache_free(kmem_cache_node, n);
+>>   		s->node[node] = NULL;
+>> @@ -3199,7 +3200,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
+>>   						GFP_KERNEL, node);
+>>   
+>>   		if (!n) {
+>> -			free_kmem_cache_nodes(s);
+>> +			__kmem_cache_release(s);
+>>   			return 0;
+>>   		}
+>>   
+>> @@ -3405,7 +3406,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+>>   	if (alloc_kmem_cache_cpus(s))
+>>   		return 0;
+>>   
+>> -	free_kmem_cache_nodes(s);
+>> +	__kmem_cache_release(s);
+>>   error:
+>>   	if (flags & SLAB_PANIC)
+>>   		panic("Cannot create slab %s size=%lu realsize=%u "
+>> @@ -3443,7 +3444,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+>>   
+>>   /*
+>>    * Attempt to free all partial slabs on a node.
+>> - * This is called from kmem_cache_close(). We must be the last thread
+>> + * This is called from __kmem_cache_shutdown(). We must be the last thread
+>>    * using the cache and therefore we do not need to lock anymore.
+> Well, that's not true as we've found out - sysfs might still access the
+> cache in parallel. And alloc_calls_show -> list_locations does walk over
+> the kmem_cache_node->partial list, which we prune on shutdown.
+>
+> I guess we should reintroduce locking for free_partial() in the scope of
+> this patch, partially reverting 69cb8e6b7c298.
+I think, we can omit locking for !SLAB_SUPPORTS_SYSFS and reintroduce
+for sysfs case. Will do
+>
+>>    */
+>>   static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+>> @@ -3456,7 +3457,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+>>   			discard_slab(s, page);
+>>   		} else {
+>>   			list_slab_objects(s, page,
+>> -			"Objects remaining in %s on kmem_cache_close()");
+>> +			"Objects remaining in %s on __kmem_cache_shutdown()");
+>>   		}
+>>   	}
+>>   }
+>> @@ -3464,7 +3465,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+>>   /*
+>>    * Release all resources used by a slab cache.
+>>    */
+>> -static inline int kmem_cache_close(struct kmem_cache *s)
+>> +int __kmem_cache_shutdown(struct kmem_cache *s)
+>>   {
+>>   	int node;
+>>   	struct kmem_cache_node *n;
+>> @@ -3476,16 +3477,9 @@ static inline int kmem_cache_close(struct kmem_cache *s)
+>>   		if (n->nr_partial || slabs_node(s, node))
+>>   			return 1;
+>>   	}
+>> -	free_percpu(s->cpu_slab);
+>> -	free_kmem_cache_nodes(s);
+>>   	return 0;
+>>   }
+>>   
+>> -int __kmem_cache_shutdown(struct kmem_cache *s)
+>> -{
+>> -	return kmem_cache_close(s);
+>> -}
+>> -
+>>   /********************************************************************
+>>    *		Kmalloc subsystem
+>>    *******************************************************************/
+>> @@ -3979,8 +3973,10 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
+>>   
+>>   	memcg_propagate_slab_attrs(s);
+>>   	err = sysfs_slab_add(s);
+>> -	if (err)
+>> -		kmem_cache_close(s);
+>> +	if (err) {
+>> +		__kmem_cache_shutdown(s);
+>> +		__kmem_cache_release(s);
+>> +	}
+> No point calling __kmem_cache_shutdown on __kmem_cache_create error path
+> - the cache hasn't been used yet.
+Oh, yes. Thanks for review.
+>
+> Thanks,
+> Vladimir
 
-That is ugly. What about this:
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 459fd25b378e..f12513a20a06 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-                        __split_huge_pmd(__vma, __pmd, __address);      \
-        }  while (0)
- 
--#if HPAGE_PMD_ORDER >= MAX_ORDER
--#error "hugepages can't be allocated by the buddy allocator"
--#endif
- extern int hugepage_madvise(struct vm_area_struct *vma,
-                            unsigned long *vm_flags, int advice);
- extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 08fc0ba2207e..bc33330b5547 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
-        (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
- 
- /* default scan 8*512 pte (or vmas) every 30 second */
--static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
-+static unsigned int khugepaged_pages_to_scan __read_mostly;
- static unsigned int khugepaged_pages_collapsed;
- static unsigned int khugepaged_full_scans;
- static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
-@@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-  * it would have happened if the vma was large enough during page
-  * fault.
-  */
--static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-+static unsigned int khugepaged_max_ptes_none __read_mostly;
- 
- static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
-@@ -650,16 +650,36 @@ static inline void hugepage_exit_sysfs(struct kobject *hugepage_kobj)
- }
- #endif /* CONFIG_SYSFS */
- 
-+#define MAYBE_BUILD_BUG_ON(cond)               \
-+({                                             \
-+       if (__builtin_constant_p((cond)))       \
-+               BUILD_BUG_ON(cond);             \
-+       else                                    \
-+               BUG_ON(cond);                   \
-+})
-+
- static int __init hugepage_init(void)
- {
-        int err;
-        struct kobject *hugepage_kobj;
- 
-+       khugepaged_pages_to_scan = HPAGE_PMD_NR*8;
-+       khugepaged_max_ptes_none = HPAGE_PMD_NR-1;
-+
-        if (!has_transparent_hugepage()) {
-                transparent_hugepage_flags = 0;
-                return -EINVAL;
-        }
- 
-+       /* hugepages can't be allocated by the buddy allocator */
-+       MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER >= MAX_ORDER);
-+
-+       /*
-+        * we use page->mapping and page->index in second tail page
-+        * as list_head: assuming THP order >= 2
-+        */
-+       MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
-+
-        err = hugepage_init_sysfs(&hugepage_kobj);
-        if (err)
-                goto err_sysfs;
-@@ -760,12 +780,6 @@ static inline struct list_head *page_deferred_list(struct page *page)
- 
- void prep_transhuge_page(struct page *page)
- {
--       /*
--        * we use page->mapping and page->indexlru in second tail page
--        * as list_head: assuming THP order >= 2
--        */
--       BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
--
-        INIT_LIST_HEAD(page_deferred_list(page));
-        set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
- }
 -- 
- Kirill A. Shutemov
+Regards,
+Dmitry Safonov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
