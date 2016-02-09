@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8880D6B0253
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 18:15:59 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id g62so4505556wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:15:59 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v124si26362326wmg.0.2016.02.09.15.15.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 15:15:58 -0800 (PST)
-Date: Tue, 9 Feb 2016 18:15:05 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 6/6] mm: workingset: make shadow node shrinker memcg
- aware
-Message-ID: <20160209231505.GB32427@cmpxchg.org>
-References: <cover.1455025246.git.vdavydov@virtuozzo.com>
- <958fc0b9f99f5cabbc3c1f6133a615239d9c05ff.1455025246.git.vdavydov@virtuozzo.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 978506B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 18:38:59 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id x65so1722693pfb.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:38:59 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id uj7si632021pab.111.2016.02.09.15.38.58
+        for <linux-mm@kvack.org>;
+        Tue, 09 Feb 2016 15:38:58 -0800 (PST)
+Date: Tue, 9 Feb 2016 15:38:57 -0800
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v10 4/4] x86: Create a new synthetic cpu capability for
+ machine check recovery
+Message-ID: <20160209233857.GA24348@agluck-desk.sc.intel.com>
+References: <cover.1454618190.git.tony.luck@intel.com>
+ <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
+ <20160207171041.GG5862@pd.tnic>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <958fc0b9f99f5cabbc3c1f6133a615239d9c05ff.1455025246.git.vdavydov@virtuozzo.com>
+In-Reply-To: <20160207171041.GG5862@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Tue, Feb 09, 2016 at 04:55:54PM +0300, Vladimir Davydov wrote:
-> Workingset code was recently made memcg aware, but shadow node shrinker
-> is still global. As a result, one small cgroup can consume all memory
-> available for shadow nodes, possibly hurting other cgroups by reclaiming
-> their shadow nodes, even though reclaim distances stored in its shadow
-> nodes have no effect. To avoid this, we need to make shadow node
-> shrinker memcg aware.
+> > +	if (mca_cfg.recovery || (mca_cfg.ser &&
+> > +		!strncmp(c->x86_model_id, "Intel(R) Xeon(R) CPU E7-", 24)))
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Eeww, a model string check :-(
+> 
+> Lemme guess: those E7s can't be represented by a range of
+> model/steppings, can they?
 
-w00t!
+We use the same model number for E5 and E7 series. E.g. 63 for Haswell.
+The model_id string seems to be the only way to tell ahead of time
+whether you will get a recoverable machine check or die when you
+touch uncorrected memory.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
