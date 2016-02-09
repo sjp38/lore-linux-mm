@@ -1,51 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B208A6B0009
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 15:11:33 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id 128so91021wmz.1
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 12:11:33 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id c2si51128437wjb.214.2016.02.09.12.11.32
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 657166B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 15:20:17 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id ho8so96506345pac.2
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 12:20:17 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y4si29318646par.45.2016.02.09.12.20.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 12:11:32 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id g62so38798476wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 12:11:32 -0800 (PST)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: [PATCH 5/5] mm/backing-dev.c: fix error path in wb_init()
-Date: Tue,  9 Feb 2016 21:11:16 +0100
-Message-Id: <1455048677-19882-6-git-send-email-linux@rasmusvillemoes.dk>
-In-Reply-To: <1455048677-19882-1-git-send-email-linux@rasmusvillemoes.dk>
-References: <1455048677-19882-1-git-send-email-linux@rasmusvillemoes.dk>
+        Tue, 09 Feb 2016 12:20:16 -0800 (PST)
+Date: Tue, 9 Feb 2016 12:20:15 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 112211] New: ATI Radeon Graphics not rendering correctly
+Message-Id: <20160209122015.71a63bd2d7ee34599fb79e9e@linux-foundation.org>
+In-Reply-To: <bug-112211-27@https.bugzilla.kernel.org/>
+References: <bug-112211-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, "David S. Miller" <davem@davemloft.net>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: smf.linux@ntlworld.com
+Cc: bugzilla-daemon@bugzilla.kernel.org, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org
 
-We need to use post-decrement to get percpu_counter_destroy() called
-on &wb->stat[0]. Moreover, the pre-decremebt would cause infinite
-out-of-bounds accesses if the setup code failed at i==0.
 
-Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
----
- mm/backing-dev.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index cc5d29d2da9b..723f3e624b9a 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -328,7 +328,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
- 	return 0;
- 
- out_destroy_stat:
--	while (--i)
-+	while (i--)
- 		percpu_counter_destroy(&wb->stat[i]);
- 	fprop_local_destroy_percpu(&wb->completions);
- out_put_cong:
--- 
-2.1.4
+On Tue, 09 Feb 2016 08:41:39 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=112211
+> 
+>             Bug ID: 112211
+>            Summary: ATI Radeon Graphics not rendering correctly
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: Linux 4.5-rc3
+>           Hardware: IA-32
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Page Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: smf.linux@ntlworld.com
+>         Regression: No
+> 
+> On testing linux 4.5-rc( 1,2 and 3) I have found that my display is not
+> rendered correctly on starting the X server. My screen is mainly black with
+> portions of the desktop appearing from time to time. I initially raised this
+> with the DRM/Radeon team:
+> 
+> https://bugs.freedesktop.org/show_bug.cgi?id=93998
+> 
+> On investigation a bisect identified the following commit as the source of my
+> problem:
+> 
+> 01c8f1c44b83a0825b573e7c723b033cece37b86 is the first bad commit
+> commit 01c8f1c44b83a0825b573e7c723b033cece37b86
+> Author: Dan Williams <dan.j.williams@intel.com>
+> Date:   Fri Jan 15 16:56:40 2016 -0800
+> 
+>     mm, dax, gpu: convert vm_insert_mixed to pfn_t
+> 
+>     Convert the raw unsigned long 'pfn' argument to pfn_t for the purpose of
+>     evaluating the PFN_MAP and PFN_DEV flags.  When both are set it triggers
+>     _PAGE_DEVMAP to be set in the resulting pte.
+> 
+>     There are no functional changes to the gpu drivers as a result of this
+>     conversion.
+> 
+>     Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>     Cc: Dave Hansen <dave@sr71.net>
+>     Cc: David Airlie <airlied@linux.ie>
+>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> 
+> The problem is present on two AMD/ATI systems I have tried but is absent from
+> my Intel based laptop. All my systems are 32 bit LFS builds.
+> 
+> I did try to contact Dan Williams but I am not sure that my e-mail got through,
+> can anyone suggest a way forward please ?
+> 
+
+Does your kernel include
+
+commit 03fc2da63b9a33dce784a2075c7e068bb97cbf69
+Author: Dan Williams <dan.j.williams@intel.com>
+Date:   Tue Jan 26 09:48:05 2016 -0800
+
+    mm: fix pfn_t to page conversion in vm_insert_mixed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
