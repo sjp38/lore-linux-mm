@@ -1,117 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 889356B0253
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 11:01:23 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id bc4so102816402lbc.2
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 08:01:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x69si18847003lfd.16.2016.02.09.08.01.21
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EBD66B0255
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 11:11:59 -0500 (EST)
+Received: by mail-qk0-f182.google.com with SMTP id s68so71760344qkh.3
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 08:11:59 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id e13si36353165qka.120.2016.02.09.08.11.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 Feb 2016 08:01:22 -0800 (PST)
-Date: Tue, 9 Feb 2016 17:01:34 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] dax: move writeback calls into the filesystems
-Message-ID: <20160209160134.GA12245@quack.suse.cz>
-References: <1454829553-29499-1-git-send-email-ross.zwisler@linux.intel.com>
- <1454829553-29499-3-git-send-email-ross.zwisler@linux.intel.com>
- <CAPcyv4jT=yAb2_yLfMGqV1SdbQwoWQj7joroeJGAJAcjsMY_oQ@mail.gmail.com>
- <20160207215047.GJ31407@dastard>
- <CAPcyv4jNmdm-ATTBaLLLzBT+RXJ0YrxxXLYZ=T7xUgEJ8PaSKw@mail.gmail.com>
- <20160208201808.GK27429@dastard>
- <CAPcyv4iHi17pv_VC=WgEP4_GgN9OvSr8xbw1bvbEFMiQ83GbWw@mail.gmail.com>
- <20160209094353.GF9451@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="LQksG6bCIzRHxTLp"
-Content-Disposition: inline
-In-Reply-To: <20160209094353.GF9451@quack.suse.cz>
+        Tue, 09 Feb 2016 08:11:58 -0800 (PST)
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 9 Feb 2016 09:11:56 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 6692419D8051
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 08:59:53 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u19GBsB930015682
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 09:11:54 -0700
+Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u19GBs3D026457
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 09:11:54 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related values as variables
+Date: Tue,  9 Feb 2016 21:41:44 +0530
+Message-Id: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>, jmoyer <jmoyer@redhat.com>
+To: akpm@linux-foundation.org, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
+With next generation power processor, we are having a new mmu model
+[1] that require us to maintain a different linux page table format.
 
---LQksG6bCIzRHxTLp
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Inorder to support both current and future ppc64 systems with a single
+kernel we need to make sure kernel can select between different page
+table format at runtime. With the new MMU (radix MMU) added, we will
+have two different pmd hugepage size 16MB for hash model and 2MB for
+Radix model. Hence make HPAGE_PMD related values as a variable.
 
-On Tue 09-02-16 10:43:53, Jan Kara wrote:
-> On Mon 08-02-16 12:55:24, Dan Williams wrote:
-> > On Mon, Feb 8, 2016 at 12:18 PM, Dave Chinner <david@fromorbit.com> wrote:
-> > [..]
-> > >> Setting aside the current block zeroing problem you seem to assuming
-> > >> that DAX will always be faster and that may not be true at a media
-> > >> level.  Waiting years for some applications to determine if DAX makes
-> > >> sense for their use case seems completely reasonable.  In the meantime
-> > >> the apps that are already making these changes want to know that a DAX
-> > >> mapping request has not silently dropped backed to page cache.  They
-> > >> also want to know if they successfully jumped through all the hoops to
-> > >> get a larger than pte mapping.
-> > >>
-> > >> I agree it is useful to be able to force DAX on an unmodified
-> > >> application to see what happens, and it follows that if those
-> > >> applications want to run in that mode they will need functional
-> > >> fsync()...
-> > >>
-> > >> I would feel better if we were talking about specific applications and
-> > >> performance numbers to know if forcing DAX on application is a debug
-> > >> facility or a production level capability.  You seem to have already
-> > >> made that determination and I'm curious what I'm missing.
-> > >
-> > > I'm not setting any policy here at all.  This whole argument is
-> > > based around the DAX mount option doing "global fs enable or
-> > > silently turning it off" and the application not knowing about that.
-> > >
-> > > The whole point of having a persistent per-inode DAX flags is that
-> > > it is a policy mechanism, not a policy.  The application can, if it
-> > > is DAX aware, directly control whether DAX is used on a file or not.
-> > > The application can even query and clear that persistent inode flag
-> > > if it is configured not to (or cannot) use DAX.
-> > >
-> > > If the filesystem cannot support DAX, then we can error out attempts
-> > > to set the DAX flag and then the app knows DAX is not available.
-> > > i.e. the attempt to set policy failed. If the flag is set, then the
-> > > inode will *always* use DAX - there is no "fall back to page cache"
-> > > when DAX is enabled.
-> > >
-> > > If the applicaiton is not DAX aware, then the admin can control the
-> > > DAX policy by manipulating these flags themselves, and hence control
-> > > whether DAX is used by the application or not.
-> > >
-> > > If you think I'm dictating policy for DAX users and application,
-> > > then you haven't understood anything I've previously said about why
-> > > the DAX mount option needs to die before any of this is considered
-> > > production ready. DAX is not an opaque "all or nothing" option. XFS
-> > > will provide apps and admins with fine-grained, persistent,
-> > > discoverable policy flags to allow admins and applications to set
-> > > DAX policies however they see fit. This simply cannot be done if the
-> > > only knob you have is a mount option that may or may not stick.
-> > 
-> > I agree the mount option needs to die, and I fully grok the reasoning.
-> >   What I'm concerned with is that a system using fully-DAX-aware
-> > applications is forced to incur the overhead of maintaining *sync
-> > semantics, periodic sync(2) in particular,  even if it is not relying
-> > on those semantics.
-> 
-> Let me somewhat correct this: IMO hard requirement is maintaining sync(2)
-> semantics. Periodic writeback does not have any hard durability guarantees
-> and we are free to ignore such requests in ->writepages() (that function
-> has enough information in the writeback_control structure to differentiate
-> between periodic writeback and data integrity sync) if we decide it is
-> useful. Actually, we could do that even for 4.5.
+[1] http://ibm.biz/power-isa3 (Needs registration).
 
-Attached is a version of Ross' patch that will work for sync(2) and
-fsync(2) and we won't flush caches during periodic writeback. The patch is
-only compile-tested. Ross?
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/mm/pgtable_64.c |  7 +++++++
+ include/linux/bug.h          |  9 +++++++++
+ include/linux/huge_mm.h      |  3 ---
+ mm/huge_memory.c             | 17 ++++++++++++++---
+ 4 files changed, 30 insertions(+), 6 deletions(-)
 
-								Honza
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index c8a00da39969..80dd8e0d8322 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -818,6 +818,13 @@ pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+ 
+ int has_transparent_hugepage(void)
+ {
++
++	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) >= MAX_ORDER,
++		"hugepages can't be allocated by the buddy allocator");
++
++	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) < 2,
++			 "We need more than 2 pages to do deferred thp split");
++
+ 	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
+ 		return 0;
+ 	/*
+diff --git a/include/linux/bug.h b/include/linux/bug.h
+index 7f4818673c41..e51b0709e78d 100644
+--- a/include/linux/bug.h
++++ b/include/linux/bug.h
+@@ -20,6 +20,7 @@ struct pt_regs;
+ #define BUILD_BUG_ON_MSG(cond, msg) (0)
+ #define BUILD_BUG_ON(condition) (0)
+ #define BUILD_BUG() (0)
++#define MAYBE_BUILD_BUG_ON(cond) (0)
+ #else /* __CHECKER__ */
+ 
+ /* Force a compilation error if a constant expression is not a power of 2 */
+@@ -83,6 +84,14 @@ struct pt_regs;
+  */
+ #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
+ 
++#define MAYBE_BUILD_BUG_ON(cond)			\
++	do {						\
++		if (__builtin_constant_p((cond)))       \
++			BUILD_BUG_ON(cond);             \
++		else                                    \
++			BUG_ON(cond);                   \
++	} while (0)
++
+ #endif	/* __CHECKER__ */
+ 
+ #ifdef CONFIG_GENERIC_BUG
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 459fd25b378e..f12513a20a06 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			__split_huge_pmd(__vma, __pmd, __address);	\
+ 	}  while (0)
+ 
+-#if HPAGE_PMD_ORDER >= MAX_ORDER
+-#error "hugepages can't be allocated by the buddy allocator"
+-#endif
+ extern int hugepage_madvise(struct vm_area_struct *vma,
+ 			    unsigned long *vm_flags, int advice);
+ extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index cd26f3f14cab..350410e9019e 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
+ 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+ 
+ /* default scan 8*512 pte (or vmas) every 30 second */
+-static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
++static unsigned int khugepaged_pages_to_scan __read_mostly;
+ static unsigned int khugepaged_pages_collapsed;
+ static unsigned int khugepaged_full_scans;
+ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+@@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+  * it would have happened if the vma was large enough during page
+  * fault.
+  */
+-static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
++static unsigned int khugepaged_max_ptes_none __read_mostly;
+ 
+ static int khugepaged(void *none);
+ static int khugepaged_slab_init(void);
+@@ -660,6 +660,18 @@ static int __init hugepage_init(void)
+ 		return -EINVAL;
+ 	}
+ 
++	khugepaged_pages_to_scan = HPAGE_PMD_NR * 8;
++	khugepaged_max_ptes_none = HPAGE_PMD_NR - 1;
++	/*
++	 * hugepages can't be allocated by the buddy allocator
++	 */
++	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER >= MAX_ORDER);
++	/*
++	 * we use page->mapping and page->index in second tail page
++	 * as list_head: assuming THP order >= 2
++	 */
++	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
++
+ 	err = hugepage_init_sysfs(&hugepage_kobj);
+ 	if (err)
+ 		goto err_sysfs;
+@@ -764,7 +776,6 @@ void prep_transhuge_page(struct page *page)
+ 	 * we use page->mapping and page->indexlru in second tail page
+ 	 * as list_head: assuming THP order >= 2
+ 	 */
+-	BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
+ 
+ 	INIT_LIST_HEAD(page_deferred_list(page));
+ 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.5.0
 
---LQksG6bCIzRHxTLp
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0001-dax-move-writeback-calls-into-the-filesystems.patch"
-
-
---LQksG6bCIzRHxTLp--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
