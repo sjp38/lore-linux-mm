@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D63AD6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 13:46:05 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id e127so36193044pfe.3
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 10:46:05 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id g74si55577692pfg.144.2016.02.09.10.46.05
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id F288B6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 14:42:09 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id 128so210400778wmz.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 11:42:09 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id e8si51044494wjx.113.2016.02.09.11.42.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 10:46:05 -0800 (PST)
-Received: by mail-pa0-x229.google.com with SMTP id ho8so95343513pac.2
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 10:46:05 -0800 (PST)
+        Tue, 09 Feb 2016 11:42:08 -0800 (PST)
+Received: by mail-wm0-x234.google.com with SMTP id g62so37817790wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 11:42:08 -0800 (PST)
+Date: Tue, 9 Feb 2016 21:42:06 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related
+ values as variables
+Message-ID: <20160209194206.GA22327@node.shutemov.name>
+References: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20160209172416.GB12245@quack.suse.cz>
-References: <20160209172416.GB12245@quack.suse.cz>
-Date: Tue, 9 Feb 2016 19:46:05 +0100
-Message-ID: <CALXu0Udxe4W9XRaCu=TOa5HE9bHtNcHBeFT6iiXmgUDOJh7iZA@mail.gmail.com>
-Subject: Re: Another proposal for DAX fault locking
-From: Cedric Blancher <cedric.blancher@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, mgorman@suse.de, Matthew Wilcox <willy@linux.intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 9 February 2016 at 18:24, Jan Kara <jack@suse.cz> wrote:
-> Hello,
->
-> I was thinking about current issues with DAX fault locking [1] (data
-> corruption due to racing faults allocating blocks) and also races which
-> currently don't allow us to clear dirty tags in the radix tree due to races
-> between faults and cache flushing [2]. Both of these exist because we don't
-> have an equivalent of page lock available for DAX. While we have a
-> reasonable solution available for problem [1], so far I'm not aware of a
-> decent solution for [2]. After briefly discussing the issue with Mel he had
-> a bright idea that we could used hashed locks to deal with [2] (and I think
-> we can solve [1] with them as well). So my proposal looks as follows:
->
-> DAX will have an array of mutexes
+On Tue, Feb 09, 2016 at 09:41:44PM +0530, Aneesh Kumar K.V wrote:
+> With next generation power processor, we are having a new mmu model
+> [1] that require us to maintain a different linux page table format.
+> 
+> Inorder to support both current and future ppc64 systems with a single
+> kernel we need to make sure kernel can select between different page
+> table format at runtime. With the new MMU (radix MMU) added, we will
+> have two different pmd hugepage size 16MB for hash model and 2MB for
+> Radix model. Hence make HPAGE_PMD related values as a variable.
+> 
+> [1] http://ibm.biz/power-isa3 (Needs registration).
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-One folly here: Arrays of mutexes NEVER work unless you manage to
-align them to occupy one complete L2/L3 cache line each. Otherwise the
-CPUS will fight over cache lines each time they touch (read or write)
-a mutex, and it then becomes a O^n-like scalability problem if
-multiple mutexes occupy one cache line. It becomes WORSE as more
-mutexes fit into a single cache line and even more worse with the
-number of CPUS accessing such contested lines.
+I guess it should have my signed-off-by ;)
 
-Ced
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
 -- 
-Cedric Blancher <cedric.blancher@gmail.com>
-Institute Pasteur
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
