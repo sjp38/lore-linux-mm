@@ -1,169 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 418E8828E2
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 18:55:07 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id p63so1696862wmp.1
-        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 15:55:07 -0800 (PST)
-Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id g2si45292626wje.67.2016.02.08.15.55.05
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C7775828E2
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 20:20:52 -0500 (EST)
+Received: by mail-qk0-f171.google.com with SMTP id s68so65494042qkh.3
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2016 17:20:52 -0800 (PST)
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com. [129.33.205.208])
+        by mx.google.com with ESMTPS id j106si29122336qge.40.2016.02.08.17.20.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Feb 2016 15:55:05 -0800 (PST)
-Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-MIME-Version: 1.0
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Mon, 08 Feb 2016 23:53:51 +0000
-Message-ID: <lsq.1454975631.124632264@decadent.org.uk>
-Subject: [PATCH 3.2 40/87] x86/mm: Add barriers and document
- switch_mm()-vs-flush synchronization
-In-Reply-To: <lsq.1454975630.125133756@decadent.org.uk>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 08 Feb 2016 17:20:51 -0800 (PST)
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 8 Feb 2016 20:20:51 -0500
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2D6E538C8041
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2016 20:20:47 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u191Kl5I32768216
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 01:20:47 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u191KkSI030131
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2016 20:20:46 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP update
+Date: Tue,  9 Feb 2016 06:50:31 +0530
+Message-Id: <1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: akpm@linux-foundation.org, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>
+To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-3.2.77-rc1 review patch.  If anyone has any objections, please let me know.
+With ppc64 we use the deposited pgtable_t to store the hash pte slot
+information. We should not withdraw the deposited pgtable_t without
+marking the pmd none. This ensure that low level hash fault handling
+will skip this huge pte and we will handle them at upper levels.
 
-------------------
+Recent change to pmd splitting changed the above in order to handle the
+race between pmd split and exit_mmap. The race is explained below.
 
-From: Andy Lutomirski <luto@kernel.org>
+Consider following race:
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+		CPU0				CPU1
+shrink_page_list()
+  add_to_swap()
+    split_huge_page_to_list()
+      __split_huge_pmd_locked()
+        pmdp_huge_clear_flush_notify()
+	// pmd_none() == true
+					exit_mmap()
+					  unmap_vmas()
+					    zap_pmd_range()
+					      // no action on pmd since pmd_none() == true
+	pmd_populate()
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+As result the THP will not be freed. The leak is detected by check_mm():
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
+	BUG: Bad rss-counter state mm:ffff880058d2e580 idx:1 val:512
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[bwh: Backported to 3.2:
- - There's no flush_tlb_mm_range(), only flush_tlb_mm() which does not use
-   INVLPG
- - Adjust context]
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+The above required us to not mark pmd none during a pmd split.
+
+The fix for ppc is to clear the huge pte of _PAGE_USER, so that low
+level fault handling code skip this pte. At higher level we do take ptl
+lock. That should serialze us against the pmd split. Once the lock is
+acquired we do check the pmd again using pmd_same. That should always
+return false for us and hence we should retry the access. We do the
+pmd_same check in all case after taking plt with
+THP (do_huge_pmd_wp_page, do_huge_pmd_numa_page and
+huge_pmd_set_accessed)
+
+Also make sure we wait for irq disable section in other cpus to finish
+before flipping a huge pte entry with a regular pmd entry. Code paths
+like find_linux_pte_or_hugepte depend on irq disable to get
+a stable pte_t pointer. A parallel thp split need to make sure we
+don't convert a pmd pte to a regular pmd entry without waiting for the
+irq disable section to finish.
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -87,7 +87,32 @@ static inline void switch_mm(struct mm_s
+ arch/powerpc/include/asm/book3s/64/pgtable.h |  4 ++++
+ arch/powerpc/mm/pgtable_64.c                 | 35 +++++++++++++++++++++++++++-
+ include/asm-generic/pgtable.h                |  8 +++++++
+ mm/huge_memory.c                             |  1 +
+ 4 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 8d1c41d28318..ac07a30a7934 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -281,6 +281,10 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 			    pmd_t *pmdp);
+ 
++#define __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
++extern void pmdp_huge_split_prepare(struct vm_area_struct *vma,
++				    unsigned long address, pmd_t *pmdp);
++
+ #define pmd_move_must_withdraw pmd_move_must_withdraw
+ struct spinlock;
+ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index 3124a20d0fab..c8a00da39969 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -646,6 +646,30 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+ 	return pgtable;
+ }
+ 
++void pmdp_huge_split_prepare(struct vm_area_struct *vma,
++			     unsigned long address, pmd_t *pmdp)
++{
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++
++#ifdef CONFIG_DEBUG_VM
++	BUG_ON(REGION_ID(address) != USER_REGION_ID);
++#endif
++	/*
++	 * We can't mark the pmd none here, because that will cause a race
++	 * against exit_mmap. We need to continue mark pmd TRANS HUGE, while
++	 * we spilt, but at the same time we wan't rest of the ppc64 code
++	 * not to insert hash pte on this, because we will be modifying
++	 * the deposited pgtable in the caller of this function. Hence
++	 * clear the _PAGE_USER so that we move the fault handling to
++	 * higher level function and that will serialize against ptl.
++	 * We need to flush existing hash pte entries here even though,
++	 * the translation is still valid, because we will withdraw
++	 * pgtable_t after this.
++	 */
++	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_USER, 0);
++}
++
++
+ /*
+  * set a new huge pmd. We should not be called for updating
+  * an existing pmd entry. That should go via pmd_hugepage_update.
+@@ -663,10 +687,19 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
+ }
+ 
++/*
++ * We use this to invalidate a pmdp entry before switching from a
++ * hugepte to regular pmd entry.
++ */
+ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 		     pmd_t *pmdp)
+ {
+-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
++	pmd_hugepage_update(vma->vm_mm, address, pmdp, ~0UL, 0);
++	/*
++	 * This ensures that generic code that rely on IRQ disabling
++	 * to prevent a parallel THP split work as expected.
++	 */
++	kick_all_cpus_sync();
+ }
+ 
+ /*
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 0b3c0d39ef75..c370b261c720 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -239,6 +239,14 @@ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 			    pmd_t *pmdp);
  #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
  
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* stop flush ipis for the previous mm */
-@@ -108,6 +133,10 @@ static inline void switch_mm(struct mm_s
- 			/* We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_mm_ldt(next);
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -278,7 +278,9 @@ void flush_tlb_current_task(void)
- 
- 	preempt_disable();
- 
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
++#ifndef __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
++static inline void pmdp_huge_split_prepare(struct vm_area_struct *vma,
++					   unsigned long address, pmd_t *pmdp)
++{
 +
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -289,10 +291,20 @@ void flush_tlb_mm(struct mm_struct *mm)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * This is an implicit full barrier (MOV to CR) that
-+			 * synchronizes with switch_mm.
-+			 */
- 			local_flush_tlb();
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
-+	} else {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
- 	}
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
-@@ -307,10 +319,18 @@ void flush_tlb_page(struct vm_area_struc
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(va);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
++}
++#endif
 +
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
+ #ifndef __HAVE_ARCH_PTE_SAME
+ static inline int pte_same(pte_t pte_a, pte_t pte_b)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 36c070167b71..cd26f3f14cab 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2860,6 +2860,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	young = pmd_young(*pmd);
+ 	dirty = pmd_dirty(*pmd);
  
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
++	pmdp_huge_split_prepare(vma, haddr, pmd);
+ 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+ 	pmd_populate(mm, &_pmd, pgtable);
+ 
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
