@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9E26B0253
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 08:56:13 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id ik10so108416052igb.1
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 05:56:13 -0800 (PST)
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F0D36B0254
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 08:56:17 -0500 (EST)
+Received: by mail-io0-f170.google.com with SMTP id l127so9880427iof.3
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 05:56:17 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id 87si51872822ios.62.2016.02.09.05.56.12
+        by mx.google.com with ESMTPS id c5si3378171igo.36.2016.02.09.05.56.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 05:56:12 -0800 (PST)
+        Tue, 09 Feb 2016 05:56:16 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH v2 2/6] mm: vmscan: pass root_mem_cgroup instead of NULL to memcg aware shrinker
-Date: Tue, 9 Feb 2016 16:55:50 +0300
-Message-ID: <ed585769d803448640cb1ff8fd9ae75089bcd83f.1455025246.git.vdavydov@virtuozzo.com>
+Subject: [PATCH v2 3/6] mm: memcontrol: zap memcg_kmem_online helper
+Date: Tue, 9 Feb 2016 16:55:51 +0300
+Message-ID: <35ed3919126ce335b808f0b989f5e638105e2eb4.1455025246.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1455025246.git.vdavydov@virtuozzo.com>
 References: <cover.1455025246.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,56 +22,84 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-It's just convenient to implement a memcg aware shrinker when you know
-that shrink_control->memcg != NULL unless memcg_kmem_enabled() returns
-false.
+As kmem accounting is now either enabled for all cgroups or disabled
+system-wide, there's no point in having memcg_kmem_online() helper -
+instead one can use memcg_kmem_enabled() and mem_cgroup_online(), as
+shrink_slab() now does.
+
+There are only two places left where this helper is used -
+__memcg_kmem_charge() and memcg_create_kmem_cache(). The former can only
+be called if memcg_kmem_enabled() returned true. Since the cgroup it
+operates on is online, mem_cgroup_is_root() check will be enough.
+
+memcg_create_kmem_cache() can't use mem_cgroup_online() helper instead
+of memcg_kmem_online(), because it relies on the fact that in
+memcg_offline_kmem() memcg->kmem_state is changed before
+memcg_deactivate_kmem_caches() is called, but there we can just
+open-code the check.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ include/linux/memcontrol.h | 10 ----------
+ mm/memcontrol.c            |  2 +-
+ mm/slab_common.c           |  2 +-
+ 3 files changed, 2 insertions(+), 12 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 18b3767136f4..bae8f32ad9cb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -382,9 +382,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  *
-  * @memcg specifies the memory cgroup to target. If it is not NULL,
-  * only shrinkers with SHRINKER_MEMCG_AWARE set will be called to scan
-- * objects from the memory cgroup specified. Otherwise all shrinkers
-- * are called, and memcg aware shrinkers are supposed to scan the
-- * global list then.
-+ * objects from the memory cgroup specified. Otherwise, only unaware
-+ * shrinkers are called.
-  *
-  * @nr_scanned and @nr_eligible form a ratio that indicate how much of
-  * the available objects should be scanned.  Page reclaim for example
-@@ -404,7 +403,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d6300313b298..bc8e4e22f58f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -795,11 +795,6 @@ static inline bool memcg_kmem_enabled(void)
+ 	return static_branch_unlikely(&memcg_kmem_enabled_key);
+ }
  
--	if (memcg && !memcg_kmem_online(memcg))
-+	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
- 		return 0;
+-static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
+-{
+-	return memcg->kmem_state == KMEM_ONLINE;
+-}
+-
+ /*
+  * In general, we'll do everything in our power to not incur in any overhead
+  * for non-memcg users for the kmem functions. Not even a function call, if we
+@@ -909,11 +904,6 @@ static inline bool memcg_kmem_enabled(void)
+ 	return false;
+ }
  
- 	if (nr_scanned == 0)
-@@ -428,7 +427,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 			.memcg = memcg,
- 		};
+-static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
+-{
+-	return false;
+-}
+-
+ static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+ {
+ 	return 0;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 28d1b1e9d4fb..341bf86d26c2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2346,7 +2346,7 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+ 	int ret = 0;
  
--		if (memcg && !(shrinker->flags & SHRINKER_MEMCG_AWARE))
-+		/*
-+		 * If kernel memory accounting is disabled, we ignore
-+		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
-+		 * passing NULL for memcg.
-+		 */
-+		if (memcg_kmem_enabled() &&
-+		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
- 			continue;
+ 	memcg = get_mem_cgroup_from_mm(current->mm);
+-	if (memcg_kmem_online(memcg))
++	if (!mem_cgroup_is_root(memcg))
+ 		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+ 	css_put(&memcg->css);
+ 	return ret;
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 6afb2263a5c5..8addc3c4df37 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -510,7 +510,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	 * The memory cgroup could have been offlined while the cache
+ 	 * creation work was pending.
+ 	 */
+-	if (!memcg_kmem_online(memcg))
++	if (memcg->kmem_state != KMEM_ONLINE)
+ 		goto out_unlock;
  
- 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 	idx = memcg_cache_id(memcg);
 -- 
 2.1.4
 
