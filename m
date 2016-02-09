@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DB44B6B0253
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 11:57:03 -0500 (EST)
-Received: by mail-oi0-f53.google.com with SMTP id m82so18701383oif.2
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 08:57:03 -0800 (PST)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0089.outbound.protection.outlook.com. [157.56.112.89])
-        by mx.google.com with ESMTPS id t6si4730480obx.32.2016.02.09.08.57.02
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7203E6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 12:24:02 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id c200so70450003wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 09:24:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g133si18068472wma.66.2016.02.09.09.24.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Feb 2016 08:57:02 -0800 (PST)
-Subject: Re: [PATCH 5/5] tile: query dynamic DEBUG_PAGEALLOC setting
-References: <1454565386-10489-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1454565386-10489-6-git-send-email-iamjoonsoo.kim@lge.com>
-From: Chris Metcalf <cmetcalf@ezchip.com>
-Message-ID: <56BA1A50.9060308@ezchip.com>
-Date: Tue, 9 Feb 2016 11:56:48 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 09 Feb 2016 09:24:01 -0800 (PST)
+Date: Tue, 9 Feb 2016 18:24:16 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Another proposal for DAX fault locking
+Message-ID: <20160209172416.GB12245@quack.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1454565386-10489-6-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Takashi Iwai <tiwai@suse.com>, Christoph Lameter <cl@linux.com>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, mgorman@suse.de, Matthew Wilcox <willy@linux.intel.com>
 
-On 02/04/2016 12:56 AM, Joonsoo Kim wrote:
-> We can disable debug_pagealloc processing even if the code is complied
-> with CONFIG_DEBUG_PAGEALLOC. This patch changes the code to query
-> whether it is enabled or not in runtime.
->
-> Signed-off-by: Joonsoo Kim<iamjoonsoo.kim@lge.com>
-> ---
->   arch/tile/mm/init.c | 11 +++++++----
->   1 file changed, 7 insertions(+), 4 deletions(-)
+Hello,
 
-Acked-by: Chris Metcalf <cmetcalf@ezchip.com>
+I was thinking about current issues with DAX fault locking [1] (data
+corruption due to racing faults allocating blocks) and also races which
+currently don't allow us to clear dirty tags in the radix tree due to races
+between faults and cache flushing [2]. Both of these exist because we don't
+have an equivalent of page lock available for DAX. While we have a
+reasonable solution available for problem [1], so far I'm not aware of a
+decent solution for [2]. After briefly discussing the issue with Mel he had
+a bright idea that we could used hashed locks to deal with [2] (and I think
+we can solve [1] with them as well). So my proposal looks as follows:
 
-Although I note a typo ("complied") in the git commit message.
+DAX will have an array of mutexes (the array can be made per device but
+initially a global one should be OK). We will use mutexes in the array as a
+replacement for page lock - we will use hashfn(mapping, index) to get
+particular mutex protecting our offset in the mapping. On fault / page
+mkwrite, we'll grab the mutex similarly to page lock and release it once we
+are done updating page tables. This deals with races in [1]. When flushing
+caches we grab the mutex before clearing writeable bit in page tables
+and clearing dirty bit in the radix tree and drop it after we have flushed
+caches for the pfn. This deals with races in [2].
+
+Thoughts?
+
+								Honza
+
+[1] http://oss.sgi.com/archives/xfs/2016-01/msg00575.html
+[2] https://lists.01.org/pipermail/linux-nvdimm/2016-January/004057.html
 
 -- 
-Chris Metcalf, EZChip Semiconductor
-http://www.ezchip.com
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
