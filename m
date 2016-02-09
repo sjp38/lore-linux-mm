@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DCAD6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 18:15:01 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id g62so4483099wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:15:01 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id kc6si483010wjb.84.2016.02.09.15.15.00
+	by kanga.kvack.org (Postfix) with ESMTP id A0B076B0009
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 18:15:09 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id p63so4449697wmp.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:15:09 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u65si1280025wme.76.2016.02.09.15.15.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 15:15:00 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id g62so4482814wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:15:00 -0800 (PST)
-Date: Wed, 10 Feb 2016 01:14:57 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related
- values as variables
-Message-ID: <20160209231457.GB22327@node.shutemov.name>
-References: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20160209132608.814f08a0c3670b4f9d807441@linux-foundation.org>
+        Tue, 09 Feb 2016 15:15:08 -0800 (PST)
+Date: Tue, 9 Feb 2016 18:14:12 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 5/6] mm: workingset: size shadow nodes lru basing on
+ file cache size
+Message-ID: <20160209231412.GA32427@cmpxchg.org>
+References: <cover.1455025246.git.vdavydov@virtuozzo.com>
+ <26fb2cef8be75a27eae79e91b0f8351b468ab9d0.1455025246.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160209132608.814f08a0c3670b4f9d807441@linux-foundation.org>
+In-Reply-To: <26fb2cef8be75a27eae79e91b0f8351b468ab9d0.1455025246.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 09, 2016 at 01:26:08PM -0800, Andrew Morton wrote:
-> On Tue,  9 Feb 2016 21:41:44 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > @@ -660,6 +660,18 @@ static int __init hugepage_init(void)
-> >  		return -EINVAL;
-> >  	}
-> >  
-> > +	khugepaged_pages_to_scan = HPAGE_PMD_NR * 8;
-> > +	khugepaged_max_ptes_none = HPAGE_PMD_NR - 1;
+On Tue, Feb 09, 2016 at 04:55:53PM +0300, Vladimir Davydov wrote:
+> A page is activated on refault if the refault distance stored in the
+> corresponding shadow entry is less than the number of active file pages.
+> Since active file pages can't occupy more than half memory, we assume
+> that the maximal effective refault distance can't be greater than half
+> the number of present pages and size the shadow nodes lru list
+> appropriately. Generally speaking, this assumption is correct, but it
+> can result in wasting a considerable chunk of memory on stale shadow
+> nodes in case the portion of file pages is small, e.g. if a workload
+> mostly uses anonymous memory.
 > 
-> I don't understand this change.  We change the initialization from
-> at-compile-time to at-run-time, but nothing useful appears to have been
-> done.
+> To sort this out, we need to compute the size of shadow nodes lru basing
+> not on the maximal possible, but the current size of file cache. We
+> could take the size of active file lru for the maximal refault distance,
+> but active lru is pretty unstable - it can shrink dramatically at
+> runtime possibly disrupting workingset detection logic.
+> 
+> Instead we assume that the maximal refault distance equals half the
+> total number of file cache pages. This will protect us against active
+> file lru size fluctuations while still being correct, because size of
+> active lru is normally maintained lower than size of inactive lru.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-It's preparation patch. HPAGE_PMD_NR is going to be based on variable on
-Power soon. Compile-time is not an option.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
--- 
- Kirill A. Shutemov
+Begrudgingly, because I don't think it matters that much and I like
+the dumber version. But it's a reasonable change nonetheless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
