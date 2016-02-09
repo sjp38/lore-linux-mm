@@ -1,115 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7230E6B0257
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 08:56:30 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id hb3so77750811igb.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 05:56:30 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id v19si4960442igd.92.2016.02.09.05.56.29
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id EFFFC6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 09:15:45 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id g62so176285496wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 06:15:45 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
+        by mx.google.com with ESMTPS id m4si23381357wmf.116.2016.02.09.06.15.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 05:56:29 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH v2 6/6] mm: workingset: make shadow node shrinker memcg aware
-Date: Tue, 9 Feb 2016 16:55:54 +0300
-Message-ID: <958fc0b9f99f5cabbc3c1f6133a615239d9c05ff.1455025246.git.vdavydov@virtuozzo.com>
-In-Reply-To: <cover.1455025246.git.vdavydov@virtuozzo.com>
-References: <cover.1455025246.git.vdavydov@virtuozzo.com>
+        Tue, 09 Feb 2016 06:15:44 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: mm, compaction: fix build errors with kcompactd
+Date: Tue, 09 Feb 2016 15:15:39 +0100
+Message-ID: <9230470.QhrU67iB7h@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Workingset code was recently made memcg aware, but shadow node shrinker
-is still global. As a result, one small cgroup can consume all memory
-available for shadow nodes, possibly hurting other cgroups by reclaiming
-their shadow nodes, even though reclaim distances stored in its shadow
-nodes have no effect. To avoid this, we need to make shadow node
-shrinker memcg aware.
+The newly added kcompactd code introduces multiple build errors:
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+include/linux/compaction.h:91:12: error: 'kcompactd_run' defined but not used [-Werror=unused-function]
+mm/compaction.c:1953:2: error: implicit declaration of function 'hotcpu_notifier' [-Werror=implicit-function-declaration]
+
+This marks the new empty wrapper functions as 'inline' to avoid unused-function warnings,
+and includes linux/cpu.h to get the hotcpu_notifier declaration.
+
+Fixes: 8364acdfa45a ("mm, compaction: introduce kcompactd")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
- include/linux/memcontrol.h | 10 ++++++++++
- mm/memcontrol.c            |  5 ++---
- mm/workingset.c            | 10 +++++++---
- 3 files changed, 19 insertions(+), 6 deletions(-)
+I stumbled over this while trying out the mmots patches today for an unrelated reason.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index bc8e4e22f58f..1191d79aa495 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -403,6 +403,9 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
- 		int nr_pages);
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 1367c0564d42..d7c8de583a23 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -88,15 +88,15 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+ 	return true;
+ }
  
-+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+					   int nid, unsigned int lru_mask);
-+
- static inline
- unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+-static int kcompactd_run(int nid)
++static inline int kcompactd_run(int nid)
  {
-@@ -661,6 +664,13 @@ mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+ 	return 0;
+ }
+-static void kcompactd_stop(int nid)
++static inline void kcompactd_stop(int nid)
  {
  }
  
-+static inline unsigned long
-+mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+			     int nid, unsigned int lru_mask)
-+{
-+	return 0;
-+}
-+
- static inline void
- mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+-static void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
++static inline void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
  {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 341bf86d26c2..ae8b81c55685 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -638,9 +638,8 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
  }
  
--static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
--						  int nid,
--						  unsigned int lru_mask)
-+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-+					   int nid, unsigned int lru_mask)
- {
- 	unsigned long nr = 0;
- 	int zid;
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 68e8cd94ebe4..8a75f8d2916a 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -349,8 +349,12 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
- 	local_irq_enable();
- 
--	pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
--		node_page_state(sc->nid, NR_INACTIVE_FILE);
-+	if (memcg_kmem_enabled())
-+		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
-+						     LRU_ALL_FILE);
-+	else
-+		pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
-+			node_page_state(sc->nid, NR_INACTIVE_FILE);
- 
- 	/*
- 	 * Active cache pages are limited to 50% of memory, and shadow
-@@ -460,7 +464,7 @@ static struct shrinker workingset_shadow_shrinker = {
- 	.count_objects = count_shadow_nodes,
- 	.scan_objects = scan_shadow_nodes,
- 	.seeks = DEFAULT_SEEKS,
--	.flags = SHRINKER_NUMA_AWARE,
-+	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
- };
- 
- /*
--- 
-2.1.4
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 67bb651c56b1..4cb1c2ef5abb 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -7,6 +7,7 @@
+  *
+  * Copyright IBM Corp. 2007-2010 Mel Gorman <mel@csn.ul.ie>
+  */
++#include <linux/cpu.h>
+ #include <linux/swap.h>
+ #include <linux/migrate.h>
+ #include <linux/compaction.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
