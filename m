@@ -1,78 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 06586828F4
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 07:16:11 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id f81so15438771iof.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 04:16:11 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id qm11si4019202igb.24.2016.02.09.04.16.10
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4666C828F4
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 07:27:22 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id p63so20865929wmp.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 04:27:22 -0800 (PST)
+Received: from david.siemens.de (david.siemens.de. [192.35.17.14])
+        by mx.google.com with ESMTPS id l11si22828744wmd.29.2016.02.09.04.27.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 04:16:10 -0800 (PST)
-In-Reply-To: <1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP update
-Message-Id: <20160209121606.EA46C140B97@ozlabs.org>
-Date: Tue,  9 Feb 2016 23:16:06 +1100 (AEDT)
+        Tue, 09 Feb 2016 04:27:21 -0800 (PST)
+Date: Tue, 9 Feb 2016 13:26:45 +0100
+From: Henning Schild <henning.schild@siemens.com>
+Subject: Re: [PATCH] x86/mm/vmfault: Make vmalloc_fault() handle large pages
+Message-ID: <20160209132645.55971eff@md1em3qc>
+In-Reply-To: <20160209102235.GA9885@gmail.com>
+References: <1454976038-22486-1-git-send-email-toshi.kani@hpe.com>
+	<20160209091003.GA10774@gmail.com>
+	<20160209105325.0ce9a104@md1em3qc>
+	<20160209102235.GA9885@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2016-09-02 at 01:20:31 UTC, "Aneesh Kumar K.V" wrote:
-> With ppc64 we use the deposited pgtable_t to store the hash pte slot
-> information. We should not withdraw the deposited pgtable_t without
-> marking the pmd none. This ensure that low level hash fault handling
-> will skip this huge pte and we will handle them at upper levels.
-> 
-> Recent change to pmd splitting changed the above in order to handle the
-> race between pmd split and exit_mmap. The race is explained below.
-> 
-> Consider following race:
-> 
-> 		CPU0				CPU1
-> shrink_page_list()
->   add_to_swap()
->     split_huge_page_to_list()
->       __split_huge_pmd_locked()
->         pmdp_huge_clear_flush_notify()
-> 	// pmd_none() == true
-> 					exit_mmap()
-> 					  unmap_vmas()
-> 					    zap_pmd_range()
-> 					      // no action on pmd since pmd_none() == true
-> 	pmd_populate()
-> 
-> As result the THP will not be freed. The leak is detected by check_mm():
-> 
-> 	BUG: Bad rss-counter state mm:ffff880058d2e580 idx:1 val:512
-> 
-> The above required us to not mark pmd none during a pmd split.
-> 
-> The fix for ppc is to clear the huge pte of _PAGE_USER, so that low
-> level fault handling code skip this pte. At higher level we do take ptl
-> lock. That should serialze us against the pmd split. Once the lock is
-> acquired we do check the pmd again using pmd_same. That should always
-> return false for us and hence we should retry the access. We do the
-> pmd_same check in all case after taking plt with
-> THP (do_huge_pmd_wp_page, do_huge_pmd_numa_page and
-> huge_pmd_set_accessed)
-> 
-> Also make sure we wait for irq disable section in other cpus to finish
-> before flipping a huge pte entry with a regular pmd entry. Code paths
-> like find_linux_pte_or_hugepte depend on irq disable to get
-> a stable pte_t pointer. A parallel thp split need to make sure we
-> don't convert a pmd pte to a regular pmd entry without waiting for the
-> irq disable section to finish.
-> 
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On Tue, 9 Feb 2016 11:22:35 +0100
+Ingo Molnar <mingo@kernel.org> wrote:
 
-Applied to powerpc fixes, thanks.
+> * Henning Schild <henning.schild@siemens.com> wrote:
+> 
+> > On Tue, 9 Feb 2016 10:10:03 +0100
+> > Ingo Molnar <mingo@kernel.org> wrote:
+> >   
+> > > * Toshi Kani <toshi.kani@hpe.com> wrote:
+> > >   
+> > > > Since 4.1, ioremap() supports large page (pud/pmd) mappings in
+> > > > x86_64 and PAE. vmalloc_fault() however assumes that the vmalloc
+> > > > range is limited to pte mappings.
+> > > > 
+> > > > pgd_ctor() sets the kernel's pgd entries to user's during
+> > > > fork(), which makes user processes share the same page tables
+> > > > for the kernel ranges.  When a call to ioremap() is made at
+> > > > run-time that leads to allocate a new 2nd level table (pud in
+> > > > 64-bit and pmd in PAE), user process needs to re-sync with the
+> > > > updated kernel pgd entry with vmalloc_fault().
+> > > > 
+> > > > Following changes are made to vmalloc_fault().    
+> > > 
+> > > So what were the effects of this shortcoming? Were large page
+> > > ioremap()s unusable? Was this harmless because no driver used this
+> > > facility?  
+> > 
+> > Drivers do use huge ioremap()s. Now if a pre-existing mm is used to
+> > access the device memory a #PF and the call to vmalloc_fault would
+> > eventually make the kernel treat device memory as if it was a
+> > pagetable.
+> > The results are illegal reads/writes on iomem and dereferencing
+> > iomem content like it was a pointer to a lower level pagetable.
+> > - #PF if you are lucky
 
-https://git.kernel.org/powerpc/c/9db4cd6c21535a4846b38808f3
+> > - funny modification of arbitrary memory possible
+> > - can be abused with uio or regular userland ??   
 
-cheers
+Looking over the code again i am not sure the last two are even
+possible, it is just the pointer deref that can cause a #PF.
+If the pointer turns out to "work" the code will just read and
+eventually BUG().
+
+> Ok, so this is a serious live bug exposed to drivers, that also
+> requires a Cc: stable tag.
+>
+> All of this should have been in the changelog!
+> 
+> Thanks,
+> 
+> 	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
