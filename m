@@ -1,51 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id F288B6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 14:42:09 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id 128so210400778wmz.1
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 11:42:09 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id e8si51044494wjx.113.2016.02.09.11.42.08
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A0DFE6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 15:11:27 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p63so174368224wmp.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 12:11:27 -0800 (PST)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id ip7si51233916wjb.98.2016.02.09.12.11.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 11:42:08 -0800 (PST)
-Received: by mail-wm0-x234.google.com with SMTP id g62so37817790wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 11:42:08 -0800 (PST)
-Date: Tue, 9 Feb 2016 21:42:06 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related
- values as variables
-Message-ID: <20160209194206.GA22327@node.shutemov.name>
-References: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 09 Feb 2016 12:11:26 -0800 (PST)
+Received: by mail-wm0-x236.google.com with SMTP id g62so140661wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 12:11:26 -0800 (PST)
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Subject: [PATCH 0/5] pre-decrement in error paths considered harmful
+Date: Tue,  9 Feb 2016 21:11:11 +0100
+Message-Id: <1455048677-19882-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org, netdev@vger.kernel.org, linux-rdma@vger.kernel.org, linux-mm@kvack.org
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-On Tue, Feb 09, 2016 at 09:41:44PM +0530, Aneesh Kumar K.V wrote:
-> With next generation power processor, we are having a new mmu model
-> [1] that require us to maintain a different linux page table format.
-> 
-> Inorder to support both current and future ppc64 systems with a single
-> kernel we need to make sure kernel can select between different page
-> table format at runtime. With the new MMU (radix MMU) added, we will
-> have two different pmd hugepage size 16MB for hash model and 2MB for
-> Radix model. Hence make HPAGE_PMD related values as a variable.
-> 
-> [1] http://ibm.biz/power-isa3 (Needs registration).
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+There are a few instances of
 
-I guess it should have my signed-off-by ;)
+  for (i = 0; i < FOO; ++i) {
+    ret = do_stuff(i)
+    if (ret)
+      goto err;
+  }
+  ...
+  err:
+  while (--i)
+    undo_stuff(i);
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+At best, this fails to undo_stuff for i==0, but if i==0 was the case
+that failed, we'll end up with an "infinite" loop in the error path
+doing nasty stuff.
+
+These were found with a simple coccinelle script
+
+@@
+expression i;
+identifier l;
+statement S;
+@@
+* l:
+* while (--i)
+    S
+
+(and there were no false positives).
+
+There's no dependencies between the patches; I just wanted to include
+a common cover letter with a little background info.
+
+Rasmus Villemoes (5):
+  drm/gma500: fix error path in gma_intel_setup_gmbus()
+  drm/i915: fix error path in intel_setup_gmbus()
+  net/mlx4: fix some error handling in mlx4_multi_func_init()
+  net: sxgbe: fix error paths in sxgbe_platform_probe()
+  mm/backing-dev.c: fix error path in wb_init()
+
+ drivers/gpu/drm/gma500/intel_gmbus.c                | 2 +-
+ drivers/gpu/drm/i915/intel_i2c.c                    | 2 +-
+ drivers/net/ethernet/mellanox/mlx4/cmd.c            | 4 ++--
+ drivers/net/ethernet/samsung/sxgbe/sxgbe_platform.c | 4 ++--
+ mm/backing-dev.c                                    | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
