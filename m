@@ -1,165 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EBD66B0255
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 11:11:59 -0500 (EST)
-Received: by mail-qk0-f182.google.com with SMTP id s68so71760344qkh.3
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 08:11:59 -0800 (PST)
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
-        by mx.google.com with ESMTPS id e13si36353165qka.120.2016.02.09.08.11.57
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 Feb 2016 08:11:58 -0800 (PST)
-Received: from localhost
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 9 Feb 2016 09:11:56 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 6692419D8051
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 08:59:53 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u19GBsB930015682
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 09:11:54 -0700
-Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u19GBs3D026457
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 09:11:54 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related values as variables
-Date: Tue,  9 Feb 2016 21:41:44 +0530
-Message-Id: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 049D76B0253
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 11:52:43 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id p63so167023566wmp.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 08:52:42 -0800 (PST)
+Received: from mail.anarazel.de (mail.anarazel.de. [217.115.131.40])
+        by mx.google.com with ESMTP id i195si14732467wmf.5.2016.02.09.08.52.41
+        for <linux-mm@kvack.org>;
+        Tue, 09 Feb 2016 08:52:41 -0800 (PST)
+Date: Tue, 9 Feb 2016 17:52:40 +0100
+From: Andres Freund <andres@anarazel.de>
+Subject: Unhelpful caching decisions, possibly related to active/inactive
+ sizing
+Message-ID: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-With next generation power processor, we are having a new mmu model
-[1] that require us to maintain a different linux page table format.
+Hi,
 
-Inorder to support both current and future ppc64 systems with a single
-kernel we need to make sure kernel can select between different page
-table format at runtime. With the new MMU (radix MMU) added, we will
-have two different pmd hugepage size 16MB for hash model and 2MB for
-Radix model. Hence make HPAGE_PMD related values as a variable.
+I'm working on fixing long IO stalls with postgres. After some
+architectural changes fixing the worst issues, I noticed that indivdiual
+processes/backends/connections still spend more time waiting than I'd
+expect.
 
-[1] http://ibm.biz/power-isa3 (Needs registration).
+In an workload with the hot data set fitting into memory (2GB of
+mmap(HUGE|ANNON) shared memory for postgres buffer cache, ~6GB of
+dataset, 16GB total memory) I found that there's more reads hitting disk
+that I'd expect.  That's after I've led Vlastimil on IRC down a wrong
+rabbithole, sorry for that.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/mm/pgtable_64.c |  7 +++++++
- include/linux/bug.h          |  9 +++++++++
- include/linux/huge_mm.h      |  3 ---
- mm/huge_memory.c             | 17 ++++++++++++++---
- 4 files changed, 30 insertions(+), 6 deletions(-)
+Some tinkering and question later, the issue appears to be postgres'
+journal/WAL. Which in the test-setup is write-only, and only touched
+again when individual segments of the WAL are reused. Which, in the
+configuration I'm using, only happens after ~20min and 30GB later or so.
+Drastically reducing the volume of WAL through some (unsafe)
+configuration options, or forcing the WAL to be written using O_DIRECT,
+changes the workload to be fully cached.
 
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index c8a00da39969..80dd8e0d8322 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -818,6 +818,13 @@ pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
- 
- int has_transparent_hugepage(void)
- {
-+
-+	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) >= MAX_ORDER,
-+		"hugepages can't be allocated by the buddy allocator");
-+
-+	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) < 2,
-+			 "We need more than 2 pages to do deferred thp split");
-+
- 	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
- 		return 0;
- 	/*
-diff --git a/include/linux/bug.h b/include/linux/bug.h
-index 7f4818673c41..e51b0709e78d 100644
---- a/include/linux/bug.h
-+++ b/include/linux/bug.h
-@@ -20,6 +20,7 @@ struct pt_regs;
- #define BUILD_BUG_ON_MSG(cond, msg) (0)
- #define BUILD_BUG_ON(condition) (0)
- #define BUILD_BUG() (0)
-+#define MAYBE_BUILD_BUG_ON(cond) (0)
- #else /* __CHECKER__ */
- 
- /* Force a compilation error if a constant expression is not a power of 2 */
-@@ -83,6 +84,14 @@ struct pt_regs;
-  */
- #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
- 
-+#define MAYBE_BUILD_BUG_ON(cond)			\
-+	do {						\
-+		if (__builtin_constant_p((cond)))       \
-+			BUILD_BUG_ON(cond);             \
-+		else                                    \
-+			BUG_ON(cond);                   \
-+	} while (0)
-+
- #endif	/* __CHECKER__ */
- 
- #ifdef CONFIG_GENERIC_BUG
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 459fd25b378e..f12513a20a06 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			__split_huge_pmd(__vma, __pmd, __address);	\
- 	}  while (0)
- 
--#if HPAGE_PMD_ORDER >= MAX_ORDER
--#error "hugepages can't be allocated by the buddy allocator"
--#endif
- extern int hugepage_madvise(struct vm_area_struct *vma,
- 			    unsigned long *vm_flags, int advice);
- extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cd26f3f14cab..350410e9019e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
- 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
- 
- /* default scan 8*512 pte (or vmas) every 30 second */
--static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
-+static unsigned int khugepaged_pages_to_scan __read_mostly;
- static unsigned int khugepaged_pages_collapsed;
- static unsigned int khugepaged_full_scans;
- static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
-@@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-  * it would have happened if the vma was large enough during page
-  * fault.
-  */
--static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-+static unsigned int khugepaged_max_ptes_none __read_mostly;
- 
- static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
-@@ -660,6 +660,18 @@ static int __init hugepage_init(void)
- 		return -EINVAL;
- 	}
- 
-+	khugepaged_pages_to_scan = HPAGE_PMD_NR * 8;
-+	khugepaged_max_ptes_none = HPAGE_PMD_NR - 1;
-+	/*
-+	 * hugepages can't be allocated by the buddy allocator
-+	 */
-+	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER >= MAX_ORDER);
-+	/*
-+	 * we use page->mapping and page->index in second tail page
-+	 * as list_head: assuming THP order >= 2
-+	 */
-+	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
-+
- 	err = hugepage_init_sysfs(&hugepage_kobj);
- 	if (err)
- 		goto err_sysfs;
-@@ -764,7 +776,6 @@ void prep_transhuge_page(struct page *page)
- 	 * we use page->mapping and page->indexlru in second tail page
- 	 * as list_head: assuming THP order >= 2
- 	 */
--	BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
- 
- 	INIT_LIST_HEAD(page_deferred_list(page));
- 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
--- 
-2.5.0
+Rik asked me about active/inactive sizing in /proc/meminfo:
+Active:          7860556 kB
+Inactive:        5395644 kB
+Active(anon):    2874936 kB
+Inactive(anon):   432308 kB
+Active(file):    4985620 kB
+Inactive(file):  4963336 kB
+
+and then said:
+
+riel   | the workingset stuff does not appear to be taken into account for active/inactive list sizing, in vmscan.c
+riel   | I suspect we will want to expand the vmscan.c code, to take the workingset stats into account
+riel   | when we re-fault a page that was on the active list before, we want to grow the size of the active list (and
+       | shrink from inactive)
+riel   | when we re-fault a page that was never active, we need to grow the size of the inactive list (and shrink
+       | active)
+riel   | but I don't think we have any bits free in page flags for that, we may need to improvise something :)
+
+andres | Ok, at this point I'm kinda out of my depth here ;)
+
+riel   | andres: basically active & inactive file LRUs are kept at the same size currently
+riel   | andres: which means anything that overflows half of memory will get flushed out of the cache by large write
+       | volumes (to the write-only log)
+riel   | andres: what we should do is dynamically size the active & inactive file lists, depending on which of the two
+       | needs more caching
+riel   | andres: if we never re-use the inactive pages that get flushed out, there's no sense in caching more of them
+       | (and we could dedicate more memory to the active list, instead)
+
+andres | Sounds sensible. I guess things get really tricky if there's a portion of the inactive list that does get
+       | reused (say if the hot data set is larger than memory), and another doesn't get reused at all.
+
+I promised to send an email about the issue...
+
+I provide you with a branch of postgres + instructions to reproduce the
+issue, or I can test patches, whatever you prefer.
+
+This test was run using 4.5.0-rc2, but I doubt this is a recent
+regression or such.
+
+Any other information I can provide you with?
+
+Regards,
+
+Andres
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
