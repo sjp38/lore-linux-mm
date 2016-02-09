@@ -1,58 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7203E6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 12:24:02 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id c200so70450003wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 09:24:02 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0066B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 12:58:36 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id 128so206990530wmz.1
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 09:58:36 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g133si18068472wma.66.2016.02.09.09.24.01
+        by mx.google.com with ESMTPS id s5si50591518wjx.95.2016.02.09.09.58.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 Feb 2016 09:24:01 -0800 (PST)
-Date: Tue, 9 Feb 2016 18:24:16 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Another proposal for DAX fault locking
-Message-ID: <20160209172416.GB12245@quack.suse.cz>
+        Tue, 09 Feb 2016 09:58:35 -0800 (PST)
+Subject: Re: [PATCH v2 3/3] mm/compaction: speed up pageblock_pfn_to_page()
+ when zone is contiguous
+References: <1454566775-30973-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1454566775-30973-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160204164929.a2f12b8a7edcdfa596abd850@linux-foundation.org>
+ <CAAmzW4Pps1gSXb5qCvbkC=wNjcySgVYZu1jLeBWy31q7RNWVYg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56BA28C8.3060903@suse.cz>
+Date: Tue, 9 Feb 2016 18:58:32 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <CAAmzW4Pps1gSXb5qCvbkC=wNjcySgVYZu1jLeBWy31q7RNWVYg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, mgorman@suse.de, Matthew Wilcox <willy@linux.intel.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello,
+On 02/05/2016 05:11 PM, Joonsoo Kim wrote:
+> Yeah, it seems wrong to me. :)
+> Here goes fix.
 
-I was thinking about current issues with DAX fault locking [1] (data
-corruption due to racing faults allocating blocks) and also races which
-currently don't allow us to clear dirty tags in the radix tree due to races
-between faults and cache flushing [2]. Both of these exist because we don't
-have an equivalent of page lock available for DAX. While we have a
-reasonable solution available for problem [1], so far I'm not aware of a
-decent solution for [2]. After briefly discussing the issue with Mel he had
-a bright idea that we could used hashed locks to deal with [2] (and I think
-we can solve [1] with them as well). So my proposal looks as follows:
-
-DAX will have an array of mutexes (the array can be made per device but
-initially a global one should be OK). We will use mutexes in the array as a
-replacement for page lock - we will use hashfn(mapping, index) to get
-particular mutex protecting our offset in the mapping. On fault / page
-mkwrite, we'll grab the mutex similarly to page lock and release it once we
-are done updating page tables. This deals with races in [1]. When flushing
-caches we grab the mutex before clearing writeable bit in page tables
-and clearing dirty bit in the radix tree and drop it after we have flushed
-caches for the pfn. This deals with races in [2].
-
-Thoughts?
-
-								Honza
-
-[1] http://oss.sgi.com/archives/xfs/2016-01/msg00575.html
-[2] https://lists.01.org/pipermail/linux-nvdimm/2016-January/004057.html
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Doesn't apply for me, even after fixing the most obvious line wraps.
+Seems like the version in mmotm is still your original patch and
+Andrew's hotfix?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
