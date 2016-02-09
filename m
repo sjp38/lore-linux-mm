@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EFFFC6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 09:15:45 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id g62so176285496wme.0
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 06:15:45 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
-        by mx.google.com with ESMTPS id m4si23381357wmf.116.2016.02.09.06.15.44
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B7A6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 09:24:49 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id g62so25619964wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 06:24:49 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id 12si49382476wjy.50.2016.02.09.06.24.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 06:15:44 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: mm, compaction: fix build errors with kcompactd
-Date: Tue, 09 Feb 2016 15:15:39 +0100
-Message-ID: <9230470.QhrU67iB7h@wuerfel>
+        Tue, 09 Feb 2016 06:24:47 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id c200so3738527wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 06:24:47 -0800 (PST)
+Date: Tue, 9 Feb 2016 15:24:44 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 1/3] x86: Honour passed pgprot in track_pfn_insert() and
+ track_pfn_remap()
+Message-ID: <20160209142444.GA391@gmail.com>
+References: <1453742717-10326-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1453742717-10326-2-git-send-email-matthew.r.wilcox@intel.com>
+ <CALCETrWNx=H=u2R+JKM6Dr3oMqeiBSS+hdrYrGT=BJ-JrEyL+w@mail.gmail.com>
+ <20160127044036.GR2948@linux.intel.com>
+ <CALCETrXJacX8HB3vahu0AaarE98qkx-wW9tRYQ8nVVbHt=FgzQ@mail.gmail.com>
+ <20160129144909.GV2948@linux.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160129144909.GV2948@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-The newly added kcompactd code introduces multiple build errors:
 
-include/linux/compaction.h:91:12: error: 'kcompactd_run' defined but not used [-Werror=unused-function]
-mm/compaction.c:1953:2: error: implicit declaration of function 'hotcpu_notifier' [-Werror=implicit-function-declaration]
+* Matthew Wilcox <willy@linux.intel.com> wrote:
 
-This marks the new empty wrapper functions as 'inline' to avoid unused-function warnings,
-and includes linux/cpu.h to get the hotcpu_notifier declaration.
+> > I sure hope not.  If vm_page_prot was writable, something was already broken, 
+> > because this is the vvar mapping, and the vvar mapping is VM_READ (and not 
+> > even VM_MAYREAD).
+> 
+> I do beg yor pardon.  I thought you were inserting a readonly page into the 
+> middle of a writable mapping.  Instead you're inserting a non-executable page 
+> into the middle of a VM_READ | VM_EXEC mapping. Sorry for the confusion.  I 
+> should have written:
+> 
+> "like your patch ends up mapping the HPET into userspace executable"
+> 
+> which is far less exciting.
 
-Fixes: 8364acdfa45a ("mm, compaction: introduce kcompactd")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
-I stumbled over this while trying out the mmots patches today for an unrelated reason.
+Btw., a side note, an executable HPET page has its own dangers as well, for 
+example because it always changes in value, it can probabilistically represent 
+'sensible' (and dangerous) executable x86 instructions that exploits can return 
+to.
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 1367c0564d42..d7c8de583a23 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -88,15 +88,15 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- 	return true;
- }
- 
--static int kcompactd_run(int nid)
-+static inline int kcompactd_run(int nid)
- {
- 	return 0;
- }
--static void kcompactd_stop(int nid)
-+static inline void kcompactd_stop(int nid)
- {
- }
- 
--static void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
-+static inline void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
- {
- }
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 67bb651c56b1..4cb1c2ef5abb 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -7,6 +7,7 @@
-  *
-  * Copyright IBM Corp. 2007-2010 Mel Gorman <mel@csn.ul.ie>
-  */
-+#include <linux/cpu.h>
- #include <linux/swap.h>
- #include <linux/migrate.h>
- #include <linux/compaction.h>
+So only mapping it readable (which Andy's patch attempts I think) is worthwile.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
