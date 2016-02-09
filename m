@@ -1,130 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 55A176B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 16:26:10 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id c10so68129pfc.2
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 13:26:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y23si573155pfi.45.2016.02.09.13.26.09
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF946B0005
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 17:43:53 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id c200so4377184wme.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 14:43:53 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id n123si1150280wmb.41.2016.02.09.14.43.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Feb 2016 13:26:09 -0800 (PST)
-Date: Tue, 9 Feb 2016 13:26:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related
- values as variables
-Message-Id: <20160209132608.814f08a0c3670b4f9d807441@linux-foundation.org>
-In-Reply-To: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 09 Feb 2016 14:43:52 -0800 (PST)
+Date: Tue, 9 Feb 2016 17:42:56 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Unhelpful caching decisions, possibly related to active/inactive
+ sizing
+Message-ID: <20160209224256.GA29872@cmpxchg.org>
+References: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andres Freund <andres@anarazel.de>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue,  9 Feb 2016 21:41:44 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+Hi,
 
-> With next generation power processor, we are having a new mmu model
-> [1] that require us to maintain a different linux page table format.
+On Tue, Feb 09, 2016 at 05:52:40PM +0100, Andres Freund wrote:
+> Hi,
 > 
-> Inorder to support both current and future ppc64 systems with a single
-> kernel we need to make sure kernel can select between different page
-> table format at runtime. With the new MMU (radix MMU) added, we will
-> have two different pmd hugepage size 16MB for hash model and 2MB for
-> Radix model. Hence make HPAGE_PMD related values as a variable.
+> I'm working on fixing long IO stalls with postgres. After some
+> architectural changes fixing the worst issues, I noticed that indivdiual
+> processes/backends/connections still spend more time waiting than I'd
+> expect.
 > 
-> [1] http://ibm.biz/power-isa3 (Needs registration).
+> In an workload with the hot data set fitting into memory (2GB of
+> mmap(HUGE|ANNON) shared memory for postgres buffer cache, ~6GB of
+> dataset, 16GB total memory) I found that there's more reads hitting disk
+> that I'd expect.  That's after I've led Vlastimil on IRC down a wrong
+> rabbithole, sorry for that.
 > 
-> ...
+> Some tinkering and question later, the issue appears to be postgres'
+> journal/WAL. Which in the test-setup is write-only, and only touched
+> again when individual segments of the WAL are reused. Which, in the
+> configuration I'm using, only happens after ~20min and 30GB later or so.
+> Drastically reducing the volume of WAL through some (unsafe)
+> configuration options, or forcing the WAL to be written using O_DIRECT,
+> changes the workload to be fully cached.
+> 
+> Rik asked me about active/inactive sizing in /proc/meminfo:
+> Active:          7860556 kB
+> Inactive:        5395644 kB
+> Active(anon):    2874936 kB
+> Inactive(anon):   432308 kB
+> Active(file):    4985620 kB
+> Inactive(file):  4963336 kB
+> 
+> and then said:
+> 
+> riel   | the workingset stuff does not appear to be taken into account for active/inactive list sizing, in vmscan.c
+> riel   | I suspect we will want to expand the vmscan.c code, to take the workingset stats into account
+> riel   | when we re-fault a page that was on the active list before, we want to grow the size of the active list (and
+>        | shrink from inactive)
+> riel   | when we re-fault a page that was never active, we need to grow the size of the inactive list (and shrink
+>        | active)
+> riel   | but I don't think we have any bits free in page flags for that, we may need to improvise something :)
 >
-> --- a/include/linux/bug.h
-> +++ b/include/linux/bug.h
-> @@ -20,6 +20,7 @@ struct pt_regs;
->  #define BUILD_BUG_ON_MSG(cond, msg) (0)
->  #define BUILD_BUG_ON(condition) (0)
->  #define BUILD_BUG() (0)
-> +#define MAYBE_BUILD_BUG_ON(cond) (0)
->  #else /* __CHECKER__ */
->  
->  /* Force a compilation error if a constant expression is not a power of 2 */
-> @@ -83,6 +84,14 @@ struct pt_regs;
->   */
->  #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
->  
-> +#define MAYBE_BUILD_BUG_ON(cond)			\
-> +	do {						\
-> +		if (__builtin_constant_p((cond)))       \
-> +			BUILD_BUG_ON(cond);             \
-> +		else                                    \
-> +			BUG_ON(cond);                   \
-> +	} while (0)
-> +
+> andres | Ok, at this point I'm kinda out of my depth here ;)
+> 
+> riel   | andres: basically active & inactive file LRUs are kept at the same size currently
+> riel   | andres: which means anything that overflows half of memory will get flushed out of the cache by large write
+>        | volumes (to the write-only log)
+> riel   | andres: what we should do is dynamically size the active & inactive file lists, depending on which of the two
+>        | needs more caching
+> riel   | andres: if we never re-use the inactive pages that get flushed out, there's no sense in caching more of them
+>        | (and we could dedicate more memory to the active list, instead)
 
-hm.  I suppose so.
+Yes, a generous minimum size of the inactive list made sense when it
+was the exclusive staging area to tell use-once pages from use-many
+pages. Now that we have refault information to detect use-many with
+arbitrary inactive list size, this minimum is no longer reasonable.
 
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -111,9 +111,6 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			__split_huge_pmd(__vma, __pmd, __address);	\
->  	}  while (0)
->  
-> -#if HPAGE_PMD_ORDER >= MAX_ORDER
-> -#error "hugepages can't be allocated by the buddy allocator"
-> -#endif
->  extern int hugepage_madvise(struct vm_area_struct *vma,
->  			    unsigned long *vm_flags, int advice);
->  extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index cd26f3f14cab..350410e9019e 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -83,7 +83,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
->  	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
->  
->  /* default scan 8*512 pte (or vmas) every 30 second */
-> -static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
-> +static unsigned int khugepaged_pages_to_scan __read_mostly;
->  static unsigned int khugepaged_pages_collapsed;
->  static unsigned int khugepaged_full_scans;
->  static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
-> @@ -98,7 +98,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
->   * it would have happened if the vma was large enough during page
->   * fault.
->   */
-> -static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-> +static unsigned int khugepaged_max_ptes_none __read_mostly;
->  
->  static int khugepaged(void *none);
->  static int khugepaged_slab_init(void);
-> @@ -660,6 +660,18 @@ static int __init hugepage_init(void)
->  		return -EINVAL;
->  	}
->  
-> +	khugepaged_pages_to_scan = HPAGE_PMD_NR * 8;
-> +	khugepaged_max_ptes_none = HPAGE_PMD_NR - 1;
+The new minimum should be smaller, but big enough for applications to
+actually use the data in their pages between fault and eviction
+(i.e. it needs to take the aggregate readahead window into account),
+and big enough for active pages that are speculatively challenged
+during workingset changes to get re-activated without incurring IO.
 
-I don't understand this change.  We change the initialization from
-at-compile-time to at-run-time, but nothing useful appears to have been
-done.
+However, I don't think it makes sense to dynamically adjust the
+balance between the active and the inactive cache during refaults.
 
-> +	/*
-> +	 * hugepages can't be allocated by the buddy allocator
-> +	 */
-> +	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER >= MAX_ORDER);
-> +	/*
-> +	 * we use page->mapping and page->index in second tail page
-> +	 * as list_head: assuming THP order >= 2
-> +	 */
-> +	MAYBE_BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
-> +
->  	err = hugepage_init_sysfs(&hugepage_kobj);
->  	if (err)
->  		goto err_sysfs;
->
-> ...
->
+I assume your thinking here is that when never-active pages are
+refaulting during workingset transitions, it's an indication that
+inactive cache need more slots, to detect use-many without incurring
+IO. And hence we should give them some slots from the active cache.
+
+However, deactivation doesn't give the inactive cache more slots to
+use, it just reassigns already occupied cache slots. The only way to
+actually increase the number of available inactive cache slots upon
+refault would be to reclaim active cache slots.
+
+And that is something we can't do, because we don't know how hot the
+incumbent active pages actually are. They could be hotter than the
+challenging refault page, they could be colder. So what we are doing
+now is putting them next to each other - currently by activating the
+refault page, but we could also deactivate the incumbent - and let the
+aging machinery pick a winner.
+
+[ We *could* do active list reclaim, but it would cause IO in the case
+  where the incumbent workingset is challenged but not defeated.
+
+  It's a trade-off. We just decide how strongly we want to protect the
+  incumbent under challenge. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
