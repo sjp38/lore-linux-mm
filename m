@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D49E06B0009
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 04:27:44 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id cy9so9275281pac.0
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 01:27:44 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id r74si3912970pfi.140.2016.02.10.01.27.43
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 165E56B0009
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 05:18:08 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id p2so5390846pav.1
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 02:18:08 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id u10si4208945pfa.95.2016.02.10.02.18.07
         for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 01:27:44 -0800 (PST)
-Date: Wed, 10 Feb 2016 17:27:00 +0800
+        Wed, 10 Feb 2016 02:18:07 -0800 (PST)
+Date: Wed, 10 Feb 2016 18:17:33 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [linux-next:master 4322/4460] DockBook: include/linux/rio.h:314:
- warning: No description found for parameter 'dev'
-Message-ID: <201602101752.DxyjGKaa%fengguang.wu@intel.com>
+Subject: [linux-next:master 4328/4460] DockBook: include/linux/rio.h:299:
+ warning: No description found for parameter 'lock'
+Message-ID: <201602101826.QDarM4nZ%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
+Content-Type: multipart/mixed; boundary="qDbXVdCdHGoSgWSk"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,48 +22,50 @@ To: Alexandre Bounine <alexandre.bounine@idt.com>
 Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---BOKacYhQ+x31HxR3
+--qDbXVdCdHGoSgWSk
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
 head:   b613c2bfa3e843fdeff95878edc7326b763abd1b
-commit: c8697cdc157b6d3cf6e3963b41a41e8528cb66bd [4322/4460] rapidio: move net allocation into core code
+commit: 4e1ba9ee9d1f2c27facd8772e40ee72ee6e4e1d8 [4328/4460] rapidio: add lock protection for doorbell list
 reproduce: make htmldocs
 
 All warnings (new ones prefixed by >>):
 
->> include/linux/rio.h:314: warning: No description found for parameter 'dev'
+>> include/linux/rio.h:299: warning: No description found for parameter 'lock'
+>> include/linux/rio.h:299: warning: Excess struct/union/enum/typedef member 'mutex' description in 'rio_mport'
+   include/linux/rio.h:332: warning: No description found for parameter 'dev'
 
-vim +/dev +314 include/linux/rio.h
+vim +/lock +299 include/linux/rio.h
 
-70a50ebd Matt Porter       2005-11-07  298   * @mports: List of master ports accessing this network
-70a50ebd Matt Porter       2005-11-07  299   * @hport: Default port for accessing this network
-70a50ebd Matt Porter       2005-11-07  300   * @id: RIO network ID
-c8697cdc Alexandre Bounine 2016-02-10  301   * @enum_data: private data specific to a network enumerator
-c8697cdc Alexandre Bounine 2016-02-10  302   * @release: enumerator-specific release callback
-70a50ebd Matt Porter       2005-11-07  303   */
-70a50ebd Matt Porter       2005-11-07  304  struct rio_net {
-70a50ebd Matt Porter       2005-11-07  305  	struct list_head node;	/* node in list of networks */
-70a50ebd Matt Porter       2005-11-07  306  	struct list_head devices;	/* list of devices in this net */
-a7071efc Alexandre Bounine 2012-10-04  307  	struct list_head switches;	/* list of switches in this net */
-70a50ebd Matt Porter       2005-11-07  308  	struct list_head mports;	/* list of ports accessing net */
-70a50ebd Matt Porter       2005-11-07  309  	struct rio_mport *hport;	/* primary port for accessing net */
-70a50ebd Matt Porter       2005-11-07  310  	unsigned char id;	/* RIO network ID */
-c8697cdc Alexandre Bounine 2016-02-10  311  	struct device dev;
-c8697cdc Alexandre Bounine 2016-02-10  312  	void *enum_data;	/* private data for enumerator of the network */
-c8697cdc Alexandre Bounine 2016-02-10  313  	void (*release)(struct rio_net *net);
-70a50ebd Matt Porter       2005-11-07 @314  };
-70a50ebd Matt Porter       2005-11-07  315  
-01af651e Alexandre Bounine 2016-02-10  316  enum rio_link_speed {
-01af651e Alexandre Bounine 2016-02-10  317  	RIO_LINK_DOWN = 0, /* SRIO Link not initialized */
-01af651e Alexandre Bounine 2016-02-10  318  	RIO_LINK_125 = 1, /* 1.25 GBaud  */
-01af651e Alexandre Bounine 2016-02-10  319  	RIO_LINK_250 = 2, /* 2.5 GBaud   */
-01af651e Alexandre Bounine 2016-02-10  320  	RIO_LINK_312 = 3, /* 3.125 GBaud */
-01af651e Alexandre Bounine 2016-02-10  321  	RIO_LINK_500 = 4, /* 5.0 GBaud   */
-01af651e Alexandre Bounine 2016-02-10  322  	RIO_LINK_625 = 5  /* 6.25 GBaud  */
+70a50ebd Matt Porter       2005-11-07  283  	unsigned char index;	/* port index, unique among all port
+70a50ebd Matt Porter       2005-11-07  284  				   interfaces of the same type */
+e0423236 Zhang Wei         2008-04-18  285  	unsigned int sys_size;	/* RapidIO common transport system size.
+e0423236 Zhang Wei         2008-04-18  286  				 * 0 - Small size. 256 devices.
+e0423236 Zhang Wei         2008-04-18  287  				 * 1 - Large size, 65536 devices.
+e0423236 Zhang Wei         2008-04-18  288  				 */
+61b26917 Zhang Wei         2008-04-18  289  	enum rio_phy_type phy_type;	/* RapidIO phy type */
+af84ca38 Alexandre Bounine 2010-10-27  290  	u32 phys_efptr;
+ed43f44f Alexandre Bounine 2012-10-04  291  	unsigned char name[RIO_MAX_MPORT_NAME];
+2aaf308b Alexandre Bounine 2014-04-07  292  	struct device dev;
+ad1e9380 Zhang Wei         2008-04-18  293  	void *priv;		/* Master port private data */
+e42d98eb Alexandre Bounine 2012-05-31  294  #ifdef CONFIG_RAPIDIO_DMA_ENGINE
+e42d98eb Alexandre Bounine 2012-05-31  295  	struct dma_device	dma;
+e42d98eb Alexandre Bounine 2012-05-31  296  #endif
+a11650e1 Alexandre Bounine 2013-05-24  297  	struct rio_scan *nscan;
+cb317a8b Alexandre Bounine 2016-02-10  298  	atomic_t state;
+70a50ebd Matt Porter       2005-11-07 @299  };
+70a50ebd Matt Porter       2005-11-07  300  
+cb317a8b Alexandre Bounine 2016-02-10  301  static inline int rio_mport_is_running(struct rio_mport *mport)
+cb317a8b Alexandre Bounine 2016-02-10  302  {
+cb317a8b Alexandre Bounine 2016-02-10  303  	return atomic_read(&mport->state) == RIO_DEVICE_RUNNING;
+cb317a8b Alexandre Bounine 2016-02-10  304  }
+cb317a8b Alexandre Bounine 2016-02-10  305  
+bc8fcfea Alexandre Bounine 2013-05-24  306  /*
+bc8fcfea Alexandre Bounine 2013-05-24  307   * Enumeration/discovery control flags
 
-:::::: The code at line 314 was first introduced by commit
+:::::: The code at line 299 was first introduced by commit
 :::::: 70a50ebd9a94533964c19f918dbbd66763e3f9e5 [PATCH] RapidIO support: core includes
 
 :::::: TO: Matt Porter <mporter@kernel.crashing.org>
@@ -73,12 +75,12 @@ c8697cdc Alexandre Bounine 2016-02-10  313  	void (*release)(struct rio_net *net
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---BOKacYhQ+x31HxR3
+--qDbXVdCdHGoSgWSk
 Content-Type: application/octet-stream
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICKsBu1YAAy5jb25maWcAjDxbc9s2s+/9FZz0PLQzJ4ljO/7SOeMHCARFVATBEKAk+4Wj
+H4sICH4Nu1YAAy5jb25maWcAjDxbc9s2s+/9FZz0PLQzJ4ljO/7SOeMHCARFVATBEKAk+4Wj
 yHSiqS35k+Q2+fdnAZDibaG0M5la2MVtsXcs+Osvvwbk9bh7Xh0369XT04/ga7Wt9qtj9RA8
 bp6q/wtCGaRSByzk+h0gJ5vt6/f3m6tPN8H1u4/vLt7u11fBrNpvq6eA7raPm6+v0Huz2/7y
 K2BTmUZ8Wt5cT7gONodguzsGh+r4S92+/HRTXl3e/uj8bn/wVOm8oJrLtAwZlSHLW6AsdFbo
@@ -196,7 +198,7 @@ JZ0lCSEUrygGAFhBLSl1yIFv8bVzagZGJRtYCNW27Z7yLON4Qj/cDDSX6o0dwwN2aqwfc4cw
 RKdaL5oXY69H39OeCOF9dEO7AFYfUq8NIH7CP6wqfvFBtoOi7dQiGcvN4gPufhfaMI+M09FM
 MxqA/8vd9prxWAAA
 
---BOKacYhQ+x31HxR3--
+--qDbXVdCdHGoSgWSk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
