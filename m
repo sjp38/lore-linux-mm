@@ -1,44 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 978506B0005
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 18:38:59 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id x65so1722693pfb.1
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 15:38:59 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id uj7si632021pab.111.2016.02.09.15.38.58
-        for <linux-mm@kvack.org>;
-        Tue, 09 Feb 2016 15:38:58 -0800 (PST)
-Date: Tue, 9 Feb 2016 15:38:57 -0800
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH v10 4/4] x86: Create a new synthetic cpu capability for
- machine check recovery
-Message-ID: <20160209233857.GA24348@agluck-desk.sc.intel.com>
-References: <cover.1454618190.git.tony.luck@intel.com>
- <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
- <20160207171041.GG5862@pd.tnic>
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FBA36B0009
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 21:34:22 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id is5so9269208obc.0
+        for <linux-mm@kvack.org>; Tue, 09 Feb 2016 18:34:22 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id u2si705753oig.3.2016.02.09.18.34.21
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 09 Feb 2016 18:34:21 -0800 (PST)
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 9 Feb 2016 19:34:21 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id C90C53E40044
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2016 19:34:19 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1A2YJlE29884628
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 19:34:19 -0700
+Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1A2YJZE008997
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2016 19:34:19 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2] mm: Some arch may want to use HPAGE_PMD related values as variables
+In-Reply-To: <20160209194206.GA22327@node.shutemov.name>
+References: <1455034304-15301-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160209194206.GA22327@node.shutemov.name>
+Date: Wed, 10 Feb 2016 08:04:14 +0530
+Message-ID: <87lh6txpi1.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160207171041.GG5862@pd.tnic>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> > +	if (mca_cfg.recovery || (mca_cfg.ser &&
-> > +		!strncmp(c->x86_model_id, "Intel(R) Xeon(R) CPU E7-", 24)))
-> 
-> Eeww, a model string check :-(
-> 
-> Lemme guess: those E7s can't be represented by a range of
-> model/steppings, can they?
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-We use the same model number for E5 and E7 series. E.g. 63 for Haswell.
-The model_id string seems to be the only way to tell ahead of time
-whether you will get a recoverable machine check or die when you
-touch uncorrected memory.
+> On Tue, Feb 09, 2016 at 09:41:44PM +0530, Aneesh Kumar K.V wrote:
+>> With next generation power processor, we are having a new mmu model
+>> [1] that require us to maintain a different linux page table format.
+>> 
+>> Inorder to support both current and future ppc64 systems with a single
+>> kernel we need to make sure kernel can select between different page
+>> table format at runtime. With the new MMU (radix MMU) added, we will
+>> have two different pmd hugepage size 16MB for hash model and 2MB for
+>> Radix model. Hence make HPAGE_PMD related values as a variable.
+>> 
+>> [1] http://ibm.biz/power-isa3 (Needs registration).
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+> I guess it should have my signed-off-by ;)
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
--Tony
+Thanks will update. I will also update the From:
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
