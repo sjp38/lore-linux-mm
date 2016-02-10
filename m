@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F7FB6B0259
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 15:50:41 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p63so46656753wmp.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 12:50:41 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [78.46.96.112])
-        by mx.google.com with ESMTP id b188si7776148wme.79.2016.02.10.12.50.40
-        for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 12:50:40 -0800 (PST)
-Date: Wed, 10 Feb 2016 21:50:35 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v10 3/4] x86, mce: Add __mcsafe_copy()
-Message-ID: <20160210205035.GB11832@pd.tnic>
-References: <cover.1454618190.git.tony.luck@intel.com>
- <6b63a88e925bbc821dc87f209909c3c1166b3261.1454618190.git.tony.luck@intel.com>
- <20160207164933.GE5862@pd.tnic>
- <20160209231557.GA23207@agluck-desk.sc.intel.com>
- <20160210105843.GD23914@pd.tnic>
- <20160210193905.GB29493@agluck-desk.sc.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20160210193905.GB29493@agluck-desk.sc.intel.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E29856B0253
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 16:28:20 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id x65so18133195pfb.1
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 13:28:20 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c4si7472004pfj.47.2016.02.10.13.28.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Feb 2016 13:28:20 -0800 (PST)
+Date: Wed, 10 Feb 2016 13:28:18 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 3/3] mm: increase scalability of global memory
+ commitment accounting
+Message-Id: <20160210132818.589451dbb5eafae3fdb4a7ec@linux-foundation.org>
+In-Reply-To: <1455127253.715.36.camel@schen9-desk2.jf.intel.com>
+References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
+	<1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
+	<1455127253.715.36.camel@schen9-desk2.jf.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Wed, Feb 10, 2016 at 11:39:05AM -0800, Luck, Tony wrote:
-> On Wed, Feb 10, 2016 at 11:58:43AM +0100, Borislav Petkov wrote:
-> > But one could take out that function do some microbenchmarking with
-> > different sizes and once with the current version and once with the
-> > pushes and pops of r1[2-5] to see where the breakeven is.
+On Wed, 10 Feb 2016 10:00:53 -0800 Tim Chen <tim.c.chen@linux.intel.com> wrote:
+
+> On Wed, 2016-02-10 at 17:52 +0300, Andrey Ryabinin wrote:
+> > Currently we use percpu_counter for accounting committed memory. Change
+> > of committed memory on more than vm_committed_as_batch pages leads to
+> > grab of counter's spinlock. The batch size is quite small - from 32 pages
+> > up to 0.4% of the memory/cpu (usually several MBs even on large machines).
+> > 
+> > So map/munmap of several MBs anonymous memory in multiple processes leads
+> > to high contention on that spinlock.
+> > 
+> > Instead of percpu_counter we could use ordinary per-cpu variables.
+> > Dump test case (8-proccesses running map/munmap of 4MB,
+> > vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
+> > improvement.
+> > 
+> > The downside of this approach is slowdown of vm_memory_committed().
+> > However, it doesn't matter much since it usually is not in a hot path.
+> > The only exception is __vm_enough_memory() with overcommit set to
+> > OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
+> > shows 1.1x - 1.3x performance regression.
+> > 
+> > So I think it's a good tradeoff. We've got significantly increased
+> > scalability for the price of some overhead in vm_memory_committed().
 > 
-> On a 4K page copy from a source address that isn't in the
-> cache I see all sorts of answers.
+> It is a trade off between the counter read speed vs the counter update
+> speed.  With this change the reading of the counter is slower
+> because we need to sum over all the cpus each time we need the counter
+> value.  So this read overhead will grow with the number of cpus and may
+> not be a good tradeoff for that case.
 > 
-> On my desktop (i7-3960X) it is ~50 cycles slower to push and pop the four
-> registers.
-> 
-> On my latest Xeon - I can't post benchmarks ... but also a bit slower.
-> 
-> On an older Xeon it is a few cycles faster (but even though I'm
-> looking at the median of 10,000 runs I see more run-to-run variation
-> that I see difference between register choices.
+> Wonder if you have tried to tweak the batch size of per cpu counter
+> and make it a little larger?
 
-Hmm, strange. Can you check whether perf doesn't show any significant
-differences too. Something like:
+If a process is unmapping 4MB then it's pretty crazy for us to be
+hitting the percpu_counter 32 separate times for that single operation.
 
-perf stat --repeat 100 --sync --pre 'echo 3 > /proc/sys/vm/drop_caches' -- ./mcsafe_copy_1
-
-and then
-
-perf stat --repeat 100 --sync --pre 'echo 3 > /proc/sys/vm/drop_caches' -- ./mcsafe_copy_2
-
-That'll be interesting...
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Is there some way in which we can batch up the modifications within the
+caller and update the counter less frequently?  Perhaps even in a
+single hit?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
