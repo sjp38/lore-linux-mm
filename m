@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E29856B0253
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 16:28:20 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id x65so18133195pfb.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 13:28:20 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c4si7472004pfj.47.2016.02.10.13.28.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 13:28:20 -0800 (PST)
-Date: Wed, 10 Feb 2016 13:28:18 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 3/3] mm: increase scalability of global memory
- commitment accounting
-Message-Id: <20160210132818.589451dbb5eafae3fdb4a7ec@linux-foundation.org>
-In-Reply-To: <1455127253.715.36.camel@schen9-desk2.jf.intel.com>
-References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
-	<1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
-	<1455127253.715.36.camel@schen9-desk2.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 268056B0009
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 17:03:17 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id yy13so18207137pab.3
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 14:03:17 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id n79si7632263pfj.101.2016.02.10.14.03.15
+        for <linux-mm@kvack.org>;
+        Wed, 10 Feb 2016 14:03:16 -0800 (PST)
+Date: Thu, 11 Feb 2016 09:03:12 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 2/2] dax: move writeback calls into the filesystems
+Message-ID: <20160210220312.GP14668@dastard>
+References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com, Jan Kara <jack@suse.cz>
 
-On Wed, 10 Feb 2016 10:00:53 -0800 Tim Chen <tim.c.chen@linux.intel.com> wrote:
-
-> On Wed, 2016-02-10 at 17:52 +0300, Andrey Ryabinin wrote:
-> > Currently we use percpu_counter for accounting committed memory. Change
-> > of committed memory on more than vm_committed_as_batch pages leads to
-> > grab of counter's spinlock. The batch size is quite small - from 32 pages
-> > up to 0.4% of the memory/cpu (usually several MBs even on large machines).
-> > 
-> > So map/munmap of several MBs anonymous memory in multiple processes leads
-> > to high contention on that spinlock.
-> > 
-> > Instead of percpu_counter we could use ordinary per-cpu variables.
-> > Dump test case (8-proccesses running map/munmap of 4MB,
-> > vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
-> > improvement.
-> > 
-> > The downside of this approach is slowdown of vm_memory_committed().
-> > However, it doesn't matter much since it usually is not in a hot path.
-> > The only exception is __vm_enough_memory() with overcommit set to
-> > OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
-> > shows 1.1x - 1.3x performance regression.
-> > 
-> > So I think it's a good tradeoff. We've got significantly increased
-> > scalability for the price of some overhead in vm_memory_committed().
+On Wed, Feb 10, 2016 at 01:48:56PM -0700, Ross Zwisler wrote:
+> Previously calls to dax_writeback_mapping_range() for all DAX filesystems
+> (ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
+> dax_writeback_mapping_range() needs a struct block_device, and it used to
+> get that from inode->i_sb->s_bdev.  This is correct for normal inodes
+> mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+> block devices and for XFS real-time files.
 > 
-> It is a trade off between the counter read speed vs the counter update
-> speed.  With this change the reading of the counter is slower
-> because we need to sum over all the cpus each time we need the counter
-> value.  So this read overhead will grow with the number of cpus and may
-> not be a good tradeoff for that case.
+> Instead, call dax_writeback_mapping_range() directly from the filesystem
+> ->writepages function so that it can supply us with a valid block
+> device. This also fixes DAX code to properly flush caches in response to
+> sync(2).
 > 
-> Wonder if you have tried to tweak the batch size of per cpu counter
-> and make it a little larger?
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  fs/block_dev.c      | 16 +++++++++++++++-
+>  fs/dax.c            | 13 ++++++++-----
+>  fs/ext2/inode.c     | 11 +++++++++++
+>  fs/ext4/inode.c     |  7 +++++++
+>  fs/xfs/xfs_aops.c   |  9 +++++++++
+>  include/linux/dax.h |  6 ++++--
+>  mm/filemap.c        | 12 ++++--------
+>  7 files changed, 58 insertions(+), 16 deletions(-)
+> 
+> diff --git a/fs/block_dev.c b/fs/block_dev.c
+> index 39b3a17..fc01e43 100644
+> --- a/fs/block_dev.c
+> +++ b/fs/block_dev.c
+> @@ -1693,13 +1693,27 @@ static int blkdev_releasepage(struct page *page, gfp_t wait)
+>  	return try_to_free_buffers(page);
+>  }
+>  
+> +static int blkdev_writepages(struct address_space *mapping,
+> +			     struct writeback_control *wbc)
+> +{
+> +	if (dax_mapping(mapping)) {
+> +		struct block_device *bdev = I_BDEV(mapping->host);
+> +		int error;
+> +
+> +		error = dax_writeback_mapping_range(mapping, bdev, wbc);
+> +		if (error)
+> +			return error;
+> +	}
+> +	return generic_writepages(mapping, wbc);
+> +}
 
-If a process is unmapping 4MB then it's pretty crazy for us to be
-hitting the percpu_counter 32 separate times for that single operation.
+Can you remind of the reason for calling generic_writepages() on DAX
+enabled address spaces?
 
-Is there some way in which we can batch up the modifications within the
-caller and update the counter less frequently?  Perhaps even in a
-single hit?
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
