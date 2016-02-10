@@ -1,59 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CFB8A6B0254
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 14:27:51 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id e127so16650817pfe.3
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 11:27:51 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id fe7si6853777pab.100.2016.02.10.11.27.50
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6C26B0255
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 14:39:07 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id q63so16797163pfb.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 11:39:07 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id a78si6923879pfj.116.2016.02.10.11.39.06
         for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 11:27:51 -0800 (PST)
-Date: Wed, 10 Feb 2016 11:27:50 -0800
+        Wed, 10 Feb 2016 11:39:06 -0800 (PST)
+Date: Wed, 10 Feb 2016 11:39:05 -0800
 From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH v10 4/4] x86: Create a new synthetic cpu capability for
- machine check recovery
-Message-ID: <20160210192749.GA29493@agluck-desk.sc.intel.com>
+Subject: Re: [PATCH v10 3/4] x86, mce: Add __mcsafe_copy()
+Message-ID: <20160210193905.GB29493@agluck-desk.sc.intel.com>
 References: <cover.1454618190.git.tony.luck@intel.com>
- <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
- <20160207171041.GG5862@pd.tnic>
- <20160209233857.GA24348@agluck-desk.sc.intel.com>
- <20160210110603.GE23914@pd.tnic>
+ <6b63a88e925bbc821dc87f209909c3c1166b3261.1454618190.git.tony.luck@intel.com>
+ <20160207164933.GE5862@pd.tnic>
+ <20160209231557.GA23207@agluck-desk.sc.intel.com>
+ <20160210105843.GD23914@pd.tnic>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160210110603.GE23914@pd.tnic>
+In-Reply-To: <20160210105843.GD23914@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Borislav Petkov <bp@alien8.de>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On Wed, Feb 10, 2016 at 12:06:03PM +0100, Borislav Petkov wrote:
-> What about MSR_IA32_PLATFORM_ID or some other MSR or register, for
-> example?
+On Wed, Feb 10, 2016 at 11:58:43AM +0100, Borislav Petkov wrote:
+> But one could take out that function do some microbenchmarking with
+> different sizes and once with the current version and once with the
+> pushes and pops of r1[2-5] to see where the breakeven is.
 
-Bits 52:50 give us "information concerning the intended platform
-for the processor" ... but we don't seem to decode that vague
-statement into anything that I can make use of.
+On a 4K page copy from a source address that isn't in the
+cache I see all sorts of answers.
 
-> I.e., isn't there some other, more reliable distinction between E5 and
-> E7 besides the model ID?
+On my desktop (i7-3960X) it is ~50 cycles slower to push and pop the four
+registers.
 
-Digging in the data sheet I found the CAPID0 register which does
-indicate in bit 4 whether this is an "EX" (a.k.a. "E7" part). But
-we invent a new PCI device ID for this every generation (0x0EC3 in
-Ivy Bridge, 0x2fc0 in Haswell, 0x6fc0 in Broadwell). The offset
-has stayed at 0x84 through all this.
+On my latest Xeon - I can't post benchmarks ... but also a bit slower.
 
-I don't think that hunting the ever-changing PCI-id is a
-good choice ... the "E5/E7" naming convention has stuck for
-four generations[1] (Sandy Bridge, Ivy Bridge, Haswell, Broadwell).
+On an older Xeon it is a few cycles faster (but even though I'm
+looking at the median of 10,000 runs I see more run-to-run variation
+that I see difference between register choices.
 
--Tony
+Here's what I tested:
 
-[1] Although this probably means that marketing are about to
-think of something new ... they generally do when people start
-understanding the model names :-(
+	push %r12
+	push %r13
+	push %r14
+	push %r15
 
+	/* Loop copying whole cache lines */
+1:	movq (%rsi),%r8
+2:	movq 1*8(%rsi),%r9
+3:	movq 2*8(%rsi),%r10
+4:	movq 3*8(%rsi),%r11
+9:	movq 4*8(%rsi),%r12
+10:	movq 5*8(%rsi),%r13
+11:	movq 6*8(%rsi),%r14
+12:	movq 7*8(%rsi),%r15
+	movq %r8,(%rdi)
+	movq %r9,1*8(%rdi)
+	movq %r10,2*8(%rdi)
+	movq %r11,3*8(%rdi)
+	movq %r12,4*8(%rdi)
+	movq %r13,5*8(%rdi)
+	movq %r14,6*8(%rdi)
+	movq %r15,7*8(%rdi)
+	leaq 64(%rsi),%rsi
+	leaq 64(%rdi),%rdi
+	decl %ecx
+	jnz 1b
+
+	pop %r15
+	pop %r14
+	pop %r13
+	pop %r12
 -Tony
 
 --
