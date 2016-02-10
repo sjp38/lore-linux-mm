@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AECF828DF
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 09:51:27 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id xg9so15101962igb.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 06:51:27 -0800 (PST)
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D96C828DF
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 09:51:37 -0500 (EST)
+Received: by mail-io0-f171.google.com with SMTP id d63so23282815ioj.2
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 06:51:37 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id l69si5938310iod.80.2016.02.10.06.51.26
+        by mx.google.com with ESMTPS id ru4si5911111igb.64.2016.02.10.06.51.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 06:51:26 -0800 (PST)
+        Wed, 10 Feb 2016 06:51:36 -0800 (PST)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 2/3] mm: dedupclicate memory overcommitment code
-Date: Wed, 10 Feb 2016 17:52:20 +0300
-Message-ID: <1455115941-8261-2-git-send-email-aryabinin@virtuozzo.com>
+Subject: [RFC PATCH 3/3] mm: increase scalability of global memory commitment accounting
+Date: Wed, 10 Feb 2016 17:52:21 +0300
+Message-ID: <1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
 In-Reply-To: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
 References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
@@ -20,435 +20,262 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Currently we have two copies of the same code which implements memory
-overcommitment logic. Let's move it into mm/util.c and hence avoid
-duplication. No functional changes here.
+Currently we use percpu_counter for accounting committed memory. Change
+of committed memory on more than vm_committed_as_batch pages leads to
+grab of counter's spinlock. The batch size is quite small - from 32 pages
+up to 0.4% of the memory/cpu (usually several MBs even on large machines).
+
+So map/munmap of several MBs anonymous memory in multiple processes leads
+to high contention on that spinlock.
+
+Instead of percpu_counter we could use ordinary per-cpu variables.
+Dump test case (8-proccesses running map/munmap of 4MB,
+vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
+improvement.
+
+The downside of this approach is slowdown of vm_memory_committed().
+However, it doesn't matter much since it usually is not in a hot path.
+The only exception is __vm_enough_memory() with overcommit set to
+OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
+shows 1.1x - 1.3x performance regression.
+
+So I think it's a good tradeoff. We've got significantly increased
+scalability for the price of some overhead in vm_memory_committed().
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
 ---
- mm/mmap.c  | 124 -------------------------------------------------------------
- mm/nommu.c | 116 ---------------------------------------------------------
- mm/util.c  | 124 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 124 insertions(+), 240 deletions(-)
+ fs/proc/meminfo.c    |  2 +-
+ include/linux/mm.h   |  4 ++++
+ include/linux/mman.h | 13 +++----------
+ mm/mm_init.c         | 45 ---------------------------------------------
+ mm/mmap.c            | 11 -----------
+ mm/nommu.c           |  4 ----
+ mm/util.c            | 20 ++++++++------------
+ 7 files changed, 16 insertions(+), 83 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 4afb2a2..f088c60 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -122,130 +122,6 @@ void vma_set_page_prot(struct vm_area_struct *vma)
- 	}
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index df4661a..f30e387 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -41,7 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	si_meminfo(&i);
+ 	si_swapinfo(&i);
+-	committed = percpu_counter_read_positive(&vm_committed_as);
++	committed = vm_memory_committed();
+ 
+ 	cached = global_page_state(NR_FILE_PAGES) -
+ 			total_swapcache_pages() - i.bufferram;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 979bc83..82dac6e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1881,7 +1881,11 @@ extern void memmap_init_zone(unsigned long, int, unsigned long,
+ extern void setup_per_zone_wmarks(void);
+ extern int __meminit init_per_zone_wmark_min(void);
+ extern void mem_init(void);
++#ifdef CONFIG_MMU
++static inline void mmap_init(void) {}
++#else
+ extern void __init mmap_init(void);
++#endif
+ extern void show_mem(unsigned int flags);
+ extern void si_meminfo(struct sysinfo * val);
+ extern void si_meminfo_node(struct sysinfo *val, int nid);
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 16373c8..436ab11 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -2,7 +2,7 @@
+ #define _LINUX_MMAN_H
+ 
+ #include <linux/mm.h>
+-#include <linux/percpu_counter.h>
++#include <linux/percpu.h>
+ 
+ #include <linux/atomic.h>
+ #include <uapi/linux/mman.h>
+@@ -10,19 +10,12 @@
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+ extern unsigned long sysctl_overcommit_kbytes;
+-extern struct percpu_counter vm_committed_as;
+-
+-#ifdef CONFIG_SMP
+-extern s32 vm_committed_as_batch;
+-#else
+-#define vm_committed_as_batch 0
+-#endif
+-
+ unsigned long vm_memory_committed(void);
++DECLARE_PER_CPU(int, vm_committed_as);
+ 
+ static inline void vm_acct_memory(long pages)
+ {
+-	__percpu_counter_add(&vm_committed_as, pages, vm_committed_as_batch);
++	this_cpu_add(vm_committed_as, pages);
  }
  
+ static inline void vm_unacct_memory(long pages)
+diff --git a/mm/mm_init.c b/mm/mm_init.c
+index fdadf91..d96c71f 100644
+--- a/mm/mm_init.c
++++ b/mm/mm_init.c
+@@ -142,51 +142,6 @@ early_param("mminit_loglevel", set_mminit_loglevel);
+ struct kobject *mm_kobj;
+ EXPORT_SYMBOL_GPL(mm_kobj);
+ 
+-#ifdef CONFIG_SMP
+-s32 vm_committed_as_batch = 32;
 -
--int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
--int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
--unsigned long sysctl_overcommit_kbytes __read_mostly;
--int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
--unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
--unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
+-static void __meminit mm_compute_batch(void)
+-{
+-	u64 memsized_batch;
+-	s32 nr = num_present_cpus();
+-	s32 batch = max_t(s32, nr*2, 32);
+-
+-	/* batch size set to 0.4% of (total memory/#cpus), or max int32 */
+-	memsized_batch = min_t(u64, (totalram_pages/nr)/256, 0x7fffffff);
+-
+-	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
+-}
+-
+-static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
+-					unsigned long action, void *arg)
+-{
+-	switch (action) {
+-	case MEM_ONLINE:
+-	case MEM_OFFLINE:
+-		mm_compute_batch();
+-	default:
+-		break;
+-	}
+-	return NOTIFY_OK;
+-}
+-
+-static struct notifier_block compute_batch_nb __meminitdata = {
+-	.notifier_call = mm_compute_batch_notifier,
+-	.priority = IPC_CALLBACK_PRI, /* use lowest priority */
+-};
+-
+-static int __init mm_compute_batch_init(void)
+-{
+-	mm_compute_batch();
+-	register_hotmemory_notifier(&compute_batch_nb);
+-
+-	return 0;
+-}
+-
+-__initcall(mm_compute_batch_init);
+-
+-#endif
+-
+ static int __init mm_sysfs_init(void)
+ {
+ 	mm_kobj = kobject_create_and_add("mm", kernel_kobj);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f088c60..c796d73 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3184,17 +3184,6 @@ void mm_drop_all_locks(struct mm_struct *mm)
+ }
+ 
+ /*
+- * initialise the VMA slab
+- */
+-void __init mmap_init(void)
+-{
+-	int ret;
+-
+-	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
+-	VM_BUG_ON(ret);
+-}
+-
 -/*
+  * Initialise sysctl_user_reserve_kbytes.
+  *
+  * This is intended to prevent a user from starting a single memory hogging
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 6402f27..2d52dbc 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -533,10 +533,6 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+  */
+ void __init mmap_init(void)
+ {
+-	int ret;
+-
+-	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
+-	VM_BUG_ON(ret);
+ 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC|SLAB_ACCOUNT);
+ }
+ 
+diff --git a/mm/util.c b/mm/util.c
+index 47a57e5..418e68f 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -402,6 +402,7 @@ unsigned long sysctl_overcommit_kbytes __read_mostly;
+ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+ unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
+ unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
++DEFINE_PER_CPU(int, vm_committed_as);
+ 
+ int overcommit_ratio_handler(struct ctl_table *table, int write,
+ 			     void __user *buffer, size_t *lenp,
+@@ -445,12 +446,6 @@ unsigned long vm_commit_limit(void)
+ }
+ 
+ /*
 - * Make sure vm_committed_as in one cacheline and not cacheline shared with
 - * other variables. It can be updated by several CPUs frequently.
 - */
 -struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
 -
 -/*
-- * The global memory commitment made in the system can be a metric
-- * that can be used to drive ballooning decisions when Linux is hosted
-- * as a guest. On Hyper-V, the host implements a policy engine for dynamically
-- * balancing memory across competing virtual machines that are hosted.
-- * Several metrics drive this policy engine including the guest reported
-- * memory commitment.
-- */
--unsigned long vm_memory_committed(void)
--{
+  * The global memory commitment made in the system can be a metric
+  * that can be used to drive ballooning decisions when Linux is hosted
+  * as a guest. On Hyper-V, the host implements a policy engine for dynamically
+@@ -460,7 +455,12 @@ struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
+  */
+ unsigned long vm_memory_committed(void)
+ {
 -	return percpu_counter_read_positive(&vm_committed_as);
--}
--EXPORT_SYMBOL_GPL(vm_memory_committed);
--
--/*
-- * Check that a process has enough memory to allocate a new virtual
-- * mapping. 0 means there is enough memory for the allocation to
-- * succeed and -ENOMEM implies there is not.
-- *
-- * We currently support three overcommit policies, which are set via the
-- * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting
-- *
-- * Strict overcommit modes added 2002 Feb 26 by Alan Cox.
-- * Additional code 2002 Jul 20 by Robert Love.
-- *
-- * cap_sys_admin is 1 if the process has admin privileges, 0 otherwise.
-- *
-- * Note this is a helper function intended to be used by LSMs which
-- * wish to use this logic.
-- */
--int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
--{
--	long free, allowed, reserve;
--
++	int cpu, sum = 0;
++
++	for_each_possible_cpu(cpu)
++		sum += *per_cpu_ptr(&vm_committed_as, cpu);
++
++	return sum < 0 ? 0 : sum;
+ }
+ EXPORT_SYMBOL_GPL(vm_memory_committed);
+ 
+@@ -484,10 +484,6 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ {
+ 	long free, allowed, reserve;
+ 
 -	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
 -			-(s64)vm_committed_as_batch * num_online_cpus(),
 -			"memory commitment underflow");
 -
--	vm_acct_memory(pages);
--
--	/*
--	 * Sometimes we want to use more memory than we have
--	 */
--	if (sysctl_overcommit_memory == OVERCOMMIT_ALWAYS)
--		return 0;
--
--	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
--		free = global_page_state(NR_FREE_PAGES);
--		free += global_page_state(NR_FILE_PAGES);
--
--		/*
--		 * shmem pages shouldn't be counted as free in this
--		 * case, they can't be purged, only swapped out, and
--		 * that won't affect the overall amount of available
--		 * memory in the system.
--		 */
--		free -= global_page_state(NR_SHMEM);
--
--		free += get_nr_swap_pages();
--
--		/*
--		 * Any slabs which are created with the
--		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
--		 * which are reclaimable, under pressure.  The dentry
--		 * cache and most inode caches should fall into this
--		 */
--		free += global_page_state(NR_SLAB_RECLAIMABLE);
--
--		/*
--		 * Leave reserved pages. The pages are not for anonymous pages.
--		 */
--		if (free <= totalreserve_pages)
--			goto error;
--		else
--			free -= totalreserve_pages;
--
--		/*
--		 * Reserve some for root
--		 */
--		if (!cap_sys_admin)
--			free -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
--
--		if (free > pages)
--			return 0;
--
--		goto error;
--	}
--
--	allowed = vm_commit_limit();
--	/*
--	 * Reserve some for root
--	 */
--	if (!cap_sys_admin)
--		allowed -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
--
--	/*
--	 * Don't let a single process grow so big a user can't recover
--	 */
--	if (mm) {
--		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
--		allowed -= min_t(long, mm->total_vm / 32, reserve);
--	}
--
+ 	vm_acct_memory(pages);
+ 
+ 	/*
+@@ -553,7 +549,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 		allowed -= min_t(long, mm->total_vm / 32, reserve);
+ 	}
+ 
 -	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
--		return 0;
--error:
--	vm_unacct_memory(pages);
--
--	return -ENOMEM;
--}
--
- /*
-  * Requires inode->i_mapping->i_mmap_rwsem
-  */
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 9bdf8b1..6402f27 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -47,33 +47,11 @@ struct page *mem_map;
- unsigned long max_mapnr;
- EXPORT_SYMBOL(max_mapnr);
- unsigned long highest_memmap_pfn;
--struct percpu_counter vm_committed_as;
--int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
--int sysctl_overcommit_ratio = 50; /* default is 50% */
--unsigned long sysctl_overcommit_kbytes __read_mostly;
--int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
- int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
--unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
--unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
- int heap_stack_gap = 0;
- 
- atomic_long_t mmap_pages_allocated;
- 
--/*
-- * The global memory commitment made in the system can be a metric
-- * that can be used to drive ballooning decisions when Linux is hosted
-- * as a guest. On Hyper-V, the host implements a policy engine for dynamically
-- * balancing memory across competing virtual machines that are hosted.
-- * Several metrics drive this policy engine including the guest reported
-- * memory commitment.
-- */
--unsigned long vm_memory_committed(void)
--{
--	return percpu_counter_read_positive(&vm_committed_as);
--}
--
--EXPORT_SYMBOL_GPL(vm_memory_committed);
--
- EXPORT_SYMBOL(mem_map);
- 
- /* list of mapped, potentially shareable regions */
-@@ -1828,100 +1806,6 @@ void unmap_mapping_range(struct address_space *mapping,
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
--/*
-- * Check that a process has enough memory to allocate a new virtual
-- * mapping. 0 means there is enough memory for the allocation to
-- * succeed and -ENOMEM implies there is not.
-- *
-- * We currently support three overcommit policies, which are set via the
-- * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting
-- *
-- * Strict overcommit modes added 2002 Feb 26 by Alan Cox.
-- * Additional code 2002 Jul 20 by Robert Love.
-- *
-- * cap_sys_admin is 1 if the process has admin privileges, 0 otherwise.
-- *
-- * Note this is a helper function intended to be used by LSMs which
-- * wish to use this logic.
-- */
--int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
--{
--	long free, allowed, reserve;
--
--	vm_acct_memory(pages);
--
--	/*
--	 * Sometimes we want to use more memory than we have
--	 */
--	if (sysctl_overcommit_memory == OVERCOMMIT_ALWAYS)
--		return 0;
--
--	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
--		free = global_page_state(NR_FREE_PAGES);
--		free += global_page_state(NR_FILE_PAGES);
--
--		/*
--		 * shmem pages shouldn't be counted as free in this
--		 * case, they can't be purged, only swapped out, and
--		 * that won't affect the overall amount of available
--		 * memory in the system.
--		 */
--		free -= global_page_state(NR_SHMEM);
--
--		free += get_nr_swap_pages();
--
--		/*
--		 * Any slabs which are created with the
--		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
--		 * which are reclaimable, under pressure.  The dentry
--		 * cache and most inode caches should fall into this
--		 */
--		free += global_page_state(NR_SLAB_RECLAIMABLE);
--
--		/*
--		 * Leave reserved pages. The pages are not for anonymous pages.
--		 */
--		if (free <= totalreserve_pages)
--			goto error;
--		else
--			free -= totalreserve_pages;
--
--		/*
--		 * Reserve some for root
--		 */
--		if (!cap_sys_admin)
--			free -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
--
--		if (free > pages)
--			return 0;
--
--		goto error;
--	}
--
--	allowed = vm_commit_limit();
--	/*
--	 * Reserve some 3% for root
--	 */
--	if (!cap_sys_admin)
--		allowed -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
--
--	/*
--	 * Don't let a single process grow so big a user can't recover
--	 */
--	if (mm) {
--		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
--		allowed -= min_t(long, mm->total_vm / 32, reserve);
--	}
--
--	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
--		return 0;
--
--error:
--	vm_unacct_memory(pages);
--
--	return -ENOMEM;
--}
--
- int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	BUG();
-diff --git a/mm/util.c b/mm/util.c
-index 4fb14ca..47a57e5 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -396,6 +396,13 @@ int __page_mapcount(struct page *page)
- }
- EXPORT_SYMBOL_GPL(__page_mapcount);
- 
-+int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
-+int sysctl_overcommit_ratio __read_mostly = 50;
-+unsigned long sysctl_overcommit_kbytes __read_mostly;
-+int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-+unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
-+unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
-+
- int overcommit_ratio_handler(struct ctl_table *table, int write,
- 			     void __user *buffer, size_t *lenp,
- 			     loff_t *ppos)
-@@ -437,6 +444,123 @@ unsigned long vm_commit_limit(void)
- 	return allowed;
- }
- 
-+/*
-+ * Make sure vm_committed_as in one cacheline and not cacheline shared with
-+ * other variables. It can be updated by several CPUs frequently.
-+ */
-+struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
-+
-+/*
-+ * The global memory commitment made in the system can be a metric
-+ * that can be used to drive ballooning decisions when Linux is hosted
-+ * as a guest. On Hyper-V, the host implements a policy engine for dynamically
-+ * balancing memory across competing virtual machines that are hosted.
-+ * Several metrics drive this policy engine including the guest reported
-+ * memory commitment.
-+ */
-+unsigned long vm_memory_committed(void)
-+{
-+	return percpu_counter_read_positive(&vm_committed_as);
-+}
-+EXPORT_SYMBOL_GPL(vm_memory_committed);
-+
-+/*
-+ * Check that a process has enough memory to allocate a new virtual
-+ * mapping. 0 means there is enough memory for the allocation to
-+ * succeed and -ENOMEM implies there is not.
-+ *
-+ * We currently support three overcommit policies, which are set via the
-+ * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting
-+ *
-+ * Strict overcommit modes added 2002 Feb 26 by Alan Cox.
-+ * Additional code 2002 Jul 20 by Robert Love.
-+ *
-+ * cap_sys_admin is 1 if the process has admin privileges, 0 otherwise.
-+ *
-+ * Note this is a helper function intended to be used by LSMs which
-+ * wish to use this logic.
-+ */
-+int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
-+{
-+	long free, allowed, reserve;
-+
-+	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
-+			-(s64)vm_committed_as_batch * num_online_cpus(),
-+			"memory commitment underflow");
-+
-+	vm_acct_memory(pages);
-+
-+	/*
-+	 * Sometimes we want to use more memory than we have
-+	 */
-+	if (sysctl_overcommit_memory == OVERCOMMIT_ALWAYS)
-+		return 0;
-+
-+	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-+		free = global_page_state(NR_FREE_PAGES);
-+		free += global_page_state(NR_FILE_PAGES);
-+
-+		/*
-+		 * shmem pages shouldn't be counted as free in this
-+		 * case, they can't be purged, only swapped out, and
-+		 * that won't affect the overall amount of available
-+		 * memory in the system.
-+		 */
-+		free -= global_page_state(NR_SHMEM);
-+
-+		free += get_nr_swap_pages();
-+
-+		/*
-+		 * Any slabs which are created with the
-+		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
-+		 * which are reclaimable, under pressure.  The dentry
-+		 * cache and most inode caches should fall into this
-+		 */
-+		free += global_page_state(NR_SLAB_RECLAIMABLE);
-+
-+		/*
-+		 * Leave reserved pages. The pages are not for anonymous pages.
-+		 */
-+		if (free <= totalreserve_pages)
-+			goto error;
-+		else
-+			free -= totalreserve_pages;
-+
-+		/*
-+		 * Reserve some for root
-+		 */
-+		if (!cap_sys_admin)
-+			free -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
-+
-+		if (free > pages)
-+			return 0;
-+
-+		goto error;
-+	}
-+
-+	allowed = vm_commit_limit();
-+	/*
-+	 * Reserve some for root
-+	 */
-+	if (!cap_sys_admin)
-+		allowed -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
-+
-+	/*
-+	 * Don't let a single process grow so big a user can't recover
-+	 */
-+	if (mm) {
-+		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
-+		allowed -= min_t(long, mm->total_vm / 32, reserve);
-+	}
-+
-+	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
-+		return 0;
-+error:
-+	vm_unacct_memory(pages);
-+
-+	return -ENOMEM;
-+}
-+
- /**
-  * get_cmdline() - copy the cmdline value to a buffer.
-  * @task:     the task whose cmdline value to copy.
++	if (vm_memory_committed() < allowed)
+ 		return 0;
+ error:
+ 	vm_unacct_memory(pages);
 -- 
 2.4.10
 
