@@ -1,283 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D96C828DF
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 09:51:37 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id d63so23282815ioj.2
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 06:51:37 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ru4si5911111igb.64.2016.02.10.06.51.36
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2C3828DF
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 10:35:28 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id y89so16078505qge.2
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 07:35:28 -0800 (PST)
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
+        by mx.google.com with ESMTPS id a141si4190614qkb.16.2016.02.10.07.35.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 06:51:36 -0800 (PST)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [RFC PATCH 3/3] mm: increase scalability of global memory commitment accounting
-Date: Wed, 10 Feb 2016 17:52:21 +0300
-Message-ID: <1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
-In-Reply-To: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
-References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Feb 2016 07:35:27 -0800 (PST)
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 10 Feb 2016 08:35:25 -0700
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 403FD1FF0045
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 08:23:32 -0700 (MST)
+Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1AFZLva32505886
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 15:35:22 GMT
+Received: from d01av05.pok.ibm.com (localhost [127.0.0.1])
+	by d01av05.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1AFW6AQ031163
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 10:32:06 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2] mm/thp/migration: switch from flush_tlb_range to flush_pmd_tlb_range
+Date: Wed, 10 Feb 2016 21:05:10 +0530
+Message-Id: <1455118510-15031-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Currently we use percpu_counter for accounting committed memory. Change
-of committed memory on more than vm_committed_as_batch pages leads to
-grab of counter's spinlock. The batch size is quite small - from 32 pages
-up to 0.4% of the memory/cpu (usually several MBs even on large machines).
+We remove one instace of flush_tlb_range here. That was added by
+f714f4f20e59ea6eea264a86b9a51fd51b88fc54 ("mm: numa: call MMU notifiers
+on THP migration"). But the pmdp_huge_clear_flush_notify should have
+done the require flush for us. Hence remove the extra flush.
 
-So map/munmap of several MBs anonymous memory in multiple processes leads
-to high contention on that spinlock.
-
-Instead of percpu_counter we could use ordinary per-cpu variables.
-Dump test case (8-proccesses running map/munmap of 4MB,
-vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
-improvement.
-
-The downside of this approach is slowdown of vm_memory_committed().
-However, it doesn't matter much since it usually is not in a hot path.
-The only exception is __vm_enough_memory() with overcommit set to
-OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
-shows 1.1x - 1.3x performance regression.
-
-So I think it's a good tradeoff. We've got significantly increased
-scalability for the price of some overhead in vm_memory_committed().
-
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- fs/proc/meminfo.c    |  2 +-
- include/linux/mm.h   |  4 ++++
- include/linux/mman.h | 13 +++----------
- mm/mm_init.c         | 45 ---------------------------------------------
- mm/mmap.c            | 11 -----------
- mm/nommu.c           |  4 ----
- mm/util.c            | 20 ++++++++------------
- 7 files changed, 16 insertions(+), 83 deletions(-)
+Changes from V1:
+* fix build error
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index df4661a..f30e387 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -41,7 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- 	si_meminfo(&i);
- 	si_swapinfo(&i);
--	committed = percpu_counter_read_positive(&vm_committed_as);
-+	committed = vm_memory_committed();
+ include/asm-generic/pgtable.h | 17 +++++++++++++++++
+ mm/migrate.c                  |  8 +++++---
+ mm/pgtable-generic.c          | 14 --------------
+ 3 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index c370b261c720..9401f4819891 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -783,6 +783,23 @@ static inline int pmd_clear_huge(pmd_t *pmd)
+ }
+ #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
  
- 	cached = global_page_state(NR_FILE_PAGES) -
- 			total_swapcache_pages() - i.bufferram;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 979bc83..82dac6e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1881,7 +1881,11 @@ extern void memmap_init_zone(unsigned long, int, unsigned long,
- extern void setup_per_zone_wmarks(void);
- extern int __meminit init_per_zone_wmark_min(void);
- extern void mem_init(void);
-+#ifdef CONFIG_MMU
-+static inline void mmap_init(void) {}
++#ifndef __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/*
++ * ARCHes with special requirements for evicting THP backing TLB entries can
++ * implement this. Otherwise also, it can help optimize normal TLB flush in
++ * THP regime. stock flush_tlb_range() typically has optimization to nuke the
++ * entire TLB TLB if flush span is greater than a threshold, which will
++ * likely be true for a single huge page. Thus a single thp flush will
++ * invalidate the entire TLB which is not desitable.
++ * e.g. see arch/arc: flush_pmd_tlb_range
++ */
++#define flush_pmd_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
 +#else
- extern void __init mmap_init(void);
++#define flush_pmd_tlb_range(vma, addr, end)	BUILD_BUG()
 +#endif
- extern void show_mem(unsigned int flags);
- extern void si_meminfo(struct sysinfo * val);
- extern void si_meminfo_node(struct sysinfo *val, int nid);
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 16373c8..436ab11 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -2,7 +2,7 @@
- #define _LINUX_MMAN_H
- 
- #include <linux/mm.h>
--#include <linux/percpu_counter.h>
-+#include <linux/percpu.h>
- 
- #include <linux/atomic.h>
- #include <uapi/linux/mman.h>
-@@ -10,19 +10,12 @@
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
- extern unsigned long sysctl_overcommit_kbytes;
--extern struct percpu_counter vm_committed_as;
--
--#ifdef CONFIG_SMP
--extern s32 vm_committed_as_batch;
--#else
--#define vm_committed_as_batch 0
--#endif
--
- unsigned long vm_memory_committed(void);
-+DECLARE_PER_CPU(int, vm_committed_as);
- 
- static inline void vm_acct_memory(long pages)
- {
--	__percpu_counter_add(&vm_committed_as, pages, vm_committed_as_batch);
-+	this_cpu_add(vm_committed_as, pages);
- }
- 
- static inline void vm_unacct_memory(long pages)
-diff --git a/mm/mm_init.c b/mm/mm_init.c
-index fdadf91..d96c71f 100644
---- a/mm/mm_init.c
-+++ b/mm/mm_init.c
-@@ -142,51 +142,6 @@ early_param("mminit_loglevel", set_mminit_loglevel);
- struct kobject *mm_kobj;
- EXPORT_SYMBOL_GPL(mm_kobj);
- 
--#ifdef CONFIG_SMP
--s32 vm_committed_as_batch = 32;
--
--static void __meminit mm_compute_batch(void)
--{
--	u64 memsized_batch;
--	s32 nr = num_present_cpus();
--	s32 batch = max_t(s32, nr*2, 32);
--
--	/* batch size set to 0.4% of (total memory/#cpus), or max int32 */
--	memsized_batch = min_t(u64, (totalram_pages/nr)/256, 0x7fffffff);
--
--	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
--}
--
--static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
--					unsigned long action, void *arg)
--{
--	switch (action) {
--	case MEM_ONLINE:
--	case MEM_OFFLINE:
--		mm_compute_batch();
--	default:
--		break;
--	}
--	return NOTIFY_OK;
--}
--
--static struct notifier_block compute_batch_nb __meminitdata = {
--	.notifier_call = mm_compute_batch_notifier,
--	.priority = IPC_CALLBACK_PRI, /* use lowest priority */
--};
--
--static int __init mm_compute_batch_init(void)
--{
--	mm_compute_batch();
--	register_hotmemory_notifier(&compute_batch_nb);
--
--	return 0;
--}
--
--__initcall(mm_compute_batch_init);
--
--#endif
--
- static int __init mm_sysfs_init(void)
- {
- 	mm_kobj = kobject_create_and_add("mm", kernel_kobj);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f088c60..c796d73 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3184,17 +3184,6 @@ void mm_drop_all_locks(struct mm_struct *mm)
- }
- 
- /*
-- * initialise the VMA slab
-- */
--void __init mmap_init(void)
--{
--	int ret;
--
--	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
--	VM_BUG_ON(ret);
--}
--
--/*
-  * Initialise sysctl_user_reserve_kbytes.
-  *
-  * This is intended to prevent a user from starting a single memory hogging
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 6402f27..2d52dbc 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -533,10 +533,6 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
-  */
- void __init mmap_init(void)
- {
--	int ret;
--
--	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
--	VM_BUG_ON(ret);
- 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC|SLAB_ACCOUNT);
- }
- 
-diff --git a/mm/util.c b/mm/util.c
-index 47a57e5..418e68f 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -402,6 +402,7 @@ unsigned long sysctl_overcommit_kbytes __read_mostly;
- int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
- unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
- unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
-+DEFINE_PER_CPU(int, vm_committed_as);
- 
- int overcommit_ratio_handler(struct ctl_table *table, int write,
- 			     void __user *buffer, size_t *lenp,
-@@ -445,12 +446,6 @@ unsigned long vm_commit_limit(void)
- }
- 
- /*
-- * Make sure vm_committed_as in one cacheline and not cacheline shared with
-- * other variables. It can be updated by several CPUs frequently.
-- */
--struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
--
--/*
-  * The global memory commitment made in the system can be a metric
-  * that can be used to drive ballooning decisions when Linux is hosted
-  * as a guest. On Hyper-V, the host implements a policy engine for dynamically
-@@ -460,7 +455,12 @@ struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
-  */
- unsigned long vm_memory_committed(void)
- {
--	return percpu_counter_read_positive(&vm_committed_as);
-+	int cpu, sum = 0;
++#endif
 +
-+	for_each_possible_cpu(cpu)
-+		sum += *per_cpu_ptr(&vm_committed_as, cpu);
-+
-+	return sum < 0 ? 0 : sum;
- }
- EXPORT_SYMBOL_GPL(vm_memory_committed);
+ #endif /* !__ASSEMBLY__ */
  
-@@ -484,10 +484,6 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- {
- 	long free, allowed, reserve;
- 
--	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
--			-(s64)vm_committed_as_batch * num_online_cpus(),
--			"memory commitment underflow");
--
- 	vm_acct_memory(pages);
- 
- 	/*
-@@ -553,7 +549,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		allowed -= min_t(long, mm->total_vm / 32, reserve);
+ #ifndef io_remap_pfn_range
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b1034f9c77e7..c079c115d038 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1767,7 +1767,10 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 		put_page(new_page);
+ 		goto out_fail;
  	}
+-
++	/*
++	 * We are not sure a pending tlb flush here is for a huge page
++	 * mapping or not. Hence use the tlb range variant
++	 */
+ 	if (mm_tlb_flush_pending(mm))
+ 		flush_tlb_range(vma, mmun_start, mmun_end);
  
--	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
-+	if (vm_memory_committed() < allowed)
- 		return 0;
- error:
- 	vm_unacct_memory(pages);
+@@ -1823,12 +1826,11 @@ fail_putback:
+ 	page_add_anon_rmap(new_page, vma, mmun_start, true);
+ 	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
+ 	set_pmd_at(mm, mmun_start, pmd, entry);
+-	flush_tlb_range(vma, mmun_start, mmun_end);
+ 	update_mmu_cache_pmd(vma, address, &entry);
+ 
+ 	if (page_count(page) != 2) {
+ 		set_pmd_at(mm, mmun_start, pmd, orig_entry);
+-		flush_tlb_range(vma, mmun_start, mmun_end);
++		flush_pmd_tlb_range(vma, mmun_start, mmun_end);
+ 		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
+ 		update_mmu_cache_pmd(vma, address, &entry);
+ 		page_remove_rmap(new_page, true);
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index 9d4767698a1c..3c9c78400300 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -84,20 +84,6 @@ pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 
+-#ifndef __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
+-
+-/*
+- * ARCHes with special requirements for evicting THP backing TLB entries can
+- * implement this. Otherwise also, it can help optimize normal TLB flush in
+- * THP regime. stock flush_tlb_range() typically has optimization to nuke the
+- * entire TLB TLB if flush span is greater than a threshhold, which will
+- * likely be true for a single huge page. Thus a single thp flush will
+- * invalidate the entire TLB which is not desitable.
+- * e.g. see arch/arc: flush_pmd_tlb_range
+- */
+-#define flush_pmd_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
+-#endif
+-
+ #ifndef __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+ int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 			  unsigned long address, pmd_t *pmdp,
 -- 
-2.4.10
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
