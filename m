@@ -1,64 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 789C26B0009
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 06:23:00 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id p63so21932877wmp.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 03:23:00 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id yn6si3999411wjc.37.2016.02.10.03.22.59
+Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 492BB6B0009
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 07:29:42 -0500 (EST)
+Received: by mail-lf0-f50.google.com with SMTP id m1so10732061lfg.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 04:29:42 -0800 (PST)
+Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
+        by mx.google.com with ESMTPS id a21si1485758lfb.189.2016.02.10.04.29.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 03:22:59 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id p63so21932304wmp.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 03:22:59 -0800 (PST)
-Date: Wed, 10 Feb 2016 13:22:57 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] thp, vmstats: count deferred split events
-Message-ID: <20160210112256.GA26440@node.shutemov.name>
-References: <1455009302-57702-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160209132012.db18cdd7203b1d8b29483657@linux-foundation.org>
+        Wed, 10 Feb 2016 04:29:40 -0800 (PST)
+Received: by mail-lb0-x230.google.com with SMTP id x4so9425747lbm.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 04:29:40 -0800 (PST)
+From: Dmitry Monakhov <dmonlist@gmail.com>
+Subject: Re: Another proposal for DAX fault locking
+In-Reply-To: <20160209172416.GB12245@quack.suse.cz>
+References: <20160209172416.GB12245@quack.suse.cz>
+Date: Wed, 10 Feb 2016 15:29:34 +0300
+Message-ID: <87egck4ukx.fsf@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160209132012.db18cdd7203b1d8b29483657@linux-foundation.org>
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, linux-fsdevel@vger.kernel.org
 
-On Tue, Feb 09, 2016 at 01:20:12PM -0800, Andrew Morton wrote:
-> On Tue,  9 Feb 2016 12:15:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > Counts how many times we put a THP in split queue. Currently, it happens
-> > on partial unmap of a THP.
-> 
-> Why do we need this?
+--=-=-=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Rapidly growing value can indicate that an application behaves
-unfriendly wrt THP: often fault in huge page and then unmap part of it.
-This leads to unnecessary memory fragmentation and the application may
-require tuning.
+Jan Kara <jack@suse.cz> writes:
 
-Before refcouting rework thp_split_page would indicate the same. Not so much
-now as we don't split huge pages that often.
- 
-The event also can help with debugging kernel [mis-]behaviour.
+> Hello,
+>
+> I was thinking about current issues with DAX fault locking [1] (data
+> corruption due to racing faults allocating blocks) and also races which
+> currently don't allow us to clear dirty tags in the radix tree due to rac=
+es
+> between faults and cache flushing [2]. Both of these exist because we don=
+'t
+> have an equivalent of page lock available for DAX. While we have a
+> reasonable solution available for problem [1], so far I'm not aware of a
+> decent solution for [2]. After briefly discussing the issue with Mel he h=
+ad
+> a bright idea that we could used hashed locks to deal with [2] (and I thi=
+nk
+> we can solve [1] with them as well). So my proposal looks as follows:
+>
+> DAX will have an array of mutexes (the array can be made per device but
+> initially a global one should be OK). We will use mutexes in the array as=
+ a
+> replacement for page lock - we will use hashfn(mapping, index) to get
+> particular mutex protecting our offset in the mapping. On fault / page
+> mkwrite, we'll grab the mutex similarly to page lock and release it once =
+we
+> are done updating page tables. This deals with races in [1]. When flushing
+> caches we grab the mutex before clearing writeable bit in page tables
+> and clearing dirty bit in the radix tree and drop it after we have flushed
+> caches for the pfn. This deals with races in [2].
+>
+> Thoughts?
+Agree, only small note:
+Hash locks has side effect for batch locking due to collision.
+Some times we want to lock several pages/entries (migration/defragmentation)
+So we will endup with deadlock due to hash collision.
+>
+> 								Honza
+>
+> [1] http://oss.sgi.com/archives/xfs/2016-01/msg00575.html
+> [2] https://lists.01.org/pipermail/linux-nvdimm/2016-January/004057.html
+>
+> --=20
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
 
-> > --- a/mm/vmstat.c
-> > +++ b/mm/vmstat.c
-> > @@ -847,6 +847,7 @@ const char * const vmstat_text[] = {
-> >  	"thp_collapse_alloc_failed",
-> >  	"thp_split_page",
-> >  	"thp_split_page_failed",
-> > +	"thp_deferred_split_page",
-> >  	"thp_split_pmd",
-> >  	"thp_zero_page_alloc",
-> >  	"thp_zero_page_alloc_failed",
-> 
-> Documentation/vm/transhuge.txt, please. 
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Updated patch is below.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-> While you're in there please > check that we haven't missed anything else.
+iQEcBAEBCgAGBQJWuy0uAAoJELhyPTmIL6kBG5cIAJXSd1Ta5jXS9UR4eWvbSrvb
+s1dDJ9/mSsczuXhCVFdsWd6JkweN3xHYaLyqbkUwNdk8qgsjMZCoAiggHK5/zF5k
+7RAMhTyuM7n2NyRfYztG+YOI+713X4V5h3sPolY0wCzUMbbze7M9kYBmFrenMj3H
+qSvkN0lB5CO1C3NsZPmnga5uIBD11ony6ZP8sIRkZdB/M7GKK6n3UHvVAN2ulMJ/
+y706UznvEH7VgMExYftjvME5VayoV0ktrKxQJJfxUJZcZC19HW7NC0rGkuny54Qr
+0zmxw4TJLvAXolu73hgaShgOjTYKdgrTMC5iwl62v0L4unQAUu3Cc770tIUtH2Q=
+=of95
+-----END PGP SIGNATURE-----
+--=-=-=--
 
-The rest of the documents is up-to-date.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
