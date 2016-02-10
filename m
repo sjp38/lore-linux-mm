@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A79986B0005
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 14:11:28 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id ba1so41369530obb.3
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 11:11:28 -0800 (PST)
-Received: from alln-iport-7.cisco.com (alln-iport-7.cisco.com. [173.37.142.94])
-        by mx.google.com with ESMTPS id v83si795170oig.31.2016.02.10.11.11.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 11:11:27 -0800 (PST)
-Subject: Re: computing drop-able caches
-References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
- <56AABA79.3030103@cisco.com> <56AAC085.9060509@cisco.com>
- <20160129015534.GA6401@cmpxchg.org> <56ABEAA7.1020706@redhat.com>
- <D2DE3289.2B1F3%khalidm@cisco.com> <56BB7BC7.4040403@cisco.com>
- <56BB7DDE.8080206@intel.com>
-From: Daniel Walker <danielwa@cisco.com>
-Message-ID: <56BB8B5E.0@cisco.com>
-Date: Wed, 10 Feb 2016 11:11:26 -0800
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id CFB8A6B0254
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 14:27:51 -0500 (EST)
+Received: by mail-pf0-f182.google.com with SMTP id e127so16650817pfe.3
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 11:27:51 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id fe7si6853777pab.100.2016.02.10.11.27.50
+        for <linux-mm@kvack.org>;
+        Wed, 10 Feb 2016 11:27:51 -0800 (PST)
+Date: Wed, 10 Feb 2016 11:27:50 -0800
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v10 4/4] x86: Create a new synthetic cpu capability for
+ machine check recovery
+Message-ID: <20160210192749.GA29493@agluck-desk.sc.intel.com>
+References: <cover.1454618190.git.tony.luck@intel.com>
+ <97426a50c5667bb81a28340b820b371d7fadb6fa.1454618190.git.tony.luck@intel.com>
+ <20160207171041.GG5862@pd.tnic>
+ <20160209233857.GA24348@agluck-desk.sc.intel.com>
+ <20160210110603.GE23914@pd.tnic>
 MIME-Version: 1.0
-In-Reply-To: <56BB7DDE.8080206@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160210110603.GE23914@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-On 02/10/2016 10:13 AM, Dave Hansen wrote:
-> On 02/10/2016 10:04 AM, Daniel Walker wrote:
->>> [Linux_0:/]$ echo 3 > /proc/sys/vm/drop_caches
->>> [Linux_0:/]$ cat /proc/meminfo
->>> MemTotal:        3977836 kB
->>> MemFree:         1095012 kB
->>> MemAvailable:    1434148 kB
->> I suspect MemAvailable takes into account more than just the droppable
->> caches. For instance, reclaimable slab is included, but I don't think
->> drop_caches drops that part.
-> There's a bit for page cache and a bit for slab, see:
->
-> 	https://kernel.org/doc/Documentation/sysctl/vm.txt
->
->
+On Wed, Feb 10, 2016 at 12:06:03PM +0100, Borislav Petkov wrote:
+> What about MSR_IA32_PLATFORM_ID or some other MSR or register, for
+> example?
 
-Ok, then this looks like a defect then. I would think MemAvailable would 
-always be smaller then MemFree (after echo 3 > 
-/proc/sys/vm/drop_caches).. Unless there is something else be accounted 
-for that we aren't aware of.
+Bits 52:50 give us "information concerning the intended platform
+for the processor" ... but we don't seem to decode that vague
+statement into anything that I can make use of.
 
-Daniel
+> I.e., isn't there some other, more reliable distinction between E5 and
+> E7 besides the model ID?
+
+Digging in the data sheet I found the CAPID0 register which does
+indicate in bit 4 whether this is an "EX" (a.k.a. "E7" part). But
+we invent a new PCI device ID for this every generation (0x0EC3 in
+Ivy Bridge, 0x2fc0 in Haswell, 0x6fc0 in Broadwell). The offset
+has stayed at 0x84 through all this.
+
+I don't think that hunting the ever-changing PCI-id is a
+good choice ... the "E5/E7" naming convention has stuck for
+four generations[1] (Sandy Bridge, Ivy Bridge, Haswell, Broadwell).
+
+-Tony
+
+[1] Although this probably means that marketing are about to
+think of something new ... they generally do when people start
+understanding the model names :-(
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
