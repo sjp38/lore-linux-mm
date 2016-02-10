@@ -1,145 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C4AFC6B0254
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 15:49:17 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fl4so5515880pad.0
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 12:49:17 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ED806B0256
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 15:49:20 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id yy13so17332849pab.3
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 12:49:20 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 29si7283898pft.41.2016.02.10.12.49.16
+        by mx.google.com with ESMTP id 29si7283898pft.41.2016.02.10.12.49.17
         for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 12:49:16 -0800 (PST)
+        Wed, 10 Feb 2016 12:49:17 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 1/2] dax: supply DAX clearing code with correct bdev
-Date: Wed, 10 Feb 2016 13:48:55 -0700
-Message-Id: <1455137336-28720-2-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 2/2] dax: move writeback calls into the filesystems
+Date: Wed, 10 Feb 2016 13:48:56 -0700
+Message-Id: <1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com, Jan Kara <jack@suse.cz>
 
-dax_clear_blocks() needs a valid struct block_device and previously it was
-using inode->i_sb->s_bdev in all cases.  This is correct for normal inodes
-on mounted ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
-block devices and for XFS real-time devices.
+Previously calls to dax_writeback_mapping_range() for all DAX filesystems
+(ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
+dax_writeback_mapping_range() needs a struct block_device, and it used to
+get that from inode->i_sb->s_bdev.  This is correct for normal inodes
+mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
+block devices and for XFS real-time files.
 
-Instead, rename dax_clear_blocks() to dax_clear_sectors(), and change its
-arguments to take a bdev and a sector instead of an inode and a block.
-This better reflects what the function does, and it allows the filesystem
-and raw block device code to pass in an appropriate struct block_device.
+Instead, call dax_writeback_mapping_range() directly from the filesystem
+->writepages function so that it can supply us with a valid block
+device. This also fixes DAX code to properly flush caches in response to
+sync(2).
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Suggested-by: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c               | 9 ++++-----
- fs/ext2/inode.c        | 6 ++++--
- fs/xfs/xfs_aops.c      | 2 +-
- fs/xfs/xfs_aops.h      | 1 +
- fs/xfs/xfs_bmap_util.c | 3 ++-
- include/linux/dax.h    | 2 +-
- 6 files changed, 13 insertions(+), 10 deletions(-)
+ fs/block_dev.c      | 16 +++++++++++++++-
+ fs/dax.c            | 13 ++++++++-----
+ fs/ext2/inode.c     | 11 +++++++++++
+ fs/ext4/inode.c     |  7 +++++++
+ fs/xfs/xfs_aops.c   |  9 +++++++++
+ include/linux/dax.h |  6 ++++--
+ mm/filemap.c        | 12 ++++--------
+ 7 files changed, 58 insertions(+), 16 deletions(-)
 
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 39b3a17..fc01e43 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -1693,13 +1693,27 @@ static int blkdev_releasepage(struct page *page, gfp_t wait)
+ 	return try_to_free_buffers(page);
+ }
+ 
++static int blkdev_writepages(struct address_space *mapping,
++			     struct writeback_control *wbc)
++{
++	if (dax_mapping(mapping)) {
++		struct block_device *bdev = I_BDEV(mapping->host);
++		int error;
++
++		error = dax_writeback_mapping_range(mapping, bdev, wbc);
++		if (error)
++			return error;
++	}
++	return generic_writepages(mapping, wbc);
++}
++
+ static const struct address_space_operations def_blk_aops = {
+ 	.readpage	= blkdev_readpage,
+ 	.readpages	= blkdev_readpages,
+ 	.writepage	= blkdev_writepage,
+ 	.write_begin	= blkdev_write_begin,
+ 	.write_end	= blkdev_write_end,
+-	.writepages	= generic_writepages,
++	.writepages	= blkdev_writepages,
+ 	.releasepage	= blkdev_releasepage,
+ 	.direct_IO	= blkdev_direct_IO,
+ 	.is_dirty_writeback = buffer_check_dirty_writeback,
 diff --git a/fs/dax.c b/fs/dax.c
-index fc2e314..9a173dd 100644
+index 9a173dd..034dd02 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -79,15 +79,14 @@ struct page *read_dax_sector(struct block_device *bdev, sector_t n)
- }
- 
- /*
-- * dax_clear_blocks() is called from within transaction context from XFS,
-+ * dax_clear_sectors() is called from within transaction context from XFS,
-  * and hence this means the stack from this point must follow GFP_NOFS
-  * semantics for all operations.
+@@ -484,11 +484,10 @@ static int dax_writeback_one(struct block_device *bdev,
+  * end]. This is required by data integrity operations to ensure file data is
+  * on persistent storage prior to completion of the operation.
   */
--int dax_clear_blocks(struct inode *inode, sector_t block, long _size)
-+int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size)
+-int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+-		loff_t end)
++int dax_writeback_mapping_range(struct address_space *mapping,
++		struct block_device *bdev, struct writeback_control *wbc)
  {
+ 	struct inode *inode = mapping->host;
 -	struct block_device *bdev = inode->i_sb->s_bdev;
- 	struct blk_dax_ctl dax = {
--		.sector = block << (inode->i_blkbits - 9),
-+		.sector = _sector,
- 		.size = _size,
- 	};
+ 	pgoff_t start_index, end_index, pmd_index;
+ 	pgoff_t indices[PAGEVEC_SIZE];
+ 	struct pagevec pvec;
+@@ -496,11 +495,15 @@ int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+ 	int i, ret = 0;
+ 	void *entry;
  
-@@ -109,7 +108,7 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long _size)
- 	wmb_pmem();
- 	return 0;
- }
--EXPORT_SYMBOL_GPL(dax_clear_blocks);
-+EXPORT_SYMBOL_GPL(dax_clear_sectors);
++
++	if (!mapping->nrexceptional || wbc->sync_mode != WB_SYNC_ALL)
++		return 0;
++
+ 	if (WARN_ON_ONCE(inode->i_blkbits != PAGE_SHIFT))
+ 		return -EIO;
  
- /* the clear_pmem() calls are ordered by a wmb_pmem() in the caller */
- static void dax_new_buf(void __pmem *addr, unsigned size, unsigned first,
+-	start_index = start >> PAGE_CACHE_SHIFT;
+-	end_index = end >> PAGE_CACHE_SHIFT;
++	start_index = wbc->range_start >> PAGE_CACHE_SHIFT;
++	end_index = wbc->range_end >> PAGE_CACHE_SHIFT;
+ 	pmd_index = DAX_PMD_INDEX(start_index);
+ 
+ 	rcu_read_lock();
 diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 338eefd..b6b965b 100644
+index b6b965b..7e44fc3 100644
 --- a/fs/ext2/inode.c
 +++ b/fs/ext2/inode.c
-@@ -737,8 +737,10 @@ static int ext2_get_blocks(struct inode *inode,
- 		 * so that it's not found by another thread before it's
- 		 * initialised
- 		 */
--		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
--						1 << inode->i_blkbits);
-+		err = dax_clear_sectors(inode->i_sb->s_bdev,
-+				le32_to_cpu(chain[depth-1].key) <<
-+				(inode->i_blkbits - 9),
-+				1 << inode->i_blkbits);
- 		if (err) {
- 			mutex_unlock(&ei->truncate_mutex);
- 			goto cleanup;
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 379c089..fc20518 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -55,7 +55,7 @@ xfs_count_page_state(
- 	} while ((bh = bh->b_this_page) != head);
+@@ -876,6 +876,17 @@ ext2_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+ static int
+ ext2_writepages(struct address_space *mapping, struct writeback_control *wbc)
+ {
++#ifdef CONFIG_FS_DAX
++	if (dax_mapping(mapping)) {
++		int error;
++
++		error = dax_writeback_mapping_range(mapping,
++				mapping->host->i_sb->s_bdev, wbc);
++		if (error)
++			return error;
++	}
++#endif
++
+ 	return mpage_writepages(mapping, wbc, ext2_get_block);
  }
  
--STATIC struct block_device *
-+struct block_device *
- xfs_find_bdev_for_inode(
- 	struct inode		*inode)
- {
-diff --git a/fs/xfs/xfs_aops.h b/fs/xfs/xfs_aops.h
-index f6ffc9a..a4343c6 100644
---- a/fs/xfs/xfs_aops.h
-+++ b/fs/xfs/xfs_aops.h
-@@ -62,5 +62,6 @@ int	xfs_get_blocks_dax_fault(struct inode *inode, sector_t offset,
- 			         struct buffer_head *map_bh, int create);
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 83bc8bf..8c42020 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -2450,6 +2450,13 @@ static int ext4_writepages(struct address_space *mapping,
  
- extern void xfs_count_page_state(struct page *, int *, int *);
-+extern struct block_device *xfs_find_bdev_for_inode(struct inode *);
+ 	trace_ext4_writepages(inode, wbc);
  
- #endif /* __XFS_AOPS_H__ */
-diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-index 07ef29b..ae9d755 100644
---- a/fs/xfs/xfs_bmap_util.c
-+++ b/fs/xfs/xfs_bmap_util.c
-@@ -75,7 +75,8 @@ xfs_zero_extent(
- 	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
- 
- 	if (IS_DAX(VFS_I(ip)))
--		return dax_clear_blocks(VFS_I(ip), block, size);
-+		return dax_clear_sectors(xfs_find_bdev_for_inode(VFS_I(ip)),
-+				sector, size);
- 
++	if (dax_mapping(mapping)) {
++		ret = dax_writeback_mapping_range(mapping, inode->i_sb->s_bdev,
++						   wbc);
++		if (ret)
++			goto out_writepages;
++	}
++
  	/*
- 	 * let the block layer decide on the fastest method of
+ 	 * No pages to write? This is mainly a kludge to avoid starting
+ 	 * a transaction for special inodes like journal inode on last iput()
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index fc20518..1139ecd 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -1208,6 +1208,15 @@ xfs_vm_writepages(
+ 	struct writeback_control *wbc)
+ {
+ 	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
++	if (dax_mapping(mapping)) {
++		int error;
++
++		error = dax_writeback_mapping_range(mapping,
++				xfs_find_bdev_for_inode(mapping->host), wbc);
++		if (error)
++			return error;
++	}
++
+ 	return generic_writepages(mapping, wbc);
+ }
+ 
 diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 818e450..7b6bced 100644
+index 7b6bced..636dd59 100644
 --- a/include/linux/dax.h
 +++ b/include/linux/dax.h
-@@ -7,7 +7,7 @@
+@@ -52,6 +52,8 @@ static inline bool dax_mapping(struct address_space *mapping)
+ {
+ 	return mapping->host && IS_DAX(mapping->host);
+ }
+-int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+-		loff_t end);
++
++struct writeback_control;
++int dax_writeback_mapping_range(struct address_space *mapping,
++		struct block_device *bdev, struct writeback_control *wbc);
+ #endif
+diff --git a/mm/filemap.c b/mm/filemap.c
+index bc94386..a829779 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -446,7 +446,8 @@ int filemap_write_and_wait(struct address_space *mapping)
+ {
+ 	int err = 0;
  
- ssize_t dax_do_io(struct kiocb *, struct inode *, struct iov_iter *, loff_t,
- 		  get_block_t, dio_iodone_t, int flags);
--int dax_clear_blocks(struct inode *, sector_t block, long size);
-+int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size);
- int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
+-	if (mapping->nrpages) {
++	if (mapping->nrpages ||
++	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+ 		err = filemap_fdatawrite(mapping);
+ 		/*
+ 		 * Even if the above returned error, the pages may be
+@@ -482,13 +483,8 @@ int filemap_write_and_wait_range(struct address_space *mapping,
+ {
+ 	int err = 0;
+ 
+-	if (dax_mapping(mapping) && mapping->nrexceptional) {
+-		err = dax_writeback_mapping_range(mapping, lstart, lend);
+-		if (err)
+-			return err;
+-	}
+-
+-	if (mapping->nrpages) {
++	if (mapping->nrpages ||
++	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+ 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
+ 						 WB_SYNC_ALL);
+ 		/* See comment of filemap_write_and_wait() */
 -- 
 2.5.0
 
