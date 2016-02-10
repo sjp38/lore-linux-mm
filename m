@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 700266B0255
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 13:00:57 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id q63so15553325pfb.0
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 10:00:57 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id c77si6411910pfj.246.2016.02.10.10.00.56
-        for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 10:00:56 -0800 (PST)
-Message-ID: <1455127253.715.36.camel@schen9-desk2.jf.intel.com>
-Subject: Re: [RFC PATCH 3/3] mm: increase scalability of global memory
- commitment accounting
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Wed, 10 Feb 2016 10:00:53 -0800
-In-Reply-To: <1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
-References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
-	 <1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 40383828DF
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 13:04:57 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id wb13so39391744obb.1
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 10:04:57 -0800 (PST)
+Received: from rcdn-iport-2.cisco.com (rcdn-iport-2.cisco.com. [173.37.86.73])
+        by mx.google.com with ESMTPS id wi5si4120717oeb.28.2016.02.10.10.04.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Feb 2016 10:04:56 -0800 (PST)
+Subject: Re: computing drop-able caches
+References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
+ <56AABA79.3030103@cisco.com> <56AAC085.9060509@cisco.com>
+ <20160129015534.GA6401@cmpxchg.org> <56ABEAA7.1020706@redhat.com>
+ <D2DE3289.2B1F3%khalidm@cisco.com>
+From: Daniel Walker <danielwa@cisco.com>
+Message-ID: <56BB7BC7.4040403@cisco.com>
+Date: Wed, 10 Feb 2016 10:04:55 -0800
+MIME-Version: 1.0
+In-Reply-To: <D2DE3289.2B1F3%khalidm@cisco.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: "Khalid Mughal (khalidm)" <khalidm@cisco.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
 
-On Wed, 2016-02-10 at 17:52 +0300, Andrey Ryabinin wrote:
-> Currently we use percpu_counter for accounting committed memory. Change
-> of committed memory on more than vm_committed_as_batch pages leads to
-> grab of counter's spinlock. The batch size is quite small - from 32 pages
-> up to 0.4% of the memory/cpu (usually several MBs even on large machines).
-> 
-> So map/munmap of several MBs anonymous memory in multiple processes leads
-> to high contention on that spinlock.
-> 
-> Instead of percpu_counter we could use ordinary per-cpu variables.
-> Dump test case (8-proccesses running map/munmap of 4MB,
-> vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
-> improvement.
-> 
-> The downside of this approach is slowdown of vm_memory_committed().
-> However, it doesn't matter much since it usually is not in a hot path.
-> The only exception is __vm_enough_memory() with overcommit set to
-> OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
-> shows 1.1x - 1.3x performance regression.
-> 
-> So I think it's a good tradeoff. We've got significantly increased
-> scalability for the price of some overhead in vm_memory_committed().
+On 02/08/2016 12:57 PM, Khalid Mughal (khalidm) wrote:
+> How do we explain the discrepancy between MemAvaiable and MemFree count
+> after we drop cache? In following output, which one represents correct
+> data?
+>
+> [Linux_0:/]$ cat /proc/meminfo
+> MemTotal:        3977836 kB
+> MemFree:          747832 kB
+> MemAvailable:    1441736 kB
+> Buffers:          123976 kB
+> Cached:          1210272 kB
+> Active:          2496932 kB
+> Inactive:         585364 kB
+> Active(anon):    2243932 kB
+> Inactive(anon):   142676 kB
+> Active(file):     253000 kB
+> Inactive(file):   442688 kB
+> Dirty:                44 kB
+> AnonPages:       1748088 kB
+> Mapped:           406512 kB
+> Shmem:            638564 kB
+> Slab:              65656 kB
+> SReclaimable:      30120 kB
+> SUnreclaim:        35536 kB
+> KernelStack:        5920 kB
+> PageTables:        19040 kB
+> CommitLimit:     1988916 kB
+> Committed_AS:    3765252 kB
+>
+> [Linux_0:/]$ echo 3 > /proc/sys/vm/drop_caches
+> [Linux_0:/]$ cat /proc/meminfo
+> MemTotal:        3977836 kB
+> MemFree:         1095012 kB
+> MemAvailable:    1434148 kB
 
-It is a trade off between the counter read speed vs the counter update
-speed.  With this change the reading of the counter is slower
-because we need to sum over all the cpus each time we need the counter
-value.  So this read overhead will grow with the number of cpus and may
-not be a good tradeoff for that case.
+I suspect MemAvailable takes into account more than just the droppable 
+caches. For instance, reclaimable slab is included, but I don't think 
+drop_caches drops that part.
 
-Wonder if you have tried to tweak the batch size of per cpu counter
-and make it a little larger?
-
-Tim
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
