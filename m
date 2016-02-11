@@ -1,105 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 44CD86B0009
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 07:50:29 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id 128so19768363wmz.1
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 04:50:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u1si11859452wjz.147.2016.02.11.04.50.27
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C4E6B0009
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 08:35:13 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id 5so36357124igt.0
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 05:35:13 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id 70si13057220ioo.141.2016.02.11.05.35.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Feb 2016 04:50:28 -0800 (PST)
-Date: Thu, 11 Feb 2016 13:50:44 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 2/2] dax: move writeback calls into the filesystems
-Message-ID: <20160211125044.GJ21760@quack.suse.cz>
-References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
- <1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
- <20160210220312.GP14668@dastard>
- <20160210224340.GA30938@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Feb 2016 05:35:12 -0800 (PST)
+Subject: Re: [RFC PATCH 3/3] mm: increase scalability of global memory
+ commitment accounting
+References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
+ <1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
+ <CALYGNiMX5NCRie8TfTZvUm3czBt5CYS+VznxAbtCFVJXtYM=2Q@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <56BC8E4E.2010504@virtuozzo.com>
+Date: Thu, 11 Feb 2016 16:36:14 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160210224340.GA30938@linux.intel.com>
+In-Reply-To: <CALYGNiMX5NCRie8TfTZvUm3czBt5CYS+VznxAbtCFVJXtYM=2Q@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com, Jan Kara <jack@suse.cz>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On Wed 10-02-16 15:43:40, Ross Zwisler wrote:
-> On Thu, Feb 11, 2016 at 09:03:12AM +1100, Dave Chinner wrote:
-> > On Wed, Feb 10, 2016 at 01:48:56PM -0700, Ross Zwisler wrote:
-> > > Previously calls to dax_writeback_mapping_range() for all DAX filesystems
-> > > (ext2, ext4 & xfs) were centralized in filemap_write_and_wait_range().
-> > > dax_writeback_mapping_range() needs a struct block_device, and it used to
-> > > get that from inode->i_sb->s_bdev.  This is correct for normal inodes
-> > > mounted on ext2, ext4 and XFS filesystems, but is incorrect for DAX raw
-> > > block devices and for XFS real-time files.
-> > > 
-> > > Instead, call dax_writeback_mapping_range() directly from the filesystem
-> > > ->writepages function so that it can supply us with a valid block
-> > > device. This also fixes DAX code to properly flush caches in response to
-> > > sync(2).
-> > > 
-> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > ---
-> > >  fs/block_dev.c      | 16 +++++++++++++++-
-> > >  fs/dax.c            | 13 ++++++++-----
-> > >  fs/ext2/inode.c     | 11 +++++++++++
-> > >  fs/ext4/inode.c     |  7 +++++++
-> > >  fs/xfs/xfs_aops.c   |  9 +++++++++
-> > >  include/linux/dax.h |  6 ++++--
-> > >  mm/filemap.c        | 12 ++++--------
-> > >  7 files changed, 58 insertions(+), 16 deletions(-)
-> > > 
-> > > diff --git a/fs/block_dev.c b/fs/block_dev.c
-> > > index 39b3a17..fc01e43 100644
-> > > --- a/fs/block_dev.c
-> > > +++ b/fs/block_dev.c
-> > > @@ -1693,13 +1693,27 @@ static int blkdev_releasepage(struct page *page, gfp_t wait)
-> > >  	return try_to_free_buffers(page);
-> > >  }
-> > >  
-> > > +static int blkdev_writepages(struct address_space *mapping,
-> > > +			     struct writeback_control *wbc)
-> > > +{
-> > > +	if (dax_mapping(mapping)) {
-> > > +		struct block_device *bdev = I_BDEV(mapping->host);
-> > > +		int error;
-> > > +
-> > > +		error = dax_writeback_mapping_range(mapping, bdev, wbc);
-> > > +		if (error)
-> > > +			return error;
-> > > +	}
-> > > +	return generic_writepages(mapping, wbc);
-> > > +}
-> > 
-> > Can you remind of the reason for calling generic_writepages() on DAX
-> > enabled address spaces?
+On 02/10/2016 08:46 PM, Konstantin Khlebnikov wrote:
+> On Wed, Feb 10, 2016 at 5:52 PM, Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>> Currently we use percpu_counter for accounting committed memory. Change
+>> of committed memory on more than vm_committed_as_batch pages leads to
+>> grab of counter's spinlock. The batch size is quite small - from 32 pages
+>> up to 0.4% of the memory/cpu (usually several MBs even on large machines).
+>>
+>> So map/munmap of several MBs anonymous memory in multiple processes leads
+>> to high contention on that spinlock.
+>>
+>> Instead of percpu_counter we could use ordinary per-cpu variables.
+>> Dump test case (8-proccesses running map/munmap of 4MB,
+>> vm_committed_as_batch = 2MB on test setup) showed 2.5x performance
+>> improvement.
+>>
+>> The downside of this approach is slowdown of vm_memory_committed().
+>> However, it doesn't matter much since it usually is not in a hot path.
+>> The only exception is __vm_enough_memory() with overcommit set to
+>> OVERCOMMIT_NEVER. In that case brk1 test from will-it-scale benchmark
+>> shows 1.1x - 1.3x performance regression.
+>>
+>> So I think it's a good tradeoff. We've got significantly increased
+>> scalability for the price of some overhead in vm_memory_committed().
 > 
-> Sure.  The initial version of this patch didn't do this, and during testing I
-> hit a bunch of xfstests failures.  In ext2 at least I believe these were
-> happening because we were skipping the call into generic_writepages() for DAX
-> inodes. Without a lot of data to back this up, my guess is that this is due
-> to metadata inodes or something being marked as DAX (so dax_mapping(mapping)
-> returns true), but having dirty page cache pages that need to be written back
-> as part of the writeback.
+> I think thats a no go. 30% regression for your not-so-big machine.
+> For 4096 cores regression will be enourmous. Link: https://xkcd.com/619/
 > 
-> Changing this so we always call generic_writepages() even in the DAX case
-> solved the xfstest failures. 
-> 
-> If this sounds incorrect, please let me know and I'll go and gather more data.
 
-So I think a more correct fix it to not set S_DAX for inodes that will have
-any pagecache pages - e.g. don't set S_DAX for block device inodes when
-filesystem is mounted on it (probably the easiest is to just refuse to
-mount filesystem on block device which has S_DAX set).
+Bayan. Linux already supports 8192 cpus. So I set possible_cpus=8192 to see how bad it is.
+brk1 test with disabled overcommit (OVERCOMMIT_NEVER) showed ~500x regression. I guess that's too much.
 
-								Honza
+I've tried another approach - convert 'vm_committed_as' to atomic_t variable.
+On 8-proccesses map/munmap of 4K this shows only 2%-3% regression (comparing to mainline).
+And for 4MB map/munmap this gives 125% improvement.
+
+So, for me, this sounds like a good way to go, although, it worth check regression of small
+allocations on bigger machines.
+
+---
+
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index df4661a..f30e387 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -41,7 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	si_meminfo(&i);
+ 	si_swapinfo(&i);
+-	committed = percpu_counter_read_positive(&vm_committed_as);
++	committed = vm_memory_committed();
+ 
+ 	cached = global_page_state(NR_FILE_PAGES) -
+ 			total_swapcache_pages() - i.bufferram;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 979bc83..82dac6e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1881,7 +1881,11 @@ extern void memmap_init_zone(unsigned long, int, unsigned long,
+ extern void setup_per_zone_wmarks(void);
+ extern int __meminit init_per_zone_wmark_min(void);
+ extern void mem_init(void);
++#ifdef CONFIG_MMU
++static inline void mmap_init(void) {}
++#else
+ extern void __init mmap_init(void);
++#endif
+ extern void show_mem(unsigned int flags);
+ extern void si_meminfo(struct sysinfo * val);
+ extern void si_meminfo_node(struct sysinfo *val, int nid);
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 16373c8..21b68e8 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -2,7 +2,7 @@
+ #define _LINUX_MMAN_H
+ 
+ #include <linux/mm.h>
+-#include <linux/percpu_counter.h>
++#include <linux/percpu.h>
+ 
+ #include <linux/atomic.h>
+ #include <uapi/linux/mman.h>
+@@ -10,19 +10,12 @@
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+ extern unsigned long sysctl_overcommit_kbytes;
+-extern struct percpu_counter vm_committed_as;
+-
+-#ifdef CONFIG_SMP
+-extern s32 vm_committed_as_batch;
+-#else
+-#define vm_committed_as_batch 0
+-#endif
+-
+ unsigned long vm_memory_committed(void);
++extern atomic_t vm_committed_as;
+ 
+ static inline void vm_acct_memory(long pages)
+ {
+-	__percpu_counter_add(&vm_committed_as, pages, vm_committed_as_batch);
++	atomic_add(pages, &vm_committed_as);
+ }
+ 
+ static inline void vm_unacct_memory(long pages)
+diff --git a/mm/mm_init.c b/mm/mm_init.c
+index fdadf91..d96c71f 100644
+--- a/mm/mm_init.c
++++ b/mm/mm_init.c
+@@ -142,51 +142,6 @@ early_param("mminit_loglevel", set_mminit_loglevel);
+ struct kobject *mm_kobj;
+ EXPORT_SYMBOL_GPL(mm_kobj);
+ 
+-#ifdef CONFIG_SMP
+-s32 vm_committed_as_batch = 32;
+-
+-static void __meminit mm_compute_batch(void)
+-{
+-	u64 memsized_batch;
+-	s32 nr = num_present_cpus();
+-	s32 batch = max_t(s32, nr*2, 32);
+-
+-	/* batch size set to 0.4% of (total memory/#cpus), or max int32 */
+-	memsized_batch = min_t(u64, (totalram_pages/nr)/256, 0x7fffffff);
+-
+-	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
+-}
+-
+-static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
+-					unsigned long action, void *arg)
+-{
+-	switch (action) {
+-	case MEM_ONLINE:
+-	case MEM_OFFLINE:
+-		mm_compute_batch();
+-	default:
+-		break;
+-	}
+-	return NOTIFY_OK;
+-}
+-
+-static struct notifier_block compute_batch_nb __meminitdata = {
+-	.notifier_call = mm_compute_batch_notifier,
+-	.priority = IPC_CALLBACK_PRI, /* use lowest priority */
+-};
+-
+-static int __init mm_compute_batch_init(void)
+-{
+-	mm_compute_batch();
+-	register_hotmemory_notifier(&compute_batch_nb);
+-
+-	return 0;
+-}
+-
+-__initcall(mm_compute_batch_init);
+-
+-#endif
+-
+ static int __init mm_sysfs_init(void)
+ {
+ 	mm_kobj = kobject_create_and_add("mm", kernel_kobj);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f088c60..c796d73 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3184,17 +3184,6 @@ void mm_drop_all_locks(struct mm_struct *mm)
+ }
+ 
+ /*
+- * initialise the VMA slab
+- */
+-void __init mmap_init(void)
+-{
+-	int ret;
+-
+-	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
+-	VM_BUG_ON(ret);
+-}
+-
+-/*
+  * Initialise sysctl_user_reserve_kbytes.
+  *
+  * This is intended to prevent a user from starting a single memory hogging
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 6402f27..2d52dbc 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -533,10 +533,6 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+  */
+ void __init mmap_init(void)
+ {
+-	int ret;
+-
+-	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
+-	VM_BUG_ON(ret);
+ 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC|SLAB_ACCOUNT);
+ }
+ 
+diff --git a/mm/util.c b/mm/util.c
+index 47a57e5..9130983 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -402,6 +402,7 @@ unsigned long sysctl_overcommit_kbytes __read_mostly;
+ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+ unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
+ unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
++atomic_t vm_committed_as;
+ 
+ int overcommit_ratio_handler(struct ctl_table *table, int write,
+ 			     void __user *buffer, size_t *lenp,
+@@ -445,12 +446,6 @@ unsigned long vm_commit_limit(void)
+ }
+ 
+ /*
+- * Make sure vm_committed_as in one cacheline and not cacheline shared with
+- * other variables. It can be updated by several CPUs frequently.
+- */
+-struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
+-
+-/*
+  * The global memory commitment made in the system can be a metric
+  * that can be used to drive ballooning decisions when Linux is hosted
+  * as a guest. On Hyper-V, the host implements a policy engine for dynamically
+@@ -460,7 +455,7 @@ struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
+  */
+ unsigned long vm_memory_committed(void)
+ {
+-	return percpu_counter_read_positive(&vm_committed_as);
++	return atomic_read(&vm_committed_as);
+ }
+ EXPORT_SYMBOL_GPL(vm_memory_committed);
+ 
+@@ -484,8 +479,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ {
+ 	long free, allowed, reserve;
+ 
+-	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
+-			-(s64)vm_committed_as_batch * num_online_cpus(),
++	VM_WARN_ONCE(atomic_read(&vm_committed_as) < 0,
+ 			"memory commitment underflow");
+ 
+ 	vm_acct_memory(pages);
+@@ -553,7 +547,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 		allowed -= min_t(long, mm->total_vm / 32, reserve);
+ 	}
+ 
+-	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
++	if (vm_memory_committed() < allowed)
+ 		return 0;
+ error:
+ 	vm_unacct_memory(pages);
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.4.10
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
