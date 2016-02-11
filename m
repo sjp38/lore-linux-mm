@@ -1,116 +1,464 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 855536B0253
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 16:34:50 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fl4so23101913pad.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:34:50 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id u1si14843749pas.193.2016.02.11.13.34.49
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1FC6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 16:45:04 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id e127so35791310pfe.3
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:45:04 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id os9si14912488pab.169.2016.02.11.13.45.03
         for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 13:34:49 -0800 (PST)
-Message-Id: <0434830605ce57631ba8b3ab6a7ac93c4baf80dd.1455225826.git.tony.luck@intel.com>
+        Thu, 11 Feb 2016 13:45:03 -0800 (PST)
+Message-Id: <56a42b787b05112a3f93273db7d929b52a114216.1455225826.git.tony.luck@intel.com>
 In-Reply-To: <cover.1455225826.git.tony.luck@intel.com>
 References: <cover.1455225826.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Subject: [PATCH v11 4/4] x86: Create a new synthetic cpu capability for
- machine check recovery
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Date: Thu, 11 Feb 2016 13:34:22 -0800
+Subject: [PATCH v11 1/4] x86: Expand exception table to allow new handling
+ options
+Date: Thu, 11 Feb 2016 13:34:13 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-The Intel Software Developer Manual describes bit 24 in the MCG_CAP
-MSR:
-   MCG_SER_P (software error recovery support present) flag,
-   bit 24 a?? Indicates (when set) that the processor supports
-   software error recovery
-But only some models with this capability bit set will actually
-generate recoverable machine checks.
+Huge amounts of help from  Andy Lutomirski and Borislav Petkov to
+produce this. Andy provided the inspiration to add classes to the
+exception table with a clever bit-squeezing trick, Boris pointed
+out how much cleaner it would all be if we just had a new field.
 
-Check the model name and set a synthetic capability bit. Provide
-a command line option to set this bit anyway in case the kernel
-doesn't recognise the model name.
+Linus Torvalds blessed the expansion with:
+  I'd rather not be clever in order to save just a tiny amount of space
+  in the exception table, which isn't really criticial for anybody.
+
+The third field is another relative function pointer, this one to a
+handler that executes the actions.
+
+We start out with three handlers:
+
+1: Legacy - just jumps the to fixup IP
+2: Fault - provide the trap number in %ax to the fixup code
+3: Cleaned up legacy for the uaccess error hack
 
 Signed-off-by: Tony Luck <tony.luck@intel.com>
 ---
- Documentation/x86/x86_64/boot-options.txt |  2 ++
- arch/x86/include/asm/cpufeature.h         |  1 +
- arch/x86/include/asm/mce.h                |  1 +
- arch/x86/kernel/cpu/mcheck/mce.c          | 13 +++++++++++++
- 4 files changed, 17 insertions(+)
+ Documentation/x86/exception-tables.txt |  35 ++++++++++++
+ arch/x86/include/asm/asm.h             |  40 +++++++------
+ arch/x86/include/asm/uaccess.h         |  16 +++---
+ arch/x86/kernel/kprobes/core.c         |   2 +-
+ arch/x86/kernel/traps.c                |   6 +-
+ arch/x86/mm/extable.c                  | 100 ++++++++++++++++++++++++---------
+ arch/x86/mm/fault.c                    |   2 +-
+ scripts/sortextable.c                  |  32 +++++++++++
+ 8 files changed, 176 insertions(+), 57 deletions(-)
 
-diff --git a/Documentation/x86/x86_64/boot-options.txt b/Documentation/x86/x86_64/boot-options.txt
-index 68ed3114c363..0965a71f9942 100644
---- a/Documentation/x86/x86_64/boot-options.txt
-+++ b/Documentation/x86/x86_64/boot-options.txt
-@@ -60,6 +60,8 @@ Machine check
- 		threshold to 1. Enabling this may make memory predictive failure
- 		analysis less effective if the bios sets thresholds for memory
- 		errors since we will not see details for all errors.
-+   mce=recovery
-+		Force-enable recoverable machine check code paths
+diff --git a/Documentation/x86/exception-tables.txt b/Documentation/x86/exception-tables.txt
+index 32901aa36f0a..fed18187a8b8 100644
+--- a/Documentation/x86/exception-tables.txt
++++ b/Documentation/x86/exception-tables.txt
+@@ -290,3 +290,38 @@ Due to the way that the exception table is built and needs to be ordered,
+ only use exceptions for code in the .text section.  Any other section
+ will cause the exception table to not be sorted correctly, and the
+ exceptions will fail.
++
++Things changed when 64-bit support was added to x86 Linux. Rather than
++double the size of the exception table by expanding the two entries
++from 32-bits to 64 bits, a clever trick was used to store addresses
++as relative offsets from the table itself. The assembly code changed
++from:
++	.long 1b,3b
++to:
++        .long (from) - .
++        .long (to) - .
++
++and the C-code that uses these values converts back to absolute addresses
++like this:
++
++	ex_insn_addr(const struct exception_table_entry *x)
++	{
++		return (unsigned long)&x->insn + x->insn;
++	}
++
++In v4.5 the exception table entry was given a new field "handler".
++This is also 32-bits wide and contains a third relative function
++pointer which points to one of:
++
++1) int ex_handler_default(const struct exception_table_entry *fixup)
++   This is legacy case that just jumps to the fixup code
++2) int ex_handler_fault(const struct exception_table_entry *fixup)
++   This case provides the fault number of the trap that occurred at
++   entry->insn. It is used to distinguish page faults from machine
++   check.
++3) int ex_handler_ext(const struct exception_table_entry *fixup)
++   This case is used for uaccess_err ... we need to set a flag
++   in the task structure. Before the handler functions existed this
++   case was handled by adding a large offset to the fixup to tag
++   it as special.
++More functions can easily be added.
+diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
+index 189679aba703..f5063b6659eb 100644
+--- a/arch/x86/include/asm/asm.h
++++ b/arch/x86/include/asm/asm.h
+@@ -44,19 +44,22 @@
  
-    nomce (for compatibility with i386): same as mce=off
+ /* Exception table entry */
+ #ifdef __ASSEMBLY__
+-# define _ASM_EXTABLE(from,to)					\
++# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
+ 	.pushsection "__ex_table","a" ;				\
+-	.balign 8 ;						\
++	.balign 4 ;						\
+ 	.long (from) - . ;					\
+ 	.long (to) - . ;					\
++	.long (handler) - . ;					\
+ 	.popsection
  
-diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
-index 7ad8c9464297..06c6c2d2fea0 100644
---- a/arch/x86/include/asm/cpufeature.h
-+++ b/arch/x86/include/asm/cpufeature.h
-@@ -106,6 +106,7 @@
- #define X86_FEATURE_APERFMPERF	( 3*32+28) /* APERFMPERF */
- #define X86_FEATURE_EAGER_FPU	( 3*32+29) /* "eagerfpu" Non lazy FPU restore */
- #define X86_FEATURE_NONSTOP_TSC_S3 ( 3*32+30) /* TSC doesn't stop in S3 state */
-+#define X86_FEATURE_MCE_RECOVERY ( 3*32+31) /* cpu has recoverable machine checks */
+-# define _ASM_EXTABLE_EX(from,to)				\
+-	.pushsection "__ex_table","a" ;				\
+-	.balign 8 ;						\
+-	.long (from) - . ;					\
+-	.long (to) - . + 0x7ffffff0 ;				\
+-	.popsection
++# define _ASM_EXTABLE(from, to)					\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
++
++# define _ASM_EXTABLE_FAULT(from, to)				\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
++
++# define _ASM_EXTABLE_EX(from, to)				\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_ext)
  
- /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
- #define X86_FEATURE_XMM3	( 4*32+ 0) /* "pni" SSE-3 */
-diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
-index 2ea4527e462f..18d2ba9c8e44 100644
---- a/arch/x86/include/asm/mce.h
-+++ b/arch/x86/include/asm/mce.h
-@@ -113,6 +113,7 @@ struct mca_config {
- 	bool ignore_ce;
- 	bool disabled;
- 	bool ser;
-+	bool recovery;
- 	bool bios_cmci_threshold;
- 	u8 banks;
- 	s8 bootlog;
-diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-index 905f3070f412..15ff6f07bd92 100644
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -1578,6 +1578,17 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
+ # define _ASM_NOKPROBE(entry)					\
+ 	.pushsection "_kprobe_blacklist","aw" ;			\
+@@ -89,19 +92,24 @@
+ 	.endm
  
- 		if (c->x86 == 6 && c->x86_model == 45)
- 			quirk_no_way_out = quirk_sandybridge_ifu;
-+		/*
-+		 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
-+		 * whether this processor will actually generate recoverable
-+		 * machine checks. Check to see if this is an E7 model Xeon.
-+		 * We can't do a model number check because E5 and E7 use the
-+		 * same model number. E5 doesn't support recovery, E7 does.
-+		 */
-+		if (mca_cfg.recovery || (mca_cfg.ser &&
-+			!strncmp(c->x86_model_id,
-+				 "Intel(R) Xeon(R) CPU E7-", 24)))
-+			set_cpu_cap(c, X86_FEATURE_MCE_RECOVERY);
+ #else
+-# define _ASM_EXTABLE(from,to)					\
++# define _EXPAND_EXTABLE_HANDLE(x) #x
++# define _ASM_EXTABLE_HANDLE(from, to, handler)			\
+ 	" .pushsection \"__ex_table\",\"a\"\n"			\
+-	" .balign 8\n"						\
++	" .balign 4\n"						\
+ 	" .long (" #from ") - .\n"				\
+ 	" .long (" #to ") - .\n"				\
++	" .long (" _EXPAND_EXTABLE_HANDLE(handler) ") - .\n"	\
+ 	" .popsection\n"
+ 
+-# define _ASM_EXTABLE_EX(from,to)				\
+-	" .pushsection \"__ex_table\",\"a\"\n"			\
+-	" .balign 8\n"						\
+-	" .long (" #from ") - .\n"				\
+-	" .long (" #to ") - . + 0x7ffffff0\n"			\
+-	" .popsection\n"
++# define _ASM_EXTABLE(from, to)					\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_default)
++
++# define _ASM_EXTABLE_FAULT(from, to)				\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_fault)
++
++# define _ASM_EXTABLE_EX(from, to)				\
++	_ASM_EXTABLE_HANDLE(from, to, ex_handler_ext)
++
+ /* For C file, we already have NOKPROBE_SYMBOL macro */
+ #endif
+ 
+diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+index a4a30e4b2d34..c0f27d7ea7ff 100644
+--- a/arch/x86/include/asm/uaccess.h
++++ b/arch/x86/include/asm/uaccess.h
+@@ -90,12 +90,11 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
+ 	likely(!__range_not_ok(addr, size, user_addr_max()))
+ 
+ /*
+- * The exception table consists of pairs of addresses relative to the
+- * exception table enty itself: the first is the address of an
+- * instruction that is allowed to fault, and the second is the address
+- * at which the program should continue.  No registers are modified,
+- * so it is entirely up to the continuation code to figure out what to
+- * do.
++ * The exception table consists of triples of addresses relative to the
++ * exception table entry itself. The first address is of an instruction
++ * that is allowed to fault, the second is the target at which the program
++ * should continue. The third is a handler function to deal with the fault
++ * caused by the instruction in the first field.
+  *
+  * All the routines below use bits of fixup code that are out of line
+  * with the main instruction path.  This means when everything is well,
+@@ -104,13 +103,14 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
+  */
+ 
+ struct exception_table_entry {
+-	int insn, fixup;
++	int insn, fixup, handler;
+ };
+ /* This is not the generic standard exception_table_entry format */
+ #define ARCH_HAS_SORT_EXTABLE
+ #define ARCH_HAS_SEARCH_EXTABLE
+ 
+-extern int fixup_exception(struct pt_regs *regs);
++extern int fixup_exception(struct pt_regs *regs, int trapnr);
++extern bool ex_has_fault_handler(unsigned long ip);
+ extern int early_fixup_exception(unsigned long *ip);
+ 
+ /*
+diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
+index 1deffe6cc873..0f05deeff5ce 100644
+--- a/arch/x86/kernel/kprobes/core.c
++++ b/arch/x86/kernel/kprobes/core.c
+@@ -988,7 +988,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+ 		 * In case the user-specified fault handler returned
+ 		 * zero, try to fix up.
+ 		 */
+-		if (fixup_exception(regs))
++		if (fixup_exception(regs, trapnr))
+ 			return 1;
+ 
+ 		/*
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index ade185a46b1d..211c11c7bba4 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -199,7 +199,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
  	}
- 	if (cfg->monarch_timeout < 0)
- 		cfg->monarch_timeout = 0;
-@@ -2030,6 +2041,8 @@ static int __init mcheck_enable(char *str)
- 		cfg->bootlog = (str[0] == 'b');
- 	else if (!strcmp(str, "bios_cmci_threshold"))
- 		cfg->bios_cmci_threshold = true;
-+	else if (!strcmp(str, "recovery"))
-+		cfg->recovery = true;
- 	else if (isdigit(str[0])) {
- 		if (get_option(&str, &cfg->tolerant) == 2)
- 			get_option(&str, &(cfg->monarch_timeout));
+ 
+ 	if (!user_mode(regs)) {
+-		if (!fixup_exception(regs)) {
++		if (!fixup_exception(regs, trapnr)) {
+ 			tsk->thread.error_code = error_code;
+ 			tsk->thread.trap_nr = trapnr;
+ 			die(str, regs, error_code);
+@@ -453,7 +453,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
+ 
+ 	tsk = current;
+ 	if (!user_mode(regs)) {
+-		if (fixup_exception(regs))
++		if (fixup_exception(regs, X86_TRAP_GP))
+ 			return;
+ 
+ 		tsk->thread.error_code = error_code;
+@@ -699,7 +699,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 	conditional_sti(regs);
+ 
+ 	if (!user_mode(regs)) {
+-		if (!fixup_exception(regs)) {
++		if (!fixup_exception(regs, trapnr)) {
+ 			task->thread.error_code = error_code;
+ 			task->thread.trap_nr = trapnr;
+ 			die(str, regs, error_code);
+diff --git a/arch/x86/mm/extable.c b/arch/x86/mm/extable.c
+index 903ec1e9c326..9dd7e4b7fcde 100644
+--- a/arch/x86/mm/extable.c
++++ b/arch/x86/mm/extable.c
+@@ -3,6 +3,9 @@
+ #include <linux/sort.h>
+ #include <asm/uaccess.h>
+ 
++typedef bool (*ex_handler_t)(const struct exception_table_entry *,
++			    struct pt_regs *, int);
++
+ static inline unsigned long
+ ex_insn_addr(const struct exception_table_entry *x)
+ {
+@@ -13,11 +16,56 @@ ex_fixup_addr(const struct exception_table_entry *x)
+ {
+ 	return (unsigned long)&x->fixup + x->fixup;
+ }
++static inline ex_handler_t
++ex_fixup_handler(const struct exception_table_entry *x)
++{
++	return (ex_handler_t)((unsigned long)&x->handler + x->handler);
++}
+ 
+-int fixup_exception(struct pt_regs *regs)
++bool ex_handler_default(const struct exception_table_entry *fixup,
++		       struct pt_regs *regs, int trapnr)
+ {
+-	const struct exception_table_entry *fixup;
+-	unsigned long new_ip;
++	regs->ip = ex_fixup_addr(fixup);
++	return true;
++}
++EXPORT_SYMBOL(ex_handler_default);
++
++bool ex_handler_fault(const struct exception_table_entry *fixup,
++		     struct pt_regs *regs, int trapnr)
++{
++	regs->ip = ex_fixup_addr(fixup);
++	regs->ax = trapnr;
++	return true;
++}
++EXPORT_SYMBOL_GPL(ex_handler_fault);
++
++bool ex_handler_ext(const struct exception_table_entry *fixup,
++		   struct pt_regs *regs, int trapnr)
++{
++	/* Special hack for uaccess_err */
++	current_thread_info()->uaccess_err = 1;
++	regs->ip = ex_fixup_addr(fixup);
++	return true;
++}
++EXPORT_SYMBOL(ex_handler_ext);
++
++bool ex_has_fault_handler(unsigned long ip)
++{
++	const struct exception_table_entry *e;
++	ex_handler_t handler;
++
++	e = search_exception_tables(ip);
++	if (!e)
++		return false;
++	handler = ex_fixup_handler(e);
++
++	return handler == ex_handler_fault;
++}
++
++int fixup_exception(struct pt_regs *regs, int trapnr)
++{
++	const struct exception_table_entry *e;
++	ex_handler_t handler;
+ 
+ #ifdef CONFIG_PNPBIOS
+ 	if (unlikely(SEGMENT_IS_PNP_CODE(regs->cs))) {
+@@ -33,42 +81,34 @@ int fixup_exception(struct pt_regs *regs)
+ 	}
+ #endif
+ 
+-	fixup = search_exception_tables(regs->ip);
+-	if (fixup) {
+-		new_ip = ex_fixup_addr(fixup);
+-
+-		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
+-			/* Special hack for uaccess_err */
+-			current_thread_info()->uaccess_err = 1;
+-			new_ip -= 0x7ffffff0;
+-		}
+-		regs->ip = new_ip;
+-		return 1;
+-	}
++	e = search_exception_tables(regs->ip);
++	if (!e)
++		return 0;
+ 
+-	return 0;
++	handler = ex_fixup_handler(e);
++	return handler(e, regs, trapnr);
+ }
+ 
+ /* Restricted version used during very early boot */
+ int __init early_fixup_exception(unsigned long *ip)
+ {
+-	const struct exception_table_entry *fixup;
++	const struct exception_table_entry *e;
+ 	unsigned long new_ip;
++	ex_handler_t handler;
+ 
+-	fixup = search_exception_tables(*ip);
+-	if (fixup) {
+-		new_ip = ex_fixup_addr(fixup);
++	e = search_exception_tables(*ip);
++	if (!e)
++		return 0;
+ 
+-		if (fixup->fixup - fixup->insn >= 0x7ffffff0 - 4) {
+-			/* uaccess handling not supported during early boot */
+-			return 0;
+-		}
++	new_ip  = ex_fixup_addr(e);
++	handler = ex_fixup_handler(e);
+ 
+-		*ip = new_ip;
+-		return 1;
+-	}
++	/* special handling not supported during early boot */
++	if (handler != ex_handler_default)
++		return 0;
+ 
+-	return 0;
++	*ip = new_ip;
++	return 1;
+ }
+ 
+ /*
+@@ -133,6 +173,8 @@ void sort_extable(struct exception_table_entry *start,
+ 		i += 4;
+ 		p->fixup += i;
+ 		i += 4;
++		p->handler += i;
++		i += 4;
+ 	}
+ 
+ 	sort(start, finish - start, sizeof(struct exception_table_entry),
+@@ -145,6 +187,8 @@ void sort_extable(struct exception_table_entry *start,
+ 		i += 4;
+ 		p->fixup -= i;
+ 		i += 4;
++		p->handler -= i;
++		i += 4;
+ 	}
+ }
+ 
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index eef44d9a3f77..495946c3f9dd 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -656,7 +656,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	int sig;
+ 
+ 	/* Are we prepared to handle this kernel fault? */
+-	if (fixup_exception(regs)) {
++	if (fixup_exception(regs, X86_TRAP_PF)) {
+ 		/*
+ 		 * Any interrupt that takes a fault gets the fixup. This makes
+ 		 * the below recursive fault logic only apply to a faults from
+diff --git a/scripts/sortextable.c b/scripts/sortextable.c
+index c2423d913b46..7b29fb14f870 100644
+--- a/scripts/sortextable.c
++++ b/scripts/sortextable.c
+@@ -209,6 +209,35 @@ static int compare_relative_table(const void *a, const void *b)
+ 	return 0;
+ }
+ 
++static void x86_sort_relative_table(char *extab_image, int image_size)
++{
++	int i;
++
++	i = 0;
++	while (i < image_size) {
++		uint32_t *loc = (uint32_t *)(extab_image + i);
++
++		w(r(loc) + i, loc);
++		w(r(loc + 1) + i + 4, loc + 1);
++		w(r(loc + 2) + i + 8, loc + 2);
++
++		i += sizeof(uint32_t) * 3;
++	}
++
++	qsort(extab_image, image_size / 12, 12, compare_relative_table);
++
++	i = 0;
++	while (i < image_size) {
++		uint32_t *loc = (uint32_t *)(extab_image + i);
++
++		w(r(loc) - i, loc);
++		w(r(loc + 1) - (i + 4), loc + 1);
++		w(r(loc + 2) - (i + 8), loc + 2);
++
++		i += sizeof(uint32_t) * 3;
++	}
++}
++
+ static void sort_relative_table(char *extab_image, int image_size)
+ {
+ 	int i;
+@@ -281,6 +310,9 @@ do_file(char const *const fname)
+ 		break;
+ 	case EM_386:
+ 	case EM_X86_64:
++		custom_sort = x86_sort_relative_table;
++		break;
++
+ 	case EM_S390:
+ 		custom_sort = sort_relative_table;
+ 		break;
 -- 
 2.5.0
 
