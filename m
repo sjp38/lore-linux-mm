@@ -1,97 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7F56B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 14:57:09 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id 128so35993789wmz.1
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 11:57:09 -0800 (PST)
-Received: from e06smtp17.uk.ibm.com (e06smtp17.uk.ibm.com. [195.75.94.113])
-        by mx.google.com with ESMTPS id b71si40008466wmd.46.2016.02.11.11.57.08
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D563C6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 15:34:12 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id b67so47544679qgb.1
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:34:12 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y4si11407132qhc.9.2016.02.11.12.34.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Feb 2016 11:57:08 -0800 (PST)
-Received: from localhost
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Thu, 11 Feb 2016 19:57:07 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 405AF219005E
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 19:56:50 +0000 (GMT)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1BJv4e827590692
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 19:57:04 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1BJv3IL019045
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 14:57:04 -0500
-Date: Thu, 11 Feb 2016 20:57:02 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe
- also on PowerPC and ARM)
-Message-ID: <20160211205702.24f0d17a@thinkpad>
-In-Reply-To: <20160211190942.GA10244@node.shutemov.name>
-References: <20160211192223.4b517057@thinkpad>
-	<20160211190942.GA10244@node.shutemov.name>
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Feb 2016 12:34:12 -0800 (PST)
+Date: Thu, 11 Feb 2016 15:34:04 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: Unhelpful caching decisions, possibly related to
+ active/inactive sizing
+Message-ID: <20160211153404.42055b27@cuia.usersys.redhat.com>
+In-Reply-To: <20160209224256.GA29872@cmpxchg.org>
+References: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
+	<20160209224256.GA29872@cmpxchg.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Sebastian Ott <sebott@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andres Freund <andres@anarazel.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 11 Feb 2016 21:09:42 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Tue, 9 Feb 2016 17:42:56 -0500
+Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Feb 09, 2016 at 05:52:40PM +0100, Andres Freund wrote:
 
-> On Thu, Feb 11, 2016 at 07:22:23PM +0100, Gerald Schaefer wrote:
-> > Hi,
-> > 
-> > Sebastian Ott reported random kernel crashes beginning with v4.5-rc1 and
-> > he also bisected this to commit 61f5d698 "mm: re-enable THP". Further
-> > review of the THP rework patches, which cannot be bisected, revealed
-> > commit fecffad "s390, thp: remove infrastructure for handling splitting PMDs"
-> > (and also similar commits for other archs).
-> > 
-> > This commit removes the THP splitting bit and also the architecture
-> > implementation of pmdp_splitting_flush(), which took care of the IPI for
-> > fast_gup serialization. The commit message says
-> > 
-> >     pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-> >     pmdp_clear_flush() + set_pte_at().  pmdp_clear_flush() will do IPI as
-> >     needed for fast_gup
-> > 
-> > The assumption that a TLB flush will also produce an IPI is wrong on s390,
-> > and maybe also on other architectures, and I thought that this was actually
-> > the main reason for having an arch-specific pmdp_splitting_flush().
-> > 
-> > At least PowerPC and ARM also had an individual implementation of
-> > pmdp_splitting_flush() that used kick_all_cpus_sync() instead of a TLB
-> > flush to send the IPI, and those were also removed. Putting the arch
-> > maintainers and mailing lists on cc to verify.
-> > 
-> > On s390 this will break the IPI serialization against fast_gup, which
-> > would certainly explain the random kernel crashes, please revert or fix
-> > the pmdp_splitting_flush() removal.
-> 
-> Sorry for that.
-> 
-> I believe, the problem was already addressed for PowerPC:
-> 
-> http://lkml.kernel.org/g/454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com
-> 
-> I think kick_all_cpus_sync() in arch-specific pmdp_invalidate() would do
-> the trick, right?
+> > Rik asked me about active/inactive sizing in /proc/meminfo:
+> > Active:          7860556 kB
+> > Inactive:        5395644 kB
+> > Active(anon):    2874936 kB
+> > Inactive(anon):   432308 kB
+> > Active(file):    4985620 kB
+> > Inactive(file):  4963336 kB
 
-Hmm, not sure about that. After pmdp_invalidate(), a pmd_none() check in
-fast_gup will still return false, because the pmd is not empty (at least
-on s390). So I don't see spontaneously how it will help fast_gup to break
-out to the slow path in case of THP splitting.
-
+> Yes, a generous minimum size of the inactive list made sense when it
+> was the exclusive staging area to tell use-once pages from use-many
+> pages. Now that we have refault information to detect use-many with
+> arbitrary inactive list size, this minimum is no longer reasonable.
 > 
-> If yes, I'll prepare patch tomorrow (some sleep required).
+> The new minimum should be smaller, but big enough for applications to
+> actually use the data in their pages between fault and eviction
+> (i.e. it needs to take the aggregate readahead window into account),
+> and big enough for active pages that are speculatively challenged
+> during workingset changes to get re-activated without incurring IO.
 > 
+> However, I don't think it makes sense to dynamically adjust the
+> balance between the active and the inactive cache during refaults.
 
-We'll check if adding kick_all_cpus_sync() to pmdp_invalidate() helps.
-It would also be good if Martin has a look at this, he'll return on
-Monday.
+Johannes, does this patch look ok to you?
+
+Andres, does this patch work for you?
+
+-----8<-----
+Subject: mm,vmscan: reduce size of inactive file list
+
+The inactive file list should still be large enough to contain
+readahead windows and freshly written file data, but it no
+longer is the only source for detecting multiple accesses to
+file pages. The workingset refault measurement code causes
+recently evicted file pages that get accessed again after a
+shorter interval to be promoted directly to the active list.
+
+With that mechanism in place, we can afford to (on a larger
+system) dedicate more memory to the active file list, so we
+can actually cache more of the frequently used file pages
+in memory, and not have them pushed out by streaming writes,
+once-used streaming file reads, etc.
+
+This can help things like database workloads, where only
+half the page cache can currently be used to cache the
+database working set. This patch automatically increases
+that fraction on larger systems, using the same ratio that
+has already been used for anonymous memory.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Reported-by: Andres Freund <andres@anarazel.de>
+---
+ mm/vmscan.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eb3dd37ccd7c..0a316c41bf80 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1928,13 +1928,14 @@ static inline bool inactive_anon_is_low(struct lruvec *lruvec)
+  */
+ static bool inactive_file_is_low(struct lruvec *lruvec)
+ {
++	struct zone *zone = lruvec_zone(lruvec);
+ 	unsigned long inactive;
+ 	unsigned long active;
+ 
+ 	inactive = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+ 	active = get_lru_size(lruvec, LRU_ACTIVE_FILE);
+ 
+-	return active > inactive;
++	return inactive * zone->inactive_ratio < active;
+ }
+ 
+ static bool inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
