@@ -1,97 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C4B666B0005
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 20:58:27 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id xk3so55428409obc.2
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 17:58:27 -0800 (PST)
-Received: from mail-ob0-x243.google.com (mail-ob0-x243.google.com. [2607:f8b0:4003:c01::243])
-        by mx.google.com with ESMTPS id d3si5782303obo.16.2016.02.10.17.58.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Feb 2016 17:58:26 -0800 (PST)
-Received: by mail-ob0-x243.google.com with SMTP id x5so4007392obg.1
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 17:58:26 -0800 (PST)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CE57B6B0253
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 21:18:33 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id ho8so21246414pac.2
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 18:18:33 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id g13si9038109pfd.68.2016.02.10.18.18.32
+        for <linux-mm@kvack.org>;
+        Wed, 10 Feb 2016 18:18:32 -0800 (PST)
+Subject: [PATCH] mm: fix pfn_t vs highmem
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 10 Feb 2016 18:18:08 -0800
+Message-ID: <20160211021807.37532.78501.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160210105845.973cecc56906ed950fbdd8ba@linux-foundation.org>
-References: <1454566775-30973-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1454566775-30973-3-git-send-email-iamjoonsoo.kim@lge.com>
-	<20160204164929.a2f12b8a7edcdfa596abd850@linux-foundation.org>
-	<CAAmzW4Pps1gSXb5qCvbkC=wNjcySgVYZu1jLeBWy31q7RNWVYg@mail.gmail.com>
-	<56BA28C8.3060903@suse.cz>
-	<20160209125301.c7e6067558c321cfb87602b5@linux-foundation.org>
-	<56BB3E61.50707@suse.cz>
-	<20160210105845.973cecc56906ed950fbdd8ba@linux-foundation.org>
-Date: Thu, 11 Feb 2016 10:58:26 +0900
-Message-ID: <CAAmzW4OW-gDsGgmSHzgE5R7GeLXYG78Gz6mhJJz9QPwPCchmiA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] mm/compaction: speed up pageblock_pfn_to_page()
- when zone is contiguous
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, dri-devel@lists.freedesktop.org, Stuart Foster <smf.linux@ntlworld.com>
 
-2016-02-11 3:58 GMT+09:00 Andrew Morton <akpm@linux-foundation.org>:
-> On Wed, 10 Feb 2016 14:42:57 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
->
->> > --- a/mm/memory_hotplug.c
->> > +++ b/mm/memory_hotplug.c
->> > @@ -509,6 +509,8 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
->> >     int start_sec, end_sec;
->> >     struct vmem_altmap *altmap;
->> >
->> > +   clear_zone_contiguous(zone);
->> > +
->> >     /* during initialize mem_map, align hot-added range to section */
->> >     start_sec = pfn_to_section_nr(phys_start_pfn);
->> >     end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
->> > @@ -540,6 +542,8 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
->> >     }
->> >     vmemmap_populate_print_last();
->> >
->> > +   set_zone_contiguous(zone);
->> > +
->> >     return err;
->> >  }
->> >  EXPORT_SYMBOL_GPL(__add_pages);
->>
->> Between the clear and set, __add_pages() might return with -EINVAL,
->> leaving the flag cleared potentially forever. Not critical, probably
->> rare, but it should be possible to avoid this by moving the clear below
->> the altmap check?
->
-> um, yes.  return-in-the-middle-of-a-function strikes again.
->
-> --- a/mm/memory_hotplug.c~mm-compaction-speed-up-pageblock_pfn_to_page-when-zone-is-contiguous-fix
-> +++ a/mm/memory_hotplug.c
-> @@ -526,7 +526,8 @@ int __ref __add_pages(int nid, struct zo
->                 if (altmap->base_pfn != phys_start_pfn
->                                 || vmem_altmap_offset(altmap) > nr_pages) {
->                         pr_warn_once("memory add fail, invalid altmap\n");
-> -                       return -EINVAL;
-> +                       err = -EINVAL;
-> +                       goto out;
->                 }
->                 altmap->alloc = 0;
->         }
-> @@ -544,9 +545,8 @@ int __ref __add_pages(int nid, struct zo
->                 err = 0;
->         }
->         vmemmap_populate_print_last();
-> -
-> +out:
->         set_zone_contiguous(zone);
-> -
->         return err;
->  }
->  EXPORT_SYMBOL_GPL(__add_pages);
+The pfn_t type uses an unsigned long to store a pfn + flags value.  On a
+64-bit platform the upper 12 bits of an unsigned long are never used for
+storing the value of a pfn.  However, this is not true on highmem
+platforms, all 32-bits of a pfn value are used to address a 44-bit
+physical address space.  A pfn_t needs to store a 64-bit value.
 
-Sorry for late response. I was on biggest holiday in Korea until now.
-It seems that there is no issue left.
-Andrew, Vlastimil, thanks for fixes and review.
+Reported-by: Stuart Foster <smf.linux@ntlworld.com>
+Reported-by: Julian Margetson <runaway@candw.ms>
+Cc: <dri-devel@lists.freedesktop.org>
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=112211
+Fixes: 01c8f1c44b83 ("mm, dax, gpu: convert vm_insert_mixed to pfn_t")
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ include/linux/pfn.h   |    2 +-
+ include/linux/pfn_t.h |   19 +++++++++----------
+ kernel/memremap.c     |    2 +-
+ 3 files changed, 11 insertions(+), 12 deletions(-)
 
-Thanks.
+diff --git a/include/linux/pfn.h b/include/linux/pfn.h
+index 2d8e49711b63..1132953235c0 100644
+--- a/include/linux/pfn.h
++++ b/include/linux/pfn.h
+@@ -10,7 +10,7 @@
+  * backing is indicated by flags in the high bits of the value.
+  */
+ typedef struct {
+-	unsigned long val;
++	u64 val;
+ } pfn_t;
+ #endif
+ 
+diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
+index 37448ab5fb5c..94994810c7c0 100644
+--- a/include/linux/pfn_t.h
++++ b/include/linux/pfn_t.h
+@@ -9,14 +9,13 @@
+  * PFN_DEV - pfn is not covered by system memmap by default
+  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
+  */
+-#define PFN_FLAGS_MASK (((unsigned long) ~PAGE_MASK) \
+-		<< (BITS_PER_LONG - PAGE_SHIFT))
+-#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
+-#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
+-#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
+-#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
+-
+-static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
++#define PFN_FLAGS_MASK (((u64) ~PAGE_MASK) << (BITS_PER_LONG_LONG - PAGE_SHIFT))
++#define PFN_SG_CHAIN (1ULL << (BITS_PER_LONG_LONG - 1))
++#define PFN_SG_LAST (1ULL << (BITS_PER_LONG_LONG - 2))
++#define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
++#define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
++
++static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
+ {
+ 	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
+ 
+@@ -29,7 +28,7 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
+ 	return __pfn_to_pfn_t(pfn, 0);
+ }
+ 
+-extern pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
++extern pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags);
+ 
+ static inline bool pfn_t_has_page(pfn_t pfn)
+ {
+@@ -87,7 +86,7 @@ static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
+ #ifdef __HAVE_ARCH_PTE_DEVMAP
+ static inline bool pfn_t_devmap(pfn_t pfn)
+ {
+-	const unsigned long flags = PFN_DEV|PFN_MAP;
++	const u64 flags = PFN_DEV|PFN_MAP;
+ 
+ 	return (pfn.val & flags) == flags;
+ }
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 3427cca5a2a6..b04ea2f5fbfe 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -152,7 +152,7 @@ void devm_memunmap(struct device *dev, void *addr)
+ }
+ EXPORT_SYMBOL(devm_memunmap);
+ 
+-pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
++pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags)
+ {
+ 	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
