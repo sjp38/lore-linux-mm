@@ -1,192 +1,516 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D45576B0009
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 02:06:51 -0500 (EST)
-Received: by mail-io0-f178.google.com with SMTP id f81so45782527iof.0
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 23:06:51 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n9si35838679iga.37.2016.02.10.23.06.50
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F03D6B0254
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 02:34:57 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id e127so25418238pfe.3
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 23:34:57 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id b70si10845851pfj.56.2016.02.10.23.34.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 Feb 2016 23:06:50 -0800 (PST)
-Subject: Re: How to handle infinite too_many_isolated() loop (for OOM detection rework v4) ?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp>
-Message-Id: <201602111606.IIG81724.QOLFJOSMtFHOFV@I-love.SAKURA.ne.jp>
-Date: Thu, 11 Feb 2016 16:06:27 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Feb 2016 23:34:56 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id c10so2157629pfc.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 23:34:56 -0800 (PST)
+From: js1304@gmail.com
+Subject: [PATCH v2] mm/slab: re-implement pfmemalloc support
+Date: Thu, 11 Feb 2016 16:34:47 +0900
+Message-Id: <1455176087-18570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Tetsuo Handa wrote:
-> The result is that, we have no TIF_MEMDIE tasks but nobody is calling
-> out_of_memory(). That is, OOM livelock without invoking the OOM killer.
-> They seem to be waiting at congestion_wait() from too_many_isolated()
-> loop called from shrink_inactive_list() because nobody can make forward
-> progress. I think we must not wait forever at too_many_isolated() loop.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I used delta patch shown below for confirming that they are actually
-waiting at congestion_wait() from too_many_isolated() loop called from
-shrink_inactive_list().
+Current implementation of pfmemalloc handling in SLAB has some problems.
 
----------- delta patch (for linux-next-20160209 + kmallocwd) ----------
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 0aeff29..e954ac3 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1400,6 +1400,7 @@ struct memalloc_info {
- 	 * bit 0: Will be reported as OOM victim.
- 	 * bit 1: Will be reported as dying task.
- 	 * bit 2: Will be reported as stalling task.
-+	 * bit 3: Will be reported as exiting task.
- 	 */
- 	u8 type;
- 	/* Started time in jiffies as of valid == 1. */
-diff --git a/kernel/hung_task.c b/kernel/hung_task.c
-index 745a78c..d804d7e 100644
---- a/kernel/hung_task.c
-+++ b/kernel/hung_task.c
-@@ -17,6 +17,7 @@
- #include <linux/sysctl.h>
- #include <linux/utsname.h>
- #include <linux/oom.h> /* out_of_memory_count */
-+#include <linux/console.h> /* console_trylock()/console_unlock() */
- #include <trace/events/sched.h>
+1) pfmemalloc_active is set to true when there is just one or more
+pfmemalloc slabs in the system, but it is cleared when there is
+no pfmemalloc slab in one arbitrary kmem_cache. So, pfmemalloc_active
+could be wrongly cleared.
+
+2) Search to partial and free list doesn't happen when non-pfmemalloc
+object are not found in cpu cache. Instead, allocating new slab happens
+and it is not optimal.
+
+3) Even after sk_memalloc_socks() is disabled, cpu cache would keep
+pfmemalloc objects tagged with SLAB_OBJ_PFMEMALLOC. It isn't cleared if
+sk_memalloc_socks() is disabled so it could cause problem.
+
+4) If cpu cache is filled with pfmemalloc objects, it would cause slow
+down non-pfmemalloc allocation.
+
+To me, current pointer tagging approach looks complex and fragile
+so this patch re-implement whole thing instead of fixing problems
+one by one.
+
+Design principle for new implementation is that
+
+1) Don't disrupt non-pfmemalloc allocation in fast path even if
+sk_memalloc_socks() is enabled. It's more likely case than pfmemalloc
+allocation.
+
+2) Ensure that pfmemalloc slab is used only for pfmemalloc allocation.
+
+3) Don't consider performance of pfmemalloc allocation in memory
+deficiency state.
+
+As a result, all pfmemalloc alloc/free in memory tight state will
+be handled in slow-path. If there is non-pfmemalloc free object,
+it will be returned first even for pfmemalloc user in fast-path so that
+performance of pfmemalloc user isn't affected in normal case and
+pfmemalloc objects will be kept as long as possible.
+
+v2)
+o remove racy check whether there is free object or not in kmem_cache_node
+o fix leak case
+
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slab.c | 284 +++++++++++++++++++++++++-------------------------------------
+ 1 file changed, 116 insertions(+), 168 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index d48454b..330bc8a 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -169,12 +169,6 @@ typedef unsigned short freelist_idx_t;
+ #define SLAB_OBJ_MAX_NUM ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
  
  /*
-@@ -153,10 +154,24 @@ static bool is_stalling_task(const struct task_struct *task,
- 	return time_after_eq(expire, memalloc.start);
+- * true if a page was allocated from pfmemalloc reserves for network-based
+- * swap
+- */
+-static bool pfmemalloc_active __read_mostly;
+-
+-/*
+  * struct array_cache
+  *
+  * Purpose:
+@@ -195,10 +189,6 @@ struct array_cache {
+ 			 * Must have this definition in here for the proper
+ 			 * alignment of array_cache. Also simplifies accessing
+ 			 * the entries.
+-			 *
+-			 * Entries should not be directly dereferenced as
+-			 * entries belonging to slabs marked pfmemalloc will
+-			 * have the lower bits set SLAB_OBJ_PFMEMALLOC
+ 			 */
+ };
+ 
+@@ -207,23 +197,6 @@ struct alien_cache {
+ 	struct array_cache ac;
+ };
+ 
+-#define SLAB_OBJ_PFMEMALLOC	1
+-static inline bool is_obj_pfmemalloc(void *objp)
+-{
+-	return (unsigned long)objp & SLAB_OBJ_PFMEMALLOC;
+-}
+-
+-static inline void set_obj_pfmemalloc(void **objp)
+-{
+-	*objp = (void *)((unsigned long)*objp | SLAB_OBJ_PFMEMALLOC);
+-	return;
+-}
+-
+-static inline void clear_obj_pfmemalloc(void **objp)
+-{
+-	*objp = (void *)((unsigned long)*objp & ~SLAB_OBJ_PFMEMALLOC);
+-}
+-
+ /*
+  * Need this for bootstrapping a per node allocator.
+  */
+@@ -585,120 +558,21 @@ static struct array_cache *alloc_arraycache(int node, int entries,
+ 	return ac;
  }
  
-+static bool wait_console_flushed(unsigned int max_wait)
-+{
-+	while (1) {
-+		if (console_trylock()) {
-+			console_unlock();
-+			return true;
-+		}
-+		if (max_wait--)
-+			schedule_timeout_interruptible(1);
-+		else
-+			return false;
-+	}
-+}
-+	
- /* Check for memory allocation stalls. */
- static void check_memalloc_stalling_tasks(unsigned long timeout)
+-static inline bool is_slab_pfmemalloc(struct page *page)
+-{
+-	return PageSlabPfmemalloc(page);
+-}
+-
+-/* Clears pfmemalloc_active if no slabs have pfmalloc set */
+-static void recheck_pfmemalloc_active(struct kmem_cache *cachep,
+-						struct array_cache *ac)
+-{
+-	struct kmem_cache_node *n = get_node(cachep, numa_mem_id());
+-	struct page *page;
+-	unsigned long flags;
+-
+-	if (!pfmemalloc_active)
+-		return;
+-
+-	spin_lock_irqsave(&n->list_lock, flags);
+-	list_for_each_entry(page, &n->slabs_full, lru)
+-		if (is_slab_pfmemalloc(page))
+-			goto out;
+-
+-	list_for_each_entry(page, &n->slabs_partial, lru)
+-		if (is_slab_pfmemalloc(page))
+-			goto out;
+-
+-	list_for_each_entry(page, &n->slabs_free, lru)
+-		if (is_slab_pfmemalloc(page))
+-			goto out;
+-
+-	pfmemalloc_active = false;
+-out:
+-	spin_unlock_irqrestore(&n->list_lock, flags);
+-}
+-
+-static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+-						gfp_t flags, bool force_refill)
+-{
+-	int i;
+-	void *objp = ac->entry[--ac->avail];
+-
+-	/* Ensure the caller is allowed to use objects from PFMEMALLOC slab */
+-	if (unlikely(is_obj_pfmemalloc(objp))) {
+-		struct kmem_cache_node *n;
+-
+-		if (gfp_pfmemalloc_allowed(flags)) {
+-			clear_obj_pfmemalloc(&objp);
+-			return objp;
+-		}
+-
+-		/* The caller cannot use PFMEMALLOC objects, find another one */
+-		for (i = 0; i < ac->avail; i++) {
+-			/* If a !PFMEMALLOC object is found, swap them */
+-			if (!is_obj_pfmemalloc(ac->entry[i])) {
+-				objp = ac->entry[i];
+-				ac->entry[i] = ac->entry[ac->avail];
+-				ac->entry[ac->avail] = objp;
+-				return objp;
+-			}
+-		}
+-
+-		/*
+-		 * If there are empty slabs on the slabs_free list and we are
+-		 * being forced to refill the cache, mark this one !pfmemalloc.
+-		 */
+-		n = get_node(cachep, numa_mem_id());
+-		if (!list_empty(&n->slabs_free) && force_refill) {
+-			struct page *page = virt_to_head_page(objp);
+-			ClearPageSlabPfmemalloc(page);
+-			clear_obj_pfmemalloc(&objp);
+-			recheck_pfmemalloc_active(cachep, ac);
+-			return objp;
+-		}
+-
+-		/* No !PFMEMALLOC objects available */
+-		ac->avail++;
+-		objp = NULL;
+-	}
+-
+-	return objp;
+-}
+-
+-static inline void *ac_get_obj(struct kmem_cache *cachep,
+-			struct array_cache *ac, gfp_t flags, bool force_refill)
+-{
+-	void *objp;
+-
+-	if (unlikely(sk_memalloc_socks()))
+-		objp = __ac_get_obj(cachep, ac, flags, force_refill);
+-	else
+-		objp = ac->entry[--ac->avail];
+-
+-	return objp;
+-}
+-
+-static noinline void *__ac_put_obj(struct kmem_cache *cachep,
+-			struct array_cache *ac, void *objp)
++static noinline void cache_free_pfmemalloc(struct kmem_cache *cachep,
++					struct page *page, void *objp)
  {
--	char buf[128];
-+	char buf[256];
- 	struct task_struct *g, *p;
- 	unsigned long now;
- 	unsigned long expire;
-@@ -205,8 +220,9 @@ static void check_memalloc_stalling_tasks(unsigned long timeout)
- 	preempt_enable();
- 	if (!stalling_tasks)
- 		return;
-+	wait_console_flushed(10);
- 	/* Report stalling tasks, dying and victim tasks. */
--	pr_warn("MemAlloc-Info: %u stalling task, %u dying task, %u exiting task, %u victim task. oom_count=%u\n",
-+	pr_warn("MemAlloc-Info: stalling=%u dying=%u exiting=%u, victim=%u oom_count=%u\n",
- 		stalling_tasks, sigkill_pending, exiting_tasks, memdie_pending, out_of_memory_count);
- 	cond_resched();
- 	preempt_disable();
-@@ -240,15 +256,14 @@ static void check_memalloc_stalling_tasks(unsigned long timeout)
- 		 * Victim tasks get pending SIGKILL removed before arriving at
- 		 * do_exit(). Therefore, print " exiting" instead for " dying".
- 		 */
--		pr_warn("MemAlloc: %s(%u)%s%s%s%s%s\n", p->comm, p->pid,
--			(type & 4) ? buf : "",
-+		pr_warn("MemAlloc: %s(%u) flags=0x%x%s%s%s%s%s\n", p->comm,
-+			p->pid, p->flags, (type & 4) ? buf : "",
- 			(p->state & TASK_UNINTERRUPTIBLE) ?
- 			" uninterruptible" : "",
- 			(type & 8) ? " exiting" : "",
- 			(type & 2) ? " dying" : "",
- 			(type & 1) ? " victim" : "");
- 		sched_show_task(p);
--		debug_show_held_locks(p);
- 		/*
- 		 * Since there could be thousands of tasks to report, we always
- 		 * sleep and try to flush printk() buffer after each report, in
-@@ -262,7 +277,8 @@ static void check_memalloc_stalling_tasks(unsigned long timeout)
- 		get_task_struct(p);
- 		rcu_read_unlock();
- 		preempt_enable();
--		schedule_timeout_interruptible(1);
-+		cond_resched();
-+		wait_console_flushed(1);
- 		preempt_disable();
- 		rcu_read_lock();
- 		can_cont = pid_alive(g) && pid_alive(p);
-@@ -278,6 +294,8 @@ static void check_memalloc_stalling_tasks(unsigned long timeout)
- 	show_mem(0);
- 	/* Show workqueue state. */
- 	show_workqueue_state();
-+	/* Show lock information. (SysRq-d) */
-+	debug_show_all_locks();
+-	if (unlikely(pfmemalloc_active)) {
+-		/* Some pfmemalloc slabs exist, check if this is one */
+-		struct page *page = virt_to_head_page(objp);
+-		if (PageSlabPfmemalloc(page))
+-			set_obj_pfmemalloc(&objp);
+-	}
++	struct kmem_cache_node *n;
++	int page_node;
++	LIST_HEAD(list);
+ 
+-	return objp;
+-}
++	page_node = page_to_nid(page);
++	n = get_node(cachep, page_node);
+ 
+-static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+-								void *objp)
+-{
+-	if (unlikely(sk_memalloc_socks()))
+-		objp = __ac_put_obj(cachep, ac, objp);
++	spin_lock(&n->list_lock);
++	free_block(cachep, &objp, 1, page_node, &list);
++	spin_unlock(&n->list_lock);
+ 
+-	ac->entry[ac->avail++] = objp;
++	slabs_destroy(cachep, &list);
  }
- #endif /* CONFIG_DETECT_MEMALLOC_STALL_TASK */
  
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 18b3767..0d94523 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1576,6 +1576,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	int file = is_file_lru(lru);
- 	struct zone *zone = lruvec_zone(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	unsigned char counter = 0;
- 
- 	while (unlikely(too_many_isolated(zone, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -1583,6 +1584,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		/* We are about to die and free our memory. Return now. */
- 		if (fatal_signal_pending(current))
- 			return SWAP_CLUSTER_MAX;
-+		if (!++counter) {
-+			if (file)
-+				printk(KERN_WARNING "zone=%s NR_INACTIVE_FILE=%lu NR_ISOLATED_FILE=%lu\n",
-+				       zone->name,
-+				       zone_page_state(zone, NR_INACTIVE_FILE),
-+				       zone_page_state(zone, NR_ISOLATED_FILE));
-+			else
-+				printk(KERN_WARNING "zone=%s NR_INACTIVE_ANON=%lu NR_ISOLATED_ANON=%lu\n",
-+				       zone->name,
-+				       zone_page_state(zone, NR_INACTIVE_ANON),
-+				       zone_page_state(zone, NR_ISOLATED_ANON));
-+		}
+ /*
+@@ -901,7 +775,7 @@ static int __cache_free_alien(struct kmem_cache *cachep, void *objp,
+ 			STATS_INC_ACOVERFLOW(cachep);
+ 			__drain_alien_cache(cachep, ac, page_node, &list);
+ 		}
+-		ac_put_obj(cachep, ac, objp);
++		ac->entry[ac->avail++] = objp;
+ 		spin_unlock(&alien->lock);
+ 		slabs_destroy(cachep, &list);
+ 	} else {
+@@ -1506,10 +1380,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 		return NULL;
  	}
  
- 	lru_add_drain();
----------- delta patch (for linux-next-20160209 + kmallocwd) ----------
-
-Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20160211.txt.xz .
----------- console log ----------
-[  101.471027] MemAlloc-Info: stalling=46 dying=2 exiting=0, victim=0 oom_count=182
-[  117.187128] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  121.199151] MemAlloc-Info: stalling=50 dying=2 exiting=0, victim=0 oom_count=182
-[  123.777398] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  141.184386] MemAlloc-Info: stalling=50 dying=2 exiting=0, victim=0 oom_count=182
-[  142.944292] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  161.188356] MemAlloc-Info: stalling=51 dying=2 exiting=0, victim=0 oom_count=182
-[  163.541083] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  181.211690] MemAlloc-Info: stalling=51 dying=2 exiting=0, victim=0 oom_count=182
-[  189.423559] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  201.404914] MemAlloc-Info: stalling=51 dying=2 exiting=0, victim=0 oom_count=182
-[  204.456970] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
-[  213.753982] MemAlloc-Info: stalling=53 dying=2 exiting=0, victim=0 oom_count=182
-[  215.117586] zone=DMA NR_INACTIVE_FILE=4 NR_ISOLATED_FILE=19
----------- console log ----------
-
-The zone which causes this silent hang up is not DMA32 but DMA. Nobody except
-kswapd can escape this too_many_isolated() loop because isolated > inactive is
-always true. Unless kswapd performs operations for making isolated > inactive
-false, we will silently hang up. And I think kswapd did nothing for this zone.
+-	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+-	if (page_is_pfmemalloc(page))
+-		pfmemalloc_active = true;
+-
+ 	nr_pages = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		add_zone_page_state(page_zone(page),
+@@ -1517,8 +1387,10 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 	else
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
++
+ 	__SetPageSlab(page);
+-	if (page_is_pfmemalloc(page))
++	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
++	if (sk_memalloc_socks() && page_is_pfmemalloc(page))
+ 		SetPageSlabPfmemalloc(page);
+ 
+ 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+@@ -2807,7 +2679,46 @@ static inline void fixup_slab_list(struct kmem_cache *cachep,
+ 		list_add(&page->lru, &n->slabs_partial);
+ }
+ 
+-static struct page *get_first_slab(struct kmem_cache_node *n)
++/* Try to find non-pfmemalloc slab if needed */
++static noinline struct page *get_valid_first_slab(struct kmem_cache_node *n,
++					struct page *page, bool pfmemalloc)
++{
++	if (!page)
++		return NULL;
++
++	if (pfmemalloc)
++		return page;
++
++	if (!PageSlabPfmemalloc(page))
++		return page;
++
++	/* No need to keep pfmemalloc slab if we have enough free objects */
++	if (n->free_objects > n->free_limit) {
++		ClearPageSlabPfmemalloc(page);
++		return page;
++	}
++
++	/* Move pfmemalloc slab to the end of list to speed up next search */
++	list_del(&page->lru);
++	if (!page->active)
++		list_add_tail(&page->lru, &n->slabs_free);
++	else
++		list_add_tail(&page->lru, &n->slabs_partial);
++
++	list_for_each_entry(page, &n->slabs_partial, lru) {
++		if (!PageSlabPfmemalloc(page))
++			return page;
++	}
++
++	list_for_each_entry(page, &n->slabs_free, lru) {
++		if (!PageSlabPfmemalloc(page))
++			return page;
++	}
++
++	return NULL;
++}
++
++static struct page *get_first_slab(struct kmem_cache_node *n, bool pfmemalloc)
+ {
+ 	struct page *page;
+ 
+@@ -2819,11 +2730,41 @@ static struct page *get_first_slab(struct kmem_cache_node *n)
+ 				struct page, lru);
+ 	}
+ 
++	if (sk_memalloc_socks())
++		return get_valid_first_slab(n, page, pfmemalloc);
++
+ 	return page;
+ }
+ 
+-static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags,
+-							bool force_refill)
++static noinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
++				struct kmem_cache_node *n, gfp_t flags)
++{
++	struct page *page;
++	void *obj;
++	void *list = NULL;
++
++	if (!gfp_pfmemalloc_allowed(flags))
++		return NULL;
++
++	spin_lock(&n->list_lock);
++	page = get_first_slab(n, true);
++	if (!page) {
++		spin_unlock(&n->list_lock);
++		return NULL;
++	}
++
++	obj = slab_get_obj(cachep, page);
++	n->free_objects--;
++
++	fixup_slab_list(cachep, n, page, &list);
++
++	spin_unlock(&n->list_lock);
++	fixup_objfreelist_debug(cachep, &list);
++
++	return obj;
++}
++
++static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
+ {
+ 	int batchcount;
+ 	struct kmem_cache_node *n;
+@@ -2833,8 +2774,7 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags,
+ 
+ 	check_irq_off();
+ 	node = numa_mem_id();
+-	if (unlikely(force_refill))
+-		goto force_grow;
++
+ retry:
+ 	ac = cpu_cache_get(cachep);
+ 	batchcount = ac->batchcount;
+@@ -2860,7 +2800,7 @@ retry:
+ 	while (batchcount > 0) {
+ 		struct page *page;
+ 		/* Get slab alloc is to come from. */
+-		page = get_first_slab(n);
++		page = get_first_slab(n, false);
+ 		if (!page)
+ 			goto must_grow;
+ 
+@@ -2878,7 +2818,7 @@ retry:
+ 			STATS_INC_ACTIVE(cachep);
+ 			STATS_SET_HIGH(cachep);
+ 
+-			ac_put_obj(cachep, ac, slab_get_obj(cachep, page));
++			ac->entry[ac->avail++] = slab_get_obj(cachep, page);
+ 		}
+ 
+ 		fixup_slab_list(cachep, n, page, &list);
+@@ -2892,7 +2832,15 @@ alloc_done:
+ 
+ 	if (unlikely(!ac->avail)) {
+ 		int x;
+-force_grow:
++
++		/* Check if we can use obj in pfmemalloc slab */
++		if (sk_memalloc_socks()) {
++			void *obj = cache_alloc_pfmemalloc(cachep, n, flags);
++
++			if (obj)
++				return obj;
++		}
++
+ 		x = cache_grow(cachep, gfp_exact_node(flags), node, NULL);
+ 
+ 		/* cache_grow can reenable interrupts, then ac could change. */
+@@ -2900,7 +2848,7 @@ force_grow:
+ 		node = numa_mem_id();
+ 
+ 		/* no objects in sight? abort */
+-		if (!x && (ac->avail == 0 || force_refill))
++		if (!x && ac->avail == 0)
+ 			return NULL;
+ 
+ 		if (!ac->avail)		/* objects refilled by interrupt? */
+@@ -2908,7 +2856,7 @@ force_grow:
+ 	}
+ 	ac->touched = 1;
+ 
+-	return ac_get_obj(cachep, ac, flags, force_refill);
++	return ac->entry[--ac->avail];
+ }
+ 
+ static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
+@@ -2974,28 +2922,20 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+ {
+ 	void *objp;
+ 	struct array_cache *ac;
+-	bool force_refill = false;
+ 
+ 	check_irq_off();
+ 
+ 	ac = cpu_cache_get(cachep);
+ 	if (likely(ac->avail)) {
+ 		ac->touched = 1;
+-		objp = ac_get_obj(cachep, ac, flags, false);
++		objp = ac->entry[--ac->avail];
+ 
+-		/*
+-		 * Allow for the possibility all avail objects are not allowed
+-		 * by the current flags
+-		 */
+-		if (objp) {
+-			STATS_INC_ALLOCHIT(cachep);
+-			goto out;
+-		}
+-		force_refill = true;
++		STATS_INC_ALLOCHIT(cachep);
++		goto out;
+ 	}
+ 
+ 	STATS_INC_ALLOCMISS(cachep);
+-	objp = cache_alloc_refill(cachep, flags, force_refill);
++	objp = cache_alloc_refill(cachep, flags);
+ 	/*
+ 	 * the 'ac' may be updated by cache_alloc_refill(),
+ 	 * and kmemleak_erase() requires its correct value.
+@@ -3143,7 +3083,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+ retry:
+ 	check_irq_off();
+ 	spin_lock(&n->list_lock);
+-	page = get_first_slab(n);
++	page = get_first_slab(n, false);
+ 	if (!page)
+ 		goto must_grow;
+ 
+@@ -3314,7 +3254,6 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
+ 		void *objp;
+ 		struct page *page;
+ 
+-		clear_obj_pfmemalloc(&objpp[i]);
+ 		objp = objpp[i];
+ 
+ 		page = virt_to_head_page(objp);
+@@ -3420,7 +3359,16 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+ 		cache_flusharray(cachep, ac);
+ 	}
+ 
+-	ac_put_obj(cachep, ac, objp);
++	if (sk_memalloc_socks()) {
++		struct page *page = virt_to_head_page(objp);
++
++		if (unlikely(PageSlabPfmemalloc(page))) {
++			cache_free_pfmemalloc(cachep, page, objp);
++			return;
++		}
++	}
++
++	ac->entry[ac->avail++] = objp;
+ }
+ 
+ /**
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
