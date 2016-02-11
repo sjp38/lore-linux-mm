@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5776B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 15:51:05 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id q63so35112395pfb.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:51:05 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d82si7853714pfj.173.2016.02.11.12.51.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Feb 2016 12:51:04 -0800 (PST)
-Date: Thu, 11 Feb 2016 12:51:03 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 3/3] mm: increase scalability of global memory
- commitment accounting
-Message-Id: <20160211125103.8a4fb0ffed593938321755d2@linux-foundation.org>
-In-Reply-To: <1455150256.715.60.camel@schen9-desk2.jf.intel.com>
-References: <1455115941-8261-1-git-send-email-aryabinin@virtuozzo.com>
-	<1455115941-8261-3-git-send-email-aryabinin@virtuozzo.com>
-	<1455127253.715.36.camel@schen9-desk2.jf.intel.com>
-	<20160210132818.589451dbb5eafae3fdb4a7ec@linux-foundation.org>
-	<1455150256.715.60.camel@schen9-desk2.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7346B0253
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 15:51:17 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id xg9so43714816igb.1
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:51:17 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id s74si15259018ios.103.2016.02.11.12.51.16
+        for <linux-mm@kvack.org>;
+        Thu, 11 Feb 2016 12:51:17 -0800 (PST)
+Date: Fri, 12 Feb 2016 07:50:49 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 0/2] DAX bdev fixes - move flushing calls to FS
+Message-ID: <20160211205049.GJ19486@dastard>
+References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20160211124304.GI21760@quack.suse.cz>
+ <20160211194922.GA5260@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160211194922.GA5260@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-On Wed, 10 Feb 2016 16:24:16 -0800 Tim Chen <tim.c.chen@linux.intel.com> wrote:
+On Thu, Feb 11, 2016 at 12:49:22PM -0700, Ross Zwisler wrote:
+> I think the plan of unsetting S_DAX on bdev->bd_inode when we mount will save
+> us from this, as long as we do it super early in the mount process.
 
-> On Wed, 2016-02-10 at 13:28 -0800, Andrew Morton wrote:
-> 
-> > 
-> > If a process is unmapping 4MB then it's pretty crazy for us to be
-> > hitting the percpu_counter 32 separate times for that single operation.
-> > 
-> > Is there some way in which we can batch up the modifications within the
-> > caller and update the counter less frequently?  Perhaps even in a
-> > single hit?
-> 
-> I think the problem is the batch size is too small and we overflow
-> the local counter into the global counter for 4M allocations.
+I think that S_DAX should not be set on the block device by default
+in the first place. If we've been surprised by unexpected behaviour,
+then I'm sure there are going to be other surprises waiting for us.
+DAX default policy should be opt-in, not opt-out.
 
-That's one way of looking at the issue.  The other way (which I point
-out above) is that we're calling vm_[un]_acct_memory too frequently
-when mapping/unmapping 4M segments.
+Cheers,
 
-Exactly which mmap.c callsite is causing this issue?
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
