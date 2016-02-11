@@ -1,67 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E88BE6B0009
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 05:22:29 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id g62so62237064wme.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 02:22:29 -0800 (PST)
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com. [195.75.94.103])
-        by mx.google.com with ESMTPS id z65si11914454wmb.85.2016.02.11.02.22.28
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7AF6B0009
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 05:38:41 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id g62so15204246wme.0
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 02:38:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 12si11215572wjy.50.2016.02.11.02.38.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Feb 2016 02:22:28 -0800 (PST)
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Thu, 11 Feb 2016 10:22:27 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 41A072190019
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 10:22:11 +0000 (GMT)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1BAMPlG18284656
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 10:22:25 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1BAMOVa021087
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 03:22:25 -0700
-Date: Thu, 11 Feb 2016 11:22:23 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 1/2] mm,thp: refactor generic deposit/withdraw routines
- for wider usage
-Message-ID: <20160211112223.0acc8237@mschwide>
-In-Reply-To: <1455182907-15445-2-git-send-email-vgupta@synopsys.com>
-References: <1455182907-15445-1-git-send-email-vgupta@synopsys.com>
-	<1455182907-15445-2-git-send-email-vgupta@synopsys.com>
+        Thu, 11 Feb 2016 02:38:40 -0800 (PST)
+Date: Thu, 11 Feb 2016 11:38:56 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Another proposal for DAX fault locking
+Message-ID: <20160211103856.GE21760@quack.suse.cz>
+References: <20160209172416.GB12245@quack.suse.cz>
+ <56BB758D.1000704@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56BB758D.1000704@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Alex Thorlton <athorlton@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-snps-arc@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, linux-fsdevel@vger.kernel.org
 
-On Thu, 11 Feb 2016 14:58:26 +0530
-Vineet Gupta <Vineet.Gupta1@synopsys.com> wrote:
+On Wed 10-02-16 19:38:21, Boaz Harrosh wrote:
+> On 02/09/2016 07:24 PM, Jan Kara wrote:
+> > Hello,
+> > 
+> > I was thinking about current issues with DAX fault locking [1] (data
+> > corruption due to racing faults allocating blocks) and also races which
+> > currently don't allow us to clear dirty tags in the radix tree due to races
+> > between faults and cache flushing [2]. Both of these exist because we don't
+> > have an equivalent of page lock available for DAX. While we have a
+> > reasonable solution available for problem [1], so far I'm not aware of a
+> > decent solution for [2]. After briefly discussing the issue with Mel he had
+> > a bright idea that we could used hashed locks to deal with [2] (and I think
+> > we can solve [1] with them as well). So my proposal looks as follows:
+> > 
+> > DAX will have an array of mutexes (the array can be made per device but
+> > initially a global one should be OK). We will use mutexes in the array as a
+> > replacement for page lock - we will use hashfn(mapping, index) to get
+> > particular mutex protecting our offset in the mapping. On fault / page
+> > mkwrite, we'll grab the mutex similarly to page lock and release it once we
+> > are done updating page tables. This deals with races in [1]. When flushing
+> > caches we grab the mutex before clearing writeable bit in page tables
+> > and clearing dirty bit in the radix tree and drop it after we have flushed
+> > caches for the pfn. This deals with races in [2].
+> > 
+> > Thoughts?
+> > 
+> 
+> You could also use one of the radix-tree's special-bits as a bit lock.
+> So no need for any extra allocations.
 
-> Generic pgtable_trans_huge_deposit()/pgtable_trans_huge_withdraw()
-> assume pgtable_t to be struct page * which is not true for all arches.
-> Thus arc, s390, sparch end up with their own copies despite no special
-> hardware requirements (unlike powerpc).
+Yes and I've suggested that once as well. But since we need sleeping
+locks, you need some wait queues somewhere as well. So some allocations are
+going to be needed anyway. And mutexes have much better properties than
+bit-locks so I prefer mutexes over cramming bit locks into radix tree. Plus
+you'd have to be careful so that someone doesn't remove the bit from the
+radix tree while you are working with it.
 
-s390 does have a special hardware requirement. pgtable_t is an address
-for a 2K block of memory. It is *not* equivalent to a struct page *
-which refers to a 4K block of memory. That has been the whole point
-to introduce pgtable_t.
-
-> It seems massaging the code a bit can make it reusbale.
-
-Imho the new code for asm-generic looks fine, as long as the override
-with __HAVE_ARCH_PGTABLE_DEPOSIT/__HAVE_ARCH_PGTABLE_WITHDRAW continues
-to work I do not mind.
-
+								Honza
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
