@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D51EF6B0009
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:22:06 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id ho8so29684231pac.2
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 06:22:06 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id q21si12874055pfi.231.2016.02.11.06.22.04
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 384406B0253
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:22:09 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id c10so30663406pfc.2
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 06:22:09 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 184si12960089pfa.13.2016.02.11.06.22.04
         for <linux-mm@kvack.org>;
         Thu, 11 Feb 2016 06:22:04 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 04/28] mm: make remove_migration_ptes() beyond mm/migration.c
-Date: Thu, 11 Feb 2016 17:21:32 +0300
-Message-Id: <1455200516-132137-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 03/28] rmap: extend try_to_unmap() to be usable by split_huge_page()
+Date: Thu, 11 Feb 2016 17:21:31 +0300
+Message-Id: <1455200516-132137-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,94 +19,161 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The patch makes remove_migration_ptes() available to be used in
-split_huge_page().
+The patch add support for two ttu_flags:
 
-New parameter 'locked' added: as with try_to_umap() we need a way to
-indicate that caller holds rmap lock.
+  - TTU_SPLIT_HUGE_PMD would split PMD if it's there, before trying to
+    unmap page;
 
-We also shouldn't try to mlock() pte-mapped huge pages: pte-mapeed THP
-pages are never mlocked.
+  - TTU_RMAP_LOCKED indicates that caller holds relevant rmap lock;
+
+Apart these flags, patch changes rwc->done to !page_mapcount()
+instead of !page_mapped(). try_to_unmap() works on pte level, so we
+really interested if this small pages is mapped, not compound page
+it's part of.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/rmap.h |  2 ++
- mm/migrate.c         | 15 +++++++++------
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ include/linux/huge_mm.h |  7 +++++++
+ include/linux/rmap.h    |  3 +++
+ mm/huge_memory.c        |  5 +----
+ mm/rmap.c               | 24 ++++++++++++++++--------
+ 4 files changed, 27 insertions(+), 12 deletions(-)
 
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 459fd25b378e..c47067151ffd 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -111,6 +111,9 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			__split_huge_pmd(__vma, __pmd, __address);	\
+ 	}  while (0)
+ 
++
++void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address);
++
+ #if HPAGE_PMD_ORDER >= MAX_ORDER
+ #error "hugepages can't be allocated by the buddy allocator"
+ #endif
+@@ -178,6 +181,10 @@ static inline int split_huge_page(struct page *page)
+ static inline void deferred_split_huge_page(struct page *page) {}
+ #define split_huge_pmd(__vma, __pmd, __address)	\
+ 	do { } while (0)
++
++static inline void split_huge_pmd_address(struct vm_area_struct *vma,
++		unsigned long address) {}
++
+ static inline int hugepage_madvise(struct vm_area_struct *vma,
+ 				   unsigned long *vm_flags, int advice)
+ {
 diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 3d975e2252d4..49eb4f8ebac9 100644
+index a5875e9b4a27..3d975e2252d4 100644
 --- a/include/linux/rmap.h
 +++ b/include/linux/rmap.h
-@@ -243,6 +243,8 @@ int page_mkclean(struct page *);
-  */
- int try_to_munlock(struct page *);
+@@ -86,6 +86,7 @@ enum ttu_flags {
+ 	TTU_MIGRATION = 2,		/* migration mode */
+ 	TTU_MUNLOCK = 4,		/* munlock mode */
+ 	TTU_LZFREE = 8,			/* lazy free mode */
++	TTU_SPLIT_HUGE_PMD = 16,	/* split huge PMD if any */
  
-+void remove_migration_ptes(struct page *old, struct page *new, bool locked);
-+
- /*
-  * Called by memory-failure.c to kill processes.
-  */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 17db63b2dd36..993390dcf68d 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -172,7 +172,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 	else
- 		page_add_file_rmap(new);
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+@@ -93,6 +94,8 @@ enum ttu_flags {
+ 	TTU_BATCH_FLUSH = (1 << 11),	/* Batch TLB flushes where possible
+ 					 * and caller guarantees they will
+ 					 * do a final flush if necessary */
++	TTU_RMAP_LOCKED = (1 << 12)	/* do not grab rmap lock:
++					 * caller holds it */
+ };
  
--	if (vma->vm_flags & VM_LOCKED)
-+	if (vma->vm_flags & VM_LOCKED && !PageCompound(new))
- 		mlock_vma_page(new);
- 
- 	/* No need to invalidate - it was non-present before */
-@@ -187,14 +187,17 @@ out:
-  * Get rid of all migration entries and replace them by
-  * references to the indicated page.
-  */
--static void remove_migration_ptes(struct page *old, struct page *new)
-+void remove_migration_ptes(struct page *old, struct page *new, bool locked)
- {
- 	struct rmap_walk_control rwc = {
- 		.rmap_one = remove_migration_pte,
- 		.arg = old,
- 	};
- 
--	rmap_walk(new, &rwc);
-+	if (locked)
-+		rmap_walk_locked(new, &rwc);
-+	else
-+		rmap_walk(new, &rwc);
+ #ifdef CONFIG_MMU
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 2057a3b7cc24..801d4f9aac80 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3049,15 +3049,12 @@ out:
+ 	}
  }
  
- /*
-@@ -706,7 +709,7 @@ static int writeout(struct address_space *mapping, struct page *page)
- 	 * At this point we know that the migration attempt cannot
- 	 * be successful.
- 	 */
--	remove_migration_ptes(page, page);
-+	remove_migration_ptes(page, page, false);
+-static void split_huge_pmd_address(struct vm_area_struct *vma,
+-				    unsigned long address)
++void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
  
- 	rc = mapping->a_ops->writepage(page, &wbc);
+-	VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
+-
+ 	pgd = pgd_offset(vma->vm_mm, address);
+ 	if (!pgd_present(*pgd))
+ 		return;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 30b739ce0ffa..945933a01010 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1431,6 +1431,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+ 		goto out;
  
-@@ -904,7 +907,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
++	if (flags & TTU_SPLIT_HUGE_PMD)
++		split_huge_pmd_address(vma, address);
+ 	pte = page_check_address(page, mm, address, &ptl, 0);
+ 	if (!pte)
+ 		goto out;
+@@ -1576,10 +1578,10 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
+ 	return is_vma_temporary_stack(vma);
+ }
  
- 	if (page_was_mapped)
- 		remove_migration_ptes(page,
--			rc == MIGRATEPAGE_SUCCESS ? newpage : page);
-+			rc == MIGRATEPAGE_SUCCESS ? newpage : page, false);
+-static int page_not_mapped(struct page *page)
++static int page_mapcount_is_zero(struct page *page)
+ {
+-	return !page_mapped(page);
+-};
++	return !page_mapcount(page);
++}
  
- out_unlock_both:
- 	unlock_page(newpage);
-@@ -1074,7 +1077,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ /**
+  * try_to_unmap - try to remove all page table mappings to a page
+@@ -1606,12 +1608,10 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	struct rmap_walk_control rwc = {
+ 		.rmap_one = try_to_unmap_one,
+ 		.arg = &rp,
+-		.done = page_not_mapped,
++		.done = page_mapcount_is_zero,
+ 		.anon_lock = page_lock_anon_vma_read,
+ 	};
  
- 	if (page_was_mapped)
- 		remove_migration_ptes(hpage,
--			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage);
-+			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage, false);
+-	VM_BUG_ON_PAGE(!PageHuge(page) && PageTransHuge(page), page);
+-
+ 	/*
+ 	 * During exec, a temporary VMA is setup and later moved.
+ 	 * The VMA is moved under the anon_vma lock but not the
+@@ -1623,9 +1623,12 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	if ((flags & TTU_MIGRATION) && !PageKsm(page) && PageAnon(page))
+ 		rwc.invalid_vma = invalid_migration_vma;
  
- 	unlock_page(new_hpage);
+-	ret = rmap_walk(page, &rwc);
++	if (flags & TTU_RMAP_LOCKED)
++		ret = rmap_walk_locked(page, &rwc);
++	else
++		ret = rmap_walk(page, &rwc);
  
+-	if (ret != SWAP_MLOCK && !page_mapped(page)) {
++	if (ret != SWAP_MLOCK && !page_mapcount(page)) {
+ 		ret = SWAP_SUCCESS;
+ 		if (rp.lazyfreed && !PageDirty(page))
+ 			ret = SWAP_LZFREE;
+@@ -1633,6 +1636,11 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	return ret;
+ }
+ 
++static int page_not_mapped(struct page *page)
++{
++	return !page_mapped(page);
++};
++
+ /**
+  * try_to_munlock - try to munlock a page
+  * @page: the page to be munlocked
 -- 
 2.7.0
 
