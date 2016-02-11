@@ -1,85 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f182.google.com (mail-yw0-f182.google.com [209.85.161.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB0E6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 15:58:39 -0500 (EST)
-Received: by mail-yw0-f182.google.com with SMTP id g127so49427585ywf.2
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:58:39 -0800 (PST)
-Received: from mail-yw0-x230.google.com (mail-yw0-x230.google.com. [2607:f8b0:4002:c05::230])
-        by mx.google.com with ESMTPS id p67si4498875ywd.253.2016.02.11.12.58.38
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9A36B0005
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 16:05:25 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ho8so34733401pac.2
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:05:25 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id f83si14730137pfd.208.2016.02.11.13.05.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Feb 2016 12:58:39 -0800 (PST)
-Received: by mail-yw0-x230.google.com with SMTP id u200so49601000ywf.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:58:38 -0800 (PST)
+        Thu, 11 Feb 2016 13:05:24 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id q63so35285908pfb.0
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:05:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160211204635.GI19486@dastard>
-References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
-	<20160210220312.GP14668@dastard>
-	<20160210224340.GA30938@linux.intel.com>
-	<20160211125044.GJ21760@quack.suse.cz>
-	<CAPcyv4g60iOTd-ShBCfsK+B7xArcc5pWXWktNop53otDbUW-3g@mail.gmail.com>
-	<20160211204635.GI19486@dastard>
-Date: Thu, 11 Feb 2016 12:58:38 -0800
-Message-ID: <CAPcyv4h4u+LB5U5nm4Jo32r=33D02yv36k5QxmJoy3DRiHmQEQ@mail.gmail.com>
-Subject: Re: [PATCH v2 2/2] dax: move writeback calls into the filesystems
-From: Dan Williams <dan.j.williams@intel.com>
+In-Reply-To: <20160211105510.GG21760@quack.suse.cz>
+References: <20160209172416.GB12245@quack.suse.cz>
+	<CAPcyv4g1Z-2BzOfF7KAsSviMeNz+rFS1e1KR-VeE1SJxLYhNBg@mail.gmail.com>
+	<20160210103249.GD12245@quack.suse.cz>
+	<20160210220953.GW19486@dastard>
+	<CALXu0Uf+WNuqOzgXi+eyouezgu4hU3Vu2ErGxjRTqOTv_B+cXg@mail.gmail.com>
+	<20160211105510.GG21760@quack.suse.cz>
+Date: Thu, 11 Feb 2016 22:05:24 +0100
+Message-ID: <CALXu0UeJ4_vrXmWBfpDLe6WY4T2PPYE_VQKqpHZCCzU0ORF8VA@mail.gmail.com>
+Subject: Re: Another proposal for DAX fault locking
+From: Cedric Blancher <cedric.blancher@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>
 
-On Thu, Feb 11, 2016 at 12:46 PM, Dave Chinner <david@fromorbit.com> wrote:
-[..]
->> It seems to me we need to modify the
->> metadata i/o paths to bypass the page cache,
->
-> XFS doesn't use the block device page cache for it's metadata - it
-> has it's own internal metadata cache structures and uses get_pages
-> or heap memory to back it's metadata. But that doesn't make mixing
-> DAX and pages in the block device mapping tree sane.
->
-> What you are missing here is that the underlying architecture of
-> journalling filesystems mean they can't use DAX for their metadata.
-> Modifications have to be buffered, because they have to be written
-> to the journal first before they are written back in place. IOWs, we
-> need to buffer changes in volatile memory for some time, and that
-> means we can't use DAX during transactional modifications.
->
-> And to put the final nail in that coffin, metadata in XFS can be
-> discontiguous multi-block objects - in those situations we vmap the
-> underlying pages so they appear to the code to be a contiguous
-> buffer, and that's something we can't do with DAX....
+The Solaris 11 sources are still available at Illumos.org (Illumos is
+what Opensolaris was once, minus Suns bug database).
 
-Sorry, I wasn't clear when I said "bypass page cache" I meant a
-solution similar to commit d1a5f2b4d8a1 "block: use DAX for partition
-table reads".  However, I suspect that is broken if the filesystem is
-not ready to see a new page allocated for every I/O.  I assume one
-thread will want to insert a page in the radix for another thread to
-find/manipulate before metadata gets written back to storage.
+Also, if you keep the performance in mind, remember that the world is
+moving towards many cores with many hardware threads per core, so
+optimising for the "two core with low latency" use case is wrong like
+a sin. More likely is the "8 core with 4 threads per core" use case
+for benchmarking because that's what we will end up in even low end
+hardware soon, maybe with variable bandwidth between cores if
+something like ScaleMP is used.
 
->> or teach the fsync code
->> how to flush populated data pages out of the radix.
+Ced
+
+On 11 February 2016 at 11:55, Jan Kara <jack@suse.cz> wrote:
+> On Wed 10-02-16 23:39:43, Cedric Blancher wrote:
+>> AFAIK Solaris 11 uses a sparse tree instead of a array. Solves the
+>> scalability problem AND deals with variable page size.
 >
-> That doesn't solve the problem. Filesystems free and reallocate
-> filesystem blocks without intermediate block device mapping
-> invalidation calls, so what is one minute a data block accessed by
-> DAX may become a metadata block that accessed via buffered IO.  It
-> all goes to crap very quickly....
+> Well, but then you have to have this locking tree for every inode so the
+> memory overhead is relatively large, no? I've played with range locking of
+> mapping in the past but its performance was not stellar. Do you have any
+> reference for what Solaris does?
 >
-> However, I'd say fsync is not the place to address this. This block
-> device cache aliasing issue is supposed to be what
-> unmap_underlying_metadata() solves, right?
+>                                                                 Honza
+>
+>> On 10 February 2016 at 23:09, Dave Chinner <david@fromorbit.com> wrote:
+>> > On Wed, Feb 10, 2016 at 11:32:49AM +0100, Jan Kara wrote:
+>> >> On Tue 09-02-16 10:18:53, Dan Williams wrote:
+>> >> > On Tue, Feb 9, 2016 at 9:24 AM, Jan Kara <jack@suse.cz> wrote:
+>> >> > > Hello,
+>> >> > >
+>> >> > > I was thinking about current issues with DAX fault locking [1] (data
+>> >> > > corruption due to racing faults allocating blocks) and also races which
+>> >> > > currently don't allow us to clear dirty tags in the radix tree due to races
+>> >> > > between faults and cache flushing [2]. Both of these exist because we don't
+>> >> > > have an equivalent of page lock available for DAX. While we have a
+>> >> > > reasonable solution available for problem [1], so far I'm not aware of a
+>> >> > > decent solution for [2]. After briefly discussing the issue with Mel he had
+>> >> > > a bright idea that we could used hashed locks to deal with [2] (and I think
+>> >> > > we can solve [1] with them as well). So my proposal looks as follows:
+>> >> > >
+>> >> > > DAX will have an array of mutexes (the array can be made per device but
+>> >> > > initially a global one should be OK). We will use mutexes in the array as a
+>> >> > > replacement for page lock - we will use hashfn(mapping, index) to get
+>> >> > > particular mutex protecting our offset in the mapping. On fault / page
+>> >> > > mkwrite, we'll grab the mutex similarly to page lock and release it once we
+>> >> > > are done updating page tables. This deals with races in [1]. When flushing
+>> >> > > caches we grab the mutex before clearing writeable bit in page tables
+>> >> > > and clearing dirty bit in the radix tree and drop it after we have flushed
+>> >> > > caches for the pfn. This deals with races in [2].
+>> >> > >
+>> >> > > Thoughts?
+>> >> > >
+>> >> >
+>> >> > I like the fact that this makes the locking explicit and
+>> >> > straightforward rather than something more tricky.  Can we make the
+>> >> > hashfn pfn based?  I'm thinking we could later reuse this as part of
+>> >> > the solution for eliminating the need to allocate struct page, and we
+>> >> > don't have the 'mapping' available in all paths...
+>> >>
+>> >> So Mel originally suggested to use pfn for hashing as well. My concern with
+>> >> using pfn is that e.g. if you want to fill a hole, you don't have a pfn to
+>> >> lock. What you really need to protect is a logical offset in the file to
+>> >> serialize allocation of underlying blocks, its mapping into page tables,
+>> >> and flushing the blocks out of caches. So using inode/mapping and offset
+>> >> for the hashing is easier (it isn't obvious to me we can fix hole filling
+>> >> races with pfn-based locking).
+>> >
+>> > So how does that file+offset hash work when trying to lock different
+>> > ranges?  file+offset hashing to determine the lock to use only works
+>> > if we are dealing with fixed size ranges that the locks affect.
+>> > e.g. offset has 4k granularity for a single page faults, but we also
+>> > need to handle 2MB granularity for huge page faults, and IIRC 1GB
+>> > granularity for giant page faults...
+>> >
+>> > What's the plan here?
+>> >
+>> > Cheers,
+>> >
+>> > Dave.
+>> > --
+>> > Dave Chinner
+>> > david@fromorbit.com
+>> > --
+>> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+>> > the body of a message to majordomo@vger.kernel.org
+>> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>
+>>
+>>
+>> --
+>> Cedric Blancher <cedric.blancher@gmail.com>
+>> Institute Pasteur
+> --
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
-I'll take a look at this.  Right now I'm trying to implement the
-"clear block-device-inode S_DAX on fs mount" approach.  My concern
-though is that  we need to disable block device mmap while a
-filesystem is mounted...
 
-Maybe I don't need to worry because it's already the case that a mmap
-of the raw device may not see the most up to date data for a file that
-has dirty fs-page-cache data.
+
+-- 
+Cedric Blancher <cedric.blancher@gmail.com>
+Institute Pasteur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
