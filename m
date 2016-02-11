@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EB8D26B026B
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:23:38 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id x65so30229456pfb.1
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 06:23:38 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id 133si12897692pfa.203.2016.02.11.06.23.09
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 349106B0272
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:23:46 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id yy13so29584017pab.3
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 06:23:46 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id g74si12899389pfd.215.2016.02.11.06.23.12
         for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 06:23:09 -0800 (PST)
+        Thu, 11 Feb 2016 06:23:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 12/28] thp, vmstats: add counters for huge file pages
-Date: Thu, 11 Feb 2016 17:21:40 +0300
-Message-Id: <1455200516-132137-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 10/28] mm: introduce do_set_pmd()
+Date: Thu, 11 Feb 2016 17:21:38 +0300
+Message-Id: <1455200516-132137-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,66 +19,149 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-THP_FILE_ALLOC: how many times huge page was allocated and put page
-cache.
+With postponed page table allocation we have chance to setup huge pages.
+do_set_pte() calls do_set_pmd() if following criteria met:
 
-THP_FILE_MAPPED: how many times file huge page was mapped.
+ - page is compound;
+ - pmd entry in pmd_none();
+ - vma has suitable size and alignment;
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/vm_event_item.h | 7 +++++++
- mm/memory.c                   | 1 +
- mm/vmstat.c                   | 2 ++
- 3 files changed, 10 insertions(+)
+ mm/huge_memory.c |  8 -------
+ mm/internal.h    | 16 ++++++++++++++
+ mm/memory.c      | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 78 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index b79e831006b0..8359022f6ea1 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -69,6 +69,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_FILE_ALLOC,
-+		THP_FILE_MAPPED,
- 		THP_SPLIT_PAGE,
- 		THP_SPLIT_PAGE_FAILED,
- 		THP_DEFERRED_SPLIT_PAGE,
-@@ -99,4 +101,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		NR_VM_EVENT_ITEMS
- };
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0dc081fea9f1..9d614cee994f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -771,14 +771,6 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
  
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
-+#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
+-static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+-{
+-	pmd_t entry;
+-	entry = mk_pmd(page, prot);
+-	entry = pmd_mkhuge(entry);
+-	return entry;
+-}
+-
+ static inline struct list_head *page_deferred_list(struct page *page)
+ {
+ 	/*
+diff --git a/mm/internal.h b/mm/internal.h
+index 4ff5f2588430..4c5e13138c46 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -37,6 +37,22 @@
+ 
+ int do_swap_page(struct fault_env *fe, pte_t orig_pte);
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
++{
++	pmd_t entry;
++	entry = mk_pmd(page, prot);
++	entry = pmd_mkhuge(entry);
++	return entry;
++}
++#else
++static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
++{
++	BUILD_BUG();
++	return __pmd(0);
++}
 +#endif
 +
- #endif		/* VM_EVENT_ITEM_H_INCLUDED */
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
 diff --git a/mm/memory.c b/mm/memory.c
-index fb61e82bbb9a..6c98ed8e3c4a 100644
+index 0d204ef02855..fb61e82bbb9a 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2874,6 +2874,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
+@@ -2828,6 +2828,57 @@ map_pte:
+ 	return 0;
+ }
  
- 	/* fault is handled */
- 	ret = 0;
-+	count_vm_event(THP_FILE_MAPPED);
- out:
- 	spin_unlock(fe->ptl);
- 	return ret;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 801e6b18fb94..e69031a3b306 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -846,6 +846,8 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_file_alloc",
-+	"thp_file_mapped",
- 	"thp_split_page",
- 	"thp_split_page_failed",
- 	"thp_deferred_split_page",
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
++static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
++		unsigned long haddr)
++{
++	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
++			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
++		return false;
++	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
++		return false;
++	return true;
++}
++
++static int do_set_pmd(struct fault_env *fe, struct page *page)
++{
++	struct vm_area_struct *vma = fe->vma;
++	bool write = fe->flags & FAULT_FLAG_WRITE;
++	unsigned long haddr = fe->address & HPAGE_PMD_MASK;
++	pmd_t entry;
++	int ret;
++
++	if (!transhuge_vma_suitable(vma, haddr))
++		return VM_FAULT_FALLBACK;
++
++	ret = VM_FAULT_FALLBACK;
++
++	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
++	if (unlikely(!pmd_none(*fe->pmd)))
++		goto out;
++
++	// XXX: make flush_icache_page() aware about compound pages?
++	flush_icache_page(vma, page);
++
++	page = compound_head(page);
++	entry = mk_huge_pmd(page, vma->vm_page_prot);
++	if (write)
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++
++	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
++	page_add_file_rmap(page, true);
++
++	set_pmd_at(vma->vm_mm, haddr, fe->pmd, entry);
++
++	update_mmu_cache_pmd(vma, haddr, fe->pmd);
++
++	/* fault is handled */
++	ret = 0;
++out:
++	spin_unlock(fe->ptl);
++	return ret;
++}
++
+ /**
+  * do_set_pte - setup new PTE entry for given page and add reverse page mapping.
+  *
+@@ -2846,9 +2897,19 @@ int do_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 	struct vm_area_struct *vma = fe->vma;
+ 	bool write = fe->flags & FAULT_FLAG_WRITE;
+ 	pte_t entry;
++	int ret;
++
++	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
++		/* THP on COW? */
++		VM_BUG_ON_PAGE(memcg, page);
++
++		ret = do_set_pmd(fe, page);
++		if (ret != VM_FAULT_FALLBACK)
++			return ret;
++	}
+ 
+ 	if (!fe->pte) {
+-		int ret = pte_alloc_one_map(fe);
++		ret = pte_alloc_one_map(fe);
+ 		if (ret)
+ 			return ret;
+ 	}
 -- 
 2.7.0
 
