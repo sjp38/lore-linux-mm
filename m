@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC6A6B0009
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:43:36 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id ho8so32231466pac.2
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:43:36 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id sm4si13748298pac.245.2016.02.11.09.43.34
-        for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 09:43:35 -0800 (PST)
-Date: Thu, 11 Feb 2016 10:42:55 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/2] dax: rename dax_radix_entry to dax_radix_entry_insert
-Message-ID: <20160211174255.GA11014@linux.intel.com>
-References: <87bn7rwim2.fsf@openvz.org>
- <1454939598-16238-1-git-send-email-dmonakhov@openvz.org>
+Received: from mail-lf0-f46.google.com (mail-lf0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D046B0009
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:13:41 -0500 (EST)
+Received: by mail-lf0-f46.google.com with SMTP id l143so37144563lfe.2
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 10:13:41 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id i19si4949873lfb.171.2016.02.11.10.13.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Feb 2016 10:13:39 -0800 (PST)
+Subject: [PATCH] kvm: do not SetPageDirty from kvm_set_pfn_dirty for file
+ mappings
+From: Maxim Patlasov <mpatlasov@virtuozzo.com>
+Date: Thu, 11 Feb 2016 10:13:29 -0800
+Message-ID: <20160211181306.7864.44244.stgit@maxim-thinkpad>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1454939598-16238-1-git-send-email-dmonakhov@openvz.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Monakhov <dmonakhov@openvz.org>
-Cc: linux-mm@kvack.org, willy@linux.intel.com, ross.zwisler@linux.intel.com
+To: pbonzini@redhat.com
+Cc: kvm@vger.kernel.org, linux-nvdimm@lists.01.org, gleb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On Mon, Feb 08, 2016 at 05:53:17PM +0400, Dmitry Monakhov wrote:
-> - dax_radix_entry_insert is more appropriate name for that function
+The patch solves the following problem: file system specific routines
+involved in ordinary routine writeback process BUG_ON page_buffers()
+because a page goes to writeback without buffer-heads attached.
 
-I think I may have actually had it named that at some point. :)  I changed it   
-because it doesn't always insert an entry - in the read case for example we     
-insert a clean entry, and then on the following dax_pfn_mkwrite() we call back  
-in and mark it as dirty. 
+The way how kvm_set_pfn_dirty calls SetPageDirty works only for anon
+mappings. For file mappings it is obviously incorrect - there page_mkwrite
+must be called. It's not easy to add page_mkwrite call to kvm_set_pfn_dirty
+because there is no universal way to find vma by pfn. But actually
+SetPageDirty may be simply skipped in those cases. Below is a
+justification.
 
-> - Add lockless helper __dax_radix_entry_insert, it will be used by second patch
-> 
-> Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
-> ---
->  fs/dax.c | 39 +++++++++++++++++++++++----------------
->  1 file changed, 23 insertions(+), 16 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index fc2e314..89bb1f8 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-<>
-> @@ -579,8 +586,8 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
->  	}
->  	dax_unmap_atomic(bdev, &dax);
->  
-> -	error = dax_radix_entry(mapping, vmf->pgoff, dax.sector, false,
-> -			vmf->flags & FAULT_FLAG_WRITE);
-> +	error = dax_radix_entry_insert(mapping, vmf->pgoff, dax.sector, false,
-> +				vmf->flags & FAULT_FLAG_WRITE, vmf->page);
+When guest modifies the content of a page with file mapping, kernel kvm
+makes the page dirty by the following call-path:
 
-fs/dax.c: In function a??dax_insert_mappinga??:
-fs/dax.c:589:10: error: too many arguments to function a??dax_radix_entry_inserta??
-  error = dax_radix_entry_insert(mapping, vmf->pgoff, dax.sector, false,
-          ^
-fs/dax.c:415:12: note: declared here
- static int dax_radix_entry_insert(struct address_space *mapping, pgoff_t index,
-            ^
-scripts/Makefile.build:258: recipe for target 'fs/dax.o' failed
+vmx_handle_exit ->
+ handle_ept_violation ->
+  __get_user_pages ->
+   page_mkwrite ->
+    SetPageDirty
+
+Since then, the page is dirty from both guest and host point of view. Then
+the host makes writeback and marks the page as write-protected. So any
+further write from the guest triggers call-path above again.
+
+So, for file mappings, it's not possible to have new data written to a page
+inside the guest w/o corresponding SetPageDirty on the host.
+
+This makes explicit SetPageDirty from kvm_set_pfn_dirty redundant.
+
+Signed-off-by: Maxim Patlasov <mpatlasov@virtuozzo.com>
+---
+ virt/kvm/kvm_main.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index a11cfd2..5a7d3fa 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -1582,7 +1582,8 @@ void kvm_set_pfn_dirty(kvm_pfn_t pfn)
+ 	if (!kvm_is_reserved_pfn(pfn)) {
+ 		struct page *page = pfn_to_page(pfn);
+ 
+-		if (!PageReserved(page))
++		if (!PageReserved(page) &&
++		    (!page->mapping || PageAnon(page)))
+ 			SetPageDirty(page);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
