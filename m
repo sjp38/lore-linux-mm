@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A57C36B0253
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:00:09 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id p5so1274147paw.1
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:00:09 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id rq5si13560864pab.160.2016.02.11.09.00.03
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FC6A6B0009
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:43:36 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id ho8so32231466pac.2
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 09:43:36 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id sm4si13748298pac.245.2016.02.11.09.43.34
         for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 09:00:03 -0800 (PST)
-Date: Thu, 11 Feb 2016 11:59:58 -0500 (EST)
-Message-Id: <20160211.115958.619724929941930296.davem@davemloft.net>
-Subject: Re: [net-next PATCH V2 0/3] net: mitigating kmem_cache free
- slowpath
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20160208121328.8860.67014.stgit@localhost>
-References: <20160207.142526.1252110536030712971.davem@davemloft.net>
-	<20160208121328.8860.67014.stgit@localhost>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        Thu, 11 Feb 2016 09:43:35 -0800 (PST)
+Date: Thu, 11 Feb 2016 10:42:55 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 1/2] dax: rename dax_radix_entry to dax_radix_entry_insert
+Message-ID: <20160211174255.GA11014@linux.intel.com>
+References: <87bn7rwim2.fsf@openvz.org>
+ <1454939598-16238-1-git-send-email-dmonakhov@openvz.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1454939598-16238-1-git-send-email-dmonakhov@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: brouer@redhat.com
-Cc: netdev@vger.kernel.org, jeffrey.t.kirsher@intel.com, akpm@linux-foundation.org, tom@herbertland.com, alexander.duyck@gmail.com, alexei.starovoitov@gmail.com, linux-mm@kvack.org, cl@linux.com
+To: Dmitry Monakhov <dmonakhov@openvz.org>
+Cc: linux-mm@kvack.org, willy@linux.intel.com, ross.zwisler@linux.intel.com
 
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Mon, 08 Feb 2016 13:14:54 +0100
+On Mon, Feb 08, 2016 at 05:53:17PM +0400, Dmitry Monakhov wrote:
+> - dax_radix_entry_insert is more appropriate name for that function
 
-> This patchset is the first real use-case for kmem_cache bulk _free_.
-> The use of bulk _alloc_ is NOT included in this patchset. The full use
-> have previously been posted here [1].
-> 
-> The bulk free side have the largest benefit for the network stack
-> use-case, because network stack is hitting the kmem_cache/SLUB
-> slowpath when freeing SKBs, due to the amount of outstanding SKBs.
-> This is solved by using the new API kmem_cache_free_bulk().
-> 
-> Introduce new API napi_consume_skb(), that hides/handles bulk freeing
-> for the caller.  The drivers simply need to use this call when freeing
-> SKBs in NAPI context, e.g. replacing their calles to dev_kfree_skb() /
-> dev_consume_skb_any().
-> 
-> Driver ixgbe is the first user of this new API.
-> 
-> [1] http://thread.gmane.org/gmane.linux.network/384302/focus=397373
+I think I may have actually had it named that at some point. :)  I changed it   
+because it doesn't always insert an entry - in the read case for example we     
+insert a clean entry, and then on the following dax_pfn_mkwrite() we call back  
+in and mark it as dirty. 
 
-Series applied, thanks.
+> - Add lockless helper __dax_radix_entry_insert, it will be used by second patch
+> 
+> Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
+> ---
+>  fs/dax.c | 39 +++++++++++++++++++++++----------------
+>  1 file changed, 23 insertions(+), 16 deletions(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index fc2e314..89bb1f8 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+<>
+> @@ -579,8 +586,8 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+>  	}
+>  	dax_unmap_atomic(bdev, &dax);
+>  
+> -	error = dax_radix_entry(mapping, vmf->pgoff, dax.sector, false,
+> -			vmf->flags & FAULT_FLAG_WRITE);
+> +	error = dax_radix_entry_insert(mapping, vmf->pgoff, dax.sector, false,
+> +				vmf->flags & FAULT_FLAG_WRITE, vmf->page);
+
+fs/dax.c: In function a??dax_insert_mappinga??:
+fs/dax.c:589:10: error: too many arguments to function a??dax_radix_entry_inserta??
+  error = dax_radix_entry_insert(mapping, vmf->pgoff, dax.sector, false,
+          ^
+fs/dax.c:415:12: note: declared here
+ static int dax_radix_entry_insert(struct address_space *mapping, pgoff_t index,
+            ^
+scripts/Makefile.build:258: recipe for target 'fs/dax.o' failed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
