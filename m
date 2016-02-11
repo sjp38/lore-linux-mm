@@ -1,78 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D56EB6B0254
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 07:17:48 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id g62so66313068wme.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 04:17:48 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id s18si11669559wjw.150.2016.02.11.04.17.47
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7141E6B0009
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 07:29:59 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id e127so28930930pfe.3
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 04:29:59 -0800 (PST)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id q88si12364149pfa.197.2016.02.11.04.29.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Feb 2016 04:17:47 -0800 (PST)
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 11 Feb 2016 12:17:47 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id D9817219005C
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:17:29 +0000 (GMT)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1BCHi7416121928
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 12:17:44 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1BCHhkD006973
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 05:17:43 -0700
-Subject: Re: [PATCH v2 2/5] mm/slub: query dynamic DEBUG_PAGEALLOC setting
-References: <1455163501-9341-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1455163501-9341-3-git-send-email-iamjoonsoo.kim@lge.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Message-ID: <56BC7BE6.7000802@de.ibm.com>
-Date: Thu, 11 Feb 2016 13:17:42 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Feb 2016 04:29:57 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm,thp: refactor generic deposit/withdraw routines
+ for wider usage
+References: <1455182907-15445-1-git-send-email-vgupta@synopsys.com>
+ <1455182907-15445-2-git-send-email-vgupta@synopsys.com>
+ <20160211112223.0acc8237@mschwide> <56BC682D.6070808@synopsys.com>
+ <20160211122023.6d719513@mschwide>
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Message-ID: <56BC7EAE.7070206@synopsys.com>
+Date: Thu, 11 Feb 2016 17:59:34 +0530
 MIME-Version: 1.0
-In-Reply-To: <1455163501-9341-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-15
+In-Reply-To: <20160211122023.6d719513@mschwide>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Takashi Iwai <tiwai@suse.com>, Chris Metcalf <cmetcalf@ezchip.com>, Christoph Lameter <cl@linux.com>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Alex Thorlton <athorlton@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-snps-arc@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On 02/11/2016 05:04 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thursday 11 February 2016 04:50 PM, Martin Schwidefsky wrote:
+> On Thu, 11 Feb 2016 16:23:33 +0530
+> Vineet Gupta <Vineet.Gupta1@synopsys.com> wrote:
 > 
-> We can disable debug_pagealloc processing even if the code is compiled
-> with CONFIG_DEBUG_PAGEALLOC. This patch changes the code to query
-> whether it is enabled or not in runtime.
+>> On Thursday 11 February 2016 03:52 PM, Martin Schwidefsky wrote:
+>>> On Thu, 11 Feb 2016 14:58:26 +0530
+>>> Vineet Gupta <Vineet.Gupta1@synopsys.com> wrote:
+>>>
+>>>> Generic pgtable_trans_huge_deposit()/pgtable_trans_huge_withdraw()
+>>>> assume pgtable_t to be struct page * which is not true for all arches.
+>>>> Thus arc, s390, sparch end up with their own copies despite no special
+>>>> hardware requirements (unlike powerpc).
+>>>
+>>> s390 does have a special hardware requirement. pgtable_t is an address
+>>> for a 2K block of memory. It is *not* equivalent to a struct page *
+>>> which refers to a 4K block of memory. That has been the whole point
+>>> to introduce pgtable_t.
+>>
+>> Actually my reference to hardware requirement was more like powerpc style save a
+>> hash value some where etc.
+>>
+>> Now pgtable_t need not be struct page * even if the actual sizes are same - e.g.
+>> in ARC port I kept pgtable_t as pte_t * simply to avoid a few page_address() calls
+>> in mm code (you could argue that is was a micro-optimization, anyways..)
+>>
+>> So given I know nothing about s390 MMU internals, I still think you can switch to
+>> the update generic version despite 2K vs. 4K. Agree ?
 > 
-> v2: clean up code, per Christian.
+> No, we can not. For s390 a page table is aligned on a 2K boundary and is
+> only half the size of a page (except for KVM but that is another story).
+> For s390 a pgtable_t is a pointer to the memory location with the 256 ptes
+> and not a struct page *.
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> The cast "struct page *new = (struct page*)pgtable;" in your first patch
+> is already broken, "new" points to the memory of the page table and
+> the list_head operations will clobber that memory.
 
-Reviewed-by: Christian Borntraeger <borntraeger@de.ibm.com>
+The current s390 code does something similar using a different struct cast. It is
+still writing in pgtable_t - although at a different location.
 
-> ---
->  mm/slub.c | 7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 606488b..a1874c2 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -250,11 +250,10 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
->  {
->  	void *p;
-> 
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> +	if (!debug_pagealloc_enabled())
-> +		return get_freepointer(s, object);
-> +
->  	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
-> -#else
-> -	p = get_freepointer(s, object);
-> -#endif
->  	return p;
->  }
-> 
+> You try to fix it up
+> with the memset to zero in pgtable_trans_huge_withdraw but that does not
+> correct the pte entries for s390 as an invalid page-table entry is *not*
+> all zeros.
+
+Right so that is the problem - just trying to understand.
+
+> In short, please let s390 keep its own copy of deposit/withdraw.
+
+You got it - I'm out of the way :-)
+
+Thx,
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
