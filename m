@@ -1,160 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C758A6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 16:34:11 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id yy13so34895020pab.3
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:34:11 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id d89si14900300pfj.146.2016.02.11.13.34.10
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 42F7F6B0253
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 16:34:18 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id e127so35661732pfe.3
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 13:34:18 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id q66si14910547pfi.84.2016.02.11.13.34.16
         for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 13:34:10 -0800 (PST)
-Message-Id: <cover.1455225826.git.tony.luck@intel.com>
+        Thu, 11 Feb 2016 13:34:17 -0800 (PST)
+Message-Id: <6124711181d63a4b9e67cc5df13252eba3638ac6.1455225826.git.tony.luck@intel.com>
+In-Reply-To: <cover.1455225826.git.tony.luck@intel.com>
+References: <cover.1455225826.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Subject: [PATCH v11 0/4] Machine check recovery when kernel accesses poison
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Date: Thu, 11 Feb 2016 13:34:10 -0800
+Subject: [PATCH v11 2/4] x86, mce: Check for faults tagged in
+ EXTABLE_CLASS_FAULT exception table entries
+Date: Thu, 11 Feb 2016 13:34:16 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
 
-This series is initially targeted at the folks doing filesystems
-on top of NVDIMMs. They really want to be able to return -EIO
-when there is a h/w error (just like spinning rust, and SSD does).
+Extend the severity checking code to add a new context IN_KERN_RECOV
+which is used to indicate that the machine check was triggered by code
+in the kernel tagged with _ASM_EXTABLE_FAULT() so that the ex_handler_fault()
+handler will provide the fixup code with the trap number.
 
-I plan to use the same infrastructure to write a machine check aware
-"copy_from_user()" that will SIGBUS the calling application when a
-syscall touches poison in user space (just like we do when the application
-touches the poison itself).
+Major re-work to the tail code in do_machine_check() to make all this
+readable/maintainable. One functional change is that tolerant=3 no longer
+stops recovery actions. Revert to only skipping sending SIGBUS to the
+current process.
 
-I've dropped off the "reviewed-by" tags that I collected back prior to
-adding the new field to the exception table. Please send new ones
-if you can.
+Signed-off-by: Tony Luck <tony.luck@intel.com>
+---
+ arch/x86/kernel/cpu/mcheck/mce-severity.c | 22 +++++++++-
+ arch/x86/kernel/cpu/mcheck/mce.c          | 70 ++++++++++++++++---------------
+ 2 files changed, 56 insertions(+), 36 deletions(-)
 
-Changes
-V10->V11
-Boris:	Optimize for aligned case in __mcsafe_copy()
-Boris:	Add whitespace and comments to __mcsafe_copy() for readability
-Boris:	Move Xeon E7 check to Intel quirks
-Boris:	Simpler description for mce=recovery command line option
-
-V9->V10
-Andy:   Commit comment in part 2 is stale - refers to "EXTABLE_CLASS_FAULT"
-Boris:  Part1 - Numerous spelling, grammar, etc. fixes
-Boris:  Part2 - No longer need #include <linux/module.h> (in either file).
-
-V8->V9
-Boris: Create a synthetic cpu capability for machine check recovery.
-
-Changes V7-V8
-Boris:  Would be so much cleaner if we added a new field to the exception table
-        instead of squeezing bits into the fixup field. New field added
-Tony:   Documentation needs to be updated. Done
-
-Changes V6-V7:
-Boris:  Why add/subtract 0x20000000? Added better comment provided by Andy
-Boris:  Churn. Part2 changes things only introduced in part1.
-        Merged parts 1&2 into one patch.
-Ingo:   Missing my sign off on part1. Added.
-
-Changes V5-V6
-Andy:   Provoked massive re-write by providing what is now part1 of this
-        patch series. This frees up two bits in the exception table
-        fixup field that can be used to tag exception table entries
-        as different "classes". This means we don't need my separate
-        exception table fro machine checks. Also avoids duplicating
-        fixup actions for #PF and #MC cases that were in version 5.
-Andy:   Use C99 array initializers to tie the various class fixup
-        functions back to the defintions of each class. Also give the
-        functions meanningful names (not fixup_class0() etc.).
-Boris:  Cleaned up my lousy assembly code removing many spurious 'l'
-        modifiers on instructions.
-Boris:  Provided some helper functions for the machine check severity
-        calculation that make the code more readable.
-Boris:  Have __mcsafe_copy() return a structure with the 'remaining bytes'
-        in a separate field from the fault indicator. Boris had suggested
-        Linux -EFAULT/-EINVAL ... but I thought it made more sense to return
-        the exception number (X86_TRAP_MC, etc.)  This finally kills off
-        BIT(63) which has been controversial throughout all the early versions
-        of this patch series.
-
-Changes V4-V5
-Tony:   Extended __mcsafe_copy() to have fixup entries for both machine
-        check and page fault.
-
-Changes V3-V4:
-Andy:   Simplify fixup_mcexception() by dropping used-once local variable
-Andy:   "Reviewed-by" tag added to part1
-Boris:  Moved new functions to memcpy_64.S and declaration to asm/string_64.h
-Boris:  Changed name s/mcsafe_memcpy/__mcsafe_copy/ to make it clear that this
-        is an internal function and that return value doesn't follow memcpy() semantics.
-Boris:  "Reviewed-by" tag added to parts 1&2
-
-Changes V2-V3:
-
-Andy:   Don't hack "regs->ax = BIT(63) | addr;" in the machine check
-        handler.  Now have better fixup code that computes the number
-        of remaining bytes (just like page-fault fixup).
-Andy:   #define for BIT(63). Done, plus couple of extra macros using it.
-Boris:  Don't clutter up generic code (like mm/extable.c) with this.
-        I moved everything under arch/x86 (the asm-generic change is
-        a more generic #define).
-Boris:  Dependencies for CONFIG_MCE_KERNEL_RECOVERY are too generic.
-        I made it a real menu item with default "n". Dan Williams
-        will use "select MCE_KERNEL_RECOVERY" from his persistent
-        filesystem code.
-Boris:  Simplify conditionals in mce.c by moving tolerant/kill_it
-        checks earlier, with a skip to end if they aren't set.
-Boris:  Miscellaneous grammar/punctuation. Fixed.
-Boris:  Don't leak spurious __start_mcextable symbols into kernels
-        that didn't configure MCE_KERNEL_RECOVERY. Done.
-Tony:   New code doesn't belong in user_copy_64.S/uaccess*.h. Moved
-        to new .S/.h files
-Elliott:Cacheing behavior non-optimal. Could use movntdqa, vmovntdqa
-        or vmovntdqa on source addresses. I didn't fix this yet. Think
-        of the current mcsafe_memcpy() as the first of several functions.
-        This one is useful for small copies (meta-data) where the overhead
-        of saving SSE/AVX state isn't justified.
-
-Changes V1->V2:
-
-0-day:  Reported build errors and warnings on 32-bit systems. Fixed
-0-day:  Reported bloat to tinyconfig. Fixed
-Boris:  Suggestions to use extra macros to reduce code duplication in _ASM_*EXTABLE. Done
-Boris:  Re-write "tolerant==3" check to reduce indentation level. See below.
-Andy:   Check IP is valid before searching kernel exception tables. Done.
-Andy:   Explain use of BIT(63) on return value from mcsafe_memcpy(). Done (added decode macros).
-Andy:   Untangle mess of code in tail of do_machine_check() to make it
-        clear what is going on (e.g. that we only enter the ist_begin_non_atomic()
-        if we were called from user code, not from kernel!). Done.
-
-Tony Luck (4):
-  x86: Expand exception table to allow new handling options
-  x86, mce: Check for faults tagged in EXTABLE_CLASS_FAULT exception
-    table entries
-  x86, mce: Add __mcsafe_copy()
-  x86: Create a new synthetic cpu capability for machine check recovery
-
- Documentation/x86/exception-tables.txt    |  35 +++++++
- Documentation/x86/x86_64/boot-options.txt |   2 +
- arch/x86/include/asm/asm.h                |  40 ++++----
- arch/x86/include/asm/cpufeature.h         |   1 +
- arch/x86/include/asm/mce.h                |   1 +
- arch/x86/include/asm/string_64.h          |   8 ++
- arch/x86/include/asm/uaccess.h            |  16 ++--
- arch/x86/kernel/cpu/mcheck/mce-severity.c |  22 ++++-
- arch/x86/kernel/cpu/mcheck/mce.c          |  83 +++++++++-------
- arch/x86/kernel/kprobes/core.c            |   2 +-
- arch/x86/kernel/traps.c                   |   6 +-
- arch/x86/kernel/x8664_ksyms_64.c          |   2 +
- arch/x86/lib/memcpy_64.S                  | 151 ++++++++++++++++++++++++++++++
- arch/x86/mm/extable.c                     | 100 ++++++++++++++------
- arch/x86/mm/fault.c                       |   2 +-
- scripts/sortextable.c                     |  32 +++++++
- 16 files changed, 410 insertions(+), 93 deletions(-)
-
+diff --git a/arch/x86/kernel/cpu/mcheck/mce-severity.c b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+index 9c682c222071..5119766d9889 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce-severity.c
++++ b/arch/x86/kernel/cpu/mcheck/mce-severity.c
+@@ -14,6 +14,7 @@
+ #include <linux/init.h>
+ #include <linux/debugfs.h>
+ #include <asm/mce.h>
++#include <asm/uaccess.h>
+ 
+ #include "mce-internal.h"
+ 
+@@ -29,7 +30,7 @@
+  * panic situations)
+  */
+ 
+-enum context { IN_KERNEL = 1, IN_USER = 2 };
++enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
+ enum ser { SER_REQUIRED = 1, NO_SER = 2 };
+ enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
+ 
+@@ -48,6 +49,7 @@ static struct severity {
+ #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+ #define  KERNEL		.context = IN_KERNEL
+ #define  USER		.context = IN_USER
++#define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
+ #define  SER		.ser = SER_REQUIRED
+ #define  NOSER		.ser = NO_SER
+ #define  EXCP		.excp = EXCP_CONTEXT
+@@ -87,6 +89,10 @@ static struct severity {
+ 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+ 		),
+ 	MCESEV(
++		PANIC, "In kernel and no restart IP",
++		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
++		),
++	MCESEV(
+ 		DEFERRED, "Deferred error",
+ 		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
+ 		),
+@@ -123,6 +129,11 @@ static struct severity {
+ 		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, MCG_STATUS_RIPV)
+ 		),
+ 	MCESEV(
++		AR, "Action required: data load in error recoverable area of kernel",
++		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
++		KERNEL_RECOV
++		),
++	MCESEV(
+ 		AR, "Action required: data load error in a user process",
+ 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
+ 		USER
+@@ -170,6 +181,9 @@ static struct severity {
+ 		)	/* always matches. keep at end */
+ };
+ 
++#define mc_recoverable(mcg) (((mcg) & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) == \
++				(MCG_STATUS_RIPV|MCG_STATUS_EIPV))
++
+ /*
+  * If mcgstatus indicated that ip/cs on the stack were
+  * no good, then "m->cs" will be zero and we will have
+@@ -183,7 +197,11 @@ static struct severity {
+  */
+ static int error_context(struct mce *m)
+ {
+-	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
++	if ((m->cs & 3) == 3)
++		return IN_USER;
++	if (mc_recoverable(m->mcgstatus) && ex_has_fault_handler(m->ip))
++		return IN_KERNEL_RECOV;
++	return IN_KERNEL;
+ }
+ 
+ /*
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index a006f4cd792b..905f3070f412 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -961,6 +961,20 @@ static void mce_clear_state(unsigned long *toclear)
+ 	}
+ }
+ 
++static int do_memory_failure(struct mce *m)
++{
++	int flags = MF_ACTION_REQUIRED;
++	int ret;
++
++	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
++	if (!(m->mcgstatus & MCG_STATUS_RIPV))
++		flags |= MF_MUST_KILL;
++	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
++	if (ret)
++		pr_err("Memory error not recovered");
++	return ret;
++}
++
+ /*
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+@@ -998,8 +1012,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+ 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
+ 	char *msg = "Unknown";
+-	u64 recover_paddr = ~0ull;
+-	int flags = MF_ACTION_REQUIRED;
+ 	int lmce = 0;
+ 
+ 	/* If this CPU is offline, just bail out. */
+@@ -1136,22 +1148,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	}
+ 
+ 	/*
+-	 * At insane "tolerant" levels we take no action. Otherwise
+-	 * we only die if we have no other choice. For less serious
+-	 * issues we try to recover, or limit damage to the current
+-	 * process.
++	 * If tolerant is at an insane level we drop requests to kill
++	 * processes and continue even when there is no way out.
+ 	 */
+-	if (cfg->tolerant < 3) {
+-		if (no_way_out)
+-			mce_panic("Fatal machine check on current CPU", &m, msg);
+-		if (worst == MCE_AR_SEVERITY) {
+-			recover_paddr = m.addr;
+-			if (!(m.mcgstatus & MCG_STATUS_RIPV))
+-				flags |= MF_MUST_KILL;
+-		} else if (kill_it) {
+-			force_sig(SIGBUS, current);
+-		}
+-	}
++	if (cfg->tolerant == 3)
++		kill_it = 0;
++	else if (no_way_out)
++		mce_panic("Fatal machine check on current CPU", &m, msg);
+ 
+ 	if (worst > 0)
+ 		mce_report_event(regs);
+@@ -1159,25 +1162,24 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ out:
+ 	sync_core();
+ 
+-	if (recover_paddr == ~0ull)
+-		goto done;
++	if (worst != MCE_AR_SEVERITY && !kill_it)
++		goto out_ist;
+ 
+-	pr_err("Uncorrected hardware memory error in user-access at %llx",
+-		 recover_paddr);
+-	/*
+-	 * We must call memory_failure() here even if the current process is
+-	 * doomed. We still need to mark the page as poisoned and alert any
+-	 * other users of the page.
+-	 */
+-	ist_begin_non_atomic(regs);
+-	local_irq_enable();
+-	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
+-		pr_err("Memory error not recovered");
+-		force_sig(SIGBUS, current);
++	/* Fault was in user mode and we need to take some action */
++	if ((m.cs & 3) == 3) {
++		ist_begin_non_atomic(regs);
++		local_irq_enable();
++
++		if (kill_it || do_memory_failure(&m))
++			force_sig(SIGBUS, current);
++		local_irq_disable();
++		ist_end_non_atomic();
++	} else {
++		if (!fixup_exception(regs, X86_TRAP_MC))
++			mce_panic("Failed kernel mode recovery", &m, NULL);
+ 	}
+-	local_irq_disable();
+-	ist_end_non_atomic();
+-done:
++
++out_ist:
+ 	ist_exit(regs);
+ }
+ EXPORT_SYMBOL_GPL(do_machine_check);
 -- 
 2.5.0
 
