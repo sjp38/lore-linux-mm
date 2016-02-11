@@ -1,54 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F816B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 17:02:28 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id g62so39858814wme.0
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 14:02:28 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id mb1si14776093wjb.176.2016.02.11.14.02.27
-        for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 14:02:27 -0800 (PST)
-Date: Thu, 11 Feb 2016 23:02:22 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v11 0/4] Machine check recovery when kernel accesses
- poison
-Message-ID: <20160211220222.GJ5565@pd.tnic>
-References: <cover.1455225826.git.tony.luck@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <cover.1455225826.git.tony.luck@intel.com>
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F97B6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 17:12:04 -0500 (EST)
+Received: by mail-qk0-f171.google.com with SMTP id o6so24873008qkc.2
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 14:12:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d9si11846688qkb.119.2016.02.11.14.12.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Feb 2016 14:12:03 -0800 (PST)
+Message-ID: <1455228719.15821.18.camel@redhat.com>
+Subject: Re: computing drop-able caches
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 11 Feb 2016 17:11:59 -0500
+In-Reply-To: <56BB8B5E.0@cisco.com>
+References: <56AAA77D.7090000@cisco.com> <20160128235815.GA5953@cmpxchg.org>
+	 <56AABA79.3030103@cisco.com> <56AAC085.9060509@cisco.com>
+	 <20160129015534.GA6401@cmpxchg.org> <56ABEAA7.1020706@redhat.com>
+	 <D2DE3289.2B1F3%khalidm@cisco.com> <56BB7BC7.4040403@cisco.com>
+	 <56BB7DDE.8080206@intel.com> <56BB8B5E.0@cisco.com>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-BpeyX5zFj02UhucDDNKq"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, elliott@hpe.com, Brian Gerst <brgerst@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org
+To: Daniel Walker <danielwa@cisco.com>, Dave Hansen <dave.hansen@intel.com>, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
 
-On Thu, Feb 11, 2016 at 01:34:10PM -0800, Tony Luck wrote:
-> This series is initially targeted at the folks doing filesystems
-> on top of NVDIMMs. They really want to be able to return -EIO
-> when there is a h/w error (just like spinning rust, and SSD does).
-> 
-> I plan to use the same infrastructure to write a machine check aware
-> "copy_from_user()" that will SIGBUS the calling application when a
-> syscall touches poison in user space (just like we do when the application
-> touches the poison itself).
-> 
-> I've dropped off the "reviewed-by" tags that I collected back prior to
-> adding the new field to the exception table. Please send new ones
-> if you can.
-> 
-> Changes
 
-That's some changelog, I tell ya. Well, it took us long enough so for
-all 4:
+--=-BpeyX5zFj02UhucDDNKq
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+On Wed, 2016-02-10 at 11:11 -0800, Daniel Walker wrote:
+> On 02/10/2016 10:13 AM, Dave Hansen wrote:
+> > On 02/10/2016 10:04 AM, Daniel Walker wrote:
+> > > > [Linux_0:/]$ echo 3 > /proc/sys/vm/drop_caches
+> > > > [Linux_0:/]$ cat /proc/meminfo
+> > > > MemTotal:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A03977836 kB
+> > > > MemFree:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A010950=
+12 kB
+> > > > MemAvailable:=C2=A0=C2=A0=C2=A0=C2=A01434148 kB
+> > > I suspect MemAvailable takes into account more than just the
+> > > droppable
+> > > caches. For instance, reclaimable slab is included, but I don't
+> > > think
+> > > drop_caches drops that part.
+> > There's a bit for page cache and a bit for slab, see:
+> >=20
+> > 	https://kernel.org/doc/Documentation/sysctl/vm.txt
+> >=20
+> >=20
+>=20
+> Ok, then this looks like a defect then. I would think MemAvailable
+> would=C2=A0
+> always be smaller then MemFree (after echo 3 >=C2=A0
+> /proc/sys/vm/drop_caches).. Unless there is something else be
+> accounted=C2=A0
+> for that we aren't aware of.
 
--- 
-Regards/Gruss,
-    Boris.
+echo 3 > /proc/sys/vm/drop_caches will only
+drop unmapped page cache, IIRC
 
-ECO tip #101: Trim your mails when you reply.
+The system may still have a number of page
+cache pages left that are mapped in processes,
+but will be reclaimable if the VM needs the
+memory for something else.
+
+--=C2=A0
+All rights reversed
+
+--=-BpeyX5zFj02UhucDDNKq
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAABAgAGBQJWvQcvAAoJEM553pKExN6D8M8H/0Aqc7NwsoGFLS80k46ifXkN
++zNxiikPvml92gDEVmhQ1oU0k06+qOEXO+rF2zpdCS0vDsV0+smzBS4KV1sWENmA
+7x03R0J3G4b4G9UMZilcxGusu/zGaHP9X3Tajd2QDRy6SzzdMirC0ajtYZ2ZlOAs
+qDsjuNp1fcdDVCuovM6HUUFN2nhdqSDzXdrt02ax9Xzobsq21vtjPOmzmemz0rqP
+LhO6mITER0Bo3uVAI5JZ/VChWA7aNRDb2Hlz6cyNE2P+QUsmKy7iVodi4xWIiRPc
+EO3TKpIXeJfo56+lAvibNJWrYBR7hQCluS9fEnCG29MTlYzIQlAjX/SIySD/F8U=
+=9Tdh
+-----END PGP SIGNATURE-----
+
+--=-BpeyX5zFj02UhucDDNKq--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
