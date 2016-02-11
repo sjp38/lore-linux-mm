@@ -1,113 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CE57B6B0253
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 21:18:33 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id ho8so21246414pac.2
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 18:18:33 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id g13si9038109pfd.68.2016.02.10.18.18.32
-        for <linux-mm@kvack.org>;
-        Wed, 10 Feb 2016 18:18:32 -0800 (PST)
-Subject: [PATCH] mm: fix pfn_t vs highmem
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 10 Feb 2016 18:18:08 -0800
-Message-ID: <20160211021807.37532.78501.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-yw0-f180.google.com (mail-yw0-f180.google.com [209.85.161.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 02A1B6B0256
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2016 21:21:56 -0500 (EST)
+Received: by mail-yw0-f180.google.com with SMTP id q190so29767295ywd.3
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 18:21:55 -0800 (PST)
+Received: from mail-yw0-x229.google.com (mail-yw0-x229.google.com. [2607:f8b0:4002:c05::229])
+        by mx.google.com with ESMTPS id n64si2427033ywf.322.2016.02.10.18.21.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Feb 2016 18:21:55 -0800 (PST)
+Received: by mail-yw0-x229.google.com with SMTP id u200so29856353ywf.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2016 18:21:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPcyv4hCRxUWLdsreG+LJZwP0VmVPOGLK-uh46++juj2KOH8QQ@mail.gmail.com>
+References: <bug-112211-27@https.bugzilla.kernel.org/>
+	<20160209122015.71a63bd2d7ee34599fb79e9e@linux-foundation.org>
+	<CAPcyv4hCRxUWLdsreG+LJZwP0VmVPOGLK-uh46++juj2KOH8QQ@mail.gmail.com>
+Date: Wed, 10 Feb 2016 18:21:54 -0800
+Message-ID: <CAPcyv4heg5VwqgjkpHAC3gfHANv4tu=n2hpeCoSpaeyhRQBUqg@mail.gmail.com>
+Subject: Re: [Bug 112211] New: ATI Radeon Graphics not rendering correctly
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, dri-devel@lists.freedesktop.org, Stuart Foster <smf.linux@ntlworld.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: smf.linux@ntlworld.com, bugzilla-daemon@bugzilla.kernel.org, Linux MM <linux-mm@kvack.org>
 
-The pfn_t type uses an unsigned long to store a pfn + flags value.  On a
-64-bit platform the upper 12 bits of an unsigned long are never used for
-storing the value of a pfn.  However, this is not true on highmem
-platforms, all 32-bits of a pfn value are used to address a 44-bit
-physical address space.  A pfn_t needs to store a 64-bit value.
+On Tue, Feb 9, 2016 at 12:36 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> On Tue, Feb 9, 2016 at 12:20 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>>
+>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>> bugzilla web interface).
+>>
+>> On Tue, 09 Feb 2016 08:41:39 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>>
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=112211
+>>>
+>>>             Bug ID: 112211
+>>>            Summary: ATI Radeon Graphics not rendering correctly
+>>>            Product: Memory Management
+>>>            Version: 2.5
+>>>     Kernel Version: Linux 4.5-rc3
+>>>           Hardware: IA-32
+>>>                 OS: Linux
+>>>               Tree: Mainline
+>>>             Status: NEW
+>>>           Severity: normal
+>>>           Priority: P1
+>>>          Component: Page Allocator
+>>>           Assignee: akpm@linux-foundation.org
+>>>           Reporter: smf.linux@ntlworld.com
+>>>         Regression: No
+>>>
+>>> On testing linux 4.5-rc( 1,2 and 3) I have found that my display is not
+>>> rendered correctly on starting the X server. My screen is mainly black with
+>>> portions of the desktop appearing from time to time. I initially raised this
+>>> with the DRM/Radeon team:
+>>>
+>>> https://bugs.freedesktop.org/show_bug.cgi?id=93998
+>>>
+>>> On investigation a bisect identified the following commit as the source of my
+>>> problem:
+>>>
+>>> 01c8f1c44b83a0825b573e7c723b033cece37b86 is the first bad commit
+>>> commit 01c8f1c44b83a0825b573e7c723b033cece37b86
+>>> Author: Dan Williams <dan.j.williams@intel.com>
+>>> Date:   Fri Jan 15 16:56:40 2016 -0800
+>>>
+>>>     mm, dax, gpu: convert vm_insert_mixed to pfn_t
+>>>
+>>>     Convert the raw unsigned long 'pfn' argument to pfn_t for the purpose of
+>>>     evaluating the PFN_MAP and PFN_DEV flags.  When both are set it triggers
+>>>     _PAGE_DEVMAP to be set in the resulting pte.
+>>>
+>>>     There are no functional changes to the gpu drivers as a result of this
+>>>     conversion.
+>>>
+>>>     Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>>>     Cc: Dave Hansen <dave@sr71.net>
+>>>     Cc: David Airlie <airlied@linux.ie>
+>>>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>>>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+>>>
+>>> The problem is present on two AMD/ATI systems I have tried but is absent from
+>>> my Intel based laptop. All my systems are 32 bit LFS builds.
+>>>
+>>> I did try to contact Dan Williams but I am not sure that my e-mail got through,
+>>> can anyone suggest a way forward please ?
+>>>
+>>
+>> Does your kernel include
+>>
+>> commit 03fc2da63b9a33dce784a2075c7e068bb97cbf69
+>> Author: Dan Williams <dan.j.williams@intel.com>
+>> Date:   Tue Jan 26 09:48:05 2016 -0800
+>>
+>>     mm: fix pfn_t to page conversion in vm_insert_mixed
+>>
+>
+> Hi Stuart, from the bugzilla activity it looks like you are already
+> running with this fix.  Can you append you kernel config file to the
+> bugzilla.  There's something particular about 32-bit builds I'm
+> missing...
 
-Reported-by: Stuart Foster <smf.linux@ntlworld.com>
-Reported-by: Julian Margetson <runaway@candw.ms>
-Cc: <dri-devel@lists.freedesktop.org>
-Link: https://bugzilla.kernel.org/show_bug.cgi?id=112211
-Fixes: 01c8f1c44b83 ("mm, dax, gpu: convert vm_insert_mixed to pfn_t")
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/pfn.h   |    2 +-
- include/linux/pfn_t.h |   19 +++++++++----------
- kernel/memremap.c     |    2 +-
- 3 files changed, 11 insertions(+), 12 deletions(-)
+Thanks for the config file.  I was able to reproduce this in a VM that
+uses the DRM layer.  The fix that works for me is available here in
+patchwork [1].  Let me know if it works in your environment.
 
-diff --git a/include/linux/pfn.h b/include/linux/pfn.h
-index 2d8e49711b63..1132953235c0 100644
---- a/include/linux/pfn.h
-+++ b/include/linux/pfn.h
-@@ -10,7 +10,7 @@
-  * backing is indicated by flags in the high bits of the value.
-  */
- typedef struct {
--	unsigned long val;
-+	u64 val;
- } pfn_t;
- #endif
- 
-diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-index 37448ab5fb5c..94994810c7c0 100644
---- a/include/linux/pfn_t.h
-+++ b/include/linux/pfn_t.h
-@@ -9,14 +9,13 @@
-  * PFN_DEV - pfn is not covered by system memmap by default
-  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
-  */
--#define PFN_FLAGS_MASK (((unsigned long) ~PAGE_MASK) \
--		<< (BITS_PER_LONG - PAGE_SHIFT))
--#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
--#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
--#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
--#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
--
--static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
-+#define PFN_FLAGS_MASK (((u64) ~PAGE_MASK) << (BITS_PER_LONG_LONG - PAGE_SHIFT))
-+#define PFN_SG_CHAIN (1ULL << (BITS_PER_LONG_LONG - 1))
-+#define PFN_SG_LAST (1ULL << (BITS_PER_LONG_LONG - 2))
-+#define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
-+#define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
-+
-+static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
- {
- 	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
- 
-@@ -29,7 +28,7 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
- 	return __pfn_to_pfn_t(pfn, 0);
- }
- 
--extern pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
-+extern pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags);
- 
- static inline bool pfn_t_has_page(pfn_t pfn)
- {
-@@ -87,7 +86,7 @@ static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
- #ifdef __HAVE_ARCH_PTE_DEVMAP
- static inline bool pfn_t_devmap(pfn_t pfn)
- {
--	const unsigned long flags = PFN_DEV|PFN_MAP;
-+	const u64 flags = PFN_DEV|PFN_MAP;
- 
- 	return (pfn.val & flags) == flags;
- }
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 3427cca5a2a6..b04ea2f5fbfe 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -152,7 +152,7 @@ void devm_memunmap(struct device *dev, void *addr)
- }
- EXPORT_SYMBOL(devm_memunmap);
- 
--pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
-+pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags)
- {
- 	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
- }
+[1]: https://patchwork.kernel.org/patch/8276171/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
