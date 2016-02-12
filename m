@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A1A8828E4
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:15 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id yy13so52103252pab.3
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:15 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id 10si22191392pfb.71.2016.02.12.13.02.09
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C0E5828E4
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:17 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id x65so53106605pfb.1
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:17 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id fn1si22138430pab.117.2016.02.12.13.02.10
         for <linux-mm@kvack.org>;
         Fri, 12 Feb 2016 13:02:10 -0800 (PST)
-Subject: [PATCH 11/33] x86, pkeys: store protection in high VMA flags
+Subject: [PATCH 12/33] x86, pkeys: arch-specific protection bits
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:02:08 -0800
+Date: Fri, 12 Feb 2016 13:02:10 -0800
 References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
 In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-Message-Id: <20160212210208.81AF00D5@viggo.jf.intel.com>
+Message-Id: <20160212210210.FE483A42@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,74 +22,138 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-vma->vm_flags is an 'unsigned long', so has space for 32 flags
-on 32-bit architectures.  The high 32 bits are unused on 64-bit
-platforms.  We've steered away from using the unused high VMA
-bits for things because we would have difficulty supporting it
-on 32-bit.
+Lots of things seem to do:
 
-Protection Keys are not available in 32-bit mode, so there is
-no concern about supporting this feature in 32-bit mode or on
-32-bit CPUs.
+        vma->vm_page_prot = vm_get_page_prot(flags);
 
-This patch carves out 4 bits from the high half of
-vma->vm_flags and allows architectures to set config option
-to make them available.
+and the ptes get created right from things we pull out
+of ->vm_page_prot.  So it is very convenient if we can
+store the protection key in flags and vm_page_prot, just
+like the existing permission bits (_PAGE_RW/PRESENT).  It
+greatly reduces the amount of plumbing and arch-specific
+hacking we have to do in generic code.
 
-Sparse complains about these constants unless we explicitly
-call them "UL".
+This also takes the new PROT_PKEY{0,1,2,3} flags and
+turns *those* in to VM_ flags for vma->vm_flags.
+
+The protection key values are stored in 4 places:
+	1. "prot" argument to system calls
+	2. vma->vm_flags, filled from the mmap "prot"
+	3. vma->vm_page prot, filled from vma->vm_flags
+	4. the PTE itself.
+
+The pseudocode for these for steps are as follows:
+
+	mmap(PROT_PKEY*)
+	vma->vm_flags 	  = ... | arch_calc_vm_prot_bits(mmap_prot);
+	vma->vm_page_prot = ... | arch_vm_get_page_prot(vma->vm_flags);
+	pte = pfn | vma->vm_page_prot
+
+Note that this provides a new definitions for x86:
+
+	arch_vm_get_page_prot()
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/Kconfig   |    1 +
- b/include/linux/mm.h |   11 +++++++++++
- b/mm/Kconfig         |    3 +++
- 3 files changed, 15 insertions(+)
+ b/arch/x86/include/asm/mmu_context.h   |   11 +++++++++++
+ b/arch/x86/include/asm/pgtable_types.h |   12 ++++++++++--
+ b/arch/x86/include/uapi/asm/mman.h     |   16 ++++++++++++++++
+ b/include/linux/mm.h                   |    7 +++++++
+ 4 files changed, 44 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/Kconfig~pkeys-06-eat-high-vma-flags arch/x86/Kconfig
---- a/arch/x86/Kconfig~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.494350045 -0800
-+++ b/arch/x86/Kconfig	2016-02-12 10:44:18.502350411 -0800
-@@ -155,6 +155,7 @@ config X86
- 	select VIRT_TO_BUS
- 	select X86_DEV_DMA_OPS			if X86_64
- 	select X86_FEATURE_NAMES		if PROC_FS
-+	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-07-store-pkey-in-vma	2016-02-12 10:44:18.956371165 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2016-02-12 10:44:18.964371531 -0800
+@@ -275,4 +275,15 @@ static inline void arch_unmap(struct mm_
+ 		mpx_notify_unmap(mm, vma, start, end);
+ }
  
- config INSTRUCTION_DECODER
- 	def_bool y
-diff -puN include/linux/mm.h~pkeys-06-eat-high-vma-flags include/linux/mm.h
---- a/include/linux/mm.h~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.496350136 -0800
-+++ b/include/linux/mm.h	2016-02-12 10:44:18.503350456 -0800
-@@ -170,6 +170,17 @@ extern unsigned int kobjsize(const void
- #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
- #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
- 
-+#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
-+#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
-+#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
-+#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
-+#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
-+#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
++static inline int vma_pkey(struct vm_area_struct *vma)
++{
++	u16 pkey = 0;
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
++				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
++	pkey = (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
++#endif
++	return pkey;
++}
 +
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
+diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~pkeys-07-store-pkey-in-vma	2016-02-12 10:44:18.957371211 -0800
++++ b/arch/x86/include/asm/pgtable_types.h	2016-02-12 10:44:18.964371531 -0800
+@@ -115,7 +115,12 @@
+ #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+ 			 _PAGE_DIRTY)
+ 
+-/* Set of bits not changed in pte_modify */
++/*
++ * Set of bits not changed in pte_modify.  The pte's
++ * protection key is treated like _PAGE_RW, for
++ * instance, and is *not* included in this mask since
++ * pte_modify() does modify it.
++ */
+ #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+ 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+ 			 _PAGE_SOFT_DIRTY)
+@@ -231,7 +236,10 @@ enum page_cache_mode {
+ /* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+ 
+-/* Extracts the flags from a (pte|pmd|pud|pgd)val_t of a 4KB page */
++/*
++ *  Extracts the flags from a (pte|pmd|pud|pgd)val_t
++ *  This includes the protection key value.
++ */
+ #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
+ 
+ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma arch/x86/include/uapi/asm/mman.h
+--- a/arch/x86/include/uapi/asm/mman.h~pkeys-07-store-pkey-in-vma	2016-02-12 10:44:18.959371302 -0800
++++ b/arch/x86/include/uapi/asm/mman.h	2016-02-12 10:44:18.965371577 -0800
+@@ -6,6 +6,22 @@
+ #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+ #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
+ 
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++/*
++ * Take the 4 protection key bits out of the vma->vm_flags
++ * value and turn them in to the bits that we can put in
++ * to a pte.
++ *
++ * Only override these if Protection Keys are available
++ * (which is only on 64-bit).
++ */
++#define arch_vm_get_page_prot(vm_flags)	__pgprot(	\
++		((vm_flags) & VM_PKEY_BIT0 ? _PAGE_PKEY_BIT0 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT1 ? _PAGE_PKEY_BIT1 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT2 ? _PAGE_PKEY_BIT2 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
++#endif
++
+ #include <asm-generic/mman.h>
+ 
+ #endif /* _ASM_X86_MMAN_H */
+diff -puN include/linux/mm.h~pkeys-07-store-pkey-in-vma include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-07-store-pkey-in-vma	2016-02-12 10:44:18.961371394 -0800
++++ b/include/linux/mm.h	2016-02-12 10:44:18.965371577 -0800
+@@ -183,6 +183,13 @@ extern unsigned int kobjsize(const void
+ 
  #if defined(CONFIG_X86)
  # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
++#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
++# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
++# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
++# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
++# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
++# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
++#endif
  #elif defined(CONFIG_PPC)
-diff -puN mm/Kconfig~pkeys-06-eat-high-vma-flags mm/Kconfig
---- a/mm/Kconfig~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.498350228 -0800
-+++ b/mm/Kconfig	2016-02-12 10:44:18.503350456 -0800
-@@ -669,3 +669,6 @@ config ZONE_DEVICE
- 
- config FRAME_VECTOR
- 	bool
-+
-+config ARCH_USES_HIGH_VMA_FLAGS
-+	bool
+ # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
+ #elif defined(CONFIG_PARISC)
 _
 
 --
