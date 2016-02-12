@@ -1,259 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6796B0009
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:01:57 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id yy13so52099987pab.3
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:01:57 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id g77si4379414pfd.189.2016.02.12.13.01.53
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1474B6B0009
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:00 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id fy10so12775340pac.1
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:00 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id e69si22193002pfd.66.2016.02.12.13.01.54
         for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 13:01:53 -0800 (PST)
-Subject: [PATCH 00/33] x86: Memory Protection Keys (v10)
+        Fri, 12 Feb 2016 13:01:54 -0800 (PST)
+Subject: [PATCH 01/33] mm: introduce get_user_pages_remote()
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:01:52 -0800
-Message-Id: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+Date: Fri, 12 Feb 2016 13:01:54 -0800
+References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+Message-Id: <20160212210154.3F0E51EA@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, jack@suse.cz, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz
+Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, srikar@linux.vnet.ibm.com, vbabka@suse.cz, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, jack@suse.cz
 
-Memory Protection Keys for User pages is a CPU feature which will
-first appear on Skylake Servers, but will also be supported on
-future non-server parts (there is also a QEMU implementation).  It
-provides a mechanism for enforcing page-based protections, but
-without requiring modification of the page tables when an
-application changes wishes to change permissions.
 
-This set introduces supported limited to:
-1. Allows "execute-only" memory
-2. Enables KVM to run Protection-Key-enabled guests
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This set contains the vast majority of of the code, with the
-small but tricky explicit user interface parts left off.  We can
-have a more focused review on those at a later time in a (much
-smaller) follow-on series.
+For protection keys, we need to understand whether protections
+should be enforced in software or not.  In general, we enforce
+protections when working on our own task, but not when on others.
+We call these "current" and "remote" operations.
 
-Changes from v9:
- * Added macros to allow some source-level backward compatability
-   between the old-style get_user_pages*() calls taking tsk/mm and
-   the new-style which assumes the current tsk/mm.
- * renamed the new gup variant to get_user_pages_remote() instead
-   of get_user_pages_foreign()
- * rebased against 4.5-rc3
+This patch introduces a new get_user_pages() variant:
 
-Changes from v8:
- * Reorganization of get_user_pages() patch with awesome feedback
-   from Vlastimil Babka and suggestions from Jan Kara.
- * fix EXPORT_SYMBOL() and use get_current_user_page() in nommu.c
+        get_user_pages_remote()
 
-Changes from v7:
- * Fixed merge issue with cpu feature bitmap definitions
- * Fixed up some comments in get_user_pages() and smaps patches
-   (thanks Vlastimil!)
+Which is a replacement for when get_user_pages() is called on
+non-current tsk/mm.
 
-Changes from v6:
- * fix up ??'s showing up in in smaps' VmFlags field
- * added execute-only support
- * removed all the new syscalls from this set.  We can discuss
-   them in detail after this is merged.
+We also introduce a new gup flag: FOLL_REMOTE which can be used
+for the "__" gup variants to get this new behavior.
 
-Changes from v5:
+The uprobes is_trap_at_addr() location holds mmap_sem and
+calls get_user_pages(current->mm) on an instruction address.  This
+makes it a pretty unique gup caller.  Being an instruction access
+and also really originating from the kernel (vs. the app), I opted
+to consider this a 'remote' access where protection keys will not
+be enforced.
 
- * make types in read_pkru() u32's, not ints
- * rework VM_* bits to avoid using __ffsl() and clean up
-   vma_pkey()
- * rework pte_allows_gup() to use p??_val() instead of passing
-   around p{te,md,ud}_t types.
- * Fix up some inconsistent bool vs. int usage
- * corrected name of ARCH_VM_PKEY_FLAGS in patch description
- * remove NR_PKEYS... config option.  Just define it directly
+Without protection keys, this patch should not change any behavior.
 
-Changes from v4:
-
- * Made "allow setting of XSAVE state" safe if we got preempted
-   between when we saved our FPU state and when we restore it.
-   (I would appreciate a look from Ingo on this patch).
- * Fixed up a few things from Thomas's latest comments: splt up
-   siginfo in to x86 and generic, removed extra 'eax' variable
-   in rdpkru function, reworked vm_flags assignment, reworded
-   a comment in pte_allows_gup()
- * Add missing DISABLED/REQUIRED_MASK14 in cpufeature.h
- * Added comment about compile optimization in fault path
- * Left get_user_pages_locked() alone.  Andrea thinks we need it.
-
-Changes from RFCv3:
-
- * Added 'current' and 'foreign' variants of get_user_pages() to
-   help indicate whether protection keys should be enforced.
-   Thanks to Jerome Glisse for pointing out this issue.
- * Added "allocation" and set/get system calls so that we can do
-   management of proection keys in the kernel.  This opens the
-   door to use of specific protection keys for kernel use in the
-   future, such as for execute-only memory.
- * Removed the kselftest code for the moment.  It will be
-   submitted separately.
-
-Thanks Ingo and Thomas for most of these):
-Changes from RFCv2 (Thanks Ingo and Thomas for most of these):
-
- * few minor compile warnings
- * changed 'nopku' interaction with cpuid bits.  Now, we do not
-   clear the PKU cpuid bit, we just skip enabling it.
- * changed __pkru_allows_write() to also check access disable bit
- * removed the unused write_pkru()
- * made si_pkey a u64 and added some patch description details.
-   Also made it share space in siginfo with MPX and clarified
-   comments.
- * give some real text for the Processor Trace xsave state
- * made vma_pkey() less ugly (and much more optimized actually)
- * added SEGV_PKUERR to copy_siginfo_to_user()
- * remove page table walk when filling in si_pkey, added some
-   big fat comments about it being inherently racy.
- * added self test code
-
-This code is not runnable to anyone outside of Intel unless they
-have some special hardware or a fancy simulator.  There is a qemu
-model to emulate the feature, but it is not currently implemented
-fully enough to be usable.  If you are interested in running this
-for real, please get in touch with me.  Hardware is available to a
-very small but nonzero number of people.
-
-This set is also available here:
-
-	git://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-pkeys.git pkeys-v024
-
-=== diffstat ===
-
-Dave Hansen (33):
-      mm: introduce get_user_pages_remote()
-      mm: overload get_user_pages() functions
-      mm, gup: switch callers of get_user_pages() to not pass tsk/mm
-      x86, fpu: add placeholder for Processor Trace XSAVE state
-      x86, pkeys: Add Kconfig option
-      x86, pkeys: cpuid bit definition
-      x86, pkeys: define new CR4 bit
-      x86, pkeys: add PKRU xsave fields and data structure(s)
-      x86, pkeys: PTE bits for storing protection key
-      x86, pkeys: new page fault error code bit: PF_PK
-      x86, pkeys: store protection in high VMA flags
-      x86, pkeys: arch-specific protection bits
-      x86, pkeys: pass VMA down in to fault signal generation code
-      signals, pkeys: notify userspace about protection key faults
-      x86, pkeys: fill in pkey field in siginfo
-      x86, pkeys: add functions to fetch PKRU
-      mm: factor out VMA fault permission checking
-      x86, mm: simplify get_user_pages() PTE bit handling
-      x86, pkeys: check VMAs and PTEs for protection keys
-      mm: do not enforce PKEY permissions on "foreign" mm access
-      x86, pkeys: optimize fault handling in access_error()
-      x86, pkeys: differentiate instruction fetches
-      x86, pkeys: dump PKRU with other kernel registers
-      x86, pkeys: dump pkey from VMA in /proc/pid/smaps
-      x86, pkeys: add Kconfig prompt to existing config option
-      x86, pkeys: actually enable Memory Protection Keys in CPU
-      mm, multi-arch: pass a protection key in to calc_vm_flag_bits()
-      x86, pkeys: add arch_validate_pkey()
-      x86: separate out LDT init from context init
-      x86, fpu: allow setting of XSAVE state
-      x86, pkeys: allow kernel to modify user pkey rights register
-      x86, pkeys: create an x86 arch_calc_vm_prot_bits() for VMA flags
-      x86, pkeys: execute-only support
-
- Documentation/kernel-parameters.txt         |   3 +
- arch/cris/arch-v32/drivers/cryptocop.c      |   8 +-
- arch/ia64/kernel/err_inject.c               |   3 +-
- arch/mips/mm/gup.c                          |   3 +-
- arch/powerpc/include/asm/mman.h             |   5 +-
- arch/powerpc/include/asm/mmu_context.h      |  12 ++
- arch/s390/include/asm/mmu_context.h         |  12 ++
- arch/s390/mm/gup.c                          |   4 +-
- arch/sh/mm/gup.c                            |   2 +-
- arch/sparc/mm/gup.c                         |   2 +-
- arch/unicore32/include/asm/mmu_context.h    |  12 ++
- arch/x86/Kconfig                            |  16 ++
- arch/x86/include/asm/cpufeature.h           |  61 ++++---
- arch/x86/include/asm/disabled-features.h    |  15 ++
- arch/x86/include/asm/fpu/internal.h         |   2 +
- arch/x86/include/asm/fpu/types.h            |  12 ++
- arch/x86/include/asm/fpu/xstate.h           |   3 +-
- arch/x86/include/asm/mmu_context.h          |  85 ++++++++-
- arch/x86/include/asm/pgtable.h              |  38 ++++
- arch/x86/include/asm/pgtable_types.h        |  39 ++++-
- arch/x86/include/asm/pkeys.h                |  34 ++++
- arch/x86/include/asm/required-features.h    |   7 +
- arch/x86/include/asm/special_insns.h        |  22 +++
- arch/x86/include/uapi/asm/mman.h            |  22 +++
- arch/x86/include/uapi/asm/processor-flags.h |   2 +
- arch/x86/kernel/cpu/common.c                |  42 +++++
- arch/x86/kernel/fpu/core.c                  |  63 +++++++
- arch/x86/kernel/fpu/xstate.c                | 185 +++++++++++++++++++-
- arch/x86/kernel/ldt.c                       |   4 +-
- arch/x86/kernel/process_64.c                |   2 +
- arch/x86/kernel/setup.c                     |   9 +
- arch/x86/mm/Makefile                        |   2 +
- arch/x86/mm/fault.c                         | 168 +++++++++++++++---
- arch/x86/mm/gup.c                           |  45 +++--
- arch/x86/mm/mpx.c                           |   4 +-
- arch/x86/mm/pkeys.c                         | 101 +++++++++++
- drivers/char/agp/frontend.c                 |   2 +-
- drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c     |   3 +-
- drivers/gpu/drm/etnaviv/etnaviv_gem.c       |   6 +-
- drivers/gpu/drm/i915/i915_gem_userptr.c     |  10 +-
- drivers/gpu/drm/radeon/radeon_ttm.c         |   3 +-
- drivers/gpu/drm/via/via_dmablit.c           |   3 +-
- drivers/infiniband/core/umem.c              |   2 +-
- drivers/infiniband/core/umem_odp.c          |   8 +-
- drivers/infiniband/hw/mthca/mthca_memfree.c |   3 +-
- drivers/infiniband/hw/qib/qib_user_pages.c  |   3 +-
- drivers/infiniband/hw/usnic/usnic_uiom.c    |   2 +-
- drivers/iommu/amd_iommu_v2.c                |   1 +
- drivers/media/pci/ivtv/ivtv-udma.c          |   4 +-
- drivers/media/pci/ivtv/ivtv-yuv.c           |  10 +-
- drivers/media/v4l2-core/videobuf-dma-sg.c   |   3 +-
- drivers/misc/mic/scif/scif_rma.c            |   2 -
- drivers/misc/sgi-gru/grufault.c             |   3 +-
- drivers/scsi/st.c                           |   2 -
- drivers/staging/android/ashmem.c            |   4 +-
- drivers/video/fbdev/pvr2fb.c                |   4 +-
- drivers/virt/fsl_hypervisor.c               |   5 +-
- fs/exec.c                                   |   8 +-
- fs/proc/task_mmu.c                          |  14 ++
- include/asm-generic/mm_hooks.h              |  12 ++
- include/linux/mm.h                          | 102 +++++++++--
- include/linux/mman.h                        |   6 +-
- include/linux/pkeys.h                       |  33 ++++
- include/uapi/asm-generic/siginfo.h          |  17 +-
- kernel/events/uprobes.c                     |  10 +-
- kernel/signal.c                             |   4 +
- mm/Kconfig                                  |   5 +
- mm/frame_vector.c                           |   2 +-
- mm/gup.c                                    | 127 +++++++++++---
- mm/ksm.c                                    |  12 +-
- mm/memory.c                                 |   8 +-
- mm/mempolicy.c                              |   6 +-
- mm/mmap.c                                   |  10 +-
- mm/mprotect.c                               |   8 +-
- mm/nommu.c                                  |  66 ++++---
- mm/process_vm_access.c                      |  11 +-
- mm/util.c                                   |   4 +-
- net/ceph/pagevec.c                          |   2 +-
- security/tomoyo/domain.c                    |   9 +-
- virt/kvm/async_pf.c                         |   8 +-
- virt/kvm/kvm_main.c                         |  10 +-
- 81 files changed, 1393 insertions(+), 233 deletions(-)
-
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: aarcange@redhat.com
-Cc: akpm@linux-foundation.org
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: jack@suse.cz
-Cc: kirill.shutemov@linux.intel.com
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: n-horiguchi@ah.jp.nec.com
-Cc: x86@kernel.org
-Cc: torvalds@linux-foundation.org
-Cc: vbabka@suse.cz
+---
+
+ b/drivers/gpu/drm/etnaviv/etnaviv_gem.c   |    6 +++---
+ b/drivers/gpu/drm/i915/i915_gem_userptr.c |   10 +++++-----
+ b/drivers/infiniband/core/umem_odp.c      |    8 ++++----
+ b/fs/exec.c                               |    8 ++++++--
+ b/include/linux/mm.h                      |    5 +++++
+ b/kernel/events/uprobes.c                 |   10 ++++++++--
+ b/mm/gup.c                                |   27 ++++++++++++++++++++++-----
+ b/mm/memory.c                             |    2 +-
+ b/mm/process_vm_access.c                  |   11 ++++++++---
+ b/security/tomoyo/domain.c                |    9 ++++++++-
+ b/virt/kvm/async_pf.c                     |    8 +++++++-
+ 11 files changed, 77 insertions(+), 27 deletions(-)
+
+diff -puN drivers/gpu/drm/etnaviv/etnaviv_gem.c~introduce-get_user_pages_remote drivers/gpu/drm/etnaviv/etnaviv_gem.c
+--- a/drivers/gpu/drm/etnaviv/etnaviv_gem.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.170106660 -0800
++++ b/drivers/gpu/drm/etnaviv/etnaviv_gem.c	2016-02-12 10:44:13.190107574 -0800
+@@ -753,9 +753,9 @@ static struct page **etnaviv_gem_userptr
+ 
+ 	down_read(&mm->mmap_sem);
+ 	while (pinned < npages) {
+-		ret = get_user_pages(task, mm, ptr, npages - pinned,
+-				     !etnaviv_obj->userptr.ro, 0,
+-				     pvec + pinned, NULL);
++		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
++					    !etnaviv_obj->userptr.ro, 0,
++					    pvec + pinned, NULL);
+ 		if (ret < 0)
+ 			break;
+ 
+diff -puN drivers/gpu/drm/i915/i915_gem_userptr.c~introduce-get_user_pages_remote drivers/gpu/drm/i915/i915_gem_userptr.c
+--- a/drivers/gpu/drm/i915/i915_gem_userptr.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.171106705 -0800
++++ b/drivers/gpu/drm/i915/i915_gem_userptr.c	2016-02-12 10:44:13.190107574 -0800
+@@ -584,11 +584,11 @@ __i915_gem_userptr_get_pages_worker(stru
+ 
+ 		down_read(&mm->mmap_sem);
+ 		while (pinned < npages) {
+-			ret = get_user_pages(work->task, mm,
+-					     obj->userptr.ptr + pinned * PAGE_SIZE,
+-					     npages - pinned,
+-					     !obj->userptr.read_only, 0,
+-					     pvec + pinned, NULL);
++			ret = get_user_pages_remote(work->task, mm,
++					obj->userptr.ptr + pinned * PAGE_SIZE,
++					npages - pinned,
++					!obj->userptr.read_only, 0,
++					pvec + pinned, NULL);
+ 			if (ret < 0)
+ 				break;
+ 
+diff -puN drivers/infiniband/core/umem_odp.c~introduce-get_user_pages_remote drivers/infiniband/core/umem_odp.c
+--- a/drivers/infiniband/core/umem_odp.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.173106797 -0800
++++ b/drivers/infiniband/core/umem_odp.c	2016-02-12 10:44:13.191107620 -0800
+@@ -572,10 +572,10 @@ int ib_umem_odp_map_dma_pages(struct ib_
+ 		 * complex (and doesn't gain us much performance in most use
+ 		 * cases).
+ 		 */
+-		npages = get_user_pages(owning_process, owning_mm, user_virt,
+-					gup_num_pages,
+-					access_mask & ODP_WRITE_ALLOWED_BIT, 0,
+-					local_page_list, NULL);
++		npages = get_user_pages_remote(owning_process, owning_mm,
++				user_virt, gup_num_pages,
++				access_mask & ODP_WRITE_ALLOWED_BIT,
++				0, local_page_list, NULL);
+ 		up_read(&owning_mm->mmap_sem);
+ 
+ 		if (npages < 0)
+diff -puN fs/exec.c~introduce-get_user_pages_remote fs/exec.c
+--- a/fs/exec.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.175106888 -0800
++++ b/fs/exec.c	2016-02-12 10:44:13.192107666 -0800
+@@ -198,8 +198,12 @@ static struct page *get_arg_page(struct
+ 			return NULL;
+ 	}
+ #endif
+-	ret = get_user_pages(current, bprm->mm, pos,
+-			1, write, 1, &page, NULL);
++	/*
++	 * We are doing an exec().  'current' is the process
++	 * doing the exec and bprm->mm is the new process's mm.
++	 */
++	ret = get_user_pages_remote(current, bprm->mm, pos, 1, write,
++			1, &page, NULL);
+ 	if (ret <= 0)
+ 		return NULL;
+ 
+diff -puN include/linux/mm.h~introduce-get_user_pages_remote include/linux/mm.h
+--- a/include/linux/mm.h~introduce-get_user_pages_remote	2016-02-12 10:44:13.176106934 -0800
++++ b/include/linux/mm.h	2016-02-12 10:44:13.192107666 -0800
+@@ -1225,6 +1225,10 @@ long __get_user_pages(struct task_struct
+ 		      unsigned long start, unsigned long nr_pages,
+ 		      unsigned int foll_flags, struct page **pages,
+ 		      struct vm_area_struct **vmas, int *nonblocking);
++long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
++			    unsigned long start, unsigned long nr_pages,
++			    int write, int force, struct page **pages,
++			    struct vm_area_struct **vmas);
+ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		    unsigned long start, unsigned long nr_pages,
+ 		    int write, int force, struct page **pages,
+@@ -2168,6 +2172,7 @@ static inline struct page *follow_page(s
+ #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
+ #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
+ #define FOLL_MLOCK	0x1000	/* lock present pages */
++#define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
+ 
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff -puN kernel/events/uprobes.c~introduce-get_user_pages_remote kernel/events/uprobes.c
+--- a/kernel/events/uprobes.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.178107026 -0800
++++ b/kernel/events/uprobes.c	2016-02-12 10:44:13.193107711 -0800
+@@ -299,7 +299,7 @@ int uprobe_write_opcode(struct mm_struct
+ 
+ retry:
+ 	/* Read the page with vaddr into memory */
+-	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
++	ret = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
+ 	if (ret <= 0)
+ 		return ret;
+ 
+@@ -1700,7 +1700,13 @@ static int is_trap_at_addr(struct mm_str
+ 	if (likely(result == 0))
+ 		goto out;
+ 
+-	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
++	/*
++	 * The NULL 'tsk' here ensures that any faults that occur here
++	 * will not be accounted to the task.  'mm' *is* current->mm,
++	 * but we treat this as a 'remote' access since it is
++	 * essentially a kernel access to the memory.
++	 */
++	result = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
+ 	if (result < 0)
+ 		return result;
+ 
+diff -puN mm/gup.c~introduce-get_user_pages_remote mm/gup.c
+--- a/mm/gup.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.180107117 -0800
++++ b/mm/gup.c	2016-02-12 10:44:13.194107757 -0800
+@@ -870,7 +870,7 @@ long get_user_pages_unlocked(struct task
+ EXPORT_SYMBOL(get_user_pages_unlocked);
+ 
+ /*
+- * get_user_pages() - pin user pages in memory
++ * get_user_pages_remote() - pin user pages in memory
+  * @tsk:	the task_struct to use for page fault accounting, or
+  *		NULL if faults are not to be recorded.
+  * @mm:		mm_struct of target mm
+@@ -924,12 +924,29 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
+  * should use get_user_pages because it cannot pass
+  * FAULT_FLAG_ALLOW_RETRY to handle_mm_fault.
+  */
+-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+-		unsigned long start, unsigned long nr_pages, int write,
+-		int force, struct page **pages, struct vm_area_struct **vmas)
++long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, unsigned long nr_pages,
++		int write, int force, struct page **pages,
++		struct vm_area_struct **vmas)
+ {
+ 	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+-				       pages, vmas, NULL, false, FOLL_TOUCH);
++				       pages, vmas, NULL, false,
++				       FOLL_TOUCH | FOLL_REMOTE);
++}
++EXPORT_SYMBOL(get_user_pages_remote);
++
++/*
++ * This is the same as get_user_pages_remote() for the time
++ * being.
++ */
++long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, unsigned long nr_pages,
++		int write, int force, struct page **pages,
++		struct vm_area_struct **vmas)
++{
++	return __get_user_pages_locked(tsk, mm, start, nr_pages,
++				       write, force, pages, vmas, NULL, false,
++				       FOLL_TOUCH);
+ }
+ EXPORT_SYMBOL(get_user_pages);
+ 
+diff -puN mm/memory.c~introduce-get_user_pages_remote mm/memory.c
+--- a/mm/memory.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.182107208 -0800
++++ b/mm/memory.c	2016-02-12 10:44:13.195107803 -0800
+@@ -3664,7 +3664,7 @@ static int __access_remote_vm(struct tas
+ 		void *maddr;
+ 		struct page *page = NULL;
+ 
+-		ret = get_user_pages(tsk, mm, addr, 1,
++		ret = get_user_pages_remote(tsk, mm, addr, 1,
+ 				write, 1, &page, &vma);
+ 		if (ret <= 0) {
+ #ifndef CONFIG_HAVE_IOREMAP_PROT
+diff -puN mm/process_vm_access.c~introduce-get_user_pages_remote mm/process_vm_access.c
+--- a/mm/process_vm_access.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.183107254 -0800
++++ b/mm/process_vm_access.c	2016-02-12 10:44:13.195107803 -0800
+@@ -98,9 +98,14 @@ static int process_vm_rw_single_vec(unsi
+ 		int pages = min(nr_pages, max_pages_per_loop);
+ 		size_t bytes;
+ 
+-		/* Get the pages we're interested in */
+-		pages = get_user_pages_unlocked(task, mm, pa, pages,
+-						vm_write, 0, process_pages);
++		/*
++		 * Get the pages we're interested in.  We must
++		 * add FOLL_REMOTE because task/mm might not
++		 * current/current->mm
++		 */
++		pages = __get_user_pages_unlocked(task, mm, pa, pages,
++						  vm_write, 0, process_pages,
++						  FOLL_REMOTE);
+ 		if (pages <= 0)
+ 			return -EFAULT;
+ 
+diff -puN security/tomoyo/domain.c~introduce-get_user_pages_remote security/tomoyo/domain.c
+--- a/security/tomoyo/domain.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.185107346 -0800
++++ b/security/tomoyo/domain.c	2016-02-12 10:44:13.196107848 -0800
+@@ -874,7 +874,14 @@ bool tomoyo_dump_page(struct linux_binpr
+ 	}
+ 	/* Same with get_arg_page(bprm, pos, 0) in fs/exec.c */
+ #ifdef CONFIG_MMU
+-	if (get_user_pages(current, bprm->mm, pos, 1, 0, 1, &page, NULL) <= 0)
++	/*
++	 * This is called at execve() time in order to dig around
++	 * in the argv/environment of the new proceess
++	 * (represented by bprm).  'current' is the process doing
++	 * the execve().
++	 */
++	if (get_user_pages_remote(current, bprm->mm, pos, 1,
++				0, 1, &page, NULL) <= 0)
+ 		return false;
+ #else
+ 	page = bprm->page[pos / PAGE_SIZE];
+diff -puN virt/kvm/async_pf.c~introduce-get_user_pages_remote virt/kvm/async_pf.c
+--- a/virt/kvm/async_pf.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.187107437 -0800
++++ b/virt/kvm/async_pf.c	2016-02-12 10:44:13.196107848 -0800
+@@ -79,7 +79,13 @@ static void async_pf_execute(struct work
+ 
+ 	might_sleep();
+ 
+-	get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL);
++	/*
++	 * This work is run asynchromously to the task which owns
++	 * mm and might be done in another context, so we must
++	 * use FOLL_REMOTE.
++	 */
++	__get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL, FOLL_REMOTE);
++
+ 	kvm_async_page_present_sync(vcpu, apf);
+ 
+ 	spin_lock(&vcpu->async_pf.lock);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
