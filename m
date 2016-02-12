@@ -1,34 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F76C6B0005
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 03:26:15 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p63so9218465wmp.1
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 00:26:15 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
-        by mx.google.com with ESMTPS id ay10si17725295wjb.181.2016.02.12.00.26.14
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE946B0005
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 04:19:51 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id 128so53792462wmz.1
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 01:19:51 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b7si2583177wmh.119.2016.02.12.01.19.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Feb 2016 00:26:14 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 12 Feb 2016 01:19:50 -0800 (PST)
+Subject: Re: [PATCH] mm, tracing: refresh __def_vmaflag_names
+References: <1455144302-59371-1-git-send-email-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56BDA3B4.7040107@suse.cz>
+Date: Fri, 12 Feb 2016 10:19:48 +0100
 MIME-Version: 1.0
-Message-ID: <trinity-9ee2165d-df34-4919-9c00-11afb3168b2d-1455265572240@3capp-gmx-bs53>
-From: Harn-Solo@gmx.de
-Subject: Aw: Re: [Bug 112301] New: [bisected] NULL pointer dereference when
- starting a kvm based VM
-Content-Type: text/html; charset=UTF-8
-Date: Fri, 12 Feb 2016 09:26:12 +0100
-In-Reply-To: <20160211133026.96452d486f8029084c4129b7@linux-foundation.org>
-References: <bug-112301-27@https.bugzilla.kernel.org/>,
- <20160211133026.96452d486f8029084c4129b7@linux-foundation.org>
+In-Reply-To: <1455144302-59371-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, ebru.akagunduz@gmail.com, Hugh Dickins <hughd@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-<html><head></head><body><div style="font-family: Verdana;font-size: 12.0px;"><div>Thanks for the fast reply, I&#39;ve checked 4.5-rc1 and 4.5-rc3 so the commit&nbsp;629d9d1cafbd49cb374&nbsp;was already included.</div>
+On 02/10/2016 11:45 PM, Kirill A. Shutemov wrote:
+> Get list of VMA flags up-to-date and sort it to match VM_* definition
+> order.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-<div>&nbsp;</div>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-<div class="signature">&nbsp;</div></div></body></html>
+How about also this?
+
+----8<----
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Fri, 12 Feb 2016 10:16:53 +0100
+Subject: [PATCH] mm-tracing-refresh-__def_vmaflag_names-v2
+
+Add a note above vmaflag definitions to update the names when changing.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/mm.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a0ad7af5a1a2..550c88663362 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -122,6 +122,7 @@ extern unsigned int kobjsize(const void *objp);
+ 
+ /*
+  * vm_flags in vm_area_struct, see mm_types.h.
++ * When changing, update also include/trace/events/mmflags.h
+  */
+ #define VM_NONE		0x00000000
+ 
+-- 
+2.7.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
