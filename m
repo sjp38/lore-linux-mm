@@ -1,264 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 177368308C
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:03:06 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id x65so53115873pfb.1
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:03:06 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id z3si22178503par.37.2016.02.12.13.02.48
-        for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 13:02:48 -0800 (PST)
-Subject: [PATCH 30/33] x86, fpu: allow setting of XSAVE state
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:02:35 -0800
-References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-Message-Id: <20160212210235.5A3139BF@viggo.jf.intel.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EC1C96B0009
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:10:15 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id e127so53224200pfe.3
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:10:15 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id n62si22196473pfa.183.2016.02.12.13.10.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Feb 2016 13:10:15 -0800 (PST)
+Received: by mail-pa0-x235.google.com with SMTP id fy10so12867527pac.1
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:10:15 -0800 (PST)
+Date: Fri, 12 Feb 2016 13:10:04 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Bug 112301] New: [bisected] NULL pointer dereference when
+ starting a kvm based VM
+In-Reply-To: <20160211133026.96452d486f8029084c4129b7@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1602121247530.9500@eggly.anvils>
+References: <bug-112301-27@https.bugzilla.kernel.org/> <20160211133026.96452d486f8029084c4129b7@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: harn-solo@gmx.de, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, ebru.akagunduz@gmail.com, Hugh Dickins <hughd@google.com>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
+On Thu, 11 Feb 2016, Andrew Morton wrote:
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Thu, 11 Feb 2016 07:09:04 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=112301
+> > 
+> >             Bug ID: 112301
+> >            Summary: [bisected] NULL pointer dereference when starting a
+> >                     kvm based VM
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.5-rcX
+> >           Hardware: All
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Other
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: harn-solo@gmx.de
+> >         Regression: No
+> > 
+> > Created attachment 203451
+> >   --> https://bugzilla.kernel.org/attachment.cgi?id=203451&action=edit
+> > Call Trace of a NULL pointer dereference at gup_pte_range
+> > 
+> > Starting a qemu-kvm based VM configured to use hughpages I'm getting the
+> > following NULL pointer dereference, see attached dmesg section.
+> > 
+> > The issue was introduced with commit 7d2eba0557c18f7522b98befed98799990dd4fdb
+> > Author: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> > Date:   Thu Jan 14 15:22:19 2016 -0800
+> >     mm: add tracepoint for scanning pages
+> 
+> Thanks for the detailed report.  Can you please verify that your tree
+> has 629d9d1cafbd49cb374 ("mm: avoid uninitialized variable in
+> tracepoint")?
+> 
+> vfio_pin_pages() doesn't seem to be doing anything crazy.  Hugh, Ebru:
+> could you please take a look?
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+I very much doubt that the uninitialized variable in collapse_huge_page()
+had anything to do with the crash in gup_pte_range().  Far more likely
+is that the bisection hit a point in between the introduction of that
+uninitialized variable and its subsequent fix, the test crashed, and
+the bisector didn't notice that it was crashing for a different reason.
 
-We want to modify the Protection Key rights inside the kernel, so
-we need to change PKRU's contents.  But, if we do a plain
-'wrpkru', when we return to userspace we might do an XRSTOR and
-wipe out the kernel's 'wrpkru'.  So, we need to go after PKRU in
-the xsave buffer.
+Comparing the "Code:" of the gup_pte_range() crash with disassembly of
+gup_pte_range() here, it looks as if it's crashing in pte_page().  And,
+yes, that pte_page() looks broken in 4.5-rc: please try this patch.
 
-We do this by:
-1. Ensuring that we have the XSAVE registers (fpregs) in the
-   kernel FPU buffer (fpstate)
-2. Looking up the location of a given state in the buffer
-3. Filling in the stat
-4. Ensuring that the hardware knows that state is present there
-   (basically that the 'init optimization' is not in place).
-5. Copying the newly-modified state back to the registers if
-   necessary.
+[PATCH] mm, x86: fix pte_page() crash in gup_pte_range()
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Commit 3565fce3a659 ("mm, x86: get_user_pages() for dax mappings")
+has moved up the pte_page(pte) in x86's fast gup_pte_range(), for no
+discernible reason: put it back where it belongs, after the pte_flags
+check and the pfn_valid cross-check.
+
+That may be the cause of the NULL pointer dereference in gup_pte_range(),
+seen when vfio called vaddr_get_pfn() when starting a qemu-kvm based VM.
+
+Reported-by: Michael Long <Harn-Solo@gmx.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
 
- b/arch/x86/include/asm/fpu/internal.h |    2 
- b/arch/x86/kernel/fpu/core.c          |   63 +++++++++++++++++++++
- b/arch/x86/kernel/fpu/xstate.c        |   98 +++++++++++++++++++++++++++++++++-
- 3 files changed, 161 insertions(+), 2 deletions(-)
+ arch/x86/mm/gup.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN arch/x86/include/asm/fpu/internal.h~pkeys-76-xsave-set arch/x86/include/asm/fpu/internal.h
---- a/arch/x86/include/asm/fpu/internal.h~pkeys-76-xsave-set	2016-02-12 10:44:27.469760334 -0800
-+++ b/arch/x86/include/asm/fpu/internal.h	2016-02-12 10:44:27.475760609 -0800
-@@ -24,6 +24,8 @@
- extern void fpu__activate_curr(struct fpu *fpu);
- extern void fpu__activate_fpstate_read(struct fpu *fpu);
- extern void fpu__activate_fpstate_write(struct fpu *fpu);
-+extern void fpu__current_fpstate_write_begin(void);
-+extern void fpu__current_fpstate_write_end(void);
- extern void fpu__save(struct fpu *fpu);
- extern void fpu__restore(struct fpu *fpu);
- extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
-diff -puN arch/x86/kernel/fpu/core.c~pkeys-76-xsave-set arch/x86/kernel/fpu/core.c
---- a/arch/x86/kernel/fpu/core.c~pkeys-76-xsave-set	2016-02-12 10:44:27.470760380 -0800
-+++ b/arch/x86/kernel/fpu/core.c	2016-02-12 10:44:27.476760654 -0800
-@@ -352,6 +352,69 @@ void fpu__activate_fpstate_write(struct
- }
+--- 4.5-rc3/arch/x86/mm/gup.c	2016-01-24 14:54:51.359500642 -0800
++++ linux/arch/x86/mm/gup.c	2016-02-12 12:15:36.460501324 -0800
+@@ -102,7 +102,6 @@ static noinline int gup_pte_range(pmd_t
+ 			return 0;
+ 		}
  
- /*
-+ * This function must be called before we write the current
-+ * task's fpstate.
-+ *
-+ * This call gets the current FPU register state and moves
-+ * it in to the 'fpstate'.  Preemption is disabled so that
-+ * no writes to the 'fpstate' can occur from context
-+ * swiches.
-+ *
-+ * Must be followed by a fpu__current_fpstate_write_end().
-+ */
-+void fpu__current_fpstate_write_begin(void)
-+{
-+	struct fpu *fpu = &current->thread.fpu;
-+
-+	/*
-+	 * Ensure that the context-switching code does not write
-+	 * over the fpstate while we are doing our update.
-+	 */
-+	preempt_disable();
-+
-+	/*
-+	 * Move the fpregs in to the fpu's 'fpstate'.
-+	 */
-+	fpu__activate_fpstate_read(fpu);
-+
-+	/*
-+	 * The caller is about to write to 'fpu'.  Ensure that no
-+	 * CPU thinks that its fpregs match the fpstate.  This
-+	 * ensures we will not be lazy and skip a XRSTOR in the
-+	 * future.
-+	 */
-+	fpu->last_cpu = -1;
-+}
-+
-+/*
-+ * This function must be paired with fpu__current_fpstate_write_begin()
-+ *
-+ * This will ensure that the modified fpstate gets placed back in
-+ * the fpregs if necessary.
-+ *
-+ * Note: This function may be called whether or not an _actual_
-+ * write to the fpstate occurred.
-+ */
-+void fpu__current_fpstate_write_end(void)
-+{
-+	struct fpu *fpu = &current->thread.fpu;
-+
-+	/*
-+	 * 'fpu' now has an updated copy of the state, but the
-+	 * registers may still be out of date.  Update them with
-+	 * an XRSTOR if they are active.
-+	 */
-+	if (fpregs_active())
-+		copy_kernel_to_fpregs(&fpu->state);
-+
-+	/*
-+	 * Our update is done and the fpregs/fpstate are in sync
-+	 * if necessary.  Context switches can happen again.
-+	 */
-+	preempt_enable();
-+}
-+
-+/*
-  * 'fpu__restore()' is called to copy FPU registers from
-  * the FPU fpstate to the live hw registers and to activate
-  * access to the hardware registers, so that FPU instructions
-diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-76-xsave-set arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkeys-76-xsave-set	2016-02-12 10:44:27.472760471 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2016-02-12 10:44:27.476760654 -0800
-@@ -679,6 +679,19 @@ void fpu__resume_cpu(void)
- }
- 
- /*
-+ * Given an xstate feature mask, calculate where in the xsave
-+ * buffer the state is.  Callers should ensure that the buffer
-+ * is valid.
-+ *
-+ * Note: does not work for compacted buffers.
-+ */
-+void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
-+{
-+	int feature_nr = fls64(xstate_feature_mask) - 1;
-+
-+	return (void *)xsave + xstate_comp_offsets[feature_nr];
-+}
-+/*
-  * Given the xsave area and a state inside, this function returns the
-  * address of the state.
-  *
-@@ -698,7 +711,6 @@ void fpu__resume_cpu(void)
-  */
- void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
- {
--	int feature_nr = fls64(xstate_feature) - 1;
- 	/*
- 	 * Do we even *have* xsave state?
- 	 */
-@@ -726,7 +738,7 @@ void *get_xsave_addr(struct xregs_state
- 	if (!(xsave->header.xfeatures & xstate_feature))
- 		return NULL;
- 
--	return (void *)xsave + xstate_comp_offsets[feature_nr];
-+	return __raw_xsave_addr(xsave, xstate_feature);
- }
- EXPORT_SYMBOL_GPL(get_xsave_addr);
- 
-@@ -761,3 +773,85 @@ const void *get_xsave_field_ptr(int xsav
- 
- 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
- }
-+
-+
-+/*
-+ * Set xfeatures (aka XSTATE_BV) bit for a feature that we want
-+ * to take out of its "init state".  This will ensure that an
-+ * XRSTOR actually restores the state.
-+ */
-+static void fpu__xfeature_set_non_init(struct xregs_state *xsave,
-+		int xstate_feature_mask)
-+{
-+	xsave->header.xfeatures |= xstate_feature_mask;
-+}
-+
-+/*
-+ * This function is safe to call whether the FPU is in use or not.
-+ *
-+ * Note that this only works on the current task.
-+ *
-+ * Inputs:
-+ *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
-+ *	XFEATURE_MASK_SSE, etc...)
-+ *	@xsave_state_ptr: a pointer to a copy of the state that you would
-+ *	like written in to the current task's FPU xsave state.  This pointer
-+ *	must not be located in the current tasks's xsave area.
-+ * Output:
-+ *	address of the state in the xsave area or NULL if the state
-+ *	is not present or is in its 'init state'.
-+ */
-+static void fpu__xfeature_set_state(int xstate_feature_mask,
-+		void *xstate_feature_src, size_t len)
-+{
-+	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
-+	struct fpu *fpu = &current->thread.fpu;
-+	void *dst;
-+
-+	if (!boot_cpu_has(X86_FEATURE_XSAVE)) {
-+		WARN_ONCE(1, "%s() attempted with no xsave support", __func__);
-+		return;
-+	}
-+
-+	/*
-+	 * Tell the FPU code that we need the FPU state to be in
-+	 * 'fpu' (not in the registers), and that we need it to
-+	 * be stable while we write to it.
-+	 */
-+	fpu__current_fpstate_write_begin();
-+
-+	/*
-+	 * This method *WILL* *NOT* work for compact-format
-+	 * buffers.  If the 'xstate_feature_mask' is unset in
-+	 * xcomp_bv then we may need to move other feature state
-+	 * "up" in the buffer.
-+	 */
-+	if (xsave->header.xcomp_bv & xstate_feature_mask) {
-+		WARN_ON_ONCE(1);
-+		goto out;
-+	}
-+
-+	/* find the location in the xsave buffer of the desired state */
-+	dst = __raw_xsave_addr(&fpu->state.xsave, xstate_feature_mask);
-+
-+	/*
-+	 * Make sure that the pointer being passed in did not
-+	 * come from the xsave buffer itself.
-+	 */
-+	WARN_ONCE(xstate_feature_src == dst, "set from xsave buffer itself");
-+
-+	/* put the caller-provided data in the location */
-+	memcpy(dst, xstate_feature_src, len);
-+
-+	/*
-+	 * Mark the xfeature so that the CPU knows there is state
-+	 * in the buffer now.
-+	 */
-+	fpu__xfeature_set_non_init(xsave, xstate_feature_mask);
-+out:
-+	/*
-+	 * We are done writing to the 'fpu'.  Reenable preeption
-+	 * and (possibly) move the fpstate back in to the fpregs.
-+	 */
-+	fpu__current_fpstate_write_end();
-+}
-_
+-		page = pte_page(pte);
+ 		if (pte_devmap(pte)) {
+ 			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
+ 			if (unlikely(!pgmap)) {
+@@ -115,6 +114,7 @@ static noinline int gup_pte_range(pmd_t
+ 			return 0;
+ 		}
+ 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
++		page = pte_page(pte);
+ 		get_page(page);
+ 		put_dev_pagemap(pgmap);
+ 		SetPageReferenced(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
