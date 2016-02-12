@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF4C828E4
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:12 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id x65so53105829pfb.1
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:12 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id d26si22162938pfb.137.2016.02.12.13.02.04
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1A8828E4
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:15 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id yy13so52103252pab.3
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:15 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id 10si22191392pfb.71.2016.02.12.13.02.09
         for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 13:02:04 -0800 (PST)
-Subject: [PATCH 08/33] x86, pkeys: add PKRU xsave fields and data structure(s)
+        Fri, 12 Feb 2016 13:02:10 -0800 (PST)
+Subject: [PATCH 11/33] x86, pkeys: store protection in high VMA flags
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:02:04 -0800
+Date: Fri, 12 Feb 2016 13:02:08 -0800
 References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
 In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-Message-Id: <20160212210204.56DF8F7B@viggo.jf.intel.com>
+Message-Id: <20160212210208.81AF00D5@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,116 +22,74 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The protection keys register (PKRU) is saved and restored using
-xsave.  Define the data structure that we will use to access it
-inside the xsave buffer.
+vma->vm_flags is an 'unsigned long', so has space for 32 flags
+on 32-bit architectures.  The high 32 bits are unused on 64-bit
+platforms.  We've steered away from using the unused high VMA
+bits for things because we would have difficulty supporting it
+on 32-bit.
 
-Note that we also have to widen the printk of the xsave feature
-masks since this is feature 0x200 and we only did two characters
-before.
+Protection Keys are not available in 32-bit mode, so there is
+no concern about supporting this feature in 32-bit mode or on
+32-bit CPUs.
+
+This patch carves out 4 bits from the high half of
+vma->vm_flags and allows architectures to set config option
+to make them available.
+
+Sparse complains about these constants unless we explicitly
+call them "UL".
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/x86/include/asm/fpu/types.h  |   11 +++++++++++
- b/arch/x86/include/asm/fpu/xstate.h |    3 ++-
- b/arch/x86/kernel/fpu/xstate.c      |    7 ++++++-
- 3 files changed, 19 insertions(+), 2 deletions(-)
+ b/arch/x86/Kconfig   |    1 +
+ b/include/linux/mm.h |   11 +++++++++++
+ b/mm/Kconfig         |    3 +++
+ 3 files changed, 15 insertions(+)
 
-diff -puN arch/x86/include/asm/fpu/types.h~pkeys-03-xsave arch/x86/include/asm/fpu/types.h
---- a/arch/x86/include/asm/fpu/types.h~pkeys-03-xsave	2016-02-12 10:44:17.212291439 -0800
-+++ b/arch/x86/include/asm/fpu/types.h	2016-02-12 10:44:17.218291713 -0800
-@@ -109,6 +109,7 @@ enum xfeature {
- 	XFEATURE_ZMM_Hi256,
- 	XFEATURE_Hi16_ZMM,
- 	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
-+	XFEATURE_PKRU,
+diff -puN arch/x86/Kconfig~pkeys-06-eat-high-vma-flags arch/x86/Kconfig
+--- a/arch/x86/Kconfig~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.494350045 -0800
++++ b/arch/x86/Kconfig	2016-02-12 10:44:18.502350411 -0800
+@@ -155,6 +155,7 @@ config X86
+ 	select VIRT_TO_BUS
+ 	select X86_DEV_DMA_OPS			if X86_64
+ 	select X86_FEATURE_NAMES		if PROC_FS
++	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
  
- 	XFEATURE_MAX,
- };
-@@ -121,6 +122,7 @@ enum xfeature {
- #define XFEATURE_MASK_OPMASK		(1 << XFEATURE_OPMASK)
- #define XFEATURE_MASK_ZMM_Hi256		(1 << XFEATURE_ZMM_Hi256)
- #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
-+#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff -puN include/linux/mm.h~pkeys-06-eat-high-vma-flags include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.496350136 -0800
++++ b/include/linux/mm.h	2016-02-12 10:44:18.503350456 -0800
+@@ -170,6 +170,17 @@ extern unsigned int kobjsize(const void
+ #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
  
- #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
- #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
-@@ -213,6 +215,15 @@ struct avx_512_hi16_state {
- 	struct reg_512_bit		hi16_zmm[16];
- } __packed;
- 
-+/*
-+ * State component 9: 32-bit PKRU register.  The state is
-+ * 8 bytes long but only 4 bytes is used currently.
-+ */
-+struct pkru_state {
-+	u32				pkru;
-+	u32				pad;
-+} __packed;
++#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
++#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
++#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
++#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
++#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
++#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
 +
- struct xstate_header {
- 	u64				xfeatures;
- 	u64				xcomp_bv;
-diff -puN arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave arch/x86/include/asm/fpu/xstate.h
---- a/arch/x86/include/asm/fpu/xstate.h~pkeys-03-xsave	2016-02-12 10:44:17.213291484 -0800
-+++ b/arch/x86/include/asm/fpu/xstate.h	2016-02-12 10:44:17.218291713 -0800
-@@ -28,7 +28,8 @@
- 				 XFEATURE_MASK_YMM | \
- 				 XFEATURE_MASK_OPMASK | \
- 				 XFEATURE_MASK_ZMM_Hi256 | \
--				 XFEATURE_MASK_Hi16_ZMM)
-+				 XFEATURE_MASK_Hi16_ZMM	 | \
-+				 XFEATURE_MASK_PKRU)
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #elif defined(CONFIG_PPC)
+diff -puN mm/Kconfig~pkeys-06-eat-high-vma-flags mm/Kconfig
+--- a/mm/Kconfig~pkeys-06-eat-high-vma-flags	2016-02-12 10:44:18.498350228 -0800
++++ b/mm/Kconfig	2016-02-12 10:44:18.503350456 -0800
+@@ -669,3 +669,6 @@ config ZONE_DEVICE
  
- /* All currently supported features */
- #define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
-diff -puN arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave arch/x86/kernel/fpu/xstate.c
---- a/arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave	2016-02-12 10:44:17.215291576 -0800
-+++ b/arch/x86/kernel/fpu/xstate.c	2016-02-12 10:44:17.219291759 -0800
-@@ -29,6 +29,8 @@ static const char *xfeature_names[] =
- 	"AVX-512 Hi256"			,
- 	"AVX-512 ZMM_Hi256"		,
- 	"Processor Trace (unused)"	,
-+	"Protection Keys User registers",
-+	"unknown xstate feature"	,
- };
- 
- /*
-@@ -58,6 +60,7 @@ void fpu__xstate_clear_all_cpu_caps(void
- 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
- 	setup_clear_cpu_cap(X86_FEATURE_MPX);
- 	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
-+	setup_clear_cpu_cap(X86_FEATURE_PKU);
- }
- 
- /*
-@@ -236,7 +239,7 @@ static void __init print_xstate_feature(
- 	const char *feature_name;
- 
- 	if (cpu_has_xfeatures(xstate_mask, &feature_name))
--		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
-+		pr_info("x86/fpu: Supporting XSAVE feature 0x%03Lx: '%s'\n", xstate_mask, feature_name);
- }
- 
- /*
-@@ -252,6 +255,7 @@ static void __init print_xstate_features
- 	print_xstate_feature(XFEATURE_MASK_OPMASK);
- 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
- 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
-+	print_xstate_feature(XFEATURE_MASK_PKRU);
- }
- 
- /*
-@@ -468,6 +472,7 @@ static void check_xstate_against_struct(
- 	XCHECK_SZ(sz, nr, XFEATURE_OPMASK,    struct avx_512_opmask_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
-+	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
- 
- 	/*
- 	 * Make *SURE* to add any feature numbers in below if
+ config FRAME_VECTOR
+ 	bool
++
++config ARCH_USES_HIGH_VMA_FLAGS
++	bool
 _
 
 --
