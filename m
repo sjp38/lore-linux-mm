@@ -1,153 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E26828F3
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:46 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id ho8so52469852pac.2
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:46 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id q140si22183568pfq.49.2016.02.12.13.02.31
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 03115828F3
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:49 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id fy10so12784740pac.1
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:48 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sm4si22146491pac.245.2016.02.12.13.02.35
         for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 13:02:31 -0800 (PST)
-Subject: [PATCH 27/33] mm, multi-arch: pass a protection key in to calc_vm_flag_bits()
+        Fri, 12 Feb 2016 13:02:35 -0800 (PST)
+Subject: [PATCH 09/33] x86, pkeys: PTE bits for storing protection key
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:02:31 -0800
+Date: Fri, 12 Feb 2016 13:02:05 -0800
 References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
 In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-Message-Id: <20160212210231.E6F1F0D6@viggo.jf.intel.com>
+Message-Id: <20160212210205.81E33ED6@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-api@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This plumbs a protection key through calc_vm_flag_bits().  We
-could have done this in calc_vm_prot_bits(), but I did not feel
-super strongly which way to go.  It was pretty arbitrary which
-one to use.
+Previous documentation has referred to these 4 bits as "ignored".
+That means that software could have made use of them.  But, as
+far as I know, the kernel never used them.
+
+They are still ignored when protection keys is not enabled, so
+they could theoretically still get used for software purposes.
+
+We also implement "empty" versions so that code that references
+to them can be optimized away by the compiler when the config
+option is not enabled.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
 
- b/arch/powerpc/include/asm/mman.h  |    5 +++--
- b/drivers/char/agp/frontend.c      |    2 +-
- b/drivers/staging/android/ashmem.c |    4 ++--
- b/include/linux/mman.h             |    6 +++---
- b/mm/mmap.c                        |    2 +-
- b/mm/mprotect.c                    |    2 +-
- b/mm/nommu.c                       |    2 +-
- 7 files changed, 12 insertions(+), 11 deletions(-)
+ b/arch/x86/include/asm/pgtable_types.h |   22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
 
-diff -puN arch/powerpc/include/asm/mman.h~pkeys-70-calc_vm_prot_bits arch/powerpc/include/asm/mman.h
---- a/arch/powerpc/include/asm/mman.h~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:25.996692997 -0800
-+++ b/arch/powerpc/include/asm/mman.h	2016-02-12 10:44:26.009693591 -0800
-@@ -18,11 +18,12 @@
-  * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
-  * here.  How important is the optimization?
-  */
--static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot)
-+static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
-+		unsigned long pkey)
- {
- 	return (prot & PROT_SAO) ? VM_SAO : 0;
- }
--#define arch_calc_vm_prot_bits(prot) arch_calc_vm_prot_bits(prot)
-+#define arch_calc_vm_prot_bits(prot, pkey) arch_calc_vm_prot_bits(prot, pkey)
+diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits	2016-02-12 10:44:17.672312467 -0800
++++ b/arch/x86/include/asm/pgtable_types.h	2016-02-12 10:44:17.675312604 -0800
+@@ -20,13 +20,18 @@
+ #define _PAGE_BIT_SOFTW2	10	/* " */
+ #define _PAGE_BIT_SOFTW3	11	/* " */
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
++#define _PAGE_BIT_SOFTW4	58	/* available for programmer */
++#define _PAGE_BIT_PKEY_BIT0	59	/* Protection Keys, bit 1/4 */
++#define _PAGE_BIT_PKEY_BIT1	60	/* Protection Keys, bit 2/4 */
++#define _PAGE_BIT_PKEY_BIT2	61	/* Protection Keys, bit 3/4 */
++#define _PAGE_BIT_PKEY_BIT3	62	/* Protection Keys, bit 4/4 */
++#define _PAGE_BIT_NX		63	/* No execute: only valid after cpuid check */
++
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
+ #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
+ #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
+-#define _PAGE_BIT_SOFTW4	58	/* available for programmer */
+-#define _PAGE_BIT_DEVMAP		_PAGE_BIT_SOFTW4
+-#define _PAGE_BIT_NX		63	/* No execute: only valid after cpuid check */
++#define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
  
- static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
- {
-diff -puN drivers/char/agp/frontend.c~pkeys-70-calc_vm_prot_bits drivers/char/agp/frontend.c
---- a/drivers/char/agp/frontend.c~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:25.998693088 -0800
-+++ b/drivers/char/agp/frontend.c	2016-02-12 10:44:26.009693591 -0800
-@@ -156,7 +156,7 @@ static pgprot_t agp_convert_mmap_flags(i
- {
- 	unsigned long prot_bits;
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+ /* - if the user mapped it with PROT_NONE; pte_present gives true */
+@@ -47,6 +52,17 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT0)
++#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT1)
++#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT2)
++#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT3)
++#else
++#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 0))
++#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 0))
++#endif
+ #define __HAVE_ARCH_PTE_SPECIAL
  
--	prot_bits = calc_vm_prot_bits(prot) | VM_SHARED;
-+	prot_bits = calc_vm_prot_bits(prot, 0) | VM_SHARED;
- 	return vm_get_page_prot(prot_bits);
- }
- 
-diff -puN drivers/staging/android/ashmem.c~pkeys-70-calc_vm_prot_bits drivers/staging/android/ashmem.c
---- a/drivers/staging/android/ashmem.c~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:25.999693134 -0800
-+++ b/drivers/staging/android/ashmem.c	2016-02-12 10:44:26.010693636 -0800
-@@ -372,8 +372,8 @@ static int ashmem_mmap(struct file *file
- 	}
- 
- 	/* requested protection bits must match our allowed protection mask */
--	if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask)) &
--		     calc_vm_prot_bits(PROT_MASK))) {
-+	if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask, 0)) &
-+		     calc_vm_prot_bits(PROT_MASK, 0))) {
- 		ret = -EPERM;
- 		goto out;
- 	}
-diff -puN include/linux/mman.h~pkeys-70-calc_vm_prot_bits include/linux/mman.h
---- a/include/linux/mman.h~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:26.001693225 -0800
-+++ b/include/linux/mman.h	2016-02-12 10:44:26.010693636 -0800
-@@ -35,7 +35,7 @@ static inline void vm_unacct_memory(long
-  */
- 
- #ifndef arch_calc_vm_prot_bits
--#define arch_calc_vm_prot_bits(prot) 0
-+#define arch_calc_vm_prot_bits(prot, pkey) 0
- #endif
- 
- #ifndef arch_vm_get_page_prot
-@@ -70,12 +70,12 @@ static inline int arch_validate_prot(uns
-  * Combine the mmap "prot" argument into "vm_flags" used internally.
-  */
- static inline unsigned long
--calc_vm_prot_bits(unsigned long prot)
-+calc_vm_prot_bits(unsigned long prot, unsigned long pkey)
- {
- 	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
- 	       _calc_vm_trans(prot, PROT_WRITE, VM_WRITE) |
- 	       _calc_vm_trans(prot, PROT_EXEC,  VM_EXEC) |
--	       arch_calc_vm_prot_bits(prot);
-+	       arch_calc_vm_prot_bits(prot, pkey);
- }
- 
- /*
-diff -puN mm/mmap.c~pkeys-70-calc_vm_prot_bits mm/mmap.c
---- a/mm/mmap.c~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:26.002693271 -0800
-+++ b/mm/mmap.c	2016-02-12 10:44:26.011693682 -0800
-@@ -1313,7 +1313,7 @@ unsigned long do_mmap(struct file *file,
- 	 * to. we assume access permissions have been handled by the open
- 	 * of the memory object, so we don't do any here.
- 	 */
--	vm_flags |= calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
-+	vm_flags |= calc_vm_prot_bits(prot, 0) | calc_vm_flag_bits(flags) |
- 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
- 
- 	if (flags & MAP_LOCKED)
-diff -puN mm/mprotect.c~pkeys-70-calc_vm_prot_bits mm/mprotect.c
---- a/mm/mprotect.c~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:26.004693362 -0800
-+++ b/mm/mprotect.c	2016-02-12 10:44:26.012693728 -0800
-@@ -378,7 +378,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
- 	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
- 		prot |= PROT_EXEC;
- 
--	vm_flags = calc_vm_prot_bits(prot);
-+	vm_flags = calc_vm_prot_bits(prot, 0);
- 
- 	down_write(&current->mm->mmap_sem);
- 
-diff -puN mm/nommu.c~pkeys-70-calc_vm_prot_bits mm/nommu.c
---- a/mm/nommu.c~pkeys-70-calc_vm_prot_bits	2016-02-12 10:44:26.006693454 -0800
-+++ b/mm/nommu.c	2016-02-12 10:44:26.012693728 -0800
-@@ -1082,7 +1082,7 @@ static unsigned long determine_vm_flags(
- {
- 	unsigned long vm_flags;
- 
--	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
-+	vm_flags = calc_vm_prot_bits(prot, 0) | calc_vm_flag_bits(flags);
- 	/* vm_flags |= mm->def_flags; */
- 
- 	if (!(capabilities & NOMMU_MAP_DIRECT)) {
+ #ifdef CONFIG_KMEMCHECK
 _
 
 --
