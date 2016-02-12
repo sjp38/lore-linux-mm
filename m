@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FED86B0253
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 15:15:40 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id gc3so36320814obb.3
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 12:15:40 -0800 (PST)
-Received: from alln-iport-4.cisco.com (alln-iport-4.cisco.com. [173.37.142.91])
-        by mx.google.com with ESMTPS id fj9si17170807oeb.7.2016.02.12.12.15.39
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 87E7F6B0009
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 15:24:22 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id g62so34323892wme.0
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 12:24:22 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id vx5si21529368wjc.219.2016.02.12.12.24.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Feb 2016 12:15:39 -0800 (PST)
-Subject: Re: computing drop-able caches
-References: <56AAA77D.7090000@cisco.com> <56BE1F2A.30103@intel.com>
- <56BE2135.5040407@cisco.com> <56BE21EC.6030708@intel.com>
-From: Daniel Walker <danielwa@cisco.com>
-Message-ID: <56BE3D69.7080305@cisco.com>
-Date: Fri, 12 Feb 2016 12:15:37 -0800
+        Fri, 12 Feb 2016 12:24:21 -0800 (PST)
+Date: Fri, 12 Feb 2016 15:24:05 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Unhelpful caching decisions, possibly related to active/inactive
+ sizing
+Message-ID: <20160212202405.GA32367@cmpxchg.org>
+References: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
+ <20160209224256.GA29872@cmpxchg.org>
+ <20160211153404.42055b27@cuia.usersys.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <56BE21EC.6030708@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160211153404.42055b27@cuia.usersys.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andres Freund <andres@anarazel.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 02/12/2016 10:18 AM, Dave Hansen wrote:
-> On 02/12/2016 10:15 AM, Daniel Walker wrote:
->> On 02/12/2016 10:06 AM, Dave Hansen wrote:
->>> On 01/28/2016 03:42 PM, Daniel Walker wrote:
->>>> My colleague Khalid and I are working on a patch which will provide a
->>>> /proc file to output the size of the drop-able page cache.
->>>> One way to implement this is to use the current drop_caches /proc
->>>> routine, but instead of actually droping the caches just add
->>>> up the amount.
->>> Code, please.
->> We have a process for release code which doesn't allow us to send it
->> immediately. B
-> OK, how about we continue this discussion once you can release it?
+On Thu, Feb 11, 2016 at 03:34:04PM -0500, Rik van Riel wrote:
+> On Tue, 9 Feb 2016 17:42:56 -0500
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Feb 09, 2016 at 05:52:40PM +0100, Andres Freund wrote:
+> 
+> > > Rik asked me about active/inactive sizing in /proc/meminfo:
+> > > Active:          7860556 kB
+> > > Inactive:        5395644 kB
+> > > Active(anon):    2874936 kB
+> > > Inactive(anon):   432308 kB
+> > > Active(file):    4985620 kB
+> > > Inactive(file):  4963336 kB
+> 
+> > Yes, a generous minimum size of the inactive list made sense when it
+> > was the exclusive staging area to tell use-once pages from use-many
+> > pages. Now that we have refault information to detect use-many with
+> > arbitrary inactive list size, this minimum is no longer reasonable.
+> > 
+> > The new minimum should be smaller, but big enough for applications to
+> > actually use the data in their pages between fault and eviction
+> > (i.e. it needs to take the aggregate readahead window into account),
+> > and big enough for active pages that are speculatively challenged
+> > during workingset changes to get re-activated without incurring IO.
+> > 
+> > However, I don't think it makes sense to dynamically adjust the
+> > balance between the active and the inactive cache during refaults.
+> 
+> Johannes, does this patch look ok to you?
 
-Ok, you should have the code now."kernel: fs: drop_caches: add dds 
-drop_caches_count"
+Yes, the anon ratio we use looks like a good fit for file as well.
 
-Daniel
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I've updated the patch to work with cgroups.
