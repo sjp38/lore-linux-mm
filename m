@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A8908295A
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:36 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id q63so53075348pfb.0
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:36 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id p81si22208845pfa.102.2016.02.12.13.02.23
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CA2828F3
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 16:02:38 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id c10so53900820pfc.2
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 13:02:38 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ra2si22128568pab.209.2016.02.12.13.02.24
         for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 13:02:23 -0800 (PST)
-Subject: [PATCH 21/33] x86, pkeys: optimize fault handling in access_error()
+        Fri, 12 Feb 2016 13:02:24 -0800 (PST)
+Subject: [PATCH 22/33] x86, pkeys: differentiate instruction fetches
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 12 Feb 2016 13:02:22 -0800
+Date: Fri, 12 Feb 2016 13:02:24 -0800
 References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
 In-Reply-To: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-Message-Id: <20160212210222.EBB63D8C@viggo.jf.intel.com>
+Message-Id: <20160212210224.96928009@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,80 +22,179 @@ Cc: linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, Dave Hans
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-We might not strictly have to make modifictions to
-access_error() to check the VMA here.
+As discussed earlier, we attempt to enforce protection keys in
+software.
 
-If we do not, we will do this:
-1. app sets VMA pkey to K
-2. app touches a !present page
-3. do_page_fault(), allocates and maps page, sets pte.pkey=K
-4. return to userspace
-5. touch instruction reexecutes, but triggers PF_PK
-6. do PKEY signal
+However, the code checks all faults to ensure that they are not
+violating protection key permissions.  It was assumed that all
+faults are either write faults where we check PKRU[key].WD (write
+disable) or read faults where we check the AD (access disable)
+bit.
 
-What happens with this patch applied:
-1. app sets VMA pkey to K
-2. app touches a !present page
-3. do_page_fault() notices that K is inaccessible
-4. do PKEY signal
+But, there is a third category of faults for protection keys:
+instruction faults.  Instruction faults never run afoul of
+protection keys because they do not affect instruction fetches.
 
-We basically skip the fault that does an allocation.
+So, plumb the PF_INSTR bit down in to the
+arch_vma_access_permitted() function where we do the protection
+key checks.
 
-So what this lets us do is protect areas from even being
-*populated* unless it is accessible according to protection
-keys.  That seems handy to me and makes protection keys work
-more like an mprotect()'d mapping.
+We also add a new FAULT_FLAG_INSTRUCTION.  This is because
+handle_mm_fault() is not passed the architecture-specific
+error_code where we keep PF_INSTR, so we need to encode the
+instruction fetch information in to the arch-generic fault
+flags.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+
 ---
 
- b/arch/x86/mm/fault.c |   15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ b/arch/powerpc/include/asm/mmu_context.h |    2 +-
+ b/arch/s390/include/asm/mmu_context.h    |    2 +-
+ b/arch/x86/include/asm/mmu_context.h     |    5 ++++-
+ b/arch/x86/mm/fault.c                    |    8 ++++++--
+ b/include/asm-generic/mm_hooks.h         |    2 +-
+ b/include/linux/mm.h                     |    1 +
+ b/mm/gup.c                               |   11 +++++++++--
+ b/mm/memory.c                            |    1 +
+ 8 files changed, 24 insertions(+), 8 deletions(-)
 
-diff -puN arch/x86/mm/fault.c~pkeys-15-access_error arch/x86/mm/fault.c
---- a/arch/x86/mm/fault.c~pkeys-15-access_error	2016-02-12 10:44:23.285569064 -0800
-+++ b/arch/x86/mm/fault.c	2016-02-12 10:44:23.288569201 -0800
-@@ -900,10 +900,16 @@ bad_area(struct pt_regs *regs, unsigned
- static inline bool bad_area_access_from_pkeys(unsigned long error_code,
- 		struct vm_area_struct *vma)
- {
-+	/* This code is always called on the current mm */
-+	bool foreign = false;
-+
- 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
- 		return false;
- 	if (error_code & PF_PK)
- 		return true;
-+	/* this checks permission keys on the VMA: */
-+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
-+		return true;
- 	return false;
+diff -puN arch/powerpc/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/powerpc/include/asm/mmu_context.h
+--- a/arch/powerpc/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.698587944 -0800
++++ b/arch/powerpc/include/asm/mmu_context.h	2016-02-12 10:44:23.713588630 -0800
+@@ -149,7 +149,7 @@ static inline void arch_bprm_mm_init(str
  }
  
-@@ -1091,6 +1097,8 @@ int show_unhandled_signals = 1;
- static inline int
- access_error(unsigned long error_code, struct vm_area_struct *vma)
+ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+-		bool write, bool foreign)
++		bool write, bool execute, bool foreign)
  {
-+	/* This is only called for the current mm, so: */
-+	bool foreign = false;
- 	/*
- 	 * Access or read was blocked by protection keys. We do
- 	 * this check before any others because we do not want
-@@ -1099,6 +1107,13 @@ access_error(unsigned long error_code, s
- 	 */
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN arch/s390/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/s390/include/asm/mmu_context.h
+--- a/arch/s390/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.700588036 -0800
++++ b/arch/s390/include/asm/mmu_context.h	2016-02-12 10:44:23.713588630 -0800
+@@ -131,7 +131,7 @@ static inline void arch_bprm_mm_init(str
+ }
+ 
+ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+-		bool write, bool foreign)
++		bool write, bool execute, bool foreign)
+ {
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.701588081 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2016-02-12 10:44:23.714588675 -0800
+@@ -323,8 +323,11 @@ static inline bool vma_is_foreign(struct
+ }
+ 
+ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+-		bool write, bool foreign)
++		bool write, bool execute, bool foreign)
+ {
++	/* pkeys never affect instruction fetches */
++	if (execute)
++		return true;
+ 	/* allow access if the VMA is not one from this process */
+ 	if (foreign || vma_is_foreign(vma))
+ 		return true;
+diff -puN arch/x86/mm/fault.c~pkeys-16-allow-execute-on-unreadable arch/x86/mm/fault.c
+--- a/arch/x86/mm/fault.c~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.703588173 -0800
++++ b/arch/x86/mm/fault.c	2016-02-12 10:44:23.714588675 -0800
+@@ -908,7 +908,8 @@ static inline bool bad_area_access_from_
  	if (error_code & PF_PK)
+ 		return true;
+ 	/* this checks permission keys on the VMA: */
+-	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
++	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE),
++				(error_code & PF_INSTR), foreign))
+ 		return true;
+ 	return false;
+ }
+@@ -1112,7 +1113,8 @@ access_error(unsigned long error_code, s
+ 	 * faults just to hit a PF_PK as soon as we fill in a
+ 	 * page.
+ 	 */
+-	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
++	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE),
++				(error_code & PF_INSTR), foreign))
  		return 1;
-+	/*
-+	 * Make sure to check the VMA so that we do not perform
-+	 * faults just to hit a PF_PK as soon as we fill in a
-+	 * page.
-+	 */
-+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
-+		return 1;
  
  	if (error_code & PF_WRITE) {
- 		/* write, present and write, not present: */
+@@ -1267,6 +1269,8 @@ __do_page_fault(struct pt_regs *regs, un
+ 
+ 	if (error_code & PF_WRITE)
+ 		flags |= FAULT_FLAG_WRITE;
++	if (error_code & PF_INSTR)
++		flags |= FAULT_FLAG_INSTRUCTION;
+ 
+ 	/*
+ 	 * When running in the kernel we expect faults to occur only to
+diff -puN include/asm-generic/mm_hooks.h~pkeys-16-allow-execute-on-unreadable include/asm-generic/mm_hooks.h
+--- a/include/asm-generic/mm_hooks.h~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.705588264 -0800
++++ b/include/asm-generic/mm_hooks.h	2016-02-12 10:44:23.715588721 -0800
+@@ -27,7 +27,7 @@ static inline void arch_bprm_mm_init(str
+ }
+ 
+ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+-		bool write, bool foreign)
++		bool write, bool execute, bool foreign)
+ {
+ 	/* by default, allow everything */
+ 	return true;
+diff -puN include/linux/mm.h~pkeys-16-allow-execute-on-unreadable include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.706588310 -0800
++++ b/include/linux/mm.h	2016-02-12 10:44:23.716588767 -0800
+@@ -252,6 +252,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_TRIED	0x20	/* Second try */
+ #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+ #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
++#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
+ 
+ /*
+  * vm_fault is filled by the the pagefault handler and passed to the vma's
+diff -puN mm/gup.c~pkeys-16-allow-execute-on-unreadable mm/gup.c
+--- a/mm/gup.c~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.708588401 -0800
++++ b/mm/gup.c	2016-02-12 10:44:23.716588767 -0800
+@@ -449,7 +449,11 @@ static int check_vma_flags(struct vm_are
+ 		if (!(vm_flags & VM_MAYREAD))
+ 			return -EFAULT;
+ 	}
+-	if (!arch_vma_access_permitted(vma, write, foreign))
++	/*
++	 * gups are always data accesses, not instruction
++	 * fetches, so execute=false here
++	 */
++	if (!arch_vma_access_permitted(vma, write, false, foreign))
+ 		return -EFAULT;
+ 	return 0;
+ }
+@@ -629,8 +633,11 @@ bool vma_permits_fault(struct vm_area_st
+ 	/*
+ 	 * The architecture might have a hardware protection
+ 	 * mechanism other than read/write that can deny access.
++	 *
++	 * gup always represents data access, not instruction
++	 * fetches, so execute=false here:
+ 	 */
+-	if (!arch_vma_access_permitted(vma, write, foreign))
++	if (!arch_vma_access_permitted(vma, write, false, foreign))
+ 		return false;
+ 
+ 	return true;
+diff -puN mm/memory.c~pkeys-16-allow-execute-on-unreadable mm/memory.c
+--- a/mm/memory.c~pkeys-16-allow-execute-on-unreadable	2016-02-12 10:44:23.710588493 -0800
++++ b/mm/memory.c	2016-02-12 10:44:23.717588813 -0800
+@@ -3359,6 +3359,7 @@ static int __handle_mm_fault(struct mm_s
+ 	pte_t *pte;
+ 
+ 	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
++					    flags & FAULT_FLAG_INSTRUCTION,
+ 					    flags & FAULT_FLAG_REMOTE))
+ 		return VM_FAULT_SIGSEGV;
+ 
 _
 
 --
