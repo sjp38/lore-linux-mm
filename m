@@ -1,73 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E946B0005
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 18:44:20 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id 9so75207052iom.1
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 15:44:20 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id 82si16079304iok.187.2016.02.11.15.44.18
-        for <linux-mm@kvack.org>;
-        Thu, 11 Feb 2016 15:44:19 -0800 (PST)
-Date: Fri, 12 Feb 2016 10:44:15 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 2/2] dax: move writeback calls into the filesystems
-Message-ID: <20160211234415.GM19486@dastard>
-References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
- <1455137336-28720-3-git-send-email-ross.zwisler@linux.intel.com>
- <20160210220312.GP14668@dastard>
- <20160210224340.GA30938@linux.intel.com>
- <20160211125044.GJ21760@quack.suse.cz>
- <CAPcyv4g60iOTd-ShBCfsK+B7xArcc5pWXWktNop53otDbUW-3g@mail.gmail.com>
- <20160211204635.GI19486@dastard>
- <CAPcyv4h4u+LB5U5nm4Jo32r=33D02yv36k5QxmJoy3DRiHmQEQ@mail.gmail.com>
- <20160211224616.GL19486@dastard>
- <CAPcyv4hR60bahtQq68SgSG2uT9zP4H8u3zbUqtqndnx=ogwVtA@mail.gmail.com>
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D046B0005
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 23:04:46 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id wb13so105818786obb.1
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2016 20:04:46 -0800 (PST)
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
+        by mx.google.com with ESMTPS id z127si954360oif.103.2016.02.11.20.04.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Feb 2016 20:04:45 -0800 (PST)
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 11 Feb 2016 21:04:45 -0700
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D3EA33E40044
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 21:04:42 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1C44gKk27328588
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 21:04:42 -0700
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1C44fsh012199
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2016 21:04:42 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also on PowerPC and ARM)
+In-Reply-To: <20160211205702.24f0d17a@thinkpad>
+References: <20160211192223.4b517057@thinkpad> <20160211190942.GA10244@node.shutemov.name> <20160211205702.24f0d17a@thinkpad>
+Date: Fri, 12 Feb 2016 09:34:33 +0530
+Message-ID: <87a8n6shf2.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hR60bahtQq68SgSG2uT9zP4H8u3zbUqtqndnx=ogwVtA@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-On Thu, Feb 11, 2016 at 02:59:14PM -0800, Dan Williams wrote:
-> On Thu, Feb 11, 2016 at 2:46 PM, Dave Chinner <david@fromorbit.com> wrote:
-> > On Thu, Feb 11, 2016 at 12:58:38PM -0800, Dan Williams wrote:
-> >> On Thu, Feb 11, 2016 at 12:46 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >> Maybe I don't need to worry because it's already the case that a
-> >> mmap of the raw device may not see the most up to date data for a
-> >> file that has dirty fs-page-cache data.
-> >
-> > It goes both ways. What happens if mkfs or fsck modifies the
-> > block device via mmap+DAX and then the filesystem mounts the block
-> > device and tries to read that metadata via the block device page
-> > cache?
-> >
-> > Quite frankly, DAX on the block device is a can of worms we really
-> > don't need to deal with right now. IMO it's a solution looking for a
-> > problem to solve,
-> 
-> Virtualization use cases want to give large ranges to guest-VMs, and
-> it is currently the only way to reliably get 1GiB mappings.
+Gerald Schaefer <gerald.schaefer@de.ibm.com> writes:
 
-Precisely my point - block devices are not the best way to solve
-this problem.
+> On Thu, 11 Feb 2016 21:09:42 +0200
+> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+>
+>> On Thu, Feb 11, 2016 at 07:22:23PM +0100, Gerald Schaefer wrote:
+>> > Hi,
+>> > 
+>> > Sebastian Ott reported random kernel crashes beginning with v4.5-rc1 and
+>> > he also bisected this to commit 61f5d698 "mm: re-enable THP". Further
+>> > review of the THP rework patches, which cannot be bisected, revealed
+>> > commit fecffad "s390, thp: remove infrastructure for handling splitting PMDs"
+>> > (and also similar commits for other archs).
+>> > 
+>> > This commit removes the THP splitting bit and also the architecture
+>> > implementation of pmdp_splitting_flush(), which took care of the IPI for
+>> > fast_gup serialization. The commit message says
+>> > 
+>> >     pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+>> >     pmdp_clear_flush() + set_pte_at().  pmdp_clear_flush() will do IPI as
+>> >     needed for fast_gup
+>> > 
+>> > The assumption that a TLB flush will also produce an IPI is wrong on s390,
+>> > and maybe also on other architectures, and I thought that this was actually
+>> > the main reason for having an arch-specific pmdp_splitting_flush().
+>> > 
+>> > At least PowerPC and ARM also had an individual implementation of
+>> > pmdp_splitting_flush() that used kick_all_cpus_sync() instead of a TLB
+>> > flush to send the IPI, and those were also removed. Putting the arch
+>> > maintainers and mailing lists on cc to verify.
+>> > 
+>> > On s390 this will break the IPI serialization against fast_gup, which
+>> > would certainly explain the random kernel crashes, please revert or fix
+>> > the pmdp_splitting_flush() removal.
+>> 
+>> Sorry for that.
+>> 
+>> I believe, the problem was already addressed for PowerPC:
+>> 
+>> http://lkml.kernel.org/g/454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com
+>> 
+>> I think kick_all_cpus_sync() in arch-specific pmdp_invalidate() would do
+>> the trick, right?
+>
+> Hmm, not sure about that. After pmdp_invalidate(), a pmd_none() check in
+> fast_gup will still return false, because the pmd is not empty (at least
+> on s390).
 
-A file, on XFS, with a 1GB extent size hint and preallocated to be
-aligned to 1GB addresses (i.e. mkfs.xfs -d su=1G,sw=1 on the host
-filesystem) will give reliable 1GB aligned blocks for DAX mappings,
-just like a block device will. Peformance wise it's little different
-to using the block device directly. Management wise it's way more
-flexible, especially as such image files can be recycled for new VMs
-almost instantly via FALLOC_FL_FLAG_ZERO_RANGE.
+Why can't we do this ? I did this for ppc64.
 
-Cheers,
+ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 		     pmd_t *pmdp)
+ {
+-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
++	pmd_hugepage_update(vma->vm_mm, address, pmdp, ~0UL, 0);
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>So I don't see spontaneously how it will help fast_gup to break
+> out to the slow path in case of THP splitting.
+>
+>> 
+>> If yes, I'll prepare patch tomorrow (some sleep required).
+>> 
+>
+> We'll check if adding kick_all_cpus_sync() to pmdp_invalidate() helps.
+> It would also be good if Martin has a look at this, he'll return on
+> Monday.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
