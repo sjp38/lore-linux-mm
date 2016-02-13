@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 600B26B0009
-	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 17:23:59 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id c200so65599031wme.0
-        for <linux-mm@kvack.org>; Sat, 13 Feb 2016 14:23:59 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id 4si13677859wmb.92.2016.02.13.14.23.57
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B6426B0009
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 17:47:50 -0500 (EST)
+Received: by mail-io0-f178.google.com with SMTP id l127so124970816iof.3
+        for <linux-mm@kvack.org>; Sat, 13 Feb 2016 14:47:50 -0800 (PST)
+Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
+        by mx.google.com with ESMTPS id j28si30666847ioi.27.2016.02.13.14.47.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 13 Feb 2016 14:23:57 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id g62so10849494wme.1
-        for <linux-mm@kvack.org>; Sat, 13 Feb 2016 14:23:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <9230470.QhrU67iB7h@wuerfel>
-References: <9230470.QhrU67iB7h@wuerfel>
+        Sat, 13 Feb 2016 14:47:47 -0800 (PST)
 From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Date: Sat, 13 Feb 2016 17:23:27 -0500
-Message-ID: <CAP=VYLpm5ZGq6UrSC_MT4VfvgxB7FYKN37dPQdVBEE_m3YDL_g@mail.gmail.com>
-Subject: Re: mm, compaction: fix build errors with kcompactd
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm/compaction: don't use modular references for non modular code
+Date: Sat, 13 Feb 2016 17:47:34 -0500
+Message-ID: <1455403654-28951-1-git-send-email-paul.gortmaker@windriver.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Feb 9, 2016 at 9:15 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> The newly added kcompactd code introduces multiple build errors:
->
-> include/linux/compaction.h:91:12: error: 'kcompactd_run' defined but not used [-Werror=unused-function]
-> mm/compaction.c:1953:2: error: implicit declaration of function 'hotcpu_notifier' [-Werror=implicit-function-declaration]
->
-> This marks the new empty wrapper functions as 'inline' to avoid unused-function warnings,
-> and includes linux/cpu.h to get the hotcpu_notifier declaration.
->
-> Fixes: 8364acdfa45a ("mm, compaction: introduce kcompactd")
+replace module_init with subsys_initcall ; which will be two
+levels earlier, but mm smells like a subsystem to me.
 
-The 8364acdfa45a is a linux-next ID and changes on a daily basis, so you
-can't really use a "Fixes" here.  It doesn't matter if akpm just
-squishes it into
-the original, but I thought I'd mention it for future reference.
+Compile tested only.
 
-P.
-..
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+---
 
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> ---
-> I stumbled over this while trying out the mmots patches today for an unrelated reason.
->
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 1367c0564d42..d7c8de583a23 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -88,15 +88,15 @@ static inline bool compaction_deferred(struct zone *zone, int order)
->         return true;
+[Feel free to squash this into the original, if desired.]
 
-[...]
+ mm/compaction.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 4cb1c2ef5abb..4d99e1f5055c 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -20,7 +20,6 @@
+ #include <linux/kasan.h>
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
+-#include <linux/module.h>
+ #include "internal.h"
+ 
+ #ifdef CONFIG_COMPACTION
+@@ -1954,7 +1953,6 @@ static int __init kcompactd_init(void)
+ 	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
+ }
+-
+-module_init(kcompactd_init)
++subsys_initcall(kcompactd_init)
+ 
+ #endif /* CONFIG_COMPACTION */
+-- 
+2.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
