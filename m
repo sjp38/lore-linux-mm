@@ -1,75 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B256F6B0254
-	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 06:13:08 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id xg9so25288560igb.1
-        for <linux-mm@kvack.org>; Sat, 13 Feb 2016 03:13:08 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id h70si27127946ioh.15.2016.02.13.03.13.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 13 Feb 2016 03:13:07 -0800 (PST)
-Received: from compute2.internal (compute2.nyi.internal [10.202.2.42])
-	by mailout.nyi.internal (Postfix) with ESMTP id 7B454202A5
-	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 06:13:05 -0500 (EST)
-Subject: Re: [net-next PATCH V2 0/3] net: mitigating kmem_cache free slowpath
-References: <20160207.142526.1252110536030712971.davem@davemloft.net>
- <20160208121328.8860.67014.stgit@localhost>
-From: Tilman Schmidt <tilman@imap.cc>
-Message-ID: <56BF0FB6.5050905@imap.cc>
-Date: Sat, 13 Feb 2016 12:12:54 +0100
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DA0F86B0009
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 06:54:24 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p63so53712185wmp.1
+        for <linux-mm@kvack.org>; Sat, 13 Feb 2016 03:54:24 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id i127si10549803wma.103.2016.02.13.03.54.22
+        for <linux-mm@kvack.org>;
+        Sat, 13 Feb 2016 03:54:22 -0800 (PST)
+Date: Sat, 13 Feb 2016 12:54:18 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v2] x86/mm/vmfault: Make vmalloc_fault() handle large
+ pages
+Message-ID: <20160213115418.GB15973@pd.tnic>
+References: <1455236836-24579-1-git-send-email-toshi.kani@hpe.com>
 MIME-Version: 1.0
-In-Reply-To: <20160208121328.8860.67014.stgit@localhost>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="xdXKd8MFNvl4kEeswtWbASbqC5ffCcIIa"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1455236836-24579-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: netdev@vger.kernel.org, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tom@herbertland.com, Alexander Duyck <alexander.duyck@gmail.com>, alexei.starovoitov@gmail.com, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, henning.schild@siemens.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---xdXKd8MFNvl4kEeswtWbASbqC5ffCcIIa
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Feb 11, 2016 at 05:27:16PM -0700, Toshi Kani wrote:
+> The following oops was observed when a read syscall was made to
+> a pmem device after a huge amount (>512GB) of vmalloc ranges was
+> allocated by ioremap() on a x86_64 system.
+> 
+>  BUG: unable to handle kernel paging request at ffff880840000ff8
+>  IP: [<ffffffff810664ae>] vmalloc_fault+0x1be/0x300
+>  PGD c7f03a067 PUD 0
+>  Oops: 0000 [#1] SM
+>    :
+>  Call Trace:
+>  [<ffffffff81067335>] __do_page_fault+0x285/0x3e0
+>  [<ffffffff810674bf>] do_page_fault+0x2f/0x80
+>  [<ffffffff810d6d85>] ? put_prev_entity+0x35/0x7a0
+>  [<ffffffff817a6888>] page_fault+0x28/0x30
+>  [<ffffffff813bb976>] ? memcpy_erms+0x6/0x10
+>  [<ffffffff817a0845>] ? schedule+0x35/0x80
+>  [<ffffffffa006350a>] ? pmem_rw_bytes+0x6a/0x190 [nd_pmem]
+>  [<ffffffff817a3713>] ? schedule_timeout+0x183/0x240
+>  [<ffffffffa028d2b3>] btt_log_read+0x63/0x140 [nd_btt]
+>    :
+>  [<ffffffff811201d0>] ? __symbol_put+0x60/0x60
+>  [<ffffffff8122dc60>] ? kernel_read+0x50/0x80
+>  [<ffffffff81124489>] SyS_finit_module+0xb9/0xf0
+>  [<ffffffff817a4632>] entry_SYSCALL_64_fastpath+0x1a/0xa4
 
-Hi Jesper,
+Please remove those virtual addresses and offsets here as they're
+meaningless and leave only the callstack.
 
-Am 08.02.2016 um 13:14 schrieb Jesper Dangaard Brouer:
-> Introduce new API napi_consume_skb(), that hides/handles bulk freeing
-> for the caller.  The drivers simply need to use this call when freeing
-> SKBs in NAPI context, e.g. replacing their calles to dev_kfree_skb() /
-> dev_consume_skb_any().
+> Since 4.1, ioremap() supports large page (pud/pmd) mappings in
+> x86_64 and PAE.  vmalloc_fault() however assumes that the vmalloc
+> range is limited to pte mappings.
+> 
+> vmalloc faults do not normally happen in ioremap'd ranges since
+> ioremap() sets up the kernel page tables, which are shared by
+> user processes.  pgd_ctor() sets the kernel's pgd entries to
+> user's during fork().  When allocation of the vmalloc ranges
+> crosses a 512GB boundary, ioremap() allocates a new pud table
+> and updates the kernel pgd entry to point it.  If user process's
+> pgd entry does not have this update yet, a read/write syscall
+> to the range will cause a vmalloc fault, which hits the Oops
+> above as it does not handle a large page properly.
+> 
+> Following changes are made to vmalloc_fault().
+> 
+> 64-bit:
+> - No change for the pgd sync operation as it handles large
+>   pages already.
+> - Add pud_huge() and pmd_huge() to the validation code to
+>   handle large pages.
+> - Change pud_page_vaddr() to pud_pfn() since an ioremap range
+>   is not directly mapped (while the if-statement still works
+>   with a bogus addr).
+> - Change pmd_page() to pmd_pfn() since an ioremap range is not
+>   backed by struct page (while the if-statement still works
+>   with a bogus addr).
+> 
+> 32-bit:
+> - No change for the sync operation since the index3 pgd entry
+>   covers the entire vmalloc range, which is always valid.
+>   (A separate change to sync pgd entry is necessary if this
+>    memory layout is changed regardless of the page size.)
+> - Add pmd_huge() to the validation code to handle large pages.
+>   This is for completeness since vmalloc_fault() won't happen
+>   in ioremap'd ranges as its pgd entry is always valid.
+> 
+> Reported-by: Henning Schild <henning.schild@siemens.com>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> ---
+> When this patch is accepted, please copy to stable up to 4.1.
 
-Would you mind adding a kerneldoc comment for the new API function?
+You can do that yourself when submitting by adding this to the CC-list
+above.
 
-Thanks,
-Tilman
+Cc: <stable@vger.kernel.org> # 4.1..
 
---=20
-Tilman Schmidt                              E-Mail: tilman@imap.cc
-Bonn, Germany
-Nous, on a des fleurs et des bougies pour nous prot=C3=A9ger.
+Rest looks ok to me.
 
+-- 
+Regards/Gruss,
+    Boris.
 
---xdXKd8MFNvl4kEeswtWbASbqC5ffCcIIa
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJWvw/AAAoJEFPuqx0v+F+qs2gH/3Gr24ChcMolB8Yjjzf8Q/Vx
-TSuaNglOS/fapAY3IF0imBDUxeEMNxnUIR3DQFF/SY83GwNpBGCzz+4Saf35vCGp
-w77X55DlN4yWEgUctwu/2DxYw2cmb26pA2kBSHTseY6sqeuL1IobNHc6q7B4uda8
-NP1+TOpT75KkzBWPaAKcOG01udCYXH469DYKoEhP1wlCN8klPXrvoCBs+1v1wMJE
-J8q6LhvtWnDNUJf3SOQLCkwRhENxVFR0gvo2sDPZBgb4lVoE50/FNiRMIb/2eIow
-IYvpcunL/E1WdxVK0GnoU4V62bSQGUM8YFZQVOyadPJ7IGUgt+3lU7W9eCuI654=
-=X/MR
------END PGP SIGNATURE-----
-
---xdXKd8MFNvl4kEeswtWbASbqC5ffCcIIa--
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
