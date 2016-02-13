@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A5D416B0009
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 23:59:25 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id q63so57814708pfb.0
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 20:59:25 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id bp6si24778418pac.135.2016.02.12.20.59.24
-        for <linux-mm@kvack.org>;
-        Fri, 12 Feb 2016 20:59:24 -0800 (PST)
-Date: Fri, 12 Feb 2016 21:59:12 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 0/2] DAX bdev fixes - move flushing calls to FS
-Message-ID: <20160213045912.GA22595@linux.intel.com>
-References: <1455137336-28720-1-git-send-email-ross.zwisler@linux.intel.com>
- <20160211124304.GI21760@quack.suse.cz>
- <20160212190320.GA24857@linux.intel.com>
- <20160213023849.GD14668@dastard>
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B67626B0009
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 00:08:42 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id xk3so149091976obc.2
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2016 21:08:42 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id z199si4749976oia.86.2016.02.12.21.08.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 12 Feb 2016 21:08:41 -0800 (PST)
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 12 Feb 2016 22:08:41 -0700
+Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 90F563E4003E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2016 22:08:38 -0700 (MST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1D58bLV34341096
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 05:08:37 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1D58bnH006104
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2016 00:08:37 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 01/29] powerpc/mm: add _PAGE_HASHPTE similar to 4K hash
+In-Reply-To: <20160212024906.GB13831@oak.ozlabs.ibm.com>
+References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160212024906.GB13831@oak.ozlabs.ibm.com>
+Date: Sat, 13 Feb 2016 10:38:32 +0530
+Message-ID: <8737sxrycv.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160213023849.GD14668@dastard>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <willy@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+To: Paul Mackerras <paulus@ozlabs.org>
+Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Sat, Feb 13, 2016 at 01:38:49PM +1100, Dave Chinner wrote:
-> On Fri, Feb 12, 2016 at 12:03:20PM -0700, Ross Zwisler wrote:
-> > On Thu, Feb 11, 2016 at 01:43:04PM +0100, Jan Kara wrote:
-> > > On Wed 10-02-16 13:48:54, Ross Zwisler wrote:
-> > > > 3) In filemap_write_and_wait() and filemap_write_and_wait_range(), continue
-> > > > the writeback in the case that DAX is enabled but we only have a nonzero
-> > > > mapping->nrpages.  As with 1) and 2), I believe this is necessary to
-> > > > properly writeback metadata changes.  If this sounds wrong, please let me
-> > > > know and I'll get more info.
-> > > 
-> > > And I'm surprised here as well. If there are dax_mapping() inodes that have
-> > > pagecache pages, then we have issues with radix tree handling as well. So
-> > > how come dax_mapping() inodes have pages attached? If it is about block
-> > > device inodes, then I find it buggy, that S_DAX gets set for such inodes
-> > > when filesystem is mounted on them because in such cases we are IMO asking
-> > > for data corruption sooner rather than later...
-> > 
-> > I think I've figured this one out, at least partially.
-> > 
-> > For ext2 the issues I was seeing were due to the fact that directory inodes
-> > have S_DAX set, but have dirty page cache pages.   In testing with
-> > generic/002, I see two ext2 inodes with S_DAX trying to do a writeback while
-> > they have dirty page cache pages.  The first has i_ino=2, which is the
-> > EXT2_ROOT_INO.
-> ....
-> > As far as I can see, XFS does not have these issues - returning immediately
-> > having done just the DAX writeback in xfs_vm_writepages() lets all my xfstests
-> > pass.
-> 
-> XFS will not have issues because it does not dirty directory inodes
-> at the VFS level, nor does it use the page cache for directory data.
-> However, looking at the code I think it does still set S_DAX on
-> directory inodes, which it shouldn't be doing.
-> 
-> I've got a couple of fixes I need to do in this area - hopefully
-> I'll get it done on Monday.
+Paul Mackerras <paulus@ozlabs.org> writes:
 
-Cool.  I've got a quick patch that stops S_DAX from being set on everything
-but regular inodes for ext2 and ext4.  This solved a lot of my xfstests
-failures.
+> On Mon, Feb 08, 2016 at 02:50:13PM +0530, Aneesh Kumar K.V wrote:
+>> Not really needed. But this brings it back to as it was before
+>
+> If it's not really needed, what's the motivation for putting this
+> patch in?  You need to explain where you are heading with this patch.
 
-Even after that I'm seeing two last failures with ext4 - I'll keep working on
-those.
+I explained this in the last review.
 
-- Ross
+What confused me in the beginning was difference between 4k and 64k
+page size. I was trying to find out whether we miss a hpte flush in any
+scenario because of this. ie, a pte update on a linux pte, for which we
+are doing a parallel hash pte insert. After looking at it closer my
+understanding is this won't happen because pte update also look at
+_PAGE_BUSY and we will wait for hash pte insert to finish before going
+ahead with the pte update. But to avoid further confusion I was wondering
+whether we should keep this closer to what we have with __hash_page_4k.
+Hence the statement "Not really needed".
+
+I will add more information in the commit message.
+
+
+>
+>> Check this
+>> 41743a4e34f0777f51c1cf0675b91508ba143050
+>
+> The SHA1 is useful, but you need to be more explicit - something like
+>
+> "This partially reverts commit 41743a4e34f0 ("powerpc: Free a PTE bit
+> on ppc64 with 64K pages", 2008-06-11)."
+>
+
+ok
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
