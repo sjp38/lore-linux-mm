@@ -1,62 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DFD986B0009
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 12:37:19 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id g62so122259474wme.0
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 09:37:19 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id s125si19158412wmd.74.2016.02.14.09.37.18
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B34F36B0009
+	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 16:04:30 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id q63so75950239pfb.0
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 13:04:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l8si37942221pfb.18.2016.02.14.13.04.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Feb 2016 09:37:18 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id a4so6874850wme.3
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 09:37:18 -0800 (PST)
+        Sun, 14 Feb 2016 13:04:29 -0800 (PST)
+Subject: Patch "sched: Fix crash in sched_init_numa()" has been added to the 4.3-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Sun, 14 Feb 2016 13:04:29 -0800
+Message-ID: <1455483869147137@kroah.com>
 MIME-Version: 1.0
-In-Reply-To: <20160214165133.GB3965@htj.duckdns.org>
-References: <145544094056.28219.12239469516497703482.stgit@zurg>
-	<20160214165133.GB3965@htj.duckdns.org>
-Date: Sun, 14 Feb 2016 20:37:18 +0300
-Message-ID: <CALYGNiOpnVSpmL0smMu7xCT78GJ4J02LGeiuZBdVxROEpfrH+Q@mail.gmail.com>
-Subject: Re: [PATCH RFC] Introduce atomic and per-cpu add-max and sub-min operations
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-arch <linux-arch@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: raghavendra.kt@linux.vnet.ibm.com, anton@samba.org, benh@kernel.crashing.org, gkurz@linux.vnet.ibm.com, grant.likely@linaro.org, gregkh@linuxfoundation.org, jstancek@redhat.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, mingo@kernel.org, mpe@ellerman.id.au, nikunj@linux.vnet.ibm.com, paulus@samba.org, peterz@infradead.org, vdavydov@parallels.com
+Cc: stable@vger.kernel.org, stable-commits@vger.kernel.org
 
-On Sun, Feb 14, 2016 at 7:51 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello, Konstantin.
->
-> On Sun, Feb 14, 2016 at 12:09:00PM +0300, Konstantin Khlebnikov wrote:
->> bool atomic_add_max(atomic_t *var, int add, int max);
->> bool atomic_sub_min(atomic_t *var, int sub, int min);
->>
->> bool this_cpu_add_max(var, add, max);
->> bool this_cpu_sub_min(var, sub, min);
->>
->> They add/subtract only if result will be not bigger than max/lower that min.
->> Returns true if operation was done and false otherwise.
->
-> If I'm reading the code right, all the above functions do is wrapping
-> the corresponding cmpxchg implementations.  Given that most use cases
-> would build further abstractions on top, I'm not sure how useful
-> providing another layer of abstraction is.  For the most part, we
-> introduce new per-cpu operations to take advantage of capabilities of
-> underlying hardware which can't be utilized in a different way (like
-> the x86 128bit atomic ops).
 
-Yep, they are just abstraction around cmpxchg, as well as a half of atomic
-operations. Probably some architectures could implement this differently.
+This is a note to let you know that I've just added the patch titled
 
-This is basic block with clear interface which performs just one operaion.
-without managing memory and logic behind it. Users often already have
-per-cpu memory stuctures, so they don't need high level abstractrions
-because this will waste memory for unneeded pointers. I think this new
-abstraction could replace alot of opencoded hacks in common way.
+    sched: Fix crash in sched_init_numa()
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+to the 4.3-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     sched-fix-crash-in-sched_init_numa.patch
+and it can be found in the queue-4.3 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
