@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 365CC6B0254
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 16:19:01 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id y8so63188006igp.0
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 13:19:01 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id 87si37763525ios.62.2016.02.14.13.18.59
-        for <linux-mm@kvack.org>;
-        Sun, 14 Feb 2016 13:19:00 -0800 (PST)
-Date: Mon, 15 Feb 2016 08:18:56 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
-Message-ID: <20160214211856.GT19486@dastard>
-References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A97F36B0005
+	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 17:28:33 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id yy13so75091470pab.3
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 14:28:33 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tt2si38378882pac.167.2016.02.14.14.28.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 14 Feb 2016 14:28:32 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 079/117] sched: Fix crash in sched_init_numa()
+Date: Sun, 14 Feb 2016 14:21:56 -0800
+Message-Id: <20160214222143.801451886@linuxfoundation.org>
+In-Reply-To: <20160214222141.393531627@linuxfoundation.org>
+References: <20160214222141.393531627@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Walker <danielwa@cisco.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Khalid Mughal <khalidm@cisco.com>, xe-kernel@external.cisco.com, dave.hansen@intel.com, hannes@cmpxchg.org, riel@redhat.com, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Jan Stancek <jstancek@redhat.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, gkurz@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, peterz@infradead.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, Ingo Molnar <mingo@kernel.org>
 
-On Fri, Feb 12, 2016 at 12:14:39PM -0800, Daniel Walker wrote:
-> From: Khalid Mughal <khalidm@cisco.com>
-> 
-> Currently there is no way to figure out the droppable pagecache size
-> from the meminfo output. The MemFree size can shrink during normal
-> system operation, when some of the memory pages get cached and is
-> reflected in "Cached" field. Similarly for file operations some of
-> the buffer memory gets cached and it is reflected in "Buffers" field.
-> The kernel automatically reclaims all this cached & buffered memory,
-> when it is needed elsewhere on the system. The only way to manually
-> reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. But
-> this can have performance impact. Since it discards cached objects,
-> it may cause high CPU & I/O utilization to recreate the dropped
-> objects during heavy system load.
-> This patch computes the droppable pagecache count, using same
-> algorithm as "vm/drop_caches". It is non-destructive and does not
-> drop any pages. Therefore it does not have any impact on system
-> performance. The computation does not include the size of
-> reclaimable slab.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-Why, exactly, do you need this? You've described what the patch
-does (i.e. redundant, because we can read the code), and described
-that the kernel already accounts this reclaimable memory elsewhere
-and you can already read that and infer the amount of reclaimable
-memory from it. So why isn't that accounting sufficient?
+------------------
 
-As to the code, I think it is a horrible hack - the calculation
-does not come for free. Forcing iteration all the inodes in the
-inode cache is not something we should allow users to do - what's to
-stop someone just doing this 100 times in parallel and DOSing the
-machine?
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 
-Or what happens when someone does 'grep "" /proc/sys/vm/*" to see
-what all the VM settings are on a machine with a couple of TB of
-page cache spread across a couple of hundred million cached inodes?
-It a) takes a long time, b) adds sustained load to an already
-contended lock (sb->s_inode_list_lock), and c) isn't configuration
-information.
+commit 9c03ee147193645be4c186d3688232fa438c57c7 upstream.
 
-Cheers,
+The following PowerPC commit:
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+  c118baf80256 ("arch/powerpc/mm/numa.c: do not allocate bootmem memory for non existing nodes")
+
+avoids allocating bootmem memory for non existent nodes.
+
+But when DEBUG_PER_CPU_MAPS=y is enabled, my powerNV system failed to boot
+because in sched_init_numa(), cpumask_or() operation was done on
+unallocated nodes.
+
+Fix that by making cpumask_or() operation only on existing nodes.
+
+[ Tested with and w/o DEBUG_PER_CPU_MAPS=y on x86 and PowerPC. ]
+
+Reported-by: Jan Stancek <jstancek@redhat.com>
+Tested-by: Jan Stancek <jstancek@redhat.com>
+Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: <gkurz@linux.vnet.ibm.com>
+Cc: <grant.likely@linaro.org>
+Cc: <nikunj@linux.vnet.ibm.com>
+Cc: <vdavydov@parallels.com>
+Cc: <linuxppc-dev@lists.ozlabs.org>
+Cc: <linux-mm@kvack.org>
+Cc: <peterz@infradead.org>
+Cc: <benh@kernel.crashing.org>
+Cc: <paulus@samba.org>
+Cc: <mpe@ellerman.id.au>
+Cc: <anton@samba.org>
+Link: http://lkml.kernel.org/r/1452884483-11676-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ kernel/sched/core.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -6738,7 +6738,7 @@ static void sched_init_numa(void)
+ 
+ 			sched_domains_numa_masks[i][j] = mask;
+ 
+-			for (k = 0; k < nr_node_ids; k++) {
++			for_each_node(k) {
+ 				if (node_distance(j, k) > sched_domains_numa_distance[i])
+ 					continue;
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
