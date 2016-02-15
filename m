@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C52636B0005
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:25:36 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id b67so103793088qgb.1
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:25:36 -0800 (PST)
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
-        by mx.google.com with ESMTPS id e5si32493741qkb.92.2016.02.14.21.25.36
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2346B0009
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:26:41 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id wb13so198413988obb.1
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:26:41 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id m23si15050556oik.62.2016.02.14.21.26.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 14 Feb 2016 21:25:36 -0800 (PST)
-Received: from localhost
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 15 Feb 2016 00:25:35 -0500
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2C64DC9003E
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:25:31 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1F5PXj130867668
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 05:25:33 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1F5PWhe012440
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:25:32 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2 05/29] powerpc/mm: Copy pgalloc (part 2)
-In-Reply-To: <20160212035334.GD13831@oak.ozlabs.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160212035334.GD13831@oak.ozlabs.ibm.com>
-Date: Mon, 15 Feb 2016 10:55:27 +0530
-Message-ID: <87fuwufsu0.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 14 Feb 2016 21:26:40 -0800 (PST)
+Date: Mon, 15 Feb 2016 16:24:49 +1100
+From: Paul Mackerras <paulus@ozlabs.org>
+Subject: Re: [PATCH V2 12/29] powerpc/mm: Move hash64 specific defintions to
+ seperate header
+Message-ID: <20160215052449.GE3797@oak.ozlabs.ibm.com>
+References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1454923241-6681-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1454923241-6681-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@ozlabs.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Paul Mackerras <paulus@ozlabs.org> writes:
+On Mon, Feb 08, 2016 at 02:50:24PM +0530, Aneesh Kumar K.V wrote:
+> Also split pgalloc 64k and 4k headers
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-> On Mon, Feb 08, 2016 at 02:50:17PM +0530, Aneesh Kumar K.V wrote:
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->
-> This needs a proper patch description.
->
-> Paul.
+In the subject: s/defintions/definitions/; s/seperate/separate/
 
-I am expecting part1, 2 and 3 will be folded into one patch before
-merge. I updated part1 with
+A more detailed patch description would be good.  Apart from that,
 
-powerpc/mm: Copy pgalloc (part 1)
-
-This patch make a copy of pgalloc routines for book3s. The idea is to
-enable a hash64 copy of these pgalloc routines which can be later
-updated to have a radix conditional. Radix introduce a new page table
-format with different page table size.
-
-This mostly does:
-
-cp pgalloc-32.h book3s/32/pgalloc.h
-cp pgalloc-64.h book3s/64/pgalloc.h
-
--aneesh
+Reviewed-by: Paul Mackerras <paulus@samba.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
