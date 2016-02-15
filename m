@@ -1,136 +1,616 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C4616B0005
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:44:47 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ho8so78528779pac.2
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 18:44:47 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id rp7si39860525pab.99.2016.02.14.18.44.46
+	by kanga.kvack.org (Postfix) with ESMTP id 455B96B0005
+	for <linux-mm@kvack.org>; Sun, 14 Feb 2016 22:05:02 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id yy13so77962174pab.3
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 19:05:02 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id tw5si39962338pac.131.2016.02.14.19.05.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Feb 2016 18:44:46 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id w128so6307021pfb.2
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 18:44:46 -0800 (PST)
-Message-ID: <1455504278.16012.18.camel@gmail.com>
-Subject: Re: [PATCH V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP
- update
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Mon, 15 Feb 2016 13:44:38 +1100
-In-Reply-To: <1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: 
-	<1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Sun, 14 Feb 2016 19:05:01 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id yy13so6619493pab.1
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 19:05:01 -0800 (PST)
+From: js1304@gmail.com
+Subject: [PATCH 1/2] mm: introduce page reference manipulation functions
+Date: Mon, 15 Feb 2016 12:04:49 +0900
+Message-Id: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, 2016-02-09 at 06:50 +0530, Aneesh Kumar K.V wrote:
->A 
-> Also make sure we wait for irq disable section in other cpus to finish
-> before flipping a huge pte entry with a regular pmd entry. Code paths
-> like find_linux_pte_or_hugepte depend on irq disable to get
-> a stable pte_t pointer. A parallel thp split need to make sure we
-> don't convert a pmd pte to a regular pmd entry without waiting for the
-> irq disable section to finish.
-> 
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
-> A arch/powerpc/include/asm/book3s/64/pgtable.h |A A 4 ++++
-> A arch/powerpc/mm/pgtable_64.cA A A A A A A A A A A A A A A A A | 35
-> +++++++++++++++++++++++++++-
-> A include/asm-generic/pgtable.hA A A A A A A A A A A A A A A A |A A 8 +++++++
-> A mm/huge_memory.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A |A A 1 +
-> A 4 files changed, 47 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index 8d1c41d28318..ac07a30a7934 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -281,6 +281,10 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct
-> mm_struct *mm, pmd_t *pmdp);
-> A extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long
-> address,
-> A 			A A A A pmd_t *pmdp);
-> A 
-> +#define __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
-> +extern void pmdp_huge_split_prepare(struct vm_area_struct *vma,
-> +				A A A A unsigned long address, pmd_t *pmdp);
-> +
-> A #define pmd_move_must_withdraw pmd_move_must_withdraw
-> A struct spinlock;
-> A static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
-> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-> index 3124a20d0fab..c8a00da39969 100644
-> --- a/arch/powerpc/mm/pgtable_64.c
-> +++ b/arch/powerpc/mm/pgtable_64.c
-> @@ -646,6 +646,30 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct
-> *mm, pmd_t *pmdp)
-> A 	return pgtable;
-> A }
-> A 
-> +void pmdp_huge_split_prepare(struct vm_area_struct *vma,
-> +			A A A A A unsigned long address, pmd_t *pmdp)
-> +{
-> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> +
-> +#ifdef CONFIG_DEBUG_VM
-> +	BUG_ON(REGION_ID(address) != USER_REGION_ID);
-> +#endif
-> +	/*
-> +	A * We can't mark the pmd none here, because that will cause a race
-> +	A * against exit_mmap. We need to continue mark pmd TRANS HUGE, while
-> +	A * we spilt, but at the same time we wan't rest of the ppc64 code
-> +	A * not to insert hash pte on this, because we will be modifying
-> +	A * the deposited pgtable in the caller of this function. Hence
-> +	A * clear the _PAGE_USER so that we move the fault handling to
-> +	A * higher level function and that will serialize against ptl.
-> +	A * We need to flush existing hash pte entries here even though,
-> +	A * the translation is still valid, because we will withdraw
-> +	A * pgtable_t after this.
-> +	A */
-> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_USER, 0);
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Can this break any checks for _PAGE_USER? From other paths?
+Success of CMA allocation largely depends on success of migration
+and key factor of it is page reference count. Until now, page reference
+is manipulated by direct calling atomic functions so we cannot follow up
+who and where manipulate it. Then, it is hard to find actual reason
+of CMA allocation failure. CMA allocation should be guaranteed to succeed
+so finding offending place is really important.
 
-> +}
-> +
-> +
-> A /*
-> A  * set a new huge pmd. We should not be called for updating
-> A  * an existing pmd entry. That should go via pmd_hugepage_update.
-> @@ -663,10 +687,19 @@ void set_pmd_at(struct mm_struct *mm, unsigned long
-> addr,
-> A 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
-> A }
-> A 
-> +/*
-> + * We use this to invalidate a pmdp entry before switching from a
-> + * hugepte to regular pmd entry.
-> + */
-> A void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
-> A 		A A A A A pmd_t *pmdp)
-> A {
-> -	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
-> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, ~0UL, 0);
-> +	/*
-> +	A * This ensures that generic code that rely on IRQ disabling
-> +	A * to prevent a parallel THP split work as expected.
-> +	A */
-> +	kick_all_cpus_sync();
+In this patch, call sites where page reference is manipulated are converted
+to introduced wrapper function. This is preparation step to add tracepoint
+to each page reference manipulation function. With this facility, we can
+easily find reason of CMA allocation failure. There is no functional change
+in this patch.
 
-Seems expensive, anyway I think the right should do something like or a wrapper
-for it
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ arch/mips/mm/gup.c                                |  2 +-
+ arch/powerpc/mm/mmu_context_hash64.c              |  3 +-
+ arch/powerpc/mm/pgtable_64.c                      |  2 +-
+ arch/x86/mm/gup.c                                 |  2 +-
+ drivers/block/aoe/aoecmd.c                        |  4 +-
+ drivers/net/ethernet/freescale/gianfar.c          |  2 +-
+ drivers/net/ethernet/intel/fm10k/fm10k_main.c     |  2 +-
+ drivers/net/ethernet/intel/igb/igb_main.c         |  2 +-
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |  2 +-
+ drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |  2 +-
+ drivers/net/ethernet/mellanox/mlx4/en_rx.c        |  7 +--
+ drivers/net/ethernet/sun/niu.c                    |  2 +-
+ include/linux/mm.h                                | 21 ++-----
+ include/linux/page_ref.h                          | 76 +++++++++++++++++++++++
+ include/linux/pagemap.h                           | 19 +-----
+ mm/huge_memory.c                                  |  4 +-
+ mm/internal.h                                     |  5 --
+ mm/memory_hotplug.c                               |  4 +-
+ mm/migrate.c                                      | 10 +--
+ mm/page_alloc.c                                   |  6 +-
+ mm/vmscan.c                                       |  6 +-
+ 21 files changed, 113 insertions(+), 70 deletions(-)
+ create mode 100644 include/linux/page_ref.h
 
-on_each_cpu_mask(mm_cpumask(vma->vm_mm), do_nothing, NULL, 1);
-
-do_nothing is not exported, but that can be fixed :)
-
-Balbir Singh
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 1afd87c..6cdffc7 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -64,7 +64,7 @@ static inline void get_head_page_multiple(struct page *page, int nr)
+ {
+ 	VM_BUG_ON(page != compound_head(page));
+ 	VM_BUG_ON(page_count(page) == 0);
+-	atomic_add(nr, &page->_count);
++	page_ref_add(page, nr);
+ 	SetPageReferenced(page);
+ }
+ 
+diff --git a/arch/powerpc/mm/mmu_context_hash64.c b/arch/powerpc/mm/mmu_context_hash64.c
+index 4e4efbc..9ca6fe1 100644
+--- a/arch/powerpc/mm/mmu_context_hash64.c
++++ b/arch/powerpc/mm/mmu_context_hash64.c
+@@ -118,8 +118,7 @@ static void destroy_pagetable_page(struct mm_struct *mm)
+ 	/* drop all the pending references */
+ 	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
+ 	/* We allow PTE_FRAG_NR fragments from a PTE page */
+-	count = atomic_sub_return(PTE_FRAG_NR - count, &page->_count);
+-	if (!count) {
++	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
+ 		pgtable_page_dtor(page);
+ 		free_hot_cold_page(page, 0);
+ 	}
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index 593341f..1550e8c 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -403,7 +403,7 @@ static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
+ 	 * count.
+ 	 */
+ 	if (likely(!mm->context.pte_frag)) {
+-		atomic_set(&page->_count, PTE_FRAG_NR);
++		set_page_count(page, PTE_FRAG_NR);
+ 		mm->context.pte_frag = ret + PTE_FRAG_SIZE;
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index 6d5eb59..492beee 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -131,7 +131,7 @@ static inline void get_head_page_multiple(struct page *page, int nr)
+ {
+ 	VM_BUG_ON_PAGE(page != compound_head(page), page);
+ 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	atomic_add(nr, &page->_count);
++	page_ref_add(page, nr);
+ 	SetPageReferenced(page);
+ }
+ 
+diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
+index d048d20..437b3a8 100644
+--- a/drivers/block/aoe/aoecmd.c
++++ b/drivers/block/aoe/aoecmd.c
+@@ -875,7 +875,7 @@ bio_pageinc(struct bio *bio)
+ 		 * compound pages is no longer allowed by the kernel.
+ 		 */
+ 		page = compound_head(bv.bv_page);
+-		atomic_inc(&page->_count);
++		page_ref_inc(page);
+ 	}
+ }
+ 
+@@ -888,7 +888,7 @@ bio_pagedec(struct bio *bio)
+ 
+ 	bio_for_each_segment(bv, bio, iter) {
+ 		page = compound_head(bv.bv_page);
+-		atomic_dec(&page->_count);
++		page_ref_dec(page);
+ 	}
+ }
+ 
+diff --git a/drivers/net/ethernet/freescale/gianfar.c b/drivers/net/ethernet/freescale/gianfar.c
+index 2aa7b40..3b8d45a 100644
+--- a/drivers/net/ethernet/freescale/gianfar.c
++++ b/drivers/net/ethernet/freescale/gianfar.c
+@@ -2942,7 +2942,7 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
+ 	/* change offset to the other half */
+ 	rxb->page_offset ^= GFAR_RXB_TRUESIZE;
+ 
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	return true;
+ }
+diff --git a/drivers/net/ethernet/intel/fm10k/fm10k_main.c b/drivers/net/ethernet/intel/fm10k/fm10k_main.c
+index b243c3c..b4547eb 100644
+--- a/drivers/net/ethernet/intel/fm10k/fm10k_main.c
++++ b/drivers/net/ethernet/intel/fm10k/fm10k_main.c
+@@ -243,7 +243,7 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
+ 	/* Even if we own the page, we are not allowed to use atomic_set()
+ 	 * This would break get_page_unless_zero() users.
+ 	 */
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	return true;
+ }
+diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
+index 31e5f39..5b4ad1a 100644
+--- a/drivers/net/ethernet/intel/igb/igb_main.c
++++ b/drivers/net/ethernet/intel/igb/igb_main.c
+@@ -6630,7 +6630,7 @@ static bool igb_can_reuse_rx_page(struct igb_rx_buffer *rx_buffer,
+ 	/* Even if we own the page, we are not allowed to use atomic_set()
+ 	 * This would break get_page_unless_zero() users.
+ 	 */
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	return true;
+ }
+diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+index 0c701b8..b37c2ff 100644
+--- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
++++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+@@ -1942,7 +1942,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
+ 	/* Even if we own the page, we are not allowed to use atomic_set()
+ 	 * This would break get_page_unless_zero() users.
+ 	 */
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	return true;
+ }
+diff --git a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
+index 3558f01..0ea14c0 100644
+--- a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
++++ b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
+@@ -837,7 +837,7 @@ add_tail_frag:
+ 	/* Even if we own the page, we are not allowed to use atomic_set()
+ 	 * This would break get_page_unless_zero() users.
+ 	 */
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	return true;
+ }
+diff --git a/drivers/net/ethernet/mellanox/mlx4/en_rx.c b/drivers/net/ethernet/mellanox/mlx4/en_rx.c
+index 41440b2..04758f1 100644
+--- a/drivers/net/ethernet/mellanox/mlx4/en_rx.c
++++ b/drivers/net/ethernet/mellanox/mlx4/en_rx.c
+@@ -82,8 +82,7 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
+ 	/* Not doing get_page() for each frag is a big win
+ 	 * on asymetric workloads. Note we can not use atomic_set().
+ 	 */
+-	atomic_add(page_alloc->page_size / frag_info->frag_stride - 1,
+-		   &page->_count);
++	page_ref_add(page, page_alloc->page_size / frag_info->frag_stride - 1);
+ 	return 0;
+ }
+ 
+@@ -127,7 +126,7 @@ out:
+ 			dma_unmap_page(priv->ddev, page_alloc[i].dma,
+ 				page_alloc[i].page_size, PCI_DMA_FROMDEVICE);
+ 			page = page_alloc[i].page;
+-			atomic_set(&page->_count, 1);
++			set_page_count(page, 1);
+ 			put_page(page);
+ 		}
+ 	}
+@@ -177,7 +176,7 @@ out:
+ 		dma_unmap_page(priv->ddev, page_alloc->dma,
+ 			       page_alloc->page_size, PCI_DMA_FROMDEVICE);
+ 		page = page_alloc->page;
+-		atomic_set(&page->_count, 1);
++		set_page_count(page, 1);
+ 		put_page(page);
+ 		page_alloc->page = NULL;
+ 	}
+diff --git a/drivers/net/ethernet/sun/niu.c b/drivers/net/ethernet/sun/niu.c
+index ab6051a..9cc4564 100644
+--- a/drivers/net/ethernet/sun/niu.c
++++ b/drivers/net/ethernet/sun/niu.c
+@@ -3341,7 +3341,7 @@ static int niu_rbr_add_page(struct niu *np, struct rx_ring_info *rp,
+ 
+ 	niu_hash_page(rp, page, addr);
+ 	if (rp->rbr_blocks_per_page > 1)
+-		atomic_add(rp->rbr_blocks_per_page - 1, &page->_count);
++		page_ref_add(page, rp->rbr_blocks_per_page - 1);
+ 
+ 	for (i = 0; i < rp->rbr_blocks_per_page; i++) {
+ 		__le32 *rbr = &rp->rbr[start_index + i];
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a0ad7af..a0e4c10 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -22,6 +22,7 @@
+ #include <linux/resource.h>
+ #include <linux/page_ext.h>
+ #include <linux/err.h>
++#include <linux/page_ref.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -365,7 +366,7 @@ static inline int pmd_devmap(pmd_t pmd)
+ static inline int put_page_testzero(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(atomic_read(&page->_count) == 0, page);
+-	return atomic_dec_and_test(&page->_count);
++	return page_ref_dec_and_test(page);
+ }
+ 
+ /*
+@@ -376,7 +377,7 @@ static inline int put_page_testzero(struct page *page)
+  */
+ static inline int get_page_unless_zero(struct page *page)
+ {
+-	return atomic_inc_not_zero(&page->_count);
++	return page_ref_add_unless(page, 1, 0);
+ }
+ 
+ extern int page_is_ram(unsigned long pfn);
+@@ -464,11 +465,6 @@ static inline int total_mapcount(struct page *page)
+ }
+ #endif
+ 
+-static inline int page_count(struct page *page)
+-{
+-	return atomic_read(&compound_head(page)->_count);
+-}
+-
+ static inline struct page *virt_to_head_page(const void *x)
+ {
+ 	struct page *page = virt_to_page(x);
+@@ -476,15 +472,6 @@ static inline struct page *virt_to_head_page(const void *x)
+ 	return compound_head(page);
+ }
+ 
+-/*
+- * Setup the page count before being freed into the page allocator for
+- * the first time (boot or memory hotplug)
+- */
+-static inline void init_page_count(struct page *page)
+-{
+-	atomic_set(&page->_count, 1);
+-}
+-
+ void __put_page(struct page *page);
+ 
+ void put_pages_list(struct list_head *pages);
+@@ -695,7 +682,7 @@ static inline void get_page(struct page *page)
+ 	 * requires to already have an elevated page->_count.
+ 	 */
+ 	VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ 	if (unlikely(is_zone_device_page(page)))
+ 		get_zone_device_page(page);
+diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+new file mode 100644
+index 0000000..534249c
+--- /dev/null
++++ b/include/linux/page_ref.h
+@@ -0,0 +1,76 @@
++#include <linux/atomic.h>
++#include <linux/mm_types.h>
++#include <linux/page-flags.h>
++
++static inline int page_count(struct page *page)
++{
++	return atomic_read(&compound_head(page)->_count);
++}
++
++static inline void set_page_count(struct page *page, int v)
++{
++	atomic_set(&page->_count, v);
++}
++
++/*
++ * Setup the page count before being freed into the page allocator for
++ * the first time (boot or memory hotplug)
++ */
++static inline void init_page_count(struct page *page)
++{
++	set_page_count(page, 1);
++}
++
++static inline void page_ref_add(struct page *page, int nr)
++{
++	atomic_add(nr, &page->_count);
++}
++
++static inline void page_ref_sub(struct page *page, int nr)
++{
++	atomic_sub(nr, &page->_count);
++}
++
++static inline void page_ref_inc(struct page *page)
++{
++	atomic_inc(&page->_count);
++}
++
++static inline void page_ref_dec(struct page *page)
++{
++	atomic_dec(&page->_count);
++}
++
++static inline int page_ref_sub_and_test(struct page *page, int nr)
++{
++	return atomic_sub_and_test(nr, &page->_count);
++}
++
++static inline int page_ref_dec_and_test(struct page *page)
++{
++	return atomic_dec_and_test(&page->_count);
++}
++
++static inline int page_ref_dec_return(struct page *page)
++{
++	return atomic_dec_return(&page->_count);
++}
++
++static inline int page_ref_add_unless(struct page *page, int nr, int u)
++{
++	return atomic_add_unless(&page->_count, nr, u);
++}
++
++static inline int page_ref_freeze(struct page *page, int count)
++{
++	return likely(atomic_cmpxchg(&page->_count, count, 0) == count);
++}
++
++static inline void page_ref_unfreeze(struct page *page, int count)
++{
++	VM_BUG_ON_PAGE(page_count(page) != 0, page);
++	VM_BUG_ON(count == 0);
++
++	atomic_set(&page->_count, count);
++}
++
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 183b15e..1ebd65c 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -165,7 +165,7 @@ static inline int page_cache_get_speculative(struct page *page)
+ 	 * SMP requires.
+ 	 */
+ 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 
+ #else
+ 	if (unlikely(!get_page_unless_zero(page))) {
+@@ -194,10 +194,10 @@ static inline int page_cache_add_speculative(struct page *page, int count)
+ 	VM_BUG_ON(!in_atomic());
+ # endif
+ 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	atomic_add(count, &page->_count);
++	page_ref_add(page, count);
+ 
+ #else
+-	if (unlikely(!atomic_add_unless(&page->_count, count, 0)))
++	if (unlikely(!page_ref_add_unless(page, count, 0)))
+ 		return 0;
+ #endif
+ 	VM_BUG_ON_PAGE(PageCompound(page) && page != compound_head(page), page);
+@@ -205,19 +205,6 @@ static inline int page_cache_add_speculative(struct page *page, int count)
+ 	return 1;
+ }
+ 
+-static inline int page_freeze_refs(struct page *page, int count)
+-{
+-	return likely(atomic_cmpxchg(&page->_count, count, 0) == count);
+-}
+-
+-static inline void page_unfreeze_refs(struct page *page, int count)
+-{
+-	VM_BUG_ON_PAGE(page_count(page) != 0, page);
+-	VM_BUG_ON(count == 0);
+-
+-	atomic_set(&page->_count, count);
+-}
+-
+ #ifdef CONFIG_NUMA
+ extern struct page *__page_cache_alloc(gfp_t gfp);
+ #else
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 3cda32c..75f777a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2931,7 +2931,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	page = pmd_page(*pmd);
+ 	VM_BUG_ON_PAGE(!page_count(page), page);
+-	atomic_add(HPAGE_PMD_NR - 1, &page->_count);
++	page_ref_add(page, HPAGE_PMD_NR - 1);
+ 	write = pmd_write(*pmd);
+ 	young = pmd_young(*pmd);
+ 	dirty = pmd_dirty(*pmd);
+@@ -3313,7 +3313,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	 * atomic_set() here would be safe on all archs (and not only on x86),
+ 	 * it's safer to use atomic_inc().
+ 	 */
+-	atomic_inc(&page_tail->_count);
++	page_ref_inc(page_tail);
+ 
+ 	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	page_tail->flags |= (head->flags &
+diff --git a/mm/internal.h b/mm/internal.h
+index f9153e5..72bbce3 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -47,11 +47,6 @@ void unmap_page_range(struct mmu_gather *tlb,
+ 			     unsigned long addr, unsigned long end,
+ 			     struct zap_details *details);
+ 
+-static inline void set_page_count(struct page *page, int v)
+-{
+-	atomic_set(&page->_count, v);
+-}
+-
+ extern int __do_page_cache_readahead(struct address_space *mapping,
+ 		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
+ 		unsigned long lookahead_size);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 92402f8..3554b91 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -167,7 +167,7 @@ void get_page_bootmem(unsigned long info,  struct page *page,
+ 	page->lru.next = (struct list_head *) type;
+ 	SetPagePrivate(page);
+ 	set_page_private(page, info);
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ }
+ 
+ void put_page_bootmem(struct page *page)
+@@ -178,7 +178,7 @@ void put_page_bootmem(struct page *page)
+ 	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
+ 	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
+ 
+-	if (atomic_dec_return(&page->_count) == 1) {
++	if (page_ref_dec_return(page) == 1) {
+ 		ClearPagePrivate(page);
+ 		set_page_private(page, 0);
+ 		INIT_LIST_HEAD(&page->lru);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 90cbf7c6..2dd15c0 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -349,7 +349,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 		return -EAGAIN;
+ 	}
+ 
+-	if (!page_freeze_refs(page, expected_count)) {
++	if (!page_ref_freeze(page, expected_count)) {
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 		return -EAGAIN;
+ 	}
+@@ -363,7 +363,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 	 */
+ 	if (mode == MIGRATE_ASYNC && head &&
+ 			!buffer_migrate_lock_buffers(head, mode)) {
+-		page_unfreeze_refs(page, expected_count);
++		page_ref_unfreeze(page, expected_count);
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 		return -EAGAIN;
+ 	}
+@@ -397,7 +397,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 	 * to one less reference.
+ 	 * We know this isn't the last reference.
+ 	 */
+-	page_unfreeze_refs(page, expected_count - 1);
++	page_ref_unfreeze(page, expected_count - 1);
+ 
+ 	spin_unlock(&mapping->tree_lock);
+ 	/* Leave irq disabled to prevent preemption while updating stats */
+@@ -451,7 +451,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 		return -EAGAIN;
+ 	}
+ 
+-	if (!page_freeze_refs(page, expected_count)) {
++	if (!page_ref_freeze(page, expected_count)) {
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 		return -EAGAIN;
+ 	}
+@@ -463,7 +463,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 
+ 	radix_tree_replace_slot(pslot, newpage);
+ 
+-	page_unfreeze_refs(page, expected_count - 1);
++	page_ref_unfreeze(page, expected_count - 1);
+ 
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 00118fe..6ef7bb0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3587,7 +3587,7 @@ refill:
+ 		/* Even if we own the page, we do not use atomic_set().
+ 		 * This would break get_page_unless_zero() users.
+ 		 */
+-		atomic_add(size - 1, &page->_count);
++		page_ref_add(page, size - 1);
+ 
+ 		/* reset page count bias and offset to start of new frag */
+ 		nc->pfmemalloc = page_is_pfmemalloc(page);
+@@ -3599,7 +3599,7 @@ refill:
+ 	if (unlikely(offset < 0)) {
+ 		page = virt_to_page(nc->va);
+ 
+-		if (!atomic_sub_and_test(nc->pagecnt_bias, &page->_count))
++		if (!page_ref_sub_and_test(page, nc->pagecnt_bias))
+ 			goto refill;
+ 
+ #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+@@ -3607,7 +3607,7 @@ refill:
+ 		size = nc->size;
+ #endif
+ 		/* OK, page count is 0, we can safely set it */
+-		atomic_set(&page->_count, size);
++		set_page_count(page, size);
+ 
+ 		/* reset page count bias and offset to start of new frag */
+ 		nc->pagecnt_bias = size;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 86eb214..39e90e2 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -638,11 +638,11 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+ 	 * Note that if SetPageDirty is always performed via set_page_dirty,
+ 	 * and thus under tree_lock, then this ordering is not required.
+ 	 */
+-	if (!page_freeze_refs(page, 2))
++	if (!page_ref_freeze(page, 2))
+ 		goto cannot_free;
+ 	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
+ 	if (unlikely(PageDirty(page))) {
+-		page_unfreeze_refs(page, 2);
++		page_ref_unfreeze(page, 2);
+ 		goto cannot_free;
+ 	}
+ 
+@@ -704,7 +704,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
+ 		 * drops the pagecache ref for us without requiring another
+ 		 * atomic operation.
+ 		 */
+-		page_unfreeze_refs(page, 1);
++		page_ref_unfreeze(page, 1);
+ 		return 1;
+ 	}
+ 	return 0;
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
