@@ -1,122 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AF5FB6B0256
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 05:59:11 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id fy10so44964875pac.1
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 02:59:11 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id sm4si42762228pac.245.2016.02.15.02.59.09
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC78828DF
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:15 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id b67so107672283qgb.1
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 03:02:15 -0800 (PST)
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com. [129.33.205.207])
+        by mx.google.com with ESMTPS id s2si33756062qki.76.2016.02.15.03.02.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Feb 2016 02:59:10 -0800 (PST)
-Subject: Re: [PATCH 3/2] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
-	<1452516120-5535-1-git-send-email-mhocko@kernel.org>
-	<20160111165214.GA32132@cmpxchg.org>
-In-Reply-To: <20160111165214.GA32132@cmpxchg.org>
-Message-Id: <201602151958.HCJ48972.FFOFOLMHSQVJtO@I-love.SAKURA.ne.jp>
-Date: Mon, 15 Feb 2016 19:58:50 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Feb 2016 03:02:14 -0800 (PST)
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 15 Feb 2016 06:02:14 -0500
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 050C338C8041
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:12 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1FB2BcN32571410
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 11:02:11 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1FB2A8q030500
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:11 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP update
+In-Reply-To: <1455512997.16012.24.camel@gmail.com>
+References: <1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1455504278.16012.18.camel@gmail.com> <87lh6mfv2j.fsf@linux.vnet.ibm.com> <1455512997.16012.24.camel@gmail.com>
+Date: Mon, 15 Feb 2016 16:31:59 +0530
+Message-ID: <87d1ryfd94.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@kernel.org
-Cc: akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Balbir Singh <bsingharora@gmail.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> 
-> The patch titled
->      Subject: mm/oom_kill.c: don't ignore oom score on exiting tasks
-> has been removed from the -mm tree.  Its filename was
->      mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim.patch
-> 
-> This patch was dropped because an updated version will be merged
-> 
-> ------------------------------------------------------
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm/oom_kill.c: don't ignore oom score on exiting tasks
-> 
-> When the OOM killer scans tasks and encounters a PF_EXITING one, it
-> force-selects that one regardless of the score.  Is there a possibility
-> that the task might hang after it has set PF_EXITING?  In that case the
-> OOM killer should be able to move on to the next task.
-> 
-> Frankly, I don't even know why we check for exiting tasks in the OOM
-> killer.  We've tried direct reclaim at least 15 times by the time we
-> decide the system is OOM, there was plenty of time to exit and free
-> memory; and a task might exit voluntarily right after we issue a kill. 
-> This is testing pure noise.
-> 
+Balbir Singh <bsingharora@gmail.com> writes:
 
-I can't find updated version of this patch in linux-next. Why don't you submit?
-I think the patch description should be updated because this patch solves yet
-another silent OOM livelock bug.
+>> Now we can't depend for mm_cpumask, a parallel find_linux_pte_hugepte
+>> can happen outside that. Now i had a variant for kick_all_cpus_sync that
+>> ignored idle cpus. But then that needs more verification.
+>>=20
+>> http://article.gmane.org/gmane.linux.ports.ppc.embedded/81105
+> Can be racy as a CPU moves from non-idle to idle
+>
+> In
+>
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0pmd_hugepage_update(vma->vm_mm, address, =
+pmdp, ~0UL, 0);
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0/*
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* This ensures that generic code th=
+at rely on IRQ disabling
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* to prevent a parallel THP split w=
+ork as expected.
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0*/
+>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0kick_all_cpus_sync();
+>
+> pmdp_invalidate()->pmd_hugepage_update() can still run in parallel with=
+=C2=A0
+> find_linux_pte_or_hugepte() and race.. Am I missing something?
+>
 
-Say, there is a process with two threads named Thread1 and Thread2.
-Since the OOM killer sets TIF_MEMDIE only on the first non-NULL mm task,
-it is possible that Thread2 invokes the OOM killer and Thread1 gets
-TIF_MEMDIE (without sending SIGKILL to processes using Thread1's mm).
+Yes. But then we make sure that the pte_t returned by
+find_linux_pte_or_hugepte doesn't change to a regular pmd entry by using
+that kick. Now callers of find_lnux_pte_or_hugepte will check for
+_PAGE_PRESENT. So if it called before
+pmd_hugepage_update(_PAGE_PRESENT), we wait for the caller to finish the
+usage (via kick()). Or they bail out after finding _PAGE_PRESENT cleared.
 
-----------
-Thread1                       Thread2
-                              Calls mmap()
-Calls _exit(0)
-                              Arrives at vm_mmap_pgoff()
-Arrives at do_exit()
-Gets PF_EXITING via exit_signals()
-                              Calls down_write(&mm->mmap_sem)
-                              Calls do_mmap_pgoff()
-Calls down_read(&mm->mmap_sem) from exit_mm()
-                              Does a GFP_KERNEL allocation
-                              Calls out_of_memory()
-                              oom_scan_process_thread(Thread1) returns OOM_SCAN_ABORT
-
-down_read(&mm->mmap_sem) is waiting for Thread2 to call up_write(&mm->mmap_sem)
-                              but Thread2 is waiting for Thread1 to set Thread1->mm = NULL ... silent OOM livelock!
-----------
-
-The OOM reaper tries to avoid this livelock by using down_read_trylock()
-instead of down_read(), but core_state check in exit_mm() cannot avoid this
-livelock unless we use non-blocking allocation (i.e. GFP_ATOMIC or GFP_NOWAIT)
-for allocations between down_write(&mm->mmap_sem) and up_write(&mm->mmap_sem).
-
-I think that the same problem exists for any task_will_free_mem()-based
-optimizations such as
-
-        if (current->mm &&
-            (fatal_signal_pending(current) || task_will_free_mem(current))) {
-                mark_oom_victim(current);
-                return true;
-        }
-
-in out_of_memory() and
-
-        task_lock(p);
-        if (p->mm && task_will_free_mem(p)) {
-                mark_oom_victim(p);
-                task_unlock(p);
-                put_task_struct(p);
-                return;
-        }
-        task_unlock(p);
-
-in oom_kill_process() and
-
-        if (fatal_signal_pending(current) || task_will_free_mem(current)) {
-                mark_oom_victim(current);
-                goto unlock;
-        }
-
-in mem_cgroup_out_of_memory().
-
-Well, what are possible callers of task_will_free_mem(current) between getting
-PF_EXITING and doing current->mm = NULL ? tty_audit_exit() seems to be an example
-which does a GFP_KERNEL allocation from tty_audit_log() and can be later blocked
-at down_read() in exit_mm() after TIF_MEMDIE is set at tty_audit_log() called from
-tty_audit_exit() ?
-
-Is task_will_free_mem(current) possible for mem_cgroup_out_of_memory() case?
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
