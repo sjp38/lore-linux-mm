@@ -1,75 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DC78828DF
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:15 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id b67so107672283qgb.1
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 03:02:15 -0800 (PST)
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com. [129.33.205.207])
-        by mx.google.com with ESMTPS id s2si33756062qki.76.2016.02.15.03.02.14
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C81B6B0257
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:13:13 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id g62so103865712wme.0
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 03:13:13 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id c133si24558650wmf.44.2016.02.15.03.13.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Feb 2016 03:02:14 -0800 (PST)
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 15 Feb 2016 06:02:14 -0500
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 050C338C8041
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:12 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1FB2BcN32571410
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 11:02:11 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1FB2A8q030500
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:02:11 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP update
-In-Reply-To: <1455512997.16012.24.camel@gmail.com>
-References: <1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1455504278.16012.18.camel@gmail.com> <87lh6mfv2j.fsf@linux.vnet.ibm.com> <1455512997.16012.24.camel@gmail.com>
-Date: Mon, 15 Feb 2016 16:31:59 +0530
-Message-ID: <87d1ryfd94.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Feb 2016 03:13:12 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id g62so15113340wme.2
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 03:13:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20160215105028.GB1748@arm.com>
+References: <145544094056.28219.12239469516497703482.stgit@zurg>
+	<20160215105028.GB1748@arm.com>
+Date: Mon, 15 Feb 2016 14:13:11 +0300
+Message-ID: <CALYGNiO3ibGftJ275V+x_3SCDPhQ8mCBcELMyMsGn3uWSP525w@mail.gmail.com>
+Subject: Re: [PATCH RFC] Introduce atomic and per-cpu add-max and sub-min operations
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-arch <linux-arch@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-Balbir Singh <bsingharora@gmail.com> writes:
+On Mon, Feb 15, 2016 at 1:50 PM, Will Deacon <will.deacon@arm.com> wrote:
+> Adding Peter and Paul,
+>
+> On Sun, Feb 14, 2016 at 12:09:00PM +0300, Konstantin Khlebnikov wrote:
+>> bool atomic_add_max(atomic_t *var, int add, int max);
+>> bool atomic_sub_min(atomic_t *var, int sub, int min);
+>
+> What are the memory-ordering requirements for these? Do you also want
+> relaxed/acquire/release versions for the use-cases you outline?
+>
+> One observation is that you provide no ordering guarantees if the
+> comparison fails, which is fine if that's what you want, but we should
+> probably write that down like we do for cmpxchg.
 
->> Now we can't depend for mm_cpumask, a parallel find_linux_pte_hugepte
->> can happen outside that. Now i had a variant for kick_all_cpus_sync that
->> ignored idle cpus. But then that needs more verification.
->>=20
->> http://article.gmane.org/gmane.linux.ports.ppc.embedded/81105
-> Can be racy as a CPU moves from non-idle to idle
->
-> In
->
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0pmd_hugepage_update(vma->vm_mm, address, =
-pmdp, ~0UL, 0);
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0/*
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* This ensures that generic code th=
-at rely on IRQ disabling
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0* to prevent a parallel THP split w=
-ork as expected.
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0*/
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0kick_all_cpus_sync();
->
-> pmdp_invalidate()->pmd_hugepage_update() can still run in parallel with=
-=C2=A0
-> find_linux_pte_or_hugepte() and race.. Am I missing something?
->
+Ok. Good point.
 
-Yes. But then we make sure that the pte_t returned by
-find_linux_pte_or_hugepte doesn't change to a regular pmd entry by using
-that kick. Now callers of find_lnux_pte_or_hugepte will check for
-_PAGE_PRESENT. So if it called before
-pmd_hugepage_update(_PAGE_PRESENT), we wait for the caller to finish the
-usage (via kick()). Or they bail out after finding _PAGE_PRESENT cleared.
+>
+>> bool this_cpu_add_max(var, add, max);
+>> bool this_cpu_sub_min(var, sub, min);
+>>
+>> They add/subtract only if result will be not bigger than max/lower that min.
+>> Returns true if operation was done and false otherwise.
+>>
+>> Inside they check that (add <= max - var) and (sub <= var - min). Signed
+>> operations work if all possible values fits into range which length fits
+>> into non-negative range of that type: 0..INT_MAX, INT_MIN+1..0, -1000..1000.
+>> Unsigned operations work if value always in valid range: min <= var <= max.
+>> Char and short automatically casts to int, they never overflows.
+>>
+>> Patch adds the same for atomic_long_t, atomic64_t, local_t, local64_t.
+>> And unsigned variants: atomic_u32_add_max atomic_u32_sub_min for atomic_t,
+>> atomic_u64_add_max atomic_u64_sub_min for atomic64_t.
+>>
+>> Patch comes with test which hopefully covers all possible cornercases,
+>> see CONFIG_ATOMIC64_SELFTEST and CONFIG_PERCPU_TEST.
+>>
+>> All this allows to build any kind of counter in several lines:
+>
+> Do you have another patch converting people over to these new atomics?
 
--aneesh
+Thanks for comments.
+Sure, I'll try to use this as wide as possible.
+
+For now this solution is still incomlete. For example there is no simple way for
+handing cpu-hotplug: per-cpu batches must be updated when cpu disappears.
+Ideally cpu hotplug handlers should be registered in the same way as init/exit
+functions and placed into separate code segment. Memory hotplug could be
+handled in the same way too because resource limit or batching often depents
+on memory size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
