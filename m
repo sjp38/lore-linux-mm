@@ -1,146 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 456006B0005
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 16:35:30 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id g62so126095367wme.0
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 13:35:30 -0800 (PST)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id lm2si43514067wjc.202.2016.02.15.13.35.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Feb 2016 13:35:29 -0800 (PST)
-Received: by mail-wm0-x231.google.com with SMTP id b205so84147351wmb.1
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 13:35:28 -0800 (PST)
-Date: Mon, 15 Feb 2016 23:35:26 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
- on PowerPC and ARM)
-Message-ID: <20160215213526.GA9766@node.shutemov.name>
-References: <20160211192223.4b517057@thinkpad>
- <20160211190942.GA10244@node.shutemov.name>
- <20160211205702.24f0d17a@thinkpad>
- <20160212154116.GA15142@node.shutemov.name>
- <56BE00E7.1010303@de.ibm.com>
- <20160212181640.4eabb85f@thinkpad>
- <20160212231510.GB15142@node.shutemov.name>
- <alpine.LFD.2.20.1602131238260.1910@schleppi>
- <20160215113159.GA28832@node.shutemov.name>
- <20160215193702.4a15ed5e@thinkpad>
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 831846B0005
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 18:07:09 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id y8so84938265igp.0
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 15:07:09 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id u3si46315182iou.71.2016.02.15.15.07.07
+        for <linux-mm@kvack.org>;
+        Mon, 15 Feb 2016 15:07:08 -0800 (PST)
+Date: Tue, 16 Feb 2016 10:05:11 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
+Message-ID: <20160215230511.GU19486@dastard>
+References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+ <20160214211856.GT19486@dastard>
+ <56C216CA.7000703@cisco.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160215193702.4a15ed5e@thinkpad>
+In-Reply-To: <56C216CA.7000703@cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+To: Daniel Walker <danielwa@cisco.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Khalid Mughal <khalidm@cisco.com>, xe-kernel@external.cisco.com, dave.hansen@intel.com, hannes@cmpxchg.org, riel@redhat.com, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Feb 15, 2016 at 07:37:02PM +0100, Gerald Schaefer wrote:
-> On Mon, 15 Feb 2016 13:31:59 +0200
-> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Mon, Feb 15, 2016 at 10:19:54AM -0800, Daniel Walker wrote:
+> On 02/14/2016 01:18 PM, Dave Chinner wrote:
+> >On Fri, Feb 12, 2016 at 12:14:39PM -0800, Daniel Walker wrote:
+> >>From: Khalid Mughal <khalidm@cisco.com>
+> >>
+> >>Currently there is no way to figure out the droppable pagecache size
+> >>from the meminfo output. The MemFree size can shrink during normal
+> >>system operation, when some of the memory pages get cached and is
+> >>reflected in "Cached" field. Similarly for file operations some of
+> >>the buffer memory gets cached and it is reflected in "Buffers" field.
+> >>The kernel automatically reclaims all this cached & buffered memory,
+> >>when it is needed elsewhere on the system. The only way to manually
+> >>reclaim this memory is by writing 1 to /proc/sys/vm/drop_caches. But
+> >>this can have performance impact. Since it discards cached objects,
+> >>it may cause high CPU & I/O utilization to recreate the dropped
+> >>objects during heavy system load.
+> >>This patch computes the droppable pagecache count, using same
+> >>algorithm as "vm/drop_caches". It is non-destructive and does not
+> >>drop any pages. Therefore it does not have any impact on system
+> >>performance. The computation does not include the size of
+> >>reclaimable slab.
+> >Why, exactly, do you need this? You've described what the patch
+> >does (i.e. redundant, because we can read the code), and described
+> >that the kernel already accounts this reclaimable memory elsewhere
+> >and you can already read that and infer the amount of reclaimable
+> >memory from it. So why isn't that accounting sufficient?
 > 
-> > On Sat, Feb 13, 2016 at 12:58:31PM +0100, Sebastian Ott wrote:
-> > > 
-> > > On Sat, 13 Feb 2016, Kirill A. Shutemov wrote:
-> > > > Could you check if revert of fecffad25458 helps?
-> > > 
-> > > I reverted fecffad25458 on top of 721675fcf277cf - it oopsed with:
-> > > 
-> > > c 1851.721062! Unable to handle kernel pointer dereference in virtual kernel address space
-> > > c 1851.721075! failing address: 0000000000000000 TEID: 0000000000000483
-> > > c 1851.721078! Fault in home space mode while using kernel ASCE.
-> > > c 1851.721085! AS:0000000000d5c007 R3:00000000ffff0007 S:00000000ffffa800 P:000000000000003d
-> > > c 1851.721128! Oops: 0004 ilc:3 c#1! PREEMPT SMP DEBUG_PAGEALLOC
-> > > c 1851.721135! Modules linked in: bridge stp llc btrfs mlx4_ib mlx4_en ib_sa ib_mad vxlan xor ip6_udp_tunnel ib_core udp_tunnel ptp pps_core ib_addr ghash_s390raid6_pq prng ecb aes_s390 mlx4_core des_s390 des_generic genwqe_card sha512_s390 sha256_s390 sha1_s390 sha_common crc_itu_t dm_mod scm_block vhost_net tun vhost eadm_sch macvtap macvlan kvm autofs4
-> > > c 1851.721183! CPU: 7 PID: 256422 Comm: bash Not tainted 4.5.0-rc3-00058-g07923d7-dirty #178
-> > > c 1851.721186! task: 000000007fbfd290 ti: 000000008c604000 task.ti: 000000008c604000
-> > > c 1851.721189! Krnl PSW : 0704d00180000000 000000000045d3b8 (__rb_erase_color+0x280/0x308)
-> > > c 1851.721200!            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:1 PM:0 EA:3
-> > >                Krnl GPRS: 0000000000000001 0000000000000020 0000000000000000 00000000bd07eff1
-> > > c 1851.721205!            000000000027ca10 0000000000000000 0000000083e45898 0000000077b61198
-> > > c 1851.721207!            000000007ce1a490 00000000bd07eff0 000000007ce1a548 000000000027ca10
-> > > c 1851.721210!            00000000bd07c350 00000000bd07eff0 000000008c607aa8 000000008c607a68
-> > > c 1851.721221! Krnl Code: 000000000045d3aa: e3c0d0080024       stg     %%r12,8(%%r13)
-> > >                           000000000045d3b0: b9040039           lgr     %%r3,%%r9
-> > >                          #000000000045d3b4: a53b0001           oill    %%r3,1
-> > >                          >000000000045d3b8: e33010000024       stg     %%r3,0(%%r1)
-> > >                           000000000045d3be: ec28000e007c       cgij    %%r2,0,8,45d3da
-> > >                           000000000045d3c4: e34020000004       lg      %%r4,0(%%r2)
-> > >                           000000000045d3ca: b904001c           lgr     %%r1,%%r12
-> > >                           000000000045d3ce: ec143f3f0056       rosbg   %%r1,%%r4,63,63,0
-> > > c 1851.721269! Call Trace:
-> > > c 1851.721273! (c<0000000083e45898>! 0x83e45898)
-> > > c 1851.721279!  c<000000000029342a>! unlink_anon_vmas+0x9a/0x1d8
-> > > c 1851.721282!  c<0000000000283f34>! free_pgtables+0xcc/0x148
-> > > c 1851.721285!  c<000000000028c376>! exit_mmap+0xd6/0x300
-> > > c 1851.721289!  c<0000000000134db8>! mmput+0x90/0x118
-> > > c 1851.721294!  c<00000000002d76bc>! flush_old_exec+0x5d4/0x700
-> > > c 1851.721298!  c<00000000003369f4>! load_elf_binary+0x2f4/0x13e8
-> > > c 1851.721301!  c<00000000002d6e4a>! search_binary_handler+0x9a/0x1f8
-> > > c 1851.721304!  c<00000000002d8970>! do_execveat_common.isra.32+0x668/0x9a0
-> > > c 1851.721307!  c<00000000002d8cec>! do_execve+0x44/0x58
-> > > c 1851.721310!  c<00000000002d8f92>! SyS_execve+0x3a/0x48
-> > > c 1851.721315!  c<00000000006fb096>! system_call+0xd6/0x258
-> > > c 1851.721317!  c<000003ff997436d6>! 0x3ff997436d6
-> > > c 1851.721319! INFO: lockdep is turned off.
-> > > c 1851.721321! Last Breaking-Event-Address:
-> > > c 1851.721323!  c<000000000045d31a>! __rb_erase_color+0x1e2/0x308
-> > > c 1851.721327!
-> > > c 1851.721329! ---c end trace 0d80041ac00cfae2 !---
-> > > 
-> > > 
-> > > > 
-> > > > And could you share how crashes looks like? I haven't seen backtraces yet.
-> > > > 
-> > > 
-> > > Sure. I didn't because they really looked random to me. Most of the time
-> > > in rcu or list debugging but I thought these have just been the messenger
-> > > observing a corruption first. Anyhow, here is an older one that might look
-> > > interesting:
-> > > 
-> > > [   59.851421] list_del corruption. next->prev should be 000000006e1eb000, but was 0000000000000400
-> > 
-> > This kinda interesting: 0x400 is TAIL_MAPPING.. Hm..
-> > 
-> > Could you check if you see the problem on commit 1c290f642101 and its
-> > immediate parent?
-> > 
-> 
-> How should the page->mapping poison end up as next->prev in the list of
-> pre-allocated THP splitting page tables?
+> We need it to determine accurately what the free memory in the
+> system is. If you know where we can get this information already
+> please tell, we aren't aware of it. For instance /proc/meminfo isn't
+> accurate enough.
 
-May be pgtable was casted to struct page or something. I don't know.
+What you are proposing isn't accurate, either, because it will be
+stale by the time the inode cache traversal is completed and the
+count returned to userspace. e.g. pages that have already been
+accounted as droppable can be reclaimed or marked dirty and hence
+"unreclaimable".
 
-> Also, commit 1c290f642101 is before the THP rework, at least the
-> non-bisectable part, so we should expect not to see the problem there.
+IOWs, the best you are going to get is an approximate point-in-time
+indication of how much memory is available for immediate reclaim.
+We're never going to get an accurate measure in userspace unless we
+accurately account for it in the kernel itself. Which, I think it
+has already been pointed out, is prohibitively expensive so isn't
+done.
 
-Just to make sure: commit 122afea9626a is fine, commit 61f5d698cc97
-crashes. Correct?
+As for a replacement, looking at what pages you consider "droppable"
+is really only file pages that are not under dirty or under
+writeback. i.e. from /proc/meminfo:
 
-> 0x400 is also the value of an empty pte on s390, and the thp_deposit/withdraw
-> listheads are placed inside the pre-allocated pagetables instead of page->lru,
-> because we have 2K pagetables on s390 and cannot use struct page == pgtable_t.
+Active(file):     220128 kB
+Inactive(file):    60232 kB
+Dirty:                 0 kB
+Writeback:             0 kB
 
-0x400 from empty pte makes more sense than TAIL_MAPPING. But I guess it
-worth changing TAIL_MAPPING to some other value to make sure.
+i.e. reclaimable file cache = Active + inactive - dirty - writeback.
 
-> So, for example, two concurrent withdraws could produce such a list
-> corruption, because the first withdraw will overwrite the listhead at the
-> beginning of the pagetable with 2 empty ptes.
-> 
-> Has anything changed regarding the general THP deposit/withdraw logic?
+And while you are there, when you drop slab caches:
 
-I don't see any changes in this area.
+SReclaimable:      66632 kB
 
-To eliminate one more variable, I would propose to disable split pmd lock
-for testing and check if it makes difference.
+some amount of that may be freed. No guarantees can be made about
+the amount, though.
 
-Is there any chance that I'll be able to trigger the bug using QEMU?
-Does anybody have an QEMU image I can use?
+Cheers,
 
+Dave.
 -- 
- Kirill A. Shutemov
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
