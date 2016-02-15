@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D61F7828E2
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 09:14:29 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fl4so74716058pad.0
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:14:29 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id y1si15796210pfi.229.2016.02.15.06.14.28
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 40DF3828E2
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 09:18:43 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id jq7so28871091obb.0
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:18:43 -0800 (PST)
+Received: from mail-ob0-x241.google.com (mail-ob0-x241.google.com. [2607:f8b0:4003:c01::241])
+        by mx.google.com with ESMTPS id np10si12484696oeb.30.2016.02.15.06.18.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Feb 2016 06:14:28 -0800 (PST)
-Date: Mon, 15 Feb 2016 15:14:07 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH RFC] Introduce atomic and per-cpu add-max and sub-min
- operations
-Message-ID: <20160215141407.GE6357@twins.programming.kicks-ass.net>
-References: <145544094056.28219.12239469516497703482.stgit@zurg>
- <20160215105028.GB1748@arm.com>
+        Mon, 15 Feb 2016 06:18:42 -0800 (PST)
+Received: by mail-ob0-x241.google.com with SMTP id il1so16382090obb.2
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 06:18:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160215105028.GB1748@arm.com>
+In-Reply-To: <20160215052855.GA2010@swordfish>
+References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<20160215050858.GA556@swordfish>
+	<20160215052855.GA2010@swordfish>
+Date: Mon, 15 Feb 2016 23:18:42 +0900
+Message-ID: <CAAmzW4Nwe45dn5iPKmK_t1F6=+d1K4xqHAn+CfTxL6uvsxQhqw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, paulmck@linux.vnet.ibm.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Steven Rostedt <rostedt@goodmis.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Feb 15, 2016 at 10:50:29AM +0000, Will Deacon wrote:
-> Adding Peter and Paul,
-> 
-> On Sun, Feb 14, 2016 at 12:09:00PM +0300, Konstantin Khlebnikov wrote:
-> > bool atomic_add_max(atomic_t *var, int add, int max);
-> > bool atomic_sub_min(atomic_t *var, int sub, int min);
-> 
-> What are the memory-ordering requirements for these? Do you also want
-> relaxed/acquire/release versions for the use-cases you outline?
-> 
-> One observation is that you provide no ordering guarantees if the
-> comparison fails, which is fine if that's what you want, but we should
-> probably write that down like we do for cmpxchg.
-> 
-> > bool this_cpu_add_max(var, add, max);
-> > bool this_cpu_sub_min(var, sub, min);
-> > 
-> > They add/subtract only if result will be not bigger than max/lower that min.
-> > Returns true if operation was done and false otherwise.
-> > 
-> > Inside they check that (add <= max - var) and (sub <= var - min). Signed
-> > operations work if all possible values fits into range which length fits
-> > into non-negative range of that type: 0..INT_MAX, INT_MIN+1..0, -1000..1000.
-> > Unsigned operations work if value always in valid range: min <= var <= max.
-> > Char and short automatically casts to int, they never overflows.
-> > 
-> > Patch adds the same for atomic_long_t, atomic64_t, local_t, local64_t.
-> > And unsigned variants: atomic_u32_add_max atomic_u32_sub_min for atomic_t,
-> > atomic_u64_add_max atomic_u64_sub_min for atomic64_t.
-> > 
-> > Patch comes with test which hopefully covers all possible cornercases,
-> > see CONFIG_ATOMIC64_SELFTEST and CONFIG_PERCPU_TEST.
-> > 
-> > All this allows to build any kind of counter in several lines:
-> 
-> Do you have another patch converting people over to these new atomics?
+2016-02-15 14:28 GMT+09:00 Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com>:
+> On (02/15/16 14:08), Sergey Senozhatsky wrote:
+>>
+>> will this compile with !CONFIG_TRACEPOINTS config?
+>>
 
-The Changelog completely lacks a why. Why do we want this?
+Yes, even if !CONFIG_TRACEPOINTS, it is compiled well.
+
+> uh.. sorry, was composed in email client. seems the correct way to do it is
+>
+> +#if defined CONFIG_DEBUG_PAGE_REF && defined CONFIG_TRACEPOINTS
+>
+>  #include <linux/tracepoint-defs.h>
+>
+>  #define page_ref_tracepoint_active(t) static_key_false(&(t).key)
+>
+>  extern struct tracepoint __tracepoint_page_ref_set;
+>  ...
+>
+>  extern void __page_ref_set(struct page *page, int v);
+>  ...
+>
+> #else
+>
+>  #define page_ref_tracepoint_active(t) false
+>
+>  static inline void __page_ref_set(struct page *page, int v)
+>  {
+>  }
+>  ...
+>
+> #endif
+>
+>
+>
+> or add a dependency of PAGE_REF on CONFIG_TRACEPOINTS in Kconfig.
+
+Thanks for catching it.
+I will add "depends on CONFIG_TRACEPOINTS" to Kconfig because
+this feature has no meaning if !CONFIG_TRACEPOINTS.
+
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
