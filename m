@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A968F6B0005
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 01:15:51 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id wb13so199531680obb.1
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 22:15:51 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id dq4si10123351oeb.52.2016.02.14.22.15.49
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7266B0005
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 05:07:56 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id wb13so205916207obb.1
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 02:07:56 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id j79si16172575oib.97.2016.02.15.02.07.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 14 Feb 2016 22:15:51 -0800 (PST)
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 15 Feb 2016 16:15:47 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 43C0C2CE8059
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 17:15:44 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1F6FX2G55640162
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 17:15:44 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1F6F8NR024729
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 17:15:09 +1100
-Date: Mon, 15 Feb 2016 11:44:41 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 01/33] mm: introduce get_user_pages_remote()
-Message-ID: <20160215061441.GB31846@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
- <20160212210154.3F0E51EA@viggo.jf.intel.com>
+        Mon, 15 Feb 2016 02:07:55 -0800 (PST)
+Message-ID: <56C1A310.9090305@huawei.com>
+Date: Mon, 15 Feb 2016 18:06:08 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20160212210154.3F0E51EA@viggo.jf.intel.com>
+Subject: Re: [PATCH v2 3/3] mm/compaction: speed up pageblock_pfn_to_page()
+ when zone is contiguous
+References: <1454566775-30973-1-git-send-email-iamjoonsoo.kim@lge.com> <1454566775-30973-3-git-send-email-iamjoonsoo.kim@lge.com> <20160204164929.a2f12b8a7edcdfa596abd850@linux-foundation.org> <CAAmzW4Pps1gSXb5qCvbkC=wNjcySgVYZu1jLeBWy31q7RNWVYg@mail.gmail.com> <56C0550F.8020402@huawei.com> <20160215024220.GA30918@js1304-P5Q-DELUXE>
+In-Reply-To: <20160215024220.GA30918@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, dave.hansen@linux.intel.com, vbabka@suse.cz, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, jack@suse.cz
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: zhong jiang <zhongjiang@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-> diff -puN kernel/events/uprobes.c~introduce-get_user_pages_remote kernel/events/uprobes.c
-> --- a/kernel/events/uprobes.c~introduce-get_user_pages_remote	2016-02-12 10:44:13.178107026 -0800
-> +++ b/kernel/events/uprobes.c	2016-02-12 10:44:13.193107711 -0800
-> @@ -299,7 +299,7 @@ int uprobe_write_opcode(struct mm_struct
+On 2016/2/15 10:42, Joonsoo Kim wrote:
+
+>>
+>> I have a question about the zone continuity. because hole exists at
+>> arbitrary position in a page block. Therefore, only pageblock_pf_to_page()
+>> is insufficiency, whether pageblock aligned pfn or not , the pfn_valid_within()
+>> is necessary.
+>>
+>> eh: 120M-122M is a range of page block, but the 120.5M-121.5M is holes, only by
+>> pageblock_pfn_to_page() to conclude in the result is inaccurate
 > 
->  retry:
->  	/* Read the page with vaddr into memory */
-> -	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
-> +	ret = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
->  	if (ret <= 0)
->  		return ret;
+> contiguous may be misleading word. It doesn't represent there are no
+> hole. It only represents that all pageblocks within zone span belong to
+> corresponding zone and validity of all pageblock aligned pfn is
+> checked. So, if it is set, we can safely call pfn_to_page() for pageblock
+> aligned pfn in that zone without checking pfn_valid().
 > 
-> @@ -1700,7 +1700,13 @@ static int is_trap_at_addr(struct mm_str
->  	if (likely(result == 0))
->  		goto out;
-> 
-> -	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
-> +	/*
-> +	 * The NULL 'tsk' here ensures that any faults that occur here
-> +	 * will not be accounted to the task.  'mm' *is* current->mm,
-> +	 * but we treat this as a 'remote' access since it is
-> +	 * essentially a kernel access to the memory.
-> +	 */
-> +	result = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
->  	if (result < 0)
->  		return result;
+> Thanks.
 > 
 
-Reviewed-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Hi Joonsoo,
 
--- 
-Thanks and Regards
-Srikar Dronamraju
+So "contiguous" here only means that struct page is exist, and don't care whether
+the memory is exist, right?
+
+Thanks,
+Xishi Qiu
+
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
