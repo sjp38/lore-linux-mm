@@ -1,60 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BAB6B0009
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:02:27 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id l127so147006095iof.3
-        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:02:27 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id b42si40369785ioj.123.2016.02.14.21.02.26
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 45A5F6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 00:07:43 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id e127so81151238pfe.3
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:07:43 -0800 (PST)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id rk9si40722775pab.31.2016.02.14.21.07.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Feb 2016 21:02:26 -0800 (PST)
-Date: Mon, 15 Feb 2016 15:11:53 +1100
-From: Paul Mackerras <paulus@ozlabs.org>
-Subject: Re: [PATCH V2 08/29] mm: Some arch may want to use HPAGE_PMD related
- values as variables
-Message-ID: <20160215041153.GC3797@oak.ozlabs.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1454923241-6681-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Sun, 14 Feb 2016 21:07:42 -0800 (PST)
+Received: by mail-pa0-x242.google.com with SMTP id y7so227483paa.3
+        for <linux-mm@kvack.org>; Sun, 14 Feb 2016 21:07:42 -0800 (PST)
+Date: Mon, 15 Feb 2016 14:08:58 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20160215050858.GA556@swordfish>
+References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1454923241-6681-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Feb 08, 2016 at 02:50:20PM +0530, Aneesh Kumar K.V wrote:
-> With next generation power processor, we are having a new mmu model
-> [1] that require us to maintain a different linux page table format.
-> 
-> Inorder to support both current and future ppc64 systems with a single
-> kernel we need to make sure kernel can select between different page
-> table format at runtime. With the new MMU (radix MMU) added, we will
-> have two different pmd hugepage size 16MB for hash model and 2MB for
-> Radix model. Hence make HPAGE_PMD related values as a variable.
+Hello Joonsoo,
 
-But this patch doesn't actually turn any constant into a variable, as
-far as I can see...
+On (02/15/16 12:04), js1304@gmail.com wrote:
+[..]
+> <...>-9018  [004]    92.678375: page_ref_set:         pfn=0x17ac9 flags=0x0 count=1 mapcount=0 mapping=(nil) mt=4 val=1
+> <...>-9018  [004]    92.678378: kernel_stack:
+>  => get_page_from_freelist (ffffffff81176659)
+>  => __alloc_pages_nodemask (ffffffff81176d22)
+>  => alloc_pages_vma (ffffffff811bf675)
+>  => handle_mm_fault (ffffffff8119e693)
+>  => __do_page_fault (ffffffff810631ea)
+>  => trace_do_page_fault (ffffffff81063543)
+>  => do_async_page_fault (ffffffff8105c40a)
+>  => async_page_fault (ffffffff817581d8)
+> [snip]
+> <...>-9018  [004]    92.678379: page_ref_mod:         pfn=0x17ac9 flags=0x40048 count=2 mapcount=1 mapping=0xffff880015a78dc1 mt=4 val=1
+> [snip]
+[..]
+> o Print human-readable page flag through show_page_flags()
 
-Most of what this patch does is to move two tests around:
+not even a nitpick, just for note, the examples don't use show_page_flags().
 
-* The #if HPAGE_PMD_ORDER >= MAX_ORDER test get moved from a generic
-header into all archs except powerpc, and for powerpc it gets turned
-into BUILD_BUG_ON.  However, BUILD_BUG_ON only works on things that
-are known at compile time, last time I looked.  Doesn't it need to be
-a BUG_ON to prepare for HPAGE_PMD_ORDER being a variable that isn't
-known at compile time?
 
-* The existing BUILD_BUG_ON(HPAGE_PMD_ORDER < 2) gets turned into #if
-for all archs except powerpc, and for powerpc it stays as a
-BUILD_BUG_ON but gets moved to arch code.  That doesn't really seem to
-accomplish anything.  Once again, doesn't it need to become a BUG_ON?
-If so, could we just make it BUG_ON in the generic code where the
-BUILD_BUG_ON currently is?
+[..]
+> diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+> index 534249c..fd6d9a5 100644
+> --- a/include/linux/page_ref.h
+> +++ b/include/linux/page_ref.h
+> @@ -1,6 +1,54 @@
+>  #include <linux/atomic.h>
+>  #include <linux/mm_types.h>
+>  #include <linux/page-flags.h>
 
-Paul.
+will this compile with !CONFIG_TRACEPOINTS config?
+
++#ifdef CONFIG_TRACEPOINTS
+ #include <linux/tracepoint-defs.h>
+
+ extern struct tracepoint __tracepoint_page_ref_set;
+ extern struct tracepoint __tracepoint_page_ref_mod;
+ extern struct tracepoint __tracepoint_page_ref_mod_and_test;
+ extern struct tracepoint __tracepoint_page_ref_mod_and_return;
+ extern struct tracepoint __tracepoint_page_ref_mod_unless;
+ extern struct tracepoint __tracepoint_page_ref_freeze;
+ extern struct tracepoint __tracepoint_page_ref_unfreeze;
+
+ #ifdef CONFIG_DEBUG_PAGE_REF
+ #define page_ref_tracepoint_active(t) static_key_false(&(t).key)
+
+ extern void __page_ref_set(struct page *page, int v);
+ extern void __page_ref_mod(struct page *page, int v);
+ extern void __page_ref_mod_and_test(struct page *page, int v, int ret);
+ extern void __page_ref_mod_and_return(struct page *page, int v, int ret);
+ extern void __page_ref_mod_unless(struct page *page, int v, int u);
+ extern void __page_ref_freeze(struct page *page, int v, int ret);
+ extern void __page_ref_unfreeze(struct page *page, int v);
+
+ #else
+
+ #define page_ref_tracepoint_active(t) false
+
+ static inline void __page_ref_set(struct page *page, int v)
+ {
+ }
+ static inline void __page_ref_mod(struct page *page, int v)
+ {
+ }
+ static inline void __page_ref_mod_and_test(struct page *page, int v, int ret)
+ {
+ }
+ static inline void __page_ref_mod_and_return(struct page *page, int v, int ret)
+ {
+ }
+ static inline void __page_ref_mod_unless(struct page *page, int v, int u)
+ {
+ }
+ static inline void __page_ref_freeze(struct page *page, int v, int ret)
+ {
+ }
+ static inline void __page_ref_unfreeze(struct page *page, int v)
+ {
+ }
+
+ #endif /* CONFIG_DEBUG_PAGE_REF */
+
++#endif /* CONFIG_TRACEPOINTS */
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
