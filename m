@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 01A336B0255
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 13:44:32 -0500 (EST)
-Received: by mail-qg0-f48.google.com with SMTP id b35so116449906qge.0
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 10:44:31 -0800 (PST)
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2326B0256
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 13:44:33 -0500 (EST)
+Received: by mail-qg0-f52.google.com with SMTP id y9so117620547qgd.3
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 10:44:33 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d201si35617302qkb.37.2016.02.15.10.44.31
+        by mx.google.com with ESMTPS id e2si24726765qhc.117.2016.02.15.10.44.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Feb 2016 10:44:31 -0800 (PST)
+        Mon, 15 Feb 2016 10:44:33 -0800 (PST)
 From: Laura Abbott <labbott@fedoraproject.org>
-Subject: [PATCHv2 1/4] slub: Drop lock at the end of free_debug_processing
-Date: Mon, 15 Feb 2016 10:44:21 -0800
-Message-Id: <1455561864-4217-2-git-send-email-labbott@fedoraproject.org>
+Subject: [PATCHv2 2/4] slub: Fix/clean free_debug_processing return paths
+Date: Mon, 15 Feb 2016 10:44:22 -0800
+Message-Id: <1455561864-4217-3-git-send-email-labbott@fedoraproject.org>
 In-Reply-To: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org>
 References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,92 +21,89 @@ To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
 
 
-Currently, free_debug_processing has a comment "Keep node_lock to preserve
-integrity until the object is actually freed". In actuallity,
-the lock is dropped immediately in __slab_free. Rather than wait until
-__slab_free and potentially throw off the unlikely marking, just drop
-the lock in __slab_free. This also lets free_debug_processing take
-its own copy of the spinlock flags rather than trying to share the ones
-from __slab_free. Since there is no use for the node afterwards, change
-the return type of free_debug_processing to return an int like
-alloc_debug_processing.
+Since 19c7ff9ecd89 ("slub: Take node lock during object free checks")
+check_object has been incorrectly returning success as it follows
+the out label which just returns the node. Thanks to refactoring,
+the out and fail paths are now basically the same. Combine the two
+into one and just use a single label.
 
 Credit to Mathias Krause for the original work which inspired this series
 
 Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
 ---
-I didn't add Christoph's ack from the last time due to some
-rebasing.
+If there is interest, I can split this off as a separate patch for stable
 ---
- mm/slub.c | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+ mm/slub.c | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 2e1355a..2d5a774 100644
+index 2d5a774..189c330 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1068,16 +1068,17 @@ bad:
- }
- 
- /* Supports checking bulk free of a constructed freelist */
--static noinline struct kmem_cache_node *free_debug_processing(
-+static noinline int free_debug_processing(
- 	struct kmem_cache *s, struct page *page,
- 	void *head, void *tail, int bulk_cnt,
--	unsigned long addr, unsigned long *flags)
-+	unsigned long addr)
- {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+@@ -1077,24 +1077,25 @@ static noinline int free_debug_processing(
  	void *object = head;
  	int cnt = 0;
-+	unsigned long uninitialized_var(flags);
+ 	unsigned long uninitialized_var(flags);
++	int ret = 0;
  
--	spin_lock_irqsave(&n->list_lock, *flags);
-+	spin_lock_irqsave(&n->list_lock, flags);
+ 	spin_lock_irqsave(&n->list_lock, flags);
  	slab_lock(page);
  
  	if (!check_slab(s, page))
-@@ -1130,17 +1131,14 @@ out:
- 			 bulk_cnt, cnt);
+-		goto fail;
++		goto out;
+ 
+ next_object:
+ 	cnt++;
+ 
+ 	if (!check_valid_pointer(s, page, object)) {
+ 		slab_err(s, page, "Invalid object pointer 0x%p", object);
+-		goto fail;
++		goto out;
+ 	}
+ 
+ 	if (on_freelist(s, page, object)) {
+ 		object_err(s, page, object, "Object already free");
+-		goto fail;
++		goto out;
+ 	}
+ 
+ 	if (!check_object(s, page, object, SLUB_RED_ACTIVE))
+@@ -1111,7 +1112,7 @@ next_object:
+ 		} else
+ 			object_err(s, page, object,
+ 					"page slab pointer corrupt.");
+-		goto fail;
++		goto out;
+ 	}
+ 
+ 	if (s->flags & SLAB_STORE_USER)
+@@ -1125,6 +1126,8 @@ next_object:
+ 		object = get_freepointer(s, object);
+ 		goto next_object;
+ 	}
++	ret = 1;
++
+ out:
+ 	if (cnt != bulk_cnt)
+ 		slab_err(s, page, "Bulk freelist count(%d) invalid(%d)\n",
+@@ -1132,13 +1135,9 @@ out:
  
  	slab_unlock(page);
--	/*
--	 * Keep node_lock to preserve integrity
--	 * until the object is actually freed
--	 */
--	return n;
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+	return 1;
- 
- fail:
- 	slab_unlock(page);
--	spin_unlock_irqrestore(&n->list_lock, *flags);
-+	spin_unlock_irqrestore(&n->list_lock, flags);
- 	slab_fix(s, "Object at 0x%p not freed", object);
--	return NULL;
-+	return 0;
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
+-	return 1;
+-
+-fail:
+-	slab_unlock(page);
+-	spin_unlock_irqrestore(&n->list_lock, flags);
+-	slab_fix(s, "Object at 0x%p not freed", object);
+-	return 0;
++	if (!ret)
++		slab_fix(s, "Object at 0x%p not freed", object);
++	return ret;
  }
  
  static int __init setup_slub_debug(char *str)
-@@ -1231,7 +1229,7 @@ static inline void setup_object_debug(struct kmem_cache *s,
- static inline int alloc_debug_processing(struct kmem_cache *s,
- 	struct page *page, void *object, unsigned long addr) { return 0; }
- 
--static inline struct kmem_cache_node *free_debug_processing(
-+static inline int free_debug_processing(
- 	struct kmem_cache *s, struct page *page,
- 	void *head, void *tail, int bulk_cnt,
- 	unsigned long addr, unsigned long *flags) { return NULL; }
-@@ -2648,8 +2646,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 	stat(s, FREE_SLOWPATH);
- 
- 	if (kmem_cache_debug(s) &&
--	    !(n = free_debug_processing(s, page, head, tail, cnt,
--					addr, &flags)))
-+	    !free_debug_processing(s, page, head, tail, cnt, addr))
- 		return;
- 
- 	do {
 -- 
 2.5.0
 
