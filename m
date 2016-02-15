@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C3632828DF
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 13:44:37 -0500 (EST)
-Received: by mail-qk0-f180.google.com with SMTP id x1so58190794qkc.1
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 10:44:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j7si35596205qgf.83.2016.02.15.10.44.37
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CBF86B0005
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 15:06:08 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id a4so70735525wme.1
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 12:06:08 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id k71si6024339wmd.15.2016.02.15.12.06.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Feb 2016 10:44:37 -0800 (PST)
-From: Laura Abbott <labbott@fedoraproject.org>
-Subject: [PATCHv2 4/4] slub: Relax CMPXCHG consistency restrictions
-Date: Mon, 15 Feb 2016 10:44:24 -0800
-Message-Id: <1455561864-4217-5-git-send-email-labbott@fedoraproject.org>
-In-Reply-To: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org>
-References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org>
+        Mon, 15 Feb 2016 12:06:07 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id a4so12243384wme.3
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 12:06:06 -0800 (PST)
+Date: Mon, 15 Feb 2016 21:06:05 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160215200603.GA9223@dhcp22.suse.cz>
+References: <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1602031457120.10331@chino.kir.corp.google.com>
+ <20160204125700.GA14425@dhcp22.suse.cz>
+ <201602042210.BCG18704.HOMFFJOStQFOLV@I-love.SAKURA.ne.jp>
+ <20160204133905.GB14425@dhcp22.suse.cz>
+ <201602071309.EJD59750.FOVMSFOOFHtJQL@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201602071309.EJD59750.FOVMSFOOFHtJQL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Sun 07-02-16 13:09:33, Tetsuo Handa wrote:
+[...]
+> FYI, I again hit unexpected OOM-killer during genxref on linux-4.5-rc2 source.
+> I think current patchset is too fragile to merge.
+> ----------------------------------------
+> [ 3101.626995] smbd invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+> [ 3101.629148] smbd cpuset=/ mems_allowed=0
+[...]
+> [ 3101.705887] Node 0 DMA: 75*4kB (UME) 69*8kB (UME) 43*16kB (UM) 23*32kB (UME) 8*64kB (UM) 4*128kB (UME) 2*256kB (UM) 0*512kB 1*1024kB (U) 1*2048kB (M) 0*4096kB = 6884kB
+> [ 3101.710581] Node 0 DMA32: 4513*4kB (UME) 15*8kB (U) 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 18172kB
 
-When debug options are enabled, cmpxchg on the page is disabled. This is
-because the page must be locked to ensure there are no false positives
-when performing consistency checks. Some debug options such as poisoning
-and red zoning only act on the object itself. There is no need to
-protect other CPUs from modification on only the object. Allow cmpxchg
-to happen with poisoning and red zoning are set on a slab.
+How come this is an unexpected OOM? There is clearly no order-2+ page
+available for the allocation request.
 
-Credit to Mathias Krause for the original work which inspired this series
+> > Something like the following:
+> Yes, I do think we need something like it.
 
-Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
----
- mm/slub.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+Was the patch applied?
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 01606ff..0323e53 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -164,6 +164,14 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
- 				SLAB_POISON | SLAB_STORE_USER)
- 
- /*
-+ * These debug flags cannot use CMPXCHG because there might be consistency
-+ * issues when checking or reading debug information
-+ */
-+#define SLAB_NO_CMPXCHG (SLAB_CONSISTENCY_CHECKS | SLAB_STORE_USER | \
-+				SLAB_TRACE)
-+
-+
-+/*
-  * Debugging flags that require metadata to be stored in the slab.  These get
-  * disabled when slub_debug=O is used and a cache's min order increases with
-  * metadata.
-@@ -3377,7 +3385,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
- 
- #if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--	if (system_has_cmpxchg_double() && (s->flags & SLAB_DEBUG_FLAGS) == 0)
-+	if (system_has_cmpxchg_double() && (s->flags & SLAB_NO_CMPXCHG) == 0)
- 		/* Enable fast mode */
- 		s->flags |= __CMPXCHG_DOUBLE;
- #endif
-@@ -4889,7 +4897,6 @@ static ssize_t red_zone_store(struct kmem_cache *s,
- 
- 	s->flags &= ~SLAB_RED_ZONE;
- 	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
- 		s->flags |= SLAB_RED_ZONE;
- 	}
- 	calculate_sizes(s, -1);
-@@ -4910,7 +4917,6 @@ static ssize_t poison_store(struct kmem_cache *s,
- 
- 	s->flags &= ~SLAB_POISON;
- 	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
- 		s->flags |= SLAB_POISON;
- 	}
- 	calculate_sizes(s, -1);
 -- 
-2.5.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
