@@ -1,232 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FA466B0253
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 05:50:26 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id ho8so85233660pac.2
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 02:50:26 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v88si36663005pfi.243.2016.02.15.02.50.25
-        for <linux-mm@kvack.org>;
-        Mon, 15 Feb 2016 02:50:25 -0800 (PST)
-Date: Mon, 15 Feb 2016 10:50:29 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH RFC] Introduce atomic and per-cpu add-max and sub-min
- operations
-Message-ID: <20160215105028.GB1748@arm.com>
-References: <145544094056.28219.12239469516497703482.stgit@zurg>
-MIME-Version: 1.0
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id AF5FB6B0256
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2016 05:59:11 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id fy10so44964875pac.1
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 02:59:11 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id sm4si42762228pac.245.2016.02.15.02.59.09
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Feb 2016 02:59:10 -0800 (PST)
+Subject: Re: [PATCH 3/2] oom: clear TIF_MEMDIE after oom_reaper managed to unmap the address space
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1452094975-551-1-git-send-email-mhocko@kernel.org>
+	<1452516120-5535-1-git-send-email-mhocko@kernel.org>
+	<20160111165214.GA32132@cmpxchg.org>
+In-Reply-To: <20160111165214.GA32132@cmpxchg.org>
+Message-Id: <201602151958.HCJ48972.FFOFOLMHSQVJtO@I-love.SAKURA.ne.jp>
+Date: Mon, 15 Feb 2016 19:58:50 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <145544094056.28219.12239469516497703482.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-arch@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, peterz@infradead.org, paulmck@linux.vnet.ibm.com
+To: hannes@cmpxchg.org, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-Adding Peter and Paul,
+Andrew Morton wrote:
+> 
+> The patch titled
+>      Subject: mm/oom_kill.c: don't ignore oom score on exiting tasks
+> has been removed from the -mm tree.  Its filename was
+>      mm-oom_killc-dont-skip-pf_exiting-tasks-when-searching-for-a-victim.patch
+> 
+> This patch was dropped because an updated version will be merged
+> 
+> ------------------------------------------------------
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: mm/oom_kill.c: don't ignore oom score on exiting tasks
+> 
+> When the OOM killer scans tasks and encounters a PF_EXITING one, it
+> force-selects that one regardless of the score.  Is there a possibility
+> that the task might hang after it has set PF_EXITING?  In that case the
+> OOM killer should be able to move on to the next task.
+> 
+> Frankly, I don't even know why we check for exiting tasks in the OOM
+> killer.  We've tried direct reclaim at least 15 times by the time we
+> decide the system is OOM, there was plenty of time to exit and free
+> memory; and a task might exit voluntarily right after we issue a kill. 
+> This is testing pure noise.
+> 
 
-On Sun, Feb 14, 2016 at 12:09:00PM +0300, Konstantin Khlebnikov wrote:
-> bool atomic_add_max(atomic_t *var, int add, int max);
-> bool atomic_sub_min(atomic_t *var, int sub, int min);
+I can't find updated version of this patch in linux-next. Why don't you submit?
+I think the patch description should be updated because this patch solves yet
+another silent OOM livelock bug.
 
-What are the memory-ordering requirements for these? Do you also want
-relaxed/acquire/release versions for the use-cases you outline?
+Say, there is a process with two threads named Thread1 and Thread2.
+Since the OOM killer sets TIF_MEMDIE only on the first non-NULL mm task,
+it is possible that Thread2 invokes the OOM killer and Thread1 gets
+TIF_MEMDIE (without sending SIGKILL to processes using Thread1's mm).
 
-One observation is that you provide no ordering guarantees if the
-comparison fails, which is fine if that's what you want, but we should
-probably write that down like we do for cmpxchg.
+----------
+Thread1                       Thread2
+                              Calls mmap()
+Calls _exit(0)
+                              Arrives at vm_mmap_pgoff()
+Arrives at do_exit()
+Gets PF_EXITING via exit_signals()
+                              Calls down_write(&mm->mmap_sem)
+                              Calls do_mmap_pgoff()
+Calls down_read(&mm->mmap_sem) from exit_mm()
+                              Does a GFP_KERNEL allocation
+                              Calls out_of_memory()
+                              oom_scan_process_thread(Thread1) returns OOM_SCAN_ABORT
 
-> bool this_cpu_add_max(var, add, max);
-> bool this_cpu_sub_min(var, sub, min);
-> 
-> They add/subtract only if result will be not bigger than max/lower that min.
-> Returns true if operation was done and false otherwise.
-> 
-> Inside they check that (add <= max - var) and (sub <= var - min). Signed
-> operations work if all possible values fits into range which length fits
-> into non-negative range of that type: 0..INT_MAX, INT_MIN+1..0, -1000..1000.
-> Unsigned operations work if value always in valid range: min <= var <= max.
-> Char and short automatically casts to int, they never overflows.
-> 
-> Patch adds the same for atomic_long_t, atomic64_t, local_t, local64_t.
-> And unsigned variants: atomic_u32_add_max atomic_u32_sub_min for atomic_t,
-> atomic_u64_add_max atomic_u64_sub_min for atomic64_t.
-> 
-> Patch comes with test which hopefully covers all possible cornercases,
-> see CONFIG_ATOMIC64_SELFTEST and CONFIG_PERCPU_TEST.
-> 
-> All this allows to build any kind of counter in several lines:
+down_read(&mm->mmap_sem) is waiting for Thread2 to call up_write(&mm->mmap_sem)
+                              but Thread2 is waiting for Thread1 to set Thread1->mm = NULL ... silent OOM livelock!
+----------
 
-Do you have another patch converting people over to these new atomics?
+The OOM reaper tries to avoid this livelock by using down_read_trylock()
+instead of down_read(), but core_state check in exit_mm() cannot avoid this
+livelock unless we use non-blocking allocation (i.e. GFP_ATOMIC or GFP_NOWAIT)
+for allocations between down_write(&mm->mmap_sem) and up_write(&mm->mmap_sem).
 
-> - Simple atomic resource counter
-> 
-> atomic_t usage;
-> int limit;
-> 
-> result = atomic_add_max(&usage, charge, limit);
-> 
-> atomic_sub(uncharge, &usage);
-> 
-> - Event counter with per-cpu batch
-> 
-> atomic_t events;
-> DEFINE_PER_CPU(int, cpu_events);
-> int batch;
-> 
-> if (!this_cpu_add_max(cpu_events, count, batch))
-> 	atomic_add(this_cpu_xchg(cpu_events, 0) + count,  &events);
-> 
-> - Object counter with per-cpu part
-> 
-> atomic_t objects;
-> DEFINE_PER_CPU(int, cpu_objects);
-> int batch;
-> 
-> if (!this_cpu_add_max(cpu_objects, 1, batch))
-> 	atomic_add(this_cpu_xchg(cpu_events, 0) + 1,  &objects);
-> 
-> if (!this_cpu_sub_min(cpu_objects, 1, -batch))
-> 	atomic_add(this_cpu_xchg(cpu_events, 0) - 1,  &objects);
-> 
-> - Positive object counter with negative per-cpu parts
-> 
-> atomic_t objects;
-> DEFINE_PER_CPU(int, cpu_objects);
-> int batch;
-> 
-> if (!this_cpu_add_max(cpu_objects, 1, 0))
-> 	atomic_add(this_cpu_xchg(cpu_events, -batch / 2) + 1,  &objects);
-> 
-> if (!this_cpu_sub_min(cpu_objects, 1, -batch))
-> 	atomic_add(this_cpu_xchg(cpu_events, -batch / 2) - 1,  &objects);
-> 
-> - Resource counter with per-cpu precharge
-> 
-> atomic_t usage;
-> int limit;
-> DEFINE_PER_CPU(int, precharge);
-> int batch;
-> 
-> result = this_cpu_sub_min(precharge, charge, 0);
-> if (!result) {
-> 	preempt_disable();
-> 	charge += batch / 2 - __this_cpu_read(precharge);
-> 	result = atomic_add_max(&usage, charge, limit);
-> 	if (result)
-> 		__this_cpu_write(precharge, batch / 2);
-> 	preempt_enable();
-> }
-> 
-> if (!this_cpu_add_max(precharge, uncharge, batch)) {
-> 	preempt_disable();
-> 	if (__this_cpu_read(precharge) > batch / 2) {
-> 		uncharge += __this_cpu_read(precharge) - batch / 2;
-> 		__this_cpu_write(precharge, batch / 2);
-> 	}
-> 	atomic_sub(uncharge, &usage);
-> 	preempt_enable();
-> }
-> 
-> - Each operation easily split into static-inline per-cpu fast-path and
->   atomic slow-path which could be hidden in separate function which
->   performs resource reclaim, logging, etc.
-> - Types of global atomic part and per-cpu part might differs: for example
->   like in vmstat counters atomit_long_t global and s8 local part.
-> - Resource could be counted upwards to the limit or downwards to the zero.
-> - Bounds min=INT_MIN/max=INT_MAX could be used for catching und/overflows.
-> 
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-> ---
->  arch/x86/include/asm/local.h  |    2 +
->  include/asm-generic/local.h   |    2 +
->  include/asm-generic/local64.h |    4 ++
->  include/linux/atomic.h        |   52 +++++++++++++++++++++++++
->  include/linux/percpu-defs.h   |   56 +++++++++++++++++++++++++++
->  lib/atomic64_test.c           |   49 ++++++++++++++++++++++++
->  lib/percpu_test.c             |   84 +++++++++++++++++++++++++++++++++++++++++
->  7 files changed, 249 insertions(+)
+I think that the same problem exists for any task_will_free_mem()-based
+optimizations such as
 
-You may want something in Documentation/ too.
+        if (current->mm &&
+            (fatal_signal_pending(current) || task_will_free_mem(current))) {
+                mark_oom_victim(current);
+                return true;
+        }
 
-> diff --git a/include/linux/atomic.h b/include/linux/atomic.h
-> index 301de78d65f7..06b12a60645b 100644
-> --- a/include/linux/atomic.h
-> +++ b/include/linux/atomic.h
-> @@ -561,4 +561,56 @@ static inline void atomic64_andnot(long long i, atomic64_t *v)
->  
->  #include <asm-generic/atomic-long.h>
->  
-> +/*
-> + * atomic_add_max - add unless result will be bugger that max
+in out_of_memory() and
 
-Freudian slip? ;)
+        task_lock(p);
+        if (p->mm && task_will_free_mem(p)) {
+                mark_oom_victim(p);
+                task_unlock(p);
+                put_task_struct(p);
+                return;
+        }
+        task_unlock(p);
 
-> + * @var:  pointer of type atomic_t
-> + * @add:  value to add
-> + * @max:  maximum result
-> + *
-> + * Atomic value must be already lower or equal to max before call.
-> + * The function returns true if operation was done and false otherwise.
-> + */
-> +
-> +/*
-> + * atomic_sub_min - subtract unless result will be lower than min
-> + * @var:  pointer of type atomic_t
-> + * @sub:  value to subtract
-> + * @min:  minimal result
-> + *
-> + * Atomic value must be already bigger or equal to min before call.
-> + * The function returns true if operation was done and false otherwise.
-> + */
-> +
-> +#define ATOMIC_MINMAX_OP(nm, at, type)					\
-> +static inline bool nm##_add_max(at##_t *var, type add, type max)	\
-> +{									\
-> +	type val = at##_read(var);					\
-> +	while (likely(add <= max - val)) {				\
-> +		type old = at##_cmpxchg(var, val, val + add);		\
-> +		if (likely(old == val))					\
-> +			return true;					\
-> +		val = old;						\
-> +	}								\
-> +	return false;							\
-> +}									\
-> +									\
-> +static inline bool nm##_sub_min(at##_t *var, type sub, type min)	\
-> +{									\
-> +	type val = at##_read(var);					\
-> +	while (likely(sub <= val - min)) {				\
-> +		type old = at##_cmpxchg(var, val, val - sub);		\
-> +		if (likely(old == val))					\
-> +			return true;					\
-> +		val = old;						\
-> +	}								\
-> +	return false;							\
-> +}
-> +
-> +ATOMIC_MINMAX_OP(atomic, atomic, int)
-> +ATOMIC_MINMAX_OP(atomic_long, atomic_long, long)
-> +ATOMIC_MINMAX_OP(atomic64, atomic64, long long)
-> +
-> +ATOMIC_MINMAX_OP(atomic_u32, atomic, unsigned)
-> +ATOMIC_MINMAX_OP(atomic_u64, atomic64, unsigned long long)
-> +
->  #endif /* _LINUX_ATOMIC_H */
-> diff --git a/include/linux/percpu-defs.h b/include/linux/percpu-defs.h
-> index 8f16299ca068..113ebff1cecf 100644
-> --- a/include/linux/percpu-defs.h
-> +++ b/include/linux/percpu-defs.h
-> @@ -371,6 +371,48 @@ do {									\
->  } while (0)
->  
->  /*
-> + * Add unless result will be bigger than max.
-> + * Returns true if operantion was done.
+in oom_kill_process() and
 
-Typo (which is copy-pasted elsewhere too).
+        if (fatal_signal_pending(current) || task_will_free_mem(current)) {
+                mark_oom_victim(current);
+                goto unlock;
+        }
 
-Will
+in mem_cgroup_out_of_memory().
+
+Well, what are possible callers of task_will_free_mem(current) between getting
+PF_EXITING and doing current->mm = NULL ? tty_audit_exit() seems to be an example
+which does a GFP_KERNEL allocation from tty_audit_log() and can be later blocked
+at down_read() in exit_mm() after TIF_MEMDIE is set at tty_audit_log() called from
+tty_audit_exit() ?
+
+Is task_will_free_mem(current) possible for mem_cgroup_out_of_memory() case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
