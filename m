@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EED326B0009
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:30:24 -0500 (EST)
-Received: by mail-io0-f177.google.com with SMTP id z135so128448482iof.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:30:24 -0800 (PST)
-Received: from resqmta-po-05v.sys.comcast.net (resqmta-po-05v.sys.comcast.net. [2001:558:fe16:19:96:114:154:164])
-        by mx.google.com with ESMTPS id mr2si16176772obb.80.2016.02.16.08.30.24
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 50D2B6B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:32:21 -0500 (EST)
+Received: by mail-io0-f169.google.com with SMTP id z135so128538175iof.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:32:21 -0800 (PST)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id ug8si36029251igb.89.2016.02.16.08.32.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 08:30:24 -0800 (PST)
-Date: Tue, 16 Feb 2016 10:30:11 -0600 (CST)
+        Tue, 16 Feb 2016 08:32:20 -0800 (PST)
+Date: Tue, 16 Feb 2016 10:32:19 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCHv2 2/4] slub: Fix/clean free_debug_processing return
- paths
-In-Reply-To: <1455561864-4217-3-git-send-email-labbott@fedoraproject.org>
-Message-ID: <alpine.DEB.2.20.1602161029440.4158@east.gentwo.org>
-References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org> <1455561864-4217-3-git-send-email-labbott@fedoraproject.org>
+Subject: Re: [PATCHv2 3/4] slub: Convert SLAB_DEBUG_FREE to
+ SLAB_CONSISTENCY_CHECKS
+In-Reply-To: <1455561864-4217-4-git-send-email-labbott@fedoraproject.org>
+Message-ID: <alpine.DEB.2.20.1602161031540.4158@east.gentwo.org>
+References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org> <1455561864-4217-4-git-send-email-labbott@fedoraproject.org>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,11 +24,10 @@ Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joo
 
 On Mon, 15 Feb 2016, Laura Abbott wrote:
 
-> Since 19c7ff9ecd89 ("slub: Take node lock during object free checks")
-> check_object has been incorrectly returning success as it follows
-> the out label which just returns the node. Thanks to refactoring,
-> the out and fail paths are now basically the same. Combine the two
-> into one and just use a single label.
+> SLAB_DEBUG_FREE allows expensive consistency checks at free
+> to be turned on or off. Expand its use to be able to turn
+> off all consistency checks. This gives a nice speed up if
+> you only want features such as poisoning or tracing.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
