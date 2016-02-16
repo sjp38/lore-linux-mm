@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 612A76B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:22:46 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id hb3so68033784igb.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:22:46 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id o4si33358468igv.58.2016.02.16.00.22.44
-        for <linux-mm@kvack.org>;
-        Tue, 16 Feb 2016 00:22:45 -0800 (PST)
-Date: Tue, 16 Feb 2016 19:22:41 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
-Message-ID: <20160216082241.GY19486@dastard>
-References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
- <20160214211856.GT19486@dastard>
- <56C216CA.7000703@cisco.com>
- <20160215230511.GU19486@dastard>
- <56C264BF.3090100@cisco.com>
- <20160216052852.GW19486@dastard>
- <alpine.LRH.2.00.1602152135280.29586@mcp-bld-lnx-277.cisco.com>
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6CD6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:25:46 -0500 (EST)
+Received: by mail-qk0-f178.google.com with SMTP id s68so64034568qkh.3
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:25:46 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id d77si39435601qkb.20.2016.02.16.00.25.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Feb 2016 00:25:46 -0800 (PST)
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 16 Feb 2016 01:25:44 -0700
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 176F71FF0023
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:13:51 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1G8PfTd26542150
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:25:41 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1G8PeRY006062
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:25:40 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 12/29] powerpc/mm: Move hash64 specific defintions to seperate header
+In-Reply-To: <20160215052449.GE3797@oak.ozlabs.ibm.com>
+References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160215052449.GE3797@oak.ozlabs.ibm.com>
+Date: Tue, 16 Feb 2016 13:55:31 +0530
+Message-ID: <87y4aldptw.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.00.1602152135280.29586@mcp-bld-lnx-277.cisco.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nag Avadhanam <nag@cisco.com>
-Cc: Daniel Walker <danielwa@cisco.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Khalid Mughal <khalidm@cisco.com>, xe-kernel@external.cisco.com, dave.hansen@intel.com, hannes@cmpxchg.org, riel@redhat.com, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Paul Mackerras <paulus@ozlabs.org>
+Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Mon, Feb 15, 2016 at 09:57:42PM -0800, Nag Avadhanam wrote:
-> On Mon, 15 Feb 2016, Dave Chinner wrote:
-> >So, to pick a random active server here:
-> >
-> >		before		after
-> >Active(file):   12103200 kB	24060 kB
-> >Inactive(file):  5976676 kB	 1380 kB
-> >Mapped:            31308 kB	31308 kB
-> >
-> >How much was not reclaimed? Roughly the same number of pages as the
-> >Mapped count, and that's exactly what we'd expect to see from the
-> >above page walk counting code. Hence a slightly better approximation
-> >of the pages that dropping caches will reclaim is:
-> >
-> >reclaimable pages = active + inactive - dirty - writeback - mapped
-> 
-> Thanks Dave. I considered that, but see this.
-> 
-> Mapped page count below is much higher than the (active(file) +
-> inactive (file)).
+Paul Mackerras <paulus@ozlabs.org> writes:
 
-Yes. it's all unreclaimable from drop caches, though.
+> On Mon, Feb 08, 2016 at 02:50:24PM +0530, Aneesh Kumar K.V wrote:
+>> Also split pgalloc 64k and 4k headers
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+> In the subject: s/defintions/definitions/; s/seperate/separate/
+>
+> A more detailed patch description would be good.  Apart from that,
+>
+> Reviewed-by: Paul Mackerras <paulus@samba.org>
 
-> Mapped seems to include all page cache pages mapped into the process
-> memory, including the shared memory pages, file pages and few other
-> type
-> mappings.
-> 
-> I suppose the above can be rewritten as (mapped is still high):
-> 
-> reclaimable pages = active + inactive + shmem - dirty - writeback - mapped
-> 
-> What about kernel pages mapped into user address space? Does "Mapped"
-> include those pages as well? How do we exclude them? What about
-> device mappings? Are these excluded in the "Mapped" pages
-> calculation?
+Updated as below:
 
-/me shrugs.
+powerpc/mm: Move hash64 specific definitions to separate header
 
-I have no idea - I really don't care about what pages are accounted
-as mapped. I assumed that the patch proposed addressed your
-requirements and so I suggested an alternative that provided almost
-exactly the same information but erred on the side of
-underestimation and hence solves your problem of drop_caches not
-freeing as much memory as you expected....
+We will be adding a radix variant of these routines in the followup
+patches. Move the hash64 variant into its own header so that we can
+rename them easily later. Also split pgalloc 64k and 4k headers
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Reviewed-by: Paul Mackerras <paulus@samba.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
