@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 73ED76B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 10:44:46 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id b205so115868855wmb.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 07:44:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id es11si49591896wjb.139.2016.02.16.07.44.45
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 07:44:45 -0800 (PST)
-Date: Tue, 16 Feb 2016 16:44:43 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v4 04/22] kthread: Add create_kthread_worker*()
-Message-ID: <20160216154443.GW12548@pathway.suse.cz>
-References: <1453736711-6703-1-git-send-email-pmladek@suse.com>
- <1453736711-6703-5-git-send-email-pmladek@suse.com>
- <20160125185339.GB3628@mtj.duckdns.org>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FA7F6B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 10:46:39 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id e127so107249450pfe.3
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 07:46:39 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id e3si51852293pas.149.2016.02.16.07.46.38
+        for <linux-mm@kvack.org>;
+        Tue, 16 Feb 2016 07:46:39 -0800 (PST)
+Subject: Re: [PATCHv2 17/28] thp: skip file huge pmd on copy_huge_pmd()
+References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1455200516-132137-18-git-send-email-kirill.shutemov@linux.intel.com>
+ <56BE2781.7060808@intel.com> <20160216101450.GE46557@black.fi.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56C3445D.3040305@intel.com>
+Date: Tue, 16 Feb 2016 07:46:37 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160125185339.GB3628@mtj.duckdns.org>
+In-Reply-To: <20160216101450.GE46557@black.fi.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 2016-01-25 13:53:39, Tejun Heo wrote:
-> On Mon, Jan 25, 2016 at 04:44:53PM +0100, Petr Mladek wrote:
-> > +struct kthread_worker *
-> > +create_kthread_worker_on_cpu(int cpu, const char namefmt[])
-> > +{
-> > +	if (cpu < 0 || cpu > num_possible_cpus())
-> > +		return ERR_PTR(-EINVAL);
+On 02/16/2016 02:14 AM, Kirill A. Shutemov wrote:
+> On Fri, Feb 12, 2016 at 10:42:09AM -0800, Dave Hansen wrote:
+>> On 02/11/2016 06:21 AM, Kirill A. Shutemov wrote:
+>>> File pmds can be safely skip on copy_huge_pmd(), we can re-fault them
+>>> later. COW for file mappings handled on pte level.
+>>
+>> Is this different from 4k pages?  I figured we might skip copying
+>> file-backed ptes on fork, but I couldn't find the code.
 > 
-> Comparing cpu ID to num_possible_cpus() doesn't make any sense.  It
-> should either be testing against cpu_possible_mask or testing against
-> nr_cpu_ids.  Does this test need to be in this function at all?
+> Currently, we only filter out on per-VMA basis. See first comment in
+> copy_page_range().
+> 
+> Here we handle PMD mapped file pages in COW mapping. File THP can be
+> mapped into COW mapping as result of read page fault.
 
-I wanted to be sure. The cpu number is later passed to
-cpu_to_node(cpu) in kthread_create_on_cpu().
+OK...  So, copy_page_range() has a check for "Don't copy ptes where a
+page fault will fill them correctly."  Seems sane enough, but the check
+is implemented using a check for the VMA having !vma->anon_vma, which is
+a head-scratcher for a moment.  Why does that apply to huge tmpfs?
 
-I am going to replace this with a check against nr_cpu_ids in
-kthread_create_on_cpu() which makes more sense.
+Ahh, MAP_PRIVATE.  MAP_PRIVATE vmas have ->anon_vma because they have
+essentially-anonymous pages for when they do a COW, so they don't hit
+that check and they go through the copy_*() functions, including
+copy_huge_pmd().
 
-I might be too paranoid. But this is slow path. People
-do mistakes...
+We don't handle 2M COW operations yet so we simply decline to copy these
+pages.  Might cost us page faults down the road, but it makes things
+easier to implement for now.
 
-Thanks,
-Petr
+Did I get that right?
+
+Any chance we could get a bit of that into the patch descriptions so
+that the next hapless reviewer can spend their time looking at your code
+instead of relearning the fork() handling for MAP_PRIVATE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
