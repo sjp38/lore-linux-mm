@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 111356B0009
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:36:45 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id x65so101392144pfb.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:45 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id r15si49683998pfr.8.2016.02.16.00.36.43
-        for <linux-mm@kvack.org>;
-        Tue, 16 Feb 2016 00:36:44 -0800 (PST)
-Date: Tue, 16 Feb 2016 19:35:18 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 580C66B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:44:11 -0500 (EST)
+Received: by mail-io0-f174.google.com with SMTP id z135so114708948iof.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:44:11 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id w42si49633765ioi.91.2016.02.16.00.44.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Feb 2016 00:44:10 -0800 (PST)
+Date: Tue, 16 Feb 2016 11:43:46 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
 Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
-Message-ID: <20160216083518.GZ19486@dastard>
+Message-ID: <20160216084346.GA8511@esperanza>
 References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
  <20160214211856.GT19486@dastard>
  <56C216CA.7000703@cisco.com>
@@ -19,56 +20,43 @@ References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
  <56C264BF.3090100@cisco.com>
  <20160216004531.GA28260@thunk.org>
  <D2E7B337.D5404%nag@cisco.com>
- <20160216053827.GX19486@dastard>
- <alpine.LRH.2.00.1602152258240.4623@mcp-bld-lnx-277.cisco.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.00.1602152258240.4623@mcp-bld-lnx-277.cisco.com>
+In-Reply-To: <D2E7B337.D5404%nag@cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nag Avadhanam <nag@cisco.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, "Daniel Walker (danielwa)" <danielwa@cisco.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Jonathan Corbet <corbet@lwn.net>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Nag Avadhanam (nag)" <nag@cisco.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, "Daniel Walker (danielwa)" <danielwa@cisco.com>, Dave Chinner <david@fromorbit.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Jonathan Corbet <corbet@lwn.net>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Feb 15, 2016 at 11:14:13PM -0800, Nag Avadhanam wrote:
-> On Mon, 15 Feb 2016, Dave Chinner wrote:
+On Tue, Feb 16, 2016 at 02:58:04AM +0000, Nag Avadhanam (nag) wrote:
+> We have a class of platforms that are essentially swap-less embedded
+> systems that have limited memory resources (2GB and less).
 > 
-> >On Tue, Feb 16, 2016 at 02:58:04AM +0000, Nag Avadhanam (nag) wrote:
-> >>Its the calculation of the # of bytes of non-reclaimable file system cache
-> >>pages that has been troubling us. We do not want to count inactive file
-> >>pages (of programs/binaries) that were once mapped by any process in the
-> >>system as reclaimable because that might lead to thrashing under memory
-> >>pressure (we want to alert admins before system starts dropping text
-> >>pages).
-> >
-> >The code presented does not match your requirements. It only counts
-> >pages that are currently mapped into ptes. hence it will tell you
-> >that once-used and now unmapped binary pages are reclaimable, and
-> >drop caches will reclaim them. hence they'll need to be fetched from
-> >disk again if they are faulted in again after a drop_caches run.
+> There is a need to implement early alerts (before the OOM killer kicks in)
+> based on the current memory usage so admins can take appropriate steps (do
+> not initiate provisioning operations but support existing services,
+> de-provision certain services, etc. based on the extent of memory usage in
+> the system) . 
 > 
-> Will the inactive binary pages be automatically unmapped even if the process
-> into whose address space they are mapped is still around? I thought they
-> are left mapped until such time there is memory pressure.
+> There is also a general need to let end users know the available memory so
+> they can determine if they can enable new services (helps in planning).
+> 
+> These two depend upon knowing approximate (accurate within few 10s of MB)
+> memory usage within the system. We want to alert admins before system
+> exhibits any thrashing behaviors.
 
-Right, page reclaim via memory pressure can unmap mapped pages in
-order to reclaim them. Drop caches will skip them.
+Have you considered using /proc/kpageflags for counting such pages? It
+should already export all information about memory pages you might need,
+e.g. which pages are mapped, which are anonymous, which are inactive,
+basically all page flags and even more. Moreover, you can even determine
+the set of pages that are really read/written by processes - see
+/sys/kernel/mm/page_idle/bitmap. On such a small machine scanning the
+whole pfn range should be pretty cheap, so you might find this API
+acceptable.
 
-> We only care for binary pages (active and inactive) mapped into the
-> address spaces of live processes. Its okay to aggressively reclaim
-> inactive
-> pages once mapped into processes that are no longer around.
-
-Ok, if you're only concerned about live processes then drop caches
-should behave as you want.
-
-Cheers,
-
-Dave.
-
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
