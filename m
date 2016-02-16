@@ -1,42 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 772156B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 12:44:15 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id 9so202503489iom.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 09:44:15 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id b8si36384078igx.61.2016.02.16.09.44.13
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 774936B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 13:22:44 -0500 (EST)
+Received: by mail-io0-f182.google.com with SMTP id 9so203802356iom.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 10:22:44 -0800 (PST)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id sb8si34713489igb.97.2016.02.16.10.22.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Feb 2016 09:44:14 -0800 (PST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [LSF/MM ATTEND] mm validation, hugepages
-Message-ID: <56C35FE3.5010304@oracle.com>
-Date: Tue, 16 Feb 2016 12:44:03 -0500
+        Tue, 16 Feb 2016 10:22:41 -0800 (PST)
+Date: Tue, 16 Feb 2016 11:22:12 -0700
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [RFC 0/7] Peer-direct memory
+Message-ID: <20160216182212.GA21071@obsidianresearch.com>
+References: <1455207177-11949-1-git-send-email-artemyko@mellanox.com>
+ <20160211191838.GA23675@obsidianresearch.com>
+ <56C08EC8.10207@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56C08EC8.10207@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Haggai Eran <haggaie@mellanox.com>
+Cc: Kovalyov Artemy <artemyko@mellanox.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "leon@leon.ro" <leon@leon.ro>, Sagi Grimberg <sagig@mellanox.com>
 
-Hi all,
+On Sun, Feb 14, 2016 at 04:27:20PM +0200, Haggai Eran wrote:
+> [apologies: sending again because linux-mm address was wrong]
+> 
+> On 11/02/2016 21:18, Jason Gunthorpe wrote:
+> > Resubmit those parts under the mm subsystem, or another more
+> > appropriate place.
+> 
+> We want the feedback from linux-mm, and they are now Cced.
 
-I'd like to participate in this year's LSF/MM to continue my
-work on improving the testing and validation of MM code.
+Resubmit to mm means put this stuff someplace outside
+drivers/infiniband in the tree and don't try and inappropriately send
+memory management stuff through Doug's tree.
 
-While I'm currently doing work aimed at improving hugepage related
-testing, it's important to understand how other parts of MM can
-be easier to test and fuzz.
-
-It'll be interesting to expose other, more untested and/or bitrotten
-bits to userspace testing and fuzzing, but it's not clear which parts
-are of interest, and which assumptions the existing code makes about
-those bits - something we need to clarify.
-
-
-Thanks,
-Sasha
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
