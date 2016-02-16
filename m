@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 336B06B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:36:11 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id g62so180363284wme.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:11 -0800 (PST)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id ll4si47162700wjb.130.2016.02.16.00.36.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Feb 2016 00:36:10 -0800 (PST)
-Received: by mail-wm0-x231.google.com with SMTP id g62so93938350wme.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:10 -0800 (PST)
-Date: Tue, 16 Feb 2016 09:36:06 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 02/33] mm: overload get_user_pages() functions
-Message-ID: <20160216083606.GB3335@gmail.com>
-References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
- <20160212210155.73222EE1@viggo.jf.intel.com>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 111356B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:36:45 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id x65so101392144pfb.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:45 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id r15si49683998pfr.8.2016.02.16.00.36.43
+        for <linux-mm@kvack.org>;
+        Tue, 16 Feb 2016 00:36:44 -0800 (PST)
+Date: Tue, 16 Feb 2016 19:35:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
+Message-ID: <20160216083518.GZ19486@dastard>
+References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+ <20160214211856.GT19486@dastard>
+ <56C216CA.7000703@cisco.com>
+ <20160215230511.GU19486@dastard>
+ <56C264BF.3090100@cisco.com>
+ <20160216004531.GA28260@thunk.org>
+ <D2E7B337.D5404%nag@cisco.com>
+ <20160216053827.GX19486@dastard>
+ <alpine.LRH.2.00.1602152258240.4623@mcp-bld-lnx-277.cisco.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160212210155.73222EE1@viggo.jf.intel.com>
+In-Reply-To: <alpine.LRH.2.00.1602152258240.4623@mcp-bld-lnx-277.cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, srikar@linux.vnet.ibm.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, jack@suse.cz
+To: Nag Avadhanam <nag@cisco.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, "Daniel Walker (danielwa)" <danielwa@cisco.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "Khalid Mughal (khalidm)" <khalidm@cisco.com>, "xe-kernel@external.cisco.com" <xe-kernel@external.cisco.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Jonathan Corbet <corbet@lwn.net>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-
-* Dave Hansen <dave@sr71.net> wrote:
-
+On Mon, Feb 15, 2016 at 11:14:13PM -0800, Nag Avadhanam wrote:
+> On Mon, 15 Feb 2016, Dave Chinner wrote:
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> >On Tue, Feb 16, 2016 at 02:58:04AM +0000, Nag Avadhanam (nag) wrote:
+> >>Its the calculation of the # of bytes of non-reclaimable file system cache
+> >>pages that has been troubling us. We do not want to count inactive file
+> >>pages (of programs/binaries) that were once mapped by any process in the
+> >>system as reclaimable because that might lead to thrashing under memory
+> >>pressure (we want to alert admins before system starts dropping text
+> >>pages).
+> >
+> >The code presented does not match your requirements. It only counts
+> >pages that are currently mapped into ptes. hence it will tell you
+> >that once-used and now unmapped binary pages are reclaimable, and
+> >drop caches will reclaim them. hence they'll need to be fetched from
+> >disk again if they are faulted in again after a drop_caches run.
 > 
-> The concept here was a suggestion from Ingo.  The implementation
-> horrors are all mine.
-> 
-> This allows get_user_pages(), get_user_pages_unlocked(), and
-> get_user_pages_locked() to be called with or without the
-> leading tsk/mm arguments.  We will give a compile-time warning
-> about the old style being __deprecated and we will also
-> WARN_ON() if the non-remote version is used for a remote-style
-> access.
+> Will the inactive binary pages be automatically unmapped even if the process
+> into whose address space they are mapped is still around? I thought they
+> are left mapped until such time there is memory pressure.
 
-So at minimum this should be WARN_ON_ONCE(), to make it easier to recover some 
-meaningful kernel log from such incidents.
+Right, page reclaim via memory pressure can unmap mapped pages in
+order to reclaim them. Drop caches will skip them.
 
-But:
+> We only care for binary pages (active and inactive) mapped into the
+> address spaces of live processes. Its okay to aggressively reclaim
+> inactive
+> pages once mapped into processes that are no longer around.
 
-> Doing this, folks will get nice warnings and will not break the
-> build.  This should be nice for -next and will hopefully let
-> developers fix up their own code instead of maintainers needing
-> to do it at merge time.
-> 
-> The way we do this is hideous.  It uses the __VA_ARGS__ macro
-> functionality to call different functions based on the number
-> of arguments passed to the macro.
-> 
-> There's an additional hack to ensure that our EXPORT_SYMBOL()
-> of the deprecated symbols doesn't trigger a warning.
-> 
-> We should be able to remove this mess as soon as -rc1 hits in
-> the release after this is merged.
+Ok, if you're only concerned about live processes then drop caches
+should behave as you want.
 
-So when I suggested this then it looked a _lot_ cleanear to me, in my head!
+Cheers,
 
-OTOH this, if factored out a bit perhaps, could be the basis for a useful 
-technical model to do 'phased in, -next invariant' prototype migrations in the 
-future, especially when it involves lots of subsystems.
+Dave.
 
-Strictly only in cases where -rc1 will truly get rid of the __VA_ARGS__ hackery - 
-which we'd do in this case.
-
-Nevertheless I'd love to have a high level buy-in from either Linus or Andrew that 
-we can do it this way, as the hackery looks very hideous...
-
-The alternative would be to allow the -next churn and to allow the occasional 
-(fairly trivial but tester-disruptive) build breakage.
-
-Thanks,
-
-	Ingo
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
