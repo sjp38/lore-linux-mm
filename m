@@ -1,85 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 335D26B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 14:44:17 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id x65so110339709pfb.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:44:17 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id tw5si52972071pac.131.2016.02.16.11.44.16
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 65E466B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 17:42:03 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id b205so131030127wmb.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 14:42:03 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k9si51811540wjr.241.2016.02.16.14.42.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Feb 2016 11:44:16 -0800 (PST)
-From: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Subject: [PATCH] mm/hugetlb: Fix incorrect proc nr_hugepages value
-Date: Wed, 17 Feb 2016 01:13:26 +0530
-Message-Id: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
+        Tue, 16 Feb 2016 14:42:02 -0800 (PST)
+Date: Tue, 16 Feb 2016 14:41:59 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 99471] System locks with kswapd0 and kworker taking full
+ IO and mem
+Message-Id: <20160216144159.9335e48d65b7327984d298ac@linux-foundation.org>
+In-Reply-To: <20151005200345.GA12889@dhcp22.suse.cz>
+References: <bug-99471-27@https.bugzilla.kernel.org/>
+	<bug-99471-27-hjYeBz7jw2@https.bugzilla.kernel.org/>
+	<20150910140418.73b33d3542bab739f8fd1826@linux-foundation.org>
+	<20150915083919.GG2858@cmpxchg.org>
+	<20151005200345.GA12889@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vaishali Thakkar <vaishali.thakkar@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, gaguilar@aguilardelgado.com, sgh@sgh.dk, Rik van Riel <riel@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, serianox@gmail.com, spam@kernelspace.de, larsnostdal@gmail.com, viktorpal@yahoo.de, shentino@gmail.com
 
-Currently incorrect default hugepage pool size is reported by proc
-nr_hugepages when number of pages for the default huge page size is
-specified twice.
+On Mon, 5 Oct 2015 22:03:46 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-When multiple huge page sizes are supported, /proc/sys/vm/nr_hugepages
-indicates the current number of pre-allocated huge pages of the default
-size. Basically /proc/sys/vm/nr_hugepages displays default_hstate->
-max_huge_pages and after boot time pre-allocation, max_huge_pages should
-equal the number of pre-allocated pages (nr_hugepages).
+> On Tue 15-09-15 10:39:19, Johannes Weiner wrote:
+> > On Thu, Sep 10, 2015 at 02:04:18PM -0700, Andrew Morton wrote:
+> > > (switched to email.  Please respond via emailed reply-to-all, not via the
+> > > bugzilla web interface).
+> > > 
+> > > On Tue, 01 Sep 2015 12:32:10 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> > > 
+> > > > https://bugzilla.kernel.org/show_bug.cgi?id=99471
+> > > 
+> > > Guys, could you take a look please?
 
-Test case:
+So this isn't fixed and a number of new reporters (cc'ed) are chiming
+in (let's please keep this going via email, not via the bugzilla UI!).
 
-Note that this is specific to x86 architecture.
+We have various theories but I don't think we've nailed it down yet.
 
-Boot the kernel with command line option 'default_hugepagesz=1G
-hugepages=X hugepagesz=2M hugepages=Y hugepagesz=1G hugepages=Z'. After
-boot, 'cat /proc/sys/vm/nr_hugepages' and 'sysctl -a | grep hugepages'
-returns the value X.  However, dmesg output shows that Z huge pages were
-pre-allocated.
+Are any of the reporters able to come up with a set of instructions
+which will permit the developers to reproduce this bug locally?
 
-So, the root cause of the problem here is that the global variable
-default_hstate_max_huge_pages is set if a default huge page size is
-specified (directly or indirectly) on the command line. After the
-command line processing in hugetlb_init, if default_hstate_max_huge_pages
-is set, the value is assigned to default_hstae.max_huge_pages. However,
-default_hstate.max_huge_pages may have already been set based on the
-number of pre-allocated huge pages of default_hstate size.
-
-The solution to this problem is if hstate->max_huge_pages is already set
-then it should not set as a result of global max_huge_pages value.
-Basically if the value of the variable hugepages is set multiple times
-on a command line for a specific supported hugepagesize then proc layer
-should consider the last specified value.
-
-Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
----
-The patch contains one line over 80 characters as I think limiting that
-line to 80 characters makes code look bit ugly. But if anyone is having
-issue with that then I am fine with limiting it to 80 chracters.
----
- mm/hugetlb.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 06ae13e..01f2b48 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2630,8 +2630,10 @@ static int __init hugetlb_init(void)
- 			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
- 	}
- 	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
--	if (default_hstate_max_huge_pages)
--		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
-+	if (default_hstate_max_huge_pages) {
-+		if (!default_hstate.max_huge_pages)
-+			default_hstate.max_huge_pages = default_hstate_max_huge_pages;
-+	}
- 
- 	hugetlb_init_hstates();
- 	gather_bootmem_prealloc();
--- 
-2.1.4
+Can we think up a way of adding some form of debug/instrumentation to
+the kernel which will permit us to diagnose and fix this?  It could be
+something which a tester manually adds or it could be something
+permanent, perhaps controlled via a procfs knob.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
