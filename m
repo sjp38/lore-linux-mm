@@ -1,68 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA3F6B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:20:26 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fl4so84973061pad.0
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 21:20:26 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id i77si48526632pfj.182.2016.02.15.21.20.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Feb 2016 21:20:25 -0800 (PST)
-Received: by mail-pa0-x22b.google.com with SMTP id ho8so98056090pac.2
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 21:20:25 -0800 (PST)
-Message-ID: <1455600014.3308.9.camel@gmail.com>
-Subject: Re: [PATCH V3] powerpc/mm: Fix Multi hit ERAT cause by recent THP
- update
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Tue, 16 Feb 2016 16:20:14 +1100
-In-Reply-To: <87d1ryfd94.fsf@linux.vnet.ibm.com>
-References: 
-	<1454980831-16631-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <1455504278.16012.18.camel@gmail.com> <87lh6mfv2j.fsf@linux.vnet.ibm.com>
-	 <1455512997.16012.24.camel@gmail.com> <87d1ryfd94.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BF2406B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:29:09 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id hb3so65849738igb.0
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2016 21:29:09 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id e14si36074563iod.133.2016.02.15.21.29.07
+        for <linux-mm@kvack.org>;
+        Mon, 15 Feb 2016 21:29:08 -0800 (PST)
+Date: Tue, 16 Feb 2016 16:28:52 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
+Message-ID: <20160216052852.GW19486@dastard>
+References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+ <20160214211856.GT19486@dastard>
+ <56C216CA.7000703@cisco.com>
+ <20160215230511.GU19486@dastard>
+ <56C264BF.3090100@cisco.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <56C264BF.3090100@cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Walker <danielwa@cisco.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Khalid Mughal <khalidm@cisco.com>, xe-kernel@external.cisco.com, dave.hansen@intel.com, hannes@cmpxchg.org, riel@redhat.com, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Nag Avadhanam (nag)" <nag@cisco.com>
 
-On Mon, 2016-02-15 at 16:31 +0530, Aneesh Kumar K.V wrote:
-> Balbir Singh <bsingharora@gmail.com> writes:
+On Mon, Feb 15, 2016 at 03:52:31PM -0800, Daniel Walker wrote:
+> On 02/15/2016 03:05 PM, Dave Chinner wrote:
+> >What you are proposing isn't accurate, either, because it will be
+> >stale by the time the inode cache traversal is completed and the
+> >count returned to userspace. e.g. pages that have already been
+> >accounted as droppable can be reclaimed or marked dirty and hence
+> >"unreclaimable".
+> >
+> >IOWs, the best you are going to get is an approximate point-in-time
+> >indication of how much memory is available for immediate reclaim.
+> >We're never going to get an accurate measure in userspace unless we
+> >accurately account for it in the kernel itself. Which, I think it
+> >has already been pointed out, is prohibitively expensive so isn't
+> >done.
+> >
+> >As for a replacement, looking at what pages you consider "droppable"
+> >is really only file pages that are not under dirty or under
+> >writeback. i.e. from /proc/meminfo:
+> >
+> >Active(file):     220128 kB
+> >Inactive(file):    60232 kB
+> >Dirty:                 0 kB
+> >Writeback:             0 kB
+> >
+> >i.e. reclaimable file cache = Active + inactive - dirty - writeback.
+.....
+
+> Approximate point-in-time indication is an accurate
+> characterization of what we are doing. This is good enough for us.
+> NO matter what we do, we are never going to be able to address the
+> "time of check to time of usea?? window.  But, this
+> approximation works reasonably well for our use case.
 > 
-> > > Now we can't depend for mm_cpumask, a parallel find_linux_pte_hugepte
-> > > can happen outside that. Now i had a variant for kick_all_cpus_sync that
-> > > ignored idle cpus. But then that needs more verification.
-> > > 
-> > > http://article.gmane.org/gmane.linux.ports.ppc.embedded/81105
-> > Can be racy as a CPU moves from non-idle to idle
-> > 
-> > In
-> > 
-> > > +A A A A A pmd_hugepage_update(vma->vm_mm, address, pmdp, ~0UL, 0);
-> > > +A A A A A /*
-> > > +A A A A A A * This ensures that generic code that rely on IRQ disabling
-> > > +A A A A A A * to prevent a parallel THP split work as expected.
-> > > +A A A A A A */
-> > > +A A A A A kick_all_cpus_sync();
-> > 
-> > pmdp_invalidate()->pmd_hugepage_update() can still run in parallel withA 
-> > find_linux_pte_or_hugepte() and race.. Am I missing something?
-> > 
+> As to his other suggestion of estimating the droppable cache, I
+> have considered it but found it unusable. The problem is the
+> inactive file pages count a whole lot pages more than the
+> droppable pages.
+
+inactive file pages are supposed to be exactly that - inactive. i.e.
+the have not been referenced recently, and are unlikely to be dirty.
+They should be immediately reclaimable.
+
+> See the value of these, before and [after] dropping reclaimable
+> pages.
 > 
-> Yes. But then we make sure that the pte_t returned by
-> find_linux_pte_or_hugepte doesn't change to a regular pmd entry by using
-> that kick. Now callers of find_lnux_pte_or_hugepte will check for
-> _PAGE_PRESENT. So if it called before
-> pmd_hugepage_update(_PAGE_PRESENT), we wait for the caller to finish the
-> usage (via kick()). Or they bail out after finding _PAGE_PRESENT cleared.
+> Before:
+> 
+> Active(file):     183488 kB
+> Inactive(file):   180504 kB
+> 
+> After (the drop caches):
+>
+> Active(file):      89468 kB
+> Inactive(file):    32016 kB
+>
+> The dirty and the write back are mostly 0KB under our workload as
+> we are mostly dealing with the readonly file pages of binaries
+> (programs/libraries)..  "
 
-Makes sense, but I would still check the assumption about checking for
-_PAGE_PRESENT
+if the pages are read-only, then they are clean. If they are on the
+LRUs, then they should be immediately reclaimable.
 
-Balbir Singh
+Let's go back to your counting criteria of all those file pages:
+
++static int is_page_droppable(struct page *page)
++{
++       struct address_space *mapping = page_mapping(page);
++
++       if (!mapping)
++               return 0;
+
+invalidated page, should be none.
+
++       if (PageDirty(page))
++               return 0;
+
+Dirty get ignored, in /proc/meminfo.
+
++       if (PageWriteback(page))
++               return 0;
+
+Writeback ignored, in /proc/meminfo.
+
++       if (page_mapped(page))
++               return 0;
+
+Clean page, mapped into userspace get ignored, in /proc/meminfo.
+
++       if (page->mapping != mapping)
++               return 0;
+
+Invalidation race, should be none.
+
++       if (page_has_private(page))
++               return 0;
+
+That's simply wrong. For XFs inodes, that will skip *every page on
+every inode* because it attachs bufferheads to every page, even on
+read. ext4 behaviour will depend on mount options and whether the
+page has been dirtied or not. IOWs, this turns the number of
+reclaimable pages in the inode cache into garbage because it counts
+clean, reclaimable pages with attached bufferheads as non-reclaimable.
+
+But let's ignore that by assuming you have read-only pages without
+bufferheads (e.g. ext4, blocksize = pagesize, nobh mode on read-only
+pages). That means the only thing that makes a difference to the
+count returned is mapped pages, a count of which is also in
+/proc/meminfo.
+
+So, to pick a random active server here:
+
+		before		after
+Active(file):   12103200 kB	24060 kB
+Inactive(file):  5976676 kB	 1380 kB
+Mapped:            31308 kB	31308 kB
+
+How much was not reclaimed? Roughly the same number of pages as the
+Mapped count, and that's exactly what we'd expect to see from the
+above page walk counting code. Hence a slightly better approximation
+of the pages that dropping caches will reclaim is:
+
+reclaimable pages = active + inactive - dirty - writeback - mapped
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
