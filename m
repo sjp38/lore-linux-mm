@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 50D2B6B0009
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:32:21 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id z135so128538175iof.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:32:21 -0800 (PST)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id ug8si36029251igb.89.2016.02.16.08.32.20
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 604226B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:33:44 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id hb3so77002093igb.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:33:44 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id qt6si14462igb.0.2016.02.16.08.33.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 08:32:20 -0800 (PST)
-Date: Tue, 16 Feb 2016 10:32:19 -0600 (CST)
+        Tue, 16 Feb 2016 08:33:43 -0800 (PST)
+Date: Tue, 16 Feb 2016 10:33:42 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCHv2 3/4] slub: Convert SLAB_DEBUG_FREE to
- SLAB_CONSISTENCY_CHECKS
-In-Reply-To: <1455561864-4217-4-git-send-email-labbott@fedoraproject.org>
-Message-ID: <alpine.DEB.2.20.1602161031540.4158@east.gentwo.org>
-References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org> <1455561864-4217-4-git-send-email-labbott@fedoraproject.org>
+Subject: Re: [PATCHv2 4/4] slub: Relax CMPXCHG consistency restrictions
+In-Reply-To: <1455561864-4217-5-git-send-email-labbott@fedoraproject.org>
+Message-ID: <alpine.DEB.2.20.1602161033260.4158@east.gentwo.org>
+References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org> <1455561864-4217-5-git-send-email-labbott@fedoraproject.org>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,10 +23,12 @@ Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joo
 
 On Mon, 15 Feb 2016, Laura Abbott wrote:
 
-> SLAB_DEBUG_FREE allows expensive consistency checks at free
-> to be turned on or off. Expand its use to be able to turn
-> off all consistency checks. This gives a nice speed up if
-> you only want features such as poisoning or tracing.
+> When debug options are enabled, cmpxchg on the page is disabled. This is
+> because the page must be locked to ensure there are no false positives
+> when performing consistency checks. Some debug options such as poisoning
+> and red zoning only act on the object itself. There is no need to
+> protect other CPUs from modification on only the object. Allow cmpxchg
+> to happen with poisoning and red zoning are set on a slab.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
