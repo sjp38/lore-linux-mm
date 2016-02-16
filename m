@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 93CBA6B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:12:57 -0500 (EST)
-Received: by mail-qk0-f176.google.com with SMTP id x1so63602197qkc.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:12:57 -0800 (PST)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id q205si39253123qhq.67.2016.02.16.00.12.56
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 74EF46B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:20:20 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id b35so127408856qge.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:20:20 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id s95si39418424qgs.25.2016.02.16.00.20.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 00:12:56 -0800 (PST)
+        Tue, 16 Feb 2016 00:20:19 -0800 (PST)
 Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 Feb 2016 01:12:55 -0700
+	Tue, 16 Feb 2016 01:20:18 -0700
 Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id E4F9A3E40030
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:12:52 -0700 (MST)
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B959A1FF0023
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:08:25 -0700 (MST)
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1G8Cqx520906226
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:12:52 GMT
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1G8KFdi32571408
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:20:15 GMT
 Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1G8CqAI021179
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:12:52 -0500
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1G8KFOW020035
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:20:15 -0500
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2 08/29] mm: Some arch may want to use HPAGE_PMD related values as variables
-In-Reply-To: <20160215041153.GC3797@oak.ozlabs.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160215041153.GC3797@oak.ozlabs.ibm.com>
-Date: Tue, 16 Feb 2016 13:42:42 +0530
-Message-ID: <874md9f4zp.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 09/29] powerpc/mm: Hugetlbfs is book3s_64 and fsl_book3e (32 or 64)
+In-Reply-To: <20160215050133.GD3797@oak.ozlabs.ibm.com>
+References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160215050133.GD3797@oak.ozlabs.ibm.com>
+Date: Tue, 16 Feb 2016 13:50:05 +0530
+Message-ID: <871t8df4ne.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -37,44 +37,112 @@ Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org,
 
 Paul Mackerras <paulus@ozlabs.org> writes:
 
-> On Mon, Feb 08, 2016 at 02:50:20PM +0530, Aneesh Kumar K.V wrote:
->> With next generation power processor, we are having a new mmu model
->> [1] that require us to maintain a different linux page table format.
+> On Mon, Feb 08, 2016 at 02:50:21PM +0530, Aneesh Kumar K.V wrote:
+>> We move large part of fsl related code to hugetlbpage-book3e.c.
+>> Only code movement. This also avoid #ifdef in the code.
 >> 
->> Inorder to support both current and future ppc64 systems with a single
->> kernel we need to make sure kernel can select between different page
->> table format at runtime. With the new MMU (radix MMU) added, we will
->> have two different pmd hugepage size 16MB for hash model and 2MB for
->> Radix model. Hence make HPAGE_PMD related values as a variable.
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 >
-> But this patch doesn't actually turn any constant into a variable, as
-> far as I can see...
+> I am wondering why you are adding #ifdef CONFIG_PPC_FSL_BOOK3E
+> instances to hugetlbpage-book3e.c.  As far as I can tell from the
+> Kconfig* files, we only support hugetlbfs on book3s_64 and
+> fsl_book3e.  Yet it seems like we have provision for 64-bit processors
+> that are neither book3s_64 nor fsl_book3e.
+>
+> So it seems that in this existing code:
 
-This get done in a later patch where we rename PMD_SHIFT to H_PMD_SHIFT.
-[PATCH V2 15/29] powerpc/mm: Rename hash specific page table bits (_PAGE* -> H_PAGE*)
+Correct. That confused me as well. Now I am moving nonhash code as it is
+to avoid any regression there. We can take it up as a cleanup if those
+#ifdef can be removed. With the current Kconfig setup, that will be dead
+code. 
+
 
 >
-> Most of what this patch does is to move two tests around:
+>> -static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+>> -			   unsigned long address, unsigned pdshift, unsigned pshift)
+>> -{
+>> -	struct kmem_cache *cachep;
+>> -	pte_t *new;
+>> -
+>> -#ifdef CONFIG_PPC_FSL_BOOK3E
+>> -	int i;
+>> -	int num_hugepd = 1 << (pshift - pdshift);
+>> -	cachep = hugepte_cache;
+>> -#else
+>> -	cachep = PGT_CACHE(pdshift - pshift);
+>> -#endif
+>> -
+>> -	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
+>> -
+>> -	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
+>> -	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
+>> -
+>> -	if (! new)
+>> -		return -ENOMEM;
+>> -
+>> -	spin_lock(&mm->page_table_lock);
+>> -#ifdef CONFIG_PPC_FSL_BOOK3E
+>> -	/*
+>> -	 * We have multiple higher-level entries that point to the same
+>> -	 * actual pte location.  Fill in each as we go and backtrack on error.
+>> -	 * We need all of these so the DTLB pgtable walk code can find the
+>> -	 * right higher-level entry without knowing if it's a hugepage or not.
+>> -	 */
+>> -	for (i = 0; i < num_hugepd; i++, hpdp++) {
+>> -		if (unlikely(!hugepd_none(*hpdp)))
+>> -			break;
+>> -		else
+>> -			/* We use the old format for PPC_FSL_BOOK3E */
+>> -			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
+>> -	}
+>> -	/* If we bailed from the for loop early, an error occurred, clean up */
+>> -	if (i < num_hugepd) {
+>> -		for (i = i - 1 ; i >= 0; i--, hpdp--)
+>> -			hpdp->pd = 0;
+>> -		kmem_cache_free(cachep, new);
+>> -	}
+>> -#else
+>> -	if (!hugepd_none(*hpdp))
+>> -		kmem_cache_free(cachep, new);
+>> -	else {
+>> -#ifdef CONFIG_PPC_BOOK3S_64
+>> -		hpdp->pd = (unsigned long)new |
+>> -			    (shift_to_mmu_psize(pshift) << 2);
+>> -#else
+>> -		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
 >
-> * The #if HPAGE_PMD_ORDER >= MAX_ORDER test get moved from a generic
-> header into all archs except powerpc, and for powerpc it gets turned
-> into BUILD_BUG_ON.  However, BUILD_BUG_ON only works on things that
-> are known at compile time, last time I looked.  Doesn't it need to be
-> a BUG_ON to prepare for HPAGE_PMD_ORDER being a variable that isn't
-> known at compile time?
+> this last line here hasn't ended up anywhere and has effectively been
+> deleted.  Was that deliberate?
 >
-> * The existing BUILD_BUG_ON(HPAGE_PMD_ORDER < 2) gets turned into #if
-> for all archs except powerpc, and for powerpc it stays as a
-> BUILD_BUG_ON but gets moved to arch code.  That doesn't really seem to
-> accomplish anything.  Once again, doesn't it need to become a BUG_ON?
-> If so, could we just make it BUG_ON in the generic code where the
-> BUILD_BUG_ON currently is?
 
-The patch actually got updated after feedback from Kirill
-Updated patch here. We still want to fail during build for ppc64. So
-there is a BUILD_BUG_ON also added
+Didn't get that . We do that in nonhash __hpte_alloc. Adding that here
+for easy review.
 
-http://article.gmane.org/gmane.linux.kernel/2148538
+	spin_lock(&mm->page_table_lock);
+	/*
+	 * We have multiple higher-level entries that point to the same
+	 * actual pte location.  Fill in each as we go and backtrack on error.
+	 * We need all of these so the DTLB pgtable walk code can find the
+	 * right higher-level entry without knowing if it's a hugepage or not.
+	 */
+	for (i = 0; i < num_hugepd; i++, hpdp++) {
+		if (unlikely(!hugepd_none(*hpdp)))
+			break;
+		else
+			/* We use the old format for PPC_FSL_BOOK3E */
+			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
+	}
+
+and the book3s 64 bit variant
+
+	spin_lock(&mm->page_table_lock);
+	if (!hugepd_none(*hpdp))
+		kmem_cache_free(cachep, new);
+	else {
+		hpdp->pd = (unsigned long)new |
+			    (shift_to_mmu_psize(pshift) << 2);
+	}
+
 
 -aneesh
 
