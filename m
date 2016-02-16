@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E8A6B0256
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 05:15:52 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ho8so102325178pac.2
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 02:15:52 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id lf12si879316pab.207.2016.02.16.02.15.51
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 941BD6B0256
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 05:17:00 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id ho8so102340727pac.2
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 02:17:00 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id wf1si50219467pab.219.2016.02.16.02.16.59
         for <linux-mm@kvack.org>;
-        Tue, 16 Feb 2016 02:15:51 -0800 (PST)
-Date: Tue, 16 Feb 2016 13:15:47 +0300
+        Tue, 16 Feb 2016 02:17:00 -0800 (PST)
+Date: Tue, 16 Feb 2016 13:16:42 +0300
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv2 18/28] thp: prepare change_huge_pmd() for file thp
-Message-ID: <20160216101547.GF46557@black.fi.intel.com>
+Subject: Re: [PATCHv2 19/28] thp: run vma_adjust_trans_huge() outside
+ i_mmap_rwsem
+Message-ID: <20160216101642.GG46557@black.fi.intel.com>
 References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1455200516-132137-19-git-send-email-kirill.shutemov@linux.intel.com>
- <56BE291B.3080808@intel.com>
+ <1455200516-132137-20-git-send-email-kirill.shutemov@linux.intel.com>
+ <56BE295A.6060209@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56BE291B.3080808@intel.com>
+In-Reply-To: <56BE295A.6060209@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@intel.com>
 Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 12, 2016 at 10:48:59AM -0800, Dave Hansen wrote:
+On Fri, Feb 12, 2016 at 10:50:02AM -0800, Dave Hansen wrote:
 > On 02/11/2016 06:21 AM, Kirill A. Shutemov wrote:
-> > change_huge_pmd() has assert which is not relvant for file page.
-> > For shared mapping it's perfectly fine to have page table entry
-> > writable, without explicit mkwrite.
+> > vma_addjust_trans_huge() splits pmd if it's crossing VMA boundary.
+> > During split we munlock the huge page which requires rmap walk.
+> > rmap wants to take the lock on its own.
 > 
-> Should we have the bug only trigger on anonymous VMAs instead of
-> removing it?
+> Which lock are you talking about here?
 
-Makes sense.
+i_mmap_rwsem. It's in patch subject. I'll update body.
 
 -- 
  Kirill A. Shutemov
