@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6CD6B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:25:46 -0500 (EST)
-Received: by mail-qk0-f178.google.com with SMTP id s68so64034568qkh.3
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:25:46 -0800 (PST)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id d77si39435601qkb.20.2016.02.16.00.25.45
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 336B06B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:36:11 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id g62so180363284wme.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:11 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id ll4si47162700wjb.130.2016.02.16.00.36.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 00:25:46 -0800 (PST)
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 Feb 2016 01:25:44 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 176F71FF0023
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:13:51 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1G8PfTd26542150
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:25:41 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1G8PeRY006062
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:25:40 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2 12/29] powerpc/mm: Move hash64 specific defintions to seperate header
-In-Reply-To: <20160215052449.GE3797@oak.ozlabs.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160215052449.GE3797@oak.ozlabs.ibm.com>
-Date: Tue, 16 Feb 2016 13:55:31 +0530
-Message-ID: <87y4aldptw.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Feb 2016 00:36:10 -0800 (PST)
+Received: by mail-wm0-x231.google.com with SMTP id g62so93938350wme.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:36:10 -0800 (PST)
+Date: Tue, 16 Feb 2016 09:36:06 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 02/33] mm: overload get_user_pages() functions
+Message-ID: <20160216083606.GB3335@gmail.com>
+References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+ <20160212210155.73222EE1@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160212210155.73222EE1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@ozlabs.org>
-Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Dave Hansen <dave@sr71.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, dave.hansen@linux.intel.com, srikar@linux.vnet.ibm.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, aarcange@redhat.com, n-horiguchi@ah.jp.nec.com, jack@suse.cz
 
-Paul Mackerras <paulus@ozlabs.org> writes:
 
-> On Mon, Feb 08, 2016 at 02:50:24PM +0530, Aneesh Kumar K.V wrote:
->> Also split pgalloc 64k and 4k headers
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->
-> In the subject: s/defintions/definitions/; s/seperate/separate/
->
-> A more detailed patch description would be good.  Apart from that,
->
-> Reviewed-by: Paul Mackerras <paulus@samba.org>
+* Dave Hansen <dave@sr71.net> wrote:
 
-Updated as below:
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> The concept here was a suggestion from Ingo.  The implementation
+> horrors are all mine.
+> 
+> This allows get_user_pages(), get_user_pages_unlocked(), and
+> get_user_pages_locked() to be called with or without the
+> leading tsk/mm arguments.  We will give a compile-time warning
+> about the old style being __deprecated and we will also
+> WARN_ON() if the non-remote version is used for a remote-style
+> access.
 
-powerpc/mm: Move hash64 specific definitions to separate header
+So at minimum this should be WARN_ON_ONCE(), to make it easier to recover some 
+meaningful kernel log from such incidents.
 
-We will be adding a radix variant of these routines in the followup
-patches. Move the hash64 variant into its own header so that we can
-rename them easily later. Also split pgalloc 64k and 4k headers
+But:
 
-Reviewed-by: Paul Mackerras <paulus@samba.org>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Doing this, folks will get nice warnings and will not break the
+> build.  This should be nice for -next and will hopefully let
+> developers fix up their own code instead of maintainers needing
+> to do it at merge time.
+> 
+> The way we do this is hideous.  It uses the __VA_ARGS__ macro
+> functionality to call different functions based on the number
+> of arguments passed to the macro.
+> 
+> There's an additional hack to ensure that our EXPORT_SYMBOL()
+> of the deprecated symbols doesn't trigger a warning.
+> 
+> We should be able to remove this mess as soon as -rc1 hits in
+> the release after this is merged.
+
+So when I suggested this then it looked a _lot_ cleanear to me, in my head!
+
+OTOH this, if factored out a bit perhaps, could be the basis for a useful 
+technical model to do 'phased in, -next invariant' prototype migrations in the 
+future, especially when it involves lots of subsystems.
+
+Strictly only in cases where -rc1 will truly get rid of the __VA_ARGS__ hackery - 
+which we'd do in this case.
+
+Nevertheless I'd love to have a high level buy-in from either Linus or Andrew that 
+we can do it this way, as the hackery looks very hideous...
+
+The alternative would be to allow the -next churn and to allow the occasional 
+(fairly trivial but tester-disruptive) build breakage.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
