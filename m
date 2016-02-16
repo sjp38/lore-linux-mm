@@ -1,150 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 74EF46B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:20:20 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id b35so127408856qge.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:20:20 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id s95si39418424qgs.25.2016.02.16.00.20.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 00:20:19 -0800 (PST)
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 Feb 2016 01:20:18 -0700
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B959A1FF0023
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:08:25 -0700 (MST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1G8KFdi32571408
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:20:15 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1G8KFOW020035
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:20:15 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2 09/29] powerpc/mm: Hugetlbfs is book3s_64 and fsl_book3e (32 or 64)
-In-Reply-To: <20160215050133.GD3797@oak.ozlabs.ibm.com>
-References: <1454923241-6681-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1454923241-6681-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160215050133.GD3797@oak.ozlabs.ibm.com>
-Date: Tue, 16 Feb 2016 13:50:05 +0530
-Message-ID: <871t8df4ne.fsf@linux.vnet.ibm.com>
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 612A76B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:22:46 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id hb3so68033784igb.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 00:22:46 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id o4si33358468igv.58.2016.02.16.00.22.44
+        for <linux-mm@kvack.org>;
+        Tue, 16 Feb 2016 00:22:45 -0800 (PST)
+Date: Tue, 16 Feb 2016 19:22:41 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] kernel: fs: drop_caches: add dds drop_caches_count
+Message-ID: <20160216082241.GY19486@dastard>
+References: <1455308080-27238-1-git-send-email-danielwa@cisco.com>
+ <20160214211856.GT19486@dastard>
+ <56C216CA.7000703@cisco.com>
+ <20160215230511.GU19486@dastard>
+ <56C264BF.3090100@cisco.com>
+ <20160216052852.GW19486@dastard>
+ <alpine.LRH.2.00.1602152135280.29586@mcp-bld-lnx-277.cisco.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.00.1602152135280.29586@mcp-bld-lnx-277.cisco.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@ozlabs.org>
-Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Nag Avadhanam <nag@cisco.com>
+Cc: Daniel Walker <danielwa@cisco.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Khalid Mughal <khalidm@cisco.com>, xe-kernel@external.cisco.com, dave.hansen@intel.com, hannes@cmpxchg.org, riel@redhat.com, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Paul Mackerras <paulus@ozlabs.org> writes:
+On Mon, Feb 15, 2016 at 09:57:42PM -0800, Nag Avadhanam wrote:
+> On Mon, 15 Feb 2016, Dave Chinner wrote:
+> >So, to pick a random active server here:
+> >
+> >		before		after
+> >Active(file):   12103200 kB	24060 kB
+> >Inactive(file):  5976676 kB	 1380 kB
+> >Mapped:            31308 kB	31308 kB
+> >
+> >How much was not reclaimed? Roughly the same number of pages as the
+> >Mapped count, and that's exactly what we'd expect to see from the
+> >above page walk counting code. Hence a slightly better approximation
+> >of the pages that dropping caches will reclaim is:
+> >
+> >reclaimable pages = active + inactive - dirty - writeback - mapped
+> 
+> Thanks Dave. I considered that, but see this.
+> 
+> Mapped page count below is much higher than the (active(file) +
+> inactive (file)).
 
-> On Mon, Feb 08, 2016 at 02:50:21PM +0530, Aneesh Kumar K.V wrote:
->> We move large part of fsl related code to hugetlbpage-book3e.c.
->> Only code movement. This also avoid #ifdef in the code.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->
-> I am wondering why you are adding #ifdef CONFIG_PPC_FSL_BOOK3E
-> instances to hugetlbpage-book3e.c.  As far as I can tell from the
-> Kconfig* files, we only support hugetlbfs on book3s_64 and
-> fsl_book3e.  Yet it seems like we have provision for 64-bit processors
-> that are neither book3s_64 nor fsl_book3e.
->
-> So it seems that in this existing code:
+Yes. it's all unreclaimable from drop caches, though.
 
-Correct. That confused me as well. Now I am moving nonhash code as it is
-to avoid any regression there. We can take it up as a cleanup if those
-#ifdef can be removed. With the current Kconfig setup, that will be dead
-code. 
+> Mapped seems to include all page cache pages mapped into the process
+> memory, including the shared memory pages, file pages and few other
+> type
+> mappings.
+> 
+> I suppose the above can be rewritten as (mapped is still high):
+> 
+> reclaimable pages = active + inactive + shmem - dirty - writeback - mapped
+> 
+> What about kernel pages mapped into user address space? Does "Mapped"
+> include those pages as well? How do we exclude them? What about
+> device mappings? Are these excluded in the "Mapped" pages
+> calculation?
 
+/me shrugs.
 
->
->> -static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
->> -			   unsigned long address, unsigned pdshift, unsigned pshift)
->> -{
->> -	struct kmem_cache *cachep;
->> -	pte_t *new;
->> -
->> -#ifdef CONFIG_PPC_FSL_BOOK3E
->> -	int i;
->> -	int num_hugepd = 1 << (pshift - pdshift);
->> -	cachep = hugepte_cache;
->> -#else
->> -	cachep = PGT_CACHE(pdshift - pshift);
->> -#endif
->> -
->> -	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
->> -
->> -	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
->> -	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
->> -
->> -	if (! new)
->> -		return -ENOMEM;
->> -
->> -	spin_lock(&mm->page_table_lock);
->> -#ifdef CONFIG_PPC_FSL_BOOK3E
->> -	/*
->> -	 * We have multiple higher-level entries that point to the same
->> -	 * actual pte location.  Fill in each as we go and backtrack on error.
->> -	 * We need all of these so the DTLB pgtable walk code can find the
->> -	 * right higher-level entry without knowing if it's a hugepage or not.
->> -	 */
->> -	for (i = 0; i < num_hugepd; i++, hpdp++) {
->> -		if (unlikely(!hugepd_none(*hpdp)))
->> -			break;
->> -		else
->> -			/* We use the old format for PPC_FSL_BOOK3E */
->> -			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
->> -	}
->> -	/* If we bailed from the for loop early, an error occurred, clean up */
->> -	if (i < num_hugepd) {
->> -		for (i = i - 1 ; i >= 0; i--, hpdp--)
->> -			hpdp->pd = 0;
->> -		kmem_cache_free(cachep, new);
->> -	}
->> -#else
->> -	if (!hugepd_none(*hpdp))
->> -		kmem_cache_free(cachep, new);
->> -	else {
->> -#ifdef CONFIG_PPC_BOOK3S_64
->> -		hpdp->pd = (unsigned long)new |
->> -			    (shift_to_mmu_psize(pshift) << 2);
->> -#else
->> -		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
->
-> this last line here hasn't ended up anywhere and has effectively been
-> deleted.  Was that deliberate?
->
+I have no idea - I really don't care about what pages are accounted
+as mapped. I assumed that the patch proposed addressed your
+requirements and so I suggested an alternative that provided almost
+exactly the same information but erred on the side of
+underestimation and hence solves your problem of drop_caches not
+freeing as much memory as you expected....
 
-Didn't get that . We do that in nonhash __hpte_alloc. Adding that here
-for easy review.
+Cheers,
 
-	spin_lock(&mm->page_table_lock);
-	/*
-	 * We have multiple higher-level entries that point to the same
-	 * actual pte location.  Fill in each as we go and backtrack on error.
-	 * We need all of these so the DTLB pgtable walk code can find the
-	 * right higher-level entry without knowing if it's a hugepage or not.
-	 */
-	for (i = 0; i < num_hugepd; i++, hpdp++) {
-		if (unlikely(!hugepd_none(*hpdp)))
-			break;
-		else
-			/* We use the old format for PPC_FSL_BOOK3E */
-			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
-	}
-
-and the book3s 64 bit variant
-
-	spin_lock(&mm->page_table_lock);
-	if (!hugepd_none(*hpdp))
-		kmem_cache_free(cachep, new);
-	else {
-		hpdp->pd = (unsigned long)new |
-			    (shift_to_mmu_psize(pshift) << 2);
-	}
-
-
--aneesh
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
