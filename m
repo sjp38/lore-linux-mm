@@ -1,251 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1414A6B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 06:11:38 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id yy13so101684737pab.3
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 03:11:38 -0800 (PST)
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4222A6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 08:10:25 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id q63so105088506pfb.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 05:10:25 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id o129si21791672pfo.19.2016.02.16.03.11.36
+        by mx.google.com with ESMTPS id d6si51122656pas.224.2016.02.16.05.10.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 03:11:36 -0800 (PST)
-Subject: Re: [PATCH 5/5] mm, oom_reaper: implement OOM victims queuing
+        Tue, 16 Feb 2016 05:10:23 -0800 (PST)
+Subject: Re: [PATCH 0/3] OOM detection rework v4
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160204145357.GE14425@dhcp22.suse.cz>
-	<201602061454.GDG43774.LSHtOOMFOFVJQF@I-love.SAKURA.ne.jp>
-	<20160206083757.GB25220@dhcp22.suse.cz>
-	<201602070033.GFC13307.MOJQtFHOFOVLFS@I-love.SAKURA.ne.jp>
-	<20160215201535.GB9223@dhcp22.suse.cz>
-In-Reply-To: <20160215201535.GB9223@dhcp22.suse.cz>
-Message-Id: <201602162011.ECG52697.VOLJFtOQHFMSFO@I-love.SAKURA.ne.jp>
-Date: Tue, 16 Feb 2016 20:11:24 +0900
+References: <20160204125700.GA14425@dhcp22.suse.cz>
+	<201602042210.BCG18704.HOMFFJOStQFOLV@I-love.SAKURA.ne.jp>
+	<20160204133905.GB14425@dhcp22.suse.cz>
+	<201602071309.EJD59750.FOVMSFOOFHtJQL@I-love.SAKURA.ne.jp>
+	<20160215200603.GA9223@dhcp22.suse.cz>
+In-Reply-To: <20160215200603.GA9223@dhcp22.suse.cz>
+Message-Id: <201602162210.DJH39596.OSHQFtFLFOMVOJ@I-love.SAKURA.ne.jp>
+Date: Tue, 16 Feb 2016 22:10:01 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Michal Hocko wrote:
-> Unless we are under global OOM then this doesn't matter much because the
-> allocation request should succeed at some point in time and memcg
-> charges are bypassed for tasks with pending fatal signals. So we can
-> make a forward progress.
+> On Sun 07-02-16 13:09:33, Tetsuo Handa wrote:
+> [...]
+> > FYI, I again hit unexpected OOM-killer during genxref on linux-4.5-rc2 source.
+> > I think current patchset is too fragile to merge.
+> > ----------------------------------------
+> > [ 3101.626995] smbd invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+> > [ 3101.629148] smbd cpuset=/ mems_allowed=0
+> [...]
+> > [ 3101.705887] Node 0 DMA: 75*4kB (UME) 69*8kB (UME) 43*16kB (UM) 23*32kB (UME) 8*64kB (UM) 4*128kB (UME) 2*256kB (UM) 0*512kB 1*1024kB (U) 1*2048kB (M) 0*4096kB = 6884kB
+> > [ 3101.710581] Node 0 DMA32: 4513*4kB (UME) 15*8kB (U) 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 18172kB
+> 
+> How come this is an unexpected OOM? There is clearly no order-2+ page
+> available for the allocation request.
 
-Hmm, then I wonder how memcg OOM livelock occurs. Anyway, OK for now.
+I used "unexpected" because there were only 35 userspace processes and
+genxref was the only process which did a lot of memory allocation
+(modulo kernel threads woken by file I/O) and most memory is reclaimable.
 
-But current OOM reaper forgot a protection for list item "double add" bug.
-Precisely speaking, this is not a OOM reaper's bug.
+> 
+> > > Something like the following:
+> > Yes, I do think we need something like it.
+> 
+> Was the patch applied?
 
-----------
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+No for above result.
 
-static int file_writer(void)
-{
-	static char buffer[4096] = { }; 
-	const int fd = open("/tmp/file", O_WRONLY | O_CREAT | O_APPEND, 0600);
-	while (write(fd, buffer, sizeof(buffer)) == sizeof(buffer));
-	return 0;
-}
-
-static int memory_consumer(void)
-{
-	const int fd = open("/dev/zero", O_RDONLY);
-	unsigned long size;
-	char *buf = NULL;
-	sleep(1);
-	unlink("/tmp/file");
-	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-		char *cp = realloc(buf, size);
-		if (!cp) {
-			size >>= 1;
-			break;
-		}
-		buf = cp;
-	}
-	read(fd, buf, size); /* Will cause OOM due to overcommit */
-	return 0;
-}
-
-int main(int argc, char *argv[])
-{
-	int i;
-	for (i = 0; i < 1024; i++)
-		if (fork() == 0) {
-			file_writer();
-			_exit(0);
-		}
-	memory_consumer();
-	while (1)
-		pause();
-}
-----------
-
-Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20160216.txt.xz .
-----------
-[  140.758667] a.out invoked oom-killer: gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
-[  140.760706] a.out cpuset=/ mems_allowed=0
-(...snipped...)
-[  140.860676] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-[  140.864883] Killed process 10596 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  140.868483] oom_reaper: reaped process 10596 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0lB
-(...snipped...)
-** 3 printk messages dropped ** [  206.416481] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-** 2 printk messages dropped ** [  206.418908] Killed process 10600 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-** 2 printk messages dropped ** [  206.421956] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-** 2 printk messages dropped ** [  206.424293] INFO: rcu_sched self-detected stall on CPU
-** 3 printk messages dropped ** [  206.424300] oom_reaper      R  running task        0    33      2 0x00000008
-[  206.424302]  ffff88007cd35900 000000000b04b66b ffff88007fcc3dd0 ffffffff8109db68
-** 1 printk messages dropped ** [  206.424304]  ffffffff810a0bc4 0000000000000003 ffff88007fcc3e18 ffffffff8113e092
-** 4 printk messages dropped ** [  206.424316]  [<ffffffff8113e092>] rcu_dump_cpu_stacks+0x73/0x94
-** 3 printk messages dropped ** [  206.424322]  [<ffffffff810e2d44>] update_process_times+0x34/0x60
-** 2 printk messages dropped ** [  206.424327]  [<ffffffff810f2a50>] ? tick_sched_handle.isra.20+0x40/0x40
-** 4 printk messages dropped ** [  206.424334]  [<ffffffff81049598>] smp_apic_timer_interrupt+0x38/0x50
-** 3 printk messages dropped ** [  206.424342]  [<ffffffff810d0f9a>] vprintk_default+0x1a/0x20
-** 2 printk messages dropped ** [  206.424346]  [<ffffffff81708291>] ? _raw_spin_unlock_irqrestore+0x31/0x60
-** 5 printk messages dropped ** [  206.424355]  [<ffffffff81090950>] ? kthread_create_on_node+0x230/0x230
-** 2 printk messages dropped ** [  206.431196] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-** 3 printk messages dropped ** [  206.434491] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-** 1 printk messages dropped ** [  206.436152] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-** 3 printk messages dropped ** [  206.439359] Out of memory (oom_kill_allocating_task): Kill process 10595 (a.out) score 0 or sacrifice child
-(...snipped...)
-[  312.387913] general protection fault: 0000 [#1] SMP 
-[  312.387943] Modules linked in: ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ipt_REJECT nf_reject_ipv4 nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_mangle iptable_security iptable_raw iptable_filter coretemp crct10dif_pclmul crc32_pclmul ghash_clmulni_intel aesni_intel glue_helper lrw gf128mul ablk_helper cryptd ppdev vmw_balloon pcspkr sg parport_pc shpchp parport i2c_piix4 vmw_vmci ip_tables sd_mod ata_generic pata_acpi crc32c_intel serio_raw mptspi scsi_transport_spi mptscsih vmwgfx mptbase drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ahci ttm libahci drm ata_piix e1000 libata i2c_core
-[  312.387945] CPU: 0 PID: 33 Comm: oom_reaper Not tainted 4.5.0-rc4-next-20160216 #305
-[  312.387946] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[  312.387947] task: ffff88007cd35900 ti: ffff88007cdf0000 task.ti: ffff88007cdf0000
-[  312.387953] RIP: 0010:[<ffffffff8114425c>]  [<ffffffff8114425c>] oom_reaper+0x9c/0x1e0
-[  312.387954] RSP: 0018:ffff88007cdf3e00  EFLAGS: 00010287
-[  312.387954] RAX: dead000000000200 RBX: ffff8800621bac80 RCX: 0000000000000001
-[  312.387955] RDX: dead000000000100 RSI: 0000000000000000 RDI: ffffffff81c4cac0
-[  312.387955] RBP: ffff88007cdf3e60 R08: 0000000000000001 R09: 0000000000000000
-[  312.387956] R10: 0000000000000000 R11: 0000000000000000 R12: ffff88007cd35900
-[  312.387956] R13: 0000000000000001 R14: ffff88007cdf3e20 R15: ffff8800621bbe50
-[  312.387957] FS:  0000000000000000(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
-[  312.387958] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  312.387958] CR2: 00007f6d8eaa5000 CR3: 000000006361e000 CR4: 00000000001406f0
-[  312.387988] Stack:
-[  312.387990]  ffff88007cd35900 ffffffff00000000 ffff88007cd35900 ffffffff810b6100
-[  312.387991]  ffff88007cdf3e20 ffff88007cdf3e20 000000000b04b66b ffff88007cd9f340
-[  312.387992]  0000000000000000 ffffffff811441c0 ffffffff81c4e300 0000000000000000
-[  312.387992] Call Trace:
-[  312.387998]  [<ffffffff810b6100>] ? wait_woken+0x90/0x90
-[  312.388003]  [<ffffffff811441c0>] ? __oom_reap_task+0x220/0x220
-[  312.388005]  [<ffffffff81090a49>] kthread+0xf9/0x110
-[  312.388011]  [<ffffffff81708c32>] ret_from_fork+0x22/0x50
-[  312.388012]  [<ffffffff81090950>] ? kthread_create_on_node+0x230/0x230
-[  312.388025] Code: cb c4 81 0f 84 a0 00 00 00 4c 8b 3d bf 88 b0 00 48 c7 c7 c0 ca c4 81 41 bd 01 00 00 00 49 8b 47 08 49 8b 17 49 8d 9f 30 ee ff ff <48> 89 42 08 48 89 10 48 b8 00 01 00 00 00 00 ad de 49 89 07 66 
-[  312.388027] RIP  [<ffffffff8114425c>] oom_reaper+0x9c/0x1e0
-[  312.388028]  RSP <ffff88007cdf3e00>
-[  312.388029] ---[ end trace ea62d9784868759a ]---
-[  312.388031] BUG: sleeping function called from invalid context at include/linux/sched.h:2819
-[  312.388032] in_atomic(): 1, irqs_disabled(): 0, pid: 33, name: oom_reaper
-[  312.388033] INFO: lockdep is turned off.
-[  312.388034] CPU: 0 PID: 33 Comm: oom_reaper Tainted: G      D         4.5.0-rc4-next-20160216 #305
-[  312.388035] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[  312.388036]  0000000000000286 000000000b04b66b ffff88007cdf3be0 ffffffff8139e83d
-[  312.388037]  ffff88007cd35900 ffffffff819b931a ffff88007cdf3c08 ffffffff810961eb
-[  312.388038]  ffffffff819b931a 0000000000000b03 0000000000000000 ffff88007cdf3c30
-[  312.388038] Call Trace:
-[  312.388043]  [<ffffffff8139e83d>] dump_stack+0x85/0xc8
-[  312.388046]  [<ffffffff810961eb>] ___might_sleep+0x14b/0x240
-[  312.388047]  [<ffffffff81096324>] __might_sleep+0x44/0x80
-[  312.388050]  [<ffffffff8107f7ee>] exit_signals+0x2e/0x150
-[  312.388051]  [<ffffffff81091fa1>] ? blocking_notifier_call_chain+0x11/0x20
-[  312.388054]  [<ffffffff81072e32>] do_exit+0xc2/0xb50
-[  312.388057]  [<ffffffff8101893c>] oops_end+0x9c/0xd0
-[  312.388058]  [<ffffffff81018ba6>] die+0x46/0x60
-[  312.388059]  [<ffffffff8101602b>] do_general_protection+0xdb/0x1b0
-[  312.388061]  [<ffffffff8170a4f8>] general_protection+0x28/0x30
-[  312.388064]  [<ffffffff8114425c>] ? oom_reaper+0x9c/0x1e0
-[  312.388066]  [<ffffffff810b6100>] ? wait_woken+0x90/0x90
-[  312.388067]  [<ffffffff811441c0>] ? __oom_reap_task+0x220/0x220
-[  312.388068]  [<ffffffff81090a49>] kthread+0xf9/0x110
-[  312.388071]  [<ffffffff81708c32>] ret_from_fork+0x22/0x50
-[  312.388072]  [<ffffffff81090950>] ? kthread_create_on_node+0x230/0x230
-[  312.388075] note: oom_reaper[33] exited with preempt_count 1
-----------
-
-For oom_kill_allocating_task = 1 case (despite the name, it still tries to kill
-children first), the OOM killer does not wait for OOM victim to clear TIF_MEMDIE
-because select_bad_process() is not called. Therefore, if an OOM victim fails to
-terminate because the OOM reaper failed to reap enough memory, the kernel is
-flooded with OOM killer messages trying to kill that stuck victim (with OOM
-reaper lockup due to list corruption).
-
-Adding an OOM victim which was already added to oom_reaper_list is wrong.
-What should we do here?
-
-(Choice 1) Make sure that TIF_MEMDIE thread is not chosen as an OOM victim.
-           This will avoid list corruption, but choosing other !TIF_MEMDIE
-           threads sharing the TIF_MEMDIE thread's mm and adding them to
-           oom_reaper_list does not make sense.
-
-(Choice 2) Make sure that any process which includes a TIF_MEMDIE thread is
-           not chosen as an OOM victim. But choosing other processes without
-           TIF_MEMDIE thread sharing the TIF_MEMDIE thread's mm and adding
-           them to oom_reaper_list does not make sense. A mm should be added
-           to oom_reaper_list up to only once.
-
-(Choice 3) Make sure that any process which uses a mm which was added to
-           oom_reaper_list is not chosen as an OOM victim. This would mean
-           replacing test_tsk_thread_flag(task, TIF_MEMDIE) with
-           (mm = task->mm, mm && test_bit(MMF_OOM_VICTIM, &mm->flags))
-           in OOM killer and replacing test_thread_flag(TIF_MEMDIE) with
-           (current->mm && test_bit(MMF_OOM_VICTIM, &current->mm->flags) &&
-            (fatal_signal_pending(current) || (current->flags & PF_EXITING)))
-           in ALLOC_NO_WATERMARKS check.
-
-(Choice 4) Call select_bad_process() for oom_kill_allocating_task = 1 case.
+A result with the patch (20160204142400.GC14425@dhcp22.suse.cz) applied on
+today's linux-next is shown below. It seems that protection is not enough.
 
 ----------
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7653055..5e3e2f2 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -880,15 +880,6 @@ bool out_of_memory(struct oom_control *oc)
- 		oc->nodemask = NULL;
- 	check_panic_on_oom(oc, constraint, NULL);
- 
--	if (sysctl_oom_kill_allocating_task && current->mm &&
--	    !oom_unkillable_task(current, NULL, oc->nodemask) &&
--	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
--		get_task_struct(current);
--		oom_kill_process(oc, current, 0, totalpages, NULL,
--				 "Out of memory (oom_kill_allocating_task)");
--		return true;
--	}
--
- 	p = select_bad_process(oc, &points, totalpages);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!p && !is_sysrq_oom(oc)) {
-@@ -896,8 +887,16 @@ bool out_of_memory(struct oom_control *oc)
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 	if (p && p != (void *)-1UL) {
--		oom_kill_process(oc, p, points, totalpages, NULL,
--				 "Out of memory");
-+		if (sysctl_oom_kill_allocating_task && current->mm &&
-+		    !oom_unkillable_task(current, NULL, oc->nodemask) &&
-+		    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-+			put_task_struct(p);
-+			get_task_struct(current);
-+			oom_kill_process(oc, current, 0, totalpages, NULL,
-+					 "Out of memory (oom_kill_allocating_task)");
-+		} else
-+			oom_kill_process(oc, p, points, totalpages, NULL,
-+					 "Out of memory");
- 		/*
- 		 * Give the killed process a good chance to exit before trying
- 		 * to allocate memory again.
-----------
+[  118.584571] fork invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+[  118.586684] fork cpuset=/ mems_allowed=0
+[  118.588254] CPU: 2 PID: 9565 Comm: fork Not tainted 4.5.0-rc4-next-20160216+ #306
+[  118.589795] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[  118.591941]  0000000000000286 0000000085a9ed62 ffff88007b3d3ad0 ffffffff8139e82d
+[  118.593616]  0000000000000000 ffff88007b3d3d00 ffff88007b3d3b70 ffffffff811bedec
+[  118.595273]  0000000000000206 ffffffff81810b70 ffff88007b3d3b10 ffffffff810be8f9
+[  118.596970] Call Trace:
+[  118.597634]  [<ffffffff8139e82d>] dump_stack+0x85/0xc8
+[  118.598787]  [<ffffffff811bedec>] dump_header+0x5b/0x3b0
+[  118.599979]  [<ffffffff810be8f9>] ? trace_hardirqs_on_caller+0xf9/0x1c0
+[  118.601421]  [<ffffffff810be9cd>] ? trace_hardirqs_on+0xd/0x10
+[  118.602713]  [<ffffffff811447f6>] oom_kill_process+0x366/0x550
+[  118.604882]  [<ffffffff81144c1f>] out_of_memory+0x1ef/0x5a0
+[  118.606940]  [<ffffffff81144cdd>] ? out_of_memory+0x2ad/0x5a0
+[  118.608275]  [<ffffffff8114a63b>] __alloc_pages_nodemask+0xb3b/0xd80
+[  118.609698]  [<ffffffff810be800>] ? mark_held_locks+0x90/0x90
+[  118.611166]  [<ffffffff8114aa3c>] alloc_kmem_pages_node+0x4c/0xc0
+[  118.612589]  [<ffffffff8106d661>] copy_process.part.33+0x131/0x1be0
+[  118.614203]  [<ffffffff8111e20a>] ? __audit_syscall_entry+0xaa/0xf0
+[  118.615689]  [<ffffffff810e8939>] ? current_kernel_time64+0xa9/0xc0
+[  118.617151]  [<ffffffff8106f2db>] _do_fork+0xdb/0x5d0
+[  118.618391]  [<ffffffff810030c1>] ? do_audit_syscall_entry+0x61/0x70
+[  118.619875]  [<ffffffff81003254>] ? syscall_trace_enter_phase1+0x134/0x150
+[  118.621642]  [<ffffffff810bae1a>] ? up_read+0x1a/0x40
+[  118.622920]  [<ffffffff817093ce>] ? retint_user+0x18/0x23
+[  118.624262]  [<ffffffff810035ec>] ? do_syscall_64+0x1c/0x180
+[  118.625661]  [<ffffffff8106f854>] SyS_clone+0x14/0x20
+[  118.626959]  [<ffffffff8100362d>] do_syscall_64+0x5d/0x180
+[  118.628340]  [<ffffffff81708abf>] entry_SYSCALL64_slow_path+0x25/0x25
+[  118.630002] Mem-Info:
+[  118.630853] active_anon:27270 inactive_anon:2094 isolated_anon:0
+[  118.630853]  active_file:253575 inactive_file:89021 isolated_file:22
+[  118.630853]  unevictable:0 dirty:0 writeback:0 unstable:0
+[  118.630853]  slab_reclaimable:14202 slab_unreclaimable:13906
+[  118.630853]  mapped:1622 shmem:2162 pagetables:10587 bounce:0
+[  118.630853]  free:5328 free_pcp:356 free_cma:0
+[  118.639774] Node 0 DMA free:6904kB min:44kB low:52kB high:64kB active_anon:3280kB inactive_anon:156kB active_file:684kB inactive_file:2292kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15988kB managed:15904kB mlocked:0kB dirty:0kB writeback:0kB mapped:420kB shmem:164kB slab_reclaimable:564kB slab_unreclaimable:800kB kernel_stack:256kB pagetables:200kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[  118.650132] lowmem_reserve[]: 0 1714 1714 1714
+[  118.651763] Node 0 DMA32 free:14256kB min:5172kB low:6464kB high:7756kB active_anon:105924kB inactive_anon:8220kB active_file:1026268kB inactive_file:340844kB unevictable:0kB isolated(anon):0kB isolated(file):88kB present:2080640kB managed:1759460kB mlocked:0kB dirty:0kB writeback:0kB mapped:6436kB shmem:8484kB slab_reclaimable:56740kB slab_unreclaimable:54824kB kernel_stack:28112kB pagetables:42148kB unstable:0kB bounce:0kB free_pcp:1440kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[  118.663101] lowmem_reserve[]: 0 0 0 0
+[  118.664704] Node 0 DMA: 83*4kB (ME) 51*8kB (UME) 9*16kB (UME) 2*32kB (UM) 1*64kB (M) 4*128kB (UME) 5*256kB (UME) 2*512kB (UM) 1*1024kB (E) 1*2048kB (M) 0*4096kB = 6900kB
+[  118.670166] Node 0 DMA32: 2327*4kB (ME) 621*8kB (M) 1*16kB (M) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 14292kB
+[  118.673742] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[  118.676297] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[  118.678610] 344508 total pagecache pages
+[  118.680163] 0 pages in swap cache
+[  118.681567] Swap cache stats: add 0, delete 0, find 0/0
+[  118.681567] Free swap  = 0kB
+[  118.681568] Total swap = 0kB
+[  118.681625] 524157 pages RAM
+[  118.681625] 0 pages HighMem/MovableOnly
+[  118.681625] 80316 pages reserved
+[  118.681626] 0 pages hwpoisoned
 
-(Choice 5) Any other ideas?
+[  120.117093] fork invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+[  120.117097] fork cpuset=/ mems_allowed=0
+[  120.117099] CPU: 0 PID: 9566 Comm: fork Not tainted 4.5.0-rc4-next-20160216+ #306
+[  120.117100] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[  120.117102]  0000000000000286 00000000be6c9129 ffff880035dabad0 ffffffff8139e82d
+[  120.117103]  0000000000000000 ffff880035dabd00 ffff880035dabb70 ffffffff811bedec
+[  120.117104]  0000000000000206 ffffffff81810b70 ffff880035dabb10 ffffffff810be8f9
+[  120.117104] Call Trace:
+[  120.117111]  [<ffffffff8139e82d>] dump_stack+0x85/0xc8
+[  120.117113]  [<ffffffff811bedec>] dump_header+0x5b/0x3b0
+[  120.117116]  [<ffffffff810be8f9>] ? trace_hardirqs_on_caller+0xf9/0x1c0
+[  120.117117]  [<ffffffff810be9cd>] ? trace_hardirqs_on+0xd/0x10
+[  120.117119]  [<ffffffff811447f6>] oom_kill_process+0x366/0x550
+[  120.117121]  [<ffffffff81144c1f>] out_of_memory+0x1ef/0x5a0
+[  120.117122]  [<ffffffff81144cdd>] ? out_of_memory+0x2ad/0x5a0
+[  120.117123]  [<ffffffff8114a63b>] __alloc_pages_nodemask+0xb3b/0xd80
+[  120.117124]  [<ffffffff810be800>] ? mark_held_locks+0x90/0x90
+[  120.117125]  [<ffffffff8114aa3c>] alloc_kmem_pages_node+0x4c/0xc0
+[  120.117128]  [<ffffffff8106d661>] copy_process.part.33+0x131/0x1be0
+[  120.117130]  [<ffffffff8111e20a>] ? __audit_syscall_entry+0xaa/0xf0
+[  120.117132]  [<ffffffff810e8939>] ? current_kernel_time64+0xa9/0xc0
+[  120.117133]  [<ffffffff8106f2db>] _do_fork+0xdb/0x5d0
+[  120.117136]  [<ffffffff810030c1>] ? do_audit_syscall_entry+0x61/0x70
+[  120.117137]  [<ffffffff81003254>] ? syscall_trace_enter_phase1+0x134/0x150
+[  120.117139]  [<ffffffff810bae1a>] ? up_read+0x1a/0x40
+[  120.117142]  [<ffffffff817093ce>] ? retint_user+0x18/0x23
+[  120.117143]  [<ffffffff810035ec>] ? do_syscall_64+0x1c/0x180
+[  120.117144]  [<ffffffff8106f854>] SyS_clone+0x14/0x20
+[  120.117145]  [<ffffffff8100362d>] do_syscall_64+0x5d/0x180
+[  120.117147]  [<ffffffff81708abf>] entry_SYSCALL64_slow_path+0x25/0x25
+[  120.117147] Mem-Info:
+[  120.117150] active_anon:30895 inactive_anon:2094 isolated_anon:0
+[  120.117150]  active_file:183306 inactive_file:118692 isolated_file:18
+[  120.117150]  unevictable:0 dirty:47 writeback:0 unstable:0
+[  120.117150]  slab_reclaimable:14405 slab_unreclaimable:22372
+[  120.117150]  mapped:3101 shmem:2162 pagetables:20154 bounce:0
+[  120.117150]  free:7231 free_pcp:108 free_cma:0
+[  120.117154] Node 0 DMA free:6904kB min:44kB low:52kB high:64kB active_anon:1172kB inactive_anon:156kB active_file:684kB inactive_file:1356kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15988kB managed:15904kB mlocked:0kB dirty:0kB writeback:0kB mapped:420kB shmem:164kB slab_reclaimable:564kB slab_unreclaimable:2244kB kernel_stack:1376kB pagetables:436kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:4 all_unreclaimable? no
+[  120.117156] lowmem_reserve[]: 0 1714 1714 1714
+[  120.117172] Node 0 DMA32 free:22020kB min:5172kB low:6464kB high:7756kB active_anon:122408kB inactive_anon:8220kB active_file:732540kB inactive_file:473412kB unevictable:0kB isolated(anon):0kB isolated(file):72kB present:2080640kB managed:1759460kB mlocked:0kB dirty:188kB writeback:0kB mapped:11984kB shmem:8484kB slab_reclaimable:57056kB slab_unreclaimable:87244kB kernel_stack:52048kB pagetables:80180kB unstable:0kB bounce:0kB free_pcp:432kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[  120.117230] lowmem_reserve[]: 0 0 0 0
+[  120.117238] Node 0 DMA: 46*4kB (UME) 82*8kB (ME) 37*16kB (UME) 13*32kB (M) 3*64kB (UM) 2*128kB (ME) 2*256kB (ME) 2*512kB (UM) 1*1024kB (E) 1*2048kB (M) 0*4096kB = 6904kB
+[  120.117242] Node 0 DMA32: 709*4kB (UME) 2374*8kB (UME) 0*16kB 10*32kB (E) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 22148kB
+[  120.117244] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[  120.117244] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[  120.117245] 304244 total pagecache pages
+[  120.117246] 0 pages in swap cache
+[  120.117246] Swap cache stats: add 0, delete 0, find 0/0
+[  120.117247] Free swap  = 0kB
+[  120.117247] Total swap = 0kB
+[  120.117248] 524157 pages RAM
+[  120.117248] 0 pages HighMem/MovableOnly
+[  120.117248] 80316 pages reserved
+[  120.117249] 0 pages hwpoisoned
+
+[  126.034913] fork invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+[  126.034918] fork cpuset=/ mems_allowed=0
+[  126.034920] CPU: 2 PID: 9566 Comm: fork Not tainted 4.5.0-rc4-next-20160216+ #306
+[  126.034921] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[  126.034923]  0000000000000286 00000000be6c9129 ffff880035dabad0 ffffffff8139e82d
+[  126.034925]  0000000000000000 ffff880035dabd00 ffff880035dabb70 ffffffff811bedec
+[  126.034926]  0000000000000206 ffffffff81810b70 ffff880035dabb10 ffffffff810be8f9
+[  126.034926] Call Trace:
+[  126.034932]  [<ffffffff8139e82d>] dump_stack+0x85/0xc8
+[  126.034935]  [<ffffffff811bedec>] dump_header+0x5b/0x3b0
+[  126.034938]  [<ffffffff810be8f9>] ? trace_hardirqs_on_caller+0xf9/0x1c0
+[  126.034939]  [<ffffffff810be9cd>] ? trace_hardirqs_on+0xd/0x10
+[  126.034941]  [<ffffffff811447f6>] oom_kill_process+0x366/0x550
+[  126.034943]  [<ffffffff81144c1f>] out_of_memory+0x1ef/0x5a0
+[  126.034944]  [<ffffffff81144cdd>] ? out_of_memory+0x2ad/0x5a0
+[  126.034945]  [<ffffffff8114a63b>] __alloc_pages_nodemask+0xb3b/0xd80
+[  126.034947]  [<ffffffff810be800>] ? mark_held_locks+0x90/0x90
+[  126.034948]  [<ffffffff8114aa3c>] alloc_kmem_pages_node+0x4c/0xc0
+[  126.034950]  [<ffffffff8106d661>] copy_process.part.33+0x131/0x1be0
+[  126.034952]  [<ffffffff8111e20a>] ? __audit_syscall_entry+0xaa/0xf0
+[  126.034954]  [<ffffffff810e8939>] ? current_kernel_time64+0xa9/0xc0
+[  126.034956]  [<ffffffff8106f2db>] _do_fork+0xdb/0x5d0
+[  126.034958]  [<ffffffff810030c1>] ? do_audit_syscall_entry+0x61/0x70
+[  126.034959]  [<ffffffff81003254>] ? syscall_trace_enter_phase1+0x134/0x150
+[  126.034961]  [<ffffffff810bae1a>] ? up_read+0x1a/0x40
+[  126.034965]  [<ffffffff817093ce>] ? retint_user+0x18/0x23
+[  126.034965]  [<ffffffff810035ec>] ? do_syscall_64+0x1c/0x180
+[  126.034967]  [<ffffffff8106f854>] SyS_clone+0x14/0x20
+[  126.034968]  [<ffffffff8100362d>] do_syscall_64+0x5d/0x180
+[  126.034969]  [<ffffffff81708abf>] entry_SYSCALL64_slow_path+0x25/0x25
+[  126.034970] Mem-Info:
+[  126.034973] active_anon:27060 inactive_anon:2093 isolated_anon:0
+[  126.034973]  active_file:206123 inactive_file:85224 isolated_file:32
+[  126.034973]  unevictable:0 dirty:47 writeback:0 unstable:0
+[  126.034973]  slab_reclaimable:13214 slab_unreclaimable:26604
+[  126.034973]  mapped:2421 shmem:2161 pagetables:24889 bounce:0
+[  126.034973]  free:4649 free_pcp:30 free_cma:0
+[  126.034986] Node 0 DMA free:6924kB min:44kB low:52kB high:64kB active_anon:1156kB inactive_anon:156kB active_file:728kB inactive_file:1060kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15988kB managed:15904kB mlocked:0kB dirty:0kB writeback:0kB mapped:368kB shmem:164kB slab_reclaimable:468kB slab_unreclaimable:2496kB kernel_stack:832kB pagetables:704kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:4 all_unreclaimable? no
+[  126.034988] lowmem_reserve[]: 0 1714 1714 1714
+[  126.034992] Node 0 DMA32 free:11672kB min:5172kB low:6464kB high:7756kB active_anon:107084kB inactive_anon:8216kB active_file:823764kB inactive_file:339836kB unevictable:0kB isolated(anon):0kB isolated(file):128kB present:2080640kB managed:1759460kB mlocked:0kB dirty:188kB writeback:0kB mapped:9316kB shmem:8480kB slab_reclaimable:52388kB slab_unreclaimable:103920kB kernel_stack:66016kB pagetables:98852kB unstable:0kB bounce:0kB free_pcp:120kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[  126.034993] lowmem_reserve[]: 0 0 0 0
+[  126.035000] Node 0 DMA: 70*4kB (UME) 16*8kB (UME) 59*16kB (UME) 34*32kB (ME) 14*64kB (UME) 2*128kB (UE) 1*256kB (E) 2*512kB (M) 2*1024kB (ME) 0*2048kB 0*4096kB = 6920kB
+[  126.035005] Node 0 DMA32: 2372*4kB (UME) 290*8kB (UM) 3*16kB (U) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 11856kB
+[  126.035006] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[  126.035006] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[  126.035007] 293674 total pagecache pages
+[  126.035008] 0 pages in swap cache
+[  126.035008] Swap cache stats: add 0, delete 0, find 0/0
+[  126.035009] Free swap  = 0kB
+[  126.035009] Total swap = 0kB
+[  126.035010] 524157 pages RAM
+[  126.035010] 0 pages HighMem/MovableOnly
+[  126.035010] 80316 pages reserved
+[  126.035011] 0 pages hwpoisoned
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
