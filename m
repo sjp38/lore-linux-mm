@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 36FB86B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 04:36:20 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id q63so102167824pfb.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:36:20 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id sm4si50068567pac.245.2016.02.16.01.36.19
-        for <linux-mm@kvack.org>;
-        Tue, 16 Feb 2016 01:36:19 -0800 (PST)
-Date: Tue, 16 Feb 2016 12:36:14 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv2 02/28] rmap: introduce rmap_walk_locked()
-Message-ID: <20160216093614.GA46557@black.fi.intel.com>
-References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1455200516-132137-3-git-send-email-kirill.shutemov@linux.intel.com>
- <87y4ardqqv.fsf@tassilo.jf.intel.com>
+Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9306B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 04:41:56 -0500 (EST)
+Received: by mail-lf0-f49.google.com with SMTP id j78so104543372lfb.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 01:41:56 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id k75si3586931lfg.104.2016.02.16.01.41.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Feb 2016 01:41:55 -0800 (PST)
+Message-ID: <56C2EDC1.2090509@huawei.com>
+Date: Tue, 16 Feb 2016 17:37:05 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87y4ardqqv.fsf@tassilo.jf.intel.com>
+Subject: [PATCH] mm: add MM_SWAPENTS and page table when calculate tasksize
+ in lowmem_scan()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, riandrews@android.com, devel@driverdev.osuosl.org, zhong jiang <zhongjiang@huawei.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Thu, Feb 11, 2016 at 10:52:08AM -0800, Andi Kleen wrote:
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
-> 
-> > rmap_walk_locked() is the same as rmap_walk(), but caller takes care
-> > about relevant rmap lock.
-> >
-> > It's preparation to switch THP splitting from custom rmap walk in
-> > freeze_page()/unfreeze_page() to generic one.
-> 
-> Would be better to move all locking into the callers, with an
-> appropiate helper for users who don't want to deal with it.
-> Conditional locking based on flags is always tricky.
+Currently tasksize in lowmem_scan() only calculate rss, and not include swap.
+But usually smart phones enable zram, so swap space actually use ram.
 
-Hm. That's kinda tricky for rmap_walk_ksm()..
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ drivers/staging/android/lowmemorykiller.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
+diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+index 8b5a4a8..718ab8e 100644
+--- a/drivers/staging/android/lowmemorykiller.c
++++ b/drivers/staging/android/lowmemorykiller.c
+@@ -139,7 +139,10 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+ 			task_unlock(p);
+ 			continue;
+ 		}
+-		tasksize = get_mm_rss(p->mm);
++		tasksize = get_mm_rss(p->mm) +
++			   get_mm_counter(p->mm, MM_SWAPENTS) +
++			   atomic_long_read(&p->mm->nr_ptes) +
++			   mm_nr_pmds(p->mm);
+ 		task_unlock(p);
+ 		if (tasksize <= 0)
+ 			continue;
 -- 
- Kirill A. Shutemov
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
