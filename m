@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 652C26B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 13:46:10 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id b205so123350541wmb.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 10:46:10 -0800 (PST)
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
-        by mx.google.com with ESMTPS id q8si12653112wjz.13.2016.02.16.10.46.09
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9FA6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 14:30:47 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id g62so167857821wme.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:30:47 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f9si50860110wjs.71.2016.02.16.11.30.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 10:46:09 -0800 (PST)
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Tue, 16 Feb 2016 18:46:08 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 5EB0517D8042
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 18:46:23 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1GIk5Iq2097420
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 18:46:05 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1GIk4o0000401
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 11:46:05 -0700
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
- on PowerPC and ARM)
-References: <20160211192223.4b517057@thinkpad>
- <20160211190942.GA10244@node.shutemov.name>
- <20160211205702.24f0d17a@thinkpad>
- <20160212154116.GA15142@node.shutemov.name> <56BE00E7.1010303@de.ibm.com>
- <20160212181640.4eabb85f@thinkpad>
- <20160212231510.GB15142@node.shutemov.name>
- <alpine.LFD.2.20.1602131238260.1910@schleppi>
- <20160215113159.GA28832@node.shutemov.name>
- <20160215193702.4a15ed5e@thinkpad> <20160215213526.GA9766@node.shutemov.name>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Message-ID: <56C36E6B.70009@de.ibm.com>
-Date: Tue, 16 Feb 2016 19:46:03 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Feb 2016 11:30:45 -0800 (PST)
+Date: Tue, 16 Feb 2016 14:29:46 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Unhelpful caching decisions, possibly related to active/inactive
+ sizing
+Message-ID: <20160216192946.GA32543@cmpxchg.org>
+References: <20160209165240.th5bx4adkyewnrf3@alap3.anarazel.de>
+ <20160209224256.GA29872@cmpxchg.org>
+ <20160211153404.42055b27@cuia.usersys.redhat.com>
+ <20160212124653.35zwmy3p2pat5trv@alap3.anarazel.de>
+ <20160212193553.6pugckvamgtk4x5q@alap3.anarazel.de>
 MIME-Version: 1.0
-In-Reply-To: <20160215213526.GA9766@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160212193553.6pugckvamgtk4x5q@alap3.anarazel.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+To: Andres Freund <andres@anarazel.de>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 02/15/2016 10:35 PM, Kirill A. Shutemov wrote:
-> 
-> Is there any chance that I'll be able to trigger the bug using QEMU?
-> Does anybody have an QEMU image I can use?
+On Fri, Feb 12, 2016 at 08:35:53PM +0100, Andres Freund wrote:
+> To make an actually usable patch out of this it seems we'd have to add a
+> 'partial' argument to grab_cache_page_write_begin(), so writes to parts
+> of a page still cause the pages to be marked active.  Is it preferrable
+> to change all callers of grab_cache_page_write_begin and
+> add_to_page_cache_lru or make them into wrapper functions, and call the
+> real deal when it matters?
 
-qemu/TCG on s390 does neither provide SMP nor large pages (only QEMU/KVM does)
-so this will probably not help you here. 
+Personally, I'd prefer explicit arguments over another layer of
+wrappers, especially in the add_to_page_cache family. But it's
+possible others will disagree and only voice their opinion once you
+went through the hassle and sent a patch.
 
-Christian
+> I do think that that's a reasonable algorithmic change, but nonetheless
+> its obviously possible that such changes regress some workloads. What's
+> the policy around testing such things?
+
+How about a FGP_WRITE that only sets the page's referenced bit, but
+doesn't activate or refault-activate the page?
+
+That way, pages that are only ever written would never get activated,
+but a single read mixed in would activate the page straightaway;
+either in mark_page_accessed() or through refault-activation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
