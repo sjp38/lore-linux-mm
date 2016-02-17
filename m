@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B0D846B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 09:00:08 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id b205so157014899wmb.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 06:00:08 -0800 (PST)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id 19si4681935wmk.17.2016.02.17.06.00.07
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B9A936B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 09:31:40 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id yy13so12174370pab.3
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 06:31:40 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y64si2323158pfi.87.2016.02.17.06.31.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 06:00:07 -0800 (PST)
-Received: by mail-wm0-f50.google.com with SMTP id c200so215020856wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 06:00:07 -0800 (PST)
-Date: Wed, 17 Feb 2016 15:00:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/6] mm,oom: don't abort on exiting processes when
- selecting a victim.
-Message-ID: <20160217140006.GM29196@dhcp22.suse.cz>
-References: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
- <201602171930.AII18204.FMOSVFQFOJtLOH@I-love.SAKURA.ne.jp>
- <20160217125418.GF29196@dhcp22.suse.cz>
- <201602172207.GAG52105.FOtMJOFQOVSFHL@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201602172207.GAG52105.FOtMJOFQOVSFHL@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Feb 2016 06:31:39 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are OOM-unkillable.
+Date: Wed, 17 Feb 2016 23:31:00 +0900
+Message-Id: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Wed 17-02-16 22:07:31, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 17-02-16 19:30:41, Tetsuo Handa wrote:
-> > > >From 22bd036766e70f0df38c38f3ecc226e857d20faf Mon Sep 17 00:00:00 2001
-> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Date: Wed, 17 Feb 2016 16:30:59 +0900
-> > > Subject: [PATCH 2/6] mm,oom: don't abort on exiting processes when selecting a victim.
-> > > 
-> > > Currently, oom_scan_process_thread() returns OOM_SCAN_ABORT when there
-> > > is a thread which is exiting. But it is possible that that thread is
-> > > blocked at down_read(&mm->mmap_sem) in exit_mm() called from do_exit()
-> > > whereas one of threads sharing that memory is doing a GFP_KERNEL
-> > > allocation between down_write(&mm->mmap_sem) and up_write(&mm->mmap_sem)
-> > > (e.g. mmap()). Under such situation, the OOM killer does not choose a
-> > > victim, which results in silent OOM livelock problem.
-> > 
-> > Again, such a thread/task will have fatal_signal_pending and so have
-> > access to memory reserves. So the text is slightly misleading imho.
-> > Sure if the memory reserves are depleted then we will not move on but
-> > then it is not clear whether the current patch helps either.
-> 
-> I don't think so.
-> Please see http://lkml.kernel.org/r/201602151958.HCJ48972.FFOFOLMHSQVJtO@I-love.SAKURA.ne.jp .
+oom_scan_process_thread() returns OOM_SCAN_SELECT when there is a
+thread which returns oom_task_origin() == true. But it is possible
+that such thread is marked as OOM-unkillable. In that case, the OOM
+killer must not select such process.
 
-I have missed this one. Reading...
+Since it is meaningless to return OOM_SCAN_OK for OOM-unkillable
+process because subsequent oom_badness() call will return 0, this
+patch changes oom_scan_process_thread to return OOM_SCAN_CONTINUE
+if that process is marked as OOM-unkillable (regardless of
+oom_task_origin()).
 
-Hmm, so you are not referring to OOM killed task but naturally exiting
-thread which is racing with the OOM killer. I guess you have a point
-there! Could you update the changelog with the above example and repost
-please?
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+---
+ mm/oom_kill.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks!
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 7653055..cf87153 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -282,7 +282,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ 		if (!is_sysrq_oom(oc))
+ 			return OOM_SCAN_ABORT;
+ 	}
+-	if (!task->mm)
++	if (!task->mm || task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 		return OOM_SCAN_CONTINUE;
+ 
+ 	/*
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
