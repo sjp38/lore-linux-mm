@@ -1,37 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D416B0253
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 04:48:58 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id a4so19460045wme.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:48:58 -0800 (PST)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id 2si39590479wmr.64.2016.02.17.01.48.56
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF096B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 04:59:39 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id a4so19868435wme.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:59:39 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id z9si39557735wmg.121.2016.02.17.01.59.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 01:48:57 -0800 (PST)
-Received: by mail-wm0-f47.google.com with SMTP id b205so147521233wmb.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:48:56 -0800 (PST)
-Date: Wed, 17 Feb 2016 10:48:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 6/5] oom, oom_reaper: disable oom_reaper for
-Message-ID: <20160217094855.GC29196@dhcp22.suse.cz>
-References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
- <1454505240-23446-6-git-send-email-mhocko@kernel.org>
+        Wed, 17 Feb 2016 01:59:38 -0800 (PST)
+Received: by mail-wm0-x233.google.com with SMTP id c200so204385556wme.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:59:38 -0800 (PST)
+Date: Wed, 17 Feb 2016 11:59:35 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm/hugetlb: Fix incorrect proc nr_hugepages value
+Message-ID: <20160217095935.GA15769@node.shutemov.name>
+References: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1454505240-23446-6-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
-although this can be folded into patch 5
-(mm-oom_reaper-implement-oom-victims-queuing.patch) I think it would be
-better to have it separate and revert after we sort out the proper
-oom_kill_allocating_task behavior or handle exclusion at oom_reaper
-level.
+On Wed, Feb 17, 2016 at 01:13:26AM +0530, Vaishali Thakkar wrote:
+> Currently incorrect default hugepage pool size is reported by proc
+> nr_hugepages when number of pages for the default huge page size is
+> specified twice.
+> 
+> When multiple huge page sizes are supported, /proc/sys/vm/nr_hugepages
+> indicates the current number of pre-allocated huge pages of the default
+> size. Basically /proc/sys/vm/nr_hugepages displays default_hstate->
+> max_huge_pages and after boot time pre-allocation, max_huge_pages should
+> equal the number of pre-allocated pages (nr_hugepages).
+> 
+> Test case:
+> 
+> Note that this is specific to x86 architecture.
+> 
+> Boot the kernel with command line option 'default_hugepagesz=1G
+> hugepages=X hugepagesz=2M hugepages=Y hugepagesz=1G hugepages=Z'. After
+> boot, 'cat /proc/sys/vm/nr_hugepages' and 'sysctl -a | grep hugepages'
+> returns the value X.  However, dmesg output shows that Z huge pages were
+> pre-allocated.
+> 
+> So, the root cause of the problem here is that the global variable
+> default_hstate_max_huge_pages is set if a default huge page size is
+> specified (directly or indirectly) on the command line. After the
+> command line processing in hugetlb_init, if default_hstate_max_huge_pages
+> is set, the value is assigned to default_hstae.max_huge_pages. However,
+> default_hstate.max_huge_pages may have already been set based on the
+> number of pre-allocated huge pages of default_hstate size.
+> 
+> The solution to this problem is if hstate->max_huge_pages is already set
+> then it should not set as a result of global max_huge_pages value.
+> Basically if the value of the variable hugepages is set multiple times
+> on a command line for a specific supported hugepagesize then proc layer
+> should consider the last specified value.
+> 
+> Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
+> ---
+> The patch contains one line over 80 characters as I think limiting that
+> line to 80 characters makes code look bit ugly. But if anyone is having
+> issue with that then I am fine with limiting it to 80 chracters.
 
-Thanks!
----
+What about this?
+
+	if (default_hstate_max_huge_pages && !default_hstate.max_huge_pages)
+		default_hstate.max_huge_pages =	default_hstate_max_huge_pages;
+> ---
+>  mm/hugetlb.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 06ae13e..01f2b48 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2630,8 +2630,10 @@ static int __init hugetlb_init(void)
+>  			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+>  	}
+>  	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
+> -	if (default_hstate_max_huge_pages)
+> -		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+> +	if (default_hstate_max_huge_pages) {
+> +		if (!default_hstate.max_huge_pages)
+> +			default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+> +	}
+>  
+>  	hugetlb_init_hstates();
+>  	gather_bootmem_prealloc();
+> -- 
+> 2.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+ Kirill A. Shutemov
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
