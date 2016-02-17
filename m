@@ -1,94 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D3626B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:10:10 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id g62so182991401wme.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:10:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b63si43782207wme.9.2016.02.17.14.10.08
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0D06B0253
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:18:06 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id xk3so37710623obc.2
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:06 -0800 (PST)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id u2si4205090oev.32.2016.02.17.14.18.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Feb 2016 14:10:09 -0800 (PST)
-Date: Wed, 17 Feb 2016 23:10:29 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 3/6] ext4: Online defrag not supported with DAX
-Message-ID: <20160217221029.GM14140@quack.suse.cz>
-References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
- <1455680059-20126-4-git-send-email-ross.zwisler@linux.intel.com>
- <20160217215037.GB30126@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Feb 2016 14:18:05 -0800 (PST)
+Received: by mail-ob0-x230.google.com with SMTP id jq7so37444882obb.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160217215037.GB30126@linux.intel.com>
+In-Reply-To: <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
+References: <20160212210152.9CAD15B0@viggo.jf.intel.com> <20160212210240.CB4BB5CA@viggo.jf.intel.com>
+ <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 17 Feb 2016 14:17:45 -0800
+Message-ID: <CALCETrVUifty6QuXo67zt9DuxsgUPTqzFbaKGS0qXd75jAb35Q@mail.gmail.com>
+Subject: Re: [PATCH 33/33] x86, pkeys: execute-only support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+To: Kees Cook <keescook@google.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@sr71.net>
 
-On Wed 17-02-16 14:50:37, Ross Zwisler wrote:
-> On Tue, Feb 16, 2016 at 08:34:16PM -0700, Ross Zwisler wrote:
-> > Online defrag operations for ext4 are hard coded to use the page cache.
-> > See ext4_ioctl() -> ext4_move_extents() -> move_extent_per_page()
-> > 
-> > When combined with DAX I/O, which circumvents the page cache, this can
-> > result in data corruption.  This was observed with xfstests ext4/307 and
-> > ext4/308.
-> > 
-> > Fix this by only allowing online defrag for non-DAX files.
-> 
-> Jan,
-> 
-> Thinking about this a bit more, it's probably the case that the data
-> corruption I was observing was due to us skipping the writeback of the dirty
-> page cache pages because S_DAX was set.
-> 
-> I do think we have a problem with defrag because it is doing the extent
-> swapping using the page cache, and we won't flush the dirty pages due to
-> S_DAX being set.
-> 
-> This patch is the quick and easy answer, and is perhaps appropriate for v4.5.
-> 
-> Looking forward, though, what do you think the correct solution is?  Making an
-> extent swapper that doesn't use the page cache (as I believe XFS has? see
-> xfs_swap_extents()), or maybe just unsetting S_DAX while we do the defrag and
-> being careful to block out page faults and I/O?  Or is it acceptable to just
-> say that DAX and defrag are mutually exclusive for ext4?
+On Feb 17, 2016 1:27 PM, "Kees Cook" <keescook@google.com> wrote:
+>
+> On Fri, Feb 12, 2016 at 1:02 PM, Dave Hansen <dave@sr71.net> wrote:
+> >
+> > From: Dave Hansen <dave.hansen@linux.intel.com>
+> >
+> > Protection keys provide new page-based protection in hardware.
+> > But, they have an interesting attribute: they only affect data
+> > accesses and never affect instruction fetches.  That means that
+> > if we set up some memory which is set as "access-disabled" via
+> > protection keys, we can still execute from it.
+> >
+> > This patch uses protection keys to set up mappings to do just that.
+> > If a user calls:
+> >
+> >         mmap(..., PROT_EXEC);
+> > or
+> >         mprotect(ptr, sz, PROT_EXEC);
+> >
+> > (note PROT_EXEC-only without PROT_READ/WRITE), the kernel will
+> > notice this, and set a special protection key on the memory.  It
+> > also sets the appropriate bits in the Protection Keys User Rights
+> > (PKRU) register so that the memory becomes unreadable and
+> > unwritable.
+> >
+> > I haven't found any userspace that does this today.  With this
+> > facility in place, we expect userspace to move to use it
+> > eventually.  Userspace _could_ start doing this today.  Any
+> > PROT_EXEC calls get converted to PROT_READ inside the kernel, and
+> > would transparently be upgraded to "true" PROT_EXEC with this
+> > code.  IOW, userspace never has to do any PROT_EXEC runtime
+> > detection.
+>
+> Random thought while skimming email:
+>
+> Is there a way to detect this feature's availability without userspace
+> having to set up a segv handler and attempting to read a
+> PROT_EXEC-only region? (i.e. cpu flag for protection keys, or a way to
+> check the protection to see if PROT_READ got added automatically,
+> etc?)
+>
 
-For 4.5 I'd just say just make them exclusive. Long term, we could just
-avoid using page cache for copying data - grab all the necessary locks,
-wait for all DIO to complete, evict anything in pagecache, copy data, swap
-extents. It could even result in a simpler code.
+We could add an HWCAP.
 
-								Honza
-
-
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  fs/ext4/ioctl.c | 5 +++++
-> >  1 file changed, 5 insertions(+)
-> > 
-> > diff --git a/fs/ext4/ioctl.c b/fs/ext4/ioctl.c
-> > index 0f6c369..e32c86f 100644
-> > --- a/fs/ext4/ioctl.c
-> > +++ b/fs/ext4/ioctl.c
-> > @@ -583,6 +583,11 @@ group_extend_out:
-> >  				 "Online defrag not supported with bigalloc");
-> >  			err = -EOPNOTSUPP;
-> >  			goto mext_out;
-> > +		} else if (IS_DAX(inode)) {
-> > +			ext4_msg(sb, KERN_ERR,
-> > +				 "Online defrag not supported with DAX");
-> > +			err = -EOPNOTSUPP;
-> > +			goto mext_out;
-> >  		}
-> >  
-> >  		err = mnt_want_write_file(filp);
-> > -- 
-> > 2.5.0
-> > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
