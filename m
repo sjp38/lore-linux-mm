@@ -1,75 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D10866B0253
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:05:00 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id b205so159785509wmb.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 07:05:00 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id s18si2449450wjw.150.2016.02.17.07.04.59
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E5D9E6B0253
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:25:30 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id wb13so18890226obb.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 07:25:30 -0800 (PST)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0095.outbound.protection.outlook.com. [157.56.112.95])
+        by mx.google.com with ESMTPS id z199si2124123oia.86.2016.02.17.07.25.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 07:04:59 -0800 (PST)
-Received: by mail-wm0-x22f.google.com with SMTP id g62so241290936wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 07:04:59 -0800 (PST)
-Date: Wed, 17 Feb 2016 17:04:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
- on PowerPC and ARM)
-Message-ID: <20160217150456.GA15882@node.shutemov.name>
-References: <20160211205702.24f0d17a@thinkpad>
- <20160212154116.GA15142@node.shutemov.name>
- <56BE00E7.1010303@de.ibm.com>
- <20160212181640.4eabb85f@thinkpad>
- <20160212231510.GB15142@node.shutemov.name>
- <alpine.LFD.2.20.1602131238260.1910@schleppi>
- <20160215113159.GA28832@node.shutemov.name>
- <20160215193702.4a15ed5e@thinkpad>
- <20160215213526.GA9766@node.shutemov.name>
- <20160216172444.013988d8@thinkpad>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 17 Feb 2016 07:25:30 -0800 (PST)
+Subject: Re: [RFC 0/7] Peer-direct memory
+References: <1455207177-11949-1-git-send-email-artemyko@mellanox.com>
+ <20160211191838.GA23675@obsidianresearch.com> <56C08EC8.10207@mellanox.com>
+ <20160216182212.GA21071@obsidianresearch.com>
+ <CAPSaadxbFCOcKV=c3yX7eGw9Wqzn3jvPRZe2LMWYmiQcijT4nw@mail.gmail.com>
+ <CAPSaadx3vNBSxoWuvjrTp2n8_-DVqofttFGZRR+X8zdWwV86nw@mail.gmail.com>
+ <20160217084412.GA13616@infradead.org>
+From: Haggai Eran <haggaie@mellanox.com>
+Message-ID: <56C490DF.1090100@mellanox.com>
+Date: Wed, 17 Feb 2016 17:25:19 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160216172444.013988d8@thinkpad>
+In-Reply-To: <20160217084412.GA13616@infradead.org>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>, davide rossetti <davide.rossetti@gmail.com>
+Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Kovalyov Artemy <artemyko@mellanox.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Leon Romanovsky <leonro@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
 
-On Tue, Feb 16, 2016 at 05:24:44PM +0100, Gerald Schaefer wrote:
-> On Mon, 15 Feb 2016 23:35:26 +0200
-> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On 17/02/2016 10:44, Christoph Hellwig wrote:
+> That doesn't change how the are managed.  We've always suppored mapping
+> BARs to userspace in various drivers, and the only real news with things
+> like the pmem driver with DAX or some of the things people want to do
+> with the NVMe controller memoery buffer is that there are much bigger
+> quantities of it, and:
 > 
-> > Is there any chance that I'll be able to trigger the bug using QEMU?
-> > Does anybody have an QEMU image I can use?
-> > 
+>  a) people want to be able  have cachable mappings of various kinds
+>     instead of the old uncachable default.
+What if we do want an uncachable mapping for our device's BAR. Can we still 
+expose it under ZONE_DEVICE?
+
+>  b) we want to be able to DMA (including RDMA) to the regions in the
+>     BARs.
 > 
-> I have no image, but trying to reproduce this under virtualization may
-> help to trigger this also on other architectures. After ruling out IPI
-> vs. fast_gup I do not really see why this should be arch-specific, and
-> it wouldn't be the first time that we hit subtle races first on s390, due
-> to our virtualized environment (my test case is make -j20 with 10 CPUs and
-> 4GB of memory, no swap).
+> a) is something that needs smaller amounts in all kinds of areas to be
+> done properly, but in principle GPU drivers have been doing this forever
+> using all kinds of hacks.
+> 
+> b) is the real issue.  The Linux DMA support code doesn't really operate
+> on just physical addresses, but on page structures, and we don't
+> allocate for BARs.  We investigated two ways to address this:  1) allow
+> DMA operations without struct page and 2) create struct page structures
+> for BARs that we want to be able to use DMA operations on.  For various
+> reasons version 2) was favored and this is how we ended up with
+> ZONE_DEVICE.  Read the linux-mm and linux-nvdimm lists for the lenghty
+> discussions how we ended up here.
 
-Could you post your kernel config?
+I was wondering what are your thoughts regarding the other questions we raised
+about ZONE_DEVICE.
 
-It would be nice also to check if disabling split_huge_page() would make
-any difference:
+How can we overcome the section-alignment requirement in the current code? Our 
+HCA's BARs are usually smaller than 128MB.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a75081ca31cf..26d2b7b21021 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3364,6 +3364,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	bool mlocked;
- 	unsigned long flags;
- 
-+	return -EBUSY;
-+
- 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
- 	VM_BUG_ON_PAGE(!PageAnon(page), page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
--- 
- Kirill A. Shutemov
+Sagi also asked how should a peer device who got a ZONE_DEVICE page know it 
+should stop using it (the CMB example).
+
+Regards,
+Haggai
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
