@@ -1,74 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 549536B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:27:52 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id hb3so108431930igb.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:27:52 -0800 (PST)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id qo12si5183366igb.4.2016.02.17.13.27.51
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 476DC6B0009
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:33:06 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id g62so181768890wme.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:33:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h71si7306524wme.28.2016.02.17.13.33.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 13:27:51 -0800 (PST)
-Received: by mail-ig0-x22f.google.com with SMTP id g6so68375363igt.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:27:51 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Feb 2016 13:33:05 -0800 (PST)
+Date: Wed, 17 Feb 2016 22:33:25 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 2/6] ext2, ext4: only set S_DAX for regular inodes
+Message-ID: <20160217213325.GH14140@quack.suse.cz>
+References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1455680059-20126-3-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160212210240.CB4BB5CA@viggo.jf.intel.com>
-References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
-	<20160212210240.CB4BB5CA@viggo.jf.intel.com>
-Date: Wed, 17 Feb 2016 13:27:51 -0800
-Message-ID: <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
-Subject: Re: [PATCH 33/33] x86, pkeys: execute-only support
-From: Kees Cook <keescook@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1455680059-20126-3-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-On Fri, Feb 12, 2016 at 1:02 PM, Dave Hansen <dave@sr71.net> wrote:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> Protection keys provide new page-based protection in hardware.
-> But, they have an interesting attribute: they only affect data
-> accesses and never affect instruction fetches.  That means that
-> if we set up some memory which is set as "access-disabled" via
-> protection keys, we can still execute from it.
->
-> This patch uses protection keys to set up mappings to do just that.
-> If a user calls:
->
->         mmap(..., PROT_EXEC);
-> or
->         mprotect(ptr, sz, PROT_EXEC);
->
-> (note PROT_EXEC-only without PROT_READ/WRITE), the kernel will
-> notice this, and set a special protection key on the memory.  It
-> also sets the appropriate bits in the Protection Keys User Rights
-> (PKRU) register so that the memory becomes unreadable and
-> unwritable.
->
-> I haven't found any userspace that does this today.  With this
-> facility in place, we expect userspace to move to use it
-> eventually.  Userspace _could_ start doing this today.  Any
-> PROT_EXEC calls get converted to PROT_READ inside the kernel, and
-> would transparently be upgraded to "true" PROT_EXEC with this
-> code.  IOW, userspace never has to do any PROT_EXEC runtime
-> detection.
+On Tue 16-02-16 20:34:15, Ross Zwisler wrote:
+> When S_DAX is set on an inode we assume that if there are pages attached
+> to the mapping (mapping->nrpages != 0), those pages are clean zero pages
+> that were used to service reads from holes.  Any dirty data associated with
+> the inode should be in the form of DAX exceptional entries
+> (mapping->nrexceptional) that is written back via
+> dax_writeback_mapping_range().
+> 
+> With the current code, though, this isn't always true.  For example, ext2
+> and ext4 directory inodes can have S_DAX set, but have their dirty data
+> stored as dirty page cache entries.  For these types of inodes, having
+> S_DAX set doesn't really make sense since their I/O doesn't actually happen
+> through the DAX code path.
+> 
+> Instead, only allow S_DAX to be set for regular inodes for ext2 and ext4.
+> This allows us to have strict DAX vs non-DAX paths in the writeback code.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Random thought while skimming email:
+Looks good. You can add:
 
-Is there a way to detect this feature's availability without userspace
-having to set up a segv handler and attempting to read a
-PROT_EXEC-only region? (i.e. cpu flag for protection keys, or a way to
-check the protection to see if PROT_READ got added automatically,
-etc?)
+Reviewed-by: Jan Kara <jack@suse.cz>
 
--Kees
+								Honza
 
+> ---
+>  fs/ext2/inode.c | 2 +-
+>  fs/ext4/inode.c | 2 +-
+>  2 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+> index 338eefd..27e2cdd 100644
+> --- a/fs/ext2/inode.c
+> +++ b/fs/ext2/inode.c
+> @@ -1296,7 +1296,7 @@ void ext2_set_inode_flags(struct inode *inode)
+>  		inode->i_flags |= S_NOATIME;
+>  	if (flags & EXT2_DIRSYNC_FL)
+>  		inode->i_flags |= S_DIRSYNC;
+> -	if (test_opt(inode->i_sb, DAX))
+> +	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
+>  		inode->i_flags |= S_DAX;
+>  }
+>  
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index 83bc8bf..7088aa5 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -4127,7 +4127,7 @@ void ext4_set_inode_flags(struct inode *inode)
+>  		new_fl |= S_NOATIME;
+>  	if (flags & EXT4_DIRSYNC_FL)
+>  		new_fl |= S_DIRSYNC;
+> -	if (test_opt(inode->i_sb, DAX))
+> +	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
+>  		new_fl |= S_DAX;
+>  	inode_set_flags(inode, new_fl,
+>  			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);
+> -- 
+> 2.5.0
+> 
+> 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
