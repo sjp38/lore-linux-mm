@@ -1,140 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B815828DF
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 22:34:43 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fy10so3251292pac.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 19:34:43 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id uv2si55489081pac.41.2016.02.16.19.34.42
-        for <linux-mm@kvack.org>;
-        Tue, 16 Feb 2016 19:34:42 -0800 (PST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 6/6] block: use dax_do_io() if blkdev_dax_capable()
-Date: Tue, 16 Feb 2016 20:34:19 -0700
-Message-Id: <1455680059-20126-7-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BB37D6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 22:38:25 -0500 (EST)
+Received: by mail-io0-f179.google.com with SMTP id 9so18221828iom.1
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 19:38:25 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id j138si26628011oih.51.2016.02.16.19.38.23
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Feb 2016 19:38:23 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/hugetlb: Fix incorrect proc nr_hugepages value
+Date: Wed, 17 Feb 2016 03:37:15 +0000
+Message-ID: <20160217033711.GA10835@hori1.linux.bs1.fc.nec.co.jp>
+References: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
+In-Reply-To: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <BB082BE15893DC468A25915CDDB2D850@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dan Williams <dan.j.williams@intel.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@ftp.linux.org.uk>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "hillf.zj@alibaba-inc.com" <hillf.zj@alibaba-inc.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Dan Williams <dan.j.williams@intel.com>
+On Wed, Feb 17, 2016 at 01:13:26AM +0530, Vaishali Thakkar wrote:
+> Currently incorrect default hugepage pool size is reported by proc
+> nr_hugepages when number of pages for the default huge page size is
+> specified twice.
+>=20
+> When multiple huge page sizes are supported, /proc/sys/vm/nr_hugepages
+> indicates the current number of pre-allocated huge pages of the default
+> size. Basically /proc/sys/vm/nr_hugepages displays default_hstate->
+> max_huge_pages and after boot time pre-allocation, max_huge_pages should
+> equal the number of pre-allocated pages (nr_hugepages).
+>=20
+> Test case:
+>=20
+> Note that this is specific to x86 architecture.
+>=20
+> Boot the kernel with command line option 'default_hugepagesz=3D1G
+> hugepages=3DX hugepagesz=3D2M hugepages=3DY hugepagesz=3D1G hugepages=3DZ=
+'. After
+> boot, 'cat /proc/sys/vm/nr_hugepages' and 'sysctl -a | grep hugepages'
+> returns the value X.  However, dmesg output shows that Z huge pages were
+> pre-allocated.
+>=20
+> So, the root cause of the problem here is that the global variable
+> default_hstate_max_huge_pages is set if a default huge page size is
+> specified (directly or indirectly) on the command line. After the
+> command line processing in hugetlb_init, if default_hstate_max_huge_pages
+> is set, the value is assigned to default_hstae.max_huge_pages. However,
+> default_hstate.max_huge_pages may have already been set based on the
+> number of pre-allocated huge pages of default_hstate size.
+>=20
+> The solution to this problem is if hstate->max_huge_pages is already set
+> then it should not set as a result of global max_huge_pages value.
+> Basically if the value of the variable hugepages is set multiple times
+> on a command line for a specific supported hugepagesize then proc layer
+> should consider the last specified value.
+>=20
+> Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
 
-Setting S_DAX on an inode requires that the inode participate in the
-DAX-fsync mechanism which expects to use the pagecache for tracking
-potentially dirty cpu cachelines.  However, dax_do_io() participates in
-the standard pagecache sync semantics and arranges for dirty pages to be
-flushed through the driver when a direct-IO operation accesses the same
-ranges.
+Looks good to me.
 
-It should always be valid to use the dax_do_io() path regardless of
-whether the block_device inode has S_DAX set.  In either case dirty
-pages or dirty cachelines are made durable before the direct-IO
-operation proceeds.
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jens Axboe <axboe@fb.com>
-Cc: Al Viro <viro@ftp.linux.org.uk>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- block/ioctl.c      |  1 +
- fs/block_dev.c     |  3 ++-
- include/linux/fs.h | 31 +++++++++++++++++++++----------
- 3 files changed, 24 insertions(+), 11 deletions(-)
-
-diff --git a/block/ioctl.c b/block/ioctl.c
-index d8996bb..7c64286 100644
---- a/block/ioctl.c
-+++ b/block/ioctl.c
-@@ -434,6 +434,7 @@ bool blkdev_dax_capable(struct block_device *bdev)
- 
- 	return true;
- }
-+EXPORT_SYMBOL(blkdev_dax_capable);
- #endif
- 
- static int blkdev_flushbuf(struct block_device *bdev, fmode_t mode,
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 826b164..0e937dd 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -166,8 +166,9 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
- {
- 	struct file *file = iocb->ki_filp;
- 	struct inode *inode = bdev_file_inode(file);
-+	struct block_device *bdev = I_BDEV(inode);
- 
--	if (IS_DAX(inode))
-+	if (blkdev_dax_capable(bdev))
- 		return dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
- 				NULL, DIO_SKIP_DIO_COUNT);
- 	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index ae68100..a3f5ee8 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -830,7 +830,14 @@ static inline unsigned imajor(const struct inode *inode)
- 	return MAJOR(inode->i_rdev);
- }
- 
-+#ifdef CONFIG_BLOCK
- extern struct block_device *I_BDEV(struct inode *inode);
-+#else
-+static inline struct block_device *I_BDEV(struct inode *inode)
-+{
-+	return NULL;
-+}
-+#endif
- 
- struct fown_struct {
- 	rwlock_t lock;          /* protects pid, uid, euid fields */
-@@ -2306,15 +2313,6 @@ extern struct super_block *freeze_bdev(struct block_device *);
- extern void emergency_thaw_all(void);
- extern int thaw_bdev(struct block_device *bdev, struct super_block *sb);
- extern int fsync_bdev(struct block_device *);
--#ifdef CONFIG_FS_DAX
--extern bool blkdev_dax_capable(struct block_device *bdev);
--#else
--static inline bool blkdev_dax_capable(struct block_device *bdev)
--{
--	return false;
--}
--#endif
--
- extern struct super_block *blockdev_superblock;
- 
- static inline bool sb_is_blkdev_sb(struct super_block *sb)
-@@ -2902,9 +2900,22 @@ extern int generic_show_options(struct seq_file *m, struct dentry *root);
- extern void save_mount_options(struct super_block *sb, char *options);
- extern void replace_mount_options(struct super_block *sb, char *options);
- 
-+#ifdef CONFIG_FS_DAX
-+extern bool blkdev_dax_capable(struct block_device *bdev);
-+#else
-+static inline bool blkdev_dax_capable(struct block_device *bdev)
-+{
-+	return false;
-+}
-+#endif
-+
- static inline bool io_is_direct(struct file *filp)
- {
--	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
-+	struct inode *inode = filp->f_mapping->host;
-+
-+	return (filp->f_flags & O_DIRECT) || IS_DAX(inode)
-+		|| (S_ISBLK(file_inode(filp)->i_mode)
-+				&& blkdev_dax_capable(I_BDEV(inode)));
- }
- 
- static inline int iocb_flags(struct file *file)
--- 
-2.5.0
+> ---
+> The patch contains one line over 80 characters as I think limiting that
+> line to 80 characters makes code look bit ugly. But if anyone is having
+> issue with that then I am fine with limiting it to 80 chracters.
+> ---
+>  mm/hugetlb.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 06ae13e..01f2b48 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2630,8 +2630,10 @@ static int __init hugetlb_init(void)
+>  			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+>  	}
+>  	default_hstate_idx =3D hstate_index(size_to_hstate(default_hstate_size)=
+);
+> -	if (default_hstate_max_huge_pages)
+> -		default_hstate.max_huge_pages =3D default_hstate_max_huge_pages;
+> +	if (default_hstate_max_huge_pages) {
+> +		if (!default_hstate.max_huge_pages)
+> +			default_hstate.max_huge_pages =3D default_hstate_max_huge_pages;
+> +	}
+> =20
+>  	hugetlb_init_hstates();
+>  	gather_bootmem_prealloc();
+> --=20
+> 2.1.4
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
