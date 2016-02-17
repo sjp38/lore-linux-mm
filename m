@@ -1,74 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C046F6B0253
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:29:49 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id c10so13640856pfc.2
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 07:29:49 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a78si2576733pfj.116.2016.02.17.07.29.48
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 856696B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:38:01 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id xk3so19487331obc.2
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 07:38:01 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id s185si2201350oia.89.2016.02.17.07.37.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Feb 2016 07:29:48 -0800 (PST)
-Subject: Re: [PATCH 2/6] mm,oom: don't abort on exiting processes when selecting a victim.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160217125418.GF29196@dhcp22.suse.cz>
-	<201602172207.GAG52105.FOtMJOFQOVSFHL@I-love.SAKURA.ne.jp>
-	<20160217140006.GM29196@dhcp22.suse.cz>
-	<201602172339.JBJ57868.tSQVJLHMFFOOFO@I-love.SAKURA.ne.jp>
-	<20160217150127.GR29196@dhcp22.suse.cz>
-In-Reply-To: <20160217150127.GR29196@dhcp22.suse.cz>
-Message-Id: <201602180029.HHG73447.QSFOHJOtLVOFFM@I-love.SAKURA.ne.jp>
-Date: Thu, 18 Feb 2016 00:29:35 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 17 Feb 2016 07:38:00 -0800 (PST)
+Date: Thu, 18 Feb 2016 00:37:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: drop unused member 'mapping_area->huge'
+Message-ID: <20160217153759.GA30705@bbox>
+References: <1455674199-6227-1-git-send-email-xuyiping@huawei.com>
+MIME-Version: 1.0
+In-Reply-To: <1455674199-6227-1-git-send-email-xuyiping@huawei.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: YiPing Xu <xuyiping@huawei.com>
+Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, suzhuangluan@hisilicon.com, puck.chen@hisilicon.com, dan.zhao@hisilicon.com
 
-Michal Hocko wrote:
-> > > > Please see http://lkml.kernel.org/r/201602151958.HCJ48972.FFOFOLMHSQVJtO@I-love.SAKURA.ne.jp .
-> > > 
-> > > I have missed this one. Reading...
-> > > 
-> > > Hmm, so you are not referring to OOM killed task but naturally exiting
-> > > thread which is racing with the OOM killer. I guess you have a point
-> > > there! Could you update the changelog with the above example and repost
-> > > please?
-> > > 
-> > Yes and I resent that patch as v2.
-> > 
-> > I think that the same problem exists for any task_will_free_mem()-based
-> > optimizations. Can we eliminate them because these optimized paths are not
-> > handled by the OOM reaper which means that we have no means other than
-> > "[PATCH 5/6] mm,oom: Re-enable OOM killer using timers." ?
+On Wed, Feb 17, 2016 at 09:56:39AM +0800, YiPing Xu wrote:
+> When unmapping a huge class page in zs_unmap_object, the page will
+> be unmapped by kmap_atomic. the "!area->huge" branch in
+> __zs_unmap_object is alway true, and no code set "area->huge" now,
+> so we can drop it.
 > 
-> Well, only oom_kill_process usage of task_will_free_mem might be a
-> problem because out_of_memory operates on the current task so it must be
-> in the allocation path and access to memory reserves should help it to
-> continue.
+> Signed-off-by: YiPing Xu <xuyiping@huawei.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-Allowing access to memory reserves by task_will_free_mem(current) in
-out_of_memory() will help current to continue, but that does not guarantee
-that current will not be later blocked at down_read(&current->mm->mmap_sem).
-It is possible that one of threads sharing current thread's memory is calling
-out_of_memory() from mmap() and is waiting for current to set
-current->mm = NULL.
-
-> Wrt. oom_kill_process this will be more tricky. I guess we want to
-> teach oom_reaper to operate on such a task which would be a more robust
-> solution than removing the check altogether.
-> 
-
-Thus, I think there is no difference between task_will_free_mem(current)
-case and task_will_free_mem(p) case. We want to teach the OOM reaper to
-operate whenever TIF_MEMDIE is set. But this means that we want
-mm_is_reapable() check because there might be !SIGKILL && !PF_EXITING
-threads when we run these optimized paths. We will need to use timer
-if mm_is_reapable() == false after all.
-
-Why don't you accept timer based workaround now, even if you have a plan
-to update the OOM reaper for handling these optimized paths?
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
