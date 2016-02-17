@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF636B0255
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:31:56 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id fy10so18540810pac.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:31:56 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id 133si4616870pfa.203.2016.02.17.14.31.55
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CAC96B0255
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:42:42 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id x65so19014453pfb.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:42:42 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id p14si4657294pfi.230.2016.02.17.14.42.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 14:31:55 -0800 (PST)
-Received: by mail-pa0-x233.google.com with SMTP id fy10so18540662pac.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:31:55 -0800 (PST)
-Date: Wed, 17 Feb 2016 14:31:54 -0800 (PST)
+        Wed, 17 Feb 2016 14:42:41 -0800 (PST)
+Received: by mail-pa0-x22c.google.com with SMTP id yy13so18631048pab.3
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:42:41 -0800 (PST)
+Date: Wed, 17 Feb 2016 14:42:39 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they
- are OOM-unkillable.
-In-Reply-To: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
-References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mm: add MM_SWAPENTS and page table when calculate tasksize
+ in lowmem_scan()
+In-Reply-To: <56C42F9B.2050309@huawei.com>
+Message-ID: <alpine.DEB.2.10.1602171435400.15429@chino.kir.corp.google.com>
+References: <56C2EDC1.2090509@huawei.com> <20160216173849.GA10487@kroah.com> <alpine.DEB.2.10.1602161629560.19997@chino.kir.corp.google.com> <56C42F9B.2050309@huawei.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, riandrews@android.com, devel@driverdev.osuosl.org, zhong jiang <zhongjiang@huawei.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed, 17 Feb 2016, Tetsuo Handa wrote:
+On Wed, 17 Feb 2016, Xishi Qiu wrote:
 
-> oom_scan_process_thread() returns OOM_SCAN_SELECT when there is a
-> thread which returns oom_task_origin() == true. But it is possible
-> that such thread is marked as OOM-unkillable. In that case, the OOM
-> killer must not select such process.
+> Hi David,
 > 
-> Since it is meaningless to return OOM_SCAN_OK for OOM-unkillable
-> process because subsequent oom_badness() call will return 0, this
-> patch changes oom_scan_process_thread to return OOM_SCAN_CONTINUE
-> if that process is marked as OOM-unkillable (regardless of
-> oom_task_origin()).
+> Thanks for your advice.
 > 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> ---
->  mm/oom_kill.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> I have a stupid question, what's the main difference between lmk and oom?
+
+Hi Xishi, it's not a stupid question at all!
+
+Low memory killer appears to be implemented as a generic shrinker that 
+iterates through the tasklist and tries to free memory before the generic 
+oom killer.  It has two tunables, "adj" and "minfree": "minfree" describes 
+what class of processes are eligible based on how many free pages are left 
+on the system and "adj" defines that class by using oom_score_adj values.
+
+So LMK is trying to free memory before all memory is depleted based on 
+heuristics for systems that load the driver whereas the generic oom killer 
+is called to kill a process when reclaim has failed to free any memory and 
+there's no forward progress.
+
+> 1) lmk is called when reclaim memory, and oom is called when alloc failed in slow path.
+
+Yeah, and I don't think LMK provides any sort of guarantee against all 
+memory being fully depleted before it can run, so it would probably be 
+best effort.
+
+> 2) lmk has several lowmem thresholds and oom is not.
+
+Right, and it abuses oom_score_adj, which is a generic oom killer tunable 
+to define priorities to kill at different levels of memory availability.
+
+> 3) others?
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 7653055..cf87153 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -282,7 +282,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  		if (!is_sysrq_oom(oc))
->  			return OOM_SCAN_ABORT;
->  	}
-> -	if (!task->mm)
-> +	if (!task->mm || task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
->  		return OOM_SCAN_CONTINUE;
->  
->  	/*
 
-I'm getting multiple emails from you with the identical patch, something 
-is definitely wacky in your toolchain.
+LMK also abuses TIF_MEMDIE which is used by the generic oom killer to 
+allow a process to free memory.  Since the system is out of memory when it 
+is called, a process often needs additional memory to even exit, so we set 
+TIF_MEMDIE to ignore zone watermarks in the page allocator.  LMK should 
+not be using this, there should already be memory available for it to 
+allocate from.
 
-Anyway, this is NACK'd since task->signal->oom_score_adj is checked under 
-task_lock() for threads with memory attached, that's the purpose of 
-finding the correct thread in oom_badness() and taking task_lock().  We 
-aren't going to duplicate logic in several functions that all do the same 
-thing.
+To fix these issues with LMK, I think it should:
+
+ - send SIGKILL to terminate a process in lowmem situations, but not
+   set TIF_MEMDIE and implement its own way of determining when to kill
+   additional processes, and
+
+ - introduce its own tunable to define the priority of kill when it runs
+   rather than oom_score_adj, which is a proportion of memory to bias
+   against, not a priority at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
