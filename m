@@ -1,151 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0E26B0254
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 12:33:20 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id g62so247490697wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 09:33:20 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id k4si3361168wje.12.2016.02.17.09.33.18
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 29BAF6B0258
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 12:47:45 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id c200so226275089wme.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 09:47:45 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id o202si42223308wmd.33.2016.02.17.09.47.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 09:33:18 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id g62so247489772wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 09:33:18 -0800 (PST)
-Date: Wed, 17 Feb 2016 18:33:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/6] mm,oom: exclude TIF_MEMDIE processes from candidates.
-Message-ID: <20160217173317.GA29370@dhcp22.suse.cz>
-References: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
- <201602171929.IFG12927.OVFJOQHOSMtFFL@I-love.SAKURA.ne.jp>
- <20160217124100.GE29196@dhcp22.suse.cz>
- <201602180140.IHH21322.OSJFHOMtFFOQVL@I-love.SAKURA.ne.jp>
+        Wed, 17 Feb 2016 09:47:43 -0800 (PST)
+Date: Wed, 17 Feb 2016 09:47:07 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH V4][for-next]mm: add a new vector based madvise syscall
+Message-ID: <20160217174654.GA3505386@devbig084.prn1.facebook.com>
+References: <d01698140a51cf9b2ce233c7574c2ece9f6fa241.1449791762.git.shli@fb.com>
+ <20160216160802.50ceaf10aa16588e18b3d2c5@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="4bRzO86E/ozDv8r1"
 Content-Disposition: inline
-In-Reply-To: <201602180140.IHH21322.OSJFHOMtFFOQVL@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160216160802.50ceaf10aa16588e18b3d2c5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Jason Evans <je@fb.com>
 
-On Thu 18-02-16 01:40:22, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 17-02-16 19:29:33, Tetsuo Handa wrote:
-[...]
-> > > victim's memory is shared with OOM-unkillable processes) which will
-> > > require manual SysRq-f for making progress.
+--4bRzO86E/ozDv8r1
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+
+On Tue, Feb 16, 2016 at 04:08:02PM -0800, Andrew Morton wrote:
+> On Thu, 10 Dec 2015 16:03:37 -0800 Shaohua Li <shli@fb.com> wrote:
+> 
+> > In jemalloc, a free(3) doesn't immediately free the memory to OS even
+> > the memory is page aligned/size, and hope the memory can be reused soon.
+> > Later the virtual address becomes fragmented, and more and more free
+> > memory are aggregated. If the free memory size is large, jemalloc uses
+> > madvise(DONT_NEED) to actually free the memory back to OS.
 > > 
-> > Sharing mm with a task which is hidden from the OOM killer is a clear
-> > misconfiguration IMO.
-> >  
+> > The madvise has significantly overhead paritcularly because of TLB
+> > flush. jemalloc does madvise for several virtual address space ranges
+> > one time. Instead of calling madvise for each of the ranges, we
+> > introduce a new syscall to purge memory for several ranges one time. In
+> > this way, we can merge several TLB flush for the ranges to one big TLB
+> > flush. This also reduce mmap_sem locking and kernel/userspace switching.
+> > 
+> > I'm running a simple memory allocation benchmark. 32 threads do random
+> > malloc/free/realloc.
 > 
-> Misconfiguration and/or insane stress is no excuse to leave bugs unfixed.
+> CPU count?  (Does that matter much?)
 
-Such a misconfiguration requires administrator privileges and we do not
-do not try really hard to prevent admins from shooting themselves into
-foot. Especially if that makes the code much more complicated.
+32. It does. the tlb flush overhead depends on the cpu count. 
+> > Corresponding jemalloc patch to utilize this API is
+> > attached.
+> 
+> No it isn't ;)
+
+Sorry, I attached it in first post, but not this one. Attached is the
+one I tested against this patch.
+
+> Who maintains jemalloc?  Are they signed up to actually apply the
+> patch?  It would be bad to add the patch to the kernel and then find
+> that the jemalloc maintainers choose not to use it!
+
+Jason Evans (cced) is the author of jemalloc. I talked to him before, he
+is very positive to this new syscall.
+
+> > Without patch:
+> > real    0m18.923s
+> > user    1m11.819s
+> > sys     7m44.626s
+> > each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
+> > is hotest functions. mmap_sem read locking (because of page fault) is
+> > also heavy.
+> > 
+> > with patch:
+> > real    0m15.026s
+> > user    0m48.548s
+> > sys     6m41.153s
+> > each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
+> > all. mmap_sem read locking (still because of page fault) becomes the
+> > sole hot spot.
+> 
+> This is a somewhat underwhelming improvement, given that it's a
+> synthetic microbenchmark.
+
+Yes, this test does malloc, free, calloc, realloc, so it doesn't only
+benchmark the madvisev.
+> > Another test malloc a bunch of memory in 48 threads, then all threads
+> > free the memory. I measure the time of the memory free.
+> > Without patch: 34.332s
+> > With patch:    17.429s
+> 
+> This is more whelming.
+> 
+> Do we have a feel for how much benefit this patch will have for
+> real-world workloads?  That's pretty important.
+
+Sure, we'll post some real-world data.
+> > MADV_FREE does the same TLB flush as MADV_NEED, this also applies to
+> 
+> I'll do s/MADV_NEED/MADV_DONTNEED/
+> 
+> > MADV_FREE. Other madvise type can have small benefits too, like reduce
+> > syscalls/mmap_sem locking.
+> 
+> Could we please get a testcase for the syscall(s) into
+> tools/testing/selftests/vm?  For long-term maintenance reasons and as a
+> service to arch maintainers - make it easy for them to check the
+> functionality without having to roll their own (possibly incomplete)
+> test app.
+> 
+> I'm not sure *how* we'd develop a test case.  Use mincore()?
+
+Ok, I'll add this later.
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -21,7 +21,10 @@
+> >  #include <linux/swap.h>
+> >  #include <linux/swapops.h>
+> >  #include <linux/mmu_notifier.h>
+> > -
+> > +#include <linux/uio.h>
+> > +#ifdef CONFIG_COMPAT
+> > +#include <linux/compat.h>
+> > +#endif
+> 
+> I'll nuke the ifdefs - compat.h already does that.
+> 
+> 
+> It would be good for us to have a look at the manpage before going too
+> far with the patch - this helps reviewers to think about the proposed
+> interface and behaviour.
+> 
+> I'll queue this up for a bit of testing, although it won't get tested
+> much.  The syscall fuzzers will presumably hit on it.
+
+Thanks!
+
+--4bRzO86E/ozDv8r1
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: attachment; filename="je.patch"
+
+diff --git a/src/arena.c b/src/arena.c
+index 43733cc..5c1a3b3 100644
+--- a/src/arena.c
++++ b/src/arena.c
+@@ -1266,6 +1266,7 @@ arena_dirty_count(arena_t *arena)
+ 	return (ndirty);
+ }
  
-[...]
-> > In short I dislike this patch. It makes the code harder to read and the
-> > same can be solved more straightforward:
-> 
-> Your patch is not doing the same thing. test_tsk_thread_flag() needs to be
-> checked against all threads as with process_shares_mm(). Otherwise,
-> find_lock_task_mm() can select a TIF_MEMDIE thread.
-> 
-> Updated patch follows.
-[...]
-> >From 4d305f92e2527b6d86cd366952d598f9e95f095b Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Thu, 18 Feb 2016 01:16:54 +0900
-> Subject: [PATCH v2] mm,oom: exclude TIF_MEMDIE processes from candidates.
-> 
-> It is possible that a TIF_MEMDIE thread gets stuck at
-> down_read(&mm->mmap_sem) in exit_mm() called from do_exit() due to
-> one of !TIF_MEMDIE threads doing a GFP_KERNEL allocation between
-> down_write(&mm->mmap_sem) and up_write(&mm->mmap_sem) (e.g. mmap()).
-> In that case, we need to use SysRq-f (manual invocation of the OOM
-> killer) for making progress.
-> 
-> However, it is possible that the OOM killer chooses the same OOM victim
-> forever which already has TIF_MEMDIE. This is effectively disabling
-> SysRq-f. This patch excludes processes which has a TIF_MEMDIE thread
-> >from OOM victim candidates.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/oom_kill.c | 21 ++++++++++++++++++++-
->  1 file changed, 20 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 6e6abaf..f6f6b47 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -268,6 +268,21 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc,
->  }
->  #endif
->  
-> +/*
-> + * To determine whether a task is an OOM victim, we examine all the task's
-> + * threads: if one of those has TIF_MEMDIE then the task is an OOM victim.
-> + */
-> +static bool is_oom_victim(struct task_struct *p)
-> +{
-> +	struct task_struct *t;
-> +
-> +	for_each_thread(p, t) {
-> +		if (test_tsk_thread_flag(t, TIF_MEMDIE))
-> +			return true;
-> +	}
-> +	return false;
-> +}
-> +
->  enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  			struct task_struct *task, unsigned long totalpages)
->  {
-> @@ -278,9 +293,11 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  	 * This task already has access to memory reserves and is being killed.
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
-> -	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-> +	if (is_oom_victim(task)) {
++#define PURGE_VEC 1
+ static size_t
+ arena_compute_npurge(arena_t *arena, bool all)
+ {
+@@ -1280,6 +1281,10 @@ arena_compute_npurge(arena_t *arena, bool all)
+ 		threshold = threshold < chunk_npages ? chunk_npages : threshold;
+ 
+ 		npurge = arena->ndirty - threshold;
++#if PURGE_VEC
++		if (npurge < arena->ndirty / 2)
++			npurge = arena->ndirty / 2;
++#endif
+ 	} else
+ 		npurge = arena->ndirty;
+ 
+@@ -1366,6 +1371,31 @@ arena_stash_dirty(arena_t *arena, chunk_hooks_t *chunk_hooks, bool all,
+ 	return (nstashed);
+ }
+ 
++#if PURGE_VEC
++int mycomp(const void *a, const void *b)
++{
++	unsigned long a_b = (unsigned long)((struct iovec *)a)->iov_base;
++	unsigned long b_b = (unsigned long)((struct iovec *)b)->iov_base;
++
++	if (a_b < b_b)
++		return -1;
++	if (a_b > b_b)
++		return 1;
++	return 0;
++}
++
++#define MAX_IOVEC 32
++bool pages_purge_vec(struct iovec *iov, unsigned long nr_segs)
++{
++	int ret;
++
++	qsort(iov, nr_segs, sizeof(struct iovec), mycomp);
++	ret = syscall(327, iov, nr_segs, MADV_DONTNEED);
++
++	return !!ret;
++}
++#endif
++
+ static size_t
+ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+     arena_runs_dirty_link_t *purge_runs_sentinel,
+@@ -1374,6 +1404,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 	size_t npurged, nmadvise;
+ 	arena_runs_dirty_link_t *rdelm;
+ 	extent_node_t *chunkselm;
++#if PURGE_VEC
++	struct iovec iovec[MAX_IOVEC];
++	int vec_index = 0;
++#endif
+ 
+ 	if (config_stats)
+ 		nmadvise = 0;
+@@ -1418,9 +1452,21 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 				flag_unzeroed = 0;
+ 				flags = CHUNK_MAP_DECOMMITTED;
+ 			} else {
++#if !PURGE_VEC
+ 				flag_unzeroed = chunk_purge_wrapper(arena,
+ 				    chunk_hooks, chunk, chunksize, pageind <<
+ 				    LG_PAGE, run_size) ? CHUNK_MAP_UNZEROED : 0;
++#else
++				flag_unzeroed = 0;
++				iovec[vec_index].iov_base = (void *)((uintptr_t)chunk +
++					(pageind << LG_PAGE));
++				iovec[vec_index].iov_len = run_size;
++				vec_index++;
++				if (vec_index >= MAX_IOVEC) {
++					pages_purge_vec(iovec, vec_index);
++					vec_index = 0;
++				}
++#endif
+ 				flags = flag_unzeroed;
+ 			}
+ 			arena_mapbits_large_set(chunk, pageind+npages-1, 0,
+@@ -1449,6 +1495,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 		if (config_stats)
+ 			nmadvise++;
+ 	}
++#if PURGE_VEC
++	if (vec_index > 0)
++		pages_purge_vec(iovec, vec_index);
++#endif
+ 	malloc_mutex_lock(&arena->lock);
+ 
+ 	if (config_stats) {
 
-This will make the scanning much more time consuming (you will check
-all the threads in the same thread group for each scanned thread!). I
-do not think this is acceptable and it is not really needed for the
-!is_sysrq_oom because we are scanning all the threads anyway.
-
-Regarding the is_sysrq_oom case we might indeed select a thread
-which doesn't have TIF_MEMDIE but it has been already (group) killed
-but an attempt to catch that case is exactly what has been Nacked
-previously when I tried to achieve the same thing and had TIF_MEMDIE ||
-fatal_signal_pending check
-(http://lkml.kernel.org/r/alpine.DEB.2.10.1601121639450.28831@chino.kir.corp.google.com).
-This change will basically achieve the same (just in much more expansive
-way) so I am not sure it overcomes the previous feedback.
-
->  		if (!is_sysrq_oom(oc))
->  			return OOM_SCAN_ABORT;
-> +		else
-> +			return OOM_SCAN_CONTINUE;
->  	}
->  	if (!task->mm || task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
->  		return OOM_SCAN_CONTINUE;
-> @@ -711,6 +728,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  
->  			if (process_shares_mm(child, p->mm))
->  				continue;
-> +			if (is_oom_victim(child))
-> +				continue;
->  			/*
->  			 * oom_badness() returns 0 if the thread is unkillable
->  			 */
-> -- 
-> 1.8.3.1
-
--- 
-Michal Hocko
-SUSE Labs
+--4bRzO86E/ozDv8r1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
