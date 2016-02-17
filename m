@@ -1,92 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 476DC6B0009
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:33:06 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id g62so181768890wme.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:33:06 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h71si7306524wme.28.2016.02.17.13.33.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Feb 2016 13:33:05 -0800 (PST)
-Date: Wed, 17 Feb 2016 22:33:25 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 2/6] ext2, ext4: only set S_DAX for regular inodes
-Message-ID: <20160217213325.GH14140@quack.suse.cz>
-References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
- <1455680059-20126-3-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A4E576B0254
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:33:22 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id e127so18113527pfe.3
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:33:22 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id gi2si4297983pac.105.2016.02.17.13.33.21
+        for <linux-mm@kvack.org>;
+        Wed, 17 Feb 2016 13:33:21 -0800 (PST)
+Subject: Re: [PATCH 33/33] x86, pkeys: execute-only support
+References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+ <20160212210240.CB4BB5CA@viggo.jf.intel.com>
+ <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <56C4E720.4050800@sr71.net>
+Date: Wed, 17 Feb 2016 13:33:20 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1455680059-20126-3-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+To: Kees Cook <keescook@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
 
-On Tue 16-02-16 20:34:15, Ross Zwisler wrote:
-> When S_DAX is set on an inode we assume that if there are pages attached
-> to the mapping (mapping->nrpages != 0), those pages are clean zero pages
-> that were used to service reads from holes.  Any dirty data associated with
-> the inode should be in the form of DAX exceptional entries
-> (mapping->nrexceptional) that is written back via
-> dax_writeback_mapping_range().
-> 
-> With the current code, though, this isn't always true.  For example, ext2
-> and ext4 directory inodes can have S_DAX set, but have their dirty data
-> stored as dirty page cache entries.  For these types of inodes, having
-> S_DAX set doesn't really make sense since their I/O doesn't actually happen
-> through the DAX code path.
-> 
-> Instead, only allow S_DAX to be set for regular inodes for ext2 and ext4.
-> This allows us to have strict DAX vs non-DAX paths in the writeback code.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On 02/17/2016 01:27 PM, Kees Cook wrote:
+> Is there a way to detect this feature's availability without userspace
+> having to set up a segv handler and attempting to read a
+> PROT_EXEC-only region? (i.e. cpu flag for protection keys, or a way to
+> check the protection to see if PROT_READ got added automatically,
+> etc?)
 
-Looks good. You can add:
+You can kinda do it with /proc/$pid/(s)maps.  Here's smaps, for instance:
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> 00401000-00402000 --xp 00001000 08:14 4897479                            /root/pkeys/pkey-xonly
+> Size:                  4 kB
+> Rss:                   4 kB
+...
+> KernelPageSize:        4 kB
+> MMUPageSize:           4 kB
+> Locked:                0 kB
+> ProtectionKey:        15
+> VmFlags: ex mr mw me dw 
 
-								Honza
+You can see "--x" and the ProtectionKey itself being nonzero.  That's a
+reasonable indication.  There's also the "OSPKE" cpuid bit which only
+shows up when the kernel has enabled protection keys.  This is
+_separate_ from the bit that says whether the processor support pkeys.
 
-> ---
->  fs/ext2/inode.c | 2 +-
->  fs/ext4/inode.c | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
+I check them in test code like this:
+
+> static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
+>                                 unsigned int *ecx, unsigned int *edx)
+> {
+>         /* ecx is often an input as well as an output. */
+>         asm volatile(
+>                 "cpuid;"
+>                 : "=a" (*eax),
+>                   "=b" (*ebx),
+>                   "=c" (*ecx),
+>                   "=d" (*edx)
+>                 : "0" (*eax), "2" (*ecx));
+> }
 > 
-> diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-> index 338eefd..27e2cdd 100644
-> --- a/fs/ext2/inode.c
-> +++ b/fs/ext2/inode.c
-> @@ -1296,7 +1296,7 @@ void ext2_set_inode_flags(struct inode *inode)
->  		inode->i_flags |= S_NOATIME;
->  	if (flags & EXT2_DIRSYNC_FL)
->  		inode->i_flags |= S_DIRSYNC;
-> -	if (test_opt(inode->i_sb, DAX))
-> +	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
->  		inode->i_flags |= S_DAX;
->  }
->  
-> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-> index 83bc8bf..7088aa5 100644
-> --- a/fs/ext4/inode.c
-> +++ b/fs/ext4/inode.c
-> @@ -4127,7 +4127,7 @@ void ext4_set_inode_flags(struct inode *inode)
->  		new_fl |= S_NOATIME;
->  	if (flags & EXT4_DIRSYNC_FL)
->  		new_fl |= S_DIRSYNC;
-> -	if (test_opt(inode->i_sb, DAX))
-> +	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
->  		new_fl |= S_DAX;
->  	inode_set_flags(inode, new_fl,
->  			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);
-> -- 
-> 2.5.0
+> /* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx) */
+> #define X86_FEATURE_PKU        (1<<3) /* Protection Keys for Userspace */
+> #define X86_FEATURE_OSPKE      (1<<4) /* OS Protection Keys Enable */
 > 
+> static inline int cpu_has_pku(void)
+> {
+>         unsigned int eax;
+>         unsigned int ebx;
+>         unsigned int ecx;
+>         unsigned int edx;
+>         eax = 0x7;
+>         ecx = 0x0;
+>         __cpuid(&eax, &ebx, &ecx, &edx);
 > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>         if (!(ecx & X86_FEATURE_PKU)) {
+>                 dprintf2("cpu does not have PKU\n");
+>                 return 0;
+>         }
+>         if (!(ecx & X86_FEATURE_OSPKE)) {
+>                 dprintf2("cpu does not have OSPKE\n");
+>                 return 0;
+>         }
+>         return 1;
+> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
