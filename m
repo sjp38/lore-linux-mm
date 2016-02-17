@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 558B7828DF
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 05:29:47 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id fy10so9213603pac.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 02:29:47 -0800 (PST)
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 25CC6828E2
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 05:30:54 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id q63so9369216pfb.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 02:30:54 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i17si1083650pfi.213.2016.02.17.02.29.46
+        by mx.google.com with ESMTPS id lq6si1065659pab.140.2016.02.17.02.30.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Feb 2016 02:29:46 -0800 (PST)
-Subject: [PATCH 1/6] mm,oom: exclude TIF_MEMDIE processes from candidates.
+        Wed, 17 Feb 2016 02:30:52 -0800 (PST)
+Subject: [PATCH 2/6] mm,oom: don't abort on exiting processes when selecting a victim.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
 In-Reply-To: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
-Message-Id: <201602171929.IFG12927.OVFJOQHOSMtFFL@I-love.SAKURA.ne.jp>
-Date: Wed, 17 Feb 2016 19:29:33 +0900
+Message-Id: <201602171930.AII18204.FMOSVFQFOJtLOH@I-love.SAKURA.ne.jp>
+Date: Wed, 17 Feb 2016 19:30:41 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -22,95 +22,41 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org, akpm@linux-foundation.org
 Cc: rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->From 142b08258e4c60834602e9b0a734564208bc6397 Mon Sep 17 00:00:00 2001
+>From 22bd036766e70f0df38c38f3ecc226e857d20faf Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Wed, 17 Feb 2016 16:29:29 +0900
-Subject: [PATCH 1/6] mm,oom: exclude TIF_MEMDIE processes from candidates.
+Date: Wed, 17 Feb 2016 16:30:59 +0900
+Subject: [PATCH 2/6] mm,oom: don't abort on exiting processes when selecting a victim.
 
-The OOM reaper kernel thread can reclaim OOM victim's memory before
-the victim releases it. But it is possible that a TIF_MEMDIE thread
-gets stuck at down_read(&mm->mmap_sem) in exit_mm() called from
-do_exit() due to one of !TIF_MEMDIE threads doing a GFP_KERNEL
+Currently, oom_scan_process_thread() returns OOM_SCAN_ABORT when there
+is a thread which is exiting. But it is possible that that thread is
+blocked at down_read(&mm->mmap_sem) in exit_mm() called from do_exit()
+whereas one of threads sharing that memory is doing a GFP_KERNEL
 allocation between down_write(&mm->mmap_sem) and up_write(&mm->mmap_sem)
-(e.g. mmap()). In that case, we need to use SysRq-f (manual invocation
-of the OOM killer) because down_read_trylock(&mm->mmap_sem) by the OOM
-reaper will not succeed. Also, there are other situations where the OOM
-reaper cannot reap the victim's memory (e.g. CONFIG_MMU=n, victim's
-memory is shared with OOM-unkillable processes) which will require
-manual SysRq-f for making progress.
+(e.g. mmap()). Under such situation, the OOM killer does not choose a
+victim, which results in silent OOM livelock problem.
 
-However, it is possible that the OOM killer chooses the same OOM victim
-forever which already has TIF_MEMDIE. This is effectively disabling
-SysRq-f. This patch excludes processes which has a TIF_MEMDIE thread
- from OOM victim candidates.
+This patch changes oom_scan_process_thread() not to return OOM_SCAN_ABORT
+when there is a thread which is exiting.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- mm/oom_kill.c | 30 +++++++++++++++++++++++++++---
- 1 file changed, 27 insertions(+), 3 deletions(-)
+ mm/oom_kill.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 871470f..27949ef 100644
+index 27949ef..a3868fd 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -119,6 +119,30 @@ found:
+@@ -311,9 +311,6 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ 	if (oom_task_origin(task))
+ 		return OOM_SCAN_SELECT;
+ 
+-	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
+-		return OOM_SCAN_ABORT;
+-
+ 	return OOM_SCAN_OK;
  }
  
- /*
-+ * Treat the whole process p as unkillable when one of threads has
-+ * TIF_MEMDIE pending. Otherwise, we may end up setting TIF_MEMDIE
-+ * on the same victim forever (e.g. making SysRq-f unusable).
-+ */
-+static struct task_struct *find_lock_non_victim_task_mm(struct task_struct *p)
-+{
-+	struct task_struct *t;
-+
-+	rcu_read_lock();
-+
-+	for_each_thread(p, t) {
-+		if (likely(!test_tsk_thread_flag(t, TIF_MEMDIE)))
-+			continue;
-+		t = NULL;
-+		goto found;
-+	}
-+	t = find_lock_task_mm(p);
-+ found:
-+	rcu_read_unlock();
-+
-+	return t;
-+}
-+
-+/*
-  * order == -1 means the oom kill is required by sysrq, otherwise only
-  * for display purposes.
-  */
-@@ -165,7 +189,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	if (oom_unkillable_task(p, memcg, nodemask))
- 		return 0;
- 
--	p = find_lock_task_mm(p);
-+	p = find_lock_non_victim_task_mm(p);
- 	if (!p)
- 		return 0;
- 
-@@ -361,7 +385,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- 		if (oom_unkillable_task(p, memcg, nodemask))
- 			continue;
- 
--		task = find_lock_task_mm(p);
-+		task = find_lock_non_victim_task_mm(p);
- 		if (!task) {
- 			/*
- 			 * This is a kthread or all of p's threads have already
-@@ -562,7 +586,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	}
- 	read_unlock(&tasklist_lock);
- 
--	p = find_lock_task_mm(victim);
-+	p = find_lock_non_victim_task_mm(victim);
- 	if (!p) {
- 		put_task_struct(victim);
- 		return;
 -- 
 1.8.3.1
 
