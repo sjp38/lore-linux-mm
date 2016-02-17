@@ -1,74 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1B46B0009
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:34:29 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id c200so235138184wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:34:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d84si43602278wmc.17.2016.02.17.13.34.28
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB376B0009
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:36:16 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id hb3so108585355igb.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:36:16 -0800 (PST)
+Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
+        by mx.google.com with ESMTPS id 85si5478384iom.30.2016.02.17.13.36.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Feb 2016 13:34:28 -0800 (PST)
-Date: Wed, 17 Feb 2016 22:34:50 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 3/6] ext4: Online defrag not supported with DAX
-Message-ID: <20160217213450.GI14140@quack.suse.cz>
-References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
- <1455680059-20126-4-git-send-email-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Feb 2016 13:36:15 -0800 (PST)
+Received: by mail-io0-x22c.google.com with SMTP id 9so51334388iom.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:36:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1455680059-20126-4-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <56C4E720.4050800@sr71.net>
+References: <20160212210152.9CAD15B0@viggo.jf.intel.com>
+	<20160212210240.CB4BB5CA@viggo.jf.intel.com>
+	<CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
+	<56C4E720.4050800@sr71.net>
+Date: Wed, 17 Feb 2016 13:36:15 -0800
+Message-ID: <CAGXu5jJyLHTHn4Los2KJ-Hy5zfOUsavTs74ba4-81eTeXEgc_w@mail.gmail.com>
+Subject: Re: [PATCH 33/33] x86, pkeys: execute-only support
+From: Kees Cook <keescook@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
+To: Dave Hansen <dave@sr71.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
 
-On Tue 16-02-16 20:34:16, Ross Zwisler wrote:
-> Online defrag operations for ext4 are hard coded to use the page cache.
-> See ext4_ioctl() -> ext4_move_extents() -> move_extent_per_page()
-> 
-> When combined with DAX I/O, which circumvents the page cache, this can
-> result in data corruption.  This was observed with xfstests ext4/307 and
-> ext4/308.
-> 
-> Fix this by only allowing online defrag for non-DAX files.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On Wed, Feb 17, 2016 at 1:33 PM, Dave Hansen <dave@sr71.net> wrote:
+> On 02/17/2016 01:27 PM, Kees Cook wrote:
+>> Is there a way to detect this feature's availability without userspace
+>> having to set up a segv handler and attempting to read a
+>> PROT_EXEC-only region? (i.e. cpu flag for protection keys, or a way to
+>> check the protection to see if PROT_READ got added automatically,
+>> etc?)
+>
+> You can kinda do it with /proc/$pid/(s)maps.  Here's smaps, for instance:
+>
+>> 00401000-00402000 --xp 00001000 08:14 4897479                            /root/pkeys/pkey-xonly
+>> Size:                  4 kB
+>> Rss:                   4 kB
+> ...
+>> KernelPageSize:        4 kB
+>> MMUPageSize:           4 kB
+>> Locked:                0 kB
+>> ProtectionKey:        15
+>> VmFlags: ex mr mw me dw
 
-We need to handle this eventually but for now we are fine. You can add:
+Ah-ha, perfect. Thanks!
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> You can see "--x" and the ProtectionKey itself being nonzero.  That's a
+> reasonable indication.  There's also the "OSPKE" cpuid bit which only
+> shows up when the kernel has enabled protection keys.  This is
+> _separate_ from the bit that says whether the processor support pkeys.
+>
+> I check them in test code like this:
+>
+>> static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
+>>                                 unsigned int *ecx, unsigned int *edx)
+>> {
+>>         /* ecx is often an input as well as an output. */
+>>         asm volatile(
+>>                 "cpuid;"
+>>                 : "=a" (*eax),
+>>                   "=b" (*ebx),
+>>                   "=c" (*ecx),
+>>                   "=d" (*edx)
+>>                 : "0" (*eax), "2" (*ecx));
+>> }
+>>
+>> /* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx) */
+>> #define X86_FEATURE_PKU        (1<<3) /* Protection Keys for Userspace */
+>> #define X86_FEATURE_OSPKE      (1<<4) /* OS Protection Keys Enable */
+>>
+>> static inline int cpu_has_pku(void)
+>> {
+>>         unsigned int eax;
+>>         unsigned int ebx;
+>>         unsigned int ecx;
+>>         unsigned int edx;
+>>         eax = 0x7;
+>>         ecx = 0x0;
+>>         __cpuid(&eax, &ebx, &ecx, &edx);
+>>
+>>         if (!(ecx & X86_FEATURE_PKU)) {
+>>                 dprintf2("cpu does not have PKU\n");
+>>                 return 0;
+>>         }
+>>         if (!(ecx & X86_FEATURE_OSPKE)) {
+>>                 dprintf2("cpu does not have OSPKE\n");
+>>                 return 0;
+>>         }
+>>         return 1;
+>> }
+>
 
-								Honza
+Great, thanks for the example!
 
-> ---
->  fs/ext4/ioctl.c | 5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/fs/ext4/ioctl.c b/fs/ext4/ioctl.c
-> index 0f6c369..e32c86f 100644
-> --- a/fs/ext4/ioctl.c
-> +++ b/fs/ext4/ioctl.c
-> @@ -583,6 +583,11 @@ group_extend_out:
->  				 "Online defrag not supported with bigalloc");
->  			err = -EOPNOTSUPP;
->  			goto mext_out;
-> +		} else if (IS_DAX(inode)) {
-> +			ext4_msg(sb, KERN_ERR,
-> +				 "Online defrag not supported with DAX");
-> +			err = -EOPNOTSUPP;
-> +			goto mext_out;
->  		}
->  
->  		err = mnt_want_write_file(filp);
-> -- 
-> 2.5.0
-> 
-> 
+-Kees
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
