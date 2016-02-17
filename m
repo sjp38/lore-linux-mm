@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f177.google.com (mail-yw0-f177.google.com [209.85.161.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 604706B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 19:40:49 -0500 (EST)
-Received: by mail-yw0-f177.google.com with SMTP id g127so1019592ywf.2
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 16:40:49 -0800 (PST)
-Received: from mail-yw0-x234.google.com (mail-yw0-x234.google.com. [2607:f8b0:4002:c05::234])
-        by mx.google.com with ESMTPS id y68si15513804ywa.150.2016.02.16.16.40.48
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id DFC7C6B0005
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 20:56:55 -0500 (EST)
+Received: by mail-io0-f182.google.com with SMTP id z135so15183696iof.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 17:56:55 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id p7si21511891oif.106.2016.02.16.17.56.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Feb 2016 16:40:48 -0800 (PST)
-Received: by mail-yw0-x234.google.com with SMTP id u200so1069275ywf.0
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 16:40:48 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Feb 2016 17:56:55 -0800 (PST)
+From: YiPing Xu <xuyiping@huawei.com>
+Subject: [PATCH] zsmalloc: drop unused member 'mapping_area->huge'
+Date: Wed, 17 Feb 2016 09:56:39 +0800
+Message-ID: <1455674199-6227-1-git-send-email-xuyiping@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1455640227-21459-1-git-send-email-toshi.kani@hpe.com>
-References: <1455640227-21459-1-git-send-email-toshi.kani@hpe.com>
-Date: Tue, 16 Feb 2016 16:40:48 -0800
-Message-ID: <CAPcyv4jziaJokaG_MSR7CWjOKswS9vbZTeZqOLf_9YP+=p0+MQ@mail.gmail.com>
-Subject: Re: [PATCH] devm_memremap_release: fix memremap'd addr handling
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: xuyiping@huawei.com, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: suzhuangluan@hisilicon.com, puck.chen@hisilicon.com, dan.zhao@hisilicon.com
 
-On Tue, Feb 16, 2016 at 8:30 AM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> The pmem driver calls devm_memremap() to map a persistent memory
-> range.  When the pmem driver is unloaded, this memremap'd range
-> is not released.
->
-> Fix devm_memremap_release() to handle a given memremap'd address
-> properly.
->
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  kernel/memremap.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 2c468de..7a1b5c3 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -114,7 +114,7 @@ EXPORT_SYMBOL(memunmap);
->
->  static void devm_memremap_release(struct device *dev, void *res)
->  {
-> -       memunmap(res);
-> +       memunmap(*(void **)res);
->  }
+When unmapping a huge class page in zs_unmap_object, the page will
+be unmapped by kmap_atomic. the "!area->huge" branch in
+__zs_unmap_object is alway true, and no code set "area->huge" now,
+so we can drop it.
 
-Ugh, yup.  Thanks Toshi!
+Signed-off-by: YiPing Xu <xuyiping@huawei.com>
+---
+ mm/zsmalloc.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-Acked-by: Dan Williams <dan.j.williams@intel.com>
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 2d7c4c1..43e4cbc 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -281,7 +281,6 @@ struct mapping_area {
+ #endif
+ 	char *vm_addr; /* address of kmap_atomic()'ed pages */
+ 	enum zs_mapmode vm_mm; /* mapping mode */
+-	bool huge;
+ };
+ 
+ static int create_handle_cache(struct zs_pool *pool)
+@@ -1127,11 +1126,9 @@ static void __zs_unmap_object(struct mapping_area *area,
+ 		goto out;
+ 
+ 	buf = area->vm_buf;
+-	if (!area->huge) {
+-		buf = buf + ZS_HANDLE_SIZE;
+-		size -= ZS_HANDLE_SIZE;
+-		off += ZS_HANDLE_SIZE;
+-	}
++	buf = buf + ZS_HANDLE_SIZE;
++	size -= ZS_HANDLE_SIZE;
++	off += ZS_HANDLE_SIZE;
+ 
+ 	sizes[0] = PAGE_SIZE - off;
+ 	sizes[1] = size - sizes[0];
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
