@@ -1,107 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF096B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 04:59:39 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id a4so19868435wme.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:59:39 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id z9si39557735wmg.121.2016.02.17.01.59.38
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CE0516B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 05:28:47 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id yy13so9142716pab.3
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 02:28:47 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r144si1157502pfr.2.2016.02.17.02.28.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 01:59:38 -0800 (PST)
-Received: by mail-wm0-x233.google.com with SMTP id c200so204385556wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 01:59:38 -0800 (PST)
-Date: Wed, 17 Feb 2016 11:59:35 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm/hugetlb: Fix incorrect proc nr_hugepages value
-Message-ID: <20160217095935.GA15769@node.shutemov.name>
-References: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Feb 2016 02:28:46 -0800 (PST)
+Subject: [PATCH 0/6] preparation for merging the OOM reaper
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
+Date: Wed, 17 Feb 2016 19:28:25 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1455651806-25977-1-git-send-email-vaishali.thakkar@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 17, 2016 at 01:13:26AM +0530, Vaishali Thakkar wrote:
-> Currently incorrect default hugepage pool size is reported by proc
-> nr_hugepages when number of pages for the default huge page size is
-> specified twice.
-> 
-> When multiple huge page sizes are supported, /proc/sys/vm/nr_hugepages
-> indicates the current number of pre-allocated huge pages of the default
-> size. Basically /proc/sys/vm/nr_hugepages displays default_hstate->
-> max_huge_pages and after boot time pre-allocation, max_huge_pages should
-> equal the number of pre-allocated pages (nr_hugepages).
-> 
-> Test case:
-> 
-> Note that this is specific to x86 architecture.
-> 
-> Boot the kernel with command line option 'default_hugepagesz=1G
-> hugepages=X hugepagesz=2M hugepages=Y hugepagesz=1G hugepages=Z'. After
-> boot, 'cat /proc/sys/vm/nr_hugepages' and 'sysctl -a | grep hugepages'
-> returns the value X.  However, dmesg output shows that Z huge pages were
-> pre-allocated.
-> 
-> So, the root cause of the problem here is that the global variable
-> default_hstate_max_huge_pages is set if a default huge page size is
-> specified (directly or indirectly) on the command line. After the
-> command line processing in hugetlb_init, if default_hstate_max_huge_pages
-> is set, the value is assigned to default_hstae.max_huge_pages. However,
-> default_hstate.max_huge_pages may have already been set based on the
-> number of pre-allocated huge pages of default_hstate size.
-> 
-> The solution to this problem is if hstate->max_huge_pages is already set
-> then it should not set as a result of global max_huge_pages value.
-> Basically if the value of the variable hugepages is set multiple times
-> on a command line for a specific supported hugepagesize then proc layer
-> should consider the last specified value.
-> 
-> Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-> ---
-> The patch contains one line over 80 characters as I think limiting that
-> line to 80 characters makes code look bit ugly. But if anyone is having
-> issue with that then I am fine with limiting it to 80 chracters.
+I am posting this patchset for smoothly merging the OOM reaper without
+worrying about corner cases. This patchset also applies cleanly on top of
+the current Linus tree because this patchset is meant for applying before
+merging the OOM reaper.
 
-What about this?
+Several problems were found in oom reaper v5 patchset
+( http://lkml.kernel.org/r/1454505240-23446-1-git-send-email-mhocko@kernel.org ).
 
-	if (default_hstate_max_huge_pages && !default_hstate.max_huge_pages)
-		default_hstate.max_huge_pages =	default_hstate_max_huge_pages;
-> ---
->  mm/hugetlb.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 06ae13e..01f2b48 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2630,8 +2630,10 @@ static int __init hugetlb_init(void)
->  			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
->  	}
->  	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
-> -	if (default_hstate_max_huge_pages)
-> -		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
-> +	if (default_hstate_max_huge_pages) {
-> +		if (!default_hstate.max_huge_pages)
-> +			default_hstate.max_huge_pages = default_hstate_max_huge_pages;
-> +	}
->  
->  	hugetlb_init_hstates();
->  	gather_bootmem_prealloc();
-> -- 
-> 2.1.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+(1) "[PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to unmap
+    the address space" was added in order to allow the OOM killer select
+    next OOM victim by marking current OOM victim OOM-unkillable after the
+    OOM reaper reaped current OOM victim's memory. But it was found that
+    threads created by clone(!CLONE_SIGHAND && CLONE_VM) disable further
+    OOM reaping because next OOM victim is sharing current OOM victim's
+    memory and only current OOM victim is marked OOM-unkillable. While it
+    would be possible to mark all processes sharing current OOM victim's
+    memory OOM-unkillable, we are not trying to traverse the process list.
+    ( http://lkml.kernel.org/r/201602042322.IAG65142.MOOJHFSVLOQFFt@I-love.SAKURA.ne.jp )
 
--- 
- Kirill A. Shutemov
+(2) It was found that clearing TIF_MEMDIE does not allow the OOM killer
+    select next OOM victim if current OOM victim got stuck between getting
+    PF_EXITING and doing victim's mm = NULL. Since it is possible that we
+    hit silent OOM livelock before we select current OOM victim, we should
+    fix it before merging the OOM reaper.
+    ( http://lkml.kernel.org/r/20160111165214.GA32132@cmpxchg.org )
+
+(3) "[PATCH 5/5] mm, oom_reaper: implement OOM victims queuing" was added
+    in order to allow more robust queuing in case multiple OOM events occur
+    in short period. But it was found that this queuing approach did not
+    take into account oom_kill_allocating_task = 1 case which does not wait
+    for existing TIF_MEMDIE threads to clear TIF_MEMDIE. Since this is a bug
+    of the OOM killer rather than a bug of the OOM reaper, we should fix it
+    before merging the OOM reaper.
+    ( http://lkml.kernel.org/r/201602162011.ECG52697.VOLJFtOQHFMSFO@I-love.SAKURA.ne.jp )
+
+(4) There is a very strong collision between Michal Hocko and Tetsuo Handa.
+    Michal wants to merge the OOM reaper as soon as possible and correct
+    corner cases afterward because this is not an urgent problem. Tetsuo
+    wants to stop lying as soon as possible by papering over corner cases
+    for now because this is "either address now or too late to address"
+    problem, for this problem can annoy customers and technical staffs at
+    support center (Tetsuo was working there) for next 10 years unless
+    this problem is fixed before the DEADLINE (the day customers decide
+    the distributor's specific kernel version to use for their systems).
+    If we don't want to merge a mechanism for warning silent OOM livelock
+    problems (e.g. kmallocwd), Tetsuo really wants to get rid of all
+    possible locations that can cause silent OOM livelock problems.
+
+This patchset does the following things.
+
+  "[PATCH 1/6] mm,oom: exclude TIF_MEMDIE processes from candidates."
+  allows SysRq-f to select !TIF_MEMDIE process which fixes a bug in
+  current kernels.
+
+  "[PATCH 2/6] mm,oom: don't abort on exiting processes when selecting
+  a victim." fixes a problem (2) explained above.
+
+  "[PATCH 3/6] mm,oom: exclude oom_task_origin processes if they are
+  OOM victims." fixes a problem similar to (2) explained above.
+
+  "[PATCH 4/6] mm,oom: exclude oom_task_origin processes if they are
+  OOM-unkillable." fixes a problem similar to (2) explained above.
+
+  "[PATCH 5/6] mm,oom: Re-enable OOM killer using timers." mitigates
+  a problem (1) explained above, by allowing the kernel ignore existing
+  TIF_MEMDIE threads when OOM livelock is detected by timer based
+  heuristics.
+
+  "[PATCH 6/6] mm,oom: wait for OOM victims when using
+  oom_kill_allocating_task == 1" fixes a problem (3) explained above.
+
+By applying this patchset prior to applying the OOM reaper patchset,
+we can start the OOM reaper without correcting problems found in
+"[PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to unmap
+the address space" and "[PATCH 5/5] mm, oom_reaper: implement OOM
+victims queuing".
+
+ oom_kill.c |   71 +++++++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 51 insertions(+), 20 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
