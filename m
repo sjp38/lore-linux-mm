@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0D06B0253
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:18:06 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id xk3so37710623obc.2
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:06 -0800 (PST)
-Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
-        by mx.google.com with ESMTPS id u2si4205090oev.32.2016.02.17.14.18.05
+Received: from mail-yw0-f172.google.com (mail-yw0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7FF6B0255
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 17:18:14 -0500 (EST)
+Received: by mail-yw0-f172.google.com with SMTP id u200so25548317ywf.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:14 -0800 (PST)
+Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
+        by mx.google.com with ESMTPS id b135si1795980ywa.305.2016.02.17.14.18.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 14:18:05 -0800 (PST)
-Received: by mail-ob0-x230.google.com with SMTP id jq7so37444882obb.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:05 -0800 (PST)
+        Wed, 17 Feb 2016 14:18:13 -0800 (PST)
+Received: by mail-yk0-x22a.google.com with SMTP id u9so13212749ykd.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 14:18:13 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
-References: <20160212210152.9CAD15B0@viggo.jf.intel.com> <20160212210240.CB4BB5CA@viggo.jf.intel.com>
- <CAGXu5j+L6W17wkKNdheUQQ01bJE4ZXLDiG=5JBaNWju2j9NB2Q@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 17 Feb 2016 14:17:45 -0800
-Message-ID: <CALCETrVUifty6QuXo67zt9DuxsgUPTqzFbaKGS0qXd75jAb35Q@mail.gmail.com>
-Subject: Re: [PATCH 33/33] x86, pkeys: execute-only support
+In-Reply-To: <20160217215420.GK14140@quack.suse.cz>
+References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1455680059-20126-7-git-send-email-ross.zwisler@linux.intel.com>
+	<20160217215420.GK14140@quack.suse.cz>
+Date: Wed, 17 Feb 2016 14:18:13 -0800
+Message-ID: <CAPcyv4g3iCL1q7FoeTwKvtqo2mLfA=mfi1K5PdmZVjU+PA-gOA@mail.gmail.com>
+Subject: Re: [PATCH v3 6/6] block: use dax_do_io() if blkdev_dax_capable()
+From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@google.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@sr71.net>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Al Viro <viro@ftp.linux.org.uk>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On Feb 17, 2016 1:27 PM, "Kees Cook" <keescook@google.com> wrote:
+On Wed, Feb 17, 2016 at 1:54 PM, Jan Kara <jack@suse.cz> wrote:
+> On Tue 16-02-16 20:34:19, Ross Zwisler wrote:
+>> From: Dan Williams <dan.j.williams@intel.com>
+>>
+>> Setting S_DAX on an inode requires that the inode participate in the
+>> DAX-fsync mechanism which expects to use the pagecache for tracking
+>> potentially dirty cpu cachelines.  However, dax_do_io() participates in
+>> the standard pagecache sync semantics and arranges for dirty pages to be
+>> flushed through the driver when a direct-IO operation accesses the same
+>> ranges.
+>>
+>> It should always be valid to use the dax_do_io() path regardless of
+>> whether the block_device inode has S_DAX set.  In either case dirty
+>> pages or dirty cachelines are made durable before the direct-IO
+>> operation proceeds.
 >
-> On Fri, Feb 12, 2016 at 1:02 PM, Dave Hansen <dave@sr71.net> wrote:
-> >
-> > From: Dave Hansen <dave.hansen@linux.intel.com>
-> >
-> > Protection keys provide new page-based protection in hardware.
-> > But, they have an interesting attribute: they only affect data
-> > accesses and never affect instruction fetches.  That means that
-> > if we set up some memory which is set as "access-disabled" via
-> > protection keys, we can still execute from it.
-> >
-> > This patch uses protection keys to set up mappings to do just that.
-> > If a user calls:
-> >
-> >         mmap(..., PROT_EXEC);
-> > or
-> >         mprotect(ptr, sz, PROT_EXEC);
-> >
-> > (note PROT_EXEC-only without PROT_READ/WRITE), the kernel will
-> > notice this, and set a special protection key on the memory.  It
-> > also sets the appropriate bits in the Protection Keys User Rights
-> > (PKRU) register so that the memory becomes unreadable and
-> > unwritable.
-> >
-> > I haven't found any userspace that does this today.  With this
-> > facility in place, we expect userspace to move to use it
-> > eventually.  Userspace _could_ start doing this today.  Any
-> > PROT_EXEC calls get converted to PROT_READ inside the kernel, and
-> > would transparently be upgraded to "true" PROT_EXEC with this
-> > code.  IOW, userspace never has to do any PROT_EXEC runtime
-> > detection.
->
-> Random thought while skimming email:
->
-> Is there a way to detect this feature's availability without userspace
-> having to set up a segv handler and attempting to read a
-> PROT_EXEC-only region? (i.e. cpu flag for protection keys, or a way to
-> check the protection to see if PROT_READ got added automatically,
-> etc?)
+> Please no. I agree that going via DAX path for normal likely won't
+> introduce new data corruption issues. But I dislike having a special
+> case for block devices. Also you have no way of turning DAX off for block
+> devices AFAIU and as Dave said, DAX should be opt-in, not opt-out. Note
+> that you may actually want to go through the block layer for normal IO e.g.
+> because you use IO cgroups to limit processes so using DAX regresses some
+> functionality.
 >
 
-We could add an HWCAP.
+Sounds good.
 
---Andy
+As Ross mentioned in the cover letter, I'm fine with dropping this one
+for now as we think through how to restore raw device DAX support.  In
+the meantime we can still force CONFIG_BLK_DEV_DAX=y for testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
