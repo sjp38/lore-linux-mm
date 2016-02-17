@@ -1,124 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 53FB86B0005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 22:33:12 -0500 (EST)
-Received: by mail-qg0-f53.google.com with SMTP id b67so3235977qgb.1
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 19:33:12 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id o13si35480771qkl.55.2016.02.16.19.33.10
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Feb 2016 19:33:11 -0800 (PST)
-Subject: Re: [PATCH] zsmalloc: drop unused member 'mapping_area->huge'
-References: <1455674199-6227-1-git-send-email-xuyiping@huawei.com>
- <20160217022552.GB535@swordfish>
-From: xuyiping <xuyiping@hisilicon.com>
-Message-ID: <56C3E91B.1030101@hisilicon.com>
-Date: Wed, 17 Feb 2016 11:29:31 +0800
-MIME-Version: 1.0
-In-Reply-To: <20160217022552.GB535@swordfish>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AA77D6B0009
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2016 22:34:35 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id q63so3312659pfb.0
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2016 19:34:35 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id uv2si55489081pac.41.2016.02.16.19.34.34
+        for <linux-mm@kvack.org>;
+        Tue, 16 Feb 2016 19:34:35 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 0/6] DAX fixes, move flushing calls to FS
+Date: Tue, 16 Feb 2016 20:34:13 -0700
+Message-Id: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, YiPing Xu <xuyiping@huawei.com>
-Cc: minchan@kernel.org, ngupta@vflare.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, suzhuangluan@hisilicon.com, puck.chen@hisilicon.com, dan.zhao@hisilicon.com
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-HI, Sergery
+This patch series fixes several issues with the current DAX code:
 
-On 2016/2/17 10:26, Sergey Senozhatsky wrote:
-> Hello,
->
-> On (02/17/16 09:56), YiPing Xu wrote:
->>   static int create_handle_cache(struct zs_pool *pool)
->> @@ -1127,11 +1126,9 @@ static void __zs_unmap_object(struct mapping_area *area,
->>   		goto out;
->>
->>   	buf = area->vm_buf;
->> -	if (!area->huge) {
->> -		buf = buf + ZS_HANDLE_SIZE;
->> -		size -= ZS_HANDLE_SIZE;
->> -		off += ZS_HANDLE_SIZE;
->> -	}
->> +	buf = buf + ZS_HANDLE_SIZE;
->> +	size -= ZS_HANDLE_SIZE;
->> +	off += ZS_HANDLE_SIZE;
->>
->>   	sizes[0] = PAGE_SIZE - off;
->>   	sizes[1] = size - sizes[0];
->
->
-> hm, indeed.
->
-> shouldn't it depend on class->huge?
->
-> void *zs_map_object()
-> {
+1) DAX is used by default on raw block devices that are capable of
+supporting it.  This creates an issue because there are still uses of the
+block device that use the page cache, and having one block device user
+doing DAX I/O and another doing page cache I/O can lead to data corruption.
 
-	if (off + class->size <= PAGE_SIZE) {
+2) When S_DAX is set on an inode we assume that if there are pages attached
+to the mapping (mapping->nrpages != 0), those pages are clean zero pages
+that were used to service reads from holes.  This wasn't true in all cases.
 
-for huge object, the code will get into this branch, there is no more 
-huge object process in __zs_map_object.
+3) ext4 online defrag combined with DAX I/O could lead to data corruption.
 
-		/* this object is contained entirely within a page */
-		area->vm_addr = kmap_atomic(page);
-		ret = area->vm_addr + off;
-		goto out;
-	}
+4) The DAX block/sector zeroing code needs a valid struct block_device,
+which it wasn't always getting.
 
+5) The DAX writeback code needs a valid struct block_device, which it
+wasn't always getting.
 
-> 	void *ret = __zs_map_object(area, pages, off, class->size);
->
-> 	if (!class->huge)
-> 		ret += ZS_HANDLE_SIZE;  /* area->vm_buf + ZS_HANDLE_SIZE */
->
-> 	return ret;
-> }
+6) The DAX writeback code needs to be called for sync(2) and syncfs(2).
 
-void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
-{
-	..
+The last patch in this series reenables the DAX I/O path for raw block
+devices when they would otherwise be doing direct I/O.  It can be dropped
+if it is too controversial.
 
-	area = this_cpu_ptr(&zs_map_area);
-	if (off + class->size <= PAGE_SIZE)
+Thank you to Dan Williams and Jan Kara for their code contributions to this
+set.
 
-for huge object, the code will get into this branch, so, in 
-__zs_unmap_object there is no depend on class->huge.
+A working tree can be found here:
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=fsync_bdev_v3
 
-it is a little implicated here.
+Dan Williams (2):
+  block: disable block device DAX by default
+  block: use dax_do_io() if blkdev_dax_capable()
 
-		kunmap_atomic(area->vm_addr);
-	else {
-		struct page *pages[2];
+Ross Zwisler (4):
+  ext2, ext4: only set S_DAX for regular inodes
+  ext4: Online defrag not supported with DAX
+  dax: give DAX clearing code correct bdev
+  dax: move writeback calls into the filesystems
 
-		pages[0] = page;
-		pages[1] = get_next_page(page);
-		BUG_ON(!pages[1]);
+ block/Kconfig          | 13 +++++++++++++
+ block/ioctl.c          |  1 +
+ fs/block_dev.c         | 22 +++++++++++++++++++---
+ fs/dax.c               | 21 +++++++++++----------
+ fs/ext2/inode.c        | 16 +++++++++++++---
+ fs/ext4/inode.c        |  6 +++++-
+ fs/ext4/ioctl.c        |  5 +++++
+ fs/xfs/xfs_aops.c      |  6 +++++-
+ fs/xfs/xfs_aops.h      |  1 +
+ fs/xfs/xfs_bmap_util.c |  3 ++-
+ include/linux/dax.h    |  8 +++++---
+ include/linux/fs.h     | 31 +++++++++++++++++++++----------
+ mm/filemap.c           | 12 ++++--------
+ 13 files changed, 105 insertions(+), 40 deletions(-)
 
-		__zs_unmap_object(area, pages, off, class->size);
-	}
-
-	..
-}
-
-
-> static void __zs_unmap_object(struct mapping_area *area...)
-> {
-> 	char *buf = area->vm_buf;
->
-> 	/* handle is in page->private for class->huge */
->
-> 	buf = buf + ZS_HANDLE_SIZE;
-> 	size -= ZS_HANDLE_SIZE;
-> 	off += ZS_HANDLE_SIZE;
->
-> 	memcpy(..);
-> }
->
-> 	-ss
->
-> .
->
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
