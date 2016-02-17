@@ -1,87 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E5AB6B025F
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:17:07 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id x65so15527916pfb.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:17:07 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id wg10si3385570pac.23.2016.02.17.10.17.04
-        for <linux-mm@kvack.org>;
-        Wed, 17 Feb 2016 10:17:04 -0800 (PST)
-Subject: [PATCH] signals, ia64, mips: update arch-specific siginfos with pkeys field
-From: Dave Hansen <dave@sr71.net>
-Date: Wed, 17 Feb 2016 10:17:03 -0800
-Message-Id: <20160217181703.E99B6656@viggo.jf.intel.com>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3513F6B0261
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 13:29:04 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id a4so41017895wme.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:29:04 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id e130si6193369wmd.64.2016.02.17.10.29.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Feb 2016 10:29:02 -0800 (PST)
+Received: by mail-wm0-x234.google.com with SMTP id b205so168180030wmb.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 10:29:02 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAG_fn=UwMgXJkgKhSa6Qsr_2jqQi8exZj7b8eoe+WK-_7aD5cA@mail.gmail.com>
+References: <cover.1453918525.git.glider@google.com>
+	<a6491b8dfc46299797e67436cc1541370e9439c9.1453918525.git.glider@google.com>
+	<20160128074051.GA15426@js1304-P5Q-DELUXE>
+	<CAG_fn=Uxk-Y2gVfrdLxPRFf2SQ+1VnoWNUorcDw4E18D0+NBWQ@mail.gmail.com>
+	<CAG_fn=VetOrSwqseiRwCFVr-nTTemczMixbbafgEJdqDRB4p7Q@mail.gmail.com>
+	<20160201025530.GD32125@js1304-P5Q-DELUXE>
+	<CAG_fn=UwMgXJkgKhSa6Qsr_2jqQi8exZj7b8eoe+WK-_7aD5cA@mail.gmail.com>
+Date: Wed, 17 Feb 2016 19:29:02 +0100
+Message-ID: <CAG_fn=UGJG0a=Mu6-yjJSP25aoQNd9RduE-tvga-ceeAtgnaZQ@mail.gmail.com>
+Subject: Re: [PATCH v1 5/8] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-mips@linux-mips.org, linux-ia64@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: kasan-dev@googlegroups.com, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, Dmitriy Vyukov <dvyukov@google.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-mm@kvack.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>
+
+On Tue, Feb 16, 2016 at 7:37 PM, Alexander Potapenko <glider@google.com> wr=
+ote:
+> On Mon, Feb 1, 2016 at 3:55 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrot=
+e:
+>> On Thu, Jan 28, 2016 at 02:27:44PM +0100, Alexander Potapenko wrote:
+>>> On Thu, Jan 28, 2016 at 1:51 PM, Alexander Potapenko <glider@google.com=
+> wrote:
+>>> >
+>>> > On Jan 28, 2016 8:40 AM, "Joonsoo Kim" <iamjoonsoo.kim@lge.com> wrote=
+:
+>>> >>
+>>> >> Hello,
+>>> >>
+>>> >> On Wed, Jan 27, 2016 at 07:25:10PM +0100, Alexander Potapenko wrote:
+>>> >> > Stack depot will allow KASAN store allocation/deallocation stack t=
+races
+>>> >> > for memory chunks. The stack traces are stored in a hash table and
+>>> >> > referenced by handles which reside in the kasan_alloc_meta and
+>>> >> > kasan_free_meta structures in the allocated memory chunks.
+>>> >>
+>>> >> Looks really nice!
+>>> >>
+>>> >> Could it be more generalized to be used by other feature that need t=
+o
+>>> >> store stack trace such as tracepoint or page owner?
+>>> > Certainly yes, but see below.
+>>> >
+>>> >> If it could be, there is one more requirement.
+>>> >> I understand the fact that entry is never removed from depot makes t=
+hings
+>>> >> very simpler, but, for general usecases, it's better to use referenc=
+e
+>>> >> count
+>>> >> and allow to remove. Is it possible?
+>>> > For our use case reference counting is not really necessary, and it w=
+ould
+>>> > introduce unwanted contention.
+>>
+>> Okay.
+>>
+>>> > There are two possible options, each having its advantages and drawba=
+cks: we
+>>> > can let the clients store the refcounters directly in their stacks (m=
+ore
+>>> > universal, but harder to use for the clients), or keep the counters i=
+n the
+>>> > depot but add an API that does not change them (easier for the client=
+s, but
+>>> > potentially error-prone).
+>>> > I'd say it's better to actually find at least one more user for the s=
+tack
+>>> > depot in order to understand the requirements, and refactor the code =
+after
+>>> > that.
+>>
+>> I re-think the page owner case and it also may not need refcount.
+>> For now, just moving this stuff to /lib would be helpful for other futur=
+e user.
+> I agree this code may need to be moved to /lib someday, but I wouldn't
+> hurry with that.
+> Right now it is quite KASAN-specific, and it's unclear yet whether
+> anyone else is going to use it.
+> I suggest we keep it in mm/kasan for now, and factor the common parts
+> into /lib when the need arises.
+>
+>> BTW, is there any performance number? I guess that it could affect
+>> the performance.
+> I've compared the performance of KASAN with SLAB allocator on a small
+> synthetic benchmark in two modes: with stack depot enabled and with
+> kasan_save_stack() unconditionally returning 0.
+> In the former case 8% more time was spent in the kernel than in the latte=
+r case.
+>
+> If I am not mistaking, for SLUB allocator the bookkeeping (enabled
+> with the slub_debug=3DUZ boot options) take only 1.5 time, so the
+> difference is worth looking into (at least before we switch SLUB to
+> stack depot).
+
+I've made additional measurements.
+Previously I had been using a userspace benchmark that created and
+destroyed pipes in a loop
+(https://github.com/google/sanitizers/blob/master/address-sanitizer/kernel_=
+buildbot/slave/bench_pipes.c).
+
+Now I've made a kernel module that allocated and deallocated memory
+chunks of different sizes in a loop.
+There were two modes of operation:
+1) all the allocations were made from the same function, therefore all
+allocation/deallocation stacks were similar and there always was a hit
+in the stackdepot hashtable
+2) The allocations were made from 2^16 different stacks.
+
+In the first case SLAB+stackdepot turned out to be 13% faster than
+SLUB+slub_debug, in the second SLAB was 11% faster.
+Note that in both cases and for both allocators most of the time (more
+than 90%) was spent in the x86 stack unwinder, which is common for
+both approaches.
+
+Yet another observation regarding stackdepot: under a heavy load
+(running Trinity for a hour, 101M allocations) the depot saturates at
+around 20K records with the hashtable miss rate of 0.02%.
+That said, I still cannot justify the results of the userspace
+benchmark, but the slowdown of the stackdepot approach for SLAB sounds
+acceptable, especially given the memory gain compared to SLUB
+bookkeeping (which requires 128 bytes per memory allocation) and the
+fact we'll be dealing with the fast path most of the time.
+
+It will certainly be nice to compare SLUB+slub_debug to
+SLUB+stackdepot once we start switching SLUB to stackdepot.
 
 
-This fixes a compile error that Ingo was hitting with MIPS when the
-x86 pkeys patch set is applied.
+>
+>> Thanks.
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
+> Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
+> leiten Sie diese bitte nicht weiter, informieren Sie den
+> Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Da=
+nk.
+> This e-mail is confidential. If you are not the right addressee please
+> do not forward it, please inform the sender, and please erase this
+> e-mail including any attachments. Thanks.
 
-ia64 and mips have separate definitions for siginfo from the
-generic one.  Patch them to have the pkey fields.
 
-Note that this is exactly what we did for MPX as well.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-mips@linux-mips.org
-Cc: linux-ia64@vger.kernel.org
----
+--=20
+Alexander Potapenko
+Software Engineer
 
- b/arch/ia64/include/uapi/asm/siginfo.h |   13 +++++++++----
- b/arch/mips/include/uapi/asm/siginfo.h |   13 +++++++++----
- 2 files changed, 18 insertions(+), 8 deletions(-)
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-diff -puN arch/ia64/include/uapi/asm/siginfo.h~pkeys-09-1-siginfo-for-mips-ia64 arch/ia64/include/uapi/asm/siginfo.h
---- a/arch/ia64/include/uapi/asm/siginfo.h~pkeys-09-1-siginfo-for-mips-ia64	2016-02-17 09:32:06.001815266 -0800
-+++ b/arch/ia64/include/uapi/asm/siginfo.h	2016-02-17 09:32:06.010815672 -0800
-@@ -63,10 +63,15 @@ typedef struct siginfo {
- 			unsigned int _flags;	/* see below */
- 			unsigned long _isr;	/* isr */
- 			short _addr_lsb;	/* lsb of faulting address */
--			struct {
--				void __user *_lower;
--				void __user *_upper;
--			} _addr_bnd;
-+			union {
-+				/* used when si_code=SEGV_BNDERR */
-+				struct {
-+					void __user *_lower;
-+					void __user *_upper;
-+				} _addr_bnd;
-+				/* used when si_code=SEGV_PKUERR */
-+				u64 _pkey;
-+			};
- 		} _sigfault;
- 
- 		/* SIGPOLL */
-diff -puN arch/mips/include/uapi/asm/siginfo.h~pkeys-09-1-siginfo-for-mips-ia64 arch/mips/include/uapi/asm/siginfo.h
---- a/arch/mips/include/uapi/asm/siginfo.h~pkeys-09-1-siginfo-for-mips-ia64	2016-02-17 09:32:06.003815357 -0800
-+++ b/arch/mips/include/uapi/asm/siginfo.h	2016-02-17 09:32:06.010815672 -0800
-@@ -86,10 +86,15 @@ typedef struct siginfo {
- 			int _trapno;	/* TRAP # which caused the signal */
- #endif
- 			short _addr_lsb;
--			struct {
--				void __user *_lower;
--				void __user *_upper;
--			} _addr_bnd;
-+			union {
-+				/* used when si_code=SEGV_BNDERR */
-+				struct {
-+					void __user *_lower;
-+					void __user *_upper;
-+				} _addr_bnd;
-+				/* used when si_code=SEGV_PKUERR */
-+				u64 _pkey;
-+			};
- 		} _sigfault;
- 
- 		/* SIGPOLL, SIGXFSZ (To do ...)	 */
-_
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
+leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
