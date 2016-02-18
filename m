@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BCB6D828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:52:02 -0500 (EST)
-Received: by mail-qk0-f169.google.com with SMTP id o6so20647833qkc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:52:02 -0800 (PST)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id l71si8840155qkh.48.2016.02.18.08.52.00
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E1B46828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:52:04 -0500 (EST)
+Received: by mail-qk0-f178.google.com with SMTP id o6so20648294qkc.2
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:52:04 -0800 (PST)
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
+        by mx.google.com with ESMTPS id p47si53728328qge.79.2016.02.18.08.52.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Feb 2016 08:52:00 -0800 (PST)
+        Thu, 18 Feb 2016 08:52:01 -0800 (PST)
 Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 18 Feb 2016 09:51:59 -0700
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id AACD83E40030
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:57 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGpvex27984122
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:57 -0700
-Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGpvYF001942
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:57 -0700
+	Thu, 18 Feb 2016 11:52:01 -0500
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id C24A36E8040
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:38:51 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGq06c33161380
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:52:00 GMT
+Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGpxPY021564
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:51:59 -0500
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V3 19/30] powerpc/mm: Use generic version of pmdp_clear_flush_young
-Date: Thu, 18 Feb 2016 22:20:43 +0530
-Message-Id: <1455814254-10226-20-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3 20/30] powerpc/mm: Create a new headers for tlbflush for hash64
+Date: Thu, 18 Feb 2016 22:20:44 +0530
+Message-Id: <1455814254-10226-21-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,58 +33,216 @@ List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-The radix variant is going to require a flush_tlb_range. We can't then
-have this as static inline because of the usage of HPAGE_PMD_SIZE. So
-we are forced to make it a function in which case we can use the generic version.
-
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/pgtable.h |  3 ---
- arch/powerpc/mm/pgtable-hash64.c             | 10 ++--------
- 2 files changed, 2 insertions(+), 11 deletions(-)
+ arch/powerpc/include/asm/book3s/64/tlbflush-hash.h | 94 ++++++++++++++++++++++
+ arch/powerpc/include/asm/tlbflush.h                | 92 +--------------------
+ 2 files changed, 95 insertions(+), 91 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/book3s/64/tlbflush-hash.h
 
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 2e6d2362748b..437f632d6185 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -333,9 +333,6 @@ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
- #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
- extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
- 				     unsigned long address, pmd_t *pmdp);
--#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
--extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
--				  unsigned long address, pmd_t *pmdp);
- 
- #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
- extern pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
-diff --git a/arch/powerpc/mm/pgtable-hash64.c b/arch/powerpc/mm/pgtable-hash64.c
-index fa30c8d9561a..c11e19f68b6d 100644
---- a/arch/powerpc/mm/pgtable-hash64.c
-+++ b/arch/powerpc/mm/pgtable-hash64.c
-@@ -350,12 +350,6 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
- 	return pmd;
+diff --git a/arch/powerpc/include/asm/book3s/64/tlbflush-hash.h b/arch/powerpc/include/asm/book3s/64/tlbflush-hash.h
+new file mode 100644
+index 000000000000..1b753f96b374
+--- /dev/null
++++ b/arch/powerpc/include/asm/book3s/64/tlbflush-hash.h
+@@ -0,0 +1,94 @@
++#ifndef _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
++#define _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
++
++#define MMU_NO_CONTEXT		0
++
++/*
++ * TLB flushing for 64-bit hash-MMU CPUs
++ */
++
++#include <linux/percpu.h>
++#include <asm/page.h>
++
++#define PPC64_TLB_BATCH_NR 192
++
++struct ppc64_tlb_batch {
++	int			active;
++	unsigned long		index;
++	struct mm_struct	*mm;
++	real_pte_t		pte[PPC64_TLB_BATCH_NR];
++	unsigned long		vpn[PPC64_TLB_BATCH_NR];
++	unsigned int		psize;
++	int			ssize;
++};
++DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
++
++extern void __flush_tlb_pending(struct ppc64_tlb_batch *batch);
++
++#define __HAVE_ARCH_ENTER_LAZY_MMU_MODE
++
++static inline void arch_enter_lazy_mmu_mode(void)
++{
++	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
++
++	batch->active = 1;
++}
++
++static inline void arch_leave_lazy_mmu_mode(void)
++{
++	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
++
++	if (batch->index)
++		__flush_tlb_pending(batch);
++	batch->active = 0;
++}
++
++#define arch_flush_lazy_mmu_mode()      do {} while (0)
++
++
++extern void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize,
++			    int ssize, unsigned long flags);
++extern void flush_hash_range(unsigned long number, int local);
++extern void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
++				pmd_t *pmdp, unsigned int psize, int ssize,
++				unsigned long flags);
++
++static inline void local_flush_tlb_mm(struct mm_struct *mm)
++{
++}
++
++static inline void flush_tlb_mm(struct mm_struct *mm)
++{
++}
++
++static inline void local_flush_tlb_page(struct vm_area_struct *vma,
++					unsigned long vmaddr)
++{
++}
++
++static inline void flush_tlb_page(struct vm_area_struct *vma,
++				  unsigned long vmaddr)
++{
++}
++
++static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
++					 unsigned long vmaddr)
++{
++}
++
++static inline void flush_tlb_range(struct vm_area_struct *vma,
++				   unsigned long start, unsigned long end)
++{
++}
++
++static inline void flush_tlb_kernel_range(unsigned long start,
++					  unsigned long end)
++{
++}
++
++/* Private function for use by PCI IO mapping code */
++extern void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
++				     unsigned long end);
++extern void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd,
++				unsigned long addr);
++#endif /*  _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H */
+diff --git a/arch/powerpc/include/asm/tlbflush.h b/arch/powerpc/include/asm/tlbflush.h
+index 23d351ca0303..9f77f85e3e99 100644
+--- a/arch/powerpc/include/asm/tlbflush.h
++++ b/arch/powerpc/include/asm/tlbflush.h
+@@ -78,97 +78,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
  }
  
--int pmdp_test_and_clear_young(struct vm_area_struct *vma,
--			      unsigned long address, pmd_t *pmdp)
+ #elif defined(CONFIG_PPC_STD_MMU_64)
+-
+-#define MMU_NO_CONTEXT		0
+-
+-/*
+- * TLB flushing for 64-bit hash-MMU CPUs
+- */
+-
+-#include <linux/percpu.h>
+-#include <asm/page.h>
+-
+-#define PPC64_TLB_BATCH_NR 192
+-
+-struct ppc64_tlb_batch {
+-	int			active;
+-	unsigned long		index;
+-	struct mm_struct	*mm;
+-	real_pte_t		pte[PPC64_TLB_BATCH_NR];
+-	unsigned long		vpn[PPC64_TLB_BATCH_NR];
+-	unsigned int		psize;
+-	int			ssize;
+-};
+-DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
+-
+-extern void __flush_tlb_pending(struct ppc64_tlb_batch *batch);
+-
+-#define __HAVE_ARCH_ENTER_LAZY_MMU_MODE
+-
+-static inline void arch_enter_lazy_mmu_mode(void)
 -{
--	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
+-	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
+-
+-	batch->active = 1;
 -}
 -
- /*
-  * We currently remove entries from the hashtable regardless of whether
-  * the entry was young or dirty. The generic routines only flush if the
-@@ -364,8 +358,8 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-  * We should be more intelligent about this but for the moment we override
-  * these functions and force a tlb flush unconditionally
-  */
--int pmdp_clear_flush_young(struct vm_area_struct *vma,
--				  unsigned long address, pmd_t *pmdp)
-+int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-+			      unsigned long address, pmd_t *pmdp)
- {
- 	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
- }
+-static inline void arch_leave_lazy_mmu_mode(void)
+-{
+-	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
+-
+-	if (batch->index)
+-		__flush_tlb_pending(batch);
+-	batch->active = 0;
+-}
+-
+-#define arch_flush_lazy_mmu_mode()      do {} while (0)
+-
+-
+-extern void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize,
+-			    int ssize, unsigned long flags);
+-extern void flush_hash_range(unsigned long number, int local);
+-extern void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
+-				pmd_t *pmdp, unsigned int psize, int ssize,
+-				unsigned long flags);
+-
+-static inline void local_flush_tlb_mm(struct mm_struct *mm)
+-{
+-}
+-
+-static inline void flush_tlb_mm(struct mm_struct *mm)
+-{
+-}
+-
+-static inline void local_flush_tlb_page(struct vm_area_struct *vma,
+-					unsigned long vmaddr)
+-{
+-}
+-
+-static inline void flush_tlb_page(struct vm_area_struct *vma,
+-				  unsigned long vmaddr)
+-{
+-}
+-
+-static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
+-					 unsigned long vmaddr)
+-{
+-}
+-
+-static inline void flush_tlb_range(struct vm_area_struct *vma,
+-				   unsigned long start, unsigned long end)
+-{
+-}
+-
+-static inline void flush_tlb_kernel_range(unsigned long start,
+-					  unsigned long end)
+-{
+-}
+-
+-/* Private function for use by PCI IO mapping code */
+-extern void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
+-				     unsigned long end);
+-extern void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd,
+-				unsigned long addr);
++#include <asm/book3s/64/tlbflush-hash.h>
+ #else
+ #error Unsupported MMU type
+ #endif
 -- 
 2.5.0
 
