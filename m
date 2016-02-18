@@ -1,102 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A4DB96B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 23:49:53 -0500 (EST)
-Received: by mail-ig0-f173.google.com with SMTP id g6so5643667igt.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 20:49:53 -0800 (PST)
-Received: from cindy.local ([124.126.226.234])
-        by mx.google.com with ESMTP id 99si10239739iot.188.2016.02.17.20.49.52
-        for <linux-mm@kvack.org>;
-        Wed, 17 Feb 2016 20:49:52 -0800 (PST)
-From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
-Subject: [PATCH 1/1] mm: meminit: initialise more memory for inode/dentry hash tables in early boot
-Date: Wed, 17 Feb 2016 16:56:44 +0800
-Message-Id: <1455699404-67837-1-git-send-email-zhlcindy@linux.vnet.ibm.com>
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2386B0005
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 00:02:17 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id c10so25084937pfc.2
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 21:02:17 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id uj7si6766305pab.111.2016.02.17.21.02.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Feb 2016 21:02:16 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id q63so24302897pfb.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 21:02:16 -0800 (PST)
+Date: Thu, 18 Feb 2016 14:03:33 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC PATCH 3/3] mm/zsmalloc: change ZS_MAX_PAGES_PER_ZSPAGE
+Message-ID: <20160218050333.GC10776@swordfish>
+References: <1455764556-13979-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1455764556-13979-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <20160218044156.GA10776@swordfish>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160218044156.GA10776@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, zhlcindy@gmail.com, Li Zhang <zhlcindy@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-This patch is based on Mel Gorman's old patch in the mailing list,
-https://lkml.org/lkml/2015/5/5/280 which is dicussed but it is
-fixed with a completion to wait for all memory initialised in
-page_alloc_init_late(). The solution in upstream is to fix the
-OOM problem on X86 with 24TB memory which allocates memory in 
-page late initialisation.
-But for Power platform with 32TB memory, page paralle initilisation
-still causes a call trace in vfs_caches_init->inode_init() and
-inode hash table needs more memory.
-So this patch allocates 1GB for 0.25TB/node for large system as
-it is mentioned in https://lkml.org/lkml/2015/5/1/627.
+On (02/18/16 13:41), Sergey Senozhatsky wrote:
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 0c9f117..d5252d1 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -73,12 +73,6 @@
+>   */
+>  #define ZS_ALIGN               8
+>  
+> -/*
+> - * A single 'zspage' is composed of up ZS_MAX_PAGES_PER_ZSPAGE discontiguous
+> - * 0-order (single) pages.
+> - */
+> -#define ZS_MAX_PAGES_PER_ZSPAGE        6
+> -
+>  #define ZS_HANDLE_SIZE (sizeof(unsigned long))
+>  
+>  /*
+> @@ -149,6 +143,21 @@
+>  #define ZS_SIZE_CLASS_DELTA    (PAGE_SIZE >> 8)
+>  
+>  /*
+> + * We want to have at least this number of ->huge classes.
+> + */
+> +#define ZS_MIN_HUGE_CLASSES_NUM        32
+> +/*
+> + * A single 'zspage' is composed of up ZS_MAX_PAGES_PER_ZSPAGE discontiguous
+> + * 0-order (single) pages.
+> + *
+> + * The smallest huge class will have CLASS_SIZE * SIZE_CLASS_DELTA of
+> + * wasted space, calculate how many pages we need to fit a CLASS_SIZE
+> + * object there and, thus, to save a additional zspage.
+> + */
+> +#define ZS_MAX_PAGES_PER_ZSPAGE        \
+> +       (PAGE_SIZE / (ZS_MIN_HUGE_CLASSES_NUM * ZS_SIZE_CLASS_DELTA))
+> +
+> +/*
+>   * We do not maintain any list for completely empty or full pages
+>   */
+>  enum fullness_group {
 
-This call trace is found on Power with 32TB memory, 1024CPUs, 16nodes.
-The log from dmesg as the following:
+and the difference between ZS_MIN_HUGE_CLASSES_NUM 57 (BASE number of
+->huge classes) and ZS_MIN_HUGE_CLASSES_NUM 32 is:
 
-[    0.091780] Dentry cache hash table entries: 2147483648 (order: 18,
-17179869184 bytes)
-[    2.891012] vmalloc: allocation failure, allocated 16021913600 of
-17179934720 bytes
-[    2.891034] swapper/0: page allocation failure: order:0,
-mode:0x2080020
-[    2.891038] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-0-ppc64
-[    2.891041] Call Trace:
-[    2.891046] [c0000000012bfa00] [c0000000007c4a50]
-                .dump_stack+0xb4/0xb664 (unreliable)
-[    2.891051] [c0000000012bfa80] [c0000000001f93d4]
-                .warn_alloc_failed+0x114/0x160
-[    2.891054] [c0000000012bfb30] [c00000000023c204]
-                .__vmalloc_area_node+0x1a4/0x2b0
-[    2.891058] [c0000000012bfbf0] [c00000000023c3f4]
-                .__vmalloc_node_range+0xe4/0x110
-[    2.891061] [c0000000012bfc90] [c00000000023c460]
-                .__vmalloc_node+0x40/0x50
-[    2.891065] [c0000000012bfd10] [c000000000b67d60]
-                .alloc_large_system_hash+0x134/0x2a4
-[    2.891068] [c0000000012bfdd0] [c000000000b70924]
-                .inode_init+0xa4/0xf0
-[    2.891071] [c0000000012bfe60] [c000000000b706a0]
-                .vfs_caches_init+0x80/0x144
-[    2.891074] [c0000000012bfef0] [c000000000b35208]
-                .start_kernel+0x40c/0x4e0
-[    2.891078] [c0000000012bff90] [c000000000008cfc]
-                start_here_common+0x20/0x4a4
-[    2.891080] Mem-Info:
+ZS_MIN_HUGE_CLASSES_NUM 57 (BASE)
+1151078400 575501415 621494272        0 621494272       17        0        1
+1151074304 575499905 621477888        0 621477888       17        0        1
+1151074304 575516318 621363200        0 621363200       17        0        1
+1151078400 575558182 621346816        0 621346816       17        0        1
+1151078400 575599320 621531136        0 621531136       17        0        1
 
-Cc: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
----
- mm/page_alloc.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ZS_MIN_HUGE_CLASSES_NUM 32
+1151074304 575483112 594194432        0 594194432       17        0        1
+1151074304 575521895 593678336        0 593678336       17        0        1
+1151074304 575570453 594173952        0 594173952       17        0        1
+1151074304 575461842 594010112        0 594010112       17        0        1
+1151074304 575537116 593879040        0 593879040       17        0        1
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 838ca8bb..4847f25 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t *pgdat,
- 				unsigned long pfn, unsigned long zone_end,
- 				unsigned long *nr_initialised)
- {
-+	unsigned long max_initialise;
-+
- 	/* Always populate low zones for address-contrained allocations */
- 	if (zone_end < pgdat_end_pfn(pgdat))
- 		return true;
-+	/*
-+	* Initialise at least 2G of a node but also take into account that
-+	* two large system hashes that can take up 1GB for 0.25TB/node.
-+	*/
-+	max_initialise = max(2UL << (30 - PAGE_SHIFT),
-+		(pgdat->node_spanned_pages >> 8));
- 
--	/* Initialise at least 2G of the highest zone */
- 	(*nr_initialised)++;
--	if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
-+	if ((*nr_initialised > max_initialise) &&
- 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
- 		pgdat->first_deferred_pfn = pfn;
- 		return false;
--- 
-2.1.0
+
+around 26MB of order-0 pages.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
