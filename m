@@ -1,58 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C64828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 05:17:54 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id c10so29843743pfc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 02:17:54 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id pj4si1253831pac.45.2016.02.18.02.17.53
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B314828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 05:23:43 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id jq7so59392560obb.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 02:23:43 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id qe9si8429338obc.23.2016.02.18.02.23.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 02:17:53 -0800 (PST)
-Received: by mail-pf0-x22b.google.com with SMTP id e127so28935762pfe.3
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 02:17:53 -0800 (PST)
-Date: Thu, 18 Feb 2016 19:19:09 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC PATCH 3/3] mm/zsmalloc: change ZS_MAX_PAGES_PER_ZSPAGE
-Message-ID: <20160218101909.GB503@swordfish>
-References: <1455764556-13979-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1455764556-13979-4-git-send-email-sergey.senozhatsky@gmail.com>
- <CAAmzW4O-yQ5GBTE-6WvCL-hZeqyW=k3Fzn4_9G2qkMmp=ceuJg@mail.gmail.com>
- <20160218095536.GA503@swordfish>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 Feb 2016 02:23:43 -0800 (PST)
+Message-ID: <56C59B39.30102@huawei.com>
+Date: Thu, 18 Feb 2016 18:21:45 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160218095536.GA503@swordfish>
+Subject: Re: [PATCH] mm: add MM_SWAPENTS and page table when calculate tasksize
+ in lowmem_scan()
+References: <56C2EDC1.2090509@huawei.com> <20160216173849.GA10487@kroah.com> <alpine.DEB.2.10.1602161629560.19997@chino.kir.corp.google.com> <CAF7GXvqr2dmc7CUcs_OmfYnEA9jE_Db4kGGG1HJyYYLhC6Bgew@mail.gmail.com>
+In-Reply-To: <CAF7GXvqr2dmc7CUcs_OmfYnEA9jE_Db4kGGG1HJyYYLhC6Bgew@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: "Figo.zhang" <figo1802@gmail.com>, David Rientjes <rientjes@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com, riandrews@android.com, devel@driverdev.osuosl.org, zhong jiang <zhongjiang@huawei.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On (02/18/16 18:55), Sergey Senozhatsky wrote:
-> > There is a reason that it is order of 2. Increasing ZS_MAX_PAGES_PER_ZSPAGE
-> > is related to ZS_MIN_ALLOC_SIZE. If we don't have enough OBJ_INDEX_BITS,
-> > ZS_MIN_ALLOC_SIZE would be increase and it causes regression on some
-> > system.
+On 2016/2/18 15:55, Figo.zhang wrote:
+
 > 
-> Thanks!
 > 
-> do you mean PHYSMEM_BITS != BITS_PER_LONG systems? PAE/LPAE? isn't it
-> the case that on those systems ZS_MIN_ALLOC_SIZE already bigger than 32?
+> 2016-02-17 8:35 GMT+08:00 David Rientjes <rientjes@google.com <mailto:rientjes@google.com>>:
+> 
+>     On Tue, 16 Feb 2016, Greg Kroah-Hartman wrote:
+> 
+>     > On Tue, Feb 16, 2016 at 05:37:05PM +0800, Xishi Qiu wrote:
+>     > > Currently tasksize in lowmem_scan() only calculate rss, and not include swap.
+>     > > But usually smart phones enable zram, so swap space actually use ram.
+>     >
+>     > Yes, but does that matter for this type of calculation?  I need an ack
+>     > from the android team before I could ever take such a core change to
+>     > this code...
+>     >
+> 
+>     The calculation proposed in this patch is the same as the generic oom
+>     killer, it's an estimate of the amount of memory that will be freed if it
+>     is killed and can exit.  This is better than simply get_mm_rss().
+> 
+>     However, I think we seriously need to re-consider the implementation of
+>     the lowmem killer entirely.  It currently abuses the use of TIF_MEMDIE,
+>     which should ideally only be set for one thread on the system since it
+>     allows unbounded access to global memory reserves.
+> 
+> 
+> 
+> i don't understand why it need wait 1 second:
+> 
 
-I mean, yes, there are ZS_ALIGN requirements that I completely ignored,
-thanks for pointing that out.
+Hi David,
 
-just saying, not insisting on anything, theoretically, trading 32 bit size
-objects in exchange of reducing a much bigger memory wastage is sort of
-interesting. zram stores objects bigger than 3072 as huge objects, leaving
-4096-3072 bytes unused, and it'll take 4096-3072/32 = 4000  32 bit objects
-to beat that single 'bad' compression object in storing inefficiency...
+How about kill more processes at one time?
 
-well, patches 0001/0002 are trying to address this a bit, but the biggest
-problem is still there: we have too many ->huge classes and they are a bit
-far from good.
+Usually loading camera will alloc 300-500M memory immediately, so call lmk
+repeatedly is a waste of time.
 
-	-ss
+And can we reclaim memory at one time instead of reclaim-alloc-reclaim-alloc...
+in this situation? e.g. use try_to_free_pages(), set nr_to_reclaim=300M
+
+Thanks,
+Xishi Qiu
+
+> if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+>    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
+> task_unlock(p);
+> rcu_read_unlock();
+> return 0;                             <= why return rather than continue?
+> }
+> 
+> and it will retry and wait many CPU times if one task holding the TIF_MEMDI.
+>    shrink_slab_node()   
+>        while()
+>            shrinker->scan_objects();
+>                      lowmem_scan()
+>                                  if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+>                                        time_before_eq(jiffies, lowmem_deathpending_timeout)) 
+> 
+>  
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
