@@ -1,119 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C9B6B0255
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 02:58:50 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id gc3so54023774obb.3
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 23:58:50 -0800 (PST)
-Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com. [2607:f8b0:4003:c01::235])
-        by mx.google.com with ESMTPS id mr2si7555362obb.80.2016.02.17.23.58.49
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A2486B0258
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 03:09:12 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id a4so13074986wme.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 00:09:12 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id lm2si8387761wjc.202.2016.02.18.00.09.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 23:58:49 -0800 (PST)
-Received: by mail-ob0-x235.google.com with SMTP id xk3so55001903obc.2
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 23:58:49 -0800 (PST)
+        Thu, 18 Feb 2016 00:09:11 -0800 (PST)
+Received: by mail-wm0-f50.google.com with SMTP id c200so13799826wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 00:09:10 -0800 (PST)
+Date: Thu, 18 Feb 2016 09:09:09 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are
+ OOM-unkillable.
+Message-ID: <20160218080909.GA18149@dhcp22.suse.cz>
+References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=UwMgXJkgKhSa6Qsr_2jqQi8exZj7b8eoe+WK-_7aD5cA@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<a6491b8dfc46299797e67436cc1541370e9439c9.1453918525.git.glider@google.com>
-	<20160128074051.GA15426@js1304-P5Q-DELUXE>
-	<CAG_fn=Uxk-Y2gVfrdLxPRFf2SQ+1VnoWNUorcDw4E18D0+NBWQ@mail.gmail.com>
-	<CAG_fn=VetOrSwqseiRwCFVr-nTTemczMixbbafgEJdqDRB4p7Q@mail.gmail.com>
-	<20160201025530.GD32125@js1304-P5Q-DELUXE>
-	<CAG_fn=UwMgXJkgKhSa6Qsr_2jqQi8exZj7b8eoe+WK-_7aD5cA@mail.gmail.com>
-Date: Thu, 18 Feb 2016 16:58:49 +0900
-Message-ID: <CAAmzW4O9kLzzdj5mfSEJHmCVj=0-BqJ_jHqF5bH6vaggaE=FJg@mail.gmail.com>
-Subject: Re: [PATCH v1 5/8] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Dmitriy Vyukov <dvyukov@google.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2016-02-17 3:37 GMT+09:00 Alexander Potapenko <glider@google.com>:
-> On Mon, Feb 1, 2016 at 3:55 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> On Thu, Jan 28, 2016 at 02:27:44PM +0100, Alexander Potapenko wrote:
->>> On Thu, Jan 28, 2016 at 1:51 PM, Alexander Potapenko <glider@google.com> wrote:
->>> >
->>> > On Jan 28, 2016 8:40 AM, "Joonsoo Kim" <iamjoonsoo.kim@lge.com> wrote:
->>> >>
->>> >> Hello,
->>> >>
->>> >> On Wed, Jan 27, 2016 at 07:25:10PM +0100, Alexander Potapenko wrote:
->>> >> > Stack depot will allow KASAN store allocation/deallocation stack traces
->>> >> > for memory chunks. The stack traces are stored in a hash table and
->>> >> > referenced by handles which reside in the kasan_alloc_meta and
->>> >> > kasan_free_meta structures in the allocated memory chunks.
->>> >>
->>> >> Looks really nice!
->>> >>
->>> >> Could it be more generalized to be used by other feature that need to
->>> >> store stack trace such as tracepoint or page owner?
->>> > Certainly yes, but see below.
->>> >
->>> >> If it could be, there is one more requirement.
->>> >> I understand the fact that entry is never removed from depot makes things
->>> >> very simpler, but, for general usecases, it's better to use reference
->>> >> count
->>> >> and allow to remove. Is it possible?
->>> > For our use case reference counting is not really necessary, and it would
->>> > introduce unwanted contention.
->>
->> Okay.
->>
->>> > There are two possible options, each having its advantages and drawbacks: we
->>> > can let the clients store the refcounters directly in their stacks (more
->>> > universal, but harder to use for the clients), or keep the counters in the
->>> > depot but add an API that does not change them (easier for the clients, but
->>> > potentially error-prone).
->>> > I'd say it's better to actually find at least one more user for the stack
->>> > depot in order to understand the requirements, and refactor the code after
->>> > that.
->>
->> I re-think the page owner case and it also may not need refcount.
->> For now, just moving this stuff to /lib would be helpful for other future user.
-> I agree this code may need to be moved to /lib someday, but I wouldn't
-> hurry with that.
-> Right now it is quite KASAN-specific, and it's unclear yet whether
-> anyone else is going to use it.
-> I suggest we keep it in mm/kasan for now, and factor the common parts
-> into /lib when the need arises.
+On Wed 17-02-16 14:31:54, David Rientjes wrote:
+> On Wed, 17 Feb 2016, Tetsuo Handa wrote:
+> 
+> > oom_scan_process_thread() returns OOM_SCAN_SELECT when there is a
+> > thread which returns oom_task_origin() == true. But it is possible
+> > that such thread is marked as OOM-unkillable. In that case, the OOM
+> > killer must not select such process.
+> > 
+> > Since it is meaningless to return OOM_SCAN_OK for OOM-unkillable
+> > process because subsequent oom_badness() call will return 0, this
+> > patch changes oom_scan_process_thread to return OOM_SCAN_CONTINUE
+> > if that process is marked as OOM-unkillable (regardless of
+> > oom_task_origin()).
+> > 
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Suggested-by: Michal Hocko <mhocko@kernel.org>
+> > ---
+> >  mm/oom_kill.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 7653055..cf87153 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -282,7 +282,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+> >  		if (!is_sysrq_oom(oc))
+> >  			return OOM_SCAN_ABORT;
+> >  	}
+> > -	if (!task->mm)
+> > +	if (!task->mm || task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> >  		return OOM_SCAN_CONTINUE;
+> >  
+> >  	/*
+> 
+> I'm getting multiple emails from you with the identical patch, something 
+> is definitely wacky in your toolchain.
+> 
+> Anyway, this is NACK'd since task->signal->oom_score_adj is checked under 
+> task_lock() for threads with memory attached, that's the purpose of 
+> finding the correct thread in oom_badness() and taking task_lock().  We 
+> aren't going to duplicate logic in several functions that all do the same 
+> thing.
 
-Please consider it one more time. I really have a plan to use it on page owner,
-because using page owner requires too many memory for stack trace and
-it changes system behaviour a lot.
+Is the task_lock really necessary, though? E.g. oom_task_origin()
+doesn't seem to depend on it for task->signal safety. If you are
+referring to races with changing oom_score_adj does such a race matter
+at all?
 
-Page owner uses following structure to store stack trace.
+To me this looks like a reasonable cleanup because we _know_ that
+OOM_SCORE_ADJ_MIN means OOM_SCAN_CONTINUE and do not really have to go
+down to oom_badness to find that out. Or what am I missing?
 
-struct page_ext {
-        unsigned long flags;
-#ifdef CONFIG_PAGE_OWNER
-        unsigned int order;
-        gfp_t gfp_mask;
-        unsigned int nr_entries;
-        int last_migrate_reason;
-        unsigned long trace_entries[8];
-#endif
-};
-
-Using stack depot in page owner would be straight forward if stack depot
-is in /lib. It is possible to move it when needed but it requires moving
-a file and it would not be desirable.
-
->> BTW, is there any performance number? I guess that it could affect
->> the performance.
-> I've compared the performance of KASAN with SLAB allocator on a small
-> synthetic benchmark in two modes: with stack depot enabled and with
-> kasan_save_stack() unconditionally returning 0.
-> In the former case 8% more time was spent in the kernel than in the latter case.
->
-> If I am not mistaking, for SLUB allocator the bookkeeping (enabled
-> with the slub_debug=UZ boot options) take only 1.5 time, so the
-> difference is worth looking into (at least before we switch SLUB to
-> stack depot).
-
-Okay.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
