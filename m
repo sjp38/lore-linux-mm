@@ -1,59 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B863828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 13:36:08 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id yy13so35151375pab.3
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 10:36:08 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id lz11si4056808pab.29.2016.02.18.10.36.04
-        for <linux-mm@kvack.org>;
-        Thu, 18 Feb 2016 10:36:04 -0800 (PST)
-Subject: [PATCH] um, pkeys: give UML an arch_vma_access_permitted()
-From: Dave Hansen <dave@sr71.net>
-Date: Thu, 18 Feb 2016 10:35:57 -0800
-Message-Id: <20160218183557.AE1DB383@viggo.jf.intel.com>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C812828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 15:15:47 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id b67so45996673qgb.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 12:15:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f195si9733351qhf.20.2016.02.18.12.15.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Feb 2016 12:15:46 -0800 (PST)
+Message-ID: <1455826543.15821.64.camel@redhat.com>
+Subject: Re: [PATCH] mm: scale kswapd watermarks in proportion to memory
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 18 Feb 2016 15:15:43 -0500
+In-Reply-To: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
+References: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-57Mc5GhvV2xcBuxfTKcR"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+--=-57Mc5GhvV2xcBuxfTKcR
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-UML has a special mmu_context.h and needs updates whenever the generic one
-is updated.  The original pkeys patches missed this.  This fixes it up.
+On Thu, 2016-02-18 at 11:41 -0500, Johannes Weiner wrote:
+> In machines with 140G of memory and enterprise flash storage, we have
+> seen read and write bursts routinely exceed the kswapd watermarks and
+> cause thundering herds in direct reclaim. Unfortunately, the only way
+> to tune kswapd aggressiveness is through adjusting min_free_kbytes -
+> the system's emergency reserves - which is entirely unrelated to the
+> system's latency requirements. In order to get kswapd to maintain a
+> 250M buffer of free memory, the emergency reserves need to be set to
+> 1G. That is a lot of memory wasted for no good reason.
+>=20
+> On the other hand, it's reasonable to assume that allocation bursts
+> and overall allocation concurrency scale with memory capacity, so it
+> makes sense to make kswapd aggressiveness a function of that as well.
+>=20
+> Change the kswapd watermark scale factor from the currently fixed 25%
+> of the tunable emergency reserve to a tunable 0.001% of memory.
+>=20
+> On a 140G machine, this raises the default watermark steps - the
+> distance between min and low, and low and high - from 16M to 143M.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
+This is an excellent idea for a large system,
+but your patch reduces the gap between watermarks
+on small systems.
 
- b/arch/um/include/asm/mmu_context.h |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+On an 8GB zone, your patch halves the gap between
+the watermarks, and on smaller systems it would be
+even worse.
 
-diff -puN arch/um/include/asm/mmu_context.h~pkeys-fix-um-arch_vma_access_permitted arch/um/include/asm/mmu_context.h
---- a/arch/um/include/asm/mmu_context.h~pkeys-fix-um-arch_vma_access_permitted	2016-02-18 10:19:17.675287570 -0800
-+++ b/arch/um/include/asm/mmu_context.h	2016-02-18 10:20:09.214627363 -0800
-@@ -27,6 +27,20 @@ static inline void arch_bprm_mm_init(str
- 				     struct vm_area_struct *vma)
- {
- }
-+
-+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
-+		bool write, bool execute, bool foreign)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
-+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-+{
-+	/* by default, allow everything */
-+	return true;
-+}
-+
- /*
-  * end asm-generic/mm_hooks.h functions
-  */
-_
+Would it make sense to keep using the old calculation
+on small systems, when the result of the old calculation
+exceeds that of the new calculation?
+
+Using the max of the two calculations could prevent
+the issue you are trying to prevent on large systems,
+from happening on smaller systems.
+
+--=C2=A0
+All rights reversed
+
+--=-57Mc5GhvV2xcBuxfTKcR
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAABAgAGBQJWxiZvAAoJEM553pKExN6DEd4IAKfvPU+SmZPsBhBFQDqS1l0U
+GaVBi42xWCa1SjJeNqUacGkYGI6KXhYhSGxXO/8fhGCmSiFxUvhInQNUfpHOl4eY
+t50ZQg0OskG1dTtMnjS+fs5hMRDAFCDoHuSsdYUqrOEfO5tc0SAFtgjSEhF/EZmy
+XaxITKE7bnNCX9qXxPNtfdV9ZodZvwvYMqJX/rzuFoVg0s5amfYlZEBJLalKAmSy
+tO1HMRfJnHdd4r9OQFhBkAe1TKj/nbGrm+XimUd+fUvl+aRu1Z/k+uBaZ9N087mu
+l7KYc7aPZjY0W1EZDkWjuoGw3RS9UI0AG+E43SBiotNH4OvZuia1IYezpRUp3ME=
+=Rqrm
+-----END PGP SIGNATURE-----
+
+--=-57Mc5GhvV2xcBuxfTKcR--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
