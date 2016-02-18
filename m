@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f51.google.com (mail-lf0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DEECC6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 21:10:23 -0500 (EST)
-Received: by mail-lf0-f51.google.com with SMTP id l143so23155330lfe.2
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 18:10:23 -0800 (PST)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id n197si2470663lfa.200.2016.02.17.18.10.22
-        for <linux-mm@kvack.org>;
-        Wed, 17 Feb 2016 18:10:22 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v5 RESEND 0/5] Make cpuid <-> nodeid mapping persistent
-Date: Thu, 18 Feb 2016 03:11:46 +0100
-Message-ID: <1672109.ebeP8evnQp@vostro.rjw.lan>
-In-Reply-To: <56C525F9.1040107@cn.fujitsu.com>
-References: <1453702100-2597-1-git-send-email-tangchen@cn.fujitsu.com> <CAJZ5v0go7tZiDkh2novJKiDmYv_ge7Y-rQLC5ohRC=qSDJ+5-Q@mail.gmail.com> <56C525F9.1040107@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2696E6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 22:01:31 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fl4so22278098pad.0
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 19:01:31 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id h26si6081138pfh.169.2016.02.17.19.01.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Feb 2016 19:01:30 -0800 (PST)
+Received: by mail-pa0-x231.google.com with SMTP id ho8so22797502pac.2
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 19:01:30 -0800 (PST)
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: [RFC PATCH 0/3] mm/zsmalloc: increase density and reduce memory wastage
+Date: Thu, 18 Feb 2016 12:02:33 +0900
+Message-Id: <1455764556-13979-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, chen.tang@easystack.cn, cl@linux.com, Tejun Heo <tj@kernel.org>, Jiang Liu <jiang.liu@linux.intel.com>, mika.j.penttila@gmail.com, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, Len Brown <len.brown@intel.com>, x86@kernel.org, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thursday, February 18, 2016 10:01:29 AM Zhu Guihua wrote:
-> Hi Rafael,
-> 
-> On 02/03/2016 08:02 PM, Rafael J. Wysocki wrote:
-> > Hi,
-> >
-> > On Wed, Feb 3, 2016 at 10:14 AM, Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
-> >> On 01/25/2016 02:12 PM, Tang Chen wrote:
-> >>> Hi Rafael, Len,
-> >>>
-> >>> Would you please help to review the ACPI part of this patch-set ?
-> >>
-> >> Can anyone help to review this?
-> > I'm planning to look into this more thoroughly in the next few days.
-> 
-> Were you reviewing this ?
+Hello,
 
-Yes.
+ RFC
 
-They generally look OK to me, but then I'd like the x86 maintainers to have
-a look at them too.
+ ->huge classes are evil, and zsmalloc knows the watermark after which classes
+are considered to be ->huge -- every object stored consumes the entire zspage
+(which consist of a single order-0 page). zram, however, has its own statically
+defined watermark for `bad' compression and stores every object larger than
+this watermark as a PAGE_SIZE, object, IOW, to a ->huge class, this results
+in increased memory consumption and memory wastage. And zram's 'bad' watermark
+is much lower than zsmalloc. Apart from that, 'bad' compressions are not so rare,
+on some of my tests 41% of writes result in 'bad' compressions.
 
-There still are a few things I need to verify, but should be able to do that
-by the end of this week.
+This patch set inverts this 'huge class watermark' enforcement, it's zsmalloc
+that knows better, not zram.
 
-Thanks,
-Rafael
+I did a number of tests (see 0003 commit message) and memory savings were around
+36MB and 51MB (depending on zsmalloc configuration).
+
+I also copied a linux-next directory (with object files, du -sh  2.5G)
+and (ZS_MAX_PAGES_PER_ZSPAGE=5) memory saving were around 17-20MB.
+
+
+
+Sergey Senozhatsky (3):
+  mm/zsmalloc: introduce zs_get_huge_class_size_watermark()
+  zram: use zs_get_huge_class_size_watermark()
+  mm/zsmalloc: change ZS_MAX_PAGES_PER_ZSPAGE
+
+ drivers/block/zram/zram_drv.c |  2 +-
+ drivers/block/zram/zram_drv.h |  6 ------
+ include/linux/zsmalloc.h      |  2 ++
+ mm/zsmalloc.c                 | 21 +++++++++++++++++----
+ 4 files changed, 20 insertions(+), 11 deletions(-)
+
+-- 
+2.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
