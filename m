@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B9888828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 12:48:56 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id g62so36878819wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:48:56 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id hz10si11837249wjb.190.2016.02.18.09.48.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 09:48:55 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id g62so36878219wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:48:55 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1602181131320.24647@east.gentwo.org>
-References: <cover.1455811491.git.glider@google.com>
-	<alpine.DEB.2.20.1602181131320.24647@east.gentwo.org>
-Date: Thu, 18 Feb 2016 18:48:54 +0100
-Message-ID: <CAG_fn=WnLoM8SGDxa8Dvz62drPsh9_Mi_G_c2X-OENF_Oy8nFw@mail.gmail.com>
-Subject: Re: [PATCH v2 0/7] SLAB support for KASAN
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B863828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 13:36:08 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id yy13so35151375pab.3
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 10:36:08 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id lz11si4056808pab.29.2016.02.18.10.36.04
+        for <linux-mm@kvack.org>;
+        Thu, 18 Feb 2016 10:36:04 -0800 (PST)
+Subject: [PATCH] um, pkeys: give UML an arch_vma_access_permitted()
+From: Dave Hansen <dave@sr71.net>
+Date: Thu, 18 Feb 2016 10:35:57 -0800
+Message-Id: <20160218183557.AE1DB383@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-Indeed, CONFIG_SLUB_DEBUG is not an issue by itself.
-
-The biggest problem is the stack trace bookkeeping which currently
-(with SLUB) requires 128 bytes for each allocation and deallocation
-stack, bloating each memory object by 256 bytes.
-If we make KASAN use the stack depot with SLUB we'll save a lot of memory.
-
-On Thu, Feb 18, 2016 at 6:32 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Thu, 18 Feb 2016, Alexander Potapenko wrote:
->
->> Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
->> objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
->> The intention is to ultimately switch SLUB to use this implementation as
->> well, which will remove the dependency on SLUB_DEBUG.
->
-> This needs to be clarified a bit. CONFIG_SLUB_DEBUG is on by default. So
-> the dependency does not matter much. I think you depend on the slowpath
-> debug processing right? The issue is that you want to do these things in
-> the fastpath?
->
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
 
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
---=20
-Alexander Potapenko
-Software Engineer
+UML has a special mmu_context.h and needs updates whenever the generic one
+is updated.  The original pkeys patches missed this.  This fixes it up.
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
-leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+ b/arch/um/include/asm/mmu_context.h |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff -puN arch/um/include/asm/mmu_context.h~pkeys-fix-um-arch_vma_access_permitted arch/um/include/asm/mmu_context.h
+--- a/arch/um/include/asm/mmu_context.h~pkeys-fix-um-arch_vma_access_permitted	2016-02-18 10:19:17.675287570 -0800
++++ b/arch/um/include/asm/mmu_context.h	2016-02-18 10:20:09.214627363 -0800
+@@ -27,6 +27,20 @@ static inline void arch_bprm_mm_init(str
+ 				     struct vm_area_struct *vma)
+ {
+ }
++
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool execute, bool foreign)
++{
++	/* by default, allow everything */
++	return true;
++}
++
++static inline bool arch_pte_access_permitted(pte_t pte, bool write)
++{
++	/* by default, allow everything */
++	return true;
++}
++
+ /*
+  * end asm-generic/mm_hooks.h functions
+  */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
