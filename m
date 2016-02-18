@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E739E828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:52:09 -0500 (EST)
-Received: by mail-qk0-f173.google.com with SMTP id o6so20649287qkc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:52:09 -0800 (PST)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id f7si8794515qhd.114.2016.02.18.08.52.08
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 74636828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:52:10 -0500 (EST)
+Received: by mail-qk0-f169.google.com with SMTP id x1so20690982qkc.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:52:10 -0800 (PST)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id u185si8793252qhu.83.2016.02.18.08.52.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Feb 2016 08:52:08 -0800 (PST)
+        Thu, 18 Feb 2016 08:52:09 -0800 (PST)
 Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
 	Thu, 18 Feb 2016 09:52:08 -0700
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 77BDC19D8040
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:40:03 -0700 (MST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGq5Qe29032670
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:52:05 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGq4WR029067
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:52:05 -0500
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 246A819D803E
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:40:04 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGq6Fl22282374
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:52:06 -0700
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGq5cv029701
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:52:06 -0700
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V3 22/30] powerpc/mm: Hash linux abstraction for functions in pgtable-hash.c
-Date: Thu, 18 Feb 2016 22:20:46 +0530
-Message-Id: <1455814254-10226-23-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3 23/30] powerpc/mm: Hash linux abstraction for mmu context handling code
+Date: Thu, 18 Feb 2016 22:20:47 +0530
+Message-Id: <1455814254-10226-24-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,335 +33,241 @@ List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We will later make the generic functions do conditial radix or hash
-page table access. This patch doesn't do hugepage api update yet.
-
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/32/pgtable.h | 13 ++++++++
- arch/powerpc/include/asm/book3s/64/hash.h    | 12 ++++++-
- arch/powerpc/include/asm/book3s/64/pgtable.h | 47 +++++++++++++++++++++++++++-
- arch/powerpc/include/asm/book3s/pgtable.h    |  4 ---
- arch/powerpc/include/asm/nohash/64/pgtable.h |  4 ++-
- arch/powerpc/include/asm/nohash/pgtable.h    | 11 +++++++
- arch/powerpc/include/asm/pgtable.h           | 13 --------
- arch/powerpc/mm/init_64.c                    |  3 --
- arch/powerpc/mm/pgtable-hash64.c             | 34 ++++++++++----------
- 9 files changed, 101 insertions(+), 40 deletions(-)
+ arch/powerpc/include/asm/mmu_context.h | 63 +++++++++++++++++++++++-----------
+ arch/powerpc/kernel/swsusp.c           |  2 +-
+ arch/powerpc/mm/mmu_context_hash64.c   | 16 ++++-----
+ arch/powerpc/mm/mmu_context_nohash.c   |  3 +-
+ drivers/cpufreq/pmac32-cpufreq.c       |  2 +-
+ drivers/macintosh/via-pmu.c            |  4 +--
+ 6 files changed, 57 insertions(+), 33 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
-index 38b33dcfcc9d..539609c8a77b 100644
---- a/arch/powerpc/include/asm/book3s/32/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
-@@ -102,6 +102,9 @@ extern unsigned long ioremap_bot;
- #define pte_clear(mm, addr, ptep) \
- 	do { pte_update(ptep, ~_PAGE_HASHPTE, 0); } while (0)
+diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
+index 878c27771717..5124b721da6e 100644
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -10,11 +10,6 @@
+ #include <asm/cputable.h>
+ #include <asm/cputhreads.h>
  
-+extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-+		       pte_t pte);
-+
- #define pmd_none(pmd)		(!pmd_val(pmd))
- #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
- #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
-@@ -477,6 +480,16 @@ static inline pgprot_t pgprot_writecombine(pgprot_t prot)
- 	return pgprot_noncached_wc(prot);
- }
- 
-+/*
-+ * This gets called at the end of handling a page fault, when
-+ * the kernel has put a new PTE into the page table for the process.
-+ * We use it to ensure coherency between the i-cache and d-cache
-+ * for the page which has just been mapped in.
-+ * On machines which use an MMU hash table, we use this to put a
-+ * corresponding HPTE into the hash table ahead of time, instead of
-+ * waiting for the inevitable extra hash-table miss exception.
-+ */
-+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
- #endif /* !__ASSEMBLY__ */
- 
- #endif /*  _ASM_POWERPC_BOOK3S_32_PGTABLE_H */
-diff --git a/arch/powerpc/include/asm/book3s/64/hash.h b/arch/powerpc/include/asm/book3s/64/hash.h
-index d80c4c7fa6c1..551daeee6870 100644
---- a/arch/powerpc/include/asm/book3s/64/hash.h
-+++ b/arch/powerpc/include/asm/book3s/64/hash.h
-@@ -589,7 +589,17 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
--extern int map_kernel_page(unsigned long ea, unsigned long pa, int flags);
-+extern int hlmap_kernel_page(unsigned long ea, unsigned long pa, int flags);
-+extern void hlpgtable_cache_init(void);
-+extern void __meminit hlvmemmap_create_mapping(unsigned long start,
-+					       unsigned long page_size,
-+					       unsigned long phys);
-+extern void hlvmemmap_remove_mapping(unsigned long start,
-+				     unsigned long page_size);
-+extern void set_hlpte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-+			 pte_t pte);
-+extern void hlupdate_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-+			       pte_t *ptep);
- #endif /* !__ASSEMBLY__ */
- #endif /* __KERNEL__ */
- #endif /* _ASM_POWERPC_BOOK3S_64_HASH_H */
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index cf400803e61c..005f0e265f37 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -320,6 +320,12 @@ static inline int pte_present(pte_t pte)
- 	return hlpte_present(pte);
- }
- 
-+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-+			      pte_t *ptep, pte_t pte)
-+{
-+	return set_hlpte_at(mm, addr, ptep, pte);
-+}
-+
- static inline void pmd_set(pmd_t *pmdp, unsigned long val)
- {
- 	*pmdp = __pmd(val);
-@@ -462,7 +468,46 @@ extern struct page *pgd_page(pgd_t pgd);
- 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
- 
- void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
--void pgtable_cache_init(void);
-+static inline void pgtable_cache_init(void)
-+{
-+	return hlpgtable_cache_init();
-+}
-+
-+static inline int map_kernel_page(unsigned long ea, unsigned long pa,
-+				  unsigned long flags)
-+{
-+	return hlmap_kernel_page(ea, pa, flags);
-+}
-+
-+static inline void __meminit vmemmap_create_mapping(unsigned long start,
-+						    unsigned long page_size,
-+						    unsigned long phys)
-+{
-+	return hlvmemmap_create_mapping(start, page_size, phys);
-+}
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+static inline void vmemmap_remove_mapping(unsigned long start,
-+					  unsigned long page_size)
-+{
-+	return hlvmemmap_remove_mapping(start, page_size);
-+}
-+#endif
-+
-+/*
-+ * This gets called at the end of handling a page fault, when
-+ * the kernel has put a new PTE into the page table for the process.
-+ * We use it to ensure coherency between the i-cache and d-cache
-+ * for the page which has just been mapped in.
-+ * On machines which use an MMU hash table, we use this to put a
-+ * corresponding HPTE into the hash table ahead of time, instead of
-+ * waiting for the inevitable extra hash-table miss exception.
-+ */
-+static inline void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-+				    pte_t *ptep)
-+{
-+	return hlupdate_mmu_cache(vma, address, ptep);
-+}
- 
- struct page *realmode_pfn_to_page(unsigned long pfn);
- 
-diff --git a/arch/powerpc/include/asm/book3s/pgtable.h b/arch/powerpc/include/asm/book3s/pgtable.h
-index 8b0f4a29259a..620f8b6e1ba2 100644
---- a/arch/powerpc/include/asm/book3s/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/pgtable.h
-@@ -12,10 +12,6 @@
- /* Insert a PTE, top-level function is out of line. It uses an inline
-  * low level function in the respective pgtable-* files
-  */
--extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
--		       pte_t pte);
--
--
- #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
- extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
- 				 pte_t *ptep, pte_t entry, int dirty);
-diff --git a/arch/powerpc/include/asm/nohash/64/pgtable.h b/arch/powerpc/include/asm/nohash/64/pgtable.h
-index a68e809d7739..7010d95cbedf 100644
---- a/arch/powerpc/include/asm/nohash/64/pgtable.h
-+++ b/arch/powerpc/include/asm/nohash/64/pgtable.h
-@@ -360,7 +360,9 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
- void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
- void pgtable_cache_init(void);
- extern int map_kernel_page(unsigned long ea, unsigned long pa, int flags);
--
-+extern void __meminit vmemmap_create_mapping(unsigned long start,
-+					     unsigned long page_size,
-+					     unsigned long phys);
- #endif /* __ASSEMBLY__ */
- 
- #endif /* _ASM_POWERPC_NOHASH_64_PGTABLE_H */
-diff --git a/arch/powerpc/include/asm/nohash/pgtable.h b/arch/powerpc/include/asm/nohash/pgtable.h
-index 1263c22d60d8..d86467288fc7 100644
---- a/arch/powerpc/include/asm/nohash/pgtable.h
-+++ b/arch/powerpc/include/asm/nohash/pgtable.h
-@@ -248,5 +248,16 @@ static inline int pgd_huge(pgd_t pgd)
- #define is_hugepd(hpd)		(hugepd_ok(hpd))
- #endif
- 
-+/*
-+ * This gets called at the end of handling a page fault, when
-+ * the kernel has put a new PTE into the page table for the process.
-+ * We use it to ensure coherency between the i-cache and d-cache
-+ * for the page which has just been mapped in.
-+ * On machines which use an MMU hash table, we use this to put a
-+ * corresponding HPTE into the hash table ahead of time, instead of
-+ * waiting for the inevitable extra hash-table miss exception.
-+ */
-+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
-+
- #endif /* __ASSEMBLY__ */
- #endif
-diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-index ac9fb114e25d..dcd2b0d85d48 100644
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -47,19 +47,6 @@ extern void paging_init(void);
- #define kern_addr_valid(addr)	(1)
- 
- #include <asm-generic/pgtable.h>
--
--
 -/*
-- * This gets called at the end of handling a page fault, when
-- * the kernel has put a new PTE into the page table for the process.
-- * We use it to ensure coherency between the i-cache and d-cache
-- * for the page which has just been mapped in.
-- * On machines which use an MMU hash table, we use this to put a
-- * corresponding HPTE into the hash table ahead of time, instead of
-- * waiting for the inevitable extra hash-table miss exception.
+- * Most if the context management is out of line
 - */
--extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
--
- extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
- 		       unsigned long end, int write,
- 		       struct page **pages, int *nr);
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 05b025a0efe6..b3dd5ad68e53 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -194,9 +194,6 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
- 	vmemmap_list = vmem_back;
- }
+-extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+-extern void destroy_context(struct mm_struct *mm);
+ #ifdef CONFIG_SPAPR_TCE_IOMMU
+ struct mm_iommu_table_group_mem_t;
  
--extern void __meminit vmemmap_create_mapping(unsigned long start,
--					     unsigned long page_size,
--					     unsigned long phys);
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- {
- 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-diff --git a/arch/powerpc/mm/pgtable-hash64.c b/arch/powerpc/mm/pgtable-hash64.c
-index c11e19f68b6d..9302dc19112c 100644
---- a/arch/powerpc/mm/pgtable-hash64.c
-+++ b/arch/powerpc/mm/pgtable-hash64.c
-@@ -52,7 +52,7 @@ static void pmd_ctor(void *addr)
- }
- 
- 
--void pgtable_cache_init(void)
-+void hlpgtable_cache_init(void)
- {
- 	pgtable_cache_add(H_PGD_INDEX_SIZE, pgd_ctor);
- 	pgtable_cache_add(H_PMD_CACHE_INDEX, pmd_ctor);
-@@ -75,9 +75,9 @@ void pgtable_cache_init(void)
-  * On hash-based CPUs, the vmemmap is bolted in the hash table.
-  *
-  */
--void __meminit vmemmap_create_mapping(unsigned long start,
--				      unsigned long page_size,
--				      unsigned long phys)
-+void __meminit hlvmemmap_create_mapping(unsigned long start,
-+					unsigned long page_size,
-+					unsigned long phys)
- {
- 	int  mapped = htab_bolt_mapping(start, start + page_size, phys,
- 					pgprot_val(H_PAGE_KERNEL),
-@@ -87,8 +87,8 @@ void __meminit vmemmap_create_mapping(unsigned long start,
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--void vmemmap_remove_mapping(unsigned long start,
--			    unsigned long page_size)
-+void hlvmemmap_remove_mapping(unsigned long start,
-+			      unsigned long page_size)
- {
- 	int mapped = htab_remove_mapping(start, start + page_size,
- 					 mmu_vmemmap_psize,
-@@ -98,8 +98,8 @@ void vmemmap_remove_mapping(unsigned long start,
+@@ -33,16 +28,50 @@ extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
+ extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);
+ extern void mm_iommu_mapped_dec(struct mm_iommu_table_group_mem_t *mem);
  #endif
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
++/*
++ * Most of the context management is out of line
++ */
++#ifdef CONFIG_PPC_BOOK3S_64
++extern int hlinit_new_context(struct task_struct *tsk, struct mm_struct *mm);
++static inline int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
++{
++	return hlinit_new_context(tsk, mm);
++}
++
++extern void hldestroy_context(struct mm_struct *mm);
++static inline void destroy_context(struct mm_struct *mm)
++{
++	return hldestroy_context(mm);
++}
  
--void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
--		      pte_t *ptep)
-+void hlupdate_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-+			pte_t *ptep)
- {
- 	/*
- 	 * We don't need to worry about _PAGE_PRESENT here because we are
-@@ -133,7 +133,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-  * map_kernel_page adds an entry to the ioremap page table
-  * and adds an entry to the HPT, possibly bolting it
-  */
--int map_kernel_page(unsigned long ea, unsigned long pa, int flags)
-+int hlmap_kernel_page(unsigned long ea, unsigned long pa, int flags)
- {
- 	pgd_t *pgdp;
- 	pud_t *pudp;
-@@ -178,7 +178,7 @@ int map_kernel_page(unsigned long ea, unsigned long pa, int flags)
-  * and we avoid _PAGE_SPECIAL and _PAGE_NO_CACHE. We also only do that
-  * on userspace PTEs
-  */
--static inline int pte_looks_normal(pte_t pte)
-+static inline int hlpte_looks_normal(pte_t pte)
- {
- 	return (pte_val(pte) & (H_PAGE_PRESENT | H_PAGE_SPECIAL |
- 					H_PAGE_NO_CACHE | H_PAGE_USER)) ==
-@@ -203,11 +203,11 @@ static struct page *maybe_pte_to_page(pte_t pte)
-  * flush the cache for valid PTEs in set_pte. Embedded CPU without HW exec
-  * support falls into the same category.
-  */
--static pte_t set_pte_filter(pte_t pte)
-+static pte_t set_hlpte_filter(pte_t pte)
- {
- 	pte = __pte(pte_val(pte) & ~H_PAGE_HPTEFLAGS);
--	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
--				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
-+	if (hlpte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
-+					 cpu_has_feature(CPU_FTR_NOEXECUTE))) {
- 		struct page *pg = maybe_pte_to_page(pte);
+-extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
+ extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
+-extern void set_context(unsigned long id, pgd_t *pgd);
++static inline void switch_mmu_context(struct mm_struct *prev,
++				      struct mm_struct *next,
++				      struct task_struct *tsk)
++{
++	return switch_slb(tsk, next);
++}
  
- 		if (!pg)
-@@ -223,8 +223,8 @@ static pte_t set_pte_filter(pte_t pte)
- /*
-  * set_pte stores a linux PTE into the linux page table.
-  */
--void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
--		pte_t pte)
-+void set_hlpte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-+		  pte_t pte)
- {
- 	/*
- 	 * When handling numa faults, we already have the pte marked
-@@ -243,10 +243,10 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
- 	 * this context might not have been activated yet when this
- 	 * is called.
+-#ifdef CONFIG_PPC_BOOK3S_64
+-extern int __init_new_context(void);
+-extern void __destroy_context(int context_id);
++extern void set_context(unsigned long id, pgd_t *pgd);
++extern int __hlinit_new_context(void);
++static inline int __init_new_context(void)
++{
++	return __hlinit_new_context();
++}
++extern void __hldestroy_context(int context_id);
++static inline void __destroy_context(int context_id)
++{
++	return __hldestroy_context(context_id);
++}
+ static inline void mmu_context_init(void) { }
+ #else
++extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
++extern void destroy_context(struct mm_struct *mm);
++
++extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
++			       struct task_struct *tsk);
++extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
++extern void set_context(unsigned long id, pgd_t *pgd);
+ extern unsigned long __init_new_context(void);
+ extern void __destroy_context(unsigned long context_id);
+ extern void mmu_context_init(void);
+@@ -88,17 +117,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+ 		asm volatile ("dssall");
+ #endif /* CONFIG_ALTIVEC */
+-
+-	/* The actual HW switching method differs between the various
+-	 * sub architectures.
++	/*
++	 * The actual HW switching method differs between the various
++	 * sub architectures. Out of line for now
  	 */
--	pte = set_pte_filter(pte);
-+	pte = set_hlpte_filter(pte);
- 
- 	/* Perform the setting of the PTE */
--	__set_pte_at(mm, addr, ptep, pte, 0);
-+	__set_hlpte_at(mm, addr, ptep, pte, 0);
+-#ifdef CONFIG_PPC_STD_MMU_64
+-	switch_slb(tsk, next);
+-#else
+-	/* Out of line for now */
+-	switch_mmu_context(prev, next);
+-#endif
+-
++	switch_mmu_context(prev, next, tsk);
  }
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define deactivate_mm(tsk,mm)	do { } while (0)
+diff --git a/arch/powerpc/kernel/swsusp.c b/arch/powerpc/kernel/swsusp.c
+index 6669b1752512..6ae9bd5086a4 100644
+--- a/arch/powerpc/kernel/swsusp.c
++++ b/arch/powerpc/kernel/swsusp.c
+@@ -31,6 +31,6 @@ void save_processor_state(void)
+ void restore_processor_state(void)
+ {
+ #ifdef CONFIG_PPC32
+-	switch_mmu_context(current->active_mm, current->active_mm);
++	switch_mmu_context(current->active_mm, current->active_mm, NULL);
+ #endif
+ }
+diff --git a/arch/powerpc/mm/mmu_context_hash64.c b/arch/powerpc/mm/mmu_context_hash64.c
+index ff9baa5d2944..9c147d800760 100644
+--- a/arch/powerpc/mm/mmu_context_hash64.c
++++ b/arch/powerpc/mm/mmu_context_hash64.c
+@@ -30,7 +30,7 @@
+ static DEFINE_SPINLOCK(mmu_context_lock);
+ static DEFINE_IDA(mmu_context_ida);
+ 
+-int __init_new_context(void)
++int __hlinit_new_context(void)
+ {
+ 	int index;
+ 	int err;
+@@ -59,11 +59,11 @@ again:
+ }
+ EXPORT_SYMBOL_GPL(__init_new_context);
+ 
+-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
++int hlinit_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	int index;
+ 
+-	index = __init_new_context();
++	index = __hlinit_new_context();
+ 	if (index < 0)
+ 		return index;
+ 
+@@ -78,7 +78,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ #ifdef CONFIG_PPC_ICSWX
+ 	mm->context.cop_lockp = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
+ 	if (!mm->context.cop_lockp) {
+-		__destroy_context(index);
++		__hldestroy_context(index);
+ 		subpage_prot_free(mm);
+ 		mm->context.id = MMU_NO_CONTEXT;
+ 		return -ENOMEM;
+@@ -95,13 +95,13 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ 	return 0;
+ }
+ 
+-void __destroy_context(int context_id)
++void __hldestroy_context(int context_id)
+ {
+ 	spin_lock(&mmu_context_lock);
+ 	ida_remove(&mmu_context_ida, context_id);
+ 	spin_unlock(&mmu_context_lock);
+ }
+-EXPORT_SYMBOL_GPL(__destroy_context);
++EXPORT_SYMBOL_GPL(__hldestroy_context);
+ 
+ #ifdef CONFIG_PPC_64K_PAGES
+ static void destroy_pagetable_page(struct mm_struct *mm)
+@@ -133,7 +133,7 @@ static inline void destroy_pagetable_page(struct mm_struct *mm)
+ #endif
+ 
+ 
+-void destroy_context(struct mm_struct *mm)
++void hldestroy_context(struct mm_struct *mm)
+ {
+ #ifdef CONFIG_SPAPR_TCE_IOMMU
+ 	mm_iommu_cleanup(&mm->context);
+@@ -146,7 +146,7 @@ void destroy_context(struct mm_struct *mm)
+ #endif /* CONFIG_PPC_ICSWX */
+ 
+ 	destroy_pagetable_page(mm);
+-	__destroy_context(mm->context.id);
++	__hldestroy_context(mm->context.id);
+ 	subpage_prot_free(mm);
+ 	mm->context.id = MMU_NO_CONTEXT;
+ }
+diff --git a/arch/powerpc/mm/mmu_context_nohash.c b/arch/powerpc/mm/mmu_context_nohash.c
+index 986afbc22c76..a36c43a27893 100644
+--- a/arch/powerpc/mm/mmu_context_nohash.c
++++ b/arch/powerpc/mm/mmu_context_nohash.c
+@@ -226,7 +226,8 @@ static void context_check_map(void)
+ static void context_check_map(void) { }
+ #endif
+ 
+-void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
++void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
++			struct task_struct *tsk)
+ {
+ 	unsigned int i, id, cpu = smp_processor_id();
+ 	unsigned long *map;
+diff --git a/drivers/cpufreq/pmac32-cpufreq.c b/drivers/cpufreq/pmac32-cpufreq.c
+index 1f49d97a70ea..bde503c66945 100644
+--- a/drivers/cpufreq/pmac32-cpufreq.c
++++ b/drivers/cpufreq/pmac32-cpufreq.c
+@@ -298,7 +298,7 @@ static int pmu_set_cpu_speed(int low_speed)
+  		_set_L3CR(save_l3cr);
+ 
+ 	/* Restore userland MMU context */
+-	switch_mmu_context(NULL, current->active_mm);
++	switch_mmu_context(NULL, current->active_mm, NULL);
+ 
+ #ifdef DEBUG_FREQ
+ 	printk(KERN_DEBUG "HID1, after: %x\n", mfspr(SPRN_HID1));
+diff --git a/drivers/macintosh/via-pmu.c b/drivers/macintosh/via-pmu.c
+index 01ee736fe0ef..f8b6d1403c16 100644
+--- a/drivers/macintosh/via-pmu.c
++++ b/drivers/macintosh/via-pmu.c
+@@ -1851,7 +1851,7 @@ static int powerbook_sleep_grackle(void)
+  		_set_L2CR(save_l2cr);
+ 	
+ 	/* Restore userland MMU context */
+-	switch_mmu_context(NULL, current->active_mm);
++	switch_mmu_context(NULL, current->active_mm, NULL);
+ 
+ 	/* Power things up */
+ 	pmu_unlock();
+@@ -1940,7 +1940,7 @@ powerbook_sleep_Core99(void)
+  		_set_L3CR(save_l3cr);
+ 	
+ 	/* Restore userland MMU context */
+-	switch_mmu_context(NULL, current->active_mm);
++	switch_mmu_context(NULL, current->active_mm, NULL);
+ 
+ 	/* Tell PMU we are ready */
+ 	pmu_unlock();
 -- 
 2.5.0
 
