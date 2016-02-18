@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 674F9828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:51:41 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id b67so41169375qgb.1
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:51:41 -0800 (PST)
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
-        by mx.google.com with ESMTPS id e204si8784733qhc.130.2016.02.18.08.51.39
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A1117828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:51:42 -0500 (EST)
+Received: by mail-qk0-f170.google.com with SMTP id s5so20710962qkd.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:51:42 -0800 (PST)
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
+        by mx.google.com with ESMTPS id r71si8817361qha.48.2016.02.18.08.51.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Feb 2016 08:51:40 -0800 (PST)
+        Thu, 18 Feb 2016 08:51:41 -0800 (PST)
 Received: from localhost
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 18 Feb 2016 09:51:39 -0700
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D0E5B3E40054
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:35 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGpZm324313950
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:35 -0700
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGpZFF027134
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:35 -0700
+	Thu, 18 Feb 2016 09:51:41 -0700
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 1A0653E4003E
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 09:51:39 -0700 (MST)
+Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1IGpcel24445100
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:51:38 GMT
+Received: from d01av05.pok.ibm.com (localhost [127.0.0.1])
+	by d01av05.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1IGm01e003800
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:48:01 -0500
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V3 10/30] powerpc/mm: Hugetlbfs is book3s_64 and fsl_book3e (32 or 64)
-Date: Thu, 18 Feb 2016 22:20:34 +0530
-Message-Id: <1455814254-10226-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3 11/30] powerpc/mm: free_hugepd_range split to hash and nonhash
+Date: Thu, 18 Feb 2016 22:20:35 +0530
+Message-Id: <1455814254-10226-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,897 +33,581 @@ List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We move large part of fsl related code to hugetlbpage-book3e.c.
-Only code movement. This also avoid #ifdef in the code.
-
-Eventhough we allow hugetlbfs only for book3s 64 and fsl book3e, I am
-still retaining the #ifdef in hugetlbpage-book3e.c. It looks like there
-was an attempt to support hugetlbfs on other non hash platforms. I
-didn't want to loose that work.
+We strictly don't need to do this. But enables us to not depend on
+pgtable_free_tlb for radix.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/hugetlb.h   |   1 +
- arch/powerpc/mm/hugetlbpage-book3e.c | 293 +++++++++++++++++++++++++
- arch/powerpc/mm/hugetlbpage-hash64.c | 121 +++++++++++
- arch/powerpc/mm/hugetlbpage.c        | 401 +----------------------------------
- 4 files changed, 416 insertions(+), 400 deletions(-)
+ arch/powerpc/mm/hugetlbpage-book3e.c | 187 ++++++++++++++++++++++++++++++++++
+ arch/powerpc/mm/hugetlbpage-hash64.c | 150 ++++++++++++++++++++++++++++
+ arch/powerpc/mm/hugetlbpage.c        | 188 -----------------------------------
+ 3 files changed, 337 insertions(+), 188 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index 7eac89b9f02e..0525f1c29afb 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -47,6 +47,7 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
- 
- #endif /* CONFIG_PPC_BOOK3S_64 */
- 
-+#define hugepd_none(hpd)	((hpd).pd == 0)
- 
- static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
- 				    unsigned pdshift)
 diff --git a/arch/powerpc/mm/hugetlbpage-book3e.c b/arch/powerpc/mm/hugetlbpage-book3e.c
-index 7e6d0880813f..4c43a104e35c 100644
+index 4c43a104e35c..459d61855ff7 100644
 --- a/arch/powerpc/mm/hugetlbpage-book3e.c
 +++ b/arch/powerpc/mm/hugetlbpage-book3e.c
-@@ -7,6 +7,39 @@
-  */
- #include <linux/mm.h>
- #include <linux/hugetlb.h>
-+#include <linux/bootmem.h>
-+#include <linux/moduleparam.h>
-+#include <linux/memblock.h>
-+#include <asm/tlb.h>
-+#include <asm/setup.h>
-+
-+/*
-+ * Tracks gpages after the device tree is scanned and before the
-+ * huge_boot_pages list is ready.  On non-Freescale implementations, this is
-+ * just used to track 16G pages and so is a single array.  FSL-based
-+ * implementations may have more than one gpage size, so we need multiple
-+ * arrays
-+ */
-+#ifdef CONFIG_PPC_FSL_BOOK3E
-+#define MAX_NUMBER_GPAGES	128
-+struct psize_gpages {
-+	u64 gpage_list[MAX_NUMBER_GPAGES];
-+	unsigned int nr_gpages;
-+};
-+static struct psize_gpages gpage_freearray[MMU_PAGE_COUNT];
-+#endif
-+
-+/*
-+ * These macros define how to determine which level of the page table holds
-+ * the hpdp.
-+ */
-+#ifdef CONFIG_PPC_FSL_BOOK3E
-+#define HUGEPD_PGD_SHIFT PGDIR_SHIFT
-+#define HUGEPD_PUD_SHIFT PUD_SHIFT
-+#else
-+#define HUGEPD_PGD_SHIFT PUD_SHIFT
-+#define HUGEPD_PUD_SHIFT PMD_SHIFT
-+#endif
- 
- #ifdef CONFIG_PPC_FSL_BOOK3E
- #ifdef CONFIG_PPC64
-@@ -197,3 +230,263 @@ void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
- 
- 	__flush_tlb_page(vma->vm_mm, vmaddr, tsize, 0);
+@@ -311,6 +311,193 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	return hugepte_offset(*hpdp, addr, pdshift);
  }
-+
-+static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
-+			   unsigned long address, unsigned pdshift, unsigned pshift)
+ 
++extern void hugepd_free(struct mmu_gather *tlb, void *hugepte);
++static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshift,
++			      unsigned long start, unsigned long end,
++			      unsigned long floor, unsigned long ceiling)
 +{
-+	struct kmem_cache *cachep;
-+	pte_t *new;
-+
++	pte_t *hugepte = hugepd_page(*hpdp);
 +	int i;
-+	int num_hugepd = 1 << (pshift - pdshift);
-+	cachep = hugepte_cache;
 +
-+	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
-+
-+	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
-+	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
-+
-+	if (! new)
-+		return -ENOMEM;
-+
-+	spin_lock(&mm->page_table_lock);
-+	/*
-+	 * We have multiple higher-level entries that point to the same
-+	 * actual pte location.  Fill in each as we go and backtrack on error.
-+	 * We need all of these so the DTLB pgtable walk code can find the
-+	 * right higher-level entry without knowing if it's a hugepage or not.
-+	 */
-+	for (i = 0; i < num_hugepd; i++, hpdp++) {
-+		if (unlikely(!hugepd_none(*hpdp)))
-+			break;
-+		else
-+			/* We use the old format for PPC_FSL_BOOK3E */
-+			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
-+	}
-+	/* If we bailed from the for loop early, an error occurred, clean up */
-+	if (i < num_hugepd) {
-+		for (i = i - 1 ; i >= 0; i--, hpdp--)
-+			hpdp->pd = 0;
-+		kmem_cache_free(cachep, new);
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
-+}
-+
-+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
-+{
-+	pgd_t *pg;
-+	pud_t *pu;
-+	pmd_t *pm;
-+	hugepd_t *hpdp = NULL;
-+	unsigned pshift = __ffs(sz);
-+	unsigned pdshift = PGDIR_SHIFT;
-+
-+	addr &= ~(sz-1);
-+
-+	pg = pgd_offset(mm, addr);
-+
-+	if (pshift >= HUGEPD_PGD_SHIFT) {
-+		hpdp = (hugepd_t *)pg;
-+	} else {
-+		pdshift = PUD_SHIFT;
-+		pu = pud_alloc(mm, pg, addr);
-+		if (pshift >= HUGEPD_PUD_SHIFT) {
-+			hpdp = (hugepd_t *)pu;
-+		} else {
-+			pdshift = PMD_SHIFT;
-+			pm = pmd_alloc(mm, pu, addr);
-+			hpdp = (hugepd_t *)pm;
-+		}
-+	}
-+
-+	if (!hpdp)
-+		return NULL;
-+
-+	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
-+
-+	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
-+		return NULL;
-+
-+	return hugepte_offset(*hpdp, addr, pdshift);
-+}
++	unsigned long pdmask = ~((1UL << pdshift) - 1);
++	unsigned int num_hugepd = 1;
 +
 +#ifdef CONFIG_PPC_FSL_BOOK3E
-+/* Build list of addresses of gigantic pages.  This function is used in early
-+ * boot before the buddy allocator is setup.
-+ */
-+void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
-+{
-+	unsigned int idx = shift_to_mmu_psize(__ffs(page_size));
-+	int i;
-+
-+	if (addr == 0)
-+		return;
-+
-+	gpage_freearray[idx].nr_gpages = number_of_pages;
-+
-+	for (i = 0; i < number_of_pages; i++) {
-+		gpage_freearray[idx].gpage_list[i] = addr;
-+		addr += page_size;
-+	}
-+}
-+
-+/*
-+ * Moves the gigantic page addresses from the temporary list to the
-+ * huge_boot_pages list.
-+ */
-+int alloc_bootmem_huge_page(struct hstate *hstate)
-+{
-+	struct huge_bootmem_page *m;
-+	int idx = shift_to_mmu_psize(huge_page_shift(hstate));
-+	int nr_gpages = gpage_freearray[idx].nr_gpages;
-+
-+	if (nr_gpages == 0)
-+		return 0;
-+
-+#ifdef CONFIG_HIGHMEM
-+	/*
-+	 * If gpages can be in highmem we can't use the trick of storing the
-+	 * data structure in the page; allocate space for this
-+	 */
-+	m = memblock_virt_alloc(sizeof(struct huge_bootmem_page), 0);
-+	m->phys = gpage_freearray[idx].gpage_list[--nr_gpages];
++	/* Note: On fsl the hpdp may be the first of several */
++	num_hugepd = (1 << (hugepd_shift(*hpdp) - pdshift));
 +#else
-+	m = phys_to_virt(gpage_freearray[idx].gpage_list[--nr_gpages]);
++	unsigned int shift = hugepd_shift(*hpdp);
 +#endif
 +
-+	list_add(&m->list, &huge_boot_pages);
-+	gpage_freearray[idx].nr_gpages = nr_gpages;
-+	gpage_freearray[idx].gpage_list[nr_gpages] = 0;
-+	m->hstate = hstate;
-+
-+	return 1;
-+}
-+/*
-+ * Scan the command line hugepagesz= options for gigantic pages; store those in
-+ * a list that we use to allocate the memory once all options are parsed.
-+ */
-+
-+unsigned long gpage_npages[MMU_PAGE_COUNT];
-+
-+static int __init do_gpage_early_setup(char *param, char *val,
-+				       const char *unused, void *arg)
-+{
-+	static phys_addr_t size;
-+	unsigned long npages;
-+
-+	/*
-+	 * The hugepagesz and hugepages cmdline options are interleaved.  We
-+	 * use the size variable to keep track of whether or not this was done
-+	 * properly and skip over instances where it is incorrect.  Other
-+	 * command-line parsing code will issue warnings, so we don't need to.
-+	 *
-+	 */
-+	if ((strcmp(param, "default_hugepagesz") == 0) ||
-+	    (strcmp(param, "hugepagesz") == 0)) {
-+		size = memparse(val, NULL);
-+	} else if (strcmp(param, "hugepages") == 0) {
-+		if (size != 0) {
-+			if (sscanf(val, "%lu", &npages) <= 0)
-+				npages = 0;
-+			if (npages > MAX_NUMBER_GPAGES) {
-+				pr_warn("MMU: %lu pages requested for page "
-+					"size %llu KB, limiting to "
-+					__stringify(MAX_NUMBER_GPAGES) "\n",
-+					npages, size / 1024);
-+				npages = MAX_NUMBER_GPAGES;
-+			}
-+			gpage_npages[shift_to_mmu_psize(__ffs(size))] = npages;
-+			size = 0;
-+		}
-+	}
-+	return 0;
-+}
-+
-+
-+/*
-+ * This function allocates physical space for pages that are larger than the
-+ * buddy allocator can handle.  We want to allocate these in highmem because
-+ * the amount of lowmem is limited.  This means that this function MUST be
-+ * called before lowmem_end_addr is set up in MMU_init() in order for the lmb
-+ * allocate to grab highmem.
-+ */
-+void __init reserve_hugetlb_gpages(void)
-+{
-+	static __initdata char cmdline[COMMAND_LINE_SIZE];
-+	phys_addr_t size, base;
-+	int i;
-+
-+	strlcpy(cmdline, boot_command_line, COMMAND_LINE_SIZE);
-+	parse_args("hugetlb gpages", cmdline, NULL, 0, 0, 0,
-+			NULL, &do_gpage_early_setup);
-+
-+	/*
-+	 * Walk gpage list in reverse, allocating larger page sizes first.
-+	 * Skip over unsupported sizes, or sizes that have 0 gpages allocated.
-+	 * When we reach the point in the list where pages are no longer
-+	 * considered gpages, we're done.
-+	 */
-+	for (i = MMU_PAGE_COUNT-1; i >= 0; i--) {
-+		if (mmu_psize_defs[i].shift == 0 || gpage_npages[i] == 0)
-+			continue;
-+		else if (mmu_psize_to_shift(i) < (MAX_ORDER + PAGE_SHIFT))
-+			break;
-+
-+		size = (phys_addr_t)(1ULL << mmu_psize_to_shift(i));
-+		base = memblock_alloc_base(size * gpage_npages[i], size,
-+					   MEMBLOCK_ALLOC_ANYWHERE);
-+		add_gpage(base, size, gpage_npages[i]);
-+	}
-+}
-+
-+#define HUGEPD_FREELIST_SIZE \
-+	((PAGE_SIZE - sizeof(struct hugepd_freelist)) / sizeof(pte_t))
-+
-+struct hugepd_freelist {
-+	struct rcu_head	rcu;
-+	unsigned int index;
-+	void *ptes[0];
-+};
-+
-+static DEFINE_PER_CPU(struct hugepd_freelist *, hugepd_freelist_cur);
-+
-+static void hugepd_free_rcu_callback(struct rcu_head *head)
-+{
-+	struct hugepd_freelist *batch =
-+		container_of(head, struct hugepd_freelist, rcu);
-+	unsigned int i;
-+
-+	for (i = 0; i < batch->index; i++)
-+		kmem_cache_free(hugepte_cache, batch->ptes[i]);
-+
-+	free_page((unsigned long)batch);
-+}
-+
-+void hugepd_free(struct mmu_gather *tlb, void *hugepte)
-+{
-+	struct hugepd_freelist **batchp;
-+
-+	batchp = this_cpu_ptr(&hugepd_freelist_cur);
-+
-+	if (atomic_read(&tlb->mm->mm_users) < 2 ||
-+	    cpumask_equal(mm_cpumask(tlb->mm),
-+			  cpumask_of(smp_processor_id()))) {
-+		kmem_cache_free(hugepte_cache, hugepte);
-+        put_cpu_var(hugepd_freelist_cur);
++	start &= pdmask;
++	if (start < floor)
 +		return;
++	if (ceiling) {
++		ceiling &= pdmask;
++		if (! ceiling)
++			return;
 +	}
++	if (end - 1 > ceiling - 1)
++		return;
 +
-+	if (*batchp == NULL) {
-+		*batchp = (struct hugepd_freelist *)__get_free_page(GFP_ATOMIC);
-+		(*batchp)->index = 0;
-+	}
++	for (i = 0; i < num_hugepd; i++, hpdp++)
++		hpdp->pd = 0;
 +
-+	(*batchp)->ptes[(*batchp)->index++] = hugepte;
-+	if ((*batchp)->index == HUGEPD_FREELIST_SIZE) {
-+		call_rcu_sched(&(*batchp)->rcu, hugepd_free_rcu_callback);
-+		*batchp = NULL;
-+	}
-+	put_cpu_var(hugepd_freelist_cur);
-+}
++#ifdef CONFIG_PPC_FSL_BOOK3E
++	hugepd_free(tlb, hugepte);
++#else
++	pgtable_free_tlb(tlb, hugepte, pdshift - shift);
 +#endif
++}
++
++static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
++				   unsigned long addr, unsigned long end,
++				   unsigned long floor, unsigned long ceiling)
++{
++	pmd_t *pmd;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	do {
++		pmd = pmd_offset(pud, addr);
++		next = pmd_addr_end(addr, end);
++		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
++			/*
++			 * if it is not hugepd pointer, we should already find
++			 * it cleared.
++			 */
++			WARN_ON(!pmd_none_or_clear_bad(pmd));
++			continue;
++		}
++#ifdef CONFIG_PPC_FSL_BOOK3E
++		/*
++		 * Increment next by the size of the huge mapping since
++		 * there may be more than one entry at this level for a
++		 * single hugepage, but all of them point to
++		 * the same kmem cache that holds the hugepte.
++		 */
++		next = addr + (1 << hugepd_shift(*(hugepd_t *)pmd));
++#endif
++		free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
++				  addr, next, floor, ceiling);
++	} while (addr = next, addr != end);
++
++	start &= PUD_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PUD_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pmd = pmd_offset(pud, start);
++	pud_clear(pud);
++	pmd_free_tlb(tlb, pmd, start);
++	mm_dec_nr_pmds(tlb->mm);
++}
++
++static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
++				   unsigned long addr, unsigned long end,
++				   unsigned long floor, unsigned long ceiling)
++{
++	pud_t *pud;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	do {
++		pud = pud_offset(pgd, addr);
++		next = pud_addr_end(addr, end);
++		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
++			if (pud_none_or_clear_bad(pud))
++				continue;
++			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
++					       ceiling);
++		} else {
++#ifdef CONFIG_PPC_FSL_BOOK3E
++			/*
++			 * Increment next by the size of the huge mapping since
++			 * there may be more than one entry at this level for a
++			 * single hugepage, but all of them point to
++			 * the same kmem cache that holds the hugepte.
++			 */
++			next = addr + (1 << hugepd_shift(*(hugepd_t *)pud));
++#endif
++			free_hugepd_range(tlb, (hugepd_t *)pud, PUD_SHIFT,
++					  addr, next, floor, ceiling);
++		}
++	} while (addr = next, addr != end);
++
++	start &= PGDIR_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PGDIR_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pud = pud_offset(pgd, start);
++	pgd_clear(pgd);
++	pud_free_tlb(tlb, pud, start);
++}
++
++/*
++ * This function frees user-level page tables of a process.
++ */
++void hugetlb_free_pgd_range(struct mmu_gather *tlb,
++			    unsigned long addr, unsigned long end,
++			    unsigned long floor, unsigned long ceiling)
++{
++	pgd_t *pgd;
++	unsigned long next;
++
++	/*
++	 * Because there are a number of different possible pagetable
++	 * layouts for hugepage ranges, we limit knowledge of how
++	 * things should be laid out to the allocation path
++	 * (huge_pte_alloc(), above).  Everything else works out the
++	 * structure as it goes from information in the hugepd
++	 * pointers.  That means that we can't here use the
++	 * optimization used in the normal page free_pgd_range(), of
++	 * checking whether we're actually covering a large enough
++	 * range to have to do anything at the top level of the walk
++	 * instead of at the bottom.
++	 *
++	 * To make sense of this, you should probably go read the big
++	 * block comment at the top of the normal free_pgd_range(),
++	 * too.
++	 */
++
++	do {
++		next = pgd_addr_end(addr, end);
++		pgd = pgd_offset(tlb->mm, addr);
++		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
++			if (pgd_none_or_clear_bad(pgd))
++				continue;
++			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
++		} else {
++#ifdef CONFIG_PPC_FSL_BOOK3E
++			/*
++			 * Increment next by the size of the huge mapping since
++			 * there may be more than one entry at the pgd level
++			 * for a single hugepage, but all of them point to the
++			 * same kmem cache that holds the hugepte.
++			 */
++			next = addr + (1 << hugepd_shift(*(hugepd_t *)pgd));
++#endif
++			free_hugepd_range(tlb, (hugepd_t *)pgd, PGDIR_SHIFT,
++					  addr, next, floor, ceiling);
++		}
++	} while (addr = next, addr != end);
++}
++
+ #ifdef CONFIG_PPC_FSL_BOOK3E
+ /* Build list of addresses of gigantic pages.  This function is used in early
+  * boot before the buddy allocator is setup.
 diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index 9c224b012d62..9e457c83626b 100644
+index 9e457c83626b..068ac0e8d07d 100644
 --- a/arch/powerpc/mm/hugetlbpage-hash64.c
 +++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -14,6 +14,17 @@
+@@ -13,6 +13,7 @@
+ #include <asm/pgalloc.h>
  #include <asm/cacheflush.h>
  #include <asm/machdep.h>
++#include <asm/tlb.h>
  
-+/*
-+ * Tracks gpages after the device tree is scanned and before the
-+ * huge_boot_pages list is ready.  On non-Freescale implementations, this is
-+ * just used to track 16G pages and so is a single array.  FSL-based
-+ * implementations may have more than one gpage size, so we need multiple
-+ * arrays
-+ */
-+#define MAX_NUMBER_GPAGES	1024
-+static u64 gpage_freearray[MAX_NUMBER_GPAGES];
-+static unsigned nr_gpages;
-+
- extern long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
- 				  unsigned long pa, unsigned long rlags,
- 				  unsigned long vflags, int psize, int ssize);
-@@ -132,3 +143,113 @@ int hugepd_ok(hugepd_t hpd)
- 	return 0;
+ /*
+  * Tracks gpages after the device tree is scanned and before the
+@@ -223,6 +224,155 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	return hugepte_offset(*hpdp, addr, pdshift);
  }
- #endif
-+
-+static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
-+			   unsigned long address, unsigned pdshift, unsigned pshift)
+ 
++static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshift,
++			      unsigned long start, unsigned long end,
++			      unsigned long floor, unsigned long ceiling)
 +{
-+	struct kmem_cache *cachep;
-+	pte_t *new;
 +
-+	cachep = PGT_CACHE(pdshift - pshift);
++	int i;
++	pte_t *hugepte = hugepd_page(*hpdp);
++	unsigned long pdmask = ~((1UL << pdshift) - 1);
++	unsigned int num_hugepd = 1;
++	unsigned int shift = hugepd_shift(*hpdp);
 +
-+	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
-+
-+	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
-+	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
-+
-+	if (! new)
-+		return -ENOMEM;
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (!hugepd_none(*hpdp))
-+		kmem_cache_free(cachep, new);
-+	else {
-+		hpdp->pd = (unsigned long)new |
-+			    (shift_to_mmu_psize(pshift) << 2);
++	start &= pdmask;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= pdmask;
++		if (! ceiling)
++			return;
 +	}
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
++	if (end - 1 > ceiling - 1)
++		return;
++
++	for (i = 0; i < num_hugepd; i++, hpdp++)
++		hpdp->pd = 0;
++
++	pgtable_free_tlb(tlb, hugepte, pdshift - shift);
++}
++
++static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
++				   unsigned long addr, unsigned long end,
++				   unsigned long floor, unsigned long ceiling)
++{
++	pmd_t *pmd;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	do {
++		pmd = pmd_offset(pud, addr);
++		next = pmd_addr_end(addr, end);
++		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
++			/*
++			 * if it is not hugepd pointer, we should already find
++			 * it cleared.
++			 */
++			WARN_ON(!pmd_none_or_clear_bad(pmd));
++			continue;
++		}
++		free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
++				  addr, next, floor, ceiling);
++	} while (addr = next, addr != end);
++
++	start &= PUD_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PUD_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pmd = pmd_offset(pud, start);
++	pud_clear(pud);
++	pmd_free_tlb(tlb, pmd, start);
++	mm_dec_nr_pmds(tlb->mm);
++}
++
++static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
++				   unsigned long addr, unsigned long end,
++				   unsigned long floor, unsigned long ceiling)
++{
++	pud_t *pud;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	do {
++		pud = pud_offset(pgd, addr);
++		next = pud_addr_end(addr, end);
++		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
++			if (pud_none_or_clear_bad(pud))
++				continue;
++			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
++					       ceiling);
++		} else {
++			free_hugepd_range(tlb, (hugepd_t *)pud, PUD_SHIFT,
++					  addr, next, floor, ceiling);
++		}
++	} while (addr = next, addr != end);
++
++	start &= PGDIR_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PGDIR_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pud = pud_offset(pgd, start);
++	pgd_clear(pgd);
++	pud_free_tlb(tlb, pud, start);
 +}
 +
 +/*
-+ * At this point we do the placement change only for BOOK3S 64. This would
-+ * possibly work on other subarchs.
++ * This function frees user-level page tables of a process.
 + */
-+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
++void hugetlb_free_pgd_range(struct mmu_gather *tlb,
++			    unsigned long addr, unsigned long end,
++			    unsigned long floor, unsigned long ceiling)
 +{
-+	pgd_t *pg;
-+	pud_t *pu;
-+	pmd_t *pm;
-+	hugepd_t *hpdp = NULL;
-+	unsigned pshift = __ffs(sz);
-+	unsigned pdshift = PGDIR_SHIFT;
++	pgd_t *pgd;
++	unsigned long next;
 +
-+	addr &= ~(sz-1);
-+	pg = pgd_offset(mm, addr);
++	/*
++	 * Because there are a number of different possible pagetable
++	 * layouts for hugepage ranges, we limit knowledge of how
++	 * things should be laid out to the allocation path
++	 * (huge_pte_alloc(), above).  Everything else works out the
++	 * structure as it goes from information in the hugepd
++	 * pointers.  That means that we can't here use the
++	 * optimization used in the normal page free_pgd_range(), of
++	 * checking whether we're actually covering a large enough
++	 * range to have to do anything at the top level of the walk
++	 * instead of at the bottom.
++	 *
++	 * To make sense of this, you should probably go read the big
++	 * block comment at the top of the normal free_pgd_range(),
++	 * too.
++	 */
 +
-+	if (pshift == PGDIR_SHIFT)
-+		/* 16GB huge page */
-+		return (pte_t *) pg;
-+	else if (pshift > PUD_SHIFT)
-+		/*
-+		 * We need to use hugepd table
-+		 */
-+		hpdp = (hugepd_t *)pg;
-+	else {
-+		pdshift = PUD_SHIFT;
-+		pu = pud_alloc(mm, pg, addr);
-+		if (pshift == PUD_SHIFT)
-+			return (pte_t *)pu;
-+		else if (pshift > PMD_SHIFT)
-+			hpdp = (hugepd_t *)pu;
-+		else {
-+			pdshift = PMD_SHIFT;
-+			pm = pmd_alloc(mm, pu, addr);
-+			if (pshift == PMD_SHIFT)
-+				/* 16MB hugepage */
-+				return (pte_t *)pm;
-+			else
-+				hpdp = (hugepd_t *)pm;
++	do {
++		next = pgd_addr_end(addr, end);
++		pgd = pgd_offset(tlb->mm, addr);
++		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
++			if (pgd_none_or_clear_bad(pgd))
++				continue;
++			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
++		} else {
++			free_hugepd_range(tlb, (hugepd_t *)pgd, PGDIR_SHIFT,
++					  addr, next, floor, ceiling);
 +		}
-+	}
-+	if (!hpdp)
-+		return NULL;
-+
-+	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
-+
-+	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
-+		return NULL;
-+
-+	return hugepte_offset(*hpdp, addr, pdshift);
++	} while (addr = next, addr != end);
 +}
 +
-+
-+/* Build list of addresses of gigantic pages.  This function is used in early
-+ * boot before the buddy allocator is setup.
-+ */
-+void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
-+{
-+	if (!addr)
-+		return;
-+	while (number_of_pages > 0) {
-+		gpage_freearray[nr_gpages] = addr;
-+		nr_gpages++;
-+		number_of_pages--;
-+		addr += page_size;
-+	}
-+}
-+
-+/* Moves the gigantic page addresses from the temporary list to the
-+ * huge_boot_pages list.
-+ */
-+int alloc_bootmem_huge_page(struct hstate *hstate)
-+{
-+	struct huge_bootmem_page *m;
-+	if (nr_gpages == 0)
-+		return 0;
-+	m = phys_to_virt(gpage_freearray[--nr_gpages]);
-+	gpage_freearray[nr_gpages] = 0;
-+	list_add(&m->list, &huge_boot_pages);
-+	m->hstate = hstate;
-+	return 1;
-+}
+ 
+ /* Build list of addresses of gigantic pages.  This function is used in early
+  * boot before the buddy allocator is setup.
 diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 744e24bcb85c..c94502899e94 100644
+index c94502899e94..26fb814f289f 100644
 --- a/arch/powerpc/mm/hugetlbpage.c
 +++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -31,413 +31,14 @@
- 
- unsigned int HPAGE_SHIFT;
- 
--/*
-- * Tracks gpages after the device tree is scanned and before the
-- * huge_boot_pages list is ready.  On non-Freescale implementations, this is
-- * just used to track 16G pages and so is a single array.  FSL-based
-- * implementations may have more than one gpage size, so we need multiple
-- * arrays
-- */
--#ifdef CONFIG_PPC_FSL_BOOK3E
--#define MAX_NUMBER_GPAGES	128
--struct psize_gpages {
--	u64 gpage_list[MAX_NUMBER_GPAGES];
--	unsigned int nr_gpages;
--};
--static struct psize_gpages gpage_freearray[MMU_PAGE_COUNT];
--#else
--#define MAX_NUMBER_GPAGES	1024
--static u64 gpage_freearray[MAX_NUMBER_GPAGES];
--static unsigned nr_gpages;
--#endif
--
--#define hugepd_none(hpd)	((hpd).pd == 0)
--
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
- {
- 	/* Only called for hugetlbfs pages, hence can ignore THP */
+@@ -37,194 +37,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
  	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
  }
  
--static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
--			   unsigned long address, unsigned pdshift, unsigned pshift)
+-
+-extern void hugepd_free(struct mmu_gather *tlb, void *hugepte);
+-static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshift,
+-			      unsigned long start, unsigned long end,
+-			      unsigned long floor, unsigned long ceiling)
 -{
--	struct kmem_cache *cachep;
--	pte_t *new;
--
--#ifdef CONFIG_PPC_FSL_BOOK3E
--	int i;
--	int num_hugepd = 1 << (pshift - pdshift);
--	cachep = hugepte_cache;
--#else
--	cachep = PGT_CACHE(pdshift - pshift);
--#endif
--
--	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
--
--	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
--	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
--
--	if (! new)
--		return -ENOMEM;
--
--	spin_lock(&mm->page_table_lock);
--#ifdef CONFIG_PPC_FSL_BOOK3E
--	/*
--	 * We have multiple higher-level entries that point to the same
--	 * actual pte location.  Fill in each as we go and backtrack on error.
--	 * We need all of these so the DTLB pgtable walk code can find the
--	 * right higher-level entry without knowing if it's a hugepage or not.
--	 */
--	for (i = 0; i < num_hugepd; i++, hpdp++) {
--		if (unlikely(!hugepd_none(*hpdp)))
--			break;
--		else
--			/* We use the old format for PPC_FSL_BOOK3E */
--			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
--	}
--	/* If we bailed from the for loop early, an error occurred, clean up */
--	if (i < num_hugepd) {
--		for (i = i - 1 ; i >= 0; i--, hpdp--)
--			hpdp->pd = 0;
--		kmem_cache_free(cachep, new);
--	}
--#else
--	if (!hugepd_none(*hpdp))
--		kmem_cache_free(cachep, new);
--	else {
--#ifdef CONFIG_PPC_BOOK3S_64
--		hpdp->pd = (unsigned long)new |
--			    (shift_to_mmu_psize(pshift) << 2);
--#else
--		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
--#endif
--	}
--#endif
--	spin_unlock(&mm->page_table_lock);
--	return 0;
--}
--
--/*
-- * These macros define how to determine which level of the page table holds
-- * the hpdp.
-- */
--#ifdef CONFIG_PPC_FSL_BOOK3E
--#define HUGEPD_PGD_SHIFT PGDIR_SHIFT
--#define HUGEPD_PUD_SHIFT PUD_SHIFT
--#else
--#define HUGEPD_PGD_SHIFT PUD_SHIFT
--#define HUGEPD_PUD_SHIFT PMD_SHIFT
--#endif
--
--#ifdef CONFIG_PPC_BOOK3S_64
--/*
-- * At this point we do the placement change only for BOOK3S 64. This would
-- * possibly work on other subarchs.
-- */
--pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
--{
--	pgd_t *pg;
--	pud_t *pu;
--	pmd_t *pm;
--	hugepd_t *hpdp = NULL;
--	unsigned pshift = __ffs(sz);
--	unsigned pdshift = PGDIR_SHIFT;
--
--	addr &= ~(sz-1);
--	pg = pgd_offset(mm, addr);
--
--	if (pshift == PGDIR_SHIFT)
--		/* 16GB huge page */
--		return (pte_t *) pg;
--	else if (pshift > PUD_SHIFT)
--		/*
--		 * We need to use hugepd table
--		 */
--		hpdp = (hugepd_t *)pg;
--	else {
--		pdshift = PUD_SHIFT;
--		pu = pud_alloc(mm, pg, addr);
--		if (pshift == PUD_SHIFT)
--			return (pte_t *)pu;
--		else if (pshift > PMD_SHIFT)
--			hpdp = (hugepd_t *)pu;
--		else {
--			pdshift = PMD_SHIFT;
--			pm = pmd_alloc(mm, pu, addr);
--			if (pshift == PMD_SHIFT)
--				/* 16MB hugepage */
--				return (pte_t *)pm;
--			else
--				hpdp = (hugepd_t *)pm;
--		}
--	}
--	if (!hpdp)
--		return NULL;
--
--	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
--
--	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
--		return NULL;
--
--	return hugepte_offset(*hpdp, addr, pdshift);
--}
--
--#else
--
--pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
--{
--	pgd_t *pg;
--	pud_t *pu;
--	pmd_t *pm;
--	hugepd_t *hpdp = NULL;
--	unsigned pshift = __ffs(sz);
--	unsigned pdshift = PGDIR_SHIFT;
--
--	addr &= ~(sz-1);
--
--	pg = pgd_offset(mm, addr);
--
--	if (pshift >= HUGEPD_PGD_SHIFT) {
--		hpdp = (hugepd_t *)pg;
--	} else {
--		pdshift = PUD_SHIFT;
--		pu = pud_alloc(mm, pg, addr);
--		if (pshift >= HUGEPD_PUD_SHIFT) {
--			hpdp = (hugepd_t *)pu;
--		} else {
--			pdshift = PMD_SHIFT;
--			pm = pmd_alloc(mm, pu, addr);
--			hpdp = (hugepd_t *)pm;
--		}
--	}
--
--	if (!hpdp)
--		return NULL;
--
--	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
--
--	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
--		return NULL;
--
--	return hugepte_offset(*hpdp, addr, pdshift);
--}
--#endif
--
--#ifdef CONFIG_PPC_FSL_BOOK3E
--/* Build list of addresses of gigantic pages.  This function is used in early
-- * boot before the buddy allocator is setup.
-- */
--void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
--{
--	unsigned int idx = shift_to_mmu_psize(__ffs(page_size));
+-	pte_t *hugepte = hugepd_page(*hpdp);
 -	int i;
 -
--	if (addr == 0)
+-	unsigned long pdmask = ~((1UL << pdshift) - 1);
+-	unsigned int num_hugepd = 1;
+-
+-#ifdef CONFIG_PPC_FSL_BOOK3E
+-	/* Note: On fsl the hpdp may be the first of several */
+-	num_hugepd = (1 << (hugepd_shift(*hpdp) - pdshift));
+-#else
+-	unsigned int shift = hugepd_shift(*hpdp);
+-#endif
+-
+-	start &= pdmask;
+-	if (start < floor)
+-		return;
+-	if (ceiling) {
+-		ceiling &= pdmask;
+-		if (! ceiling)
+-			return;
+-	}
+-	if (end - 1 > ceiling - 1)
 -		return;
 -
--	gpage_freearray[idx].nr_gpages = number_of_pages;
+-	for (i = 0; i < num_hugepd; i++, hpdp++)
+-		hpdp->pd = 0;
 -
--	for (i = 0; i < number_of_pages; i++) {
--		gpage_freearray[idx].gpage_list[i] = addr;
--		addr += page_size;
--	}
--}
--
--/*
-- * Moves the gigantic page addresses from the temporary list to the
-- * huge_boot_pages list.
-- */
--int alloc_bootmem_huge_page(struct hstate *hstate)
--{
--	struct huge_bootmem_page *m;
--	int idx = shift_to_mmu_psize(huge_page_shift(hstate));
--	int nr_gpages = gpage_freearray[idx].nr_gpages;
--
--	if (nr_gpages == 0)
--		return 0;
--
--#ifdef CONFIG_HIGHMEM
--	/*
--	 * If gpages can be in highmem we can't use the trick of storing the
--	 * data structure in the page; allocate space for this
--	 */
--	m = memblock_virt_alloc(sizeof(struct huge_bootmem_page), 0);
--	m->phys = gpage_freearray[idx].gpage_list[--nr_gpages];
+-#ifdef CONFIG_PPC_FSL_BOOK3E
+-	hugepd_free(tlb, hugepte);
 -#else
--	m = phys_to_virt(gpage_freearray[idx].gpage_list[--nr_gpages]);
+-	pgtable_free_tlb(tlb, hugepte, pdshift - shift);
 -#endif
--
--	list_add(&m->list, &huge_boot_pages);
--	gpage_freearray[idx].nr_gpages = nr_gpages;
--	gpage_freearray[idx].gpage_list[nr_gpages] = 0;
--	m->hstate = hstate;
--
--	return 1;
--}
--/*
-- * Scan the command line hugepagesz= options for gigantic pages; store those in
-- * a list that we use to allocate the memory once all options are parsed.
-- */
--
--unsigned long gpage_npages[MMU_PAGE_COUNT];
--
--static int __init do_gpage_early_setup(char *param, char *val,
--				       const char *unused, void *arg)
--{
--	static phys_addr_t size;
--	unsigned long npages;
--
--	/*
--	 * The hugepagesz and hugepages cmdline options are interleaved.  We
--	 * use the size variable to keep track of whether or not this was done
--	 * properly and skip over instances where it is incorrect.  Other
--	 * command-line parsing code will issue warnings, so we don't need to.
--	 *
--	 */
--	if ((strcmp(param, "default_hugepagesz") == 0) ||
--	    (strcmp(param, "hugepagesz") == 0)) {
--		size = memparse(val, NULL);
--	} else if (strcmp(param, "hugepages") == 0) {
--		if (size != 0) {
--			if (sscanf(val, "%lu", &npages) <= 0)
--				npages = 0;
--			if (npages > MAX_NUMBER_GPAGES) {
--				pr_warn("MMU: %lu pages requested for page "
--					"size %llu KB, limiting to "
--					__stringify(MAX_NUMBER_GPAGES) "\n",
--					npages, size / 1024);
--				npages = MAX_NUMBER_GPAGES;
--			}
--			gpage_npages[shift_to_mmu_psize(__ffs(size))] = npages;
--			size = 0;
--		}
--	}
--	return 0;
 -}
 -
--
--/*
-- * This function allocates physical space for pages that are larger than the
-- * buddy allocator can handle.  We want to allocate these in highmem because
-- * the amount of lowmem is limited.  This means that this function MUST be
-- * called before lowmem_end_addr is set up in MMU_init() in order for the lmb
-- * allocate to grab highmem.
-- */
--void __init reserve_hugetlb_gpages(void)
+-static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+-				   unsigned long addr, unsigned long end,
+-				   unsigned long floor, unsigned long ceiling)
 -{
--	static __initdata char cmdline[COMMAND_LINE_SIZE];
--	phys_addr_t size, base;
--	int i;
+-	pmd_t *pmd;
+-	unsigned long next;
+-	unsigned long start;
 -
--	strlcpy(cmdline, boot_command_line, COMMAND_LINE_SIZE);
--	parse_args("hugetlb gpages", cmdline, NULL, 0, 0, 0,
--			NULL, &do_gpage_early_setup);
--
--	/*
--	 * Walk gpage list in reverse, allocating larger page sizes first.
--	 * Skip over unsupported sizes, or sizes that have 0 gpages allocated.
--	 * When we reach the point in the list where pages are no longer
--	 * considered gpages, we're done.
--	 */
--	for (i = MMU_PAGE_COUNT-1; i >= 0; i--) {
--		if (mmu_psize_defs[i].shift == 0 || gpage_npages[i] == 0)
+-	start = addr;
+-	do {
+-		pmd = pmd_offset(pud, addr);
+-		next = pmd_addr_end(addr, end);
+-		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
+-			/*
+-			 * if it is not hugepd pointer, we should already find
+-			 * it cleared.
+-			 */
+-			WARN_ON(!pmd_none_or_clear_bad(pmd));
 -			continue;
--		else if (mmu_psize_to_shift(i) < (MAX_ORDER + PAGE_SHIFT))
--			break;
--
--		size = (phys_addr_t)(1ULL << mmu_psize_to_shift(i));
--		base = memblock_alloc_base(size * gpage_npages[i], size,
--					   MEMBLOCK_ALLOC_ANYWHERE);
--		add_gpage(base, size, gpage_npages[i]);
--	}
--}
--
--#else /* !PPC_FSL_BOOK3E */
--
--/* Build list of addresses of gigantic pages.  This function is used in early
-- * boot before the buddy allocator is setup.
-- */
--void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
--{
--	if (!addr)
--		return;
--	while (number_of_pages > 0) {
--		gpage_freearray[nr_gpages] = addr;
--		nr_gpages++;
--		number_of_pages--;
--		addr += page_size;
--	}
--}
--
--/* Moves the gigantic page addresses from the temporary list to the
-- * huge_boot_pages list.
-- */
--int alloc_bootmem_huge_page(struct hstate *hstate)
--{
--	struct huge_bootmem_page *m;
--	if (nr_gpages == 0)
--		return 0;
--	m = phys_to_virt(gpage_freearray[--nr_gpages]);
--	gpage_freearray[nr_gpages] = 0;
--	list_add(&m->list, &huge_boot_pages);
--	m->hstate = hstate;
--	return 1;
--}
--#endif
--
+-		}
 -#ifdef CONFIG_PPC_FSL_BOOK3E
--#define HUGEPD_FREELIST_SIZE \
--	((PAGE_SIZE - sizeof(struct hugepd_freelist)) / sizeof(pte_t))
--
--struct hugepd_freelist {
--	struct rcu_head	rcu;
--	unsigned int index;
--	void *ptes[0];
--};
--
--static DEFINE_PER_CPU(struct hugepd_freelist *, hugepd_freelist_cur);
--
--static void hugepd_free_rcu_callback(struct rcu_head *head)
--{
--	struct hugepd_freelist *batch =
--		container_of(head, struct hugepd_freelist, rcu);
--	unsigned int i;
--
--	for (i = 0; i < batch->index; i++)
--		kmem_cache_free(hugepte_cache, batch->ptes[i]);
--
--	free_page((unsigned long)batch);
--}
--
--static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
--{
--	struct hugepd_freelist **batchp;
--
--	batchp = this_cpu_ptr(&hugepd_freelist_cur);
--
--	if (atomic_read(&tlb->mm->mm_users) < 2 ||
--	    cpumask_equal(mm_cpumask(tlb->mm),
--			  cpumask_of(smp_processor_id()))) {
--		kmem_cache_free(hugepte_cache, hugepte);
--        put_cpu_var(hugepd_freelist_cur);
--		return;
--	}
--
--	if (*batchp == NULL) {
--		*batchp = (struct hugepd_freelist *)__get_free_page(GFP_ATOMIC);
--		(*batchp)->index = 0;
--	}
--
--	(*batchp)->ptes[(*batchp)->index++] = hugepte;
--	if ((*batchp)->index == HUGEPD_FREELIST_SIZE) {
--		call_rcu_sched(&(*batchp)->rcu, hugepd_free_rcu_callback);
--		*batchp = NULL;
--	}
--	put_cpu_var(hugepd_freelist_cur);
--}
+-		/*
+-		 * Increment next by the size of the huge mapping since
+-		 * there may be more than one entry at this level for a
+-		 * single hugepage, but all of them point to
+-		 * the same kmem cache that holds the hugepte.
+-		 */
+-		next = addr + (1 << hugepd_shift(*(hugepd_t *)pmd));
 -#endif
- 
-+extern void hugepd_free(struct mmu_gather *tlb, void *hugepte);
- static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshift,
- 			      unsigned long start, unsigned long end,
- 			      unsigned long floor, unsigned long ceiling)
+-		free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
+-				  addr, next, floor, ceiling);
+-	} while (addr = next, addr != end);
+-
+-	start &= PUD_MASK;
+-	if (start < floor)
+-		return;
+-	if (ceiling) {
+-		ceiling &= PUD_MASK;
+-		if (!ceiling)
+-			return;
+-	}
+-	if (end - 1 > ceiling - 1)
+-		return;
+-
+-	pmd = pmd_offset(pud, start);
+-	pud_clear(pud);
+-	pmd_free_tlb(tlb, pmd, start);
+-	mm_dec_nr_pmds(tlb->mm);
+-}
+-
+-static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+-				   unsigned long addr, unsigned long end,
+-				   unsigned long floor, unsigned long ceiling)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-	unsigned long start;
+-
+-	start = addr;
+-	do {
+-		pud = pud_offset(pgd, addr);
+-		next = pud_addr_end(addr, end);
+-		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
+-			if (pud_none_or_clear_bad(pud))
+-				continue;
+-			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
+-					       ceiling);
+-		} else {
+-#ifdef CONFIG_PPC_FSL_BOOK3E
+-			/*
+-			 * Increment next by the size of the huge mapping since
+-			 * there may be more than one entry at this level for a
+-			 * single hugepage, but all of them point to
+-			 * the same kmem cache that holds the hugepte.
+-			 */
+-			next = addr + (1 << hugepd_shift(*(hugepd_t *)pud));
+-#endif
+-			free_hugepd_range(tlb, (hugepd_t *)pud, PUD_SHIFT,
+-					  addr, next, floor, ceiling);
+-		}
+-	} while (addr = next, addr != end);
+-
+-	start &= PGDIR_MASK;
+-	if (start < floor)
+-		return;
+-	if (ceiling) {
+-		ceiling &= PGDIR_MASK;
+-		if (!ceiling)
+-			return;
+-	}
+-	if (end - 1 > ceiling - 1)
+-		return;
+-
+-	pud = pud_offset(pgd, start);
+-	pgd_clear(pgd);
+-	pud_free_tlb(tlb, pud, start);
+-}
+-
+-/*
+- * This function frees user-level page tables of a process.
+- */
+-void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+-			    unsigned long addr, unsigned long end,
+-			    unsigned long floor, unsigned long ceiling)
+-{
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+-	/*
+-	 * Because there are a number of different possible pagetable
+-	 * layouts for hugepage ranges, we limit knowledge of how
+-	 * things should be laid out to the allocation path
+-	 * (huge_pte_alloc(), above).  Everything else works out the
+-	 * structure as it goes from information in the hugepd
+-	 * pointers.  That means that we can't here use the
+-	 * optimization used in the normal page free_pgd_range(), of
+-	 * checking whether we're actually covering a large enough
+-	 * range to have to do anything at the top level of the walk
+-	 * instead of at the bottom.
+-	 *
+-	 * To make sense of this, you should probably go read the big
+-	 * block comment at the top of the normal free_pgd_range(),
+-	 * too.
+-	 */
+-
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		pgd = pgd_offset(tlb->mm, addr);
+-		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
+-			if (pgd_none_or_clear_bad(pgd))
+-				continue;
+-			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
+-		} else {
+-#ifdef CONFIG_PPC_FSL_BOOK3E
+-			/*
+-			 * Increment next by the size of the huge mapping since
+-			 * there may be more than one entry at the pgd level
+-			 * for a single hugepage, but all of them point to the
+-			 * same kmem cache that holds the hugepte.
+-			 */
+-			next = addr + (1 << hugepd_shift(*(hugepd_t *)pgd));
+-#endif
+-			free_hugepd_range(tlb, (hugepd_t *)pgd, PGDIR_SHIFT,
+-					  addr, next, floor, ceiling);
+-		}
+-	} while (addr = next, addr != end);
+-}
+-
+ /*
+  * We are holding mmap_sem, so a parallel huge page collapse cannot run.
+  * To prevent hugepage split, disable irq.
 -- 
 2.5.0
 
