@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 07AF16B025E
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:38:37 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id g62so23271594wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:38:36 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id q200si4904329wmg.67.2016.02.18.04.38.35
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id CB43F828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:41:47 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id g62so23396615wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:41:47 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id 195si4949107wmh.23.2016.02.18.04.41.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 04:38:36 -0800 (PST)
-Received: by mail-wm0-x234.google.com with SMTP id g62so23413512wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:38:35 -0800 (PST)
+        Thu, 18 Feb 2016 04:41:46 -0800 (PST)
+Received: by mail-wm0-x22d.google.com with SMTP id g62so23396103wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:41:46 -0800 (PST)
+Date: Thu, 18 Feb 2016 14:41:44 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 17/28] thp: skip file huge pmd on copy_huge_pmd()
+Message-ID: <20160218124143.GB28184@node.shutemov.name>
+References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1455200516-132137-18-git-send-email-kirill.shutemov@linux.intel.com>
+ <56BE2781.7060808@intel.com>
+ <20160216101450.GE46557@black.fi.intel.com>
+ <56C3445D.3040305@intel.com>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20160217174654.GA3505386@devbig084.prn1.facebook.com>
-References: <d01698140a51cf9b2ce233c7574c2ece9f6fa241.1449791762.git.shli@fb.com>
- <20160216160802.50ceaf10aa16588e18b3d2c5@linux-foundation.org> <20160217174654.GA3505386@devbig084.prn1.facebook.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Thu, 18 Feb 2016 13:38:16 +0100
-Message-ID: <CAKgNAkhBp8FmqRKe4a5fzmqOgSE7sTEJd95WPg0L5W-uCuAv6Q@mail.gmail.com>
-Subject: Re: [PATCH V4][for-next]mm: add a new vector based madvise syscall
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56C3445D.3040305@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Jason Evans <je@fb.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Shaohua Li,
+On Tue, Feb 16, 2016 at 07:46:37AM -0800, Dave Hansen wrote:
+> On 02/16/2016 02:14 AM, Kirill A. Shutemov wrote:
+> > On Fri, Feb 12, 2016 at 10:42:09AM -0800, Dave Hansen wrote:
+> >> On 02/11/2016 06:21 AM, Kirill A. Shutemov wrote:
+> >>> File pmds can be safely skip on copy_huge_pmd(), we can re-fault them
+> >>> later. COW for file mappings handled on pte level.
+> >>
+> >> Is this different from 4k pages?  I figured we might skip copying
+> >> file-backed ptes on fork, but I couldn't find the code.
+> > 
+> > Currently, we only filter out on per-VMA basis. See first comment in
+> > copy_page_range().
+> > 
+> > Here we handle PMD mapped file pages in COW mapping. File THP can be
+> > mapped into COW mapping as result of read page fault.
+> 
+> OK...  So, copy_page_range() has a check for "Don't copy ptes where a
+> page fault will fill them correctly."  Seems sane enough, but the check
+> is implemented using a check for the VMA having !vma->anon_vma, which is
+> a head-scratcher for a moment.  Why does that apply to huge tmpfs?
+> 
+> Ahh, MAP_PRIVATE.  MAP_PRIVATE vmas have ->anon_vma because they have
+> essentially-anonymous pages for when they do a COW, so they don't hit
+> that check and they go through the copy_*() functions, including
+> copy_huge_pmd().
+> 
+> We don't handle 2M COW operations yet so we simply decline to copy these
+> pages.  Might cost us page faults down the road, but it makes things
+> easier to implement for now.
+> 
+> Did I get that right?
 
-On 17 February 2016 at 18:47, Shaohua Li <shli@fb.com> wrote:
-> On Tue, Feb 16, 2016 at 04:08:02PM -0800, Andrew Morton wrote:
->> On Thu, 10 Dec 2015 16:03:37 -0800 Shaohua Li <shli@fb.com> wrote:
+Yep.
 
-[...]
+> Any chance we could get a bit of that into the patch descriptions so
+> that the next hapless reviewer can spend their time looking at your code
+> instead of relearning the fork() handling for MAP_PRIVATE?
 
->> It would be good for us to have a look at the manpage before going too
->> far with the patch - this helps reviewers to think about the proposed
->> interface and behaviour.
->>
->> I'll queue this up for a bit of testing, although it won't get tested
->> much.  The syscall fuzzers will presumably hit on it.
-
-Please don't forget the other piece. A patch, or a suitable piece of
-text for the madvise.2 man page please!
-
-Cheers,
-
-Michael
-
+Sure.
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
