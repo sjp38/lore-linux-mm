@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC04828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 06:21:15 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id jq7so61257937obb.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 03:21:15 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id b9si8750196oif.3.2016.02.18.03.21.14
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 24447828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:08:52 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id g62so22176112wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:08:52 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id 199si4710590wmv.97.2016.02.18.04.08.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Feb 2016 03:21:15 -0800 (PST)
-Subject: Re: [PATCH 2/6] mm,oom: don't abort on exiting processes when selecting a victim.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160217140006.GM29196@dhcp22.suse.cz>
-	<201602172339.JBJ57868.tSQVJLHMFFOOFO@I-love.SAKURA.ne.jp>
-	<20160217150127.GR29196@dhcp22.suse.cz>
-	<201602180029.HHG73447.QSFOHJOtLVOFFM@I-love.SAKURA.ne.jp>
-	<20160217161742.GS29196@dhcp22.suse.cz>
-In-Reply-To: <20160217161742.GS29196@dhcp22.suse.cz>
-Message-Id: <201602182021.EEH86916.JOLtFFVHOOMQFS@I-love.SAKURA.ne.jp>
-Date: Thu, 18 Feb 2016 20:21:01 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Feb 2016 04:08:51 -0800 (PST)
+Received: by mail-wm0-f52.google.com with SMTP id g62so22175509wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:08:50 -0800 (PST)
+Date: Thu, 18 Feb 2016 13:08:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are
+ OOM-unkillable.
+Message-ID: <20160218120849.GC18149@dhcp22.suse.cz>
+References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
+ <20160218080909.GA18149@dhcp22.suse.cz>
+ <201602181930.HIH09321.SFVFOQLHOFMJOt@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201602181930.HIH09321.SFVFOQLHOFMJOt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> > We want to teach the OOM reaper to
-> > operate whenever TIF_MEMDIE is set. But this means that we want
-> > mm_is_reapable() check because there might be !SIGKILL && !PF_EXITING
-> > threads when we run these optimized paths.
->
-> > We will need to use timer if mm_is_reapable() == false after all.
->
-> Or we should re-evaluate those heuristics for multithreaded processes.
+On Thu 18-02-16 19:30:12, Tetsuo Handa wrote:
+[...]
+> Commit 9cbb78bb314360a8 changed oom_scan_process_thread() to
+> always pass memcg == NULL by removing memcg argument from
+> oom_scan_process_thread(). As a result, after that commit,
+> we are doing test_tsk_thread_flag(p, TIF_MEMDIE) check and
+> oom_task_origin(p) check between two oom_unkillable_task()
+> calls of memcg OOM case. Why don't we skip these checks by
+> passing memcg != NULL to first oom_unkillable_task() call?
+> Was this change by error?
 
-TIF_MEMDIE heuristics are per a task_struct basis but OOM-kill operation
-is per a signal_struct basis or per a mm_struct basis.
+I am not really sure I understand your question.  The point is
+that mem_cgroup_out_of_memory does for_each_mem_cgroup_tree which
+means that only tasks from the given memcg hierarchy is checked and
+oom_unkillable_task cares about memcg only for
 
-Since we set TIF_MEMDIE to only one thread (with a wrong assumption that
-remaining threads will get TIF_MEMDIE due to fatal_signal_pending()),
-we are bothered by corner cases.
+        /* When mem_cgroup_out_of_memory() and p is not member of the group */
+        if (memcg && !task_in_mem_cgroup(p, memcg))
+                return true;
 
-> Does it even make sense to shortcut and block the OOM killer if the
-> single thread is exiting?
-
-Do we check for clone(!CLONE_SIGHAND && CLONE_VM) threads (i.e. walk the
-process list) for checking whether it is really a single thread?
-That would be mm_is_reapable().
-
->                           Only very small amount of memory gets released
-> during its exit anyway.
-
-Currently exit_mm() is called before exit_files() etc. are called.
-Can we expect a single page of memory being released when such thread
-gets stuck at down_read(&mm->mmap_sem) ?
-
->                         Don't we want to catch only the group exit to
-> catch fatal_signal_pending -> exit_signals -> exit_mm -> allocation
-> cases? I am not really sure what to check for, to be honest though.
->
-
-I don't know what this line is saying.
-
-> > Why don't you accept timer based workaround now, even if you have a plan
-> > to update the OOM reaper for handling these optimized paths?
->
-> Because I believe that the timeout based solutions are distracting from
-> a proper solution which would be based on actual algorithm/heurstic that
-> can be measured and evaluated. And because I can see future discussion
-> of whether $FOO or $BAR is a better timeout... I really do not see any
-> reason to rush into quick solutions now.
-
-OOM-livelock bugs are caused by over-throttling based on optimistic
-assumptions. This [PATCH 5/6] patch is for unthrottling in order to
-guarantee forward progress (and eventually trigger kernel panic if
-there is no more OOM-killable processes).
-
-I can't see future discussion of whether $FOO or $BAR is a better timeout
-because timeout based unthrottling should seldom occur. Even without the
-OOM reaper, more than e.g. 99% of innocent OOM events would successfully
-solve the OOM condition before this timeout expires. After we merge the
-OOM reaper, more than e.g. 99% of malicious OOM events would successfully
-solve the OOM condition before this timeout expires. Who can gather data
-for discussing whether $FOO or $BAR is a better timeout? Only those who want
-to explore this e.g. 1% possibility and those who hate any timeout would
-want to disable this timeout.
-
-If we make sure that timeout based unthrottling guarantees forward
-progress, we can try to utilize memory reserves more aggressively.
-For example, we can set TIF_MEMDIE on all fatal_signal_pending() threads
-using a mm_struct chosen by the OOM killer. This will eliminate a wrong
-assumption that remaining threads will get TIF_MEMDIE due to
-fatal_signal_pending(). We had been too cowardly about use of memory
-reserves because currently we have no means to refill the memory reserves.
-If timeout based unthrottling kills next OOM victim (and the OOM reaper
-reaps it), we can overcommit memory reserves (like we overcommit normal
-memory).
-
-I don't think we can manage without timeout based solutions.
-I really do not see any reason not to accept [PATCH 5/6] now.
+which is never true by definition. I guess we can safely remove the memcg
+argument from oom_badness and oom_unkillable_task. At least from a quick
+glance...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
