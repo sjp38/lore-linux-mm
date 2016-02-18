@@ -1,202 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3A9828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 10:01:13 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id g62so32109181wme.1
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:01:13 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id pb8si10895677wjb.141.2016.02.18.07.01.12
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD58828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 11:42:10 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id a4so34001305wme.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 08:42:10 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ee2si11485842wjd.88.2016.02.18.08.42.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 07:01:12 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id g62so29229908wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:01:12 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAAmzW4N5YS3CMnXX-S1equRKw0BmbYeWrtp9kjRmDfPqzQ3esQ@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<a6491b8dfc46299797e67436cc1541370e9439c9.1453918525.git.glider@google.com>
-	<20160128074051.GA15426@js1304-P5Q-DELUXE>
-	<CAG_fn=Uxk-Y2gVfrdLxPRFf2SQ+1VnoWNUorcDw4E18D0+NBWQ@mail.gmail.com>
-	<CAG_fn=VetOrSwqseiRwCFVr-nTTemczMixbbafgEJdqDRB4p7Q@mail.gmail.com>
-	<20160201025530.GD32125@js1304-P5Q-DELUXE>
-	<CAG_fn=UwMgXJkgKhSa6Qsr_2jqQi8exZj7b8eoe+WK-_7aD5cA@mail.gmail.com>
-	<CAG_fn=UGJG0a=Mu6-yjJSP25aoQNd9RduE-tvga-ceeAtgnaZQ@mail.gmail.com>
-	<CAAmzW4N5YS3CMnXX-S1equRKw0BmbYeWrtp9kjRmDfPqzQ3esQ@mail.gmail.com>
-Date: Thu, 18 Feb 2016 16:01:12 +0100
-Message-ID: <CAG_fn=UV=42UQrmY9Sd4BTzX_bfFYwrN7pdBPNZKgDvu5nvbGg@mail.gmail.com>
-Subject: Re: [PATCH v1 5/8] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Thu, 18 Feb 2016 08:42:08 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: scale kswapd watermarks in proportion to memory
+Date: Thu, 18 Feb 2016 11:41:59 -0500
+Message-Id: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Dmitriy Vyukov <dvyukov@google.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu, Feb 18, 2016 at 9:13 AM, Joonsoo Kim <js1304@gmail.com> wrote:
-> 2016-02-18 3:29 GMT+09:00 Alexander Potapenko <glider@google.com>:
->> On Tue, Feb 16, 2016 at 7:37 PM, Alexander Potapenko <glider@google.com>=
- wrote:
->>> On Mon, Feb 1, 2016 at 3:55 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wr=
-ote:
->>>> On Thu, Jan 28, 2016 at 02:27:44PM +0100, Alexander Potapenko wrote:
->>>>> On Thu, Jan 28, 2016 at 1:51 PM, Alexander Potapenko <glider@google.c=
-om> wrote:
->>>>> >
->>>>> > On Jan 28, 2016 8:40 AM, "Joonsoo Kim" <iamjoonsoo.kim@lge.com> wro=
-te:
->>>>> >>
->>>>> >> Hello,
->>>>> >>
->>>>> >> On Wed, Jan 27, 2016 at 07:25:10PM +0100, Alexander Potapenko wrot=
-e:
->>>>> >> > Stack depot will allow KASAN store allocation/deallocation stack=
- traces
->>>>> >> > for memory chunks. The stack traces are stored in a hash table a=
-nd
->>>>> >> > referenced by handles which reside in the kasan_alloc_meta and
->>>>> >> > kasan_free_meta structures in the allocated memory chunks.
->>>>> >>
->>>>> >> Looks really nice!
->>>>> >>
->>>>> >> Could it be more generalized to be used by other feature that need=
- to
->>>>> >> store stack trace such as tracepoint or page owner?
->>>>> > Certainly yes, but see below.
->>>>> >
->>>>> >> If it could be, there is one more requirement.
->>>>> >> I understand the fact that entry is never removed from depot makes=
- things
->>>>> >> very simpler, but, for general usecases, it's better to use refere=
-nce
->>>>> >> count
->>>>> >> and allow to remove. Is it possible?
->>>>> > For our use case reference counting is not really necessary, and it=
- would
->>>>> > introduce unwanted contention.
->>>>
->>>> Okay.
->>>>
->>>>> > There are two possible options, each having its advantages and draw=
-backs: we
->>>>> > can let the clients store the refcounters directly in their stacks =
-(more
->>>>> > universal, but harder to use for the clients), or keep the counters=
- in the
->>>>> > depot but add an API that does not change them (easier for the clie=
-nts, but
->>>>> > potentially error-prone).
->>>>> > I'd say it's better to actually find at least one more user for the=
- stack
->>>>> > depot in order to understand the requirements, and refactor the cod=
-e after
->>>>> > that.
->>>>
->>>> I re-think the page owner case and it also may not need refcount.
->>>> For now, just moving this stuff to /lib would be helpful for other fut=
-ure user.
->>> I agree this code may need to be moved to /lib someday, but I wouldn't
->>> hurry with that.
->>> Right now it is quite KASAN-specific, and it's unclear yet whether
->>> anyone else is going to use it.
->>> I suggest we keep it in mm/kasan for now, and factor the common parts
->>> into /lib when the need arises.
->>>
->>>> BTW, is there any performance number? I guess that it could affect
->>>> the performance.
->>> I've compared the performance of KASAN with SLAB allocator on a small
->>> synthetic benchmark in two modes: with stack depot enabled and with
->>> kasan_save_stack() unconditionally returning 0.
->>> In the former case 8% more time was spent in the kernel than in the lat=
-ter case.
->>>
->>> If I am not mistaking, for SLUB allocator the bookkeeping (enabled
->>> with the slub_debug=3DUZ boot options) take only 1.5 time, so the
->>> difference is worth looking into (at least before we switch SLUB to
->>> stack depot).
->>
->> I've made additional measurements.
->> Previously I had been using a userspace benchmark that created and
->> destroyed pipes in a loop
->> (https://github.com/google/sanitizers/blob/master/address-sanitizer/kern=
-el_buildbot/slave/bench_pipes.c).
->>
->> Now I've made a kernel module that allocated and deallocated memory
->> chunks of different sizes in a loop.
->> There were two modes of operation:
->> 1) all the allocations were made from the same function, therefore all
->> allocation/deallocation stacks were similar and there always was a hit
->> in the stackdepot hashtable
->> 2) The allocations were made from 2^16 different stacks.
->>
->> In the first case SLAB+stackdepot turned out to be 13% faster than
->> SLUB+slub_debug, in the second SLAB was 11% faster.
->
-> I don't know what version of kernel you tested but, until recently,
-> slub_debug=3DUZ has a side effect not to using fastpath of SLUB. So,
-> comparison between them isn't appropriate. Today's linux-next branch
-> would have some improvements on this area so use it to compare them.
->
-That's good to know.
-I've been using https://github.com/torvalds/linux.git, which probably
-didn't have those improvements.
+In machines with 140G of memory and enterprise flash storage, we have
+seen read and write bursts routinely exceed the kswapd watermarks and
+cause thundering herds in direct reclaim. Unfortunately, the only way
+to tune kswapd aggressiveness is through adjusting min_free_kbytes -
+the system's emergency reserves - which is entirely unrelated to the
+system's latency requirements. In order to get kswapd to maintain a
+250M buffer of free memory, the emergency reserves need to be set to
+1G. That is a lot of memory wasted for no good reason.
 
->> Note that in both cases and for both allocators most of the time (more
->> than 90%) was spent in the x86 stack unwinder, which is common for
->> both approaches.
->
-> If more than 90% time is spent in stack unwinder which is common for
-> both cases, how something is better than the other by 13%?
-On the second glance, this number (90%) may be inaccurate, because I
-measured the stack unwinding times separately, which could have
-introduced deviation (not to mention it was incorrect for SLUB).
-Yet we're talking about a significant amount of time spent in the unwinder.
-My numbers were 26.111 seconds for 1024K SLAB allocation/deallocation
-pairs and 30.278 seconds for 1024K alloc/dealloc pairs with SLUB.
-When measured separately in the same routine that did the allocations,
-2048K calls to save_stack_trace() took 25.487 seconds.
+On the other hand, it's reasonable to assume that allocation bursts
+and overall allocation concurrency scale with memory capacity, so it
+makes sense to make kswapd aggressiveness a function of that as well.
 
->> Yet another observation regarding stackdepot: under a heavy load
->> (running Trinity for a hour, 101M allocations) the depot saturates at
->> around 20K records with the hashtable miss rate of 0.02%.
->> That said, I still cannot justify the results of the userspace
->> benchmark, but the slowdown of the stackdepot approach for SLAB sounds
->> acceptable, especially given the memory gain compared to SLUB
->> bookkeeping (which requires 128 bytes per memory allocation) and the
->> fact we'll be dealing with the fast path most of the time.
->
-> In fact, I don't have much concern about performance because saving
-> memory has enough merit to be merged. Anyway, it looks acceptable
-> even for performance.
->
->> It will certainly be nice to compare SLUB+slub_debug to
->> SLUB+stackdepot once we start switching SLUB to stackdepot.
->
-> Okay.
->
-> Thanks.
+Change the kswapd watermark scale factor from the currently fixed 25%
+of the tunable emergency reserve to a tunable 0.001% of memory.
 
+On a 140G machine, this raises the default watermark steps - the
+distance between min and low, and low and high - from 16M to 143M.
 
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ Documentation/sysctl/vm.txt | 18 ++++++++++++++++++
+ include/linux/mm.h          |  1 +
+ include/linux/mmzone.h      |  2 ++
+ kernel/sysctl.c             | 10 ++++++++++
+ mm/page_alloc.c             | 23 +++++++++++++++++++++--
+ 5 files changed, 52 insertions(+), 2 deletions(-)
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
-leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 89a887c..b02d940 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -803,6 +803,24 @@ performance impact. Reclaim code needs to take various locks to find freeable
+ directory and inode objects. With vfs_cache_pressure=1000, it will look for
+ ten times more freeable objects than there are.
+ 
++=============================================================
++
++watermark_scale_factor:
++
++This factor controls the aggressiveness of kswapd. It defines the
++amount of memory left in a node/system before kswapd is woken up and
++how much memory needs to be free before kswapd goes back to sleep.
++
++The unit is in fractions of 10,000. The default value of 10 means the
++distances between watermarks are 0.001% of the available memory in the
++node/system. The maximum value is 1000, or 10% of memory.
++
++A high rate of threads entering direct reclaim (allocstall) or kswapd
++going to sleep prematurely (kswapd_low_wmark_hit_quickly) can indicate
++that the number of free pages kswapd maintains for latency reasons is
++too small for the allocation bursts occurring in the system. This knob
++can then be used to tune kswapd aggressiveness accordingly.
++
+ ==============================================================
+ 
+ zone_reclaim_mode:
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a0ad7af..d330cbb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1869,6 +1869,7 @@ extern void zone_pcp_reset(struct zone *zone);
+ 
+ /* page_alloc.c */
+ extern int min_free_kbytes;
++extern int watermark_scale_factor;
+ 
+ /* nommu.c */
+ extern atomic_long_t mmap_pages_allocated;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 03cbdd9..85d6702 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -833,6 +833,8 @@ static inline int is_highmem(struct zone *zone)
+ struct ctl_table;
+ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
++int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
++					void __user *, size_t *, loff_t *);
+ extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index d479707..780769e 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -126,6 +126,7 @@ static int __maybe_unused two = 2;
+ static int __maybe_unused four = 4;
+ static unsigned long one_ul = 1;
+ static int one_hundred = 100;
++static int one_thousand = 1000;
+ #ifdef CONFIG_PRINTK
+ static int ten_thousand = 10000;
+ #endif
+@@ -1393,6 +1394,15 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= &zero,
+ 	},
+ 	{
++		.procname	= "watermark_scale_factor",
++		.data		= &watermark_scale_factor,
++		.maxlen		= sizeof(watermark_scale_factor),
++		.mode		= 0644,
++		.proc_handler	= watermark_scale_factor_sysctl_handler,
++		.extra1		= &one,
++		.extra2		= &one_thousand,
++	},
++	{
+ 		.procname	= "percpu_pagelist_fraction",
+ 		.data		= &percpu_pagelist_fraction,
+ 		.maxlen		= sizeof(percpu_pagelist_fraction),
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0c3eba3..87575a9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -249,6 +249,7 @@ compound_page_dtor * const compound_page_dtors[] = {
+ 
+ int min_free_kbytes = 1024;
+ int user_min_free_kbytes = -1;
++int watermark_scale_factor = 10;
+ 
+ static unsigned long __meminitdata nr_kernel_pages;
+ static unsigned long __meminitdata nr_all_pages;
+@@ -6330,8 +6331,11 @@ static void __setup_per_zone_wmarks(void)
+ 			zone->watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+-		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
+-		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
++		tmp = mult_frac(zone->managed_pages,
++				watermark_scale_factor, 10000);
++
++		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+ 
+ 		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
+ 			high_wmark_pages(zone) - low_wmark_pages(zone) -
+@@ -6472,6 +6476,21 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
+ 	return 0;
+ }
+ 
++int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
++	void __user *buffer, size_t *length, loff_t *ppos)
++{
++	int rc;
++
++	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
++	if (rc)
++		return rc;
++
++	if (write)
++		setup_per_zone_wmarks();
++
++	return 0;
++}
++
+ #ifdef CONFIG_NUMA
+ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
