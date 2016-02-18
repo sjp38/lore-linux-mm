@@ -1,45 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0628B828E2
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:13:36 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id b205so22039231wmb.1
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:13:35 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id ev16si9886646wjd.112.2016.02.18.04.13.34
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 80ECD828E2
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 07:19:13 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id a4so22396303wme.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:19:13 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id lm2si9862477wjc.202.2016.02.18.04.19.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 04:13:35 -0800 (PST)
-Received: by mail-wm0-f52.google.com with SMTP id c200so23909760wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:13:34 -0800 (PST)
-Date: Thu, 18 Feb 2016 13:13:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are
- OOM-unkillable.
-Message-ID: <20160218121333.GD18149@dhcp22.suse.cz>
-References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
- <20160218080909.GA18149@dhcp22.suse.cz>
- <201602181930.HIH09321.SFVFOQLHOFMJOt@I-love.SAKURA.ne.jp>
- <20160218120849.GC18149@dhcp22.suse.cz>
+        Thu, 18 Feb 2016 04:19:12 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id c200so24142938wme.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 04:19:12 -0800 (PST)
+Date: Thu, 18 Feb 2016 14:19:09 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 13/28] thp: support file pages in zap_huge_pmd()
+Message-ID: <20160218121909.GA28184@node.shutemov.name>
+References: <1455200516-132137-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1455200516-132137-14-git-send-email-kirill.shutemov@linux.intel.com>
+ <56BE2581.6070901@intel.com>
+ <20160216100023.GC46557@black.fi.intel.com>
+ <56C340EE.1060506@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160218120849.GC18149@dhcp22.suse.cz>
+In-Reply-To: <56C340EE.1060506@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 18-02-16 13:08:49, Michal Hocko wrote:
-> I guess we can safely remove the memcg
-> argument from oom_badness and oom_unkillable_task. At least from a quick
-> glance...
+On Tue, Feb 16, 2016 at 07:31:58AM -0800, Dave Hansen wrote:
+> On 02/16/2016 02:00 AM, Kirill A. Shutemov wrote:
+> > On Fri, Feb 12, 2016 at 10:33:37AM -0800, Dave Hansen wrote:
+> >> On 02/11/2016 06:21 AM, Kirill A. Shutemov wrote:
+> >>> For file pages we don't deposit page table on mapping: no need to
+> >>> withdraw it.
+> >>
+> >> I thought the deposit thing was to guarantee we could always do a PMD
+> >> split.  It still seems like if you wanted to split a huge-tmpfs page,
+> >> you'd need to first split the PMD which might need the deposited one.
+> >>
+> >> Why not?
+> > 
+> > For file thp, split_huge_pmd() is implemented by clearing out the pmd: we
+> > can setup and fill pte table later. Therefore no need to deposit page
+> > table -- we would not use it. DAX does the same.
+> 
+> Ahh...  Do we just never split in any fault contexts, or do we just
+> retry the fault?
 
-No we cannot actually. oom_kill_process could select a child which is in
-a different memcg in that case...
+In fault contexts we would just continue fault handling as if we had
+pmd_none().
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
