@@ -1,96 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2518B6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 18:58:13 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id a4so1999334wme.1
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 15:58:13 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id o15si458894wmg.67.2016.02.17.15.58.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Feb 2016 15:58:11 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id g62so2725534wme.0
-        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 15:58:11 -0800 (PST)
-Date: Thu, 18 Feb 2016 01:58:08 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
- on PowerPC and ARM)
-Message-ID: <20160217235808.GA21696@node.shutemov.name>
-References: <20160211192223.4b517057@thinkpad>
- <20160211190942.GA10244@node.shutemov.name>
- <20160211205702.24f0d17a@thinkpad>
- <20160212154116.GA15142@node.shutemov.name>
- <56BE00E7.1010303@de.ibm.com>
- <20160212181640.4eabb85f@thinkpad>
- <20160212231510.GB15142@node.shutemov.name>
- <alpine.LFD.2.20.1602131238260.1910@schleppi>
- <20160217201340.2dafad8d@thinkpad>
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 725356B0005
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2016 19:12:28 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id x65so20204320pfb.1
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2016 16:12:28 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id hs10si5140626pad.75.2016.02.17.16.12.26
+        for <linux-mm@kvack.org>;
+        Wed, 17 Feb 2016 16:12:27 -0800 (PST)
+Date: Thu, 18 Feb 2016 11:12:23 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v3 3/6] ext4: Online defrag not supported with DAX
+Message-ID: <20160218001223.GJ19486@dastard>
+References: <1455680059-20126-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1455680059-20126-4-git-send-email-ross.zwisler@linux.intel.com>
+ <20160217215037.GB30126@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160217201340.2dafad8d@thinkpad>
+In-Reply-To: <20160217215037.GB30126@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-On Wed, Feb 17, 2016 at 08:13:40PM +0100, Gerald Schaefer wrote:
-> On Sat, 13 Feb 2016 12:58:31 +0100 (CET)
-> Sebastian Ott <sebott@linux.vnet.ibm.com> wrote:
+On Wed, Feb 17, 2016 at 02:50:37PM -0700, Ross Zwisler wrote:
+> On Tue, Feb 16, 2016 at 08:34:16PM -0700, Ross Zwisler wrote:
+> > Online defrag operations for ext4 are hard coded to use the page cache.
+> > See ext4_ioctl() -> ext4_move_extents() -> move_extent_per_page()
+> > 
+> > When combined with DAX I/O, which circumvents the page cache, this can
+> > result in data corruption.  This was observed with xfstests ext4/307 and
+> > ext4/308.
+> > 
+> > Fix this by only allowing online defrag for non-DAX files.
 > 
-> > [   59.875935] ------------[ cut here ]------------
-> > [   59.875937] kernel BUG at mm/huge_memory.c:2884!
-> > [   59.875979] illegal operation: 0001 ilc:1 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> > [   59.875986] Modules linked in: bridge stp llc btrfs xor mlx4_en vxlan ip6_udp_tunnel udp_tunnel mlx4_ib ptp pps_core ib_sa ib_mad ib_core ib_addr ghash_s390 prng raid6_pq ecb aes_s390 des_s390 des_generic sha512_s390 sha256_s390 sha1_s390 mlx4_core sha_common genwqe_card scm_block crc_itu_t vhost_net tun vhost dm_mod macvtap eadm_sch macvlan kvm autofs4
-> > [   59.876033] CPU: 2 PID: 5402 Comm: git Tainted: G        W       4.4.0-07794-ga4eff16-dirty #77
-> > [   59.876036] task: 00000000d2312948 ti: 00000000cfecc000 task.ti: 00000000cfecc000
-> > [   59.876039] Krnl PSW : 0704d00180000000 00000000002bf3aa (__split_huge_pmd_locked+0x562/0xa10)
-> > [   59.876045]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:1 PM:0 EA:3
-> >                Krnl GPRS: 0000000001a7a1cf 000003d10177c000 0000000000044068 000000005df00215
-> > [   59.876051]            0000000000000001 0000000000000001 0000000000000000 00000000774e6900
-> > [   59.876054]            000003ff52000000 000000006d403b10 000000006e1eb800 000003ff51f00000
-> > [   59.876058]            000003d10177c000 0000000000715190 00000000002bf234 00000000cfecfb58
-> > [   59.876068] Krnl Code: 00000000002bf39c: d507d010a000	clc	16(8,%%r13),0(%%r10)
-> >                           00000000002bf3a2: a7840004		brc	8,2bf3aa
-> >                          #00000000002bf3a6: a7f40001		brc	15,2bf3a8
-> >                          >00000000002bf3aa: 91407440		tm	1088(%%r7),64
-> >                           00000000002bf3ae: a7840208		brc	8,2bf7be
-> >                           00000000002bf3b2: a7f401e9		brc	15,2bf784
-> >                           00000000002bf3b6: 9104a006		tm	6(%%r10),4
-> >                           00000000002bf3ba: a7740004		brc	7,2bf3c2
-> > [   59.876089] Call Trace:
-> > [   59.876092] ([<00000000002bf234>] __split_huge_pmd_locked+0x3ec/0xa10)
-> > [   59.876095]  [<00000000002c4310>] __split_huge_pmd+0x118/0x218
-> > [   59.876099]  [<00000000002810e8>] unmap_single_vma+0x2d8/0xb40
-> > [   59.876102]  [<0000000000282d66>] zap_page_range+0x116/0x318
-> > [   59.876105]  [<000000000029b834>] SyS_madvise+0x23c/0x5e8
-> > [   59.876108]  [<00000000006f9f56>] system_call+0xd6/0x258
-> > [   59.876111]  [<000003ff9bbfd282>] 0x3ff9bbfd282
-> > [   59.876113] INFO: lockdep is turned off.
-> > [   59.876115] Last Breaking-Event-Address:
-> > [   59.876118]  [<00000000002bf3a6>] __split_huge_pmd_locked+0x55e/0xa10
+> Jan,
 > 
-> The BUG at mm/huge_memory.c:2884 is interesting, it's the BUG_ON(!pte_none(*pte))
-> check in __split_huge_pmd_locked(). Obviously we expect the pre-allocated
-> pagetables to be empty, but in collapse_huge_page() we deposit the original
-> pagetable instead of allocating a new (empty) one. This saves an allocation,
-> which is good, but doesn't that mean that if such a collapsed hugepage will
-> ever be split, we will always run into the BUG_ON(!pte_none(*pte)), or one
-> of the two other VM_BUG_ONs in mm/huge_memory.c that check the same?
+> Thinking about this a bit more, it's probably the case that the data
+> corruption I was observing was due to us skipping the writeback of the dirty
+> page cache pages because S_DAX was set.
 > 
-> This behavior is not new, it was the same before the THP rework, so I do not
-> assume that it is related to the current problems, maybe with the exception
-> of this specific crash. I never saw the BUG at mm/huge_memory.c:2884 myself,
-> and the other crashes probably cannot be explained with this. Maybe I am
-> also missing something, but I do not see how collapse_huge_page() and the
-> (non-empty) pgtable deposit there can work out with the BUG_ON(!pte_none(*pte))
-> checks. Any thoughts?
+> I do think we have a problem with defrag because it is doing the extent
+> swapping using the page cache, and we won't flush the dirty pages due to
+> S_DAX being set.
+> 
+> This patch is the quick and easy answer, and is perhaps appropriate for v4.5.
+> 
+> Looking forward, though, what do you think the correct solution is?  Making an
+> extent swapper that doesn't use the page cache (as I believe XFS has? see
+> xfs_swap_extents()),
 
-I don't think there's a problem: ptes in the pgtable are cleared with
-pte_clear() in __collapse_huge_page_copy().
+XFS does the data copy in userspace using direct IO so we don't
+care about whether DAX is enabled or not on either the source or
+destination inode. i.e. xfs_swap_extents() is a pure
+metadata operation, swapping the entire extent tree between two
+inodes if the source data has not changed while the copy was in
+progress.
 
+Cheers,
+
+Dave.
 -- 
- Kirill A. Shutemov
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
