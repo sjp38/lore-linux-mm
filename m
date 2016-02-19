@@ -1,45 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C1306830B6
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 18:52:43 -0500 (EST)
-Received: by mail-io0-f182.google.com with SMTP id z135so92451781iof.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 15:52:43 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id a7si8619236igo.96.2016.02.18.15.52.42
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D60886B0298
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 19:33:04 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id x65so40647983pfb.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:33:04 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id r15si12538045pfr.8.2016.02.18.16.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 15:52:43 -0800 (PST)
-Date: Fri, 19 Feb 2016 10:15:46 +1100
-From: Paul Mackerras <paulus@ozlabs.org>
-Subject: Re: [PATCH V3 01/30] mm: Make vm_get_page_prot arch specific.
-Message-ID: <20160218231546.GC2765@fergus.ozlabs.ibm.com>
-References: <1455814254-10226-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1455814254-10226-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Thu, 18 Feb 2016 16:33:04 -0800 (PST)
+Received: by mail-pa0-x22b.google.com with SMTP id fl4so39986797pad.0
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:33:04 -0800 (PST)
+Date: Fri, 19 Feb 2016 09:34:21 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20160219003421.GA587@swordfish>
+References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160218092926.083ca007@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1455814254-10226-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20160218092926.083ca007@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Feb 18, 2016 at 10:20:25PM +0530, Aneesh Kumar K.V wrote:
-> With next generation power processor, we are having a new mmu model
-> [1] that require us to maintain a different linux page table format.
+On (02/18/16 09:29), Steven Rostedt wrote:
+> > diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+> > index 534249c..fd6d9a5 100644
+> > --- a/include/linux/page_ref.h
+> > +++ b/include/linux/page_ref.h
+> > @@ -1,6 +1,54 @@
+> >  #include <linux/atomic.h>
+> >  #include <linux/mm_types.h>
+> >  #include <linux/page-flags.h>
+> > +#include <linux/tracepoint-defs.h>
+> > +
+> > +extern struct tracepoint __tracepoint_page_ref_set;
+> > +extern struct tracepoint __tracepoint_page_ref_mod;
+> > +extern struct tracepoint __tracepoint_page_ref_mod_and_test;
+> > +extern struct tracepoint __tracepoint_page_ref_mod_and_return;
+> > +extern struct tracepoint __tracepoint_page_ref_mod_unless;
+> > +extern struct tracepoint __tracepoint_page_ref_freeze;
+> > +extern struct tracepoint __tracepoint_page_ref_unfreeze;
+> > +
+> > +#ifdef CONFIG_DEBUG_PAGE_REF
 > 
-> Inorder to support both current and future ppc64 systems with a single
-> kernel we need to make sure kernel can select between different page
-> table format at runtime. With the new MMU (radix MMU) added, we will
-> have to dynamically switch between different protection map. Hence
-> override vm_get_page_prot instead of using arch_vm_get_page_prot. We
-> also drop arch_vm_get_page_prot since only powerpc used it.
+> Please add a comment here. Something to the effect of:
+> 
+> /*
+>  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
+>  * functions. But due to include header file issues, that is not
+>  * feasible. Instead we have to open code the static key functions.
+>  *
+>  * See trace_##name##_enabled(void) in include/linux/tracepoint.h
+>  */
+> 
 
-This seems like unnecessary churn to me.  Let's just make hash use the
-same values as radix for things like _PAGE_RW, _PAGE_EXEC etc., and
-then we don't need any of this.
+not sure if it's worth mentioning in the comment, but the other
+concern here is the performance impact of an extra function call,
+I believe. otherwise, Joonsoo would just do:
 
-Paul.
+in include/linux/page_ref.h
+
+static inline void set_page_count(struct page *page, int v)
+{
+	atomic_set(&page->_count, v);
+	__page_ref_set(page, v);
+}
+...
+
+
+
+and in mm/debug_page_ref.c
+
+void __page_ref_set(struct page *page, int v)
+{
+	if (trace_page_ref_set_enabled())
+		trace_page_ref_set(page, v);
+}
+EXPORT_SYMBOL(__page_ref_set);
+EXPORT_TRACEPOINT_SYMBOL(page_ref_set);
+...
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
