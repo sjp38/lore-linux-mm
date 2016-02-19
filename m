@@ -1,59 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 10C066B0005
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 09:37:11 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id gc3so107662397obb.3
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 06:37:11 -0800 (PST)
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A396B0005
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 10:07:19 -0500 (EST)
+Received: by mail-io0-f176.google.com with SMTP id l127so111658661iof.3
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 07:07:19 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id w128si17033471oie.5.2016.02.19.06.37.09
+        by mx.google.com with ESMTPS id 64si21950501iob.99.2016.02.19.07.07.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Feb 2016 06:37:10 -0800 (PST)
-Subject: Re: [PATCH] mm: memcontrol: Pass NULL memcg for oom_badness() check.
+        Fri, 19 Feb 2016 07:07:19 -0800 (PST)
+Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are OOM-unkillable.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1455889898-5659-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160219140406.GF12690@dhcp22.suse.cz>
-In-Reply-To: <20160219140406.GF12690@dhcp22.suse.cz>
-Message-Id: <201602192336.EJF90671.HMFLFSVOFJOtOQ@I-love.SAKURA.ne.jp>
-Date: Fri, 19 Feb 2016 23:36:55 +0900
+References: <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
+	<20160218080909.GA18149@dhcp22.suse.cz>
+	<201602181930.HIH09321.SFVFOQLHOFMJOt@I-love.SAKURA.ne.jp>
+	<20160218120849.GC18149@dhcp22.suse.cz>
+	<20160218121333.GD18149@dhcp22.suse.cz>
+In-Reply-To: <20160218121333.GD18149@dhcp22.suse.cz>
+Message-Id: <201602200007.EAF90182.OQFSOMOFtFJLHV@I-love.SAKURA.ne.jp>
+Date: Sat, 20 Feb 2016 00:07:05 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org
-Cc: rientjes@google.com, hannes@cmpxchg.org, vdavydov@virtuozzo.com, linux-mm@kvack.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Michal Hocko wrote:
-> On Fri 19-02-16 22:51:38, Tetsuo Handa wrote:
-> > Currently, mem_cgroup_out_of_memory() is calling
-> > oom_scan_process_thread(&oc, task, totalpages) which includes
-> > a call to oom_unkillable_task(task, NULL, NULL) and then is
-> > calling oom_badness(task, memcg, NULL, totalpages) which includes
-> > a call to oom_unkillable_task(task, memcg, NULL).
-> > 
-> > Since for_each_mem_cgroup_tree() iterates on only tasks from the given
-> > memcg hierarchy, there is no point with passing non-NULL memcg argument
-> > to oom_unkillable_task() via oom_badness().
-> > 
-> > Replace memcg argument with NULL in order to save a call to
-> > task_in_mem_cgroup(task, memcg) in oom_unkillable_task()
-> > which is always true.
+> On Thu 18-02-16 13:08:49, Michal Hocko wrote:
+> > I guess we can safely remove the memcg
+> > argument from oom_badness and oom_unkillable_task. At least from a quick
+> > glance...
 > 
-> yes this is true but oom_badness is called from super slow path here so
-> I am not sure this change will buy anything. It makes the code little
-> bit more confusing because now you have to think twice (or git blame) to
-> see why the memcg == NULL is really OK.
-> 
-> So I do not think this is an improvement. If anything wouldn't it be
-> cleaner to remove memcg parameter from oom_badness altogether and
-> instead do the task_in_mem_cgroup check where it is really needed?
-> In other words do the check in oom_kill_process when evaluating children
-> to sacrifice them?
+> No we cannot actually. oom_kill_process could select a child which is in
+> a different memcg in that case...
 
-This patch is a clarification before proposing
-http://lkml.kernel.org/r/1455892411-7611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-which converts two oom_unkillable_task() calls into one and
-fixes infinite loop which will occur after we merge the OOM reaper.
+Then, don't we need to check whether processes sharing victim->mm in other
+thread groups are in the same memcg when we walk the process list?
+
+----------
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f426ce8..d05db31 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -762,8 +762,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			continue;
+ 		if (same_thread_group(p, victim))
+ 			continue;
+-		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p) ||
+-		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++		if (oom_badness(p, memcg, oc, totalpages, false) == 0) {
+ 			/*
+ 			 * We cannot use oom_reaper for the mm shared by this
+ 			 * process because it wouldn't get killed and so the
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
