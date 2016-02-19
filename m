@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3952F830B6
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 20:19:58 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id xk3so95421630obc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:19:58 -0800 (PST)
-Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
-        by mx.google.com with ESMTPS id oi10si2356053oeb.67.2016.02.18.17.19.57
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 22BB8830B6
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 20:20:55 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id kf7so10547844obb.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:20:55 -0800 (PST)
+Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
+        by mx.google.com with ESMTPS id cm7si13044140oeb.87.2016.02.18.17.20.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 17:19:57 -0800 (PST)
-Received: by mail-ob0-x236.google.com with SMTP id xk3so95421424obc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:19:57 -0800 (PST)
+        Thu, 18 Feb 2016 17:20:54 -0800 (PST)
+Received: by mail-ob0-x22b.google.com with SMTP id xk3so95438609obc.2
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:20:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160218101909.GB503@swordfish>
-References: <1455764556-13979-1-git-send-email-sergey.senozhatsky@gmail.com>
-	<1455764556-13979-4-git-send-email-sergey.senozhatsky@gmail.com>
-	<CAAmzW4O-yQ5GBTE-6WvCL-hZeqyW=k3Fzn4_9G2qkMmp=ceuJg@mail.gmail.com>
-	<20160218095536.GA503@swordfish>
-	<20160218101909.GB503@swordfish>
-Date: Fri, 19 Feb 2016 10:19:57 +0900
-Message-ID: <CAAmzW4NQt4jD2q92Hh4XFzt5fV=-i3J9eoxS3now6Y4Xw7OqGg@mail.gmail.com>
-Subject: Re: [RFC PATCH 3/3] mm/zsmalloc: change ZS_MAX_PAGES_PER_ZSPAGE
+In-Reply-To: <20160218092926.083ca007@gandalf.local.home>
+References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<20160218092926.083ca007@gandalf.local.home>
+Date: Fri, 19 Feb 2016 10:20:54 +0900
+Message-ID: <CAAmzW4O=S7YYGdtyGt181x72S=G5pxYChGKjPWXWRkjFBSFkrA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
 From: Joonsoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2016-02-18 19:19 GMT+09:00 Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com>:
-> On (02/18/16 18:55), Sergey Senozhatsky wrote:
->> > There is a reason that it is order of 2. Increasing ZS_MAX_PAGES_PER_ZSPAGE
->> > is related to ZS_MIN_ALLOC_SIZE. If we don't have enough OBJ_INDEX_BITS,
->> > ZS_MIN_ALLOC_SIZE would be increase and it causes regression on some
->> > system.
->>
->> Thanks!
->>
->> do you mean PHYSMEM_BITS != BITS_PER_LONG systems? PAE/LPAE? isn't it
->> the case that on those systems ZS_MIN_ALLOC_SIZE already bigger than 32?
-
-Indeed.
-
-> I mean, yes, there are ZS_ALIGN requirements that I completely ignored,
-> thanks for pointing that out.
+2016-02-18 23:29 GMT+09:00 Steven Rostedt <rostedt@goodmis.org>:
+> On Mon, 15 Feb 2016 12:04:50 +0900
+> js1304@gmail.com wrote:
 >
-> just saying, not insisting on anything, theoretically, trading 32 bit size
-> objects in exchange of reducing a much bigger memory wastage is sort of
-> interesting. zram stores objects bigger than 3072 as huge objects, leaving
+>
+>> diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+>> index 534249c..fd6d9a5 100644
+>> --- a/include/linux/page_ref.h
+>> +++ b/include/linux/page_ref.h
+>> @@ -1,6 +1,54 @@
+>>  #include <linux/atomic.h>
+>>  #include <linux/mm_types.h>
+>>  #include <linux/page-flags.h>
+>> +#include <linux/tracepoint-defs.h>
+>> +
+>> +extern struct tracepoint __tracepoint_page_ref_set;
+>> +extern struct tracepoint __tracepoint_page_ref_mod;
+>> +extern struct tracepoint __tracepoint_page_ref_mod_and_test;
+>> +extern struct tracepoint __tracepoint_page_ref_mod_and_return;
+>> +extern struct tracepoint __tracepoint_page_ref_mod_unless;
+>> +extern struct tracepoint __tracepoint_page_ref_freeze;
+>> +extern struct tracepoint __tracepoint_page_ref_unfreeze;
+>> +
+>> +#ifdef CONFIG_DEBUG_PAGE_REF
+>
+> Please add a comment here. Something to the effect of:
 
-I'm also just saying. :)
-On the above example system which already uses 128 byte min class,
-your change makes it to 160 or 192. It could make a more trouble than
-you thought.
+Okay!
 
-> 4096-3072 bytes unused, and it'll take 4096-3072/32 = 4000  32 bit objects
-> to beat that single 'bad' compression object in storing inefficiency...
+> /*
+>  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
+>  * functions. But due to include header file issues, that is not
+>  * feasible. Instead we have to open code the static key functions.
+>  *
+>  * See trace_##name##_enabled(void) in include/linux/tracepoint.h
+>  */
+>
+> I may have to work on something that lets these helpers be defined in
+> headers. I have some ideas on how to do that. But for now, this
+> solution is fine.
 
-Where does 4096-3072/32 calculation comes from? I'm not familiar to recent
-change on zsmalloc such as huge class so can't understand this calculation.
-
-> well, patches 0001/0002 are trying to address this a bit, but the biggest
-> problem is still there: we have too many ->huge classes and they are a bit
-> far from good.
-
-Agreed. And I agree your patchset, too.
-
-Anyway, could you answer my other questions on original reply?
+Okay.
 
 Thanks.
 
