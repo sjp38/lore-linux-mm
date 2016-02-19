@@ -1,145 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D0EB36B0005
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 11:20:13 -0500 (EST)
-Received: by mail-lf0-f50.google.com with SMTP id 78so57084890lfy.3
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 08:20:13 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
-        by mx.google.com with ESMTPS id 76si7086998lfy.115.2016.02.19.08.20.12
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 464406B0005
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 11:22:42 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id g62so75735037wme.0
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 08:22:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5si13749981wmd.47.2016.02.19.08.22.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Feb 2016 08:20:12 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH v2] [RFC] ARM: modify pgd_t definition for TRANSPARENT_HUGEPAGE_PUD
-Date: Fri, 19 Feb 2016 17:19:35 +0100
-Message-Id: <1455898786-2720743-1-git-send-email-arnd@arndb.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Feb 2016 08:22:41 -0800 (PST)
+Date: Fri, 19 Feb 2016 17:22:39 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v4 09/22] kthread: Allow to cancel kthread work
+Message-ID: <20160219162239.GT3305@pathway.suse.cz>
+References: <1453736711-6703-1-git-send-email-pmladek@suse.com>
+ <1453736711-6703-10-git-send-email-pmladek@suse.com>
+ <20160125191709.GE3628@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160125191709.GE3628@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@arm.linux.org.uk>
-Cc: linux-arm-kernel@lists.infradead.org, Arnd Bergmann <arnd@arndb.de>, Sam Ravnborg <sam@ravnborg.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-I ran into build errors on ARM after Willy's newly added generic
-TRANSPARENT_HUGEPAGE_PUD support. We don't support this feature
-on ARM at all, but the patch causes a build error anyway:
+On Mon 2016-01-25 14:17:09, Tejun Heo wrote:
+> On Mon, Jan 25, 2016 at 04:44:58PM +0100, Petr Mladek wrote:
+> > +static bool __cancel_kthread_work_sync(struct kthread_work *work)
+[...]
+ > > +	work->canceling++;
+> > +	ret = try_to_cancel_kthread_work(work, &worker->lock, &flags);
+> > +
+> > +	if (worker->current_work != work)
+> > +		goto out_fast;
+> 
+> If there are two racing cancellers, wouldn't this allow the losing one
+> to return while the work item is still running?
 
-In file included from ../kernel/memremap.c:17:0:
-../include/linux/pfn_t.h:108:7: error: 'pud_mkdevmap' declared as function returning an array
- pud_t pud_mkdevmap(pud_t pud);
+If the work is running, worker->current_work must point to it.
+All cancelers will see it and queue its own kthread_flush_work.
+It is a bit sub-optimal but it is trivial. I doubt that there
+will be many parallel cancelers in practice.
 
-We don't use a PUD on ARM, so pud_t is defined as pmd_t, which
-in turn is defined as
+> > +	spin_unlock_irqrestore(&worker->lock, flags);
+> > +	flush_kthread_work(work);
+> > +	/*
+> > +	 * Nobody is allowed to switch the worker or queue the work
+> > +	 * when .canceling is set.
+> > +	 */
+> > +	spin_lock_irqsave(&worker->lock, flags);
+> > +
+> > +out_fast:
+> > +	work->canceling--;
+> > +	spin_unlock_irqrestore(&worker->lock, flags);
+> > +out:
+> > +	return ret;
 
-typedef unsigned long pgd_t[2];
+Best Regards,
+Petr
 
-on NOMMU and on 2-level MMU configurations. There is an (unused)
-other definition using a struct around the array, which happens to
-work fine here.
-
-There is a comment in the file about the fact the other version
-is "easier on the compiler", and I've traced that version back
-to linux-2.1.80 when ARM support was first merged back in 1998.
-
-It's probably a safe assumption that this is no longer necessary:
-The same logic existed in asm-i386 at the time but was removed
-a year later in 2.3.23pre3. The STRICT_MM_TYPECHECKS logic
-also ended up getting copied into other architectures, which
-use them in various ways:
-
-* both defined, but using strict:
-arch/alpha/include/asm/page.h:#define STRICT_MM_TYPECHECKS
-arch/sparc/include/asm/page_64.h:#define STRICT_MM_TYPECHECKS
-arch/ia64/include/asm/page.h:#  define STRICT_MM_TYPECHECKS
-arch/parisc/include/asm/page.h:#define STRICT_MM_TYPECHECKS
-
-* both defined, but using non-strict:
-arch/arc/include/asm/page.h:#undef STRICT_MM_TYPECHECKS
-arch/arm/include/asm/pgtable-2level-types.h:#undef STRICT_MM_TYPECHECKS
-arch/arm/include/asm/pgtable-3level-types.h:#undef STRICT_MM_TYPECHECKS
-arch/arm64/include/asm/pgtable-types.h:#undef STRICT_MM_TYPECHECKS
-arch/sparc/include/asm/page_32.h:/* #define STRICT_MM_TYPECHECKS */
-arch/unicore32/include/asm/page.h:#undef STRICT_MM_TYPECHECKS
-
-* Kconfig option:
-arch/powerpc/Kconfig.debug:config STRICT_MM_TYPECHECKS
-			 	default n
-
-Everthing else uses only the strict definitions.
-
-For the moment, this only does the minimal change to fix things
-on ARM in linux-next. At least in case of sparc32, passing structs
-to functions is traditionally inefficient and the non-strict version
-should be kept, whether we change any of the other architectures
-depends on further testing.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: a27da20ed50e ("mm: add support for PUD-sized transparent hugepages")
-Link: http://www.spinics.net/lists/linux-mm/msg101404.html
----
- arch/arm/include/asm/page-nommu.h           | 4 ++--
- arch/arm/include/asm/pgtable-2level-types.h | 7 +++----
- 2 files changed, 5 insertions(+), 6 deletions(-)
-
-diff --git a/arch/arm/include/asm/page-nommu.h b/arch/arm/include/asm/page-nommu.h
-index d1b162a18dcb..3db1ca22fecb 100644
---- a/arch/arm/include/asm/page-nommu.h
-+++ b/arch/arm/include/asm/page-nommu.h
-@@ -31,12 +31,12 @@
-  */
- typedef unsigned long pte_t;
- typedef unsigned long pmd_t;
--typedef unsigned long pgd_t[2];
-+typedef struct { unsigned long pgd[2]; } pgd_t;
- typedef unsigned long pgprot_t;
- 
- #define pte_val(x)      (x)
- #define pmd_val(x)      (x)
--#define pgd_val(x)	((x)[0])
-+#define pgd_val(x)	((x).pgd[0])
- #define pgprot_val(x)   (x)
- 
- #define __pte(x)        (x)
-diff --git a/arch/arm/include/asm/pgtable-2level-types.h b/arch/arm/include/asm/pgtable-2level-types.h
-index 66cb5b0e89c5..9b9815d5ebd6 100644
---- a/arch/arm/include/asm/pgtable-2level-types.h
-+++ b/arch/arm/include/asm/pgtable-2level-types.h
-@@ -24,6 +24,9 @@
- typedef u32 pteval_t;
- typedef u32 pmdval_t;
- 
-+typedef struct { pmdval_t pgd[2]; } pgd_t;
-+#define pgd_val(x)	((x).pgd[0])
-+
- #undef STRICT_MM_TYPECHECKS
- 
- #ifdef STRICT_MM_TYPECHECKS
-@@ -32,12 +35,10 @@ typedef u32 pmdval_t;
-  */
- typedef struct { pteval_t pte; } pte_t;
- typedef struct { pmdval_t pmd; } pmd_t;
--typedef struct { pmdval_t pgd[2]; } pgd_t;
- typedef struct { pteval_t pgprot; } pgprot_t;
- 
- #define pte_val(x)      ((x).pte)
- #define pmd_val(x)      ((x).pmd)
--#define pgd_val(x)	((x).pgd[0])
- #define pgprot_val(x)   ((x).pgprot)
- 
- #define __pte(x)        ((pte_t) { (x) } )
-@@ -50,12 +51,10 @@ typedef struct { pteval_t pgprot; } pgprot_t;
-  */
- typedef pteval_t pte_t;
- typedef pmdval_t pmd_t;
--typedef pmdval_t pgd_t[2];
- typedef pteval_t pgprot_t;
- 
- #define pte_val(x)      (x)
- #define pmd_val(x)      (x)
--#define pgd_val(x)	((x)[0])
- #define pgprot_val(x)   (x)
- 
- #define __pte(x)        (x)
--- 
-2.7.0
+PS: I have updated the patchset according to your other comments.
+In addition, I got rid of many try_lock games. We do not allow
+to queue the same work to different workers. Therefore it should
+be enough to warn if the worker changes unexpectedly. It makes
+the code even more simple. I still need to do some testing.
+I will send it next week, hopefully.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
