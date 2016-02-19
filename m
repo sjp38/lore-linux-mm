@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F626B0005
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 15:21:02 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id a4so86345778wme.1
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 12:21:02 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y125si14991745wmy.113.2016.02.19.12.21.01
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 553566B0005
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 16:13:11 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id g62so88158422wme.0
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 13:13:11 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ci16si20442428wjb.126.2016.02.19.13.13.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Feb 2016 12:21:01 -0800 (PST)
-Date: Fri, 19 Feb 2016 15:20:00 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: scale kswapd watermarks in proportion to memory
-Message-ID: <20160219202000.GB17342@cmpxchg.org>
-References: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
- <20160219112543.GJ4763@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160219112543.GJ4763@suse.de>
+        Fri, 19 Feb 2016 13:13:10 -0800 (PST)
+Date: Fri, 19 Feb 2016 13:13:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH] proc: do not include shmem and driver pages in
+ /proc/meminfo::Cached
+Message-Id: <20160219131307.a38646706cc514fcaf18793a@linux-foundation.org>
+In-Reply-To: <CALYGNiMHAtaZfGovYeud65Eix8v0OSWSx8F=4K+pqF6akQah0A@mail.gmail.com>
+References: <1455827801-13082-1-git-send-email-hannes@cmpxchg.org>
+	<alpine.LSU.2.11.1602181422550.2289@eggly.anvils>
+	<CALYGNiMHAtaZfGovYeud65Eix8v0OSWSx8F=4K+pqF6akQah0A@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-On Fri, Feb 19, 2016 at 11:25:43AM +0000, Mel Gorman wrote:
-> On Thu, Feb 18, 2016 at 11:41:59AM -0500, Johannes Weiner wrote:
-> > In machines with 140G of memory and enterprise flash storage, we have
-> > seen read and write bursts routinely exceed the kswapd watermarks and
-> > cause thundering herds in direct reclaim. Unfortunately, the only way
-> > to tune kswapd aggressiveness is through adjusting min_free_kbytes -
-> > the system's emergency reserves - which is entirely unrelated to the
-> > system's latency requirements. In order to get kswapd to maintain a
-> > 250M buffer of free memory, the emergency reserves need to be set to
-> > 1G. That is a lot of memory wasted for no good reason.
-> > 
-> > On the other hand, it's reasonable to assume that allocation bursts
-> > and overall allocation concurrency scale with memory capacity, so it
-> > makes sense to make kswapd aggressiveness a function of that as well.
-> > 
-> > Change the kswapd watermark scale factor from the currently fixed 25%
-> > of the tunable emergency reserve to a tunable 0.001% of memory.
-> > 
-> > On a 140G machine, this raises the default watermark steps - the
-> > distance between min and low, and low and high - from 16M to 143M.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Fri, 19 Feb 2016 09:40:45 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+
+> >> What are your thoughts on this?
+> >
+> > My thoughts are NAK.  A misleading stat is not so bad as a
+> > misleading stat whose meaning we change in some random kernel.
+> >
+> > By all means improve Documentation/filesystems/proc.txt on Cached.
+> > By all means promote Active(file)+Inactive(file)-Buffers as often a
+> > better measure (though Buffers itself is obscure to me - is it intended
+> > usually to approximate resident FS metadata?).  By all means work on
+> > /proc/meminfo-v2 (though that may entail dispiritingly long discussions).
+> >
+> > We have to assume that Cached has been useful to some people, and that
+> > they've learnt to subtract Shmem from it, if slow or no swap concerns them.
+> >
+> > Added Konstantin to Cc: he's had valuable experience of people learning
+> > to adapt to the numbers that we put out.
+> >
 > 
-> Intuitively, the patch makes sense although Rik's comments should be
-> addressed.
-> 
-> The caveat will be that there will be workloads that used to fit into
-> memory without reclaim that now have kswapd activity. It might manifest
-> as continual reclaim with some thrashing but it should only apply to
-> workloads that are exactly sized to fit in memory which in my experience
-> are relatively rare. It should be "obvious" when occurs at least.
+> I think everything will ok. Subtraction of shmem isn't widespread practice,
+> more like secret knowledge. This wasn't documented and people who use
+> this should be aware that this might stop working at any time. So, ACK.
 
-This is a problem only in theory, I think, because I doubt anybody is
-able to keep a workingset reliably at a margin of less than 0.001% of
-memory. I'd expect few users to even go within single digit margins
-without eventually thrashing anyway.
+It worries me as well - we're deliberately altering the behaviour of
+existing userspace code.  Not all of those alterations will be welcome!
 
-It certainly becomes a real issue when users tune the scale factor,
-but then it will be a deliberate act with known consequences. That's
-what I choose to believe in.
-
-> Acked-by: Mel Gorman <mgorman@suse.de>
-
-Thanks!
+We could add a shiny new field into meminfo and train people to migrate
+to that.  But that would just be a sum of already-available fields.  In
+an ideal world we could solve all of this with documentation and
+cluebatting (and some apologizing!).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
