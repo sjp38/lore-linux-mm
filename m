@@ -1,201 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D5C286B0005
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 04:20:09 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id g62so60153759wme.0
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 01:20:09 -0800 (PST)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id ce10si16601480wjc.152.2016.02.19.01.20.08
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C58C66B0005
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2016 06:25:48 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id c200so70852301wme.0
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 03:25:48 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a10si12113770wmc.91.2016.02.19.03.25.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Feb 2016 01:20:08 -0800 (PST)
-Received: by mail-wm0-x233.google.com with SMTP id a4so61700918wme.1
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2016 01:20:08 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Feb 2016 03:25:47 -0800 (PST)
+Date: Fri, 19 Feb 2016 11:25:43 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: scale kswapd watermarks in proportion to memory
+Message-ID: <20160219112543.GJ4763@suse.de>
+References: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4McCyLahXw2TV=OHBNwLSg2gq1Bq2n3mmaa7gLFEVGZ+w@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com> <1cec06645310eeb495bcae7bed0807dbf2235f3a.1453918525.git.glider@google.com>
- <20160201024715.GC32125@js1304-P5Q-DELUXE> <CAG_fn=W2C=aOgPQgkCi6ntA1tCMOaiF0LjbKtuo1TCFbH58HEg@mail.gmail.com>
- <CAAmzW4McCyLahXw2TV=OHBNwLSg2gq1Bq2n3mmaa7gLFEVGZ+w@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 19 Feb 2016 10:19:48 +0100
-Message-ID: <CACT4Y+Z60YxN6JKitsKLFfGFDFpVY3_rCPyz9m_3WtFeG+EbSQ@mail.gmail.com>
-Subject: Re: [PATCH v1 8/8] mm: kasan: Initial memory quarantine implementation
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1455813719-2395-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Alexander Potapenko <glider@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Feb 19, 2016 at 3:11 AM, Joonsoo Kim <js1304@gmail.com> wrote:
-> 2016-02-18 23:06 GMT+09:00 Alexander Potapenko <glider@google.com>:
->> On Mon, Feb 1, 2016 at 3:47 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>> On Wed, Jan 27, 2016 at 07:25:13PM +0100, Alexander Potapenko wrote:
->>>> Quarantine isolates freed objects in a separate queue. The objects are
->>>> returned to the allocator later, which helps to detect use-after-free
->>>> errors.
->>>>
->>>> Freed objects are first added to per-cpu quarantine queues.
->>>> When a cache is destroyed or memory shrinking is requested, the objects
->>>> are moved into the global quarantine queue. Whenever a kmalloc call
->>>> allows memory reclaiming, the oldest objects are popped out of the
->>>> global queue until the total size of objects in quarantine is less than
->>>> 3/4 of the maximum quarantine size (which is a fraction of installed
->>>> physical memory).
->>>
->>> Just wondering why not using time based approach rather than size
->>> based one. In heavy load condition, how much time do the object stay in
->>> quarantine?
->>>
->>>>
->>>> Right now quarantine support is only enabled in SLAB allocator.
->>>> Unification of KASAN features in SLAB and SLUB will be done later.
->>>>
->>>> This patch is based on the "mm: kasan: quarantine" patch originally
->>>> prepared by Dmitry Chernenkov.
->>>>
->>>> Signed-off-by: Alexander Potapenko <glider@google.com>
->>>> ---
->>>>  include/linux/kasan.h |  30 ++++--
->>>>  lib/test_kasan.c      |  29 ++++++
->>>>  mm/kasan/Makefile     |   2 +-
->>>>  mm/kasan/kasan.c      |  68 +++++++++++-
->>>>  mm/kasan/kasan.h      |  11 +-
->>>>  mm/kasan/quarantine.c | 284 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>>>  mm/kasan/report.c     |   3 +-
->>>>  mm/mempool.c          |   7 +-
->>>>  mm/page_alloc.c       |   2 +-
->>>>  mm/slab.c             |  12 ++-
->>>>  mm/slab.h             |   4 +
->>>>  mm/slab_common.c      |   2 +
->>>>  mm/slub.c             |   4 +-
->>>>  13 files changed, 435 insertions(+), 23 deletions(-)
->>>>
->>>
->>> ...
->>>
->>>> +bool kasan_slab_free(struct kmem_cache *cache, void *object)
->>>> +{
->>>> +#ifdef CONFIG_SLAB
->>>> +     /* RCU slabs could be legally used after free within the RCU period */
->>>> +     if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
->>>> +             return false;
->>>> +
->>>> +     if (likely(cache->flags & SLAB_KASAN)) {
->>>> +             struct kasan_alloc_meta *alloc_info =
->>>> +                     get_alloc_info(cache, object);
->>>> +             struct kasan_free_meta *free_info =
->>>> +                     get_free_info(cache, object);
->>>> +
->>>> +             switch (alloc_info->state) {
->>>> +             case KASAN_STATE_ALLOC:
->>>> +                     alloc_info->state = KASAN_STATE_QUARANTINE;
->>>> +                     quarantine_put(free_info, cache);
->>>
->>> quarantine_put() can be called regardless of SLAB_DESTROY_BY_RCU,
->>> although it's not much meaningful without poisoning. But, I have an
->>> idea to poison object on SLAB_DESTROY_BY_RCU cache.
->>>
->>> quarantine_put() moves per cpu list to global queue when
->>> list size reaches QUARANTINE_PERCPU_SIZE. If we call synchronize_rcu()
->>> at that time, after then, we can poison objects. With appropriate size
->>> setup, it would not be intrusive.
->>>
->> Won't this slow the quarantine down unpredictably (e.g. in the case
->> there're no RCU slabs in quarantine we'll still be waiting for
->> synchronize_rcu())?
->
-> It could be handled by introducing one cpu variable.
->
->> Yet this is something worth looking into. Do you want RCU to be
->> handled in this patch set?
->
-> No. It would be future work.
->
->>>> +                     set_track(&free_info->track, GFP_NOWAIT);
->>>
->>> set_track() can be called regardless of SLAB_DESTROY_BY_RCU.
->> Agreed, I can fix that if we decide to handle RCU in this patch
->> (otherwise it will lead to confusion).
->>
->>>
->>>> +                     kasan_poison_slab_free(cache, object);
->>>> +                     return true;
->>>> +             case KASAN_STATE_QUARANTINE:
->>>> +             case KASAN_STATE_FREE:
->>>> +                     pr_err("Double free");
->>>> +                     dump_stack();
->>>> +                     break;
->>>> +             default:
->>>> +                     break;
->>>> +             }
->>>> +     }
->>>> +     return false;
->>>> +#else
->>>> +     kasan_poison_slab_free(cache, object);
->>>> +     return false;
->>>> +#endif
->>>> +}
->>>> +
->>>
->>> ...
->>>
->>>> +void quarantine_reduce(void)
->>>> +{
->>>> +     size_t new_quarantine_size;
->>>> +     unsigned long flags;
->>>> +     struct qlist to_free = QLIST_INIT;
->>>> +     size_t size_to_free = 0;
->>>> +     void **last;
->>>> +
->>>> +     if (likely(ACCESS_ONCE(global_quarantine.bytes) <=
->>>> +                smp_load_acquire(&quarantine_size)))
->>>> +             return;
->>>> +
->>>> +     spin_lock_irqsave(&quarantine_lock, flags);
->>>> +
->>>> +     /* Update quarantine size in case of hotplug. Allocate a fraction of
->>>> +      * the installed memory to quarantine minus per-cpu queue limits.
->>>> +      */
->>>> +     new_quarantine_size = (ACCESS_ONCE(totalram_pages) << PAGE_SHIFT) /
->>>> +             QUARANTINE_FRACTION;
->>>> +     new_quarantine_size -= QUARANTINE_PERCPU_SIZE * num_online_cpus();
->>>> +     smp_store_release(&quarantine_size, new_quarantine_size);
->>>> +
->>>> +     last = global_quarantine.head;
->>>> +     while (last) {
->>>> +             struct kmem_cache *cache = qlink_to_cache(last);
->>>> +
->>>> +             size_to_free += cache->size;
->>>> +             if (!*last || size_to_free >
->>>> +                 global_quarantine.bytes - QUARANTINE_LOW_SIZE)
->>>> +                     break;
->>>> +             last = (void **) *last;
->>>> +     }
->>>> +     qlist_move(&global_quarantine, last, &to_free, size_to_free);
->>>> +
->>>> +     spin_unlock_irqrestore(&quarantine_lock, flags);
->>>> +
->>>> +     qlist_free_all(&to_free, NULL);
->>>> +}
->>>
->>> Isn't it better to call quarantine_reduce() in shrink_slab()?
->>> It will help to maximize quarantine time.
->> This is true, however if we don't call quarantine_reduce() from
->> kmalloc()/kfree() the size of the quarantine will be unpredictable.
->> There's a tradeoff between efficiency and space here, and at least in
->> some cases we may want to trade efficiency for space.
->
-> size of the quarantine doesn't matter unless there is memory pressure.
-> If memory pressure, shrink_slab() would be called and we can reduce
-> size of quarantine. However, I don't think this is show stopper. We can
-> do it when needed.
+On Thu, Feb 18, 2016 at 11:41:59AM -0500, Johannes Weiner wrote:
+> In machines with 140G of memory and enterprise flash storage, we have
+> seen read and write bursts routinely exceed the kswapd watermarks and
+> cause thundering herds in direct reclaim. Unfortunately, the only way
+> to tune kswapd aggressiveness is through adjusting min_free_kbytes -
+> the system's emergency reserves - which is entirely unrelated to the
+> system's latency requirements. In order to get kswapd to maintain a
+> 250M buffer of free memory, the emergency reserves need to be set to
+> 1G. That is a lot of memory wasted for no good reason.
+> 
+> On the other hand, it's reasonable to assume that allocation bursts
+> and overall allocation concurrency scale with memory capacity, so it
+> makes sense to make kswapd aggressiveness a function of that as well.
+> 
+> Change the kswapd watermark scale factor from the currently fixed 25%
+> of the tunable emergency reserve to a tunable 0.001% of memory.
+> 
+> On a 140G machine, this raises the default watermark steps - the
+> distance between min and low, and low and high - from 16M to 143M.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
+Intuitively, the patch makes sense although Rik's comments should be
+addressed.
 
-No, this does not work. We've tried.
-The problem is fragmentation. When all memory is occupied by slab,
-it's already too late to reclaim memory. Free objects are randomly
-scattered over memory, so if you have just 1% of live objects, the
-chances are that you won't be able to reclaim any single page.
+The caveat will be that there will be workloads that used to fit into
+memory without reclaim that now have kswapd activity. It might manifest
+as continual reclaim with some thrashing but it should only apply to
+workloads that are exactly sized to fit in memory which in my experience
+are relatively rare. It should be "obvious" when occurs at least.
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
