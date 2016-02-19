@@ -1,196 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 30EAE830B6
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 21:11:36 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id xk3so96384820obc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 18:11:36 -0800 (PST)
-Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
-        by mx.google.com with ESMTPS id kn6si2055071oeb.90.2016.02.18.18.11.35
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0190A830B6
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 21:14:07 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id e127so42100004pfe.3
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 18:14:06 -0800 (PST)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id ey9si13022460pab.123.2016.02.18.18.14.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 18:11:35 -0800 (PST)
-Received: by mail-ob0-x234.google.com with SMTP id xk3so96384651obc.2
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 18:11:35 -0800 (PST)
+        Thu, 18 Feb 2016 18:14:06 -0800 (PST)
+Received: by mail-pf0-x231.google.com with SMTP id x65so42099494pfb.1
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 18:14:06 -0800 (PST)
+Date: Fri, 19 Feb 2016 11:15:22 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20160219021522.GA11625@swordfish>
+References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160218092926.083ca007@gandalf.local.home>
+ <20160219003421.GA587@swordfish>
+ <CAAmzW4Ni2uZ_J1dcfHPNPYDc0EDDDOL+_oKD-+OZ=Cmg=8sgGA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=W2C=aOgPQgkCi6ntA1tCMOaiF0LjbKtuo1TCFbH58HEg@mail.gmail.com>
-References: <cover.1453918525.git.glider@google.com>
-	<1cec06645310eeb495bcae7bed0807dbf2235f3a.1453918525.git.glider@google.com>
-	<20160201024715.GC32125@js1304-P5Q-DELUXE>
-	<CAG_fn=W2C=aOgPQgkCi6ntA1tCMOaiF0LjbKtuo1TCFbH58HEg@mail.gmail.com>
-Date: Fri, 19 Feb 2016 11:11:35 +0900
-Message-ID: <CAAmzW4McCyLahXw2TV=OHBNwLSg2gq1Bq2n3mmaa7gLFEVGZ+w@mail.gmail.com>
-Subject: Re: [PATCH v1 8/8] mm: kasan: Initial memory quarantine implementation
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4Ni2uZ_J1dcfHPNPYDc0EDDDOL+_oKD-+OZ=Cmg=8sgGA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, kasan-dev@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2016-02-18 23:06 GMT+09:00 Alexander Potapenko <glider@google.com>:
-> On Mon, Feb 1, 2016 at 3:47 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> On Wed, Jan 27, 2016 at 07:25:13PM +0100, Alexander Potapenko wrote:
->>> Quarantine isolates freed objects in a separate queue. The objects are
->>> returned to the allocator later, which helps to detect use-after-free
->>> errors.
->>>
->>> Freed objects are first added to per-cpu quarantine queues.
->>> When a cache is destroyed or memory shrinking is requested, the objects
->>> are moved into the global quarantine queue. Whenever a kmalloc call
->>> allows memory reclaiming, the oldest objects are popped out of the
->>> global queue until the total size of objects in quarantine is less than
->>> 3/4 of the maximum quarantine size (which is a fraction of installed
->>> physical memory).
->>
->> Just wondering why not using time based approach rather than size
->> based one. In heavy load condition, how much time do the object stay in
->> quarantine?
->>
->>>
->>> Right now quarantine support is only enabled in SLAB allocator.
->>> Unification of KASAN features in SLAB and SLUB will be done later.
->>>
->>> This patch is based on the "mm: kasan: quarantine" patch originally
->>> prepared by Dmitry Chernenkov.
->>>
->>> Signed-off-by: Alexander Potapenko <glider@google.com>
->>> ---
->>>  include/linux/kasan.h |  30 ++++--
->>>  lib/test_kasan.c      |  29 ++++++
->>>  mm/kasan/Makefile     |   2 +-
->>>  mm/kasan/kasan.c      |  68 +++++++++++-
->>>  mm/kasan/kasan.h      |  11 +-
->>>  mm/kasan/quarantine.c | 284 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>>  mm/kasan/report.c     |   3 +-
->>>  mm/mempool.c          |   7 +-
->>>  mm/page_alloc.c       |   2 +-
->>>  mm/slab.c             |  12 ++-
->>>  mm/slab.h             |   4 +
->>>  mm/slab_common.c      |   2 +
->>>  mm/slub.c             |   4 +-
->>>  13 files changed, 435 insertions(+), 23 deletions(-)
->>>
->>
->> ...
->>
->>> +bool kasan_slab_free(struct kmem_cache *cache, void *object)
->>> +{
->>> +#ifdef CONFIG_SLAB
->>> +     /* RCU slabs could be legally used after free within the RCU period */
->>> +     if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
->>> +             return false;
->>> +
->>> +     if (likely(cache->flags & SLAB_KASAN)) {
->>> +             struct kasan_alloc_meta *alloc_info =
->>> +                     get_alloc_info(cache, object);
->>> +             struct kasan_free_meta *free_info =
->>> +                     get_free_info(cache, object);
->>> +
->>> +             switch (alloc_info->state) {
->>> +             case KASAN_STATE_ALLOC:
->>> +                     alloc_info->state = KASAN_STATE_QUARANTINE;
->>> +                     quarantine_put(free_info, cache);
->>
->> quarantine_put() can be called regardless of SLAB_DESTROY_BY_RCU,
->> although it's not much meaningful without poisoning. But, I have an
->> idea to poison object on SLAB_DESTROY_BY_RCU cache.
->>
->> quarantine_put() moves per cpu list to global queue when
->> list size reaches QUARANTINE_PERCPU_SIZE. If we call synchronize_rcu()
->> at that time, after then, we can poison objects. With appropriate size
->> setup, it would not be intrusive.
->>
-> Won't this slow the quarantine down unpredictably (e.g. in the case
-> there're no RCU slabs in quarantine we'll still be waiting for
-> synchronize_rcu())?
+On (02/19/16 10:39), Joonsoo Kim wrote:
+[..]
+> > not sure if it's worth mentioning in the comment, but the other
+> > concern here is the performance impact of an extra function call,
+> > I believe. otherwise, Joonsoo would just do:
+> 
+> It's very natural thing so I'm not sure it is worth mentioning.
 
-It could be handled by introducing one cpu variable.
+agree.
 
-> Yet this is something worth looking into. Do you want RCU to be
-> handled in this patch set?
+> > and in mm/debug_page_ref.c
+> >
+> > void __page_ref_set(struct page *page, int v)
+> > {
+> >         if (trace_page_ref_set_enabled())
+> >                 trace_page_ref_set(page, v);
+> > }
+> > EXPORT_SYMBOL(__page_ref_set);
+> > EXPORT_TRACEPOINT_SYMBOL(page_ref_set);
+> 
+> It is what I did in v1.
 
-No. It would be future work.
+ah... indeed. well, "That was a year ago, how am I suppose to remember"
 
->>> +                     set_track(&free_info->track, GFP_NOWAIT);
->>
->> set_track() can be called regardless of SLAB_DESTROY_BY_RCU.
-> Agreed, I can fix that if we decide to handle RCU in this patch
-> (otherwise it will lead to confusion).
->
->>
->>> +                     kasan_poison_slab_free(cache, object);
->>> +                     return true;
->>> +             case KASAN_STATE_QUARANTINE:
->>> +             case KASAN_STATE_FREE:
->>> +                     pr_err("Double free");
->>> +                     dump_stack();
->>> +                     break;
->>> +             default:
->>> +                     break;
->>> +             }
->>> +     }
->>> +     return false;
->>> +#else
->>> +     kasan_poison_slab_free(cache, object);
->>> +     return false;
->>> +#endif
->>> +}
->>> +
->>
->> ...
->>
->>> +void quarantine_reduce(void)
->>> +{
->>> +     size_t new_quarantine_size;
->>> +     unsigned long flags;
->>> +     struct qlist to_free = QLIST_INIT;
->>> +     size_t size_to_free = 0;
->>> +     void **last;
->>> +
->>> +     if (likely(ACCESS_ONCE(global_quarantine.bytes) <=
->>> +                smp_load_acquire(&quarantine_size)))
->>> +             return;
->>> +
->>> +     spin_lock_irqsave(&quarantine_lock, flags);
->>> +
->>> +     /* Update quarantine size in case of hotplug. Allocate a fraction of
->>> +      * the installed memory to quarantine minus per-cpu queue limits.
->>> +      */
->>> +     new_quarantine_size = (ACCESS_ONCE(totalram_pages) << PAGE_SHIFT) /
->>> +             QUARANTINE_FRACTION;
->>> +     new_quarantine_size -= QUARANTINE_PERCPU_SIZE * num_online_cpus();
->>> +     smp_store_release(&quarantine_size, new_quarantine_size);
->>> +
->>> +     last = global_quarantine.head;
->>> +     while (last) {
->>> +             struct kmem_cache *cache = qlink_to_cache(last);
->>> +
->>> +             size_to_free += cache->size;
->>> +             if (!*last || size_to_free >
->>> +                 global_quarantine.bytes - QUARANTINE_LOW_SIZE)
->>> +                     break;
->>> +             last = (void **) *last;
->>> +     }
->>> +     qlist_move(&global_quarantine, last, &to_free, size_to_free);
->>> +
->>> +     spin_unlock_irqrestore(&quarantine_lock, flags);
->>> +
->>> +     qlist_free_all(&to_free, NULL);
->>> +}
->>
->> Isn't it better to call quarantine_reduce() in shrink_slab()?
->> It will help to maximize quarantine time.
-> This is true, however if we don't call quarantine_reduce() from
-> kmalloc()/kfree() the size of the quarantine will be unpredictable.
-> There's a tradeoff between efficiency and space here, and at least in
-> some cases we may want to trade efficiency for space.
-
-size of the quarantine doesn't matter unless there is memory pressure.
-If memory pressure, shrink_slab() would be called and we can reduce
-size of quarantine. However, I don't think this is show stopper. We can
-do it when needed.
-
-Thanks.
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
