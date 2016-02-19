@@ -1,92 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D60886B0298
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 19:33:04 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id x65so40647983pfb.1
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:33:04 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id r15si12538045pfr.8.2016.02.18.16.33.04
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 3952F830B6
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2016 20:19:58 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id xk3so95421630obc.2
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:19:58 -0800 (PST)
+Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
+        by mx.google.com with ESMTPS id oi10si2356053oeb.67.2016.02.18.17.19.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Feb 2016 16:33:04 -0800 (PST)
-Received: by mail-pa0-x22b.google.com with SMTP id fl4so39986797pad.0
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 16:33:04 -0800 (PST)
-Date: Fri, 19 Feb 2016 09:34:21 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
- reference manipulation
-Message-ID: <20160219003421.GA587@swordfish>
-References: <1455505490-12376-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1455505490-12376-2-git-send-email-iamjoonsoo.kim@lge.com>
- <20160218092926.083ca007@gandalf.local.home>
+        Thu, 18 Feb 2016 17:19:57 -0800 (PST)
+Received: by mail-ob0-x236.google.com with SMTP id xk3so95421424obc.2
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2016 17:19:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160218092926.083ca007@gandalf.local.home>
+In-Reply-To: <20160218101909.GB503@swordfish>
+References: <1455764556-13979-1-git-send-email-sergey.senozhatsky@gmail.com>
+	<1455764556-13979-4-git-send-email-sergey.senozhatsky@gmail.com>
+	<CAAmzW4O-yQ5GBTE-6WvCL-hZeqyW=k3Fzn4_9G2qkMmp=ceuJg@mail.gmail.com>
+	<20160218095536.GA503@swordfish>
+	<20160218101909.GB503@swordfish>
+Date: Fri, 19 Feb 2016 10:19:57 +0900
+Message-ID: <CAAmzW4NQt4jD2q92Hh4XFzt5fV=-i3J9eoxS3now6Y4Xw7OqGg@mail.gmail.com>
+Subject: Re: [RFC PATCH 3/3] mm/zsmalloc: change ZS_MAX_PAGES_PER_ZSPAGE
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On (02/18/16 09:29), Steven Rostedt wrote:
-> > diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
-> > index 534249c..fd6d9a5 100644
-> > --- a/include/linux/page_ref.h
-> > +++ b/include/linux/page_ref.h
-> > @@ -1,6 +1,54 @@
-> >  #include <linux/atomic.h>
-> >  #include <linux/mm_types.h>
-> >  #include <linux/page-flags.h>
-> > +#include <linux/tracepoint-defs.h>
-> > +
-> > +extern struct tracepoint __tracepoint_page_ref_set;
-> > +extern struct tracepoint __tracepoint_page_ref_mod;
-> > +extern struct tracepoint __tracepoint_page_ref_mod_and_test;
-> > +extern struct tracepoint __tracepoint_page_ref_mod_and_return;
-> > +extern struct tracepoint __tracepoint_page_ref_mod_unless;
-> > +extern struct tracepoint __tracepoint_page_ref_freeze;
-> > +extern struct tracepoint __tracepoint_page_ref_unfreeze;
-> > +
-> > +#ifdef CONFIG_DEBUG_PAGE_REF
-> 
-> Please add a comment here. Something to the effect of:
-> 
-> /*
->  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
->  * functions. But due to include header file issues, that is not
->  * feasible. Instead we have to open code the static key functions.
->  *
->  * See trace_##name##_enabled(void) in include/linux/tracepoint.h
->  */
-> 
+2016-02-18 19:19 GMT+09:00 Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com>:
+> On (02/18/16 18:55), Sergey Senozhatsky wrote:
+>> > There is a reason that it is order of 2. Increasing ZS_MAX_PAGES_PER_ZSPAGE
+>> > is related to ZS_MIN_ALLOC_SIZE. If we don't have enough OBJ_INDEX_BITS,
+>> > ZS_MIN_ALLOC_SIZE would be increase and it causes regression on some
+>> > system.
+>>
+>> Thanks!
+>>
+>> do you mean PHYSMEM_BITS != BITS_PER_LONG systems? PAE/LPAE? isn't it
+>> the case that on those systems ZS_MIN_ALLOC_SIZE already bigger than 32?
 
-not sure if it's worth mentioning in the comment, but the other
-concern here is the performance impact of an extra function call,
-I believe. otherwise, Joonsoo would just do:
+Indeed.
 
-in include/linux/page_ref.h
+> I mean, yes, there are ZS_ALIGN requirements that I completely ignored,
+> thanks for pointing that out.
+>
+> just saying, not insisting on anything, theoretically, trading 32 bit size
+> objects in exchange of reducing a much bigger memory wastage is sort of
+> interesting. zram stores objects bigger than 3072 as huge objects, leaving
 
-static inline void set_page_count(struct page *page, int v)
-{
-	atomic_set(&page->_count, v);
-	__page_ref_set(page, v);
-}
-...
+I'm also just saying. :)
+On the above example system which already uses 128 byte min class,
+your change makes it to 160 or 192. It could make a more trouble than
+you thought.
 
+> 4096-3072 bytes unused, and it'll take 4096-3072/32 = 4000  32 bit objects
+> to beat that single 'bad' compression object in storing inefficiency...
 
+Where does 4096-3072/32 calculation comes from? I'm not familiar to recent
+change on zsmalloc such as huge class so can't understand this calculation.
 
-and in mm/debug_page_ref.c
+> well, patches 0001/0002 are trying to address this a bit, but the biggest
+> problem is still there: we have too many ->huge classes and they are a bit
+> far from good.
 
-void __page_ref_set(struct page *page, int v)
-{
-	if (trace_page_ref_set_enabled())
-		trace_page_ref_set(page, v);
-}
-EXPORT_SYMBOL(__page_ref_set);
-EXPORT_TRACEPOINT_SYMBOL(page_ref_set);
-...
+Agreed. And I agree your patchset, too.
 
-	-ss
+Anyway, could you answer my other questions on original reply?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
