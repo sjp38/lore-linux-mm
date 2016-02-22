@@ -1,472 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 11B31828F2
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:00:28 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id c200so175604275wme.0
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 07:00:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id br5si1075647wjb.69.2016.02.22.07.00.26
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 682A3828E6
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:34:50 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id b35so113255298qge.0
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 07:34:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n39si5912651qkh.9.2016.02.22.07.34.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Feb 2016 07:00:26 -0800 (PST)
-From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v5 20/20] thermal/intel_powerclamp: Convert the kthread to kthread worker API
-Date: Mon, 22 Feb 2016 15:57:10 +0100
-Message-Id: <1456153030-12400-21-git-send-email-pmladek@suse.com>
-In-Reply-To: <1456153030-12400-1-git-send-email-pmladek@suse.com>
-References: <1456153030-12400-1-git-send-email-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Feb 2016 07:34:49 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+References: <56C9EDCF.8010007@plexistor.com>
+	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
+	<56CA1CE7.6050309@plexistor.com>
+	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+	<56CA2AC9.7030905@plexistor.com>
+	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+	<20160221223157.GC25832@dastard>
+Date: Mon, 22 Feb 2016 10:34:45 -0500
+In-Reply-To: <20160221223157.GC25832@dastard> (Dave Chinner's message of "Mon,
+	22 Feb 2016 09:31:57 +1100")
+Message-ID: <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-pm@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Kthreads are currently implemented as an infinite loop. Each
-has its own variant of checks for terminating, freezing,
-awakening. In many cases it is unclear to say in which state
-it is and sometimes it is done a wrong way.
+Hi, Dave,
 
-The plan is to convert kthreads into kthread_worker or workqueues
-API. It allows to split the functionality into separate operations.
-It helps to make a better structure. Also it defines a clean state
-where no locks are taken, IRQs blocked, the kthread might sleep
-or even be safely migrated.
+Dave Chinner <david@fromorbit.com> writes:
 
-The kthread worker API is useful when we want to have a dedicated
-single thread for the work. It helps to make sure that it is
-available when needed. Also it allows a better control, e.g.
-define a scheduling priority.
+>> Another potential issue is that MAP_PMEM_AWARE is not enough on its
+>> own.  If the filesystem or inode does not support DAX the application
+>> needs to assume page cache semantics.  At a minimum MAP_PMEM_AWARE
+>> requests would need to fail if DAX is not available.
+>
+> They will always still need to call msync()/fsync() to guarantee
+> data integrity, because the filesystem metadata that indexes the
+> data still needs to be committed before data integrity can be
+> guaranteed. i.e. MAP_PMEM_AWARE by itself it not sufficient for data
+> integrity, and so the app will have to be written like any other app
+> that uses page cache based mmap().
+>
+> Indeed, the application cannot even assume that a fully allocated
+> file does not require msync/fsync because the filesystem may be
+> doing things like dedupe, defrag, copy on write, etc behind the back
+> of the application and so file metadata changes may still be in
+> volatile RAM even though the application has flushed it's data.
 
-This patch converts the intel powerclamp kthreads into the kthread
-worker because they need to have a good control over the assigned
-CPUs.
+Once you hand out a persistent memory mapping, you sure as heck can't
+switch blocks around behind the back of the application.
 
-IMHO, the most natural way is to split one cycle into two works.
-First one does some balancing and let the CPU work normal
-way for some time. The second work checks what the CPU has done
-in the meantime and put it into C-state to reach the required
-idle time ratio. The delay between the two works is achieved
-by the delayed kthread work.
+But even if we're not dealing with persistent memory, you seem to imply
+that applications needs to fsync just in case the file system did
+something behind its back.  In other words, an application opening a
+fully allocated file and using fdatasync will also need to call fsync,
+just in case.  Is that really what you're suggesting?
 
-The two works have to share some data that used to be local
-variables of the single kthread function. This is achieved
-by the new per-CPU struct kthread_worker_data. It might look
-as a complication. On the other hand, the long original kthread
-function was not nice either.
+> Applications have no idea what the underlying filesystem and storage
+> is doing and so they cannot assume that complete data integrity is
+> provided by userspace driven CPU cache flush instructions on their
+> file data.
 
-The patch tries to avoid extra init and cleanup works. All the
-actions might be done outside the thread. They are moved
-to the functions that create or destroy the worker. Especially,
-I checked that the timers are assigned to the right CPU.
+This is surprising to me, and goes completely against the proposed
+programming model.  In fact, this is a very basic tenet of the operation
+of the nvml libraries on pmem.io.
 
-The two works are queuing each other. It makes it a bit tricky to
-break it when we want to stop the worker. We use the global and
-per-worker "clamping" variables to make sure that the re-queuing
-eventually stops. We also cancel the works to make it faster.
-Note that the canceling is not reliable because the handling
-of the two variables and queuing is not synchronized via a lock.
-But it is not a big deal because it is just an optimization.
-The job is stopped faster than before in most cases.
+That aside, let me see if I understand you correctly.
 
-Signed-off-by: Petr Mladek <pmladek@suse.com>
-CC: Zhang Rui <rui.zhang@intel.com>
-CC: Eduardo Valentin <edubezval@gmail.com>
-CC: Jacob Pan <jacob.jun.pan@linux.intel.com>
-CC: linux-pm@vger.kernel.org
-Acked-by: Jacob Pan <jacob.jun.pan@linux.intel.com>
----
- drivers/thermal/intel_powerclamp.c | 287 ++++++++++++++++++++++---------------
- 1 file changed, 168 insertions(+), 119 deletions(-)
+An application creates a file and writes to every single block in the
+thing, sync's it, closes it.  It then opens it back up, calls mmap with
+this new MAP_DAX flag or on a file system mounted with -o dax, and
+proceeds to access the file using loads and stores.  It persists its
+data by using non-temporal stores, flushing and fencing cpu
+instructions.
 
-diff --git a/drivers/thermal/intel_powerclamp.c b/drivers/thermal/intel_powerclamp.c
-index cb32c38f9828..964102c2330c 100644
---- a/drivers/thermal/intel_powerclamp.c
-+++ b/drivers/thermal/intel_powerclamp.c
-@@ -86,11 +86,27 @@ static unsigned int control_cpu; /* The cpu assigned to collect stat and update
- 				  */
- static bool clamping;
- 
-+static const struct sched_param sparam = {
-+	.sched_priority = MAX_USER_RT_PRIO / 2,
-+};
-+struct powerclamp_worker_data {
-+	struct kthread_worker *worker;
-+	struct kthread_work balancing_work;
-+	struct delayed_kthread_work idle_injection_work;
-+	struct timer_list wakeup_timer;
-+	unsigned int cpu;
-+	unsigned int count;
-+	unsigned int guard;
-+	unsigned int window_size_now;
-+	unsigned int target_ratio;
-+	unsigned int duration_jiffies;
-+	bool clamping;
-+};
- 
--static struct task_struct * __percpu *powerclamp_thread;
-+static struct powerclamp_worker_data * __percpu worker_data;
- static struct thermal_cooling_device *cooling_dev;
- static unsigned long *cpu_clamping_mask;  /* bit map for tracking per cpu
--					   * clamping thread
-+					   * clamping kthread worker
- 					   */
- 
- static unsigned int duration;
-@@ -368,100 +384,102 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
- 	return set_target_ratio + guard <= current_ratio;
- }
- 
--static int clamp_thread(void *arg)
-+static void clamp_balancing_func(struct kthread_work *work)
- {
--	int cpunr = (unsigned long)arg;
--	DEFINE_TIMER(wakeup_timer, noop_timer, 0, 0);
--	static const struct sched_param param = {
--		.sched_priority = MAX_USER_RT_PRIO/2,
--	};
--	unsigned int count = 0;
--	unsigned int target_ratio;
-+	struct powerclamp_worker_data *w_data;
-+	int sleeptime;
-+	unsigned long target_jiffies;
-+	unsigned int compensation;
-+	int interval; /* jiffies to sleep for each attempt */
- 
--	set_bit(cpunr, cpu_clamping_mask);
--	set_freezable();
--	init_timer_on_stack(&wakeup_timer);
--	sched_setscheduler(current, SCHED_FIFO, &param);
--
--	while (true == clamping && !kthread_should_stop() &&
--		cpu_online(cpunr)) {
--		int sleeptime;
--		unsigned long target_jiffies;
--		unsigned int guard;
--		unsigned int compensation = 0;
--		int interval; /* jiffies to sleep for each attempt */
--		unsigned int duration_jiffies = msecs_to_jiffies(duration);
--		unsigned int window_size_now;
--
--		try_to_freeze();
--		/*
--		 * make sure user selected ratio does not take effect until
--		 * the next round. adjust target_ratio if user has changed
--		 * target such that we can converge quickly.
--		 */
--		target_ratio = set_target_ratio;
--		guard = 1 + target_ratio/20;
--		window_size_now = window_size;
--		count++;
-+	w_data = container_of(work, struct powerclamp_worker_data,
-+			      balancing_work);
- 
--		/*
--		 * systems may have different ability to enter package level
--		 * c-states, thus we need to compensate the injected idle ratio
--		 * to achieve the actual target reported by the HW.
--		 */
--		compensation = get_compensation(target_ratio);
--		interval = duration_jiffies*100/(target_ratio+compensation);
--
--		/* align idle time */
--		target_jiffies = roundup(jiffies, interval);
--		sleeptime = target_jiffies - jiffies;
--		if (sleeptime <= 0)
--			sleeptime = 1;
--		schedule_timeout_interruptible(sleeptime);
--		/*
--		 * only elected controlling cpu can collect stats and update
--		 * control parameters.
--		 */
--		if (cpunr == control_cpu && !(count%window_size_now)) {
--			should_skip =
--				powerclamp_adjust_controls(target_ratio,
--							guard, window_size_now);
--			smp_mb();
--		}
-+	/*
-+	 * make sure user selected ratio does not take effect until
-+	 * the next round. adjust target_ratio if user has changed
-+	 * target such that we can converge quickly.
-+	 */
-+	w_data->target_ratio = READ_ONCE(set_target_ratio);
-+	w_data->guard = 1 + w_data->target_ratio / 20;
-+	w_data->window_size_now = window_size;
-+	w_data->duration_jiffies = msecs_to_jiffies(duration);
-+	w_data->count++;
-+
-+	/*
-+	 * systems may have different ability to enter package level
-+	 * c-states, thus we need to compensate the injected idle ratio
-+	 * to achieve the actual target reported by the HW.
-+	 */
-+	compensation = get_compensation(w_data->target_ratio);
-+	interval = w_data->duration_jiffies * 100 /
-+		(w_data->target_ratio + compensation);
-+
-+	/* align idle time */
-+	target_jiffies = roundup(jiffies, interval);
-+	sleeptime = target_jiffies - jiffies;
-+	if (sleeptime <= 0)
-+		sleeptime = 1;
-+
-+	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
-+		queue_delayed_kthread_work(w_data->worker,
-+					   &w_data->idle_injection_work,
-+					   sleeptime);
-+}
-+
-+static void clamp_idle_injection_func(struct kthread_work *work)
-+{
-+	struct powerclamp_worker_data *w_data;
-+	unsigned long target_jiffies;
-+
-+	w_data = container_of(work, struct powerclamp_worker_data,
-+			      idle_injection_work.work);
-+
-+	/*
-+	 * only elected controlling cpu can collect stats and update
-+	 * control parameters.
-+	 */
-+	if (w_data->cpu == control_cpu &&
-+	    !(w_data->count % w_data->window_size_now)) {
-+		should_skip =
-+			powerclamp_adjust_controls(w_data->target_ratio,
-+						   w_data->guard,
-+						   w_data->window_size_now);
-+		smp_mb();
-+	}
- 
--		if (should_skip)
--			continue;
-+	if (should_skip)
-+		goto balance;
-+
-+	target_jiffies = jiffies + w_data->duration_jiffies;
-+	mod_timer(&w_data->wakeup_timer, target_jiffies);
-+	if (unlikely(local_softirq_pending()))
-+		goto balance;
-+	/*
-+	 * stop tick sched during idle time, interrupts are still
-+	 * allowed. thus jiffies are updated properly.
-+	 */
-+	preempt_disable();
-+	/* mwait until target jiffies is reached */
-+	while (time_before(jiffies, target_jiffies)) {
-+		unsigned long ecx = 1;
-+		unsigned long eax = target_mwait;
- 
--		target_jiffies = jiffies + duration_jiffies;
--		mod_timer(&wakeup_timer, target_jiffies);
--		if (unlikely(local_softirq_pending()))
--			continue;
- 		/*
--		 * stop tick sched during idle time, interrupts are still
--		 * allowed. thus jiffies are updated properly.
-+		 * REVISIT: may call enter_idle() to notify drivers who
-+		 * can save power during cpu idle. same for exit_idle()
- 		 */
--		preempt_disable();
--		/* mwait until target jiffies is reached */
--		while (time_before(jiffies, target_jiffies)) {
--			unsigned long ecx = 1;
--			unsigned long eax = target_mwait;
--
--			/*
--			 * REVISIT: may call enter_idle() to notify drivers who
--			 * can save power during cpu idle. same for exit_idle()
--			 */
--			local_touch_nmi();
--			stop_critical_timings();
--			mwait_idle_with_hints(eax, ecx);
--			start_critical_timings();
--			atomic_inc(&idle_wakeup_counter);
--		}
--		preempt_enable();
-+		local_touch_nmi();
-+		stop_critical_timings();
-+		mwait_idle_with_hints(eax, ecx);
-+		start_critical_timings();
-+		atomic_inc(&idle_wakeup_counter);
- 	}
--	del_timer_sync(&wakeup_timer);
--	clear_bit(cpunr, cpu_clamping_mask);
-+	preempt_enable();
- 
--	return 0;
-+balance:
-+	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
-+		queue_kthread_work(w_data->worker, &w_data->balancing_work);
- }
- 
- /*
-@@ -505,22 +523,58 @@ static void poll_pkg_cstate(struct work_struct *dummy)
- 		schedule_delayed_work(&poll_pkg_cstate_work, HZ);
- }
- 
--static void start_power_clamp_thread(unsigned long cpu)
-+static void start_power_clamp_worker(unsigned long cpu)
- {
--	struct task_struct **p = per_cpu_ptr(powerclamp_thread, cpu);
--	struct task_struct *thread;
--
--	thread = kthread_create_on_node(clamp_thread,
--					(void *) cpu,
--					cpu_to_node(cpu),
--					"kidle_inject/%ld", cpu);
--	if (IS_ERR(thread))
-+	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
-+	struct kthread_worker *worker;
-+
-+	worker = create_kthread_worker_on_cpu(cpu, KTW_FREEZABLE,
-+					      "kidle_inject/%ld");
-+	if (IS_ERR(worker))
- 		return;
- 
--	/* bind to cpu here */
--	kthread_bind(thread, cpu);
--	wake_up_process(thread);
--	*p = thread;
-+	w_data->worker = worker;
-+	w_data->count = 0;
-+	w_data->cpu = cpu;
-+	w_data->clamping = true;
-+	set_bit(cpu, cpu_clamping_mask);
-+	setup_timer(&w_data->wakeup_timer, noop_timer, 0);
-+	sched_setscheduler(worker->task, SCHED_FIFO, &sparam);
-+	init_kthread_work(&w_data->balancing_work, clamp_balancing_func);
-+	init_delayed_kthread_work(&w_data->idle_injection_work,
-+				  clamp_idle_injection_func);
-+	queue_kthread_work(w_data->worker, &w_data->balancing_work);
-+}
-+
-+static void stop_power_clamp_worker(unsigned long cpu)
-+{
-+	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
-+
-+	if (!w_data->worker)
-+		return;
-+
-+	w_data->clamping = false;
-+	/*
-+	 * Make sure that all works that get queued after this point see
-+	 * the clamping disabled. The counter part is not needed because
-+	 * there is an implicit memory barrier when the queued work
-+	 * is proceed.
-+	 */
-+	smp_wmb();
-+	cancel_kthread_work_sync(&w_data->balancing_work);
-+	cancel_delayed_kthread_work_sync(&w_data->idle_injection_work);
-+	/*
-+	 * The balancing work still might be queued here because
-+	 * the handling of the "clapming" variable, cancel, and queue
-+	 * operations are not synchronized via a lock. But it is not
-+	 * a big deal. The balancing work is fast and destroy kthread
-+	 * will wait for it.
-+	 */
-+	del_timer_sync(&w_data->wakeup_timer);
-+	clear_bit(w_data->cpu, cpu_clamping_mask);
-+	destroy_kthread_worker(w_data->worker);
-+
-+	w_data->worker = NULL;
- }
- 
- static int start_power_clamp(void)
-@@ -545,9 +599,9 @@ static int start_power_clamp(void)
- 	clamping = true;
- 	schedule_delayed_work(&poll_pkg_cstate_work, 0);
- 
--	/* start one thread per online cpu */
-+	/* start one kthread worker per online cpu */
- 	for_each_online_cpu(cpu) {
--		start_power_clamp_thread(cpu);
-+		start_power_clamp_worker(cpu);
- 	}
- 	put_online_cpus();
- 
-@@ -557,20 +611,17 @@ static int start_power_clamp(void)
- static void end_power_clamp(void)
- {
- 	int i;
--	struct task_struct *thread;
- 
--	clamping = false;
- 	/*
--	 * make clamping visible to other cpus and give per cpu clamping threads
--	 * sometime to exit, or gets killed later.
-+	 * Block requeuing in all the kthread workers. They will drain and
-+	 * stop faster.
- 	 */
--	smp_mb();
--	msleep(20);
-+	clamping = false;
- 	if (bitmap_weight(cpu_clamping_mask, num_possible_cpus())) {
- 		for_each_set_bit(i, cpu_clamping_mask, num_possible_cpus()) {
--			pr_debug("clamping thread for cpu %d alive, kill\n", i);
--			thread = *per_cpu_ptr(powerclamp_thread, i);
--			kthread_stop(thread);
-+			pr_debug("clamping worker for cpu %d alive, destroy\n",
-+				 i);
-+			stop_power_clamp_worker(i);
- 		}
- 	}
- }
-@@ -579,15 +630,13 @@ static int powerclamp_cpu_callback(struct notifier_block *nfb,
- 				unsigned long action, void *hcpu)
- {
- 	unsigned long cpu = (unsigned long)hcpu;
--	struct task_struct **percpu_thread =
--		per_cpu_ptr(powerclamp_thread, cpu);
- 
- 	if (false == clamping)
- 		goto exit_ok;
- 
- 	switch (action) {
- 	case CPU_ONLINE:
--		start_power_clamp_thread(cpu);
-+		start_power_clamp_worker(cpu);
- 		/* prefer BSP as controlling CPU */
- 		if (cpu == 0) {
- 			control_cpu = 0;
-@@ -598,7 +647,7 @@ static int powerclamp_cpu_callback(struct notifier_block *nfb,
- 		if (test_bit(cpu, cpu_clamping_mask)) {
- 			pr_err("cpu %lu dead but powerclamping thread is not\n",
- 				cpu);
--			kthread_stop(*percpu_thread);
-+			stop_power_clamp_worker(cpu);
- 		}
- 		if (cpu == control_cpu) {
- 			control_cpu = smp_processor_id();
-@@ -785,8 +834,8 @@ static int __init powerclamp_init(void)
- 	window_size = 2;
- 	register_hotcpu_notifier(&powerclamp_cpu_notifier);
- 
--	powerclamp_thread = alloc_percpu(struct task_struct *);
--	if (!powerclamp_thread) {
-+	worker_data = alloc_percpu(struct powerclamp_worker_data);
-+	if (!worker_data) {
- 		retval = -ENOMEM;
- 		goto exit_unregister;
- 	}
-@@ -806,7 +855,7 @@ static int __init powerclamp_init(void)
- 	return 0;
- 
- exit_free_thread:
--	free_percpu(powerclamp_thread);
-+	free_percpu(worker_data);
- exit_unregister:
- 	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
- exit_free:
-@@ -819,7 +868,7 @@ static void __exit powerclamp_exit(void)
- {
- 	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
- 	end_power_clamp();
--	free_percpu(powerclamp_thread);
-+	free_percpu(worker_data);
- 	thermal_cooling_device_unregister(cooling_dev);
- 	kfree(cpu_clamping_mask);
- 
--- 
-1.8.5.6
+If I understand you correctly, you're saying that that application is
+not written correctly, because it needs to call fsync to persist
+metadata (that it presumably did not modify).  Is that right?
+
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
