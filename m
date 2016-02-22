@@ -1,28 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DD65E82F69
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 11:51:05 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id c10so98551215pfc.2
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 08:51:05 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id u69si40761095pfa.253.2016.02.22.08.51.04
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D31382F69
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 12:34:59 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id ho8so96898543pac.2
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 09:34:59 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id p3si5850355pfi.200.2016.02.22.09.34.58
         for <linux-mm@kvack.org>;
-        Mon, 22 Feb 2016 08:51:04 -0800 (PST)
-Date: Tue, 23 Feb 2016 00:50:22 +0800
+        Mon, 22 Feb 2016 09:34:58 -0800 (PST)
+Date: Tue, 23 Feb 2016 01:33:12 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v5 08/20] kthread: Allow to cancel kthread work
-Message-ID: <201602230025.uuCAc4Tn%fengguang.wu@intel.com>
+Subject: Re: [PATCH v5 10/20] kthread: Better support freezable kthread
+ workers
+Message-ID: <201602230123.XPAUOgW6%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="J/dobhs11T7y2rNN"
+Content-Type: multipart/mixed; boundary="qMm9M+Fa2AknHoGS"
 Content-Disposition: inline
-In-Reply-To: <1456153030-12400-9-git-send-email-pmladek@suse.com>
+In-Reply-To: <1456153030-12400-11-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
 Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
 
---J/dobhs11T7y2rNN
+--qMm9M+Fa2AknHoGS
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -39,191 +40,62 @@ reproduce: make htmldocs
 All warnings (new ones prefixed by >>):
 
    include/linux/init.h:1: warning: no structured comments found
-   kernel/kthread.c:860: warning: No description found for parameter 'dwork'
-   kernel/kthread.c:860: warning: No description found for parameter 'delay'
-   kernel/kthread.c:860: warning: Excess function parameter 'work' description in 'queue_delayed_kthread_work'
->> kernel/kthread.c:1012: warning: bad line: 
+>> kernel/kthread.c:671: warning: No description found for parameter 'flags'
+   kernel/kthread.c:700: warning: No description found for parameter 'flags'
+   kernel/kthread.c:866: warning: No description found for parameter 'dwork'
+   kernel/kthread.c:866: warning: No description found for parameter 'delay'
+   kernel/kthread.c:866: warning: Excess function parameter 'work' description in 'queue_delayed_kthread_work'
+   kernel/kthread.c:1063: warning: bad line: 
    kernel/sys.c:1: warning: no structured comments found
    drivers/dma-buf/seqno-fence.c:1: warning: no structured comments found
    drivers/dma-buf/reservation.c:1: warning: no structured comments found
    include/linux/reservation.h:1: warning: no structured comments found
    include/linux/spi/spi.h:540: warning: No description found for parameter 'max_transfer_size'
 
-vim +1012 kernel/kthread.c
+vim +/flags +671 kernel/kthread.c
 
-   854	 * either the timer was running or the work was queued. It returns %true
-   855	 * otherwise.
-   856	 */
-   857	bool queue_delayed_kthread_work(struct kthread_worker *worker,
-   858					struct delayed_kthread_work *dwork,
-   859					unsigned long delay)
- > 860	{
-   861		struct kthread_work *work = &dwork->work;
-   862		unsigned long flags;
-   863		bool ret = false;
-   864	
-   865		spin_lock_irqsave(&worker->lock, flags);
-   866	
-   867		if (!queuing_blocked(work)) {
-   868			__queue_delayed_kthread_work(worker, dwork, delay);
-   869			ret = true;
-   870		}
-   871	
-   872		spin_unlock_irqrestore(&worker->lock, flags);
-   873		return ret;
-   874	}
-   875	EXPORT_SYMBOL_GPL(queue_delayed_kthread_work);
-   876	
-   877	struct kthread_flush_work {
-   878		struct kthread_work	work;
-   879		struct completion	done;
-   880	};
-   881	
-   882	static void kthread_flush_work_fn(struct kthread_work *work)
-   883	{
-   884		struct kthread_flush_work *fwork =
-   885			container_of(work, struct kthread_flush_work, work);
-   886		complete(&fwork->done);
-   887	}
-   888	
-   889	/**
-   890	 * flush_kthread_work - flush a kthread_work
-   891	 * @work: work to flush
-   892	 *
-   893	 * If @work is queued or executing, wait for it to finish execution.
-   894	 */
-   895	void flush_kthread_work(struct kthread_work *work)
-   896	{
-   897		struct kthread_flush_work fwork = {
-   898			KTHREAD_WORK_INIT(fwork.work, kthread_flush_work_fn),
-   899			COMPLETION_INITIALIZER_ONSTACK(fwork.done),
-   900		};
-   901		struct kthread_worker *worker;
-   902		bool noop = false;
-   903	
-   904		worker = work->worker;
-   905		if (!worker)
-   906			return;
-   907	
-   908		spin_lock_irq(&worker->lock);
-   909		/* Work must not be used with more workers, see queue_kthread_work(). */
-   910		WARN_ON_ONCE(work->worker != worker);
-   911	
-   912		if (!list_empty(&work->node))
-   913			insert_kthread_work(worker, &fwork.work, work->node.next);
-   914		else if (worker->current_work == work)
-   915			insert_kthread_work(worker, &fwork.work, worker->work_list.next);
-   916		else
-   917			noop = true;
-   918	
-   919		spin_unlock_irq(&worker->lock);
-   920	
-   921		if (!noop)
-   922			wait_for_completion(&fwork.done);
-   923	}
-   924	EXPORT_SYMBOL_GPL(flush_kthread_work);
-   925	
-   926	/*
-   927	 * This function removes the work from the worker queue. Also it makes sure
-   928	 * that it won't get queued later via the delayed work's timer.
-   929	 *
-   930	 * The work might still be in use when this function finishes. See the
-   931	 * current_work proceed by the worker.
-   932	 *
-   933	 * Return: %true if @work was pending and successfully canceled,
-   934	 *	%false if @work was not pending
-   935	 */
-   936	static bool __cancel_kthread_work(struct kthread_work *work, bool is_dwork)
-   937	{
-   938		/* Try to cancel the timer if exists. */
-   939		if (is_dwork) {
-   940			struct delayed_kthread_work *dwork =
-   941				container_of(work, struct delayed_kthread_work, work);
-   942	
-   943			del_timer_sync(&dwork->timer);
-   944		}
-   945	
-   946		/*
-   947		 * Try to remove the work from a worker list. It might either
-   948		 * be from worker->work_list or from worker->delayed_work_list.
-   949		 *
-   950		 * Note that the work is still in the delayed list when del_timer_sync()
-   951		 * raced with the timer callback. In this case the callback was not able
-   952		 * to take the lock and move the work to the normal list.
-   953		 */
-   954		if (!list_empty(&work->node)) {
-   955			list_del_init(&work->node);
-   956			return true;
-   957		}
-   958	
-   959		return false;
-   960	}
-   961	
-   962	static bool __cancel_kthread_work_sync(struct kthread_work *work, bool is_dwork)
-   963	{
-   964		struct kthread_worker *worker = work->worker;
-   965		unsigned long flags;
-   966		int ret = false;
-   967	
-   968		if (!worker)
-   969			goto out;
-   970	
-   971		spin_lock_irqsave(&worker->lock, flags);
-   972		/* Work must not be used with more workers, see queue_kthread_work(). */
-   973		WARN_ON_ONCE(worker != work->worker);
-   974	
-   975		/*
-   976		 * work->canceling has two functions here. It blocks queueing until
-   977		 * the cancel operation is complete. Also it tells the timer callback
-   978		 * that it cannot take the worker lock. It prevents a deadlock between
-   979		 * the callback and del_timer_sync().
-   980		 */
-   981		work->canceling++;
-   982		ret = __cancel_kthread_work(work, is_dwork);
-   983	
-   984		if (worker->current_work != work)
-   985			goto out_fast;
-   986	
-   987		spin_unlock_irqrestore(&worker->lock, flags);
-   988		flush_kthread_work(work);
-   989		/*
-   990		 * Nobody is allowed to switch the worker or queue the work
-   991		 * when .canceling is set.
-   992		 */
-   993		spin_lock_irqsave(&worker->lock, flags);
-   994	
-   995	out_fast:
-   996		work->canceling--;
-   997		spin_unlock_irqrestore(&worker->lock, flags);
-   998	out:
-   999		return ret;
-  1000	}
-  1001	
-  1002	/**
-  1003	 * cancel_kthread_work_sync - cancel a kthread work and wait for it to finish
-  1004	 * @work: the kthread work to cancel
-  1005	 *
-  1006	 * Cancel @work and wait for its execution to finish.  This function
-  1007	 * can be used even if the work re-queues itself. On return from this
-  1008	 * function, @work is guaranteed to be not pending or executing on any CPU.
-  1009	 *
-  1010	 * cancel_kthread_work_sync(&delayed_work->work) must not be used for
-  1011	 * delayed_work's. Use cancel_delayed_kthread_work_sync() instead.
-> 1012	
-  1013	 * The caller must ensure that the worker on which @work was last
-  1014	 * queued can't be destroyed before this function returns.
-  1015	 *
+bf63ca4b Petr Mladek 2016-02-22  655  
+bf63ca4b Petr Mladek 2016-02-22  656  fail_task:
+bf63ca4b Petr Mladek 2016-02-22  657  	kfree(worker);
+bf63ca4b Petr Mladek 2016-02-22  658  	return ERR_CAST(task);
+bf63ca4b Petr Mladek 2016-02-22  659  }
+bf63ca4b Petr Mladek 2016-02-22  660  
+bf63ca4b Petr Mladek 2016-02-22  661  /**
+bf63ca4b Petr Mladek 2016-02-22  662   * create_kthread_worker - create a kthread worker
+bf63ca4b Petr Mladek 2016-02-22  663   * @namefmt: printf-style name for the kthread worker (task).
+bf63ca4b Petr Mladek 2016-02-22  664   *
+bf63ca4b Petr Mladek 2016-02-22  665   * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
+bf63ca4b Petr Mladek 2016-02-22  666   * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
+bf63ca4b Petr Mladek 2016-02-22  667   * when the worker was SIGKILLed.
+bf63ca4b Petr Mladek 2016-02-22  668   */
+bf63ca4b Petr Mladek 2016-02-22  669  struct kthread_worker *
+28590586 Petr Mladek 2016-02-22  670  create_kthread_worker(unsigned int flags, const char namefmt[], ...)
+bf63ca4b Petr Mladek 2016-02-22 @671  {
+bf63ca4b Petr Mladek 2016-02-22  672  	struct kthread_worker *worker;
+bf63ca4b Petr Mladek 2016-02-22  673  	va_list args;
+bf63ca4b Petr Mladek 2016-02-22  674  
+bf63ca4b Petr Mladek 2016-02-22  675  	va_start(args, namefmt);
+28590586 Petr Mladek 2016-02-22  676  	worker = __create_kthread_worker(-1, flags, namefmt, args);
+bf63ca4b Petr Mladek 2016-02-22  677  	va_end(args);
+bf63ca4b Petr Mladek 2016-02-22  678  
+bf63ca4b Petr Mladek 2016-02-22  679  	return worker;
+
+:::::: The code at line 671 was first introduced by commit
+:::::: bf63ca4b5dec706d4b88418b06ccdc1a754b25e4 kthread: Add create_kthread_worker*()
+
+:::::: TO: Petr Mladek <pmladek@suse.com>
+:::::: CC: 0day robot <fengguang.wu@intel.com>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---J/dobhs11T7y2rNN
+--qMm9M+Fa2AknHoGS
 Content-Type: application/octet-stream
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICAM6y1YAAy5jb25maWcAjDxbb+M2s+/9FcL2PLTA2VuSzbfFQR5oibJYi5IqUraTF8F1
+H4sICOpDy1YAAy5jb25maWcAjDxbb+M2s+/9FcL2PLTA2VuSzbfFQR5oibJYi5IqUraTF8F1
 lF2jiZ3Pl3b3358ZUrJuQ28LLBpzhrfh3DnUzz/97LHTcfeyOm7Wq+fn796XalvtV8fq0Xva
 PFf/5wWpl6Ta44HQ7wA53mxP395vrj/fejfvPr378Ha/vvFm1X5bPXv+bvu0+XKC3pvd9qef
 AdtPk1BMy9ubidDe5uBtd0fvUB1/qtuXn2/L66u7753f7Q+RKJ0XvhZpUgbcTwOet8C00Fmh
@@ -340,7 +212,7 @@ FrNSDd3J5yWIyC0eDZR8l0Z2MDIfmBXuFt04R0kQSKwhzeAGtd1LPo04X0hvNgNNpXkXJ+lA
 oxbTu9wl8sEpFYsDX6yl6IfSZzr0HKi52m/hlEphYGan/MP9Xt6HsKyfqgG1MLpyYXqgI+wC
 WuGVKd5MHLIQ/AcZvcJ7UVgAAA==
 
---J/dobhs11T7y2rNN--
+--qMm9M+Fa2AknHoGS--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
