@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D636B0257
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 13:52:33 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id y89so118432380qge.2
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:52:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q66si19716580qgd.93.2016.02.22.10.52.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Feb 2016 10:52:32 -0800 (PST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-References: <56C9EDCF.8010007@plexistor.com>
-	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
-	<56CA1CE7.6050309@plexistor.com>
-	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
-	<56CA2AC9.7030905@plexistor.com>
-	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
-	<20160221223157.GC25832@dastard>
-	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
-	<20160222174426.GA30110@infradead.org>
-	<x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
-	<20160222180350.GA9866@infradead.org>
-Date: Mon, 22 Feb 2016 13:52:28 -0500
-In-Reply-To: <20160222180350.GA9866@infradead.org> (Christoph Hellwig's
-	message of "Mon, 22 Feb 2016 10:03:50 -0800")
-Message-ID: <x49twl060ib.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A23AD6B0266
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 13:59:40 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fl4so95558358pad.0
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:59:40 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id af6si41329226pad.226.2016.02.22.10.59.39
+        for <linux-mm@kvack.org>;
+        Mon, 22 Feb 2016 10:59:39 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v4 0/5] DAX fixes, move flushing calls to FS
+Date: Mon, 22 Feb 2016 11:59:17 -0700
+Message-Id: <1456167562-28576-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Jens Axboe <axboe@kernel.dk>, Matthew Wilcox <willy@linux.intel.com>, linux-block@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, xfs@oss.sgi.com
 
-Christoph Hellwig <hch@infradead.org> writes:
+Changes since v3:
+- Added Reviewed-by tags from Jan Kara.
+- Dropped patch 6, "block: use dax_do_io() if blkdev_dax_capable()"
 
-> On Mon, Feb 22, 2016 at 12:58:18PM -0500, Jeff Moyer wrote:
->> Sorry for being dense, but why, exactly?  If the file system is making
->> changes without the application's involvement, then the file system
->> should be responsible for ensuring its own consistency, irrespective of
->> whether the application issues an fsync.  Clearly I'm missing some key
->> point here.
->
-> The simplest example is a copy on write file system (or simply a copy on
-> write file, which can exist with ocfs2 and will with xfs very soon),
-> where each write will allocate a new block, which will require metadata
-> updates.
->
-> We've built the whole I/O model around the concept that by default our
-> I/O will required fsync/msync.  For read/write-style I/O you can opt out
-> using O_DSYNC.  There currently is no way to opt out for memory mapped
-> I/O, mostly because it's
->
->   a) useless without something like DAX, and
->   b) much harder to implement
->
-> So a MAP_SYNC option might not be entirely off the table, but I think
-> it would be a lot of hard work and I'm not even sure it's possible
-> to handle it in the general case.
+I believe that this series is ready for inclusion in v4.5.  I think it
+should be merged for v4.5 because it fixes serious issues with the DAX code
+including possible data corruption and kernel OOPSes.
 
-I see.  So, at write fault time, you're saying that new blocks may be
-allocated, and that in order to make that persistent, we need a sync
-operation.  Presumably this MAP_SYNC option could sync out the necessary
-metadata updates to the log before returning from the write fault
-handler.  The arguments against making this work are that it isn't
-generally useful, and that we don't want more dax special cases in the
-code.  Did I get that right?
+akpm, for the v4.5 merge do you want these patches to go through the -mm
+tree, or would it be better if I just sent them to Linus directly?
 
-Thanks,
-Jeff
+A working tree can be found here:
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=fsync_bdev_v4
+
+---
+Previous summary with issue impacts added:
+
+This patch series fixes several issues with the current DAX code:
+
+1) DAX is used by default on raw block devices that are capable of
+supporting it.  This creates an issue because there are still uses of the
+block device that use the page cache, and having one block device user
+doing DAX I/O and another doing page cache I/O can lead to data corruption.
+
+2) When S_DAX is set on an inode we assume that if there are pages attached
+to the mapping (mapping->nrpages != 0), those pages are clean zero pages
+that were used to service reads from holes.  This wasn't true in all cases.
+
+3) ext4 online defrag combined with DAX I/O could lead to data corruption.
+
+4) The DAX block/sector zeroing code needs a valid struct block_device,
+which it wasn't always getting.  This could lead to a kernel OOPS.
+
+5) The DAX writeback code needs a valid struct block_device, which it
+wasn't always getting.  This could lead to a kernel OOPS.
+
+6) The DAX writeback code needs to be called for sync(2) and syncfs(2).
+This could lead to data loss.
+
+Dan Williams (1):
+  block: disable block device DAX by default
+
+Ross Zwisler (4):
+  ext2, ext4: only set S_DAX for regular inodes
+  ext4: Online defrag not supported with DAX
+  dax: give DAX clearing code correct bdev
+  dax: move writeback calls into the filesystems
+
+ block/Kconfig          | 13 +++++++++++++
+ fs/block_dev.c         | 19 +++++++++++++++++--
+ fs/dax.c               | 21 +++++++++++----------
+ fs/ext2/inode.c        | 16 +++++++++++++---
+ fs/ext4/inode.c        |  6 +++++-
+ fs/ext4/ioctl.c        |  5 +++++
+ fs/xfs/xfs_aops.c      |  6 +++++-
+ fs/xfs/xfs_aops.h      |  1 +
+ fs/xfs/xfs_bmap_util.c |  3 ++-
+ include/linux/dax.h    |  8 +++++---
+ mm/filemap.c           | 12 ++++--------
+ 11 files changed, 81 insertions(+), 29 deletions(-)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
