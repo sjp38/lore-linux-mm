@@ -1,142 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AA6A6B0254
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 04:57:45 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id g62so163648737wme.1
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 01:57:45 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id vl10si36838062wjc.75.2016.02.22.01.57.44
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D0FF96B0256
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 05:42:09 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id ho8so91744113pac.2
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 02:42:09 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id y29si39001190pfa.174.2016.02.22.02.42.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Feb 2016 01:57:44 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id g62so149106263wme.0
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 01:57:44 -0800 (PST)
-Message-ID: <56CADB95.4080701@plexistor.com>
-Date: Mon, 22 Feb 2016 11:57:41 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+        Mon, 22 Feb 2016 02:42:08 -0800 (PST)
+Received: by mail-pa0-x22b.google.com with SMTP id ho8so91743864pac.2
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 02:42:08 -0800 (PST)
+Date: Mon, 22 Feb 2016 19:43:25 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCH v2 3/3] mm/zsmalloc: increase ZS_MAX_PAGES_PER_ZSPAGE
+Message-ID: <20160222104325.GA4859@swordfish>
+References: <1456061274-20059-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1456061274-20059-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <20160222002515.GB21710@bbox>
+ <20160222004758.GB4958@swordfish>
+ <20160222013442.GB27829@bbox>
+ <20160222020113.GB488@swordfish>
+ <20160222023432.GC27829@bbox>
+ <20160222035954.GC11961@swordfish>
+ <20160222044145.GE27829@bbox>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-References: <56C9EDCF.8010007@plexistor.com> <CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com> <56CA1CE7.6050309@plexistor.com> <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com> <56CA2AC9.7030905@plexistor.com> <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com> <20160221223157.GC25832@dastard>
-In-Reply-To: <20160221223157.GC25832@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160222044145.GE27829@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/22/2016 12:31 AM, Dave Chinner wrote:
-> On Sun, Feb 21, 2016 at 02:03:43PM -0800, Dan Williams wrote:
->> On Sun, Feb 21, 2016 at 1:23 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
->>> On 02/21/2016 10:57 PM, Dan Williams wrote:
->>>> On Sun, Feb 21, 2016 at 12:24 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
->>>>> On 02/21/2016 09:51 PM, Dan Williams wrote:
->>> Sure. please have a look. What happens is that the legacy app
->>> will add the page to the radix tree, come the fsync it will be
->>> flushed. Even though a "new-type" app might fault on the same page
->>> before or after, which did not add it to the radix tree.
->>> So yes, all pages faulted by legacy apps will be flushed.
->>>
->>> I have manually tested all this and it seems to work. Can you see
->>> a theoretical scenario where it would not?
->>
->> I'm worried about the scenario where the pmem aware app assumes that
->> none of the cachelines in its mapping are dirty when it goes to issue
->> pcommit.  We'll have two applications with different perceptions of
->> when writes are durable.  Maybe it's not a problem in practice, at
->> least current generation x86 cpus flush existing dirty cachelines when
->> performing non-temporal stores.  However, it bothers me that there are
->> cpus where a pmem-unaware app could prevent a pmem-aware app from
->> making writes durable.  It seems if one app has established a
->> MAP_PMEM_AWARE mapping it needs guarantees that all apps participating
->> in that shared mapping have the same awareness.
+On (02/22/16 13:41), Minchan Kim wrote:
+[..]
+> > oh, sure.
+> > 
+> > so let's keep dynamic page allocation out of sight for now.
+> > I'll do more tests with the increase ORDER and if it's OK then
+> > hopefully we can just merge it, it's quite simple and shouldn't
+> > interfere with any of the changes you are about to introduce.
 > 
-> Which, in practice, cannot work. Think cp, rsync, or any other
-> program a user can run that can read the file the MAP_PMEM_AWARE
-> application is using.
+> Thanks.
 > 
+> And as another idea, we could try fallback approach that
+> we couldn't meet nr_pages to minimize wastage so let's fallback
+> to order-0 page like as-is. It will enhance, at least than now
+> with small-amount of code compared to dynmaic page allocation.
 
-Yes what of it? nothing will happen, it all just works.
 
-Perhaps you did not understand, we are talking about DAX mapped
-file. Not a combination of dax vs page-cached system.
+speaking of fallback,
+with bigger ZS_MAX_ZSPAGE_ORDER 'normal' classes also become bigger.
 
-One thread stores a value X in memory movnt style, one thread pocks
-the same X value from memory, CPUs do this all the time. What of it?
+PATCHED
 
->> Another potential issue is that MAP_PMEM_AWARE is not enough on its
->> own.  If the filesystem or inode does not support DAX the application
->> needs to assume page cache semantics.  At a minimum MAP_PMEM_AWARE
->> requests would need to fail if DAX is not available.
+     6   128           0            1            96         78          3                1
+     7   144           0            1           256        104          9                9
+     8   160           0            1           128         80          5                5
+     9   176           0            1           256         78         11               11
+    10   192           1            1           128         99          6                3
+    11   208           0            1           256         52         13               13
+    12   224           1            1           512        472         28                7
+    13   240           0            1           256         70         15               15
+    14   256           1            1            64         49          4                1
+    15   272           0            1            60         48          4                1
 
-DAN this is a good Idea. I will add it. In a system perspective this
-is not needed. In fact today what will happen if you load nvml on a
-none -dax mounted fs? nothing will work at all even though at the
-beginning the all data seems to be there. right?
-But I think with this here it is a chance for us to let nvml unload
-gracefully before any destructive changes are made.
 
-> 
-> They will always still need to call msync()/fsync() to guarantee
-> data integrity, because the filesystem metadata that indexes the
-> data still needs to be committed before data integrity can be
-> guaranteed. i.e. MAP_PMEM_AWARE by itself it not sufficient for data
-> integrity, and so the app will have to be written like any other app
-> that uses page cache based mmap().
-> 
+BASE
 
-Sure yes. I agree completely. msync()/fsync() will need to be called.
+     6   128           0            1            96         83          3                1
+     7   144           0            1           170        113          6                3
+     8   160           0            1           102         72          4                2
+     9   176           1            0            93         75          4                4
+    10   192           0            1           128        104          6                3
+    11   208           1            1            78         52          4                2
+    12   224           1            1           511        475         28                4
+    13   240           1            1            85         73          5                1
+    14   256           1            1            64         53          4                1
+    15   272           1            0            45         43          3                1
 
-I apologize, you have missed the motivation of this patch because I
-did not explain very good. Our motivation is speed.
 
-One can have durable data by:
-1. Doing movnt  - Done and faster then memcpy even
-2. radix-tree-add; memcpy; cl_flush;
-   Surly this one is much slower lock heavy, and resource consuming.
-   Our micro benchmarks show 3-8 times slowness. (memory speeds remember)
+_techically_, zsmalloc is correct.
+for instance, in 11 pages we can store 4096 * 11 / 176 == 256 objects.
+256 * 176 == 45056, which is 4096 * 11. so if zspage for class_size 176 will contain 11
+order-0 pages, we can count on 0 bytes of unused space once zspage will become ZS_FULL.
 
-So sure a MAP_PMEM_AWARE *must* call m/fsync() for data integrity but
-will not pay the "slow" price at all, it will all be very fast because
-the o(n) radix-tree management+traversal+cl_flush will not be there, only
-the meta-data bits will sync.
+but it's ugly, because I think this will introduce bigger internal fragmentation, which,
+in some cases, can be handled by compaction, but I'd prefer to touch only ->huge classes
+and keep the existing behaviour for normal classes.
 
-> Indeed, the application cannot even assume that a fully allocated
-> file does not require msync/fsync because the filesystem may be
-> doing things like dedupe, defrag, copy on write, etc behind the back
-> of the application and so file metadata changes may still be in
-> volatile RAM even though the application has flushed it's data.
-> Applications have no idea what the underlying filesystem and storage
-> is doing and so they cannot assume that complete data integrity is
-> provided by userspace driven CPU cache flush instructions on their
-> file data.
-> 
+so I'm currently thinking of doing something like this
 
-Exactly, m/fsync() is needed, only will be much *faster*
+#define ZS_MAX_ZSPAGE_ORDER	2
+#define ZS_MAX_HUGE_ZSPAGE_ORDER	4
+#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
+#define ZS_MAX_PAGES_PER_HUGE_ZSPAGE (_AC(1, UL) << ZS_MAX_HUGE_ZSPAGE_ORDER)
 
-> This "pmem aware applications only need to commit their data"
-> thinking is what got us into this mess in the first place. It's
-> wrong, and we need to stop trying to make pmem work this way because
-> it's a fundamentally broken concept.
-> 
 
-Hey sir Dave, Please hold your horses. What mess are you talking about?
-there is no mess. All We are trying to do is enable model [1] above vs
-current model [2], which costs a lot.
+so, normal classes have ORDER of 2. huge classes, however, as a fallback, can grow
+up to ZS_MAX_HUGE_ZSPAGE_ORDER pages.
 
-Every bit of data integrity and FS freedom to manage data behind the
-scenes, is kept intact.
-	YES apps need to fsync!
 
-Thank you, I will add this warning in the next submission. To explain
-better.
+extend only ->huge classes: pages == 1 && get_maxobj_per_zspage(class_size, pages) == 1.
 
-> Cheers,
-> Dave.
-> 
+like this:
 
-Cheers
-Boaz
+static int __get_pages_per_zspage(int class_size, int max_pages)
+{
+        int i, max_usedpc = 0;
+        /* zspage order which gives maximum used size per KB */
+        int max_usedpc_order = 1;
+
+        for (i = 1; i <= max_pages; i++) {
+                int zspage_size;
+                int waste, usedpc;
+
+                zspage_size = i * PAGE_SIZE;
+                waste = zspage_size % class_size;
+                usedpc = (zspage_size - waste) * 100 / zspage_size;
+
+                if (usedpc > max_usedpc) {
+                        max_usedpc = usedpc;
+                        max_usedpc_order = i;
+                }
+        }
+
+        return max_usedpc_order;
+}
+
+static int get_pages_per_zspage(int class_size)
+{
+        /* normal class first */
+        int pages = __get_pages_per_zspage(class_size,
+                        ZS_MAX_PAGES_PER_ZSPAGE);
+
+        /* test if the class is ->huge and try to turn it into a normal one */
+        if (pages == 1 &&
+                        get_maxobj_per_zspage(class_size, pages) == 1) {
+                pages = __get_pages_per_zspage(class_size,
+                                ZS_MAX_PAGES_PER_HUGE_ZSPAGE);
+        }
+
+        return pages;
+}
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
