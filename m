@@ -1,129 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id F19CF82F69
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 13:10:54 -0500 (EST)
-Received: by mail-io0-f169.google.com with SMTP id 9so187719903iom.1
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:10:54 -0800 (PST)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id 89si42258138iok.84.2016.02.22.10.10.54
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 43D636B0257
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 13:52:33 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id y89so118432380qge.2
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:52:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q66si19716580qgd.93.2016.02.22.10.52.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Feb 2016 10:10:54 -0800 (PST)
-Message-Id: <20160222181049.953663183@linux.com>
-Date: Mon, 22 Feb 2016 12:10:42 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [patch 2/2] vmstat: Get rid of the ugly cpu_stat_off variable
-References: <20160222181040.553533936@linux.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=vmstat_no_cpu_off
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Feb 2016 10:52:32 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+References: <56C9EDCF.8010007@plexistor.com>
+	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
+	<56CA1CE7.6050309@plexistor.com>
+	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+	<56CA2AC9.7030905@plexistor.com>
+	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+	<20160221223157.GC25832@dastard>
+	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+	<20160222174426.GA30110@infradead.org>
+	<x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
+	<20160222180350.GA9866@infradead.org>
+Date: Mon, 22 Feb 2016 13:52:28 -0500
+In-Reply-To: <20160222180350.GA9866@infradead.org> (Christoph Hellwig's
+	message of "Mon, 22 Feb 2016 10:03:50 -0800")
+Message-ID: <x49twl060ib.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@kernel.org>, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, hannes@cmpxchg.org, mgorman@suse.de
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The cpu_stat_off variable is unecessary since we can check if
-a workqueue request is pending otherwise. This makes it pretty
-easy for the shepherd to ensure that the proper things happen.
+Christoph Hellwig <hch@infradead.org> writes:
 
-Removing the state also removes all races related to it.
-Should a workqueue not be scheduled as needed for vmstat_update
-then the shepherd will notice and schedule it as needed.
-Should a workqueue be unecessarily scheduled then the vmstat
-updater will disable it.
+> On Mon, Feb 22, 2016 at 12:58:18PM -0500, Jeff Moyer wrote:
+>> Sorry for being dense, but why, exactly?  If the file system is making
+>> changes without the application's involvement, then the file system
+>> should be responsible for ensuring its own consistency, irrespective of
+>> whether the application issues an fsync.  Clearly I'm missing some key
+>> point here.
+>
+> The simplest example is a copy on write file system (or simply a copy on
+> write file, which can exist with ocfs2 and will with xfs very soon),
+> where each write will allocate a new block, which will require metadata
+> updates.
+>
+> We've built the whole I/O model around the concept that by default our
+> I/O will required fsync/msync.  For read/write-style I/O you can opt out
+> using O_DSYNC.  There currently is no way to opt out for memory mapped
+> I/O, mostly because it's
+>
+>   a) useless without something like DAX, and
+>   b) much harder to implement
+>
+> So a MAP_SYNC option might not be entirely off the table, but I think
+> it would be a lot of hard work and I'm not even sure it's possible
+> to handle it in the general case.
 
-Thus vmstat_idle can also be simplified.
+I see.  So, at write fault time, you're saying that new blocks may be
+allocated, and that in order to make that persistent, we need a sync
+operation.  Presumably this MAP_SYNC option could sync out the necessary
+metadata updates to the log before returning from the write fault
+handler.  The arguments against making this work are that it isn't
+generally useful, and that we don't want more dax special cases in the
+code.  Did I get that right?
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2016-02-22 11:55:59.432096146 -0600
-+++ linux/mm/vmstat.c	2016-02-22 12:01:22.883825094 -0600
-@@ -1401,7 +1401,6 @@ static const struct file_operations proc
- static struct workqueue_struct *vmstat_wq;
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
--static cpumask_var_t cpu_stat_off;
- 
- static void vmstat_update(struct work_struct *w)
- {
-@@ -1414,15 +1413,6 @@ static void vmstat_update(struct work_st
- 		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
- 			this_cpu_ptr(&vmstat_work),
- 			round_jiffies_relative(sysctl_stat_interval));
--	} else {
--		/*
--		 * We did not update any counters so the app may be in
--		 * a mode where it does not cause counter updates.
--		 * We may be uselessly running vmstat_update.
--		 * Defer the checking for differentials to the
--		 * shepherd thread on a different processor.
--		 */
--		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
- 	}
- }
- 
-@@ -1436,11 +1426,8 @@ void quiet_vmstat(void)
- 	if (system_state != SYSTEM_RUNNING)
- 		return;
- 
--	do {
--		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
--			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
--
--	} while (refresh_cpu_vm_stats(false));
-+	refresh_cpu_vm_stats(false);
-+	cancel_delayed_work(this_cpu_ptr(&vmstat_work));
- }
- 
- /*
-@@ -1476,13 +1463,12 @@ static void vmstat_shepherd(struct work_
- 
- 	get_online_cpus();
- 	/* Check processors whose vmstat worker threads have been disabled */
--	for_each_cpu(cpu, cpu_stat_off)
--		if (need_update(cpu) &&
--			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
--
--			queue_delayed_work_on(cpu, vmstat_wq,
--				&per_cpu(vmstat_work, cpu), 0);
-+	for_each_online_cpu(cpu) {
-+		struct delayed_work *worker = &per_cpu(vmstat_work, cpu);
- 
-+		if (!delayed_work_pending(worker) && need_update(cpu))
-+			queue_delayed_work_on(cpu, vmstat_wq, worker, 0);
-+	}
- 	put_online_cpus();
- 
- 	schedule_delayed_work(&shepherd,
-@@ -1498,10 +1484,6 @@ static void __init start_shepherd_timer(
- 		INIT_DELAYED_WORK(per_cpu_ptr(&vmstat_work, cpu),
- 			vmstat_update);
- 
--	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
--		BUG();
--	cpumask_copy(cpu_stat_off, cpu_online_mask);
--
- 	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
- 	schedule_delayed_work(&shepherd,
- 		round_jiffies_relative(sysctl_stat_interval));
-@@ -1536,16 +1518,13 @@ static int vmstat_cpuup_callback(struct
- 	case CPU_ONLINE_FROZEN:
- 		refresh_zone_stat_thresholds();
- 		node_set_state(cpu_to_node(cpu), N_CPU);
--		cpumask_set_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
- 		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
--		cpumask_clear_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DOWN_FAILED:
- 	case CPU_DOWN_FAILED_FROZEN:
--		cpumask_set_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DEAD:
- 	case CPU_DEAD_FROZEN:
+Thanks,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
