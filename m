@@ -1,92 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B42882F69
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 12:58:22 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id b35so116887187qge.0
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 09:58:22 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p2si20209678qhp.37.2016.02.22.09.58.21
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A5C682F69
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 13:03:53 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id q63so96315196pfb.0
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 10:03:53 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id ze7si36639793pac.34.2016.02.22.10.03.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Feb 2016 09:58:21 -0800 (PST)
-From: Jeff Moyer <jmoyer@redhat.com>
+        Mon, 22 Feb 2016 10:03:52 -0800 (PST)
+Date: Mon, 22 Feb 2016 10:03:50 -0800
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160222180350.GA9866@infradead.org>
 References: <56C9EDCF.8010007@plexistor.com>
-	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
-	<56CA1CE7.6050309@plexistor.com>
-	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
-	<56CA2AC9.7030905@plexistor.com>
-	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
-	<20160221223157.GC25832@dastard>
-	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
-	<20160222174426.GA30110@infradead.org>
-Date: Mon, 22 Feb 2016 12:58:18 -0500
-In-Reply-To: <20160222174426.GA30110@infradead.org> (Christoph Hellwig's
-	message of "Mon, 22 Feb 2016 09:44:26 -0800")
-Message-ID: <x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
+ <56CA1CE7.6050309@plexistor.com>
+ <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+ <56CA2AC9.7030905@plexistor.com>
+ <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+ <20160221223157.GC25832@dastard>
+ <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+ <20160222174426.GA30110@infradead.org>
+ <x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi, Christoph,
+On Mon, Feb 22, 2016 at 12:58:18PM -0500, Jeff Moyer wrote:
+> Sorry for being dense, but why, exactly?  If the file system is making
+> changes without the application's involvement, then the file system
+> should be responsible for ensuring its own consistency, irrespective of
+> whether the application issues an fsync.  Clearly I'm missing some key
+> point here.
 
-Christoph Hellwig <hch@infradead.org> writes:
+The simplest example is a copy on write file system (or simply a copy on
+write file, which can exist with ocfs2 and will with xfs very soon),
+where each write will allocate a new block, which will require metadata
+updates.
 
-> On Mon, Feb 22, 2016 at 10:34:45AM -0500, Jeff Moyer wrote:
->> > of the application and so file metadata changes may still be in
->> > volatile RAM even though the application has flushed it's data.
->> 
->> Once you hand out a persistent memory mapping, you sure as heck can't
->> switch blocks around behind the back of the application.
->
-> You might not even have allocated the blocks at the time of the mmap,
-> although for pmem remapping it after a page fault has actually allocated
-> the block would be rather painful.
+We've built the whole I/O model around the concept that by default our
+I/O will required fsync/msync.  For read/write-style I/O you can opt out
+using O_DSYNC.  There currently is no way to opt out for memory mapped
+I/O, mostly because it's
 
-Right, I meant after fault, but it seems like you're suggesting that
-that is even possible.  I wouldn't mind discussing this part more, but I
-think it detracts from the main question I have, which is at the end.
-Maybe we can take it up over beers some time.
+  a) useless without something like DAX, and
+  b) much harder to implement
 
->> But even if we're not dealing with persistent memory, you seem to imply
->> that applications needs to fsync just in case the file system did
->> something behind its back.  In other words, an application opening a
->> fully allocated file and using fdatasync will also need to call fsync,
->> just in case.  Is that really what you're suggesting?
->
-> You above statement looks rather confused.  The only difference between
-> fdatasync and sync is that the former does not write out metadata not
-> required to find the file data (usually that's just timestamps).  So if
-> you already use fdatasync or msync properly you don't need to fsync
-> again.  But you need to use one of the above methods to ensure your
-> data is persistent on the medium.
-
-Duh, yeah.  I forgot about the "metadata necessary to find the file
-data" part (which is, admittedly, a big part).
-
->> An application creates a file and writes to every single block in the
->> thing, sync's it, closes it.  It then opens it back up, calls mmap with
->> this new MAP_DAX flag or on a file system mounted with -o dax, and
->> proceeds to access the file using loads and stores.  It persists its
->> data by using non-temporal stores, flushing and fencing cpu
->> instructions.
->> 
->> If I understand you correctly, you're saying that that application is
->> not written correctly, because it needs to call fsync to persist
->> metadata (that it presumably did not modify).  Is that right?
->
-> Exactly.
-
-Sorry for being dense, but why, exactly?  If the file system is making
-changes without the application's involvement, then the file system
-should be responsible for ensuring its own consistency, irrespective of
-whether the application issues an fsync.  Clearly I'm missing some key
-point here.
-
--Jeff
+So a MAP_SYNC option might not be entirely off the table, but I think
+it would be a lot of hard work and I'm not even sure it's possible
+to handle it in the general case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
