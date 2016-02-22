@@ -1,73 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8610F6B0009
-	for <linux-mm@kvack.org>; Sun, 21 Feb 2016 21:34:22 -0500 (EST)
-Received: by mail-ig0-f173.google.com with SMTP id 5so72695350igt.0
-        for <linux-mm@kvack.org>; Sun, 21 Feb 2016 18:34:22 -0800 (PST)
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA3A6B0254
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2016 21:56:56 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id hb3so68474452igb.0
+        for <linux-mm@kvack.org>; Sun, 21 Feb 2016 18:56:56 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 69si37651726ioc.181.2016.02.21.18.34.21
+        by mx.google.com with ESMTP id t7si5557088igk.68.2016.02.21.18.56.54
         for <linux-mm@kvack.org>;
-        Sun, 21 Feb 2016 18:34:22 -0800 (PST)
-Date: Mon, 22 Feb 2016 11:34:32 +0900
+        Sun, 21 Feb 2016 18:56:55 -0800 (PST)
+Date: Mon, 22 Feb 2016 11:57:09 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCH v2 3/3] mm/zsmalloc: increase ZS_MAX_PAGES_PER_ZSPAGE
-Message-ID: <20160222023432.GC27829@bbox>
+Subject: Re: [RFC][PATCH v2 2/3] zram: use zs_get_huge_class_size_watermark()
+Message-ID: <20160222025709.GD27829@bbox>
 References: <1456061274-20059-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1456061274-20059-4-git-send-email-sergey.senozhatsky@gmail.com>
- <20160222002515.GB21710@bbox>
- <20160222004758.GB4958@swordfish>
- <20160222013442.GB27829@bbox>
- <20160222020113.GB488@swordfish>
+ <1456061274-20059-3-git-send-email-sergey.senozhatsky@gmail.com>
+ <20160222000436.GA21710@bbox>
+ <20160222004047.GA4958@swordfish>
+ <20160222012758.GA27829@bbox>
+ <20160222015912.GA488@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <20160222020113.GB488@swordfish>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160222015912.GA488@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 22, 2016 at 11:01:13AM +0900, Sergey Senozhatsky wrote:
-> On (02/22/16 10:34), Minchan Kim wrote:
+On Mon, Feb 22, 2016 at 10:59:12AM +0900, Sergey Senozhatsky wrote:
+> On (02/22/16 10:27), Minchan Kim wrote:
 > [..]
-> > > > I tempted it several times with same reason you pointed out.
-> > > > But my worry was that if we increase ZS_MAX_ZSPAGE_ORDER, zram can
-> > > > consume more memory because we need several pages chain to populate
-> > > > just a object. Even, at that time, we didn't have compaction scheme
-> > > > so fragmentation of object in zspage is huge pain to waste memory.
-> > > 
-> > > well, the thing is -- we end up requesting less pages after all, so
-> > > zsmalloc has better chances to survive. for example, gcc5 compilation test
+> > > zram asks to store a PAGE_SIZE sized object, what zsmalloc can
+> > > possible do about this?
 > > 
-> > Indeed. I saw your test result.
-> 
-> 
-> [..]
-> > >  Total               129          489       1627756    1618193     850147
-> > > 
-> > > 
-> > > that's  891703 - 850147 = 41556 less pages. or 162MB less memory used.
-> > > 41556 less pages means that zsmalloc had 41556 less chances to fail.
+> > zsmalloc can increase ZS_MAX_ZSPAGE_ORDER or can save metadata in
+> > the extra space. In fact, I tried interlink approach long time ago.
+> > For example, class-A -> class-B 
 > > 
-> > 
-> > Let's think swap-case which is more important for zram now. As you know,
-> > most of usecase are swap in embedded world.
-> > Do we really need 16 pages allocator for just less PAGE_SIZE objet
-> > at the moment which is really heavy memory pressure?
+> >         A = x, B = (4096 - y) >= x
+> >
+> > The problem was class->B zspage consumes memory although there is
+> > no object in the zspage because class-A object in the extra space
+> > of class-B pin the class-B zspage.
 > 
-> I'll take a look at dynamic class page addition.
+> I thought about it too -- utilizing 'unused space' to store there
+> smaller objects. and I think it potentially has more problems.
+> compaction (and everything) seem to be much simpler when we have only
+> objects of size-X in class_size X.
+> 
+> > I prefer your ZS_MAX_ZSPAGE_ORDER increaing approach but as I told
+> > in that thread, we should prepare dynamic creating of sub-page
+> > in zspage.
+> 
+> I agree that in general dynamic class page allocation sounds
+> interesting enough.
+> 
+> > > > Having said that, I agree your claim that uncompressible pages
+> > > > are pain. I want to handle the problem as multiple-swap apparoach.
+> > > 
+> > > zram is not just for swapping. as simple as that.
+> > 
+> > Yes, I mean if we have backing storage, we could mitigate the problem
+> > like the mentioned approach. Otherwise, we should solve it in allocator
+> > itself and you suggested the idea and I commented first step.
+> > What's the problem, now?
+> 
+> well, I didn't say I have problems.
+> so you want a backing device that will keep only 'bad compression'
+> objects and use zsmalloc to keep there only 'good compression' objects?
+> IOW, no huge classes in zsmalloc at all? well, that can work out. it's
+> a bit strange though that to solve zram-zsmalloc issues we would ask
+> someone to create a additional device. it looks (at least for now) that
+> we can address those issues in zram-zsmalloc entirely; w/o user
+> intervention or a 3rd party device.
 
-Thanks, Sergey.
+Agree. That's what I want. zram shouldn't be aware of allocator's
+internal implementation. IOW, zsmalloc should handle it without
+exposing any internal limitation.
+Backing device issue is orthogonal but what I said about thing
+was it could solve the issue too without exposing zsmalloc's
+limitation to the zram.
 
-Just a note:
+Let's summary my points in here.
 
-I am preparing zsmalloc migration now and almost done so I hope
-I can send it within two weeks. In there, I changed a lot of
-things in zsmalloc, page chaining, struct page fields usecases
-and locking scheme and so on. The zsmalloc fragment/migration
-is really painful now so we should solve it first so I hope
-you help to review that and let's go further dynamic chaining
-after that, please. :)
+Let's make zsmalloc smarter to reduce wasted space. One of option is
+dynamic page creation which I agreed.
+
+Before the feature, we should test how memory footprint is bigger
+without the feature if we increase ZS_MAX_ZSPAGE_ORDER.
+If it's not big, we could go with your patch easily without adding
+more complex stuff(i.e, dynamic page creation).
+
+Please, check max_used_pages rather than mem_used_total for seeing
+memory footprint at the some moment and test very fragmented scenario
+(creating files and free part of files) rather than just full coping.
+
+If memory footprint is high, we can decide to go dynamic page
+creation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
