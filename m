@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BB3E5828F2
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 09:58:22 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id a4so166600793wme.1
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 06:58:22 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B65DE828F2
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 09:58:32 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id g62so167577513wme.0
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 06:58:32 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 131si28540856wmg.123.2016.02.22.06.58.21
+        by mx.google.com with ESMTPS id wd3si20767835wjc.88.2016.02.22.06.58.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Feb 2016 06:58:21 -0800 (PST)
+        Mon, 22 Feb 2016 06:58:31 -0800 (PST)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v5 09/20] kthread: Allow to modify delayed kthread work
-Date: Mon, 22 Feb 2016 15:56:59 +0100
-Message-Id: <1456153030-12400-10-git-send-email-pmladek@suse.com>
+Subject: [PATCH v5 10/20] kthread: Better support freezable kthread workers
+Date: Mon, 22 Feb 2016 15:57:00 +0100
+Message-Id: <1456153030-12400-11-git-send-email-pmladek@suse.com>
 In-Reply-To: <1456153030-12400-1-git-send-email-pmladek@suse.com>
 References: <1456153030-12400-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,98 +20,135 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-There are situations when we need to modify the delay of a delayed kthread
-work. For example, when the work depends on an event and the initial delay
-means a timeout. Then we want to queue the work immediately when the event
-happens.
+This patch allows to make kthread worker freezable via a new @flags
+parameter. It will allow to avoid an init work in some kthreads.
 
-This patch implements mod_delayed_kthread_work() as inspired workqueues.
-It cancels the timer, removes the work from any worker list and queues it
-again with the given timeout.
+It currently does not affect the function of kthread_worker_fn()
+but it might help to do some optimization or fixes eventually.
 
-A very special case is when the work is being canceled at the same time.
-cancel_*kthread_work_sync() operation blocks queuing until the running
-work finishes. Therefore we do nothing and let cancel() win. This should
-not normally happen as the caller is supposed to synchronize these
-operations a reasonable way.
+I currently do not know about any other use for the @flags
+parameter but I believe that we will want more flags
+in the future.
+
+Finally, I hope that it will not cause confusion with @flags member
+in struct kthread. Well, I guess that we will want to rework the
+basic kthreads implementation once all kthreads are converted into
+kthread workers or workqueues. It is possible that we will merge
+the two structures.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- include/linux/kthread.h |  4 ++++
- kernel/kthread.c        | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+)
+ include/linux/kthread.h | 11 ++++++++---
+ kernel/kthread.c        | 18 ++++++++++++------
+ 2 files changed, 20 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 28ea12942878..531730f8a8a7 100644
+index 531730f8a8a7..b57786c40c2c 100644
 --- a/include/linux/kthread.h
 +++ b/include/linux/kthread.h
-@@ -168,6 +168,10 @@ bool queue_delayed_kthread_work(struct kthread_worker *worker,
- 				struct delayed_kthread_work *dwork,
- 				unsigned long delay);
+@@ -65,7 +65,12 @@ struct kthread_work;
+ typedef void (*kthread_work_func_t)(struct kthread_work *work);
+ void delayed_kthread_work_timer_fn(unsigned long __data);
  
-+bool mod_delayed_kthread_work(struct kthread_worker *worker,
-+			      struct delayed_kthread_work *dwork,
-+			      unsigned long delay);
++enum {
++	KTW_FREEZABLE		= 1 << 2,	/* freeze during suspend */
++};
 +
- void flush_kthread_work(struct kthread_work *work);
- void flush_kthread_worker(struct kthread_worker *worker);
+ struct kthread_worker {
++	unsigned int		flags;
+ 	spinlock_t		lock;
+ 	struct list_head	work_list;
+ 	struct list_head	delayed_work_list;
+@@ -154,12 +159,12 @@ extern void __init_kthread_worker(struct kthread_worker *worker,
  
+ int kthread_worker_fn(void *worker_ptr);
+ 
+-__printf(1, 2)
++__printf(2, 3)
+ struct kthread_worker *
+-create_kthread_worker(const char namefmt[], ...);
++create_kthread_worker(unsigned int flags, const char namefmt[], ...);
+ 
+ struct kthread_worker *
+-create_kthread_worker_on_cpu(int cpu, const char namefmt[]);
++create_kthread_worker_on_cpu(int cpu, unsigned int flags, const char namefmt[]);
+ 
+ bool queue_kthread_work(struct kthread_worker *worker,
+ 			struct kthread_work *work);
 diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 7e6c921b2a9a..686bdd5b6936 100644
+index 686bdd5b6936..643b3088b8d7 100644
 --- a/kernel/kthread.c
 +++ b/kernel/kthread.c
-@@ -959,6 +959,51 @@ static bool __cancel_kthread_work(struct kthread_work *work, bool is_dwork)
- 	return false;
- }
- 
-+/**
-+ * mod_delayed_kthread_work - modify delay of or queue a delayed kthread work
-+ * @worker: kthread worker to use
-+ * @dwork: delayed kthread work to queue
-+ * @delay: number of jiffies to wait before queuing
-+ *
-+ * If @dwork is idle, equivalent to queue_delayed_kthread work(). Otherwise,
-+ * modify @dwork's timer so that it expires after @delay. If @delay is zero,
-+ * @work is guaranteed to be queued immediately.
-+ *
-+ * Return: %true if @dwork was pending and its timer was modified,
-+ * %false otherwise.
-+ *
-+ * A special case is when cancel_work_sync() is running in parallel.
-+ * It blocks further queuing. We let the cancel() win and return %false.
-+ * The caller is supposed to synchronize these operations a reasonable way.
-+ *
-+ * This function is safe to call from any context including IRQ handler.
-+ * See __cancel_kthread_work() and delayed_kthread_work_timer_fn()
-+ * for details.
-+ */
-+bool mod_delayed_kthread_work(struct kthread_worker *worker,
-+			      struct delayed_kthread_work *dwork,
-+			      unsigned long delay)
-+{
-+	struct kthread_work *work = &dwork->work;
-+	unsigned long flags;
-+	int ret = false;
-+
-+	spin_lock_irqsave(&worker->lock, flags);
-+	/* Work must not be used with more workers, see queue_kthread_work() */
-+	WARN_ON_ONCE(work->worker && work->worker != worker);
-+
-+	if (work->canceling)
-+		goto out;
-+
-+	ret = __cancel_kthread_work(work, true);
-+	__queue_delayed_kthread_work(worker, dwork, delay);
-+
-+out:
-+	spin_unlock_irqrestore(&worker->lock, flags);
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(mod_delayed_kthread_work);
-+
- static bool __cancel_kthread_work_sync(struct kthread_work *work, bool is_dwork)
+@@ -556,11 +556,11 @@ void __init_kthread_worker(struct kthread_worker *worker,
+ 				const char *name,
+ 				struct lock_class_key *key)
  {
- 	struct kthread_worker *worker = work->worker;
++	memset(worker, 0, sizeof(struct kthread_worker));
+ 	spin_lock_init(&worker->lock);
+ 	lockdep_set_class_and_name(&worker->lock, key, name);
+ 	INIT_LIST_HEAD(&worker->work_list);
+ 	INIT_LIST_HEAD(&worker->delayed_work_list);
+-	worker->task = NULL;
+ }
+ EXPORT_SYMBOL_GPL(__init_kthread_worker);
+ 
+@@ -590,6 +590,10 @@ int kthread_worker_fn(void *worker_ptr)
+ 	 */
+ 	WARN_ON(worker->task && worker->task != current);
+ 	worker->task = current;
++
++	if (worker->flags & KTW_FREEZABLE)
++		set_freezable();
++
+ repeat:
+ 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
+ 
+@@ -623,7 +627,8 @@ repeat:
+ EXPORT_SYMBOL_GPL(kthread_worker_fn);
+ 
+ static struct kthread_worker *
+-__create_kthread_worker(int cpu, const char namefmt[], va_list args)
++__create_kthread_worker(int cpu, unsigned int flags,
++			const char namefmt[], va_list args)
+ {
+ 	struct kthread_worker *worker;
+ 	struct task_struct *task;
+@@ -643,6 +648,7 @@ __create_kthread_worker(int cpu, const char namefmt[], va_list args)
+ 	if (IS_ERR(task))
+ 		goto fail_task;
+ 
++	worker->flags = flags;
+ 	worker->task = task;
+ 	wake_up_process(task);
+ 	return worker;
+@@ -661,13 +667,13 @@ fail_task:
+  * when the worker was SIGKILLed.
+  */
+ struct kthread_worker *
+-create_kthread_worker(const char namefmt[], ...)
++create_kthread_worker(unsigned int flags, const char namefmt[], ...)
+ {
+ 	struct kthread_worker *worker;
+ 	va_list args;
+ 
+ 	va_start(args, namefmt);
+-	worker = __create_kthread_worker(-1, namefmt, args);
++	worker = __create_kthread_worker(-1, flags, namefmt, args);
+ 	va_end(args);
+ 
+ 	return worker;
+@@ -690,9 +696,9 @@ EXPORT_SYMBOL(create_kthread_worker);
+  * when the worker was SIGKILLed.
+  */
+ struct kthread_worker *
+-create_kthread_worker_on_cpu(int cpu, const char namefmt[])
++create_kthread_worker_on_cpu(int cpu, unsigned int flags, const char namefmt[])
+ {
+-	return __create_kthread_worker(cpu, namefmt, NULL);
++	return __create_kthread_worker(cpu, flags, namefmt, NULL);
+ }
+ EXPORT_SYMBOL(create_kthread_worker_on_cpu);
+ 
 -- 
 1.8.5.6
 
