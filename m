@@ -1,80 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 892286B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 12:26:51 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id ts10so87380163obc.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:26:51 -0800 (PST)
-Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
-        by mx.google.com with ESMTPS id d127si34370813oif.101.2016.02.23.09.26.50
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 956826B0005
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 12:46:09 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id z8so13410138ige.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:46:09 -0800 (PST)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id vs5si40285832igb.33.2016.02.23.09.46.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 09:26:50 -0800 (PST)
-Received: by mail-oi0-x234.google.com with SMTP id x21so83000386oix.2
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:26:50 -0800 (PST)
+        Tue, 23 Feb 2016 09:46:08 -0800 (PST)
+Received: by mail-io0-x22a.google.com with SMTP id l127so220432718iof.3
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:46:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160223170530.GA15877@linux.intel.com>
-References: <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
-	<56CA2AC9.7030905@plexistor.com>
-	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
-	<20160221223157.GC25832@dastard>
-	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
-	<20160222174426.GA30110@infradead.org>
-	<257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
-	<20160223095225.GB32294@infradead.org>
-	<56CC686A.9040909@plexistor.com>
-	<CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
-	<20160223170530.GA15877@linux.intel.com>
-Date: Tue, 23 Feb 2016 09:26:50 -0800
-Message-ID: <CAPcyv4h_feFJ0aELArA+nAgGJhbcNTCqZzp=goK53vF0kN7wOQ@mail.gmail.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-From: Dan Williams <dan.j.williams@intel.com>
+In-Reply-To: <20160223103221.GA1418@node.shutemov.name>
+References: <20160211192223.4b517057@thinkpad>
+	<20160211190942.GA10244@node.shutemov.name>
+	<20160211205702.24f0d17a@thinkpad>
+	<20160212154116.GA15142@node.shutemov.name>
+	<56BE00E7.1010303@de.ibm.com>
+	<20160212181640.4eabb85f@thinkpad>
+	<20160223103221.GA1418@node.shutemov.name>
+Date: Tue, 23 Feb 2016 09:46:08 -0800
+Message-ID: <CA+55aFxh5P57Qg2xPYbTekAXzpWWON2qw76ZtC93ZQKqaqBA6A@mail.gmail.com>
+Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
+ on PowerPC and ARM)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Boaz Harrosh <boaz@plexistor.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-On Tue, Feb 23, 2016 at 9:05 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Tue, Feb 23, 2016 at 08:56:57AM -0800, Dan Williams wrote:
->> On Tue, Feb 23, 2016 at 6:10 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
->> > On 02/23/2016 11:52 AM, Christoph Hellwig wrote:
->> [..]
->> > Please tell me what you find wrong with my approach?
->>
->> Setting aside fs interactions you didn't respond to my note about
->> architectures where the pmem-aware app needs to flush caches due to
->> other non-pmem aware apps sharing the mapping.  Non-temporal stores
->> guaranteeing persistence on their own is an architecture specific
->> feature.  I don't see how we can have a generic support for mixed
->> MAP_PMEM_AWARE / unaware shared mappings when the architecture
->> dependency exists [1].
->>
->> I think Christoph has already pointed out the roadmap.  Get the
->> existing crop of DAX bugs squashed and then *maybe* look at something
->> like a MAP_SYNC to opt-out of userspace needing to call *sync.
->>
->> [1]: 10.4.6.2 Caching of Temporal vs. Non-Temporal Data
->> "Some older CPU implementations (e.g., Pentium M) allowed addresses
->> being written with a non-temporal store instruction to be updated
->> in-place if the memory type was not WC and line was already in the
->> cache."
->>
->> I wouldn't be surprised if other architectures had similar constraints.
+On Tue, Feb 23, 2016 at 2:32 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
 >
-> I don't understand how this is an argument against Boaz's approach.  If
-> non-temporal stores are essentially broken, they are broken for both the
-> kernel use case and for the userspace use case, and (if we want to support
-> these platforms, which I'm not sure we do) we would need to fall back to
-> writes + explicit flushes for both kernel space and userspace.
+> I still worry about pmd_present(). It looks wrong to me. I wounder if
+> patch below makes a difference.
 
-MAP_PMEM_AWARE only declares self-awareness does not guarantee that
-everyone else sharing the mapping is equally aware.  A pmem-aware app
-on such an architecture would be free to flush once and use
-non-temporal stores going forward, but if the mapping is shared it
-needs to flush all the time.  Like I said before it needs to be
-all-aware apps in a shared mapping or none, but it's moot because I
-think something like MAP_SYNC is semantically much clearer.
+Let's hope that's it, but in the meantime I do want to start the
+discussion about what to do if it isn't. We're at rc5, and 4.5 is just
+a few weeks away, and so far this issue hasn't gone anywhere.
+
+So the *good* scenario is that your pmd_present() patch fixes it, and
+we can all take a relieved breath.
+
+But if not, what then? It looks like we have two options:
+
+ (a) do a (hopefully minimal) revert.
+
+     I say "hopefully minimal", but I suspect the revert is going to
+have to undo pretty much all of the core THP changes. I'd hate to see
+that, because I really liked the cleanups.
+
+ (b) mark THP as "depends on !S390" in the 4.5 release
+
+The (b) option is obviously much simpler, but it's a regression. I
+really don't like it, even if it generally shouldn't be the kind of
+regression that is actually user-noticeable (apart from performance).
+I also hate the fact that while the problem only seems to happen on
+s390, we don't even understand it, so maybe it's a more generic issue
+that for some reason just ends up being *much* more noticeable on one
+odd architecture that happens to be a bit different.
+
+I'm inclined to think of (b) as just a "give us more time to figure it
+out" thing, but I'm also worried that it will then make people not
+pursue this issue.
+
+How big is a revert patch that makes THP work on s390 again? Can we do
+a revert that keeps the infrastructure intact and makes it easy to
+revisit the THP cleanups later? Or is the revert inevitably going to
+be all the core patches in that series?
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
