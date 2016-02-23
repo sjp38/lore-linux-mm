@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9D76B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 17:15:38 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id g62so220519070wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:15:38 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id c16si527568wmd.81.2016.02.23.14.15.37
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F6546B0009
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 17:33:05 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id yy13so192878pab.3
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:33:05 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id x9si49889554pas.72.2016.02.23.14.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 14:15:37 -0800 (PST)
-Received: by mail-wm0-x234.google.com with SMTP id g62so4428059wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:15:37 -0800 (PST)
-Message-ID: <56CCDA06.6000005@plexistor.com>
-Date: Wed, 24 Feb 2016 00:15:34 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+        Tue, 23 Feb 2016 14:33:04 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id x65so276718pfb.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:33:04 -0800 (PST)
+Date: Tue, 23 Feb 2016 14:33:01 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they
+ are OOM-unkillable.
+In-Reply-To: <20160223123457.GC14178@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1602231420590.744@chino.kir.corp.google.com>
+References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com> <20160218080909.GA18149@dhcp22.suse.cz> <alpine.DEB.2.10.1602221701170.4688@chino.kir.corp.google.com>
+ <20160223123457.GC14178@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-References: <56CA2AC9.7030905@plexistor.com> <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com> <20160221223157.GC25832@dastard> <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com> <20160222174426.GA30110@infradead.org> <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com> <20160223095225.GB32294@infradead.org> <7168B635-938B-44A0-BECD-C0774207B36D@intel.com> <20160223120644.GL25832@dastard> <20160223171059.GB15877@linux.intel.com> <20160223214729.GH14668@dastard>
-In-Reply-To: <20160223214729.GH14668@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/23/2016 11:47 PM, Dave Chinner wrote:
-<>
+On Tue, 23 Feb 2016, Michal Hocko wrote:
+
+> > oom_badness() ranges from 0 (don't kill) to 1000 (please kill).  It 
+> > factors in the setting of /proc/self/oom_score_adj to change that value.  
+> > That is where OOM_SCORE_ADJ_MIN is enforced. 
 > 
-> i.e. what we've implemented right now is a basic, slow,
-> easy-to-make-work-correctly brute force solution. That doesn't mean
-> we always need to implement it this way, or that we are bound by the
-> way dax_clear_sectors() currently flushes cachelines before it
-> returns. It's just a simple implementation that provides the
-> ordering the *filesystem requires* to provide the correct data
-> integrity semantics to userspace.
+> The question is whether the current placement of OOM_SCORE_ADJ_MIN
+> is appropriate. Wouldn't it make more sense to check it in oom_unkillable_task
+> instead?
+
+oom_unkillable_task() deals with the type of task it is (init or kthread) 
+or being ineligible due to the memcg and cpuset placement.  We want to 
+exclude them from consideration and also suppress them from the task dump 
+in the kernel log.  We don't want to suppress oom disabled processes, we 
+really want to know their rss, for example.  It could be renamed 
+is_ineligible_task().
+
+> Sure, checking oom_score_adj under task_lock inside oom_badness will
+> prevent from races but the question I raised previously was whether we
+> actually care about those races? When would it matter? Is it really
+> likely that the update happen during the oom killing? And if yes what
+> prevents from the update happening _after_ the check?
 > 
 
-Or it can be written properly with movnt instructions and be even
-faster the a simple memset, and no need for any cl_flushing let alone
-any radix-tree locking.
-
-That said your suggestion above is 25%-100% slower than current code
-because the cl_flushes will be needed eventually, and the atomics of a
-lock takes 25% the time of a full page copy. You are forgetting we are
-talking about memory and not harddisk. the rules are different.
-(Cumming from NFS it took me a long time to adjust)
-
-I'll send a patch to fix this
-Thanks
-Boaz
+It's not necessarily to take task_lock(), but find_lock_task_mm() is the 
+means we have to iterate threads to find any with memory attached.  We 
+need that logic in oom_badness() to avoid racing with threads that have 
+entered exit_mm().  It's possible for a thread to have a non-NULL ->mm in 
+oom_scan_process_thread(), the thread enters exit_mm() without kill, and 
+oom_badness() can still find it to be eligible because other threads have 
+not exited.  We still want to issue a kill to this process and task_lock() 
+protects the setting of task->mm to NULL: don't consider it to be a race 
+in setting oom_score_adj, consider it to be a race in unmapping (but not 
+freeing) memory in th exit path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
