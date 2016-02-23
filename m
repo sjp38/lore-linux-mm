@@ -1,46 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f43.google.com (mail-lf0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id BAB4A828DF
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:30:09 -0500 (EST)
-Received: by mail-lf0-f43.google.com with SMTP id m1so118633794lfg.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:30:09 -0800 (PST)
-Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
-        by mx.google.com with ESMTPS id o70si16037610lfe.74.2016.02.23.07.30.08
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 32FB1828DF
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:40:07 -0500 (EST)
+Received: by mail-qg0-f53.google.com with SMTP id b35so138732344qge.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:40:07 -0800 (PST)
+Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
+        by mx.google.com with ESMTPS id e95si23442737qgd.14.2016.02.23.07.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 07:30:08 -0800 (PST)
-Received: by mail-lf0-x22f.google.com with SMTP id j78so117511173lfb.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:30:08 -0800 (PST)
-Date: Tue, 23 Feb 2016 16:30:03 +0100
-From: Rabin Vincent <rabin@rab.in>
-Subject: Re: [PATCH 2/2] ARM: dma-mapping: fix alloc/free for coherent + CMA
- + gfp=0
-Message-ID: <20160223153003.GB22447@lnxrabinv.se.axis.com>
-References: <1455869524-13874-1-git-send-email-rabin.vincent@axis.com>
- <1455869524-13874-2-git-send-email-rabin.vincent@axis.com>
- <xa1tio1kzu4j.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <xa1tio1kzu4j.fsf@mina86.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 23 Feb 2016 07:40:05 -0800 (PST)
+Message-ID: <1456241996.7716.34.camel@surriel.com>
+Subject: Re: [PATCH] mm,vmscan: compact memory from kswapd when lots of
+ memory free already
+From: Rik van Riel <riel@surriel.com>
+Date: Tue, 23 Feb 2016 10:39:56 -0500
+In-Reply-To: <56CC23F7.8010709@suse.cz>
+References: <20160222225054.1f6ab286@annuminas.surriel.com>
+	 <56CC23F7.8010709@suse.cz>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-/CMF2PcXH/BNIo6zD7Cu"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Rabin Vincent <rabin.vincent@axis.com>, linux@arm.linux.org.uk, akpm@linux-foundation.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de
 
-On Fri, Feb 19, 2016 at 02:50:52PM +0100, Michal Nazarewicz wrote:
-> I havena??t looked closely at the code, but why not:
-> 
-> 	struct cma *cma = 
->         if (!cma_release(dev_get_cma_area(dev), page, size >> PAGE_SHIFT)) {
-> 		// ... do whatever other non-CMA free
-> 	}
 
-The page tables changes need to be done before we release the area with
-cma_release().  With the v2 patchset which I've sent to LAKML we won't
-need a new in_cma() function since we'll now record how we allocated the
-buffer and use this information in the free routine.
+--=-/CMF2PcXH/BNIo6zD7Cu
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Tue, 2016-02-23 at 10:18 +0100, Vlastimil Babka wrote:
+> On 02/23/2016 04:50 AM, Rik van Riel wrote:
+> > If kswapd is woken up for a higher order allocation, for example
+> > from alloc_skb, but the system already has lots of memory free,
+> > kswapd_shrink_zone will rightfully decide kswapd should not free
+> > any more memory.
+> >=20
+> > However, at that point kswapd should proceed to compact memory, on
+> > behalf of alloc_skb or others.
+> >=20
+> > Currently kswapd will only compact memory if it first freed memory,
+> > leading kswapd to never compact memory when there is already lots
+> > of
+> > memory free.
+> >=20
+> > On my home system, that lead to kswapd occasionally using up to 5%
+> > CPU time, with many man wakeups from alloc_skb, and kswapd never
+> > doing anything to relieve the situation that caused it to be woken
+> > up.
+>=20
+> Hi,
+>=20
+> I've proposed replacing kswapd compaction with kcompactd, so this
+> hunk=C2=A0
+> is gone completely in mmotm. This imperfect comparison was indeed one
+> of=C2=A0
+> the things I've noted, but it's not all:
+>=20
+> http://marc.info/?l=3Dlinux-kernel&m=3D145493881908394&w=3D2
+
+Never mind my patch, then. Your solution is nicer,
+and already in -mm :)
+
+--=20
+All Rights Reversed.
+
+
+--=-/CMF2PcXH/BNIo6zD7Cu
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAABAgAGBQJWzH1MAAoJEM553pKExN6D+xoIAJZLpKJroJ3tnswYolFQ0KW+
+HxeTgvhsmtJ38Q+PqwFtRz9kt5sOWZCDg5tw0vE8KTfq+o7kd6WeCjGWb11G+jqT
+b8Ejbk0chKgLKvEEV2rPUP1t2Dlnit1BGQGLQR5nP+cZhnWuHqrUzIcQcLLGo52V
+vC0zCKNpEa28+59GK8nXNqyW0VmKrc3mT3sY/82IhZBAX4946pOKQxqyL/OTigKG
+kJbr3ZNWvxYj5PSqHk+4c/BrGgdWHKWg+GCVsEODICLf7sn/RIGGc9OpIEEdGwxY
+upcdIKq5/U/RYpMqLKm7UYzRzCbW2kQVwlMKbVwpTBhmf5+kYxulLr0bC7ibBIU=
+=WYO5
+-----END PGP SIGNATURE-----
+
+--=-/CMF2PcXH/BNIo6zD7Cu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
