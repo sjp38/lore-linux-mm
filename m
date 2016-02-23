@@ -1,147 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ACBF6B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 05:38:28 -0500 (EST)
-Received: by mail-io0-f180.google.com with SMTP id z135so208533111iof.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 02:38:28 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 135si46252105ion.104.2016.02.23.02.38.27
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 Feb 2016 02:38:27 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: remove shortcuts for SIGKILL and PF_EXITING cases
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1456038869-7874-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1602221645260.4688@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1602221645260.4688@chino.kir.corp.google.com>
-Message-Id: <201602231938.IFI64693.JSQFOOFVFLHtMO@I-love.SAKURA.ne.jp>
-Date: Tue, 23 Feb 2016 19:38:12 +0900
-Mime-Version: 1.0
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E1B76B0005
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:07:01 -0500 (EST)
+Received: by mail-ig0-f181.google.com with SMTP id hb3so97479957igb.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:07:01 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id c18si38501405igr.94.2016.02.23.04.06.59
+        for <linux-mm@kvack.org>;
+        Tue, 23 Feb 2016 04:07:00 -0800 (PST)
+Date: Tue, 23 Feb 2016 23:06:44 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160223120644.GL25832@dastard>
+References: <56CA1CE7.6050309@plexistor.com>
+ <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+ <56CA2AC9.7030905@plexistor.com>
+ <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+ <20160221223157.GC25832@dastard>
+ <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+ <20160222174426.GA30110@infradead.org>
+ <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
+ <20160223095225.GB32294@infradead.org>
+ <7168B635-938B-44A0-BECD-C0774207B36D@intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7168B635-938B-44A0-BECD-C0774207B36D@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: "Rudoff, Andy" <andy.rudoff@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-David Rientjes wrote:
-> On Sun, 21 Feb 2016, Tetsuo Handa wrote:
+On Tue, Feb 23, 2016 at 10:07:07AM +0000, Rudoff, Andy wrote:
 > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index ae8b81c..390ec2c 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1253,16 +1253,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  
-> >  	mutex_lock(&oom_lock);
-> >  
-> > -	/*
-> > -	 * If current has a pending SIGKILL or is exiting, then automatically
-> > -	 * select it.  The goal is to allow it to allocate so that it may
-> > -	 * quickly exit and free its memory.
-> > -	 */
-> > -	if (fatal_signal_pending(current) || task_will_free_mem(current)) {
-> > -		mark_oom_victim(current);
-> > -		goto unlock;
-> > -	}
-> > -
-> >  	check_panic_on_oom(&oc, CONSTRAINT_MEMCG, memcg);
-> >  	totalpages = mem_cgroup_get_limit(memcg) ? : 1;
-> >  	for_each_mem_cgroup_tree(iter, memcg) {
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index d7bb9c1..5e8563a 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -684,19 +684,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> >  					      DEFAULT_RATELIMIT_BURST);
-> >  	bool can_oom_reap = true;
-> >  
-> > -	/*
-> > -	 * If the task is already exiting, don't alarm the sysadmin or kill
-> > -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> > -	 */
-> > -	task_lock(p);
-> > -	if (p->mm && task_will_free_mem(p)) {
-> > -		mark_oom_victim(p);
-> > -		task_unlock(p);
-> > -		put_task_struct(p);
-> > -		return;
-> > -	}
-> > -	task_unlock(p);
-> > -
-> >  	if (__ratelimit(&oom_rs))
-> >  		dump_header(oc, p, memcg);
-> >  
-> > @@ -759,20 +746,15 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> >  	task_unlock(victim);
-> >  
-> >  	/*
-> > -	 * Kill all user processes sharing victim->mm in other thread groups, if
-> > -	 * any.  They don't get access to memory reserves, though, to avoid
-> > -	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
-> > -	 * oom killed thread cannot exit because it requires the semaphore and
-> > -	 * its contended by another thread trying to allocate memory itself.
-> > -	 * That thread will now get access to memory reserves since it has a
-> > -	 * pending fatal signal.
-> > +	 * Kill all user processes sharing victim->mm. This reduces possibility
-> > +	 * of hitting mm->mmap_sem livelock when an oom killed thread cannot
-> > +	 * exit because it requires the semaphore and its contended by another
-> > +	 * thread trying to allocate memory itself.
-> >  	 */
-> >  	rcu_read_lock();
-> >  	for_each_process(p) {
-> >  		if (!process_shares_mm(p, mm))
-> >  			continue;
-> > -		if (same_thread_group(p, victim))
-> > -			continue;
-> >  		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p) ||
-> >  		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> >  			/*
-> > @@ -784,6 +766,12 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> >  			continue;
-> >  		}
-> >  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-> > +		for_each_thread(p, t) {
-> > +			task_lock(t);
-> > +			if (t->mm)
-> > +				mark_oom_victim(t);
-> > +			task_unlock(t);
-> > +		}
-> >  	}
-> >  	rcu_read_unlock();
-> >  
-> > @@ -860,20 +848,6 @@ bool out_of_memory(struct oom_control *oc)
-> >  		return true;
-> >  
-> >  	/*
-> > -	 * If current has a pending SIGKILL or is exiting, then automatically
-> > -	 * select it.  The goal is to allow it to allocate so that it may
-> > -	 * quickly exit and free its memory.
-> > -	 *
-> > -	 * But don't select if current has already released its mm and cleared
-> > -	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
-> > -	 */
-> > -	if (current->mm &&
-> > -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-> > -		mark_oom_victim(current);
-> > -		return true;
-> > -	}
-> > -
-> > -	/*
-> >  	 * Check if there were limitations on the allocation (only relevant for
-> >  	 * NUMA) that may require different handling.
-> >  	 */
+> > [Hi Andy - care to properly line break after ~75 character, that makes
+> > ready the message a lot easier, thanks!]
 > 
-> No, NACK.  You cannot prohibit an exiting process from gaining access to 
-> memory reserves and randomly killing another process without additional 
-> chances of a livelock.  The goal is for an exiting or killed process to 
-> be able to exit so it can free its memory, not kill additional processes.
+> My bad. 
+> 
+> >> The instructions give you very fine-grain flushing control, but the
+> >> downside is that the app must track what it changes at that fine
+> >> granularity.  Both models work, but there's a trade-off.
+> > 
+> > No, the cache flush model simply does not work without a lot of hard
+> > work to enable it first.
+> 
+> It's working well enough to pass tests that simulate crashes and
+> various workload tests for the apps involved. And I agree there
+> has been a lot of hard work behind it. I guess I'm not sure why you're
+> saying it is impossible or not working.
+> 
+> Let's take an example: an app uses fallocate() to create a DAX file,
+> mmap() to map it, msync() to flush changes. The app follows POSIX
+> meaning it doesn't expect file metadata to be flushed magically, etc.
+> The app is tested carefully and it works correctly.  Now the msync()
+> call used to flush stores is replaced by flushing instructions.
+> What's broken?
 
-I know what these shortcuts are trying to do. I'm pointing out that these
-shortcuts have a chance of silent OOM livelock. If we preserve these shortcuts,
-we had better not to wait forever. We need to kill additional processes if
-exiting or killed process seems to got stuck.
+You haven't told the filesytem to flush any dirty metadata required
+to access the user data to persistent storage.  If the zeroing and
+unwritten extent conversion that is run by the filesytem during
+write faults into preallocated blocks isn't persistent, then after a
+crash the file will read back as unwritten extents, returning zeros
+rather than the data that was written.
 
-Same with http://lkml.kernel.org/r/20160217143917.GP29196@dhcp22.suse.cz .
+msync() calls fsync() on file back pages, which makes file metadata
+changes persistent.  Indeed, if you read the fdatasync man page, you
+might have noticed that it makes explicit reference that it requires
+the filesystem to flush the metadata needed to access the data that
+is being synced. IOWs, the filesystem knows about this dirty
+metadata that needs to be flushed to ensure data integrity,
+userspace doesn't.
+
+Not to mention that the filesystem will convert and zero much more
+than just a single cacheline (whole pages at minimum, could be 2MB
+extents for large pages, etc) so the filesystem may require CPU
+cache flushes over a much wider range of cachelines that the
+application realises are dirty and require flushing for data
+integrity purposes. The filesytem knows about these dirty cache
+lines, userspace doesn't.
+
+IOWs, your userspace library may have made sure the data it modifies
+is in the physical location via your userspace CPU cache flushes,
+but there can be a lot of stuff it doesn't know about internal to
+the filesytem that also needs to be flushed to ensure data integrity
+is maintained.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
