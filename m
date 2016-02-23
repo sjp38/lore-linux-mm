@@ -1,185 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7C86B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 16:59:03 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id b205so11091429wmb.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 13:59:03 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id 3si42136774wmk.45.2016.02.23.13.59.01
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BD9D76B0009
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 17:15:38 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id g62so220519070wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:15:38 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id c16si527568wmd.81.2016.02.23.14.15.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 13:59:01 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 8D67F1C124C
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 21:59:01 +0000 (GMT)
-Date: Tue, 23 Feb 2016 21:58:59 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC PATCH 00/27] Move LRU page reclaim from zones to nodes v2
-Message-ID: <20160223215859.GO2854@techsingularity.net>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <20160223200416.GA27563@cmpxchg.org>
- <20160223201932.GN2854@techsingularity.net>
- <20160223205915.GA10744@cmpxchg.org>
+        Tue, 23 Feb 2016 14:15:37 -0800 (PST)
+Received: by mail-wm0-x234.google.com with SMTP id g62so4428059wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:15:37 -0800 (PST)
+Message-ID: <56CCDA06.6000005@plexistor.com>
+Date: Wed, 24 Feb 2016 00:15:34 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160223205915.GA10744@cmpxchg.org>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+References: <56CA2AC9.7030905@plexistor.com> <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com> <20160221223157.GC25832@dastard> <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com> <20160222174426.GA30110@infradead.org> <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com> <20160223095225.GB32294@infradead.org> <7168B635-938B-44A0-BECD-C0774207B36D@intel.com> <20160223120644.GL25832@dastard> <20160223171059.GB15877@linux.intel.com> <20160223214729.GH14668@dastard>
+In-Reply-To: <20160223214729.GH14668@dastard>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Feb 23, 2016 at 12:59:15PM -0800, Johannes Weiner wrote:
-> On Tue, Feb 23, 2016 at 08:19:32PM +0000, Mel Gorman wrote:
-> > On Tue, Feb 23, 2016 at 12:04:16PM -0800, Johannes Weiner wrote:
-> > > On Tue, Feb 23, 2016 at 03:04:23PM +0000, Mel Gorman wrote:
-> > > > In many benchmarks, there is an obvious difference in the number of
-> > > > allocations from each zone as the fair zone allocation policy is removed
-> > > > towards the end of the series. For example, this is the allocation stats
-> > > > when running blogbench that showed no difference in headling performance
-> > > > 
-> > > >                           mmotm-20160209   nodelru-v2
-> > > > DMA allocs                           0           0
-> > > > DMA32 allocs                   7218763      608067
-> > > > Normal allocs                 12701806    18821286
-> > > > Movable allocs                       0           0
-> > > 
-> > > According to the mmotm numbers, your DMA32 zone is over a third of
-> > > available memory, yet in the nodelru-v2 kernel sees only 3% of the
-> > > allocations.
-> > 
-> > In this case yes but blogbench is not scaled to memory size and is not
-> > reclaim intensive. If you look, you'll see the total number of overall
-> > allocations is very similar. During that test, there is a small amount of
-> > kswapd scan activity (but not reclaim which is odd) at the start of the
-> > test for nodelru but that's about it.
+On 02/23/2016 11:47 PM, Dave Chinner wrote:
+<>
 > 
-> Yes, if fairness enforcement is now done by reclaim, then workloads
-> without reclaim will show skewed placement as the Normal zone is again
-> filled up first before moving on to the next zone.
-> 
-> That is fine. But what about the balance in reclaiming workloads?
+> i.e. what we've implemented right now is a basic, slow,
+> easy-to-make-work-correctly brute force solution. That doesn't mean
+> we always need to implement it this way, or that we are bound by the
+> way dax_clear_sectors() currently flushes cachelines before it
+> returns. It's just a simple implementation that provides the
+> ordering the *filesystem requires* to provide the correct data
+> integrity semantics to userspace.
 > 
 
-That is the key question -- whether node LRU reclaim renders it
-unnecessary.
+Or it can be written properly with movnt instructions and be even
+faster the a simple memset, and no need for any cl_flushing let alone
+any radix-tree locking.
 
-> > > That's an insanely high level of aging inversion, where
-> > > the lifetime of a cache entry is again highly dependent on placement.
-> > > 
-> > 
-> > The aging is now indepdant of what zone the page was allocated from because
-> > it's node-based LRU reclaim. That may mean that the occupancy of individual
-> > zones is now different but it should only matter if there is a large number
-> > of address-limited requests.
-> 
-> The problem is that kswapd will stay awake and continuously draw
-> subsequent allocations into a single zone, thus utilizing only a
-> fraction of available memory.
+That said your suggestion above is 25%-100% slower than current code
+because the cl_flushes will be needed eventually, and the atomics of a
+lock takes 25% the time of a full page copy. You are forgetting we are
+talking about memory and not harddisk. the rules are different.
+(Cumming from NFS it took me a long time to adjust)
 
-Not quite. Look at prepare_kswapd_sleep() in the full series and it has this
-
-
-        for (i = 0; i <= classzone_idx; i++) {
-                struct zone *zone = pgdat->node_zones + i;
-
-                if (!populated_zone(zone))
-                        continue;
-
-                if (zone_balanced(zone, order, 0, classzone_idx))
-                        return true;
-        }
-
-and balance_pgdat has this
-
-                /* Only reclaim if there are no eligible zones */
-                for (i = classzone_idx; i >= 0; i--) {
-                        zone = pgdat->node_zones + i;
-                        if (!populated_zone(zone))
-                                continue;
-
-                        if (!zone_balanced(zone, order, 0, classzone_idx)) {
-                                classzone_idx = i;
-                                break;
-                        }
-                }
-
-kswapd only stays awake until *one* balanced zone is available. That is
-a key difference with the existing kswapd which balances all zones.
-
-> A DMA32-limited kswapd wakeups can
-> reclaim cache in DMA32 continuously if the allocator continously
-> places new cache pages in that zone. It looks like that is what
-> happened in the stutter benchmark.
-> 
-
-There may be corner cases where we artifically wake kswapd at DMA32
-instead of a higher zone. If that happens, it should be addressed so
-that only GFP_DMA32 wakes and reclaims that zone.
-
-> Sure, it doesn't matter in that benchmark, because the pages are used
-> only once. But if it had an actual cache workingset bigger than DMA32
-> but smaller than DMA32+Normal, it would be thrashing unnecessarily.
-> 
-> If kswapd were truly balancing the pages in a node equally, regardless
-> of zone placement, then in the long run we should see zone allocations
-> converge to a share that is in proportion to each zone's size. As far
-> as I can see, that is not quite happening yet.
-> 
-
-Not quite either. The order kswapd reclaims is in related to the age of
-all pages in the node. Early in the lifetime of the system, that may be
-ZONE_NORMAL initially until the other zones are populated. Ultimately
-the balance of zones will be related to the age of the pages.
-
-> > > The fact that this doesn't make a performance difference in the
-> > > specific benchmarks you ran only proves just that: these specific
-> > > benchmarks don't care. IMO, benchmarking is not enough here. If this
-> > > is truly supposed to be unproblematic, then I think we need a reasoned
-> > > explanation. I can't imagine how it possibly could be, though.
-> > > 
-> > 
-> > The basic explanation is that reclaim is on a per-node basis and we
-> > no longer balance all zones, just one that is necessary to satisfy the
-> > original request that wokeup kswapd.
-> > 
-> > > If reclaim can't guarantee a balanced zone utilization then the
-> > > allocator has to keep doing it. :(
-> > 
-> > That's the key issue - the main reason balanced zone utilisation is
-> > necessary is because we reclaim on a per-zone basis and we must avoid
-> > page aging anomalies. If we balance such that one eligible zone is above
-> > the watermark then it's less of a concern.
-> 
-> Yes, but only if there can't be extended reclaim stretches that prefer
-> the pages of a single zone. Yet it looks like this is still possible.
-> 
-
-And that is a problem if a workload is dominated by allocations
-requiring the lower zones. If that is the common case then it's a bust
-and fair zone allocation policy is still required. That removes one
-motivation from the series as it leaves some fatness in the page
-allocator paths.
-
-> I wonder if that were fixed by dropping patch 7/27?
-
-Potentially yes although it would be preferred to avoid unnecessarily
-waking kswapd for a lower zone. That could be enforced by modifying
-wake_all_kswapd() to always wake based on the highest available zone in
-a pgdat that is below the zone required by the allocation request.
-
-> Potentially it
-> would need a bit more work than that. I.e. could we make kswapd
-> balance only for the highest classzone in the system, and thus make
-> address-limited allocations fend for themselves in direct reclaim?
-> 
-
-That would be a side-effect of modifying wake_all_kswapd. Would shoving
-that in alleviate your concerns?
-
--- 
-Mel Gorman
-SUSE Labs
+I'll send a patch to fix this
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
