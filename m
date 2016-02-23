@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D6B66B0254
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:04:58 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id c200so225014179wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:04:58 -0800 (PST)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id fa10si45144430wjd.246.2016.02.23.07.04.52
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E13F6B0255
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:05:01 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id g62so226781299wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:05:01 -0800 (PST)
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id w9si45250830wja.96.2016.02.23.07.04.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 23 Feb 2016 07:04:52 -0800 (PST)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id CE8891C19A4
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:04:51 +0000 (GMT)
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id 36A5498E74
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:04:52 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 03/27] mm, vmstat: Add infrastructure for per-node vmstats
-Date: Tue, 23 Feb 2016 15:04:26 +0000
-Message-Id: <1456239890-20737-4-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 04/27] mm, vmscan: Move lru_lock to the node
+Date: Tue, 23 Feb 2016 15:04:27 +0000
+Message-Id: <1456239890-20737-5-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
 References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,887 +23,624 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-VM statistic counters for reclaim decisions are zone-based. If the kernel
-is to reclaim on a per-node basis then we need to track per-node statistics
-but there is no infrastructure for that. The most notable change is that
-the old node_page_state is renamed to sum_zone_node_page_state.  The new
-node_page_state takes a pglist_data and uses per-node stats but none exist
-yet. There is some renaming such as vm_stat to vm_zone_stat and the addition
-of vm_node_stat and the renaming of mod_state to mod_zone_state. Otherwise,
-this is mostly a mechanical patch with no functional change. There is a
-lot of similarity between the node and zone helpers which is unfortunate
-but there was no obvious way of reusing the code and maintaining type safety.
+Node-based reclaim requires node-based LRUs and locking. This is a
+preparation patch that just moves the lru_lock to the node so later patches
+are easier to review. It is a mechanical change but note this patch makes
+contention worse because the LRU lock is hotter and direct reclaim and kswapd
+can contend on the same lock even when reclaiming from different zones.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- drivers/base/node.c    |  72 +++++++------
- include/linux/mmzone.h |  13 +++
- include/linux/vmstat.h |  88 +++++++++++++--
- mm/page_alloc.c        |  10 +-
- mm/vmstat.c            | 287 +++++++++++++++++++++++++++++++++++++++++++------
- mm/workingset.c        |  10 +-
- 6 files changed, 401 insertions(+), 79 deletions(-)
+ Documentation/cgroup-v1/memcg_test.txt |  4 +--
+ Documentation/cgroup-v1/memory.txt     |  4 +--
+ include/linux/mm_types.h               |  2 +-
+ include/linux/mmzone.h                 | 10 +++++--
+ mm/compaction.c                        |  6 ++---
+ mm/filemap.c                           |  4 +--
+ mm/huge_memory.c                       |  4 +--
+ mm/memcontrol.c                        |  6 ++---
+ mm/mlock.c                             | 10 +++----
+ mm/page_alloc.c                        |  4 +--
+ mm/page_idle.c                         |  4 +--
+ mm/rmap.c                              |  2 +-
+ mm/swap.c                              | 30 ++++++++++-----------
+ mm/vmscan.c                            | 48 +++++++++++++++++-----------------
+ 14 files changed, 72 insertions(+), 66 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 560751bad294..efb81da250a8 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -74,16 +74,16 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
- 		       nid, K(i.totalram - i.freeram),
--		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
--				node_page_state(nid, NR_ACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
--				node_page_state(nid, NR_INACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
--		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
--		       nid, K(node_page_state(nid, NR_MLOCK)));
-+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON) +
-+				sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON) +
-+				sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_UNEVICTABLE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
+diff --git a/Documentation/cgroup-v1/memcg_test.txt b/Documentation/cgroup-v1/memcg_test.txt
+index 8870b0212150..78a8c2963b38 100644
+--- a/Documentation/cgroup-v1/memcg_test.txt
++++ b/Documentation/cgroup-v1/memcg_test.txt
+@@ -107,9 +107,9 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
  
- #ifdef CONFIG_HIGHMEM
- 	n += sprintf(buf + n,
-@@ -115,28 +115,28 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d AnonHugePages:  %8lu kB\n"
- #endif
- 			,
--		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
--		       nid, K(node_page_state(nid, NR_WRITEBACK)),
--		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
--		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
--		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_DIRTY)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_WRITEBACK)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_PAGES)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_MAPPED)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_ANON_PAGES)),
- 		       nid, K(i.sharedram),
--		       nid, node_page_state(nid, NR_KERNEL_STACK) *
-+		       nid, sum_zone_node_page_state(nid, NR_KERNEL_STACK) *
- 				THREAD_SIZE / 1024,
--		       nid, K(node_page_state(nid, NR_PAGETABLE)),
--		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
--		       nid, K(node_page_state(nid, NR_BOUNCE)),
--		       nid, K(node_page_state(nid, NR_WRITEBACK_TEMP)),
--		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
--				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
--		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_PAGETABLE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_UNSTABLE_NFS)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_WRITEBACK_TEMP)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_RECLAIMABLE) +
-+				sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
-+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_RECLAIMABLE)),
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
-+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
- 			, nid,
--			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-+			K(sum_zone_node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
- 			HPAGE_PMD_NR));
- #else
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
- #endif
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
-@@ -155,12 +155,12 @@ static ssize_t node_read_numastat(struct device *dev,
- 		       "interleave_hit %lu\n"
- 		       "local_node %lu\n"
- 		       "other_node %lu\n",
--		       node_page_state(dev->id, NUMA_HIT),
--		       node_page_state(dev->id, NUMA_MISS),
--		       node_page_state(dev->id, NUMA_FOREIGN),
--		       node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
--		       node_page_state(dev->id, NUMA_LOCAL),
--		       node_page_state(dev->id, NUMA_OTHER));
-+		       sum_zone_node_page_state(dev->id, NUMA_HIT),
-+		       sum_zone_node_page_state(dev->id, NUMA_MISS),
-+		       sum_zone_node_page_state(dev->id, NUMA_FOREIGN),
-+		       sum_zone_node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
-+		       sum_zone_node_page_state(dev->id, NUMA_LOCAL),
-+		       sum_zone_node_page_state(dev->id, NUMA_OTHER));
- }
- static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+ 8. LRU
+         Each memcg has its own private LRU. Now, its handling is under global
+-	VM's control (means that it's handled under global zone->lru_lock).
++	VM's control (means that it's handled under global zone_lru_lock).
+ 	Almost all routines around memcg's LRU is called by global LRU's
+-	list management functions under zone->lru_lock().
++	list management functions under zone_lru_lock().
  
-@@ -168,12 +168,18 @@ static ssize_t node_read_vmstat(struct device *dev,
- 				struct device_attribute *attr, char *buf)
- {
- 	int nid = dev->id;
-+	struct pglist_data *pgdat = NODE_DATA(nid);
- 	int i;
- 	int n = 0;
+ 	A special function is mem_cgroup_isolate_pages(). This scans
+ 	memcg's private LRU and call __isolate_lru_page() to extract a page
+diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+index ff71e16cc752..2060e402869c 100644
+--- a/Documentation/cgroup-v1/memory.txt
++++ b/Documentation/cgroup-v1/memory.txt
+@@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
+    Other lock order is following:
+    PG_locked.
+    mm->page_table_lock
+-       zone->lru_lock
++       zone_lru_lock
+ 	  lock_page_cgroup.
+   In many cases, just lock_page_cgroup() is called.
+   per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
+-  zone->lru_lock, it has no lock of its own.
++  zone_lru_lock, it has no lock of its own.
  
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
- 		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
--			     node_page_state(nid, i));
-+			     sum_zone_node_page_state(nid, i));
-+
-+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+		n += sprintf(buf+n, "%s %lu\n",
-+			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-+			     node_page_state(pgdat, i));
+ 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
  
- 	return n;
- }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 944b2b37313b..73a06e582bfa 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -112,7 +112,7 @@ struct page {
+ 	 */
+ 	union {
+ 		struct list_head lru;	/* Pageout list, eg. active_list
+-					 * protected by zone->lru_lock !
++					 * protected by zone_lru_lock !
+ 					 * Can be used as a generic list
+ 					 * by the page owner.
+ 					 */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bdd9a270a813..291719dadea6 100644
+index 291719dadea6..86539225067e 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -162,6 +162,10 @@ enum zone_stat_item {
- 	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
- 
-+enum node_stat_item {
-+	NR_VM_NODE_STAT_ITEMS
-+};
-+
- /*
-  * We do arithmetic on the LRU lists in various places in the code,
-  * so it is important to keep the active lists LRU_ACTIVE higher in
-@@ -269,6 +273,11 @@ struct per_cpu_pageset {
- #endif
- };
- 
-+struct per_cpu_nodestat {
-+	s8 stat_threshold;
-+	s8 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];
-+};
-+
- #endif /* !__GENERATING_BOUNDS.H */
- 
- enum zone_type {
-@@ -698,6 +707,10 @@ typedef struct pglist_data {
- 	struct list_head split_queue;
- 	unsigned long split_queue_len;
- #endif
-+
-+	/* Per-node vmstats */
-+	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
-+	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
- } pg_data_t;
- 
- #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 73fae8c4a5fb..d9f8889263b6 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -106,20 +106,38 @@ static inline void vm_events_fold_cpu(int cpu)
- 		zone_idx(zone), delta)
+@@ -100,7 +100,7 @@ struct free_area {
+ struct pglist_data;
  
  /*
-- * Zone based page accounting with per cpu differentials.
-+ * Zone and node-based page accounting with per cpu differentials.
-  */
--extern atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
-+extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];
-+extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];
+- * zone->lock and zone->lru_lock are two of the hottest locks in the kernel.
++ * zone->lock and the zone lru_lock are two of the hottest locks in the kernel.
+  * So add a wild amount of padding here to ensure that they fall into separate
+  * cachelines.  There are very few zone structures in the machine, so space
+  * consumption is not a concern here.
+@@ -498,7 +498,6 @@ struct zone {
+ 	/* Write-intensive fields used by page reclaim */
  
- static inline void zone_page_state_add(long x, struct zone *zone,
- 				 enum zone_stat_item item)
- {
- 	atomic_long_add(x, &zone->vm_stat[item]);
--	atomic_long_add(x, &vm_stat[item]);
-+	atomic_long_add(x, &vm_zone_stat[item]);
-+}
-+
-+static inline void node_page_state_add(long x, struct pglist_data *pgdat,
-+				 enum node_stat_item item)
-+{
-+	atomic_long_add(x, &pgdat->vm_stat[item]);
-+	atomic_long_add(x, &vm_node_stat[item]);
- }
- 
- static inline unsigned long global_page_state(enum zone_stat_item item)
- {
--	long x = atomic_long_read(&vm_stat[item]);
-+	long x = atomic_long_read(&vm_zone_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
-+static inline unsigned long global_node_page_state(enum node_stat_item item)
-+{
-+	long x = atomic_long_read(&vm_node_stat[item]);
- #ifdef CONFIG_SMP
- 	if (x < 0)
- 		x = 0;
-@@ -161,33 +179,48 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
- }
- 
- #ifdef CONFIG_NUMA
--
--extern unsigned long node_page_state(int node, enum zone_stat_item item);
-+extern unsigned long sum_zone_node_page_state(int node,
-+						enum zone_stat_item item);
-+extern unsigned long node_page_state(struct pglist_data *pgdat,
-+						enum node_stat_item item);
- extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
- 
- #else
- 
--#define node_page_state(node, item) global_page_state(item)
-+#define node_page_state(node, item) global_node_page_state(item)
- #define zone_statistics(_zl, _z, gfp) do { } while (0)
- 
- #endif /* CONFIG_NUMA */
- 
- #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
- #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
-+#define add_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, __d)
-+#define sub_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, -(__d))
- 
- #ifdef CONFIG_SMP
- void __mod_zone_page_state(struct zone *, enum zone_stat_item item, long);
- void __inc_zone_page_state(struct page *, enum zone_stat_item);
- void __dec_zone_page_state(struct page *, enum zone_stat_item);
- 
-+void __mod_node_page_state(struct pglist_data *, enum node_stat_item item, long);
-+void __inc_node_page_state(struct page *, enum node_stat_item);
-+void __dec_node_page_state(struct page *, enum node_stat_item);
-+
- void mod_zone_page_state(struct zone *, enum zone_stat_item, long);
- void inc_zone_page_state(struct page *, enum zone_stat_item);
- void dec_zone_page_state(struct page *, enum zone_stat_item);
- 
-+void mod_node_page_state(struct pglist_data *, enum node_stat_item, long);
-+void inc_node_page_state(struct page *, enum node_stat_item);
-+void dec_node_page_state(struct page *, enum node_stat_item);
-+
- extern void inc_zone_state(struct zone *, enum zone_stat_item);
-+extern void inc_node_state(struct pglist_data *, enum node_stat_item);
- extern void __inc_zone_state(struct zone *, enum zone_stat_item);
-+extern void __inc_node_state(struct pglist_data *, enum node_stat_item);
- extern void dec_zone_state(struct zone *, enum zone_stat_item);
- extern void __dec_zone_state(struct zone *, enum zone_stat_item);
-+extern void __dec_node_state(struct pglist_data *, enum node_stat_item);
- 
- void quiet_vmstat(void);
- void cpu_vm_stats_fold(int cpu);
-@@ -211,16 +244,34 @@ static inline void __mod_zone_page_state(struct zone *zone,
- 	zone_page_state_add(delta, zone, item);
- }
- 
-+static inline void __mod_node_page_state(struct pglist_data *pgdat,
-+			enum node_stat_item item, int delta)
-+{
-+	node_page_state_add(delta, pgdat, item);
-+}
-+
- static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
- {
- 	atomic_long_inc(&zone->vm_stat[item]);
--	atomic_long_inc(&vm_stat[item]);
-+	atomic_long_inc(&vm_zone_stat[item]);
-+}
-+
-+static inline void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	atomic_long_inc(&pgdat->vm_stat[item]);
-+	atomic_long_inc(&vm_node_stat[item]);
- }
- 
- static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
- {
- 	atomic_long_dec(&zone->vm_stat[item]);
--	atomic_long_dec(&vm_stat[item]);
-+	atomic_long_dec(&vm_zone_stat[item]);
-+}
-+
-+static inline void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	atomic_long_dec(&pgdat->vm_stat[item]);
-+	atomic_long_dec(&vm_node_stat[item]);
- }
- 
- static inline void __inc_zone_page_state(struct page *page,
-@@ -229,12 +280,26 @@ static inline void __inc_zone_page_state(struct page *page,
- 	__inc_zone_state(page_zone(page), item);
- }
- 
-+static inline void __inc_node_page_state(struct page *page,
-+			enum node_stat_item item)
-+{
-+	__inc_node_state(page_zone(page)->zone_pgdat, item);
-+}
-+
-+
- static inline void __dec_zone_page_state(struct page *page,
- 			enum zone_stat_item item)
- {
- 	__dec_zone_state(page_zone(page), item);
- }
- 
-+static inline void __dec_node_page_state(struct page *page,
-+			enum node_stat_item item)
-+{
-+	__dec_node_state(page_zone(page)->zone_pgdat, item);
-+}
-+
-+
- /*
-  * We only use atomic operations to update counters. So there is no need to
-  * disable interrupts.
-@@ -243,7 +308,12 @@ static inline void __dec_zone_page_state(struct page *page,
- #define dec_zone_page_state __dec_zone_page_state
- #define mod_zone_page_state __mod_zone_page_state
- 
-+#define inc_node_page_state __inc_node_page_state
-+#define dec_node_page_state __dec_node_page_state
-+#define mod_node_page_state __mod_node_page_state
-+
- #define inc_zone_state __inc_zone_state
-+#define inc_node_state __inc_node_state
- #define dec_zone_state __dec_zone_state
- 
- #define set_pgdat_percpu_threshold(pgdat, callback) { }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 46ecbfa5b228..e06d548521af 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3837,8 +3837,8 @@ void si_meminfo_node(struct sysinfo *val, int nid)
- 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
- 		managed_pages += pgdat->node_zones[zone_type].managed_pages;
- 	val->totalram = managed_pages;
--	val->sharedram = node_page_state(nid, NR_SHMEM);
--	val->freeram = node_page_state(nid, NR_FREE_PAGES);
-+	val->sharedram = sum_zone_node_page_state(nid, NR_SHMEM);
-+	val->freeram = sum_zone_node_page_state(nid, NR_FREE_PAGES);
- #ifdef CONFIG_HIGHMEM
- 	val->totalhigh = pgdat->node_zones[ZONE_HIGHMEM].managed_pages;
- 	val->freehigh = zone_page_state(&pgdat->node_zones[ZONE_HIGHMEM],
-@@ -4941,6 +4941,11 @@ static void __meminit setup_zone_pageset(struct zone *zone)
- 	zone->pageset = alloc_percpu(struct per_cpu_pageset);
- 	for_each_possible_cpu(cpu)
- 		zone_pageset_init(zone, cpu);
-+
-+	if (!zone->zone_pgdat->per_cpu_nodestats) {
-+		zone->zone_pgdat->per_cpu_nodestats =
-+			alloc_percpu(struct per_cpu_nodestat);
-+	}
- }
- 
- /*
-@@ -5647,6 +5652,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	reset_deferred_meminit(pgdat);
- 	pgdat->node_id = nid;
- 	pgdat->node_start_pfn = node_start_pfn;
-+	pgdat->per_cpu_nodestats = NULL;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- 	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 74f8c918ac4b..ea4e6f9f1094 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -86,8 +86,10 @@ void vm_events_fold_cpu(int cpu)
-  *
-  * vm_stat contains the global counters
-  */
--atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
--EXPORT_SYMBOL(vm_stat);
-+atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
-+atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;
-+EXPORT_SYMBOL(vm_zone_stat);
-+EXPORT_SYMBOL(vm_node_stat);
- 
- #ifdef CONFIG_SMP
- 
-@@ -176,9 +178,13 @@ void refresh_zone_stat_thresholds(void)
- 
- 		threshold = calculate_normal_threshold(zone);
- 
--		for_each_online_cpu(cpu)
-+		for_each_online_cpu(cpu) {
-+			struct pglist_data *pgdat = zone->zone_pgdat;
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
- 							= threshold;
-+			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold
-+							= threshold;
-+		}
- 
- 		/*
- 		 * Only set percpu_drift_mark if there is a danger that
-@@ -238,6 +244,26 @@ void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
- }
- EXPORT_SYMBOL(__mod_zone_page_state);
- 
-+void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
-+				long delta)
-+{
-+	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-+	s8 __percpu *p = pcp->vm_node_stat_diff + item;
-+	long x;
-+	long t;
-+
-+	x = delta + __this_cpu_read(*p);
-+
-+	t = __this_cpu_read(pcp->stat_threshold);
-+
-+	if (unlikely(x > t || x < -t)) {
-+		node_page_state_add(x, pgdat, item);
-+		x = 0;
-+	}
-+	__this_cpu_write(*p, x);
-+}
-+EXPORT_SYMBOL(__mod_node_page_state);
-+
- /*
-  * Optimized increment and decrement functions.
-  *
-@@ -277,12 +303,34 @@ void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
- 	}
- }
- 
-+void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-+	s8 __percpu *p = pcp->vm_node_stat_diff + item;
-+	s8 v, t;
-+
-+	v = __this_cpu_inc_return(*p);
-+	t = __this_cpu_read(pcp->stat_threshold);
-+	if (unlikely(v > t)) {
-+		s8 overstep = t >> 1;
-+
-+		node_page_state_add(v + overstep, pgdat, item);
-+		__this_cpu_write(*p, -overstep);
-+	}
-+}
-+
- void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
- {
- 	__inc_zone_state(page_zone(page), item);
- }
- EXPORT_SYMBOL(__inc_zone_page_state);
- 
-+void __inc_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	__inc_node_state(page_zone(page)->zone_pgdat, item);
-+}
-+EXPORT_SYMBOL(__inc_node_page_state);
-+
- void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
- {
- 	struct per_cpu_pageset __percpu *pcp = zone->pageset;
-@@ -299,12 +347,34 @@ void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
- 	}
- }
- 
-+void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-+	s8 __percpu *p = pcp->vm_node_stat_diff + item;
-+	s8 v, t;
-+
-+	v = __this_cpu_dec_return(*p);
-+	t = __this_cpu_read(pcp->stat_threshold);
-+	if (unlikely(v < - t)) {
-+		s8 overstep = t >> 1;
-+
-+		node_page_state_add(v - overstep, pgdat, item);
-+		__this_cpu_write(*p, overstep);
-+	}
-+}
-+
- void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
- {
- 	__dec_zone_state(page_zone(page), item);
- }
- EXPORT_SYMBOL(__dec_zone_page_state);
- 
-+void __dec_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	__dec_node_state(page_zone(page)->zone_pgdat, item);
-+}
-+EXPORT_SYMBOL(__dec_node_page_state);
-+
- #ifdef CONFIG_HAVE_CMPXCHG_LOCAL
- /*
-  * If we have cmpxchg_local support then we do not need to incur the overhead
-@@ -318,8 +388,8 @@ EXPORT_SYMBOL(__dec_zone_page_state);
-  *     1       Overstepping half of threshold
-  *     -1      Overstepping minus half of threshold
- */
--static inline void mod_state(struct zone *zone, enum zone_stat_item item,
--			     long delta, int overstep_mode)
-+static inline void mod_zone_state(struct zone *zone,
-+       enum zone_stat_item item, long delta, int overstep_mode)
- {
- 	struct per_cpu_pageset __percpu *pcp = zone->pageset;
- 	s8 __percpu *p = pcp->vm_stat_diff + item;
-@@ -359,26 +429,88 @@ static inline void mod_state(struct zone *zone, enum zone_stat_item item,
- void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
- 			 long delta)
- {
--	mod_state(zone, item, delta, 0);
-+	mod_zone_state(zone, item, delta, 0);
- }
- EXPORT_SYMBOL(mod_zone_page_state);
- 
- void inc_zone_state(struct zone *zone, enum zone_stat_item item)
- {
--	mod_state(zone, item, 1, 1);
-+	mod_zone_state(zone, item, 1, 1);
- }
- 
- void inc_zone_page_state(struct page *page, enum zone_stat_item item)
- {
--	mod_state(page_zone(page), item, 1, 1);
-+	mod_zone_state(page_zone(page), item, 1, 1);
- }
- EXPORT_SYMBOL(inc_zone_page_state);
- 
- void dec_zone_page_state(struct page *page, enum zone_stat_item item)
- {
--	mod_state(page_zone(page), item, -1, -1);
-+	mod_zone_state(page_zone(page), item, -1, -1);
- }
- EXPORT_SYMBOL(dec_zone_page_state);
-+
-+static inline void mod_node_state(struct pglist_data *pgdat,
-+       enum node_stat_item item, int delta, int overstep_mode)
-+{
-+	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-+	s8 __percpu *p = pcp->vm_node_stat_diff + item;
-+	long o, n, t, z;
-+
-+	do {
-+		z = 0;  /* overflow to zone counters */
-+
-+		/*
-+		 * The fetching of the stat_threshold is racy. We may apply
-+		 * a counter threshold to the wrong the cpu if we get
-+		 * rescheduled while executing here. However, the next
-+		 * counter update will apply the threshold again and
-+		 * therefore bring the counter under the threshold again.
-+		 *
-+		 * Most of the time the thresholds are the same anyways
-+		 * for all cpus in a zone.
-+		 */
-+		t = this_cpu_read(pcp->stat_threshold);
-+
-+		o = this_cpu_read(*p);
-+		n = delta + o;
-+
-+		if (n > t || n < -t) {
-+			int os = overstep_mode * (t >> 1) ;
-+
-+			/* Overflow must be added to zone counters */
-+			z = n + os;
-+			n = -os;
-+		}
-+	} while (this_cpu_cmpxchg(*p, o, n) != o);
-+
-+	if (z)
-+		node_page_state_add(z, pgdat, item);
-+}
-+
-+void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
-+					long delta)
-+{
-+	mod_node_state(pgdat, item, delta, 0);
-+}
-+EXPORT_SYMBOL(mod_node_page_state);
-+
-+void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	mod_node_state(pgdat, item, 1, 1);
-+}
-+
-+void inc_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	mod_node_state(page_zone(page)->zone_pgdat, item, 1, 1);
-+}
-+EXPORT_SYMBOL(inc_node_page_state);
-+
-+void dec_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	mod_node_state(page_zone(page)->zone_pgdat, item, -1, -1);
-+}
-+EXPORT_SYMBOL(dec_node_page_state);
- #else
- /*
-  * Use interrupt disable to serialize counter updates
-@@ -394,15 +526,6 @@ void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
- }
- EXPORT_SYMBOL(mod_zone_page_state);
- 
--void inc_zone_state(struct zone *zone, enum zone_stat_item item)
--{
--	unsigned long flags;
--
--	local_irq_save(flags);
--	__inc_zone_state(zone, item);
--	local_irq_restore(flags);
--}
--
- void inc_zone_page_state(struct page *page, enum zone_stat_item item)
- {
- 	unsigned long flags;
-@@ -424,21 +547,69 @@ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
- 	local_irq_restore(flags);
- }
- EXPORT_SYMBOL(dec_zone_page_state);
--#endif
- 
-+void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__inc_node_state(pgdat, item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_node_state);
-+
-+void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
-+					long delta)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__mod_node_page_state(node, item, delta);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(mod_node_page_state);
-+
-+void inc_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	unsigned long flags;
-+	struct pglist_data *pgdat;
-+
-+	pgdat = page_zone(page)->zone_pgdat;
-+	local_irq_save(flags);
-+	__inc_zone_state(pgdat, item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_node_page_state);
-+
-+void dec_node_page_state(struct page *page, enum node_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__dec_node_page_state(page, item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(dec_node_page_state);
-+#endif
- 
- /*
-  * Fold a differential into the global counters.
-  * Returns the number of counters updated.
-  */
--static int fold_diff(int *diff)
-+static int fold_diff(int *zone_diff, int *node_diff)
- {
- 	int i;
- 	int changes = 0;
- 
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
--		if (diff[i]) {
--			atomic_long_add(diff[i], &vm_stat[i]);
-+		if (zone_diff[i]) {
-+			atomic_long_add(zone_diff[i], &vm_zone_stat[i]);
-+			changes++;
-+	}
-+
-+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+		if (node_diff[i]) {
-+			atomic_long_add(node_diff[i], &vm_node_stat[i]);
- 			changes++;
- 	}
- 	return changes;
-@@ -462,9 +633,11 @@ static int fold_diff(int *diff)
-  */
- static int refresh_cpu_vm_stats(bool do_pagesets)
- {
-+	struct pglist_data *pgdat;
- 	struct zone *zone;
- 	int i;
--	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
- 	int changes = 0;
- 
- 	for_each_populated_zone(zone) {
-@@ -477,7 +650,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
- 			if (v) {
- 
- 				atomic_long_add(v, &zone->vm_stat[i]);
--				global_diff[i] += v;
-+				global_zone_diff[i] += v;
- #ifdef CONFIG_NUMA
- 				/* 3 seconds idle till flush */
- 				__this_cpu_write(p->expire, 3);
-@@ -516,7 +689,22 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
- 		}
- #endif
- 	}
--	changes += fold_diff(global_diff);
-+
-+	for_each_online_pgdat(pgdat) {
-+		struct per_cpu_nodestat __percpu *p = pgdat->per_cpu_nodestats;
-+
-+		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-+			int v;
-+
-+			v = this_cpu_xchg(p->vm_node_stat_diff[i], 0);
-+			if (v) {
-+				atomic_long_add(v, &pgdat->vm_stat[i]);
-+				global_node_diff[i] += v;
-+			}
-+		}
-+	}
-+
-+	changes += fold_diff(global_zone_diff, global_node_diff);
- 	return changes;
- }
- 
-@@ -527,9 +715,11 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
-  */
- void cpu_vm_stats_fold(int cpu)
- {
-+	struct pglist_data *pgdat;
- 	struct zone *zone;
- 	int i;
--	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
- 
- 	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset *p;
-@@ -543,11 +733,25 @@ void cpu_vm_stats_fold(int cpu)
- 				v = p->vm_stat_diff[i];
- 				p->vm_stat_diff[i] = 0;
- 				atomic_long_add(v, &zone->vm_stat[i]);
--				global_diff[i] += v;
-+				global_zone_diff[i] += v;
-+			}
-+	}
-+
-+	for_each_online_pgdat(pgdat) {
-+		struct per_cpu_nodestat __percpu *p = pgdat->per_cpu_nodestats;
-+
-+		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+			if (p->vm_node_stat_diff[i]) {
-+				int v;
-+
-+				v = p->vm_node_stat_diff[i];
-+				p->vm_node_stat_diff[i] = 0;
-+				atomic_long_add(v, &pgdat->vm_stat[i]);
-+				global_node_diff[i] += v;
- 			}
- 	}
- 
--	fold_diff(global_diff);
-+	fold_diff(global_zone_diff, global_node_diff);
- }
- 
- /*
-@@ -563,7 +767,7 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
- 			int v = pset->vm_stat_diff[i];
- 			pset->vm_stat_diff[i] = 0;
- 			atomic_long_add(v, &zone->vm_stat[i]);
--			atomic_long_add(v, &vm_stat[i]);
-+			atomic_long_add(v, &vm_zone_stat[i]);
- 		}
- }
- #endif
-@@ -595,9 +799,12 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
- }
- 
- /*
-- * Determine the per node value of a stat item.
-+ * Determine the per node value of a stat item. This function
-+ * is called frequently in a NUMA machine, so try to be as
-+ * frugal as possible.
-  */
--unsigned long node_page_state(int node, enum zone_stat_item item)
-+unsigned long sum_zone_node_page_state(int node,
-+				 enum zone_stat_item item)
- {
- 	struct zone *zones = NODE_DATA(node)->node_zones;
- 
-@@ -615,6 +822,19 @@ unsigned long node_page_state(int node, enum zone_stat_item item)
- 		zone_page_state(&zones[ZONE_MOVABLE], item);
- }
- 
-+/*
-+ * Determine the per node value of a stat item.
-+ */
-+unsigned long node_page_state(struct pglist_data *pgdat,
-+				enum node_stat_item item)
-+{
-+	long x = atomic_long_read(&pgdat->vm_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
- #endif
- 
- #ifdef CONFIG_COMPACTION
-@@ -1303,6 +1523,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
- 	if (*pos >= ARRAY_SIZE(vmstat_text))
- 		return NULL;
- 	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
-+			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +
- 			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
-@@ -1317,6 +1538,10 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
- 		v[i] = global_page_state(i);
- 	v += NR_VM_ZONE_STAT_ITEMS;
- 
-+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+		v[i] = global_node_page_state(i);
-+	v += NR_VM_NODE_STAT_ITEMS;
-+
- 	global_dirty_limits(v + NR_DIRTY_BG_THRESHOLD,
- 			    v + NR_DIRTY_THRESHOLD);
- 	v += NR_VM_WRITEBACK_STAT_ITEMS;
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 8a75f8d2916a..173399b239be 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -349,12 +349,14 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
- 	local_irq_enable();
- 
--	if (memcg_kmem_enabled())
-+	if (memcg_kmem_enabled()) {
- 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
- 						     LRU_ALL_FILE);
--	else
--		pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
--			node_page_state(sc->nid, NR_INACTIVE_FILE);
-+	} else {
-+		pg_data_t *pgdat = NODE_DATA(sc->nid);
-+		pages = node_page_state(pgdat, NR_ACTIVE_FILE) +
-+			node_page_state(pgdat, NR_INACTIVE_FILE);
-+	}
+ 	/* Fields commonly accessed by the page reclaim scanner */
+-	spinlock_t		lru_lock;
+ 	struct lruvec		lruvec;
  
  	/*
- 	 * Active cache pages are limited to 50% of memory, and shadow
+@@ -693,6 +692,9 @@ typedef struct pglist_data {
+ 	/* Number of pages migrated during the rate limiting time interval */
+ 	unsigned long numabalancing_migrate_nr_pages;
+ #endif
++	/* Write-intensive fields used from the page allocator */
++	ZONE_PADDING(_pad1_)
++	spinlock_t		lru_lock;
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ 	/*
+@@ -724,6 +726,10 @@ typedef struct pglist_data {
+ 
+ #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+ #define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
++static inline spinlock_t *zone_lru_lock(struct zone *zone)
++{
++	return &zone->zone_pgdat->lru_lock;
++}
+ 
+ static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
+ {
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 4cb1c2ef5abb..c85bd016754f 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -670,7 +670,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 * if contended.
+ 		 */
+ 		if (!(low_pfn % SWAP_CLUSTER_MAX)
+-		    && compact_unlock_should_abort(&zone->lru_lock, flags,
++		    && compact_unlock_should_abort(zone_lru_lock(zone), flags,
+ 								&locked, cc))
+ 			break;
+ 
+@@ -747,7 +747,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+-			locked = compact_trylock_irqsave(&zone->lru_lock,
++			locked = compact_trylock_irqsave(zone_lru_lock(zone),
+ 								&flags, cc);
+ 			if (!locked)
+ 				break;
+@@ -798,7 +798,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		low_pfn = end_pfn;
+ 
+ 	if (locked)
+-		spin_unlock_irqrestore(&zone->lru_lock, flags);
++		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 
+ 	/*
+ 	 * Update the pageblock-skip information and cached scanner pfn,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 6414803972f7..99d921e1e1bb 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -95,8 +95,8 @@
+  *    ->swap_lock		(try_to_unmap_one)
+  *    ->private_lock		(try_to_unmap_one)
+  *    ->tree_lock		(try_to_unmap_one)
+- *    ->zone.lru_lock		(follow_page->mark_page_accessed)
+- *    ->zone.lru_lock		(check_pte_range->isolate_lru_page)
++ *    ->zone_lru_lock(zone)	(follow_page->mark_page_accessed)
++ *    ->zone_lru_lock(zone)	(check_pte_range->isolate_lru_page)
+  *    ->private_lock		(page_remove_rmap->set_page_dirty)
+  *    ->tree_lock		(page_remove_rmap->set_page_dirty)
+  *    bdi.wb->list_lock		(page_remove_rmap->set_page_dirty)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 8caec8f13dfc..59ca13bb13f9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3356,7 +3356,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 	int i;
+ 
+ 	/* prevent PageLRU to go away from under us, and freeze lru stats */
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	lruvec = mem_cgroup_page_lruvec(head, zone);
+ 
+ 	/* complete memcg works before add pages to LRU */
+@@ -3366,7 +3366,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 		__split_huge_page_tail(head, i, lruvec, list);
+ 
+ 	ClearPageCompound(head);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	unfreeze_page(page_anon_vma(head), head);
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ae8b81c55685..c1acf0edd3b4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2088,7 +2088,7 @@ static void lock_page_lru(struct page *page, int *isolated)
+ {
+ 	struct zone *zone = page_zone(page);
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	if (PageLRU(page)) {
+ 		struct lruvec *lruvec;
+ 
+@@ -2112,7 +2112,7 @@ static void unlock_page_lru(struct page *page, int isolated)
+ 		SetPageLRU(page);
+ 		add_page_to_lru_list(page, lruvec, page_lru(page));
+ 	}
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ }
+ 
+ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
+@@ -2377,7 +2377,7 @@ void __memcg_kmem_uncharge(struct page *page, int order)
+ 
+ /*
+  * Because tail pages are not marked as "used", set it. We're under
+- * zone->lru_lock and migration entries setup in all page mappings.
++ * zone_lru_lock and migration entries setup in all page mappings.
+  */
+ void mem_cgroup_split_huge_fixup(struct page *head)
+ {
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 96f001041928..ce7dabd53e7e 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -188,7 +188,7 @@ unsigned int munlock_vma_page(struct page *page)
+ 	 * might otherwise copy PageMlocked to part of the tail pages before
+ 	 * we clear it in the head page. It also stabilizes hpage_nr_pages().
+ 	 */
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 
+ 	nr_pages = hpage_nr_pages(page);
+ 	if (!TestClearPageMlocked(page))
+@@ -197,14 +197,14 @@ unsigned int munlock_vma_page(struct page *page)
+ 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
+ 
+ 	if (__munlock_isolate_lru_page(page, true)) {
+-		spin_unlock_irq(&zone->lru_lock);
++		spin_unlock_irq(zone_lru_lock(zone));
+ 		__munlock_isolated_page(page);
+ 		goto out;
+ 	}
+ 	__munlock_isolation_failed(page);
+ 
+ unlock_out:
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ out:
+ 	return nr_pages - 1;
+@@ -289,7 +289,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+ 	pagevec_init(&pvec_putback, 0);
+ 
+ 	/* Phase 1: page isolation */
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	for (i = 0; i < nr; i++) {
+ 		struct page *page = pvec->pages[i];
+ 
+@@ -315,7 +315,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+ 	}
+ 	delta_munlocked = -nr + pagevec_count(&pvec_putback);
+ 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	/* Now we can release pins of pages that we are not munlocking */
+ 	pagevec_release(&pvec_putback);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e06d548521af..288015b5ee24 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5570,10 +5570,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		zone->min_slab_pages = (freesize * sysctl_min_slab_ratio) / 100;
+ #endif
+ 		zone->name = zone_names[j];
++		zone->zone_pgdat = pgdat;
+ 		spin_lock_init(&zone->lock);
+-		spin_lock_init(&zone->lru_lock);
++		spin_lock_init(zone_lru_lock(zone));
+ 		zone_seqlock_init(zone);
+-		zone->zone_pgdat = pgdat;
+ 		zone_pcp_init(zone);
+ 
+ 		/* For bootup, initialized properly in watermark setup */
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index 4ea9c4ef5146..ae11aa914e55 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -41,12 +41,12 @@ static struct page *page_idle_get_page(unsigned long pfn)
+ 		return NULL;
+ 
+ 	zone = page_zone(page);
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	if (unlikely(!PageLRU(page))) {
+ 		put_page(page);
+ 		page = NULL;
+ 	}
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 	return page;
+ }
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 02f0bfc3c80a..6ed6699c45fc 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -27,7 +27,7 @@
+  *         mapping->i_mmap_rwsem
+  *           anon_vma->rwsem
+  *             mm->page_table_lock or pte_lock
+- *               zone->lru_lock (in mark_page_accessed, isolate_lru_page)
++ *               zone_lru_lock (in mark_page_accessed, isolate_lru_page)
+  *               swap_lock (in swap_duplicate, swap_info_get)
+  *                 mmlist_lock (in mmput, drain_mmlist and others)
+  *                 mapping->private_lock (in __set_page_dirty_buffers)
+diff --git a/mm/swap.c b/mm/swap.c
+index 09fe5e97714a..4067911033e1 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -59,12 +59,12 @@ static void __page_cache_release(struct page *page)
+ 		struct lruvec *lruvec;
+ 		unsigned long flags;
+ 
+-		spin_lock_irqsave(&zone->lru_lock, flags);
++		spin_lock_irqsave(zone_lru_lock(zone), flags);
+ 		lruvec = mem_cgroup_page_lruvec(page, zone);
+ 		VM_BUG_ON_PAGE(!PageLRU(page), page);
+ 		__ClearPageLRU(page);
+ 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
+-		spin_unlock_irqrestore(&zone->lru_lock, flags);
++		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 	}
+ 	mem_cgroup_uncharge(page);
+ }
+@@ -186,16 +186,16 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 
+ 		if (pagezone != zone) {
+ 			if (zone)
+-				spin_unlock_irqrestore(&zone->lru_lock, flags);
++				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 			zone = pagezone;
+-			spin_lock_irqsave(&zone->lru_lock, flags);
++			spin_lock_irqsave(zone_lru_lock(zone), flags);
+ 		}
+ 
+ 		lruvec = mem_cgroup_page_lruvec(page, zone);
+ 		(*move_fn)(page, lruvec, arg);
+ 	}
+ 	if (zone)
+-		spin_unlock_irqrestore(&zone->lru_lock, flags);
++		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 	release_pages(pvec->pages, pvec->nr, pvec->cold);
+ 	pagevec_reinit(pvec);
+ }
+@@ -315,9 +315,9 @@ void activate_page(struct page *page)
+ {
+ 	struct zone *zone = page_zone(page);
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	__activate_page(page, mem_cgroup_page_lruvec(page, zone), NULL);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ }
+ #endif
+ 
+@@ -446,13 +446,13 @@ void add_page_to_unevictable_list(struct page *page)
+ 	struct zone *zone = page_zone(page);
+ 	struct lruvec *lruvec;
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	lruvec = mem_cgroup_page_lruvec(page, zone);
+ 	ClearPageActive(page);
+ 	SetPageUnevictable(page);
+ 	SetPageLRU(page);
+ 	add_page_to_lru_list(page, lruvec, LRU_UNEVICTABLE);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ }
+ 
+ /**
+@@ -724,7 +724,7 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 		 * same zone. The lock is held only if zone != NULL.
+ 		 */
+ 		if (zone && ++lock_batch == SWAP_CLUSTER_MAX) {
+-			spin_unlock_irqrestore(&zone->lru_lock, flags);
++			spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 			zone = NULL;
+ 		}
+ 
+@@ -734,7 +734,7 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 
+ 		if (PageCompound(page)) {
+ 			if (zone) {
+-				spin_unlock_irqrestore(&zone->lru_lock, flags);
++				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 				zone = NULL;
+ 			}
+ 			__put_compound_page(page);
+@@ -746,11 +746,11 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 
+ 			if (pagezone != zone) {
+ 				if (zone)
+-					spin_unlock_irqrestore(&zone->lru_lock,
++					spin_unlock_irqrestore(zone_lru_lock(zone),
+ 									flags);
+ 				lock_batch = 0;
+ 				zone = pagezone;
+-				spin_lock_irqsave(&zone->lru_lock, flags);
++				spin_lock_irqsave(zone_lru_lock(zone), flags);
+ 			}
+ 
+ 			lruvec = mem_cgroup_page_lruvec(page, zone);
+@@ -765,7 +765,7 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 		list_add(&page->lru, &pages_to_free);
+ 	}
+ 	if (zone)
+-		spin_unlock_irqrestore(&zone->lru_lock, flags);
++		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 
+ 	mem_cgroup_uncharge_list(&pages_to_free);
+ 	free_hot_cold_page_list(&pages_to_free, cold);
+@@ -801,7 +801,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
+ 	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+ 	VM_BUG_ON(NR_CPUS != 1 &&
+-		  !spin_is_locked(&lruvec_zone(lruvec)->lru_lock));
++		  !spin_is_locked(zone_lru_lock(lruvec_zone(lruvec))));
+ 
+ 	if (!list)
+ 		SetPageLRU(page_tail);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index de8d6226e026..13a8ca37ab42 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1343,7 +1343,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ }
+ 
+ /*
+- * zone->lru_lock is heavily contended.  Some of the functions that
++ * zone_lru_lock is heavily contended.  Some of the functions that
+  * shrink the lists perform better by taking out a batch of pages
+  * and working on them outside the LRU lock.
+  *
+@@ -1441,7 +1441,7 @@ int isolate_lru_page(struct page *page)
+ 		struct zone *zone = page_zone(page);
+ 		struct lruvec *lruvec;
+ 
+-		spin_lock_irq(&zone->lru_lock);
++		spin_lock_irq(zone_lru_lock(zone));
+ 		lruvec = mem_cgroup_page_lruvec(page, zone);
+ 		if (PageLRU(page)) {
+ 			int lru = page_lru(page);
+@@ -1450,7 +1450,7 @@ int isolate_lru_page(struct page *page)
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 			ret = 0;
+ 		}
+-		spin_unlock_irq(&zone->lru_lock);
++		spin_unlock_irq(zone_lru_lock(zone));
+ 	}
+ 	return ret;
+ }
+@@ -1509,9 +1509,9 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 		VM_BUG_ON_PAGE(PageLRU(page), page);
+ 		list_del(&page->lru);
+ 		if (unlikely(!page_evictable(page))) {
+-			spin_unlock_irq(&zone->lru_lock);
++			spin_unlock_irq(zone_lru_lock(zone));
+ 			putback_lru_page(page);
+-			spin_lock_irq(&zone->lru_lock);
++			spin_lock_irq(zone_lru_lock(zone));
+ 			continue;
+ 		}
+ 
+@@ -1532,10 +1532,10 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+-				spin_unlock_irq(&zone->lru_lock);
++				spin_unlock_irq(zone_lru_lock(zone));
+ 				mem_cgroup_uncharge(page);
+ 				(*get_compound_page_dtor(page))(page);
+-				spin_lock_irq(&zone->lru_lock);
++				spin_lock_irq(zone_lru_lock(zone));
+ 			} else
+ 				list_add(&page->lru, &pages_to_free);
+ 		}
+@@ -1597,7 +1597,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	if (!sc->may_writepage)
+ 		isolate_mode |= ISOLATE_CLEAN;
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
+ 				     &nr_scanned, sc, isolate_mode, lru);
+@@ -1612,7 +1612,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		else
+ 			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scanned);
+ 	}
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	if (nr_taken == 0)
+ 		return 0;
+@@ -1622,7 +1622,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 				&nr_writeback, &nr_immediate,
+ 				false);
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 
+ 	reclaim_stat->recent_scanned[file] += nr_taken;
+ 
+@@ -1639,7 +1639,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+ 
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	mem_cgroup_uncharge_list(&page_list);
+ 	free_hot_cold_page_list(&page_list, true);
+@@ -1713,9 +1713,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+  * processes, from rmap.
+  *
+  * If the pages are mostly unmapped, the processing is fast and it is
+- * appropriate to hold zone->lru_lock across the whole operation.  But if
++ * appropriate to hold zone_lru_lock across the whole operation.  But if
+  * the pages are mapped, the processing is slow (page_referenced()) so we
+- * should drop zone->lru_lock around each page.  It's impossible to balance
++ * should drop zone_lru_lock around each page.  It's impossible to balance
+  * this, so instead we remove the pages from the LRU while processing them.
+  * It is safe to rely on PG_active against the non-LRU pages in here because
+  * nobody will play with that bit on a non-LRU page.
+@@ -1752,10 +1752,10 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+-				spin_unlock_irq(&zone->lru_lock);
++				spin_unlock_irq(zone_lru_lock(zone));
+ 				mem_cgroup_uncharge(page);
+ 				(*get_compound_page_dtor(page))(page);
+-				spin_lock_irq(&zone->lru_lock);
++				spin_lock_irq(zone_lru_lock(zone));
+ 			} else
+ 				list_add(&page->lru, pages_to_free);
+ 		}
+@@ -1790,7 +1790,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	if (!sc->may_writepage)
+ 		isolate_mode |= ISOLATE_CLEAN;
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &l_hold,
+ 				     &nr_scanned, sc, isolate_mode, lru);
+@@ -1802,7 +1802,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
+ 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+@@ -1847,7 +1847,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	/*
+ 	 * Move pages back to the lru list.
+ 	 */
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	/*
+ 	 * Count referenced pages from currently used mappings as rotated,
+ 	 * even though only some of them are actually re-activated.  This
+@@ -1859,7 +1859,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	move_active_pages_to_lru(lruvec, &l_active, &l_hold, lru);
+ 	move_active_pages_to_lru(lruvec, &l_inactive, &l_hold, lru - LRU_ACTIVE);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	mem_cgroup_uncharge_list(&l_hold);
+ 	free_hot_cold_page_list(&l_hold, true);
+@@ -2094,7 +2094,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE) +
+ 		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE);
+ 
+-	spin_lock_irq(&zone->lru_lock);
++	spin_lock_irq(zone_lru_lock(zone));
+ 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
+ 		reclaim_stat->recent_scanned[0] /= 2;
+ 		reclaim_stat->recent_rotated[0] /= 2;
+@@ -2115,7 +2115,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 
+ 	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
+ 	fp /= reclaim_stat->recent_rotated[1] + 1;
+-	spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(zone_lru_lock(zone));
+ 
+ 	fraction[0] = ap;
+ 	fraction[1] = fp;
+@@ -3809,9 +3809,9 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 		pagezone = page_zone(page);
+ 		if (pagezone != zone) {
+ 			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
++				spin_unlock_irq(zone_lru_lock(zone));
+ 			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
++			spin_lock_irq(zone_lru_lock(zone));
+ 		}
+ 		lruvec = mem_cgroup_page_lruvec(page, zone);
+ 
+@@ -3832,7 +3832,7 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 	if (zone) {
+ 		__count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
+ 		__count_vm_events(UNEVICTABLE_PGSCANNED, pgscanned);
+-		spin_unlock_irq(&zone->lru_lock);
++		spin_unlock_irq(zone_lru_lock(zone));
+ 	}
+ }
+ #endif /* CONFIG_SHMEM */
 -- 
 2.6.4
 
