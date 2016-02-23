@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EF8B828DF
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:19:56 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id g62so214971107wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:19:56 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 928EA828DF
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:20:22 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id a4so213979261wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:20:22 -0800 (PST)
 Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id d3si45309363wja.39.2016.02.23.07.19.55
+        by mx.google.com with ESMTPS id d187si40126964wmc.105.2016.02.23.07.20.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 07:19:55 -0800 (PST)
+        Tue, 23 Feb 2016 07:20:21 -0800 (PST)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 51E361C195A
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:19:55 +0000 (GMT)
-Date: Tue, 23 Feb 2016 15:19:53 +0000
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 4E68B1C195A
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:20:21 +0000 (GMT)
+Date: Tue, 23 Feb 2016 15:20:19 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 22/27] mm, vmscan: Only wakeup kswapd once per node for the
- requested classzone
-Message-ID: <20160223151953.GH2854@techsingularity.net>
+Subject: [PATCH 23/27] mm, vmscan: Account in vmstat for pages skipped during
+ reclaim
+Message-ID: <20160223152019.GI2854@techsingularity.net>
 References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
@@ -27,51 +27,58 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-kswapd is woken when zones are below the low watermark but the wakeup
-decision is not taking the classzone into account.  Now that reclaim is
-node-based, it is only required to wake kswapd once per node and only if
-all zones are unbalanced for the requested classzone.
-
-Note that one node might be checked multiple times but there is no cheap
-way of tracking what nodes have already been visited for zoneslists that
-be ordered by either zone or node.
+Low reclaim efficiency occurs when many pages are scanned that cannot
+be reclaimed. This occurs for example when pages are dirty or under
+writeback. Node-based LRU reclaim introduces a new source as reclaim
+for allocation requests requiring lower zones will skip pages belonging
+to higher zones. This patch adds vmstat counters to count pages that
+were skipped because the calling context could not use pages from that
+zone. It will help distinguish one source of low reclaim efficiency.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/vmscan.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ include/linux/vm_event_item.h | 1 +
+ mm/vmscan.c                   | 1 +
+ mm/vmstat.c                   | 2 ++
+ 3 files changed, 4 insertions(+)
 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 8dcb5a813163..cadaa0f05f67 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -26,6 +26,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		PGFREE, PGACTIVATE, PGDEACTIVATE,
+ 		PGFAULT, PGMAJFAULT,
+ 		PGLAZYFREED,
++		FOR_ALL_ZONES(PGSCAN_SKIP),
+ 		PGREFILL,
+ 		PGSTEAL_KSWAPD,
+ 		PGSTEAL_DIRECT,
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9f1492b077be..e92765eb0a1e 100644
+index e92765eb0a1e..a5302b86c032 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -3411,6 +3411,7 @@ static int kswapd(void *p)
- void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- {
- 	pg_data_t *pgdat;
-+	int z;
+@@ -1386,6 +1386,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
  
- 	if (!populated_zone(zone))
- 		return;
-@@ -3424,8 +3425,16 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	pgdat->kswapd_order = max(pgdat->kswapd_order, order);
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_balanced(zone, order, 0, 0))
--		return;
-+
-+	/* Only wake kswapd if all zones are unbalanced */
-+	for (z = 0; z <= zone_idx(zone); z++) {
-+		zone = pgdat->node_zones + z;
-+		if (!populated_zone(zone))
-+			continue;
-+
-+		if (zone_balanced(zone, order, 0, classzone_idx))
-+			return;
-+	}
+ 		if (page_zonenum(page) > sc->reclaim_idx) {
+ 			list_move(&page->lru, &pages_skipped);
++			__count_zone_vm_events(PGSCAN_SKIP, page_zone(page), 1);
+ 			continue;
+ 		}
  
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
- 	wake_up_interruptible(&pgdat->kswapd_wait);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 8562ebe2d311..4d8617b02032 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1007,6 +1007,8 @@ const char * const vmstat_text[] = {
+ 	"pgmajfault",
+ 	"pglazyfreed",
+ 
++	TEXTS_FOR_ZONES("pgskip")
++
+ 	"pgrefill",
+ 	"pgsteal_kswapd",
+ 	"pgsteal_direct",
 -- 
 2.6.4
 
