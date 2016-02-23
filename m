@@ -1,161 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 187C982F69
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 03:25:13 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id g6so106261053igt.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 00:25:13 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id o67si45683434ioo.211.2016.02.23.00.25.11
-        for <linux-mm@kvack.org>;
-        Tue, 23 Feb 2016 00:25:12 -0800 (PST)
-Date: Tue, 23 Feb 2016 17:25:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCH v2 3/3] mm/zsmalloc: increase ZS_MAX_PAGES_PER_ZSPAGE
-Message-ID: <20160223082532.GG27829@bbox>
-References: <1456061274-20059-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1456061274-20059-4-git-send-email-sergey.senozhatsky@gmail.com>
- <20160222002515.GB21710@bbox>
- <20160222004758.GB4958@swordfish>
- <20160222013442.GB27829@bbox>
- <20160222020113.GB488@swordfish>
- <20160222023432.GC27829@bbox>
- <20160222035954.GC11961@swordfish>
- <20160222044145.GE27829@bbox>
- <20160222104325.GA4859@swordfish>
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0004C82F69
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:17:42 -0500 (EST)
+Received: by mail-qk0-f182.google.com with SMTP id s5so65715505qkd.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 01:17:42 -0800 (PST)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id l73si33052028qhc.94.2016.02.23.01.17.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 23 Feb 2016 01:17:41 -0800 (PST)
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhlcindy@imap.linux.ibm.com>;
+	Tue, 23 Feb 2016 02:17:41 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5BC161FF0025
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 02:05:48 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1N9HcEi28180730
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 02:17:38 -0700
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1N9HcvS017003
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 02:17:38 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160222104325.GA4859@swordfish>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Tue, 23 Feb 2016 17:17:37 +0800
+From: zhlcindy <zhlcindy@imap.linux.ibm.com>
+Subject: Re: [PATCH 1/1] mm: meminit: initialise more memory for inode/dentry
+ hash tables in early boot
+In-Reply-To: <1455699404-67837-1-git-send-email-zhlcindy@linux.vnet.ibm.com>
+References: <1455699404-67837-1-git-send-email-zhlcindy@linux.vnet.ibm.com>
+Message-ID: <5fe2e0cc1adff25fdc06a86e7e404c1a@imap.linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, zhlcindy@gmail.com
 
-On Mon, Feb 22, 2016 at 07:43:25PM +0900, Sergey Senozhatsky wrote:
-> On (02/22/16 13:41), Minchan Kim wrote:
-> [..]
-> > > oh, sure.
-> > > 
-> > > so let's keep dynamic page allocation out of sight for now.
-> > > I'll do more tests with the increase ORDER and if it's OK then
-> > > hopefully we can just merge it, it's quite simple and shouldn't
-> > > interfere with any of the changes you are about to introduce.
-> > 
-> > Thanks.
-> > 
-> > And as another idea, we could try fallback approach that
-> > we couldn't meet nr_pages to minimize wastage so let's fallback
-> > to order-0 page like as-is. It will enhance, at least than now
-> > with small-amount of code compared to dynmaic page allocation.
-> 
-> 
-> speaking of fallback,
-> with bigger ZS_MAX_ZSPAGE_ORDER 'normal' classes also become bigger.
-> 
-> PATCHED
-> 
->      6   128           0            1            96         78          3                1
->      7   144           0            1           256        104          9                9
->      8   160           0            1           128         80          5                5
->      9   176           0            1           256         78         11               11
->     10   192           1            1           128         99          6                3
->     11   208           0            1           256         52         13               13
->     12   224           1            1           512        472         28                7
->     13   240           0            1           256         70         15               15
->     14   256           1            1            64         49          4                1
->     15   272           0            1            60         48          4                1
-> 
-> 
-> BASE
-> 
->      6   128           0            1            96         83          3                1
->      7   144           0            1           170        113          6                3
->      8   160           0            1           102         72          4                2
->      9   176           1            0            93         75          4                4
->     10   192           0            1           128        104          6                3
->     11   208           1            1            78         52          4                2
->     12   224           1            1           511        475         28                4
->     13   240           1            1            85         73          5                1
->     14   256           1            1            64         53          4                1
->     15   272           1            0            45         43          3                1
-> 
-> 
-> _techically_, zsmalloc is correct.
-> for instance, in 11 pages we can store 4096 * 11 / 176 == 256 objects.
-> 256 * 176 == 45056, which is 4096 * 11. so if zspage for class_size 176 will contain 11
-> order-0 pages, we can count on 0 bytes of unused space once zspage will become ZS_FULL.
-> 
-> but it's ugly, because I think this will introduce bigger internal fragmentation, which,
-> in some cases, can be handled by compaction, but I'd prefer to touch only ->huge classes
-> and keep the existing behaviour for normal classes.
-> 
-> so I'm currently thinking of doing something like this
-> 
-> #define ZS_MAX_ZSPAGE_ORDER	2
-> #define ZS_MAX_HUGE_ZSPAGE_ORDER	4
-> #define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
-> #define ZS_MAX_PAGES_PER_HUGE_ZSPAGE (_AC(1, UL) << ZS_MAX_HUGE_ZSPAGE_ORDER)
-> 
-> 
-> so, normal classes have ORDER of 2. huge classes, however, as a fallback, can grow
-> up to ZS_MAX_HUGE_ZSPAGE_ORDER pages.
-> 
-> 
-> extend only ->huge classes: pages == 1 && get_maxobj_per_zspage(class_size, pages) == 1.
-> 
-> like this:
-> 
-> static int __get_pages_per_zspage(int class_size, int max_pages)
-> {
->         int i, max_usedpc = 0;
->         /* zspage order which gives maximum used size per KB */
->         int max_usedpc_order = 1;
-> 
->         for (i = 1; i <= max_pages; i++) {
->                 int zspage_size;
->                 int waste, usedpc;
-> 
->                 zspage_size = i * PAGE_SIZE;
->                 waste = zspage_size % class_size;
->                 usedpc = (zspage_size - waste) * 100 / zspage_size;
-> 
->                 if (usedpc > max_usedpc) {
->                         max_usedpc = usedpc;
->                         max_usedpc_order = i;
->                 }
->         }
-> 
->         return max_usedpc_order;
-> }
-> 
-> static int get_pages_per_zspage(int class_size)
-> {
->         /* normal class first */
->         int pages = __get_pages_per_zspage(class_size,
->                         ZS_MAX_PAGES_PER_ZSPAGE);
-> 
->         /* test if the class is ->huge and try to turn it into a normal one */
->         if (pages == 1 &&
->                         get_maxobj_per_zspage(class_size, pages) == 1) {
->                 pages = __get_pages_per_zspage(class_size,
->                                 ZS_MAX_PAGES_PER_HUGE_ZSPAGE);
->         }
-> 
->         return pages;
-> }
-> 
+Hi Mel Gorman,
 
-That sounds like a plan but at a first glance, my worry is we might need
-some special handling related to objs_per_zspage and pages_per_zspage
-because currently, we have assumed all of zspages in a class has same
-number of subpages so it might make it ugly.
-Hmm, at least, I need to check code how it makes ugly.
-If you think it's not trouble, please send a patch.
+Would you please help review this patch?
+Power platform plan to enable page parallel initialisation, but a
+call trace is caused in 32TB system with 16 Nodes.
 
-As well, please write down why order-4 for MAX_ZSPAGES is best
-if you resend it as formal patch.
+The log from dmesg with this patch,
 
-Thanks.
+[    0.092881] Dentry cache hash table entries: 2147483648 (order: 18, 
+17179869184 bytes)
+[    2.895862] Inode-cache hash table entries: 2147483648 (order: 18, 
+17179869184 bytes)
+[    5.632367] Mount-cache hash table entries: 67108864 (order: 13, 
+536870912 bytes)
+[    5.634831] Mountpoint-cache hash table entries: 67108864 (order: 13, 
+536870912 bytes)
+
+Dentry cache has table needs about 16GB, Inode needs: 16GB.
+This system has 16 Nodes, if it is reserved 2G per node, 32GB is not
+enough for this system.
+
+This code is generic, it may affect other platforms, so would you please
+give some suggestions?
+
+Thanks a lot.
+Li
+
+
+On 2016-02-17 16:56, Li Zhang wrote:
+> This patch is based on Mel Gorman's old patch in the mailing list,
+> https://lkml.org/lkml/2015/5/5/280 which is dicussed but it is
+> fixed with a completion to wait for all memory initialised in
+> page_alloc_init_late(). The solution in upstream is to fix the
+> OOM problem on X86 with 24TB memory which allocates memory in
+> page late initialisation.
+> But for Power platform with 32TB memory, page paralle initilisation
+> still causes a call trace in vfs_caches_init->inode_init() and
+> inode hash table needs more memory.
+> So this patch allocates 1GB for 0.25TB/node for large system as
+> it is mentioned in https://lkml.org/lkml/2015/5/1/627.
+> 
+> This call trace is found on Power with 32TB memory, 1024CPUs, 16nodes.
+> The log from dmesg as the following:
+> 
+> [    0.091780] Dentry cache hash table entries: 2147483648 (order: 18,
+> 17179869184 bytes)
+> [    2.891012] vmalloc: allocation failure, allocated 16021913600 of
+> 17179934720 bytes
+> [    2.891034] swapper/0: page allocation failure: order:0,
+> mode:0x2080020
+> [    2.891038] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-0-ppc64
+> [    2.891041] Call Trace:
+> [    2.891046] [c0000000012bfa00] [c0000000007c4a50]
+>                 .dump_stack+0xb4/0xb664 (unreliable)
+> [    2.891051] [c0000000012bfa80] [c0000000001f93d4]
+>                 .warn_alloc_failed+0x114/0x160
+> [    2.891054] [c0000000012bfb30] [c00000000023c204]
+>                 .__vmalloc_area_node+0x1a4/0x2b0
+> [    2.891058] [c0000000012bfbf0] [c00000000023c3f4]
+>                 .__vmalloc_node_range+0xe4/0x110
+> [    2.891061] [c0000000012bfc90] [c00000000023c460]
+>                 .__vmalloc_node+0x40/0x50
+> [    2.891065] [c0000000012bfd10] [c000000000b67d60]
+>                 .alloc_large_system_hash+0x134/0x2a4
+> [    2.891068] [c0000000012bfdd0] [c000000000b70924]
+>                 .inode_init+0xa4/0xf0
+> [    2.891071] [c0000000012bfe60] [c000000000b706a0]
+>                 .vfs_caches_init+0x80/0x144
+> [    2.891074] [c0000000012bfef0] [c000000000b35208]
+>                 .start_kernel+0x40c/0x4e0
+> [    2.891078] [c0000000012bff90] [c000000000008cfc]
+>                 start_here_common+0x20/0x4a4
+> [    2.891080] Mem-Info:
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 11 +++++++++--
+>  1 file changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 838ca8bb..4847f25 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t 
+> *pgdat,
+>  				unsigned long pfn, unsigned long zone_end,
+>  				unsigned long *nr_initialised)
+>  {
+> +	unsigned long max_initialise;
+> +
+>  	/* Always populate low zones for address-contrained allocations */
+>  	if (zone_end < pgdat_end_pfn(pgdat))
+>  		return true;
+> +	/*
+> +	* Initialise at least 2G of a node but also take into account that
+> +	* two large system hashes that can take up 1GB for 0.25TB/node.
+> +	*/
+> +	max_initialise = max(2UL << (30 - PAGE_SHIFT),
+> +		(pgdat->node_spanned_pages >> 8));
+> 
+> -	/* Initialise at least 2G of the highest zone */
+>  	(*nr_initialised)++;
+> -	if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
+> +	if ((*nr_initialised > max_initialise) &&
+>  	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+>  		pgdat->first_deferred_pfn = pfn;
+>  		return false;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
