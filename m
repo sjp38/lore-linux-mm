@@ -1,115 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC0D828DF
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 17:34:00 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id gc3so393352obb.3
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:34:00 -0800 (PST)
-Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
-        by mx.google.com with ESMTPS id h143si1430oib.22.2016.02.23.14.33.59
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 422FF6B0009
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 17:47:48 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id g62so5296524wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:47:48 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id w9si34001wja.96.2016.02.23.14.47.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 14:34:00 -0800 (PST)
-Received: by mail-oi0-x234.google.com with SMTP id x21so346671oix.2
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:33:59 -0800 (PST)
+        Tue, 23 Feb 2016 14:47:47 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id g62so221312910wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 14:47:47 -0800 (PST)
+Message-ID: <56CCE190.4060408@plexistor.com>
+Date: Wed, 24 Feb 2016 00:47:44 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-In-Reply-To: <56CCD54C.3010600@plexistor.com>
-References: <56C9EDCF.8010007@plexistor.com>
-	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
-	<56CA1CE7.6050309@plexistor.com>
-	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
-	<56CA2AC9.7030905@plexistor.com>
-	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
-	<20160221223157.GC25832@dastard>
-	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
-	<20160222174426.GA30110@infradead.org>
-	<257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
-	<20160223095225.GB32294@infradead.org>
-	<56CC686A.9040909@plexistor.com>
-	<CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
-	<56CCD54C.3010600@plexistor.com>
-Date: Tue, 23 Feb 2016 14:33:59 -0800
-Message-ID: <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
 Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+References: <56CA1CE7.6050309@plexistor.com> <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com> <56CA2AC9.7030905@plexistor.com> <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com> <20160221223157.GC25832@dastard> <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com> <20160222174426.GA30110@infradead.org> <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com> <20160223095225.GB32294@infradead.org> <56CC686A.9040909@plexistor.com> <20160223172512.GC15877@linux.intel.com>
+In-Reply-To: <20160223172512.GC15877@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Feb 23, 2016 at 1:55 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
-[..]
-> But seriously please explain the problem. I do not see one.
->
->> I think Christoph has already pointed out the roadmap.  Get the
->> existing crop of DAX bugs squashed
->
-> Sure that's always true, I'm a stability freak through and through ask
-> the guys who work with me. I like to sleep at night ;-)
->
->> and then *maybe* look at something
->> like a MAP_SYNC to opt-out of userspace needing to call *sync.
->>
->
-> MAP_SYNC Is another novelty, which as Dave showed will not be implemented
-> by such a legacy filesystem as xfs. any time soon. sync is needed not only
-> for memory stores. For me this is a supper set of what I proposed. because
-> again any file writes persistence is built of two parts durable data, and
-> durable meta-data. My flag says, app takes care of data, then the other part
-> can be done another way. For performance sake which is what I care about
-> the heavy lifting is done at the data path. the meta data is marginal.
-> If you want for completeness sake then fine have another flag.
->
-> The new app written will need to do its new pmem_memcpy magic any way.
-> then we are saying "do we need to call fsync() or not?"
->
-> I hate it that you postpone that to never because it would be nice for
-> philosophical sake to not have the app call sync at all. and all these
-> years suffer the performance penalty. Instead of putting in a 10 liners
-> patch today that has no risks, and yes forces new apps to keep the ugly
-> fsync() call, but have the targeted performance today instead of *maybe* never.
->
-> my path is a nice intermediate  progression to yours. Yours blocks my needs
-> indefinitely?
->
->> [1]: 10.4.6.2 Caching of Temporal vs. Non-Temporal Data
->> "Some older CPU implementations (e.g., Pentium M) allowed addresses
->> being written with a non-temporal store instruction to be updated
->> in-place if the memory type was not WC and line was already in the
->> cache."
->>
->> I wouldn't be surprised if other architectures had similar constraints.
->>
->
-> Perhaps you are looking at this from the wrong perspective. Pentium M
-> can do this because the two cores shared the same cache. But we are talking
-> about POSIX files semantics. Not CPU memory semantics. Some of our problems
-> go away.
->
-> Or am I missing something out and I'm completely clueless. Please explain
-> slowly.
->
+On 02/23/2016 07:25 PM, Ross Zwisler wrote:
+<>
+> 
+> It seems like we are trying to solve a couple of different problems:
+> 
+> 1) Make page faults faster by skipping any radix tree insertions, tag updates,
+> etc.
+> 
+> 2) Make fsync/msync faster by not flushing data that the application says it
+> is already making durable from userspace.
+> 
 
-So I need to step back from the Pentium M example.  It's already a red
-herring because, as Ross points out, prefetch concerns would require
-that strawman application to be doing cache flushes itself.
+I fail to see how this is separate issues the reason you are keeping track
+of pages in [1] is exactly because you want to know which are they in [2].
+Only [2] matters and [1] is what you thought is a necessary cost.
+If you remember I wanted to solve [1] differently by iterating over the
+extent lists of the mmap range and cl_flushing all the "written" pages in the
+range not only the written ones. In our testes we found that for  most real world
+applications and benchmarks this works better then your approach. because
+page-faults are fast.
+There is however work loads that are much worse. In anyway your way was easier
+because it had a generic solution instead of an FS specific implementation.
 
-Set that aside and sorry for that diversion.
+> I agree that your approach seems to improve both of these problems, but I
+> would argue that it is an incomplete solution for problem #2 because a
+> fsync/msync from the PMEM aware application would still flush any radix tree
+> entries from *other* threads that were writing to the same file.
+> 
 
-In general MAP_SYNC, makes more sense semantic sense in that the
-filesystem knows that the application is not going to be calling *sync
-and it avoids triggering flushes for cachelines we don't care about.
+No!! you meant applications. Because threads are from the same application if
+a programmer is dumb enough to upgrade one mmap call site to new and keep
+all other sites legacy without the flag and pmem_mecpy, then he can suffer, I do
+not care for dumb programmers.
 
-Although if we had MAP_SYNC today we'd still be in the situation that
-an app that fails to do its own cache flushes / bypass correctly gets
-to keep the broken pieces.
+For the two applications one new one legacy writing to the same file each written
+by a different team of programmers. For one they do not exist. But for two
+this is an administrator issue. Yes if he allows such a setup he knows that the
+performance will not be has if both apps upgraded but it will still be better then
+two legacy apps. because at least all the pages from the new app will not slow-sync.
 
-The crux of the problem, in my opinion, is that we're asking for an "I
-know what I'm doing" flag, and I expect that's an impossible statement
-for a filesystem to trust generically.  If you can get MAP_PMEM_AWARE
-in, great, but I'm more and more of the opinion that the "I know what
-I'm doing" interface should be something separate from today's trusted
-filesystems.
+> It seems like a more direct solution for #2 above would be to have a
+> metadata-only equivalent of fsync/fdatasync, say "fmetasync", which says "I'll
+> make the writes I do to my mmaps durable from userspace, but I need you to
+> sync all filesystem metadata for me, please".
+> 
+> This would allow a complete separation of data synchronization in userspace
+> from metadata synchronization in kernel space by the filesystem code.
+> 
+> By itself a fmetasync() type solution of course would do nothing for issue #1
+> - if that was a compelling issue you'd need something like the mmap tag you're
+> proposing to skip work on page faults.
+> 
+
+Again a novelty solution to a theoretical only problem. With only very marginal
+performance gains. And no users that I can see. And lots of work including FS
+specific work.
+
+> All that being said, though, I agree with others in the thread that we should
+> still be focused on correctness, as we have a lot of correctness issues
+> remaining.  When we eventually get to the place where we are trying to do
+> performance optimizations, those optimizations should be measurement driven.
+> 
+
+What I'm hopping to do is establish a good practice for pmem aware apps
+that everyone can agree on and will give us ground to optimize for.
+That pmem apps can start to be written and experimented with.
+
+The patch I sent is so simple and none intrusive that it can be easily
+be carried in the noise and I cannot see how it breaks anything. And yes
+I am measurement driven and is why I even bother.
+
+And hence the RFC let us establish a programming model first.
+
+> - Ross
+> 
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
