@@ -1,78 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8B982F69
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:18:50 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id c200so209995777wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 01:18:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uo5si43504888wjc.221.2016.02.23.01.18.49
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F8A6B0005
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:45:06 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id fl4so107760034pad.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 01:45:06 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id ku4si46191856pab.153.2016.02.23.01.45.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 Feb 2016 01:18:49 -0800 (PST)
-Subject: Re: [PATCH] mm,vmscan: compact memory from kswapd when lots of memory
- free already
-References: <20160222225054.1f6ab286@annuminas.surriel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56CC23F7.8010709@suse.cz>
-Date: Tue, 23 Feb 2016 10:18:47 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Feb 2016 01:45:05 -0800 (PST)
+Date: Tue, 23 Feb 2016 01:45:01 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160223094501.GA32294@infradead.org>
+References: <56CA1CE7.6050309@plexistor.com>
+ <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+ <56CA2AC9.7030905@plexistor.com>
+ <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+ <20160221223157.GC25832@dastard>
+ <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+ <20160222174426.GA30110@infradead.org>
+ <x49y4ac630l.fsf@segfault.boston.devel.redhat.com>
+ <20160222180350.GA9866@infradead.org>
+ <x49twl060ib.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20160222225054.1f6ab286@annuminas.surriel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49twl060ib.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/23/2016 04:50 AM, Rik van Riel wrote:
-> If kswapd is woken up for a higher order allocation, for example
-> from alloc_skb, but the system already has lots of memory free,
-> kswapd_shrink_zone will rightfully decide kswapd should not free
-> any more memory.
->
-> However, at that point kswapd should proceed to compact memory, on
-> behalf of alloc_skb or others.
->
-> Currently kswapd will only compact memory if it first freed memory,
-> leading kswapd to never compact memory when there is already lots of
-> memory free.
->
-> On my home system, that lead to kswapd occasionally using up to 5%
-> CPU time, with many man wakeups from alloc_skb, and kswapd never
-> doing anything to relieve the situation that caused it to be woken
-> up.
+On Mon, Feb 22, 2016 at 01:52:28PM -0500, Jeff Moyer wrote:
+> I see.  So, at write fault time, you're saying that new blocks may be
+> allocated, and that in order to make that persistent, we need a sync
+> operation.
 
-Hi,
+Yes.
 
-I've proposed replacing kswapd compaction with kcompactd, so this hunk 
-is gone completely in mmotm. This imperfect comparison was indeed one of 
-the things I've noted, but it's not all:
+> Presumably this MAP_SYNC option could sync out the necessary
+> metadata updates to the log before returning from the write fault
+> handler.  The arguments against making this work are that it isn't
+> generally useful, and that we don't want more dax special cases in the
+> code.  Did I get that right?
 
-http://marc.info/?l=linux-kernel&m=145493881908394&w=2
-
-> Going ahead with compaction when kswapd did not attempt to reclaim
-> any memory, and as a consequence did not reclaim any memory, is the
-> right thing to do in this situation.
->
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
->   mm/vmscan.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 71b1c29948db..9566a04b9759 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3343,7 +3343,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   		 * Compact if necessary and kswapd is reclaiming at least the
->   		 * high watermark number of pages as requsted
->   		 */
-> -		if (pgdat_needs_compaction && sc.nr_reclaimed > nr_attempted)
-> +		if (pgdat_needs_compaction && sc.nr_reclaimed >= nr_attempted)
->   			compact_pgdat(pgdat, order);
->
->   		/*
->
+The argument is that it's non-trivial, and we haven't even sorted out
+basic semantics for directly mapped storaged.  Let's finish up getting
+this right, and then look into optimizing it further in the next step.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
