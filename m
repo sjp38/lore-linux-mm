@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E5BB16B0260
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 08:45:45 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id g62so222897783wme.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 05:45:45 -0800 (PST)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id e124si39681158wma.114.2016.02.23.05.45.19
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD186B0254
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 08:51:09 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id g62so223145194wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 05:51:09 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id g9si44799905wjq.235.2016.02.23.05.45.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 05:45:19 -0800 (PST)
+        Tue, 23 Feb 2016 05:45:20 -0800 (PST)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 3AD2E1C1DD8
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id C11931C1DD8
 	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 13:45:19 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 12/27] mm: vmscan: Do not reclaim from kswapd if there is any eligible zone
-Date: Tue, 23 Feb 2016 13:45:01 +0000
-Message-Id: <1456235116-32385-13-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 15/27] mm, workingset: Make working set detection node-aware
+Date: Tue, 23 Feb 2016 13:45:04 +0000
+Message-Id: <1456235116-32385-16-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1456235116-32385-1-git-send-email-mgorman@techsingularity.net>
 References: <1456235116-32385-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,67 +23,192 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-kswapd scans from highest to lowest for a zone that requires balancing.
-This was necessary when reclaim was per-zone to fairly age pages on
-lower zones. Now that we are reclaiming on a per-node basis, any eligible
-zone can be used and pages will still be aged fairly. This patch avoids
-reclaiming excessively unless buffer_heads are over the limit and it's
-necessary to reclaim from a higher zone than requested by the waker of
-kswapd to relieve low memory pressure.
+Working set and refault detection is still zone-based, fix it.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/vmscan.c | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ include/linux/mmzone.h |  6 +++---
+ mm/vmstat.c            |  6 +++---
+ mm/workingset.c        | 37 +++++++++++++++++--------------------
+ 3 files changed, 23 insertions(+), 26 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1f5d3829d35e..39ad2ab76a2b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3123,24 +3123,30 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index ffe8a6e606b9..cef476813581 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -146,9 +146,6 @@ enum zone_stat_item {
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
+-	WORKINGSET_REFAULT,
+-	WORKINGSET_ACTIVATE,
+-	WORKINGSET_NODERECLAIM,
+ 	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+@@ -163,6 +160,9 @@ enum node_stat_item {
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+ 	NR_PAGES_SCANNED,	/* pages scanned since last reclaim */
++	WORKINGSET_REFAULT,
++	WORKINGSET_ACTIVATE,
++	WORKINGSET_NODERECLAIM,
+ 	NR_VM_NODE_STAT_ITEMS
+ };
  
- 		sc.nr_reclaimed = 0;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 19bd521e161b..0746dd5e1e73 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -970,9 +970,6 @@ const char * const vmstat_text[] = {
+ 	"numa_local",
+ 	"numa_other",
+ #endif
+-	"workingset_refault",
+-	"workingset_activate",
+-	"workingset_nodereclaim",
+ 	"nr_anon_transparent_hugepages",
+ 	"nr_free_cma",
  
--		/* Scan from the highest requested zone to dma */
-+		/*
-+		 * If the number of buffer_heads in the machine exceeds the
-+		 * maximum allowed level and this node has a highmem zone,
-+		 * force kswapd to reclaim from it to relieve lowmem pressure.
-+		 */
-+		if (buffer_heads_over_limit) {
-+			for (i = MAX_NR_ZONES - 1; i >= 0; i++) {
-+				zone = pgdat->node_zones + i;
-+				if (!populated_zone(zone))
-+					continue;
-+
-+				if (is_highmem_idx(i))
-+					classzone_idx = i;
-+				break;
-+			}
-+		}
-+
-+		/* Only reclaim if there are no eligible zones */
- 		for (i = classzone_idx; i >= 0; i--) {
- 			zone = pgdat->node_zones + i;
- 			if (!populated_zone(zone))
- 				continue;
+@@ -985,6 +982,9 @@ const char * const vmstat_text[] = {
+ 	"nr_isolated_anon",
+ 	"nr_isolated_file",
+ 	"nr_pages_scanned",
++	"workingset_refault",
++	"workingset_activate",
++	"workingset_nodereclaim",
  
--			/*
--			 * If the number of buffer_heads in the machine
--			 * exceeds the maximum allowed level and this node
--			 * has a highmem zone, force kswapd to reclaim from
--			 * it to relieve lowmem pressure.
--			 */
--			if (buffer_heads_over_limit && is_highmem_idx(i)) {
--				classzone_idx = i;
--				break;
--			}
--
--			if (!zone_balanced(zone, order, 0, 0)) {
-+			if (!zone_balanced(zone, order, 0, classzone_idx)) {
- 				classzone_idx = i;
- 				break;
- 			}
+ 	/* enum writeback_stat_item counters */
+ 	"nr_dirty_threshold",
+diff --git a/mm/workingset.c b/mm/workingset.c
+index d06d69670b5d..82a3fedef0df 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -16,7 +16,7 @@
+ /*
+  *		Double CLOCK lists
+  *
+- * Per zone, two clock lists are maintained for file pages: the
++ * Per node, two clock lists are maintained for file pages: the
+  * inactive and the active list.  Freshly faulted pages start out at
+  * the head of the inactive list and page reclaim scans pages from the
+  * tail.  Pages that are accessed multiple times on the inactive list
+@@ -141,11 +141,11 @@
+  *
+  *		Implementation
+  *
+- * For each zone's file LRU lists, a counter for inactive evictions
+- * and activations is maintained (zone->inactive_age).
++ * For each node's file LRU lists, a counter for inactive evictions
++ * and activations is maintained (node->inactive_age).
+  *
+  * On eviction, a snapshot of this counter (along with some bits to
+- * identify the zone) is stored in the now empty page cache radix tree
++ * identify the node) is stored in the now empty page cache radix tree
+  * slot of the evicted page.  This is called a shadow entry.
+  *
+  * On cache misses for which there are shadow entries, an eligible
+@@ -167,33 +167,30 @@
+  */
+ static unsigned int bucket_order __read_mostly;
+ 
+-static void *pack_shadow(int memcgid, struct zone *zone, unsigned long eviction)
++static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+ {
+ 	eviction >>= bucket_order;
+ 	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+-	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
+-	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
++	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+ 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
+ 
+ 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
+ }
+ 
+-static void unpack_shadow(void *shadow, int *memcgidp, struct zone **zonep,
++static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+ 			  unsigned long *evictionp)
+ {
+ 	unsigned long entry = (unsigned long)shadow;
+-	int memcgid, nid, zid;
++	int memcgid, nid;
+ 
+ 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
+-	zid = entry & ((1UL << ZONES_SHIFT) - 1);
+-	entry >>= ZONES_SHIFT;
+ 	nid = entry & ((1UL << NODES_SHIFT) - 1);
+ 	entry >>= NODES_SHIFT;
+ 	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+ 	entry >>= MEM_CGROUP_ID_SHIFT;
+ 
+ 	*memcgidp = memcgid;
+-	*zonep = NODE_DATA(nid)->node_zones + zid;
++	*pgdat = NODE_DATA(nid);
+ 	*evictionp = entry << bucket_order;
+ }
+ 
+@@ -220,7 +217,7 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
+ 
+ 	lruvec = mem_cgroup_lruvec(zone->zone_pgdat, memcg);
+ 	eviction = atomic_long_inc_return(&lruvec->inactive_age);
+-	return pack_shadow(memcgid, zone, eviction);
++	return pack_shadow(memcgid, zone->zone_pgdat, eviction);
+ }
+ 
+ /**
+@@ -228,7 +225,7 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
+  * @shadow: shadow entry of the evicted page
+  *
+  * Calculates and evaluates the refault distance of the previously
+- * evicted page in the context of the zone it was allocated in.
++ * evicted page in the context of the node it was allocated in.
+  *
+  * Returns %true if the page should be activated, %false otherwise.
+  */
+@@ -240,10 +237,10 @@ bool workingset_refault(void *shadow)
+ 	unsigned long eviction;
+ 	struct lruvec *lruvec;
+ 	unsigned long refault;
+-	struct zone *zone;
++	struct pglist_data *pgdat;
+ 	int memcgid;
+ 
+-	unpack_shadow(shadow, &memcgid, &zone, &eviction);
++	unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
+ 
+ 	rcu_read_lock();
+ 	/*
+@@ -267,7 +264,7 @@ bool workingset_refault(void *shadow)
+ 		rcu_read_unlock();
+ 		return false;
+ 	}
+-	lruvec = mem_cgroup_lruvec(zone->zone_pgdat, memcg);
++	lruvec = mem_cgroup_lruvec(pgdat, memcg);
+ 	refault = atomic_long_read(&lruvec->inactive_age);
+ 	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+ 	rcu_read_unlock();
+@@ -290,10 +287,10 @@ bool workingset_refault(void *shadow)
+ 	 */
+ 	refault_distance = (refault - eviction) & EVICTION_MASK;
+ 
+-	inc_zone_state(zone, WORKINGSET_REFAULT);
++	inc_node_state(pgdat, WORKINGSET_REFAULT);
+ 
+ 	if (refault_distance <= active_file) {
+-		inc_zone_state(zone, WORKINGSET_ACTIVATE);
++		inc_node_state(pgdat, WORKINGSET_ACTIVATE);
+ 		return true;
+ 	}
+ 	return false;
+@@ -435,7 +432,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 		}
+ 	}
+ 	BUG_ON(node->count);
+-	inc_zone_state(page_zone(virt_to_page(node)), WORKINGSET_NODERECLAIM);
++	inc_node_state(page_zone(virt_to_page(node))->zone_pgdat, WORKINGSET_NODERECLAIM);
+ 	if (!__radix_tree_delete_node(&mapping->page_tree, node))
+ 		BUG();
+ 
 -- 
 2.6.4
 
