@@ -1,65 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D21B6B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 18:38:18 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id q63so1150061pfb.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:38:18 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id hj1si243945pac.235.2016.02.23.15.38.17
-        for <linux-mm@kvack.org>;
-        Tue, 23 Feb 2016 15:38:17 -0800 (PST)
-Date: Tue, 23 Feb 2016 16:37:48 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/6] dax: Use vmf->gfp_mask
-Message-ID: <20160223233748.GA32265@linux.intel.com>
-References: <1454242795-18038-1-git-send-email-matthew.r.wilcox@intel.com>
- <1454242795-18038-2-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 417C56B0009
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 18:41:02 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id g62so246979010wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:41:02 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id vh4si250108wjc.49.2016.02.23.15.41.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Feb 2016 15:41:01 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id g62so222491304wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 15:41:01 -0800 (PST)
+Message-ID: <56CCEE09.7070204@plexistor.com>
+Date: Wed, 24 Feb 2016 01:40:57 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1454242795-18038-2-git-send-email-matthew.r.wilcox@intel.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+References: <56C9EDCF.8010007@plexistor.com>	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>	<56CA1CE7.6050309@plexistor.com>	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>	<56CA2AC9.7030905@plexistor.com>	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>	<20160221223157.GC25832@dastard>	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>	<20160222174426.GA30110@infradead.org>	<257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>	<20160223095225.GB32294@infradead.org>	<56CC686A.9040909@plexistor.com>	<CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>	<56CCD54C.3010600@plexistor.com>	<CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>	<56CCE647.70408@plexistor.com> <CAPcyv4gLoQm818BzQSqkCbNPztr0JVihmvuhb=d-kSgbrmYFzQ@mail.gmail.com>
+In-Reply-To: <CAPcyv4gLoQm818BzQSqkCbNPztr0JVihmvuhb=d-kSgbrmYFzQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sun, Jan 31, 2016 at 11:19:50PM +1100, Matthew Wilcox wrote:
-> We were assuming that it was OK to do a GFP_KERNEL allocation in page
-> fault context.  That appears to be largely true, but filesystems are
-> permitted to override that in their setting of mapping->gfp_flags, which
-> the VM then massages into vmf->gfp_flags.  No practical difference for
-> now, but there may come a day when we would have surprised a filesystem.
+On 02/24/2016 01:23 AM, Dan Williams wrote:
+> On Tue, Feb 23, 2016 at 3:07 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
+>> On 02/24/2016 12:33 AM, Dan Williams wrote:
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-
-Sure, this seems right.
-
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-
-> ---
->  fs/dax.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>>> The crux of the problem, in my opinion, is that we're asking for an "I
+>>> know what I'm doing" flag, and I expect that's an impossible statement
+>>> for a filesystem to trust generically.  If you can get MAP_PMEM_AWARE
+>>> in, great, but I'm more and more of the opinion that the "I know what
+>>> I'm doing" interface should be something separate from today's trusted
+>>> filesystems.
+>>>
+>>
+>> I disagree. I'm not saying any "trust me I know what I'm doing" flag.
+>> the FS reveals nothing and trusts nothing.
+>> All I'm saying is that the libc library I'm using as the new pmem_memecpy()
+>> and I'm using that instead of the old memecpy(). So the FS does not need to
+>> wipe my face after I eat. Failing to do so just means a bug in the application
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 2f9bb89..11be8c7 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -292,7 +292,7 @@ static int dax_load_hole(struct address_space *mapping, struct page *page,
->  	struct inode *inode = mapping->host;
->  	if (!page)
->  		page = find_or_create_page(mapping, vmf->pgoff,
-> -						GFP_KERNEL | __GFP_ZERO);
-> +						vmf->gfp_mask | __GFP_ZERO);
->  	if (!page)
->  		return VM_FAULT_OOM;
->  	/* Recheck i_size under page lock to avoid truncate race */
-> -- 
-> 2.7.0.rc3
+> "just means a bug in the application"
 > 
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
+> Who gets the bug report when an app gets its cache syncing wrong and
+> data corruption ensues, and why isn't the fix for that bug that the
+> filesystem simply stops trusting MAP_PMEM_AWARE and synching
+> cachelines on behalf of the app when it calls sync as it must for
+> metadata consistency.  Problem solved globally for all broken usages
+> of MAP_PMEM_AWARE and the flag loses all meaning as a result.
+> 
+
+Because this will not fix the application's bugs. Because if the application
+is broken then you do not know that this will fix it. It is broken it failed
+to uphold the contract it had with the Kernel.
+
+It is like saying lets call fsync on file close because broken apps keep
+forgetting to call fsync(). And file close is called even if the app crashes.
+Will Dave do that?
+
+No if an app has a bug like this falling to call the proper pmem_xxx routine
+in the proper work flow, it might has just forgotten to call fsync, or maybe
+still modifying memory after fsync was called. And your babysitting the app
+will not help.
+
+> This is the takeaway I've internalized from Dave's pushback of these
+> new mmap flags.
+> 
+
+We are already used to tell the firefox guys, you did not call fsync and
+you lost data on a crash.
+
+We will have a new mantra, "You did not use pmem_memcpy() but used MAP_PMEM_AWARE"
+We have contracts like that between Kernel and apps all the time. I fail to see why
+this one crossed the line for you?
+
+Again the question is: Can an app do something so stupid that it can break other
+apps?
+
+Cheers
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
