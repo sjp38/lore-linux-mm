@@ -1,97 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E1B76B0005
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:07:01 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id hb3so97479957igb.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:07:01 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id c18si38501405igr.94.2016.02.23.04.06.59
-        for <linux-mm@kvack.org>;
-        Tue, 23 Feb 2016 04:07:00 -0800 (PST)
-Date: Tue, 23 Feb 2016 23:06:44 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160223120644.GL25832@dastard>
-References: <56CA1CE7.6050309@plexistor.com>
- <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
- <56CA2AC9.7030905@plexistor.com>
- <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
- <20160221223157.GC25832@dastard>
- <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
- <20160222174426.GA30110@infradead.org>
- <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
- <20160223095225.GB32294@infradead.org>
- <7168B635-938B-44A0-BECD-C0774207B36D@intel.com>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 355D96B0253
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 07:35:01 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id a4so206861073wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:35:01 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id ld7si421541wjb.222.2016.02.23.04.34.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Feb 2016 04:35:00 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id a4so206860366wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 04:34:59 -0800 (PST)
+Date: Tue, 23 Feb 2016 13:34:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,oom: exclude oom_task_origin processes if they are
+ OOM-unkillable.
+Message-ID: <20160223123457.GC14178@dhcp22.suse.cz>
+References: <1455719460-7690-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1602171430500.15429@chino.kir.corp.google.com>
+ <20160218080909.GA18149@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1602221701170.4688@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7168B635-938B-44A0-BECD-C0774207B36D@intel.com>
+In-Reply-To: <alpine.DEB.2.10.1602221701170.4688@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rudoff, Andy" <andy.rudoff@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, oleg@redhat.com, torvalds@linux-foundation.org, hughd@google.com, andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 23, 2016 at 10:07:07AM +0000, Rudoff, Andy wrote:
+On Mon 22-02-16 17:06:29, David Rientjes wrote:
+> On Thu, 18 Feb 2016, Michal Hocko wrote:
 > 
-> > [Hi Andy - care to properly line break after ~75 character, that makes
-> > ready the message a lot easier, thanks!]
-> 
-> My bad. 
-> 
-> >> The instructions give you very fine-grain flushing control, but the
-> >> downside is that the app must track what it changes at that fine
-> >> granularity.  Both models work, but there's a trade-off.
+> > > Anyway, this is NACK'd since task->signal->oom_score_adj is checked under 
+> > > task_lock() for threads with memory attached, that's the purpose of 
+> > > finding the correct thread in oom_badness() and taking task_lock().  We 
+> > > aren't going to duplicate logic in several functions that all do the same 
+> > > thing.
 > > 
-> > No, the cache flush model simply does not work without a lot of hard
-> > work to enable it first.
+> > Is the task_lock really necessary, though? E.g. oom_task_origin()
+> > doesn't seem to depend on it for task->signal safety. If you are
+> > referring to races with changing oom_score_adj does such a race matter
+> > at all?
+> > 
 > 
-> It's working well enough to pass tests that simulate crashes and
-> various workload tests for the apps involved. And I agree there
-> has been a lot of hard work behind it. I guess I'm not sure why you're
-> saying it is impossible or not working.
-> 
-> Let's take an example: an app uses fallocate() to create a DAX file,
-> mmap() to map it, msync() to flush changes. The app follows POSIX
-> meaning it doesn't expect file metadata to be flushed magically, etc.
-> The app is tested carefully and it works correctly.  Now the msync()
-> call used to flush stores is replaced by flushing instructions.
-> What's broken?
+> oom_badness() ranges from 0 (don't kill) to 1000 (please kill).  It 
+> factors in the setting of /proc/self/oom_score_adj to change that value.  
+> That is where OOM_SCORE_ADJ_MIN is enforced. 
 
-You haven't told the filesytem to flush any dirty metadata required
-to access the user data to persistent storage.  If the zeroing and
-unwritten extent conversion that is run by the filesytem during
-write faults into preallocated blocks isn't persistent, then after a
-crash the file will read back as unwritten extents, returning zeros
-rather than the data that was written.
+The question is whether the current placement of OOM_SCORE_ADJ_MIN
+is appropriate. Wouldn't it make more sense to check it in oom_unkillable_task
+instead? Sure, checking oom_score_adj under task_lock inside oom_badness will
+prevent from races but the question I raised previously was whether we
+actually care about those races? When would it matter? Is it really
+likely that the update happen during the oom killing? And if yes what
+prevents from the update happening _after_ the check?
 
-msync() calls fsync() on file back pages, which makes file metadata
-changes persistent.  Indeed, if you read the fdatasync man page, you
-might have noticed that it makes explicit reference that it requires
-the filesystem to flush the metadata needed to access the data that
-is being synced. IOWs, the filesystem knows about this dirty
-metadata that needs to be flushed to ensure data integrity,
-userspace doesn't.
+If for nothing else oom_unkillable_task would be complete that way. E.g.
+sysctl_oom_kill_allocating_task has to check for OOM_SCORE_ADJ_MIN
+because it doesn't rely on oom_badness and that alone would suggest
+that the check is misplaced.
 
-Not to mention that the filesystem will convert and zero much more
-than just a single cacheline (whole pages at minimum, could be 2MB
-extents for large pages, etc) so the filesystem may require CPU
-cache flushes over a much wider range of cachelines that the
-application realises are dirty and require flushing for data
-integrity purposes. The filesytem knows about these dirty cache
-lines, userspace doesn't.
-
-IOWs, your userspace library may have made sure the data it modifies
-is in the physical location via your userspace CPU cache flushes,
-but there can be a lot of stuff it doesn't know about internal to
-the filesytem that also needs to be flushed to ensure data integrity
-is maintained.
-
-Cheers,
-
-Dave.
+That being said I do not really care that much. I would just find it
+neater to have oom_unkillable_task that would really consider all the
+cases where the OOM should ignore a task.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
