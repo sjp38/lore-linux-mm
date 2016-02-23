@@ -1,71 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7E46B0258
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:10:54 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id b205so201300972wmb.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 06:10:54 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id b188si39799538wmh.99.2016.02.23.06.10.53
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D172C6B0005
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 09:22:20 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id b67so137090063qgb.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 06:22:20 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s104si23166962qgd.51.2016.02.23.06.22.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 06:10:53 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id g62so224103119wme.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 06:10:53 -0800 (PST)
-Message-ID: <56CC686A.9040909@plexistor.com>
-Date: Tue, 23 Feb 2016 16:10:50 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
-MIME-Version: 1.0
+        Tue, 23 Feb 2016 06:22:20 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
 Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-References: <56C9EDCF.8010007@plexistor.com> <CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com> <56CA1CE7.6050309@plexistor.com> <CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com> <56CA2AC9.7030905@plexistor.com> <CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com> <20160221223157.GC25832@dastard> <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com> <20160222174426.GA30110@infradead.org> <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com> <20160223095225.GB32294@infradead.org>
-In-Reply-To: <20160223095225.GB32294@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <56C9EDCF.8010007@plexistor.com>
+	<CAPcyv4iqAXryz0-WAtvnYf6_Q=ha8F5b-fCUt7DDhYasX=YRUA@mail.gmail.com>
+	<56CA1CE7.6050309@plexistor.com>
+	<CAPcyv4hpxab=c1g83ARJvrnk_5HFkqS-t3sXpwaRBiXzehFwWQ@mail.gmail.com>
+	<56CA2AC9.7030905@plexistor.com>
+	<CAPcyv4gQV9Oh9OpHTGuGfTJ_s1C_L7J-VGyto3JMdAcgqyVeAw@mail.gmail.com>
+	<20160221223157.GC25832@dastard>
+	<x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com>
+	<56CC63F2.3040503@plexistor.com>
+Date: Tue, 23 Feb 2016 09:22:16 -0500
+In-Reply-To: <56CC63F2.3040503@plexistor.com> (Boaz Harrosh's message of "Tue,
+	23 Feb 2016 15:51:46 +0200")
+Message-ID: <x49si0jcxrb.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Dave Chinner <david@fromorbit.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/23/2016 11:52 AM, Christoph Hellwig wrote:
-<>
-> 
-> And this is BS.  Using msync or fsync might not perform as well as not
-> actually using them, but without them you do not get persistence.  If
-> you use your pmem as a throw away cache that's fine, but for most people
-> that is not the case.
-> 
+Boaz Harrosh <boaz@plexistor.com> writes:
 
-Hi Christoph
+>> An application creates a file and writes to every single block in the
+>> thing, sync's it, closes it.  It then opens it back up, calls mmap with
+>> this new MAP_DAX flag or on a file system mounted with -o dax, and
+>> proceeds to access the file using loads and stores.  It persists its
+>> data by using non-temporal stores, flushing and fencing cpu
+>> instructions.
+>> 
+>> If I understand you correctly, you're saying that that application is
+>> not written correctly, because it needs to call fsync to persist
+>> metadata (that it presumably did not modify).  Is that right?
+>> 
+>
+> Hi Jeff
+>
+> I do not understand why you chose to drop my email address from your
+> reply? What do I need to feel when this happens?
 
-So is exactly my suggestion. My approach is *not* the we do not call
-m/fsync to let the FS clean up.
+Hi Boaz,
 
-In my model we still do that, only we eliminate the m/fsync slowness
-and the all page faults overhead by being instructed by the application
-that we do not need to track the data modified cachelines. Since the
-application is telling us that it will do so.
+Sorry you were dropped, that was not my intention; I blame my mailer, as
+I did hit reply-all.  No hard feelings?
 
-In my model the job is split:
- App will take care of data persistence by instructing a MAP_PMEM_AWARE,
- and doing its own cl_flushing / movnt.
- Which is the heavy cost
+> And to your questions above. As I answered to Dave.
+> This is the novelty of my approach and the big difference between
+> what you guys thought with MAP_DAX and my patches as submitted.
+>  1. Application will/need to call m/fsync to let the FS the freedom it needs
+>  2. The m/fsync as well as the page faults will be very light wait and fast,
+>     all that is required from the pmem aware app is to do movnt stores and cl_flushes.
 
- The FS will keep track of the Meta-Data persistence as it already does, via the
- call to m/fsync. Which is marginal performance compared to the above heavy
- IO.
+I like the approach for these existing file systems.
 
-Note that the FS is still free to move blocks around, as Dave said:
-lockout pagefaultes, unmap from user space, let app fault again on a new
-block. this will still work as before, already in COW we flush the old
-block so there will be no persistence lost.
+> So enjoying both worlds. And actually more:
+> With your approach of fallocat(ing) the all space in advance you might as well
+> just partition the storage and use the DAX(ed) block device. But with my
+> approach you need not pre-allocate and enjoy the over provisioned model and
+> the space allocation management of a modern FS. And even with all that still
+> enjoy very fast direct mapped stores by not requiring the current slow m/fsync()
 
-So this all thread started with my patches, and my patches do not say
-"no m/fsync" they say, make this 3-8 times faster than today if the app
-is participating in the heavy lifting.
+Well, that remains to be seen.  Certainly for O_DIRECT appends or hole
+filling, there is extra overhead involved when compared to writes to
+already-existing blocks.  Apply that to DAX and the overhead will be
+much more prominent.  I'm not saying that this is definitely the case,
+but I think it's something we'll have to measure going forward.
 
-Please tell me what you find wrong with my approach?
+> I hope you guys stand behind me in my effort to accelerate userspace pmem apps
+> and still not break any built in assumptions.
 
-Thanks
-Boaz
+I do like the idea of reducing the msync/fsync overhead, though I admit
+I haven't yet looked at the patches in any detail.  My mail in this
+thread was primarily an attempt to wrap my head around why the fs needs
+the fsync/msync at all.  I've got that cleared up now.
+
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
