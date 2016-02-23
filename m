@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CF36F6B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 13:04:48 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id g62so212420129wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:04:48 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s1si22600674wjf.66.2016.02.23.10.04.47
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4702E6B0255
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 13:06:13 -0500 (EST)
+Received: by mail-qk0-f180.google.com with SMTP id o6so71412308qkc.2
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 10:06:13 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w198si34965248qkw.58.2016.02.23.10.06.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 10:04:47 -0800 (PST)
-Date: Tue, 23 Feb 2016 10:04:36 -0800
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 01/27] mm, page_alloc: Use ac->classzone_idx instead of
- zone_idx(preferred_zone)
-Message-ID: <20160223180436.GA13816@cmpxchg.org>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <1456239890-20737-2-git-send-email-mgorman@techsingularity.net>
+        Tue, 23 Feb 2016 10:06:12 -0800 (PST)
+Date: Tue, 23 Feb 2016 19:06:09 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: THP race?
+Message-ID: <20160223180609.GC23289@redhat.com>
+References: <20160223154950.GA22449@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1456239890-20737-2-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <20160223154950.GA22449@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org
 
-On Tue, Feb 23, 2016 at 03:04:24PM +0000, Mel Gorman wrote:
-> ac->classzone_idx is determined by the index of the preferred zone and cached
-> to avoid repeated calculations. wake_all_kswapds() should use it instead of
-> using zone_idx() within a loop.
+On Tue, Feb 23, 2016 at 06:49:50PM +0300, Kirill A. Shutemov wrote:
+> Hi Andrea,
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> I suspect there's race with THP in __handle_mm_fault(). It's pure
+> theoretical and race window is small, but..
+> 
+> Consider following scenario:
+> 
+>   - THP got allocated by other thread just before "pmd_none() &&
+>     __pte_alloc()" check, so pmd_none() is false and we don't
+>     allocate the page table.
+> 
+>   - But before pmd_trans_huge() check the page got unmap by
+>     MADV_DONTNEED in other thread.
+> 
+>   - At this point we will call pte_offset_map() for pmd which is
+>     pmd_none().
+> 
+> Nothing pleasant would happen after this...
+> 
+> Do you see anything what would prevent this scenario?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+No so I think we need s/pmd_trans_huge/pmd_trans_unstable/ and use the
+atomic read in C to sort this out lockless. The MADV_DONTNEED part
+that isn't holding the mmap_sem for writing unfortunately wasn't
+sorted out immediately, that was unexpected in
+fact. pmd_trans_unstable() was introduced precisely to handle this
+trouble caused by MADV_DONTNEED running with the mmap_sem only for
+reading which causes infinite possible transactions back and forth
+between none and transhuge while holding only the mmap_sem for
+reading.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+==
