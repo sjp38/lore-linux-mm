@@ -1,69 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AF9982F69
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2016 22:51:06 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id y89so127791348qge.2
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 19:51:06 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id g131si32345238qkb.102.2016.02.22.19.51.05
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 806C06B026C
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 01:38:30 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id b205so185499033wmb.1
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 22:38:30 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id x186si37749827wme.12.2016.02.22.22.38.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Feb 2016 19:51:05 -0800 (PST)
-Date: Mon, 22 Feb 2016 22:50:54 -0500
-From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH] mm,vmscan: compact memory from kswapd when lots of memory
- free already
-Message-ID: <20160222225054.1f6ab286@annuminas.surriel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Feb 2016 22:38:28 -0800 (PST)
+Received: by mail-wm0-x22a.google.com with SMTP id g62so195242809wme.0
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2016 22:38:28 -0800 (PST)
+Date: Tue, 23 Feb 2016 07:38:25 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC][PATCH 7/7] pkeys: add details of system call use to
+ Documentation/
+Message-ID: <20160223063824.GA21091@gmail.com>
+References: <20160223011107.FB9B8215@viggo.jf.intel.com>
+ <20160223011118.954E64B7@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160223011118.954E64B7@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org, mgorman@suse.de
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org
 
-If kswapd is woken up for a higher order allocation, for example
-from alloc_skb, but the system already has lots of memory free,
-kswapd_shrink_zone will rightfully decide kswapd should not free
-any more memory.
 
-However, at that point kswapd should proceed to compact memory, on
-behalf of alloc_skb or others.
+* Dave Hansen <dave@sr71.net> wrote:
 
-Currently kswapd will only compact memory if it first freed memory,
-leading kswapd to never compact memory when there is already lots of
-memory free.
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> This spells out all of the pkey-related system calls that we have
+> and provides some example code fragments to demonstrate how we
+> expect them to be used.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: linux-api@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: x86@kernel.org
+> Cc: torvalds@linux-foundation.org
+> Cc: akpm@linux-foundation.org
+> ---
+> 
+>  b/Documentation/x86/protection-keys.txt |   63 ++++++++++++++++++++++++++++++++
+>  1 file changed, 63 insertions(+)
 
-On my home system, that lead to kswapd occasionally using up to 5%
-CPU time, with many man wakeups from alloc_skb, and kswapd never
-doing anything to relieve the situation that caused it to be woken
-up.
+Please also add pkeys testcases to tools/tests/self-tests.
 
-Going ahead with compaction when kswapd did not attempt to reclaim
-any memory, and as a consequence did not reclaim any memory, is the
-right thing to do in this situation.
+Thanks,
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 71b1c29948db..9566a04b9759 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3343,7 +3343,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 		 * Compact if necessary and kswapd is reclaiming at least the
- 		 * high watermark number of pages as requsted
- 		 */
--		if (pgdat_needs_compaction && sc.nr_reclaimed > nr_attempted)
-+		if (pgdat_needs_compaction && sc.nr_reclaimed >= nr_attempted)
- 			compact_pgdat(pgdat, order);
- 
- 		/*
--- 
--- 
-All rights reversed.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
