@@ -1,108 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 163EB6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 11:44:55 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id a4so38335573wme.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 08:44:55 -0800 (PST)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id e63si46832225wme.95.2016.02.24.08.44.53
+Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1324C6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 12:09:21 -0500 (EST)
+Received: by mail-lf0-f50.google.com with SMTP id j78so16158726lfb.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 09:09:21 -0800 (PST)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
+        by mx.google.com with ESMTPS id qe5si1742928lbb.147.2016.02.24.09.09.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Feb 2016 08:44:54 -0800 (PST)
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 24 Feb 2016 16:44:52 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 64B8A17D8042
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 16:45:10 +0000 (GMT)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1OGimKM23658508
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 16:44:48 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1OGilG6017673
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 09:44:48 -0700
-Date: Wed, 24 Feb 2016 17:44:46 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe
- also on PowerPC and ARM)
-Message-ID: <20160224174446.76095849@thinkpad>
-In-Reply-To: <20160223193345.GC21820@node.shutemov.name>
-References: <20160211192223.4b517057@thinkpad>
-	<20160211190942.GA10244@node.shutemov.name>
-	<20160211205702.24f0d17a@thinkpad>
-	<20160212154116.GA15142@node.shutemov.name>
-	<56BE00E7.1010303@de.ibm.com>
-	<20160212181640.4eabb85f@thinkpad>
-	<20160223103221.GA1418@node.shutemov.name>
-	<20160223191907.25719a4d@thinkpad>
-	<20160223193345.GC21820@node.shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 09:09:19 -0800 (PST)
+Subject: [PATCH RFC] ext4: use __GFP_NOFAIL in ext4_free_blocks()
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Wed, 24 Feb 2016 20:09:12 +0300
+Message-ID: <20160224170912.2195.8153.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Sebastian Ott <sebott@linux.vnet.ibm.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Monakhov <dmonakhov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Tue, 23 Feb 2016 22:33:45 +0300
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+This might be unexpected but pages allocated for sbi->s_buddy_cache are
+charged to current memory cgroup. So, GFP_NOFS allocation could fail if
+current task has been killed by OOM or if current memory cgroup has no
+free memory left. Block allocator cannot handle such failures here yet.
 
-> On Tue, Feb 23, 2016 at 07:19:07PM +0100, Gerald Schaefer wrote:
-> > I'll check with Martin, maybe it is actually trivial, then we can
-> > do a quick test it to rule that one out.
-> 
-> Oh. I found a bug in __split_huge_pmd_locked(). Although, not sure if it's
-> _the_ bug.
-> 
-> pmdp_invalidate() is called for the wrong address :-/
-> I guess that can be destructive on the architecture, right?
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ fs/ext4/mballoc.c |   47 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 28 insertions(+), 19 deletions(-)
 
-Thanks, that's it! We can no longer reproduce the crashes and calling
-pmdp_invalidate() with a wrong address also perfectly explains the
-memory corruption that I found in several dumps: 0x020 was ORed into
-pte entries, which didn't make sense, and caused the list corruption
-for example. 0x020 it is the invalid bit for pmd entries on s390 and
-thus can be explained by this bug when a pte table lies before a pmd
-table in memory.
-
-> 
-> Could you check this?
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 1c317b85ea7d..4246bc70e55a 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2865,7 +2865,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
->  	pmd_populate(mm, &_pmd, pgtable);
-> 
-> -	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-> +	for (i = 0; i < HPAGE_PMD_NR; i++) {
->  		pte_t entry, *pte;
->  		/*
->  		 * Note that NUMA hinting access restrictions are not
-> @@ -2886,9 +2886,9 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  		}
->  		if (dirty)
->  			SetPageDirty(page + i);
-> -		pte = pte_offset_map(&_pmd, haddr);
-> +		pte = pte_offset_map(&_pmd, haddr + i * PAGE_SIZE);
->  		BUG_ON(!pte_none(*pte));
-> -		set_pte_at(mm, haddr, pte, entry);
-> +		set_pte_at(mm, haddr + i * PAGE_SIZE, pte, entry);
->  		atomic_inc(&page[i]._mapcount);
->  		pte_unmap(pte);
->  	}
-> @@ -2938,7 +2938,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	pmd_populate(mm, pmd, pgtable);
-> 
->  	if (freeze) {
-> -		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-> +		for (i = 0; i < HPAGE_PMD_NR; i++) {
->  			page_remove_rmap(page + i, false);
->  			put_page(page + i);
->  		}
+diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
+index 4424b7bf8ac6..8b7e573eaf97 100644
+--- a/fs/ext4/mballoc.c
++++ b/fs/ext4/mballoc.c
+@@ -815,7 +815,7 @@ static void mb_regenerate_buddy(struct ext4_buddy *e4b)
+  * for this page; do not hold this lock when calling this routine!
+  */
+ 
+-static int ext4_mb_init_cache(struct page *page, char *incore)
++static int ext4_mb_init_cache(struct page *page, char *incore, gfp_t gfp)
+ {
+ 	ext4_group_t ngroups;
+ 	int blocksize;
+@@ -848,7 +848,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
+ 	/* allocate buffer_heads to read bitmaps */
+ 	if (groups_per_page > 1) {
+ 		i = sizeof(struct buffer_head *) * groups_per_page;
+-		bh = kzalloc(i, GFP_NOFS);
++		bh = kzalloc(i, gfp);
+ 		if (bh == NULL) {
+ 			err = -ENOMEM;
+ 			goto out;
+@@ -983,7 +983,7 @@ out:
+  * are on the same page e4b->bd_buddy_page is NULL and return value is 0.
+  */
+ static int ext4_mb_get_buddy_page_lock(struct super_block *sb,
+-		ext4_group_t group, struct ext4_buddy *e4b)
++		ext4_group_t group, struct ext4_buddy *e4b, gfp_t gfp)
+ {
+ 	struct inode *inode = EXT4_SB(sb)->s_buddy_cache;
+ 	int block, pnum, poff;
+@@ -1002,7 +1002,7 @@ static int ext4_mb_get_buddy_page_lock(struct super_block *sb,
+ 	block = group * 2;
+ 	pnum = block / blocks_per_page;
+ 	poff = block % blocks_per_page;
+-	page = find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
++	page = find_or_create_page(inode->i_mapping, pnum, gfp);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	BUG_ON(page->mapping != inode->i_mapping);
+@@ -1016,7 +1016,7 @@ static int ext4_mb_get_buddy_page_lock(struct super_block *sb,
+ 
+ 	block++;
+ 	pnum = block / blocks_per_page;
+-	page = find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
++	page = find_or_create_page(inode->i_mapping, pnum, gfp);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	BUG_ON(page->mapping != inode->i_mapping);
+@@ -1042,7 +1042,7 @@ static void ext4_mb_put_buddy_page_lock(struct ext4_buddy *e4b)
+  * calling this routine!
+  */
+ static noinline_for_stack
+-int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
++int ext4_mb_init_group(struct super_block *sb, ext4_group_t group, gfp_t gfp)
+ {
+ 
+ 	struct ext4_group_info *this_grp;
+@@ -1062,7 +1062,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
+ 	 * The call to ext4_mb_get_buddy_page_lock will mark the
+ 	 * page accessed.
+ 	 */
+-	ret = ext4_mb_get_buddy_page_lock(sb, group, &e4b);
++	ret = ext4_mb_get_buddy_page_lock(sb, group, &e4b, gfp);
+ 	if (ret || !EXT4_MB_GRP_NEED_INIT(this_grp)) {
+ 		/*
+ 		 * somebody initialized the group
+@@ -1072,7 +1072,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
+ 	}
+ 
+ 	page = e4b.bd_bitmap_page;
+-	ret = ext4_mb_init_cache(page, NULL);
++	ret = ext4_mb_init_cache(page, NULL, gfp);
+ 	if (ret)
+ 		goto err;
+ 	if (!PageUptodate(page)) {
+@@ -1091,7 +1091,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
+ 	}
+ 	/* init buddy cache */
+ 	page = e4b.bd_buddy_page;
+-	ret = ext4_mb_init_cache(page, e4b.bd_bitmap);
++	ret = ext4_mb_init_cache(page, e4b.bd_bitmap, gfp);
+ 	if (ret)
+ 		goto err;
+ 	if (!PageUptodate(page)) {
+@@ -1109,8 +1109,8 @@ err:
+  * calling this routine!
+  */
+ static noinline_for_stack int
+-ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
+-					struct ext4_buddy *e4b)
++ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
++		       struct ext4_buddy *e4b, gfp_t gfp)
+ {
+ 	int blocks_per_page;
+ 	int block;
+@@ -1140,7 +1140,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
+ 		 * we need full data about the group
+ 		 * to make a good selection
+ 		 */
+-		ret = ext4_mb_init_group(sb, group);
++		ret = ext4_mb_init_group(sb, group, gfp);
+ 		if (ret)
+ 			return ret;
+ 	}
+@@ -1168,11 +1168,11 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
+ 			 * wait for it to initialize.
+ 			 */
+ 			page_cache_release(page);
+-		page = find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
++		page = find_or_create_page(inode->i_mapping, pnum, gfp);
+ 		if (page) {
+ 			BUG_ON(page->mapping != inode->i_mapping);
+ 			if (!PageUptodate(page)) {
+-				ret = ext4_mb_init_cache(page, NULL);
++				ret = ext4_mb_init_cache(page, NULL, gfp);
+ 				if (ret) {
+ 					unlock_page(page);
+ 					goto err;
+@@ -1204,11 +1204,12 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
+ 	if (page == NULL || !PageUptodate(page)) {
+ 		if (page)
+ 			page_cache_release(page);
+-		page = find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
++		page = find_or_create_page(inode->i_mapping, pnum, gfp);
+ 		if (page) {
+ 			BUG_ON(page->mapping != inode->i_mapping);
+ 			if (!PageUptodate(page)) {
+-				ret = ext4_mb_init_cache(page, e4b->bd_bitmap);
++				ret = ext4_mb_init_cache(page, e4b->bd_bitmap,
++							 gfp);
+ 				if (ret) {
+ 					unlock_page(page);
+ 					goto err;
+@@ -1247,6 +1248,12 @@ err:
+ 	return ret;
+ }
+ 
++static int ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
++			      struct ext4_buddy *e4b)
++{
++	return ext4_mb_load_buddy_gfp(sb, group, e4b, GFP_NOFS);
++}
++
+ static void ext4_mb_unload_buddy(struct ext4_buddy *e4b)
+ {
+ 	if (e4b->bd_bitmap_page)
+@@ -2045,7 +2052,7 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
+ 
+ 	/* We only do this if the grp has never been initialized */
+ 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
+-		int ret = ext4_mb_init_group(ac->ac_sb, group);
++		int ret = ext4_mb_init_group(ac->ac_sb, group, GFP_NOFS);
+ 		if (ret)
+ 			return ret;
+ 	}
+@@ -4815,7 +4822,9 @@ do_more:
+ #endif
+ 	trace_ext4_mballoc_free(sb, inode, block_group, bit, count_clusters);
+ 
+-	err = ext4_mb_load_buddy(sb, block_group, &e4b);
++	/* __GFP_NOFAIL: retry infinitely, ignore TIF_MEMDIE and memcg limit. */
++	err = ext4_mb_load_buddy_gfp(sb, block_group, &e4b,
++				     GFP_NOFS|__GFP_NOFAIL);
+ 	if (err)
+ 		goto error_return;
+ 
+@@ -5217,7 +5226,7 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
+ 		grp = ext4_get_group_info(sb, group);
+ 		/* We only do this if the grp has never been initialized */
+ 		if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
+-			ret = ext4_mb_init_group(sb, group);
++			ret = ext4_mb_init_group(sb, group, GFP_NOFS);
+ 			if (ret)
+ 				break;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
