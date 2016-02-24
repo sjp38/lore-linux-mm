@@ -1,91 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C67A66B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 21:35:00 -0500 (EST)
-Received: by mail-io0-f170.google.com with SMTP id g203so14874909iof.2
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 18:35:00 -0800 (PST)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id v13si1173084ioi.70.2016.02.23.18.34.59
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1921B6B0253
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 23:04:50 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id b205so18308106wmb.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 20:04:50 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o65si1891513wmg.41.2016.02.23.20.04.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 18:35:00 -0800 (PST)
-Received: by mail-io0-x233.google.com with SMTP id 9so15112626iom.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 18:34:59 -0800 (PST)
+        Tue, 23 Feb 2016 20:04:49 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 005/137] x86/mm: Fix vmalloc_fault() to handle large pages properly
+Date: Tue, 23 Feb 2016 19:32:16 -0800
+Message-Id: <20160224033417.451988491@linuxfoundation.org>
+In-Reply-To: <20160224033417.270530882@linuxfoundation.org>
+References: <20160224033417.270530882@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1456277927-12044-1-git-send-email-hannes@cmpxchg.org>
-References: <1456277927-12044-1-git-send-email-hannes@cmpxchg.org>
-Date: Tue, 23 Feb 2016 18:34:59 -0800
-Message-ID: <CA+55aFzQr-8fOfzA97nZd07L8EFRgXSLSorrw1xVm_KMYinfdA@mail.gmail.com>
-Subject: Re: [PATCH] mm: readahead: do not cap readahead() and MADV_WILLNEED
-From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Henning Schild <henning.schild@siemens.com>, Toshi Kani <toshi.kani@hpe.com>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@suse.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Ingo Molnar <mingo@kernel.org>
 
-On Tue, Feb 23, 2016 at 5:38 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->
-> Since both readahead() and MADV_WILLNEED take an explicit length
-> parameter, it seems weird to truncate that request quietly. Just do
-> what the user asked for and leave the limiting to the heuristics.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-Why the hell do people continue to try to push these kinds of changes?
+------------------
 
-Just read the code that you changed: the size_t is a trivially
-user-supplied number that any user can set to any value. And you just
-removed all sanity checking for it, so now people can basically do
-unlimited IO that is not even killable.
+From: Toshi Kani <toshi.kani@hpe.com>
 
-Seriously.
+commit f4eafd8bcd5229e998aa252627703b8462c3b90f upstream.
 
-[ It's slightly saved by the fact that you have to find a file that is
-large and readable, which will happily limit things a lot on practice,
-but it's still something we should worry about.
+A kernel page fault oops with the callstack below was observed
+when a read syscall was made to a pmem device after a huge amount
+(>512GB) of vmalloc ranges was allocated by ioremap() on a x86_64
+system:
 
-  It is also at least partially mitigated by the fact that read-ahead
-allocations use __GFP_NORETRY and hopefully thus don't do the worst
-kind of damage to the memory management, but I'd hate to have to rely
-on that ]
+     BUG: unable to handle kernel paging request at ffff880840000ff8
+     IP: vmalloc_fault+0x1be/0x300
+     PGD c7f03a067 PUD 0
+     Oops: 0000 [#1] SM
+     Call Trace:
+        __do_page_fault+0x285/0x3e0
+        do_page_fault+0x2f/0x80
+        ? put_prev_entity+0x35/0x7a0
+        page_fault+0x28/0x30
+        ? memcpy_erms+0x6/0x10
+        ? schedule+0x35/0x80
+        ? pmem_rw_bytes+0x6a/0x190 [nd_pmem]
+        ? schedule_timeout+0x183/0x240
+        btt_log_read+0x63/0x140 [nd_btt]
+         :
+        ? __symbol_put+0x60/0x60
+        ? kernel_read+0x50/0x80
+        SyS_finit_module+0xb9/0xf0
+        entry_SYSCALL_64_fastpath+0x1a/0xa4
 
-At least with regular read() system calls, we try to use killable IO
-(well - some filesystems might not do it, but the core pagecache
-functions support it), and we limit the maximum IO size even if that
-limit happens to be pretty high.
+Since v4.1, ioremap() supports large page (pud/pmd) mappings in
+x86_64 and PAE.  vmalloc_fault() however assumes that the vmalloc
+range is limited to pte mappings.
 
-You just completely removed that limiting for the readahead code. So
-now you can pass in any arbitrary 64-bit size.
+vmalloc faults do not normally happen in ioremap'd ranges since
+ioremap() sets up the kernel page tables, which are shared by
+user processes.  pgd_ctor() sets the kernel's PGD entries to
+user's during fork().  When allocation of the vmalloc ranges
+crosses a 512GB boundary, ioremap() allocates a new pud table
+and updates the kernel PGD entry to point it.  If user process's
+PGD entry does not have this update yet, a read/write syscall
+to the range will cause a vmalloc fault, which hits the Oops
+above as it does not handle a large page properly.
 
-Why do you think that "Just do what the user asked for" is obviously
-the right thing?
+Following changes are made to vmalloc_fault().
 
-What if I as a user asked to overwrite /etc/passwd with my own data?
-Would that be right?
+64-bit:
 
-And if that isn't right, then why do you assume it is right that you
-can do infinite readahead?
+ - No change for the PGD sync operation as it handles large
+   pages already.
+ - Add pud_huge() and pmd_huge() to the validation code to
+   handle large pages.
+ - Change pud_page_vaddr() to pud_pfn() since an ioremap range
+   is not directly mapped (while the if-statement still works
+   with a bogus addr).
+ - Change pmd_page() to pmd_pfn() since an ioremap range is not
+   backed by struct page (while the if-statement still works
+   with a bogus addr).
 
-Now, it is entirely possible that we should raise the limit (note that
-"raise" is different from "remove"). But that requires
+32-bit:
+ - No change for the sync operation since the index3 PGD entry
+   covers the entire vmalloc range, which is always valid.
+   (A separate change to sync PGD entry is necessary if this
+    memory layout is changed regardless of the page size.)
+ - Add pmd_huge() to the validation code to handle large pages.
+   This is for completeness since vmalloc_fault() won't happen
+   in ioremap'd ranges as its PGD entry is always valid.
 
- (a) thought
- (b) data
+Reported-by: Henning Schild <henning.schild@siemens.com>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Acked-by: Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Luis R. Rodriguez <mcgrof@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: linux-mm@kvack.org
+Cc: linux-nvdimm@lists.01.org
+Link: http://lkml.kernel.org/r/1455758214-24623-1-git-send-email-toshi.kani@hpe.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-and this patch had neither.
+---
+ arch/x86/mm/fault.c |   15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
-If we raise the limit, we need to do so intelligently. It's almost
-certainly going to involve looking at how much free memory we have,
-because part of "readahead" is very much also "don't disturb other
-users and IO too much".
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -287,6 +287,9 @@ static noinline int vmalloc_fault(unsign
+ 	if (!pmd_k)
+ 		return -1;
+ 
++	if (pmd_huge(*pmd_k))
++		return 0;
++
+ 	pte_k = pte_offset_kernel(pmd_k, address);
+ 	if (!pte_present(*pte_k))
+ 		return -1;
+@@ -360,8 +363,6 @@ void vmalloc_sync_all(void)
+  * 64-bit:
+  *
+  *   Handle a fault on the vmalloc area
+- *
+- * This assumes no large pages in there.
+  */
+ static noinline int vmalloc_fault(unsigned long address)
+ {
+@@ -403,17 +404,23 @@ static noinline int vmalloc_fault(unsign
+ 	if (pud_none(*pud_ref))
+ 		return -1;
+ 
+-	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
++	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
+ 		BUG();
+ 
++	if (pud_huge(*pud))
++		return 0;
++
+ 	pmd = pmd_offset(pud, address);
+ 	pmd_ref = pmd_offset(pud_ref, address);
+ 	if (pmd_none(*pmd_ref))
+ 		return -1;
+ 
+-	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
++	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
+ 		BUG();
+ 
++	if (pmd_huge(*pmd))
++		return 0;
++
+ 	pte_ref = pte_offset_kernel(pmd_ref, address);
+ 	if (!pte_present(*pte_ref))
+ 		return -1;
 
-The current choice for the limit is "small enough that we don't need
-to think too much about it". If we raise it to hundreds of megs, we
-very definitely will want to think about it much more. We might also
-want to make sure that the operation can be properly aborted,
-something we haven't needed to worry about for the small limit we have
-now.
-
-                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
