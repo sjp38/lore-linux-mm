@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A03B36B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:56:29 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id g62so36293984wme.0
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 07:56:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id go14si4243016wjc.241.2016.02.24.07.56.27
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Feb 2016 07:56:28 -0800 (PST)
-Date: Wed, 24 Feb 2016 16:56:24 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 03/20] kthread: Add create_kthread_worker*()
-Message-ID: <20160224155624.GZ3305@pathway.suse.cz>
-References: <1456153030-12400-4-git-send-email-pmladek@suse.com>
- <201602222335.d3Pey8SI%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201602222335.d3Pey8SI%fengguang.wu@intel.com>
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E7E406B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:58:21 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id q63so14957666pfb.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 07:58:21 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 26si5727860pfj.93.2016.02.24.07.58.21
+        for <linux-mm@kvack.org>;
+        Wed, 24 Feb 2016 07:58:21 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: call pmdp_invalidate() with correct virtual address
+Date: Wed, 24 Feb 2016 18:58:03 +0300
+Message-Id: <1456329483-4220-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Will Deacon <will.deacon@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 2016-02-22 23:48:53, kbuild test robot wrote:
-> Hi Petr,
-> 
-> [auto build test ERROR on soc-thermal/next]
-> [also build test ERROR on v4.5-rc5 next-20160222]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Petr-Mladek/kthread-Use-kthread-worker-API-more-widely/20160222-230250
-> base:   https://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal next
-> config: xtensa-allyesconfig (attached as .config)
-> reproduce:
->         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         # save the attached .config to linux build tree
->         make.cross ARCH=xtensa 
-> 
-> All error/warnings (new ones prefixed by >>):
-> 
->    kernel/kthread.c: In function 'create_kthread_worker_on_cpu':
-> >> kernel/kthread.c:691:9: error: incompatible type for argument 3 of '__create_kthread_worker'
->      return __create_kthread_worker(cpu, namefmt, NULL);
->             ^
->    kernel/kthread.c:622:1: note: expected 'va_list' but argument is of type 'void *'
->     __create_kthread_worker(int cpu, const char namefmt[], va_list args)
->     ^
-> >> kernel/kthread.c:692:1: warning: control reaches end of non-void function [-Wreturn-type]
->     }
->     ^
-> 
-> vim +/__create_kthread_worker +691 kernel/kthread.c
-> 
->    685	 * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
->    686	 * when the worker was SIGKILLed.
->    687	 */
->    688	struct kthread_worker *
->    689	create_kthread_worker_on_cpu(int cpu, const char namefmt[])
->    690	{
->  > 691		return __create_kthread_worker(cpu, namefmt, NULL);
->  > 692	}
->    693	EXPORT_SYMBOL(create_kthread_worker_on_cpu);
->    694	
->    695	/* insert @work before @pos in @worker */
+Sebastian Ott and Gerald Schaefer reported random crashes on s390.
+It was bisected to my THP refcounting patchset.
 
-I can be fixed by passing a fake va_list. It is not used when
-__create_kthread_worker() is called with a valid CPU number.
+The problem is that pmdp_invalidated() called with wrong virtual
+address. It got offset up by HPAGE_PMD_SIZE by loop over ptes.
 
-See below an updated patch that passes the build.
+The solution is to introduce new variable to be used in loop and don't
+touch 'haddr'.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Reported-by Sebastian Ott <sebott@linux.vnet.ibm.com>
+---
+ mm/huge_memory.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1c317b85ea7d..e10a4fee88d2 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2836,6 +2836,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	pgtable_t pgtable;
+ 	pmd_t _pmd;
+ 	bool young, write, dirty;
++	unsigned long addr;
+ 	int i;
+ 
+ 	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
+@@ -2865,7 +2866,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+ 	pmd_populate(mm, &_pmd, pgtable);
+ 
+-	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
++	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
+ 		pte_t entry, *pte;
+ 		/*
+ 		 * Note that NUMA hinting access restrictions are not
+@@ -2886,9 +2887,9 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 		}
+ 		if (dirty)
+ 			SetPageDirty(page + i);
+-		pte = pte_offset_map(&_pmd, haddr);
++		pte = pte_offset_map(&_pmd, addr);
+ 		BUG_ON(!pte_none(*pte));
+-		set_pte_at(mm, haddr, pte, entry);
++		set_pte_at(mm, addr, pte, entry);
+ 		atomic_inc(&page[i]._mapcount);
+ 		pte_unmap(pte);
+ 	}
+@@ -2938,7 +2939,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	pmd_populate(mm, pmd, pgtable);
+ 
+ 	if (freeze) {
+-		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
++		for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 			page_remove_rmap(page + i, false);
+ 			put_page(page + i);
+ 		}
+-- 
+2.7.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
