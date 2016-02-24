@@ -1,88 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B8C6B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 23:10:02 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id c10so5210671pfc.2
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 20:10:02 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id tw5si1843591pac.131.2016.02.23.20.10.01
-        for <linux-mm@kvack.org>;
-        Tue, 23 Feb 2016 20:10:01 -0800 (PST)
-Date: Tue, 23 Feb 2016 21:09:47 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160224040947.GA10313@linux.intel.com>
-References: <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
- <20160223095225.GB32294@infradead.org>
- <56CC686A.9040909@plexistor.com>
- <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
- <56CCD54C.3010600@plexistor.com>
- <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
- <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
- <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5191D6B0009
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 03:02:17 -0500 (EST)
+Received: by mail-io0-f174.google.com with SMTP id 9so24183103iom.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 00:02:17 -0800 (PST)
+Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
+        by mx.google.com with ESMTPS id g7si2352527igc.29.2016.02.24.00.02.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 00:02:14 -0800 (PST)
+Received: by mail-io0-x22c.google.com with SMTP id 9so24181143iom.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 00:02:14 -0800 (PST)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] mm, memory hotplug: print more failure information for online_pages
+Date: Wed, 24 Feb 2016 16:02:05 +0800
+Message-Id: <1456300925-20415-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org
+Cc: vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 23, 2016 at 03:56:17PM -0800, Dan Williams wrote:
-> On Tue, Feb 23, 2016 at 3:43 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> > Dan Williams <dan.j.williams@intel.com> writes:
-> >
-> >> On Tue, Feb 23, 2016 at 3:28 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> >>>> The crux of the problem, in my opinion, is that we're asking for an "I
-> >>>> know what I'm doing" flag, and I expect that's an impossible statement
-> >>>> for a filesystem to trust generically.
-> >>>
-> >>> The file system already trusts that.  If an application doesn't use
-> >>> fsync properly, guess what, it will break.  This line of reasoning
-> >>> doesn't make any sense to me.
-> >>
-> >> No, I'm worried about the case where an app specifies MAP_PMEM_AWARE
-> >> uses fsync correctly, and fails to flush cpu cache.
-> >
-> > I don't think the kernel needs to put training wheels on applications.
-> >
-> >>>> If you can get MAP_PMEM_AWARE in, great, but I'm more and more of the
-> >>>> opinion that the "I know what I'm doing" interface should be something
-> >>>> separate from today's trusted filesystems.
-> >>>
-> >>> Just so I understand you, MAP_PMEM_AWARE isn't the "I know what I'm
-> >>> doing" interface, right?
-> >>
-> >> It is the "I know what I'm doing" interface, MAP_PMEM_AWARE asserts "I
-> >> know when to flush the cpu relative to an fsync()".
-> >
-> > I see.  So I think your argument is that new file systems (such as Nova)
-> > can have whacky new semantics, but existing file systems should provide
-> > the more conservative semantics that they have provided since the dawn
-> > of time (even if we add a new mmap flag to control the behavior).
-> >
-> > I don't agree with that.  :)
-> >
-> 
-> Fair enough.  Recall, I was pushing MAP_DAX not to long ago.  It just
-> seems like a Sisyphean effort to push an mmap flag up the XFS hill and
-> maybe that effort is better spent somewhere else.
+online_pages() simply returns an error value if
+memory_notify(MEM_GOING_ONLINE, &arg) return a value that is not
+what we want for successfully onlining target pages. This patch
+arms to print more failure information like offline_pages() in
+online_pages. And this patch also converts printk(KERN_<LEVEL>)
+to pr_<level>().
 
-Well, for what it's worth MAP_SYNC feels like the "right" solution to me.  I
-understand that we are a ways from having it implemented, but it seems like
-the correct way to have applications work with persistent memory in a perfect
-world, and worth the effort.
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/memory_hotplug.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
 
-MAP_PMEM_AWARE is interesting, but even in a perfect world it seems like a
-partial solution - applications still need to call *sync to get the FS
-metadata to be durable, and they have no reliable way of knowing which of
-their actions will cause the metadata to be out of sync.
-
-Dave, is your objection to the MAP_SYNC idea a practical one about complexity
-and time to get it implemented, or do you think it's is the wrong solution?
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c832ef3..e4b6dec3 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1059,10 +1059,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 
+ 	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+ 	ret = notifier_to_errno(ret);
+-	if (ret) {
+-		memory_notify(MEM_CANCEL_ONLINE, &arg);
+-		return ret;
+-	}
++	if (ret)
++		goto failed_addition;
++
+ 	/*
+ 	 * If this zone is not populated, then it is not in zonelist.
+ 	 * This means the page allocator ignores this zone.
+@@ -1080,12 +1079,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 		if (need_zonelists_rebuild)
+ 			zone_pcp_reset(zone);
+ 		mutex_unlock(&zonelists_mutex);
+-		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
+-		       (unsigned long long) pfn << PAGE_SHIFT,
+-		       (((unsigned long long) pfn + nr_pages)
+-			    << PAGE_SHIFT) - 1);
+-		memory_notify(MEM_CANCEL_ONLINE, &arg);
+-		return ret;
++		goto failed_addition;
+ 	}
+ 
+ 	zone->present_pages += onlined_pages;
+@@ -1118,6 +1112,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	if (onlined_pages)
+ 		memory_notify(MEM_ONLINE, &arg);
+ 	return 0;
++
++failed_addition:
++	pr_info("online_pages [mem %#010llx-%#010llx] failed\n",
++		(unsigned long long) pfn << PAGE_SHIFT,
++		(((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
++	memory_notify(MEM_CANCEL_ONLINE, &arg);
++	return ret;
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+ 
+@@ -1529,8 +1530,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 
+ 		} else {
+ #ifdef CONFIG_DEBUG_VM
+-			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+-			       pfn);
++			pr_alert("removing pfn %lx from LRU failed\n", pfn);
+ 			dump_page(page, "failed to remove from LRU");
+ #endif
+ 			put_page(page);
+@@ -1858,7 +1858,7 @@ repeat:
+ 		ret = -EBUSY;
+ 		goto failed_removal;
+ 	}
+-	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
++	pr_info("Offlined Pages %ld\n", offlined_pages);
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+ 	offline_isolated_pages(start_pfn, end_pfn);
+@@ -1895,9 +1895,9 @@ repeat:
+ 	return 0;
+ 
+ failed_removal:
+-	printk(KERN_INFO "memory offlining [mem %#010llx-%#010llx] failed\n",
+-	       (unsigned long long) start_pfn << PAGE_SHIFT,
+-	       ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
++	pr_info("memory offlining [mem %#010llx-%#010llx] failed\n",
++		(unsigned long long) start_pfn << PAGE_SHIFT,
++		((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
+ 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+ 	/* pushback to free area */
+ 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
