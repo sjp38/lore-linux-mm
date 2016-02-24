@@ -1,169 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1921B6B0253
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 23:04:50 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id b205so18308106wmb.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 20:04:50 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o65si1891513wmg.41.2016.02.23.20.04.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Feb 2016 20:04:49 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 005/137] x86/mm: Fix vmalloc_fault() to handle large pages properly
-Date: Tue, 23 Feb 2016 19:32:16 -0800
-Message-Id: <20160224033417.451988491@linuxfoundation.org>
-In-Reply-To: <20160224033417.270530882@linuxfoundation.org>
-References: <20160224033417.270530882@linuxfoundation.org>
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 26B8C6B0009
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 23:10:02 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id c10so5210671pfc.2
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 20:10:02 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id tw5si1843591pac.131.2016.02.23.20.10.01
+        for <linux-mm@kvack.org>;
+        Tue, 23 Feb 2016 20:10:01 -0800 (PST)
+Date: Tue, 23 Feb 2016 21:09:47 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160224040947.GA10313@linux.intel.com>
+References: <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
+ <20160223095225.GB32294@infradead.org>
+ <56CC686A.9040909@plexistor.com>
+ <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
+ <56CCD54C.3010600@plexistor.com>
+ <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
+ <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
+ <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Henning Schild <henning.schild@siemens.com>, Toshi Kani <toshi.kani@hpe.com>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@suse.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Ingo Molnar <mingo@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+On Tue, Feb 23, 2016 at 03:56:17PM -0800, Dan Williams wrote:
+> On Tue, Feb 23, 2016 at 3:43 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
+> > Dan Williams <dan.j.williams@intel.com> writes:
+> >
+> >> On Tue, Feb 23, 2016 at 3:28 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
+> >>>> The crux of the problem, in my opinion, is that we're asking for an "I
+> >>>> know what I'm doing" flag, and I expect that's an impossible statement
+> >>>> for a filesystem to trust generically.
+> >>>
+> >>> The file system already trusts that.  If an application doesn't use
+> >>> fsync properly, guess what, it will break.  This line of reasoning
+> >>> doesn't make any sense to me.
+> >>
+> >> No, I'm worried about the case where an app specifies MAP_PMEM_AWARE
+> >> uses fsync correctly, and fails to flush cpu cache.
+> >
+> > I don't think the kernel needs to put training wheels on applications.
+> >
+> >>>> If you can get MAP_PMEM_AWARE in, great, but I'm more and more of the
+> >>>> opinion that the "I know what I'm doing" interface should be something
+> >>>> separate from today's trusted filesystems.
+> >>>
+> >>> Just so I understand you, MAP_PMEM_AWARE isn't the "I know what I'm
+> >>> doing" interface, right?
+> >>
+> >> It is the "I know what I'm doing" interface, MAP_PMEM_AWARE asserts "I
+> >> know when to flush the cpu relative to an fsync()".
+> >
+> > I see.  So I think your argument is that new file systems (such as Nova)
+> > can have whacky new semantics, but existing file systems should provide
+> > the more conservative semantics that they have provided since the dawn
+> > of time (even if we add a new mmap flag to control the behavior).
+> >
+> > I don't agree with that.  :)
+> >
+> 
+> Fair enough.  Recall, I was pushing MAP_DAX not to long ago.  It just
+> seems like a Sisyphean effort to push an mmap flag up the XFS hill and
+> maybe that effort is better spent somewhere else.
 
-------------------
+Well, for what it's worth MAP_SYNC feels like the "right" solution to me.  I
+understand that we are a ways from having it implemented, but it seems like
+the correct way to have applications work with persistent memory in a perfect
+world, and worth the effort.
 
-From: Toshi Kani <toshi.kani@hpe.com>
+MAP_PMEM_AWARE is interesting, but even in a perfect world it seems like a
+partial solution - applications still need to call *sync to get the FS
+metadata to be durable, and they have no reliable way of knowing which of
+their actions will cause the metadata to be out of sync.
 
-commit f4eafd8bcd5229e998aa252627703b8462c3b90f upstream.
-
-A kernel page fault oops with the callstack below was observed
-when a read syscall was made to a pmem device after a huge amount
-(>512GB) of vmalloc ranges was allocated by ioremap() on a x86_64
-system:
-
-     BUG: unable to handle kernel paging request at ffff880840000ff8
-     IP: vmalloc_fault+0x1be/0x300
-     PGD c7f03a067 PUD 0
-     Oops: 0000 [#1] SM
-     Call Trace:
-        __do_page_fault+0x285/0x3e0
-        do_page_fault+0x2f/0x80
-        ? put_prev_entity+0x35/0x7a0
-        page_fault+0x28/0x30
-        ? memcpy_erms+0x6/0x10
-        ? schedule+0x35/0x80
-        ? pmem_rw_bytes+0x6a/0x190 [nd_pmem]
-        ? schedule_timeout+0x183/0x240
-        btt_log_read+0x63/0x140 [nd_btt]
-         :
-        ? __symbol_put+0x60/0x60
-        ? kernel_read+0x50/0x80
-        SyS_finit_module+0xb9/0xf0
-        entry_SYSCALL_64_fastpath+0x1a/0xa4
-
-Since v4.1, ioremap() supports large page (pud/pmd) mappings in
-x86_64 and PAE.  vmalloc_fault() however assumes that the vmalloc
-range is limited to pte mappings.
-
-vmalloc faults do not normally happen in ioremap'd ranges since
-ioremap() sets up the kernel page tables, which are shared by
-user processes.  pgd_ctor() sets the kernel's PGD entries to
-user's during fork().  When allocation of the vmalloc ranges
-crosses a 512GB boundary, ioremap() allocates a new pud table
-and updates the kernel PGD entry to point it.  If user process's
-PGD entry does not have this update yet, a read/write syscall
-to the range will cause a vmalloc fault, which hits the Oops
-above as it does not handle a large page properly.
-
-Following changes are made to vmalloc_fault().
-
-64-bit:
-
- - No change for the PGD sync operation as it handles large
-   pages already.
- - Add pud_huge() and pmd_huge() to the validation code to
-   handle large pages.
- - Change pud_page_vaddr() to pud_pfn() since an ioremap range
-   is not directly mapped (while the if-statement still works
-   with a bogus addr).
- - Change pmd_page() to pmd_pfn() since an ioremap range is not
-   backed by struct page (while the if-statement still works
-   with a bogus addr).
-
-32-bit:
- - No change for the sync operation since the index3 PGD entry
-   covers the entire vmalloc range, which is always valid.
-   (A separate change to sync PGD entry is necessary if this
-    memory layout is changed regardless of the page size.)
- - Add pmd_huge() to the validation code to handle large pages.
-   This is for completeness since vmalloc_fault() won't happen
-   in ioremap'd ranges as its PGD entry is always valid.
-
-Reported-by: Henning Schild <henning.schild@siemens.com>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Acked-by: Borislav Petkov <bp@alien8.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Luis R. Rodriguez <mcgrof@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-mm@kvack.org
-Cc: linux-nvdimm@lists.01.org
-Link: http://lkml.kernel.org/r/1455758214-24623-1-git-send-email-toshi.kani@hpe.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/mm/fault.c |   15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
-
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -287,6 +287,9 @@ static noinline int vmalloc_fault(unsign
- 	if (!pmd_k)
- 		return -1;
- 
-+	if (pmd_huge(*pmd_k))
-+		return 0;
-+
- 	pte_k = pte_offset_kernel(pmd_k, address);
- 	if (!pte_present(*pte_k))
- 		return -1;
-@@ -360,8 +363,6 @@ void vmalloc_sync_all(void)
-  * 64-bit:
-  *
-  *   Handle a fault on the vmalloc area
-- *
-- * This assumes no large pages in there.
-  */
- static noinline int vmalloc_fault(unsigned long address)
- {
-@@ -403,17 +404,23 @@ static noinline int vmalloc_fault(unsign
- 	if (pud_none(*pud_ref))
- 		return -1;
- 
--	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
-+	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
- 		BUG();
- 
-+	if (pud_huge(*pud))
-+		return 0;
-+
- 	pmd = pmd_offset(pud, address);
- 	pmd_ref = pmd_offset(pud_ref, address);
- 	if (pmd_none(*pmd_ref))
- 		return -1;
- 
--	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
-+	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
- 		BUG();
- 
-+	if (pmd_huge(*pmd))
-+		return 0;
-+
- 	pte_ref = pte_offset_kernel(pmd_ref, address);
- 	if (!pte_present(*pte_ref))
- 		return -1;
-
+Dave, is your objection to the MAP_SYNC idea a practical one about complexity
+and time to get it implemented, or do you think it's is the wrong solution?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
