@@ -1,102 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F5026B0254
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 05:46:59 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id a4so23576644wme.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 02:46:59 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id k5si45189228wma.35.2016.02.24.02.46.58
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C1AAF6B0254
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 05:51:54 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id g62so238158951wme.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 02:51:54 -0800 (PST)
+Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com. [195.75.94.102])
+        by mx.google.com with ESMTPS id v187si45233018wma.63.2016.02.24.02.51.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Feb 2016 02:46:58 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id E00E598F3A
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:46:57 +0000 (UTC)
-Date: Wed, 24 Feb 2016 10:46:56 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC PATCH 00/27] Move LRU page reclaim from zones to nodes v2
-Message-ID: <20160224104656.GT2854@techsingularity.net>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <20160223200416.GA27563@cmpxchg.org>
- <20160223201932.GN2854@techsingularity.net>
- <20160223205915.GA10744@cmpxchg.org>
- <20160223215859.GO2854@techsingularity.net>
- <20160224001201.GA2120@cmpxchg.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Feb 2016 02:51:53 -0800 (PST)
+Received: from localhost
+	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Wed, 24 Feb 2016 10:51:52 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 841EA17D805A
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:52:12 +0000 (GMT)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1OApoJL63570012
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:51:51 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1OApoe8006074
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 03:51:50 -0700
+Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe also
+ on PowerPC and ARM)
+References: <20160211190942.GA10244@node.shutemov.name>
+ <20160211205702.24f0d17a@thinkpad>
+ <20160212154116.GA15142@node.shutemov.name> <56BE00E7.1010303@de.ibm.com>
+ <20160212181640.4eabb85f@thinkpad> <20160223103221.GA1418@node.shutemov.name>
+ <20160223191907.25719a4d@thinkpad>
+ <20160223193345.GC21820@node.shutemov.name> <20160223202233.GE27281@arm.com>
+ <56CD8302.9080202@de.ibm.com> <20160224104139.GC28310@arm.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Message-ID: <56CD8B43.9070509@de.ibm.com>
+Date: Wed, 24 Feb 2016 11:51:47 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160224001201.GA2120@cmpxchg.org>
+In-Reply-To: <20160224104139.GC28310@arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-On Tue, Feb 23, 2016 at 04:12:01PM -0800, Johannes Weiner wrote:
-> > > > > If reclaim can't guarantee a balanced zone utilization then the
-> > > > > allocator has to keep doing it. :(
-> > > > 
-> > > > That's the key issue - the main reason balanced zone utilisation is
-> > > > necessary is because we reclaim on a per-zone basis and we must avoid
-> > > > page aging anomalies. If we balance such that one eligible zone is above
-> > > > the watermark then it's less of a concern.
-> > > 
-> > > Yes, but only if there can't be extended reclaim stretches that prefer
-> > > the pages of a single zone. Yet it looks like this is still possible.
-> > 
-> > And that is a problem if a workload is dominated by allocations
-> > requiring the lower zones. If that is the common case then it's a bust
-> > and fair zone allocation policy is still required. That removes one
-> > motivation from the series as it leaves some fatness in the page
-> > allocator paths.
+On 02/24/2016 11:41 AM, Will Deacon wrote:
+> On Wed, Feb 24, 2016 at 11:16:34AM +0100, Christian Borntraeger wrote:
+>> On 02/23/2016 09:22 PM, Will Deacon wrote:
+>>> On Tue, Feb 23, 2016 at 10:33:45PM +0300, Kirill A. Shutemov wrote:
+>>>> On Tue, Feb 23, 2016 at 07:19:07PM +0100, Gerald Schaefer wrote:
+>>>>> I'll check with Martin, maybe it is actually trivial, then we can
+>>>>> do a quick test it to rule that one out.
+>>>>
+>>>> Oh. I found a bug in __split_huge_pmd_locked(). Although, not sure if it's
+>>>> _the_ bug.
+>>>>
+>>>> pmdp_invalidate() is called for the wrong address :-/
+>>>> I guess that can be destructive on the architecture, right?
+>>>
+>>> FWIW, arm64 ignores the address parameter for set_pmd_at, so this would
+>>> only result in the TLBI nuking the wrong entries, which is going to be
+>>> tricky to observe in practice given that we install a table entry
+>>> immediately afterwards that maps the same pages. If s390 does more here
+>>> (I see some magic asm using the address), that could be the answer...
+>>
+>> This patch does not change the address for set_pmd_at, it does that for the 
+>> pmdp_invalidate here (by keeping haddr at the start of the pmd)
+>>
+>> --->    pmdp_invalidate(vma, haddr, pmd);
+>>         pmd_populate(mm, pmd, pgtable);
 > 
-> With your above explanations, I'm now much more confident this series
-> is doing the right thing. Thanks.
+> On arm64, pmdp_invalidate looks like:
 > 
-> The uncertainty over low-zone allocation floods is real, but what is
-> also unsettling is that, where the fair zone code used to shield us
-> from kswapd changes, we now open ourselves up to subtle aging bugs,
-> which are no longer detectable via the zone placement statistics. And
-> we have changed kswapd around quite extensively in the recent past.
+> void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+> 		     pmd_t *pmdp)
+> {
+> 	pmd_t entry = *pmdp;
+> 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+> 	flush_pmd_tlb_range(vma, address, address + hpage_pmd_size);
+> }
 > 
-> A good metric for aging distortion might be able to mitigate both
-> these things. Something to keep an eye on when making changes to
-> kswapd, or when analyzing performance problems with a workload.
+> so that's the set_pmd_at call I was referring to.
 > 
-> What I have in mind is per-classzone counters of reclaim work. If we
-> had exact numbers on how much zone-restricted reclaim is being done
-> relative to unrestricted scans, we could know how severely the aging
-> process is being distorted under any given workload. That would allow
-> us to validate these changes here, future kswapd and allocator
-> changes, and help us identify problematic workloads.
+> On s390, that address ends up in __pmdp_idte[_local], but I don't know
+> what .insn rrf,0xb98e0000,%2,%3,0,{0,1} do ;)
+
+It does invalidation of the pmd entry and tlb clearing for this entry.
+
 > 
-
-Ok, that makes me think that I should keep the per-zone pgscan figures
-even if they are based on node LRU reclaim because we'll know what the
-per-zone scan activity is. We already know how many pages get skipped
-when reclaiming for lower zones.
-
-> And maybe we can change the now useless pgalloc_ stats from counting
-> zone placement to counting allocation requests by classzone.
-
-I can't convince myself about this one way or the other.
-
-> We could
-> then again correlate the number of requests to the amount of work
-> done. A high amount of restricted reclaim on behalf of mostly Normal
-> allocation requests would detect the bug I described above, e.g. And
-> we could generally tell how expensive restricted allocations are in
-> the new node-LRUs.
+>> Without that fix we would clearly have stale tlb entries, no?
 > 
+> Yes, but AFAIU the sequence on arm64 is:
+> 
+> 1.  trans huge mapping (block mapping in arm64 speak)
+> 2.  faulting entry (pmd_mknotpresent)
+> 3.  tlb invalidation
+> 4.  table entry mapping the same pages as (1).
+> 
+> so if the microarchitecture we're on can tolerate a mixture of block
+> mappings and page mappings mapping the same VA to the same PA, then the
+> lack of TLB maintenance would go unnoticed. There are certainly systems
+> where that could cause an issue, but I believe the one I've been testing
+> on would be ok.
 
-I keep thinking the skip statistics gives us similar data -- it does
-not tell us how many restricted allocations that resulted in reclaim was
-but we do get an idea of the amount of work caused.
-
-I'll think about it some more and see what I come up with.
-
--- 
-Mel Gorman
-SUSE Labs
+So in essence you say it does not matter that you flush the wrong range in 
+flush_pmd_tlb_range as long as it will be flushed later on when the pages
+really go away. Yes, then it really might be ok for arm64.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
