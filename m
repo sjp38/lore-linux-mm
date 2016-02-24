@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6EA6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 15:24:25 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id c10so19569987pfc.2
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 12:24:25 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id j10si6988102pap.82.2016.02.24.12.24.23
-        for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 12:24:23 -0800 (PST)
-Date: Wed, 24 Feb 2016 13:24:06 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 0/8] Support multi-order entries in the radix tree
-Message-ID: <20160224202406.GA13473@linux.intel.com>
-References: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 43CD76B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 16:33:44 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id yy13so19322063pab.3
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 13:33:44 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id yp9si7318231pab.121.2016.02.24.13.33.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 13:33:43 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id x65so19820402pfb.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 13:33:43 -0800 (PST)
+Date: Wed, 24 Feb 2016 13:33:41 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, memory hotplug: print more failure information for
+ online_pages
+In-Reply-To: <1456300925-20415-1-git-send-email-slaoub@gmail.com>
+Message-ID: <alpine.DEB.2.10.1602241331570.5955@chino.kir.corp.google.com>
+References: <1456300925-20415-1-git-send-email-slaoub@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1453213533-6040-1-git-send-email-matthew.r.wilcox@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Yucong <slaoub@gmail.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 19, 2016 at 09:25:25AM -0500, Matthew Wilcox wrote:
-> From: Matthew Wilcox <willy@linux.intel.com>
-> 
-> In order to support huge pages in the page cache, Kirill has proposed
-> simply creating 512 entries.  I think this runs into problems with
-> fsync() tracking dirty bits in the radix tree.  Ross inserts a special
-> entry to represent the PMD at the index for the start of the PMD, but
-> this requires probing the tree twice; once for the PTE and once for the PMD.
-> When we add PUD entries, that will become three times.
-> 
-> The approach in this patch set is to modify the radix tree to support
-> multi-order entries.  Pointers to internal radix tree nodes mostly do not
-> have the 'indirect' bit set.  I change that so they always have that bit
-> set; then any pointer without the indirect bit set is a multi-order entry.
-> 
-> If the order of the entry is a multiple of the fanout of the tree,
-> then all is well.  If not, it is necessary to insert alias nodes into
-> the tree that point to the canonical entry.  At this point, I have not
-> added support for entries which are smaller than the last-level fanout of
-> the tree (and I put a BUG_ON in to prevent that usage).  Adding support
-> would be a simple matter of one last pointer-chase when we get to the
-> bottom of the tree, but I am not aware of any reason to add support for
-> smaller multi-order entries at this point, so I haven't.
-> 
-> Note that no actual users are modified at this point.  I think it'd be
-> mostly a matter of deleting code from the DAX fsync support at this point,
-> but with that code in flux, I'm a little reluctant to add more churn
-> to it.  I'm also not entriely sure where Kirill is on the page-cache
-> modifications; he seems to have his hands full fixing up the MM right now.
-> 
-> Before diving into the important modifications, I add Andrew Morton's
-> radix tree test harness to the tree in patches 1 & 2.  It was absolutely
-> invaluable in catching some of my bugs.  Patches 3 & 4 are minor tweaks.
-> Patches 5-7 are the interesting ones.  Patch 8 we might want to leave
-> out entirely or shift over to the test harness.  I found it useful during
-> debugging and others might too.
-> 
-> Matthew Wilcox (8):
->   radix-tree: Add an explicit include of bitops.h
->   radix tree test harness
->   radix-tree: Cleanups
->   radix_tree: Convert some variables to unsigned types
->   radix_tree: Tag all internal tree nodes as indirect pointers
->   radix_tree: Loop based on shift count, not height
->   radix_tree: Add support for multi-order entries
->   radix_tree: Add radix_tree_dump
+On Wed, 24 Feb 2016, Chen Yucong wrote:
 
-I like the idea of this approach - I'll work on integrating it into DAX *sync.
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index c832ef3..e4b6dec3 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1059,10 +1059,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  
+>  	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+>  	ret = notifier_to_errno(ret);
+> -	if (ret) {
+> -		memory_notify(MEM_CANCEL_ONLINE, &arg);
+> -		return ret;
+> -	}
+> +	if (ret)
+> +		goto failed_addition;
+> +
+>  	/*
+>  	 * If this zone is not populated, then it is not in zonelist.
+>  	 * This means the page allocator ignores this zone.
+> @@ -1080,12 +1079,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  		if (need_zonelists_rebuild)
+>  			zone_pcp_reset(zone);
+>  		mutex_unlock(&zonelists_mutex);
+> -		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
+> -		       (unsigned long long) pfn << PAGE_SHIFT,
+> -		       (((unsigned long long) pfn + nr_pages)
+> -			    << PAGE_SHIFT) - 1);
+> -		memory_notify(MEM_CANCEL_ONLINE, &arg);
+> -		return ret;
+> +		goto failed_addition;
+>  	}
+>  
+>  	zone->present_pages += onlined_pages;
+> @@ -1118,6 +1112,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	if (onlined_pages)
+>  		memory_notify(MEM_ONLINE, &arg);
+>  	return 0;
+> +
+> +failed_addition:
+> +	pr_info("online_pages [mem %#010llx-%#010llx] failed\n",
+> +		(unsigned long long) pfn << PAGE_SHIFT,
+> +		(((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
+> +	memory_notify(MEM_CANCEL_ONLINE, &arg);
+> +	return ret;
+>  }
+>  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+>  
 
-One quick note - some of the patches are prefixed with "radix-tree" and others
-with "radix_tree".
+Please explain how the conversion from KERN_DEBUG to KERN_INFO level is 
+better?
 
-Also, if we go through the trouble of including the radix tree test harness,
-should we include a new test at the end of the series that tests out
-multi-order radix tree entries?
+If the onlining returns an error value, which it will, why do we need to 
+leave an artifact behind in the kernel log that it failed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
