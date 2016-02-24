@@ -1,134 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BEF16B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 17:27:11 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id x65so20517324pfb.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 14:27:11 -0800 (PST)
-Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-249.mail.alibaba.com. [205.204.113.249])
-        by mx.google.com with ESMTP id w18si7582387pfi.224.2016.02.24.14.27.08
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 460396B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 17:56:40 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id c10so21608849pfc.2
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 14:56:40 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id h89si7763160pfh.148.2016.02.24.14.56.38
         for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 14:27:10 -0800 (PST)
-From: chengang@emindsoft.com.cn
-Subject: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
-Date: Thu, 25 Feb 2016 06:26:31 +0800
-Message-Id: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
+        Wed, 24 Feb 2016 14:56:39 -0800 (PST)
+Date: Thu, 25 Feb 2016 09:56:23 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160224225623.GL14668@dastard>
+References: <20160223095225.GB32294@infradead.org>
+ <56CC686A.9040909@plexistor.com>
+ <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
+ <56CCD54C.3010600@plexistor.com>
+ <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
+ <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
+ <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
+ <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: trivial@kernel.org
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org, Chen Gang <chengang@emindsoft.com.cn>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Chen Gang <chengang@emindsoft.com.cn>
+On Wed, Feb 24, 2016 at 10:02:26AM -0500, Jeff Moyer wrote:
+> Dan Williams <dan.j.williams@intel.com> writes:
+> 
+> >> I see.  So I think your argument is that new file systems (such as Nova)
+> >> can have whacky new semantics, but existing file systems should provide
+> >> the more conservative semantics that they have provided since the dawn
+> >> of time (even if we add a new mmap flag to control the behavior).
+> >>
+> >> I don't agree with that.  :)
+> >>
+> >
+> > Fair enough.  Recall, I was pushing MAP_DAX not to long ago.  It just
+> > seems like a Sisyphean effort to push an mmap flag up the XFS hill and
+> > maybe that effort is better spent somewhere else.
+> 
+> Given Dave's last response to Boaz, I see what you mean, and I also
+> understand Dave's reasoning better, now.  FWIW, I never disagreed with
+> spending effort elsewhere for now.  I did think that the mmap flag was
+> on the horizon, though.  From Dave's comments, I think the prospects of
+> that are slim to none.  That's fine, at least we have a definite
+> direction.  Time to update all of the slide decks.  =)
 
-Always notice about 80 columns, and the white space near '|'.
+Well, let me clarify what I said a bit here, because I feel like I'm
+being unfairly blamed for putting data integrity as the highest
+priority for DAX+pmem instead of falling in line and chanting
+"Performance! Performance! Performance!" with everyone else.
 
-Let the wrapped function parameters align as the same styles.
+Let me state this clearly: I'm not opposed to making optimisations
+that change the way applications and the kernel interact. I like the
+idea of MAP_SYNC, but I see this sort of API/behaviour change as a
+last resort when all else fails, not a "first and only" optimisation
+option.
 
-Remove redundant statement "enum zone_type z;" in function gfp_zone.
+The big issue we have right now is that we haven't made the DAX/pmem
+infrastructure work correctly and reliably for general use.  Hence
+adding new APIs to workaround cases where we haven't yet provided
+correct behaviour, let alone optimised for performance is, quite
+frankly, a clear case premature optimisation.
 
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
----
- include/linux/gfp.h | 35 ++++++++++++++++++++---------------
- 1 file changed, 20 insertions(+), 15 deletions(-)
+We need a solid foundation on which to build a fast, safe pmem
+storage stack. Rushing to add checkbox performance requirements or
+features to demonstrate "progress" leads us down the path of btrfs -
+a code base that we are forever struggling with because the
+foundation didn't solve known hard problems at an early stage of
+developement (e.g. ENOSPC, single tree lock, using generic RAID and
+device layers, etc). This results in a code base full of entrenched
+deficiencies that are almost impossible to fix and I, personally, do
+not want to end up with DAX being in a similar place.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 36e0c5e..cf904ef 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -53,8 +53,10 @@ struct vm_area_struct;
- #define __GFP_DMA	((__force gfp_t)___GFP_DMA)
- #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
- #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
--#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
--#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
-+#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE) \
-+						/* ZONE_MOVABLE allowed */
-+#define GFP_ZONEMASK	(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32 | \
-+			 __GFP_MOVABLE)
- 
- /*
-  * Page mobility and placement hints
-@@ -151,9 +153,12 @@ struct vm_area_struct;
-  */
- #define __GFP_IO	((__force gfp_t)___GFP_IO)
- #define __GFP_FS	((__force gfp_t)___GFP_FS)
--#define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
--#define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
--#define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
-+#define __GFP_DIRECT_RECLAIM ((__force gfp_t)___GFP_DIRECT_RECLAIM) \
-+							/* Caller can reclaim */
-+#define __GFP_KSWAPD_RECLAIM ((__force gfp_t)___GFP_KSWAPD_RECLAIM) \
-+							/* kswapd can wake */
-+#define __GFP_RECLAIM	((__force gfp_t)(___GFP_DIRECT_RECLAIM | \
-+			 ___GFP_KSWAPD_RECLAIM))
- #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
- #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
- #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
-@@ -262,7 +267,7 @@ struct vm_area_struct;
- 			 ~__GFP_KSWAPD_RECLAIM)
- 
- /* Convert GFP flags to their corresponding migrate type */
--#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-+#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
- #define GFP_MOVABLE_SHIFT 3
- 
- static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-@@ -377,11 +382,10 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
- 
- static inline enum zone_type gfp_zone(gfp_t flags)
- {
--	enum zone_type z;
- 	int bit = (__force int) (flags & GFP_ZONEMASK);
-+	enum zone_type z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-+			    ((1 << GFP_ZONES_SHIFT) - 1);
- 
--	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
--					 ((1 << GFP_ZONES_SHIFT) - 1);
- 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
- 	return z;
- }
-@@ -428,8 +432,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		       struct zonelist *zonelist, nodemask_t *nodemask);
- 
- static inline struct page *
--__alloc_pages(gfp_t gfp_mask, unsigned int order,
--		struct zonelist *zonelist)
-+__alloc_pages(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist)
- {
- 	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
- }
-@@ -453,7 +456,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
-  * online.
-  */
- static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
--						unsigned int order)
-+					    unsigned int order)
- {
- 	if (nid == NUMA_NO_NODE)
- 		nid = numa_mem_id();
-@@ -470,8 +473,9 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
- 	return alloc_pages_current(gfp_mask, order);
- }
- extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
--			struct vm_area_struct *vma, unsigned long addr,
--			int node, bool hugepage);
-+				    struct vm_area_struct *vma,
-+				    unsigned long addr, int node,
-+				    bool hugepage);
- #define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
- 	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
- #else
-@@ -552,7 +556,8 @@ static inline bool pm_suspended_storage(void)
- }
- #endif /* CONFIG_PM_SLEEP */
- 
--#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
-+#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
-+     defined(CONFIG_CMA)
- /* The below functions must be run on a range from a single zone. */
- extern int alloc_contig_range(unsigned long start, unsigned long end,
- 			      unsigned migratetype);
+Getting fsync to work with DAX is one of these "known hard problems"
+that we really need to solve before we try to optimise for
+performance. Once we have solid, workable infrastructure, we'll be
+in a much better place to evaluate the merits of optimisations that
+reduce or eliminate dirty tracking overhead that is required for
+providing data integrity.
+
+>From this perspective, I'd much prefer that we look to generic
+mapping infrastructure optimisations before we look to one-off API
+additions for systems running PMEM. Yes, it's harder to do, but the
+end result of such an approach is that everyone benefits, not just
+some proprietary application that almost nobody uses.
+
+Indeed, it may be that we need to revist previous work like using an
+rcu-aware btree for the mapping tree instead of a radix tree, as was
+prototyped way back in ~2007 by Peter Zjilstra. If we can make
+infrastructure changes that mostly remove the overhead of tracking
+everything in the kernel, then we don't need to add special
+userspace API changes to minimise the kernel tracking overhead.
+
+Only if we can't bring the overhead of kernel-side dirty tracking
+down to a reasonable overhead should we be considering a new API
+that puts the responsibility on userspace for syncing data, and even
+then we'll need to be very, very careful about it.
+
+However, such discussions are a complete distraction to the problems
+we need to solve right now. i.e. we need to focus on making DAX+pmem
+work safely and reliably. Once we've done that, then we can focus on
+performance optimisations and, perhaps, new interfaces to userspace.
+
+Cheers,
+
+Dave.
 -- 
-1.9.3
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
