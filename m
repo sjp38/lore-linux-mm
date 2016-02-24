@@ -1,143 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 67A416B0009
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 19:08:28 -0500 (EST)
-Received: by mail-io0-f177.google.com with SMTP id 9so9356246iom.1
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 16:08:28 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id p7si661586iop.141.2016.02.23.16.08.22
-        for <linux-mm@kvack.org>;
-        Tue, 23 Feb 2016 16:08:27 -0800 (PST)
-Date: Wed, 24 Feb 2016 11:08:08 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160224000808.GJ14668@dastard>
-References: <20160222174426.GA30110@infradead.org>
- <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com>
- <20160223095225.GB32294@infradead.org>
- <56CC686A.9040909@plexistor.com>
- <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
- <56CCD54C.3010600@plexistor.com>
- <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
- <56CCE647.70408@plexistor.com>
- <CAPcyv4gLoQm818BzQSqkCbNPztr0JVihmvuhb=d-kSgbrmYFzQ@mail.gmail.com>
- <56CCEE09.7070204@plexistor.com>
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BEED6B0253
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2016 19:08:53 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id g62so223047607wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 16:08:53 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id k65si1006817wmb.11.2016.02.23.16.08.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Feb 2016 16:08:52 -0800 (PST)
+Received: by mail-wm0-x22f.google.com with SMTP id g62so247602987wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2016 16:08:52 -0800 (PST)
+Message-ID: <56CCF491.1020501@plexistor.com>
+Date: Wed, 24 Feb 2016 02:08:49 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56CCEE09.7070204@plexistor.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+References: <20160221223157.GC25832@dastard> <x49fuwk7o8a.fsf@segfault.boston.devel.redhat.com> <20160222174426.GA30110@infradead.org> <257B23E37BCB93459F4D566B5EBAEAC550098A32@FMSMSX106.amr.corp.intel.com> <20160223095225.GB32294@infradead.org> <7168B635-938B-44A0-BECD-C0774207B36D@intel.com> <20160223120644.GL25832@dastard> <20160223171059.GB15877@linux.intel.com> <20160223214729.GH14668@dastard> <56CCDA06.6000005@plexistor.com> <20160223232813.GI14668@dastard>
+In-Reply-To: <20160223232813.GI14668@dastard>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Feb 24, 2016 at 01:40:57AM +0200, Boaz Harrosh wrote:
-> On 02/24/2016 01:23 AM, Dan Williams wrote:
-> > On Tue, Feb 23, 2016 at 3:07 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> >> On 02/24/2016 12:33 AM, Dan Williams wrote:
-> > 
-> >>> The crux of the problem, in my opinion, is that we're asking for an "I
-> >>> know what I'm doing" flag, and I expect that's an impossible statement
-> >>> for a filesystem to trust generically.  If you can get MAP_PMEM_AWARE
-> >>> in, great, but I'm more and more of the opinion that the "I know what
-> >>> I'm doing" interface should be something separate from today's trusted
-> >>> filesystems.
-> >>>
-> >>
-> >> I disagree. I'm not saying any "trust me I know what I'm doing" flag.
-> >> the FS reveals nothing and trusts nothing.
-> >> All I'm saying is that the libc library I'm using as the new pmem_memecpy()
-> >> and I'm using that instead of the old memecpy(). So the FS does not need to
-> >> wipe my face after I eat. Failing to do so just means a bug in the application
-> > 
-> > "just means a bug in the application"
-> > 
-> > Who gets the bug report when an app gets its cache syncing wrong and
-> > data corruption ensues, and why isn't the fix for that bug that the
-> > filesystem simply stops trusting MAP_PMEM_AWARE and synching
-> > cachelines on behalf of the app when it calls sync as it must for
-> > metadata consistency.  Problem solved globally for all broken usages
-> > of MAP_PMEM_AWARE and the flag loses all meaning as a result.
-> > 
+On 02/24/2016 01:28 AM, Dave Chinner wrote:
+> On Wed, Feb 24, 2016 at 12:15:34AM +0200, Boaz Harrosh wrote:
+>> On 02/23/2016 11:47 PM, Dave Chinner wrote:
+>> <>
+>>>
+>>> i.e. what we've implemented right now is a basic, slow,
+>>> easy-to-make-work-correctly brute force solution. That doesn't mean
+>>> we always need to implement it this way, or that we are bound by the
+>>> way dax_clear_sectors() currently flushes cachelines before it
+>>> returns. It's just a simple implementation that provides the
+>>> ordering the *filesystem requires* to provide the correct data
+>>> integrity semantics to userspace.
+>>>
+>>
+>> Or it can be written properly with movnt instructions and be even
+>> faster the a simple memset, and no need for any cl_flushing let alone
+>> any radix-tree locking.
 > 
-> Because this will not fix the application's bugs. Because if the application
-> is broken then you do not know that this will fix it. It is broken it failed
-> to uphold the contract it had with the Kernel.
-
-That's not the point Dan was making. Data corruption bugs are going
-to get reported to the filesystem developers, not the application
-developers, because usres think that data corruption is always the
-fault of the filesystem. How is the filesystem developer going to
-know that a) the app is using DAX, b) the app has set some special
-"I know what I'm doing flag", and c) the app doesn't actually know
-what it is doing.
-
-We are simply going to assume c) - from long experience I don't
-trust any application developer to understand how data integrity
-works. Almost any app developer that says they understand how
-filesystems provide data integrity are almost always competely
-wrong.
-
-Hell, this thread has made me understand that most pmem developers
-don't understand how filesystems provide data integrity guarantees.
-Why should we trust applicaiton developers to do better?
-
-> It is like saying lets call fsync on file close because broken apps keep
-> forgetting to call fsync(). And file close is called even if the app crashes.
-> Will Dave do that?
-
-/me points to XFS_ITRUNCATE and xfs_release().
-
-Yes, we already flush data on close in situations where data loss is
-common due to stupid application developers refusing to use fsync
-because "it's too slow".
-
-ext4 has similar flush on close behaviours for the same reasons.
-
-> No if an app has a bug like this falling to call the proper pmem_xxx routine
-> in the proper work flow, it might has just forgotten to call fsync, or maybe
-> still modifying memory after fsync was called. And your babysitting the app
-> will not help.
-
-History tells us otherwise. users always blame the filesystem first,
-and then app developers will refuse to fix their applications
-because it would either make their app slow or they think it's a
-filesystem problem to solve because they tested on some other
-filesystem and it didn't display that behaviour. The result is we
-end up working around such problems in the filesystem so that users
-don't end up losing data due to shit applications.
-
-The same will happen here - filesystems will end up ignoring this
-special "I know what I'm doing" flag because the vast majority of
-app developers don't know enough to even realise that they don't
-know what they are doing.
-
-I *really* don't care about speed and performance here. I care about
-reliability, resilience and data integrity. Speed comes from the
-storage hardware being fast, not from filesystems ignoring
-reliability, resilience and data integrity.
-
-> > This is the takeaway I've internalized from Dave's pushback of these
-> > new mmap flags.
-> > 
+> Precisely my point - semantics of persistent memory durability are
+> going to change from kernel to kernel, architecture to architecture,
+> and hardware to hardware.
 > 
-> We are already used to tell the firefox guys, you did not call fsync and
-> you lost data on a crash.
+> Assuming applications are going to handle all these wacky
+> differences to provide their users with robust data integrity is a
+> recipe for disaster. If applications writers can't even use fsync
+> properly, I can guarantee you they are going to completely fuck up
+> data integrity when targeting pmem.
 > 
-> We will have a new mantra, "You did not use pmem_memcpy() but used MAP_PMEM_AWARE"
-> We have contracts like that between Kernel and apps all the time. I fail to see why
-> this one crossed the line for you?
+>> That said your suggestion above is 25%-100% slower than current code
+>> because the cl_flushes will be needed eventually, and the atomics of a
+>> lock takes 25% the time of a full page copy.
+> 
+> So what? We can optimise for performance later, once we've provided
+> correct and resilient infrastructure. We've been fighting against
+> premature optimisation for performance from teh start with DAX -
+> we've repeatedly had to undo stuff that was fast but broken, and
+> were not doing that any more. Correctness comes first, then we can
+> address the performance issues via iterative improvement, like we do
+> with everything else.
+> 
+>> You are forgetting we are
+>> talking about memory and not harddisk. the rules are different.
+> 
+> That's bullshit, Boaz. I'm sick and tired of people saying "but pmem
+> is different" as justification for not providing correct, reliable
+> data integrity behaviour. Filesytems on PMEM have to follow all the
+> same rules as any other type of persistent storage we put
+> filesystems on.
+> 
+> Yes, the speed of the storage may expose the fact that am
+> unoptimised correct implementation is a lot more expensive than
+> ignoring correctness, but that does not mean we can ignore
+> correctness. Nor does it mean that a correct implementation will be
+> slow - it just means we haven't optimised for speed yet because
+> getting it correct is a hard problem and our primary focus.
+> 
+> Cheers,
+> 
 
-So, you prefer to repeat past mistakes rather than learning from
-them. I prefer that we don't make the same mistakes again and so
-have to live with them for the next 20 years.
+Cheers indeed. Only you failed to say where I have sacrificed correctness.
+You are barging into an open door. People who knows me know I'm a sucker
+for stability and correctness.
+	YES!!! Correctness first! must call fsync!! No BUGS!!
+You have no arguments with me on that.
 
-Cheers,
+You yourself said that the current dax_clear_sectors() *is correct* but
+is doing cl_flushes and it could just be dirtying the radix-tree plus
+regular memory sets. I pointed out that this is slower because the
+performance  rules of memory are different from the performance rules of
+block storage.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I never said anything about data correctness or transactions or data
+placements. Did I?
+
+And I agree with you. All the wacky details of pmem needs to hide under
+a gcc ARCH specific library in a generic portable API way. And not trusted
+to the app.
+
+The API is real simple:
+
+pmem_memcpy()
+pmem_memset()
+pmem_flush()
+
+All the wacky craft is hidden under these basic three old C concepts.
+For now they are written and implemented and tested under nvml soon
+enough they can move to a more generic place.
+
+> Dave.
+> 
+
+Yes I usually do like to bulshit a lot in my personal life is lots of fun,
+but not on Computers work, because Computers are boring I'd rather go dancing
+instead. And bulshit is a waste of time. I do know what I'm doing and like you
+I hate short cuts and complications and wacky code. I like correctness and stability.
+
+Cheers indeed ;-)
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
