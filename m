@@ -1,80 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E7E406B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:58:21 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id q63so14957666pfb.0
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 07:58:21 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id 26si5727860pfj.93.2016.02.24.07.58.21
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 734CB6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:59:32 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id q63so14973359pfb.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 07:59:32 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id ll1si5696696pab.144.2016.02.24.07.59.31
         for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 07:58:21 -0800 (PST)
+        Wed, 24 Feb 2016 07:59:31 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] thp: call pmdp_invalidate() with correct virtual address
-Date: Wed, 24 Feb 2016 18:58:03 +0300
-Message-Id: <1456329483-4220-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp, mm: remove comments on serializion of THP split vs. gup_fast
+Date: Wed, 24 Feb 2016 18:59:21 +0300
+Message-Id: <1456329561-4319-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Will Deacon <will.deacon@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Sebastian Ott and Gerald Schaefer reported random crashes on s390.
-It was bisected to my THP refcounting patchset.
+Previously, __split_huge_page_splitting() required serialization against
+gup_fast to make sure nobody can obtain new reference to the page after
+__split_huge_page_splitting() returns. This was a way to stabilize page
+references before starting to distribute them from head page to tail
+pages.
 
-The problem is that pmdp_invalidated() called with wrong virtual
-address. It got offset up by HPAGE_PMD_SIZE by loop over ptes.
-
-The solution is to introduce new variable to be used in loop and don't
-touch 'haddr'.
+With new refcounting, we don't care about this. Splitting PMD is now
+decoupled from splitting underlying compound page. It's okay to get new
+pins after split_huge_pmd(). To stabilize page references during
+split_huge_page() we rely on setting up migration entries once all
+pmds are split into page tables.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reported-by Sebastian Ott <sebott@linux.vnet.ibm.com>
 ---
- mm/huge_memory.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ mm/gup.c         | 11 +++--------
+ mm/huge_memory.c |  7 +++----
+ 2 files changed, 6 insertions(+), 12 deletions(-)
 
+diff --git a/mm/gup.c b/mm/gup.c
+index 7bf19ffa2199..2f528fce3a62 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1087,8 +1087,7 @@ struct page *get_dump_page(unsigned long addr)
+  *
+  * get_user_pages_fast attempts to pin user pages by walking the page
+  * tables directly and avoids taking locks. Thus the walker needs to be
+- * protected from page table pages being freed from under it, and should
+- * block any THP splits.
++ * protected from page table pages being freed from under it.
+  *
+  * One way to achieve this is to have the walker disable interrupts, and
+  * rely on IPIs from the TLB flushing code blocking before the page table
+@@ -1097,9 +1096,8 @@ struct page *get_dump_page(unsigned long addr)
+  *
+  * Another way to achieve this is to batch up page table containing pages
+  * belonging to more than one mm_user, then rcu_sched a callback to free those
+- * pages. Disabling interrupts will allow the fast_gup walker to both block
+- * the rcu_sched callback, and an IPI that we broadcast for splitting THPs
+- * (which is a relatively rare event). The code below adopts this strategy.
++ * pages. Disabling interrupts will allow the fast_gup walker to block
++ * the rcu_sched callback. The code below adopts this strategy.
+  *
+  * Before activating this code, please be aware that the following assumptions
+  * are currently made:
+@@ -1391,9 +1389,6 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	 * With interrupts disabled, we block page table pages from being
+ 	 * freed from under us. See mmu_gather_tlb in asm-generic/tlb.h
+ 	 * for more details.
+-	 *
+-	 * We do not adopt an rcu_read_lock(.) here as we also want to
+-	 * block IPIs that come from THPs splitting.
+ 	 */
+ 
+ 	local_irq_save(flags);
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1c317b85ea7d..e10a4fee88d2 100644
+index e10a4fee88d2..846fe173e04b 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2836,6 +2836,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	pgtable_t pgtable;
- 	pmd_t _pmd;
- 	bool young, write, dirty;
-+	unsigned long addr;
- 	int i;
- 
- 	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
-@@ -2865,7 +2866,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
- 
--	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
- 		pte_t entry, *pte;
- 		/*
- 		 * Note that NUMA hinting access restrictions are not
-@@ -2886,9 +2887,9 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 		}
- 		if (dirty)
- 			SetPageDirty(page + i);
--		pte = pte_offset_map(&_pmd, haddr);
-+		pte = pte_offset_map(&_pmd, addr);
- 		BUG_ON(!pte_none(*pte));
--		set_pte_at(mm, haddr, pte, entry);
-+		set_pte_at(mm, addr, pte, entry);
- 		atomic_inc(&page[i]._mapcount);
- 		pte_unmap(pte);
- 	}
-@@ -2938,7 +2939,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -2930,10 +2930,9 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	 * for the same virtual address to be loaded simultaneously. So instead
+ 	 * of doing "pmd_populate(); flush_pmd_tlb_range();" we first mark the
+ 	 * current pmd notpresent (atomically because here the pmd_trans_huge
+-	 * and pmd_trans_splitting must remain set at all times on the pmd
+-	 * until the split is complete for this pmd), then we flush the SMP TLB
+-	 * and finally we write the non-huge version of the pmd entry with
+-	 * pmd_populate.
++	 * must remain set at all times on the pmd until the split_huge_pmd()
++	 * is complete, then we flush the SMP TLB and finally we write the
++	 * non-huge version of the pmd entry with pmd_populate.
+ 	 */
+ 	pmdp_invalidate(vma, haddr, pmd);
  	pmd_populate(mm, pmd, pgtable);
- 
- 	if (freeze) {
--		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+		for (i = 0; i < HPAGE_PMD_NR; i++) {
- 			page_remove_rmap(page + i, false);
- 			put_page(page + i);
- 		}
 -- 
 2.7.0
 
