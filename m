@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 76AA36B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 13:09:21 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id y9so20656674qgd.3
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:09:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o9si3798690qkh.109.2016.02.24.10.09.20
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DFA06B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 13:49:07 -0500 (EST)
+Received: by mail-io0-f177.google.com with SMTP id l127so58198753iof.3
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:49:07 -0800 (PST)
+Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
+        by mx.google.com with ESMTPS id k77si5305701iod.183.2016.02.24.10.49.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Feb 2016 10:09:20 -0800 (PST)
-Subject: Re: [PATCHv2 1/4] slub: Drop lock at the end of free_debug_processing
-References: <1455561864-4217-1-git-send-email-labbott@fedoraproject.org>
- <1455561864-4217-2-git-send-email-labbott@fedoraproject.org>
- <56CDBCAB.9040001@redhat.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56CDF1CC.6070903@redhat.com>
-Date: Wed, 24 Feb 2016 10:09:16 -0800
+        Wed, 24 Feb 2016 10:49:06 -0800 (PST)
+Received: by mail-io0-x233.google.com with SMTP id l127so58198157iof.3
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 10:49:06 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <56CDBCAB.9040001@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1456329483-4220-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1456329483-4220-1-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 24 Feb 2016 10:49:06 -0800
+Message-ID: <CA+55aFyTzjpk-7ThfhpksgSxQV0KQL0jHR3hbpwPntWFJdKh2g@mail.gmail.com>
+Subject: Re: [PATCH] thp: call pmdp_invalidate() with correct virtual address
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Will Deacon <will.deacon@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-s390 <linux-s390@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 02/24/2016 06:22 AM, Paolo Bonzini wrote:
+On Wed, Feb 24, 2016 at 7:58 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> Sebastian Ott and Gerald Schaefer reported random crashes on s390.
+> It was bisected to my THP refcounting patchset.
 >
+> The problem is that pmdp_invalidated() called with wrong virtual
+> address. It got offset up by HPAGE_PMD_SIZE by loop over ptes.
 >
-> On 15/02/2016 19:44, Laura Abbott wrote:
->> -static inline struct kmem_cache_node *free_debug_processing(
->> +static inline int free_debug_processing(
->>   	struct kmem_cache *s, struct page *page,
->>   	void *head, void *tail, int bulk_cnt,
->>   	unsigned long addr, unsigned long *flags) { return NULL; }
->
-> I think this has a leftover flags argument.
->
-> Paolo
->
+> The solution is to introduce new variable to be used in loop and don't
+> touch 'haddr'.
 
-Yes, I believe Andrew folded in a patch to the mm tree.
+Thanks, I applied this directly rather than wait for this to go
+through Andrew (which would have been "proper channels").
 
-Thanks,
-Laura
+This issue has been worrying me for a while now and was my main core
+worry for 4.5. Good to have it resolved, and thanks to everybody who
+tested and got involved.
 
->> @@ -2648,8 +2646,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->>   	stat(s, FREE_SLOWPATH);
->>
->>   	if (kmem_cache_debug(s) &&
->> -	    !(n = free_debug_processing(s, page, head, tail, cnt,
->> -					addr, &flags)))
->> +	    !free_debug_processing(s, page, head, tail, cnt, addr))
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
