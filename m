@@ -1,117 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5191D6B0009
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 03:02:17 -0500 (EST)
-Received: by mail-io0-f174.google.com with SMTP id 9so24183103iom.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 00:02:17 -0800 (PST)
-Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
-        by mx.google.com with ESMTPS id g7si2352527igc.29.2016.02.24.00.02.14
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2156B0009
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 03:22:17 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id g62so18330951wme.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 00:22:17 -0800 (PST)
+Received: from e06smtp08.uk.ibm.com (e06smtp08.uk.ibm.com. [195.75.94.104])
+        by mx.google.com with ESMTPS id er8si2265317wjd.174.2016.02.24.00.22.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Feb 2016 00:02:14 -0800 (PST)
-Received: by mail-io0-x22c.google.com with SMTP id 9so24181143iom.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 00:02:14 -0800 (PST)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm, memory hotplug: print more failure information for online_pages
-Date: Wed, 24 Feb 2016 16:02:05 +0800
-Message-Id: <1456300925-20415-1-git-send-email-slaoub@gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Feb 2016 00:22:16 -0800 (PST)
+Received: from localhost
+	by e06smtp08.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Wed, 24 Feb 2016 08:22:15 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id AB5971B0806E
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 08:22:31 +0000 (GMT)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1O8MCkY22544586
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 08:22:12 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1O8MBhG022715
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 03:22:11 -0500
+Date: Wed, 24 Feb 2016 09:22:08 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [BUG] random kernel crashes after THP rework on s390 (maybe
+ also on PowerPC and ARM)
+Message-ID: <20160224092208.49e013ff@mschwide>
+In-Reply-To: <20160223191907.25719a4d@thinkpad>
+References: <20160211192223.4b517057@thinkpad>
+	<20160211190942.GA10244@node.shutemov.name>
+	<20160211205702.24f0d17a@thinkpad>
+	<20160212154116.GA15142@node.shutemov.name>
+	<56BE00E7.1010303@de.ibm.com>
+	<20160212181640.4eabb85f@thinkpad>
+	<20160223103221.GA1418@node.shutemov.name>
+	<20160223191907.25719a4d@thinkpad>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christian Borntraeger <borntraeger@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Sebastian Ott <sebott@linux.vnet.ibm.com>
 
-online_pages() simply returns an error value if
-memory_notify(MEM_GOING_ONLINE, &arg) return a value that is not
-what we want for successfully onlining target pages. This patch
-arms to print more failure information like offline_pages() in
-online_pages. And this patch also converts printk(KERN_<LEVEL>)
-to pr_<level>().
+On Tue, 23 Feb 2016 19:19:07 +0100
+Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/memory_hotplug.c | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+> On Tue, 23 Feb 2016 13:32:21 +0300
+> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> 
+> > On Fri, Feb 12, 2016 at 06:16:40PM +0100, Gerald Schaefer wrote:
+> > > On Fri, 12 Feb 2016 16:57:27 +0100
+> > > Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+> > > 
+> > > > > I'm also confused by pmd_none() is equal to !pmd_present() on s390. Hm?
+> > > > 
+> > > > Don't know, Gerald or Martin?
+> > > 
+> > > The implementation frequently changes depending on how many new bits Martin
+> > > needs to squeeze out :-)
+> > > We don't have a _PAGE_PRESENT bit for pmds, so pmd_present() just checks if the
+> > > entry is not empty. pmd_none() of course does the opposite, it checks if it is
+> > > empty.
+> > 
+> > I still worry about pmd_present(). It looks wrong to me. I wounder if
+> > patch below makes a difference.
+> > 
+> > The theory is that the splitting bit effetely masked bogus pmd_present():
+> > we had pmd_trans_splitting() in all code path and that prevented mm from
+> > touching the pmd. Once pmd_trans_splitting() has gone, mm proceed with the
+> > pmd where it shouldn't and here's a boom.
+> 
+> Well, I don't think pmd_present() == true is bogus for a trans_huge pmd under
+> splitting, after all there is a page behind the the pmd. Also, if it was
+> bogus, and it would need to be false, why should it be marked !pmd_present()
+> only at the pmdp_invalidate() step before the pmd_populate()? It clearly
+> is pmd_present() before that, on all architectures, and if there was any
+> problem/race with that, setting it to !pmd_present() at this stage would
+> only (marginally) reduce the race window.
+> 
+> BTW, PowerPC and Sparc seem to do the same thing in pmdp_invalidate(),
+> i.e. they do not set pmd_present() == false, only mark it so that it would
+> not generate a new TLB entry, just like on s390. After all, the function
+> is called pmdp_invalidate(), and I think the comment in mm/huge_memory.c
+> before that call is just a little ambiguous in its wording. When it says
+> "mark the pmd notpresent" it probably means "mark it so that it will not
+> generate a new TLB entry", which is also what the comment is really about:
+> prevent huge and small entries in the TLB for the same page at the same
+> time.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c832ef3..e4b6dec3 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1059,10 +1059,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 
- 	ret = memory_notify(MEM_GOING_ONLINE, &arg);
- 	ret = notifier_to_errno(ret);
--	if (ret) {
--		memory_notify(MEM_CANCEL_ONLINE, &arg);
--		return ret;
--	}
-+	if (ret)
-+		goto failed_addition;
-+
- 	/*
- 	 * If this zone is not populated, then it is not in zonelist.
- 	 * This means the page allocator ignores this zone.
-@@ -1080,12 +1079,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 		if (need_zonelists_rebuild)
- 			zone_pcp_reset(zone);
- 		mutex_unlock(&zonelists_mutex);
--		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
--		       (unsigned long long) pfn << PAGE_SHIFT,
--		       (((unsigned long long) pfn + nr_pages)
--			    << PAGE_SHIFT) - 1);
--		memory_notify(MEM_CANCEL_ONLINE, &arg);
--		return ret;
-+		goto failed_addition;
- 	}
- 
- 	zone->present_pages += onlined_pages;
-@@ -1118,6 +1112,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	if (onlined_pages)
- 		memory_notify(MEM_ONLINE, &arg);
- 	return 0;
-+
-+failed_addition:
-+	pr_info("online_pages [mem %#010llx-%#010llx] failed\n",
-+		(unsigned long long) pfn << PAGE_SHIFT,
-+		(((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
-+	memory_notify(MEM_CANCEL_ONLINE, &arg);
-+	return ret;
- }
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
- 
-@@ -1529,8 +1530,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 
- 		} else {
- #ifdef CONFIG_DEBUG_VM
--			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
--			       pfn);
-+			pr_alert("removing pfn %lx from LRU failed\n", pfn);
- 			dump_page(page, "failed to remove from LRU");
- #endif
- 			put_page(page);
-@@ -1858,7 +1858,7 @@ repeat:
- 		ret = -EBUSY;
- 		goto failed_removal;
- 	}
--	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
-+	pr_info("Offlined Pages %ld\n", offlined_pages);
- 	/* Ok, all of our target is isolated.
- 	   We cannot do rollback at this point. */
- 	offline_isolated_pages(start_pfn, end_pfn);
-@@ -1895,9 +1895,9 @@ repeat:
- 	return 0;
- 
- failed_removal:
--	printk(KERN_INFO "memory offlining [mem %#010llx-%#010llx] failed\n",
--	       (unsigned long long) start_pfn << PAGE_SHIFT,
--	       ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
-+	pr_info("memory offlining [mem %#010llx-%#010llx] failed\n",
-+		(unsigned long long) start_pfn << PAGE_SHIFT,
-+		((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
- 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
- 	/* pushback to free area */
- 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+If I am not mistaken this is true for x86 as well. The generic implementation
+for pmdp_invalidate sets a new pmd that has been modified with
+pmd_mknotpresent. For x86 this function removes the _PAGE_PRESENT and
+_PAGE_PROTNONE bits from the entry. The _PAGE_PSE bit stays set and that
+makes pmd_present return true.
+
 -- 
-1.8.3.1
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
