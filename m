@@ -1,162 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D99956B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 04:46:23 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id g62so19446766wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 01:46:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g5si3142991wmd.47.2016.02.25.01.46.22
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Feb 2016 01:46:22 -0800 (PST)
-Date: Thu, 25 Feb 2016 10:46:42 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160225094642.GC24965@quack.suse.cz>
-References: <56CC686A.9040909@plexistor.com>
- <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
- <56CCD54C.3010600@plexistor.com>
- <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
- <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
- <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
- <20160224040947.GA10313@linux.intel.com>
- <20160224193059.GC2858@linux.intel.com>
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E83E6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 04:48:47 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id q63so30137448pfb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 01:48:47 -0800 (PST)
+Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
+        by mx.google.com with ESMTP id e29si11457191pfb.131.2016.02.25.01.48.44
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 01:48:46 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <20160203132718.GI6757@dhcp22.suse.cz> <alpine.LSU.2.11.1602241832160.15564@eggly.anvils> <20160225064845.GA505@swordfish> <000001d16fad$63fff840$2bffe8c0$@alibaba-inc.com> <20160225092739.GE17573@dhcp22.suse.cz>
+In-Reply-To: <20160225092739.GE17573@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Date: Thu, 25 Feb 2016 17:48:26 +0800
+Message-ID: <000201d16fb1$acc98ec0$065cac40$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160224193059.GC2858@linux.intel.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, boaz@plexistor.com
+To: 'Michal Hocko' <mhocko@kernel.org>
+Cc: 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>, 'Hugh Dickins' <hughd@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@i-love.sakura.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>
 
-On Wed 24-02-16 12:30:59, Ross Zwisler wrote:
-> On Tue, Feb 23, 2016 at 09:09:47PM -0700, Ross Zwisler wrote:
-> > On Tue, Feb 23, 2016 at 03:56:17PM -0800, Dan Williams wrote:
-> > > On Tue, Feb 23, 2016 at 3:43 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> > > > Dan Williams <dan.j.williams@intel.com> writes:
-> > > >
-> > > >> On Tue, Feb 23, 2016 at 3:28 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> > > >>>> The crux of the problem, in my opinion, is that we're asking for an "I
-> > > >>>> know what I'm doing" flag, and I expect that's an impossible statement
-> > > >>>> for a filesystem to trust generically.
-> > > >>>
-> > > >>> The file system already trusts that.  If an application doesn't use
-> > > >>> fsync properly, guess what, it will break.  This line of reasoning
-> > > >>> doesn't make any sense to me.
-> > > >>
-> > > >> No, I'm worried about the case where an app specifies MAP_PMEM_AWARE
-> > > >> uses fsync correctly, and fails to flush cpu cache.
-> > > >
-> > > > I don't think the kernel needs to put training wheels on applications.
-> > > >
-> > > >>>> If you can get MAP_PMEM_AWARE in, great, but I'm more and more of the
-> > > >>>> opinion that the "I know what I'm doing" interface should be something
-> > > >>>> separate from today's trusted filesystems.
-> > > >>>
-> > > >>> Just so I understand you, MAP_PMEM_AWARE isn't the "I know what I'm
-> > > >>> doing" interface, right?
-> > > >>
-> > > >> It is the "I know what I'm doing" interface, MAP_PMEM_AWARE asserts "I
-> > > >> know when to flush the cpu relative to an fsync()".
-> > > >
-> > > > I see.  So I think your argument is that new file systems (such as Nova)
-> > > > can have whacky new semantics, but existing file systems should provide
-> > > > the more conservative semantics that they have provided since the dawn
-> > > > of time (even if we add a new mmap flag to control the behavior).
-> > > >
-> > > > I don't agree with that.  :)
-> > > >
-> > > 
-> > > Fair enough.  Recall, I was pushing MAP_DAX not to long ago.  It just
-> > > seems like a Sisyphean effort to push an mmap flag up the XFS hill and
-> > > maybe that effort is better spent somewhere else.
-> > 
-> > Well, for what it's worth MAP_SYNC feels like the "right" solution to me.  I
-> > understand that we are a ways from having it implemented, but it seems like
-> > the correct way to have applications work with persistent memory in a perfect
-> > world, and worth the effort.
-> > 
-> > MAP_PMEM_AWARE is interesting, but even in a perfect world it seems like a
-> > partial solution - applications still need to call *sync to get the FS
-> > metadata to be durable, and they have no reliable way of knowing which of
-> > their actions will cause the metadata to be out of sync.
-> > 
-> > Dave, is your objection to the MAP_SYNC idea a practical one about complexity
-> > and time to get it implemented, or do you think it's is the wrong solution?
+> >
+> > Can you please schedule a run for the diff attached, in which
+> > non-expensive allocators are allowed to burn more CPU cycles.
 > 
-> Jan, I just noticed that this chain didn't CC you nor linux-fsdevel, so you
-> may have missed it.  All the gory details are here:
+> I do not think your patch will help. As you can see, both OOMs were for
+> order-2 and there simply are no order-2+ free blocks usable for the
+> allocation request so the watermark check will fail for all eligible
+> zones and no_progress_loops is simply ignored. This is what I've tried
+> to address by patch I have just posted as a reply to Hugh's email
+> http://lkml.kernel.org/r/20160225092315.GD17573@dhcp22.suse.cz
 > 
-> http://thread.gmane.org/gmane.linux.kernel.mm/146691
-> 
-> Let me provide a little background for my question.  (Everyone else on the
-> thread feel free to jump in if you feel like my summary is incorrect or
-> incomplete.)
-> 
-> There is a new persistent memory programming model outlined on pmem.io and
-> implemented by the NVM Library (nvml).
-> 
-> http://pmem.io/
-> http://pmem.io/nvml/
-> https://github.com/pmem/nvml/
-> 
-> This new programming model is based on the idea that an application should be
-> able to create a DAX MMAP, and then from then on satisfy the data durability
-> requirements of the application purely in userspace.  This is done by using
-> non-temporal stores or cached writes followed by flushes, the same way that we
-> do things in the kernel.
-> 
-> Dave was concerned that this breaks down for XFS because even if the
-> application were to sync all its writes to media, the filesystem could be
-> making associated metadata changes that the application wouldn't and couldn't
-> know about:
-> 
-> http://article.gmane.org/gmane.linux.kernel.mm/146699
-> 
-> To sync these metadata changes to media, the application would still need to
-> call *sync.
-> 
-> One proposal from Christoph was that we could add a MMAP_SYNC flag that
-> essentially says "make all metadata operations synchronous":
-> 
-> http://article.gmane.org/gmane.linux.kernel.mm/146753
-> 
-> The worry is that this would be complex to implement, and that we maybe don't
-> want yet another DAX special case in the FS code.
-> 
-> Another way that we could implement this would be to key off of the DAX mount
-> option / inode setting for all mmaps that use DAX.  This would preclude the
-> need for changes to the mmap() API.
-> 
-> My question: How far away are we from having such a metadata durability
-> guarantee in ext4?  Do we have cases where the metadata changes associated
-> with a page fault, etc. could be out of sync with the data writes that are
-> being made durable by the application in userspace?
-> 
-> I see ext4 creating journal entries around page faults in places like
-> ext4_dax_fault() - this should durably record any metadata changes associated
-> with that page fault before the fault completes, correct?
+Hm, Mr. Swap can tell us more.
 
-That is not true. Journalling makes sure metadata changes are recorded in
-the journal but you have to commit the transaction to make the change
-really durable. That happens either in response to sync / fsync or
-asynchronously every couple of seconds. So with ext4 you have exactly the
-same issues with durability as with XFS.
-
-> Are there other cases you can think of with ext4 where we would need to call
-> *sync for DAX just to be sure we are safely synchronizing metadata?
-
-So I think implementing something like MAP_SYNC semantics for ext4 is
-reasonably doable. Basically we would have to make sure that we commit a
-transaction already during a page fault which is not that hard to do.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
