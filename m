@@ -1,90 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DFA6B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 03:20:02 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id z8so8726864ige.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:20:02 -0800 (PST)
-Received: from p3plsmtps2ded03.prod.phx3.secureserver.net (p3plsmtps2ded03.prod.phx3.secureserver.net. [208.109.80.60])
-        by mx.google.com with ESMTPS id vs5si3018111igb.33.2016.02.25.00.20.01
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F9D6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 03:29:15 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fl4so28486572pad.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:29:15 -0800 (PST)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id lf12si10951451pab.207.2016.02.25.00.29.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 00:20:01 -0800 (PST)
-From: Dexuan Cui <decui@microsoft.com>
-Subject: [PATCH] x86/mm: fix slow_virt_to_phys() for X86_PAE again
-Date: Thu, 25 Feb 2016 01:58:12 -0800
-Message-Id: <1456394292-9030-1-git-send-email-decui@microsoft.com>
+        Thu, 25 Feb 2016 00:29:14 -0800 (PST)
+Received: by mail-pf0-x235.google.com with SMTP id q63so29022036pfb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:29:14 -0800 (PST)
+Date: Thu, 25 Feb 2016 00:29:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, memory hotplug: print debug message in the proper
+ way for online_pages
+In-Reply-To: <1456386319-9050-1-git-send-email-slaoub@gmail.com>
+Message-ID: <alpine.DEB.2.10.1602250028290.17685@chino.kir.corp.google.com>
+References: <1456386319-9050-1-git-send-email-slaoub@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, toshi.kani@hpe.com, akpm@linux-foundation.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, driverdev-devel@linuxdriverproject.org, jasowang@redhat.com
-Cc: olaf@aepfle.de, apw@canonical.com, kys@microsoft.com, haiyangz@microsoft.com
+To: Chen Yucong <slaoub@gmail.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-"d1cd12108346: x86, pageattr: Prevent overflow in slow_virt_to_phys() for X86_PAE"
-was unintentionally removed by the recent
-"34437e67a672: x86/mm: Fix slow_virt_to_phys() to handle large PAT bit".
+On Thu, 25 Feb 2016, Chen Yucong wrote:
 
-And, the variable 'phys_addr' was defined as "unsigned long" by mistake -- it should
-be "phys_addr_t".
+> online_pages() simply returns an error value if
+> memory_notify(MEM_GOING_ONLINE, &arg) return a value that is not
+> what we want for successfully onlining target pages. This patch
+> arms to print more failure information like offline_pages() in
+> online_pages.
+> 
+> This patch also converts printk(KERN_<LEVEL>) to pr_<level>(),
+> and moves __offline_pages() to not print failure information with
+> KERN_INFO according to David Rientjes's suggestion[1].
+> 
+> [1] https://lkml.org/lkml/2016/2/24/1094
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
 
-As a result, Hyper-V network driver in 32-PAE Linux guest can't work again.
+Acked-by: David Rientjes <rientjes@google.com>
 
-Fixes: "commmit 34437e67a672: x86/mm: Fix slow_virt_to_phys() to handle large PAT bit"
-Signed-off-by: Dexuan Cui <decui@microsoft.com>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: K. Y. Srinivasan <kys@microsoft.com>
-Cc: Haiyang Zhang <haiyangz@microsoft.com>
-Cc: gregkh@linuxfoundation.org
-Cc: linux-mm@kvack.org
-Cc: olaf@aepfle.de
-Cc: apw@canonical.com
-Cc: jasowang@redhat.com
-Cc: stable@vger.kernel.org
----
- arch/x86/mm/pageattr.c | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 2440814..9cf96d8 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -419,24 +419,30 @@ pmd_t *lookup_pmd_address(unsigned long address)
- phys_addr_t slow_virt_to_phys(void *__virt_addr)
- {
- 	unsigned long virt_addr = (unsigned long)__virt_addr;
--	unsigned long phys_addr, offset;
-+	phys_addr_t phys_addr;
-+	unsigned long offset;
- 	enum pg_level level;
- 	pte_t *pte;
- 
- 	pte = lookup_address(virt_addr, &level);
- 	BUG_ON(!pte);
- 
-+	/*
-+	 * pXX_pfn() returns unsigned long, which must be cast to phys_addr_t
-+	 * before being left-shifted PAGE_SHIFT bits -- this trick is to
-+	 * make 32-PAE kernel work correctly.
-+	 */
- 	switch (level) {
- 	case PG_LEVEL_1G:
--		phys_addr = pud_pfn(*(pud_t *)pte) << PAGE_SHIFT;
-+		phys_addr = (phys_addr_t)pud_pfn(*(pud_t *)pte) << PAGE_SHIFT;
- 		offset = virt_addr & ~PUD_PAGE_MASK;
- 		break;
- 	case PG_LEVEL_2M:
--		phys_addr = pmd_pfn(*(pmd_t *)pte) << PAGE_SHIFT;
-+		phys_addr = (phys_addr_t)pmd_pfn(*(pmd_t *)pte) << PAGE_SHIFT;
- 		offset = virt_addr & ~PMD_PAGE_MASK;
- 		break;
- 	default:
--		phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
-+		phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
- 		offset = virt_addr & ~PAGE_MASK;
- 	}
- 
--- 
-1.9.1
+Cool!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
