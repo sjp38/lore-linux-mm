@@ -1,67 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D81976B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 05:27:46 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id g62so25507576wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:27:46 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id z2si3328172wmz.40.2016.02.25.02.27.45
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B83016B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 05:43:30 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id g62so22241562wme.1
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:43:30 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id n67si3391253wmf.61.2016.02.25.02.43.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 02:27:45 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id c200so2617181wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:27:45 -0800 (PST)
-Date: Thu, 25 Feb 2016 11:27:44 +0100
+        Thu, 25 Feb 2016 02:43:29 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id g62so22240970wme.1
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:43:29 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC] ext4: use __GFP_NOFAIL in ext4_free_blocks()
-Message-ID: <20160225102743.GF17573@dhcp22.suse.cz>
-References: <20160224170912.2195.8153.stgit@buzz>
- <56CEC2EC.5000506@kyup.com>
- <20160225090839.GC17573@dhcp22.suse.cz>
- <56CEC568.6080809@kyup.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56CEC568.6080809@kyup.com>
+Subject: [PATCH] mm: remove __GFP_NOFAIL is deprecated comment
+Date: Thu, 25 Feb 2016 11:43:22 +0100
+Message-Id: <1456397002-27172-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Theodore Ts'o <tytso@mit.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Monakhov <dmonakhov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Nikolay Borisov <kernel@kyup.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 25-02-16 11:12:08, Nikolay Borisov wrote:
-> 
-> 
-> On 02/25/2016 11:08 AM, Michal Hocko wrote:
-> > On Thu 25-02-16 11:01:32, Nikolay Borisov wrote:
-> >>
-> >>
-> >> On 02/24/2016 07:09 PM, Konstantin Khlebnikov wrote:
-> >>> This might be unexpected but pages allocated for sbi->s_buddy_cache are
-> >>> charged to current memory cgroup. So, GFP_NOFS allocation could fail if
-> >>> current task has been killed by OOM or if current memory cgroup has no
-> >>> free memory left. Block allocator cannot handle such failures here yet.
-> >>>
-> >>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> >>
-> >> Adding new users of GFP_NOFAIL is deprecated.
-> > 
-> > This is not true. GFP_NOFAIL should be used where the allocation failure
-> > is no tolleratable and it is much more preferrable to doing an opencoded
-> > endless loop over page allocator.
-> 
-> In that case the comments in buffered_rmqueue,
+From: Michal Hocko <mhocko@suse.com>
 
-yes, will post the patch. The warning for order > 1 is still valid.
+647757197cd3 ("mm: clarify __GFP_NOFAIL deprecation status") was
+incomplete and didn't remove the comment about __GFP_NOFAIL being
+deprecated in buffered_rmqueue. Let's get rid of this leftover
+but keep the WARN_ON_ONCE for order > 1 because we should really
+discourage from using __GFP_NOFAIL with higher order allocations
+because those are just too subtle.
 
-> and the WARN_ON in
-> __alloc_pages_may_oom and __alloc_pages_slowpath perhaps should be
-> removed since they are misleading?
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+this popped out when discussing another patch http://lkml.kernel.org/r/56CEC568.6080809@kyup.com
+so I think it is worth removing the comment.
 
-We are only warning about absurd cases where __GFP_NOFAIL doesn't make
-any sense.
+ mm/page_alloc.c | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1993894b4219..109d975a7172 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2347,19 +2347,11 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		list_del(&page->lru);
+ 		pcp->count--;
+ 	} else {
+-		if (unlikely(gfp_flags & __GFP_NOFAIL)) {
+-			/*
+-			 * __GFP_NOFAIL is not to be used in new code.
+-			 *
+-			 * All __GFP_NOFAIL callers should be fixed so that they
+-			 * properly detect and handle allocation failures.
+-			 *
+-			 * We most definitely don't want callers attempting to
+-			 * allocate greater than order-1 page units with
+-			 * __GFP_NOFAIL.
+-			 */
+-			WARN_ON_ONCE(order > 1);
+-		}
++		/*
++		 * We most definitely don't want callers attempting to
++		 * allocate greater than order-1 page units with __GFP_NOFAIL.
++		 */
++		WARN_ON_ONCE(unlikely(gfp_flags & __GFP_NOFAIL) && (order > 1));
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 
+ 		page = NULL;
 -- 
-Michal Hocko
-SUSE Labs
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
