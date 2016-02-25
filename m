@@ -1,89 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 524576B0254
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:30:24 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id c200so50647723wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:30:24 -0800 (PST)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id a10si628836wmc.91.2016.02.25.15.30.23
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC926B0254
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:31:10 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id y8so26274609igp.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:31:10 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0024.hostedemail.com. [216.40.44.24])
+        by mx.google.com with ESMTPS id sb12si528950igb.17.2016.02.25.15.31.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 15:30:23 -0800 (PST)
-Received: by mail-wm0-x231.google.com with SMTP id b205so51882802wmb.1
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:30:23 -0800 (PST)
-Date: Fri, 26 Feb 2016 01:30:17 +0200
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: Re: [RFC v5 0/3] mm: make swapin readahead to gain more thp
- performance
-Message-ID: <20160225233017.GA14587@debian>
-References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
- <20150914144106.ee205c3ae3f4ec0e5202c9fe@linux-foundation.org>
- <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
- <1456439750.15821.97.camel@redhat.com>
+        Thu, 25 Feb 2016 15:31:09 -0800 (PST)
+Date: Thu, 25 Feb 2016 18:31:07 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] writeback: call writeback tracepoints withoud holding
+ list_lock in wb_writeback()
+Message-ID: <20160225183107.1902d42b@gandalf.local.home>
+In-Reply-To: <56CF8B66.8070108@linaro.org>
+References: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
+	<20160224214042.71c3493b@grimm.local.home>
+	<56CF5848.7050806@linaro.org>
+	<20160225145432.3749e5ec@gandalf.local.home>
+	<56CF8B66.8070108@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1456439750.15821.97.camel@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, riel@redhat.com, hughd@google.com
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, tglx@linutronix.de, bigeasy@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-in Thu, Feb 25, 2016 at 05:35:50PM -0500, Rik van Riel wrote:
-> On Wed, 2016-02-24 at 23:36 -0800, Hugh Dickins wrote:
-> > 
-> > Doesn't this imply that __collapse_huge_page_swapin() will initiate
-> > all
-> > the necessary swapins for a THP, then (given the
-> > FAULT_FLAG_ALLOW_RETRY)
-> > not wait for them to complete, so khugepaged will give up on that
-> > extent
-> > and move on to another; then after another full circuit of all the
-> > mms
-> > it needs to examine, it will arrive back at this extent and build a
-> > THP
-> > from the swapins it arranged last time.
-> > 
-> > Which may work well when a system transitions from busy+swappingout
-> > to idle+swappingin, but isn't that rather a special case?  It feels
-> > (meaning, I've not measured at all) as if the inbetween busyish case
-> > will waste a lot of I/O and memory on swapins that have to be
-> > discarded
-> > again before khugepaged has made its sedate way back to slotting them
-> > in.
-> > 
-> 
-> There may be a fairly simple way to prevent
-> that from becoming an issue.
-> 
-> When khugepaged wakes up, it can check the
-> PGSWPOUT or even the PGSTEAL_* stats for
-> the system, and skip swapin readahead if
-> there was swapout activity (or any page
-> reclaim activity?) since the time it last
-> ran.
-> 
-> That way the swapin readahead will do
-> its thing when transitioning from
-> busy + swapout to idle + swapin, but not
-> while the system is under permanent memory
-> pressure.
-> 
-The idea make sense for me.
-> Am I forgetting anything obvious?
-> 
-> Is this too aggressive?
-> 
-> Not aggressive enough?
-> 
-> Could PGPGOUT + PGSWPOUT be a useful
-> in-between between just PGSWPOUT or
-> PGSTEAL_*?
-> 
-> -- 
-> All rights reversed
+On Thu, 25 Feb 2016 15:16:54 -0800
+"Shi, Yang" <yang.shi@linaro.org> wrote:
 
+
+> Actually, regardless whether this is the right fix for the splat, it 
+> makes me be wondering if the spin lock which protects the whole for loop 
+> is really necessary. It sounds feasible to move it into the for loop and 
+> just protect the necessary area.
+
+That's a separate issue, which may have its own merits that should be
+decided by the writeback folks.
+
+> 
+> >  
+> >>  
+> >>>
+> >>>  
+> >>>> INFO: lockdep is turned off.
+> >>>> Preemption disabled at:[<ffffffc000374a5c>] wb_writeback+0xec/0x830  
+> >
+> > Can you disassemble the vmlinux file to see exactly where that call is.
+> > I use gdb to find the right locations.
+> >  
+> >   gdb> li *0xffffffc000374a5c
+> >   gdb> disass 0xffffffc000374a5c  
+> 
+> I use gdb to get the code too.
+> 
+> It does point to the spin_lock.
+> 
+> (gdb) list *0xffffffc000374a5c
+> 0xffffffc000374a5c is in wb_writeback (fs/fs-writeback.c:1621).
+> 1616
+> 1617            oldest_jif = jiffies;
+> 1618            work->older_than_this = &oldest_jif;
+> 1619
+> 1620            blk_start_plug(&plug);
+> 1621            spin_lock(&wb->list_lock);
+> 1622            for (;;) {
+> 1623                    /*
+> 1624                     * Stop writeback when nr_pages has been consumed
+> 1625                     */
+> 
+> 
+> The disassemble:
+>     0xffffffc000374a58 <+232>:   bl      0xffffffc0001300b0 
+
+The above is the place it recorded. But I just realized, this isn't the
+issue. I know where the problem is.
+
+
+> <migrate_disable>
+>     0xffffffc000374a5c <+236>:   mov     x0, x22
+>     0xffffffc000374a60 <+240>:   bl      0xffffffc000d5d518 <rt_spin_lock>
+> 
+> >  
+
+
+
+> >> DECLARE_EVENT_CLASS(writeback_work_class,
+> >>           TP_PROTO(struct bdi_writeback *wb, struct wb_writeback_work *work),
+> >>           TP_ARGS(wb, work),
+> >>           TP_STRUCT__entry(
+> >>                   __array(char, name, 32)
+> >>                   __field(long, nr_pages)
+> >>                   __field(dev_t, sb_dev)
+> >>                   __field(int, sync_mode)
+> >>                   __field(int, for_kupdate)
+> >>                   __field(int, range_cyclic)
+> >>                   __field(int, for_background)
+> >>                   __field(int, reason)
+> >>                   __dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
+> >>  
+> >
+> > Ah, thanks for pointing that out. I missed that.  
+> 
+> It sounds not correct if tracepoint doesn't allow sleep.
+> 
+> I considered to change sleeping lock to raw lock in kernfs_* functions, 
+> but it sounds not reasonable since they are used heavily by cgroup.
+
+It is the kernfs_* that can't sleep. Tracepoints use
+rcu_read_lock_sched_notrace(), which disables preemption, and not only
+that, hides itself from lockdep as the last place to disable preemption.
+
+Is there a way to not use the kernfs_* function? At least for -rt?
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
