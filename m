@@ -1,16 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C47476B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 16:08:43 -0500 (EST)
-Received: by mail-ob0-f180.google.com with SMTP id jq7so60121646obb.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 13:08:43 -0800 (PST)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0115.outbound.protection.outlook.com. [207.46.100.115])
-        by mx.google.com with ESMTPS id h82si8233527oif.44.2016.02.25.13.08.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 25 Feb 2016 13:08:42 -0800 (PST)
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 676776B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 16:21:09 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id hb3so22173818igb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 13:21:09 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id 3si89661igr.80.2016.02.25.13.21.07
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 13:21:08 -0800 (PST)
+Date: Fri, 26 Feb 2016 08:20:59 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-References: <56CCD54C.3010600@plexistor.com>
+Message-ID: <20160225212059.GB30721@dastard>
+References: <CAPcyv4gTaikkXCG1fPBVT-0DE8Wst3icriUH5cbQH3thuEe-ow@mail.gmail.com>
+ <56CCD54C.3010600@plexistor.com>
  <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
  <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
  <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
@@ -19,94 +22,112 @@ References: <56CCD54C.3010600@plexistor.com>
  <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
  <20160224225623.GL14668@dastard>
  <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com>
- <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
- <20160225201517.GA30721@dastard>
-From: Phil Terry <pterry@inphi.com>
-Message-ID: <56CF6D4C.1020101@inphi.com>
-Date: Thu, 25 Feb 2016 13:08:28 -0800
 MIME-Version: 1.0
-In-Reply-To: <20160225201517.GA30721@dastard>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@infradead.org>, "Rudoff, Andy" <andy.rudoff@intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/25/2016 12:15 PM, Dave Chinner wrote:
-> On Thu, Feb 25, 2016 at 02:11:49PM -0500, Jeff Moyer wrote:
->> Jeff Moyer <jmoyer@redhat.com> writes:
->>
->>>> The big issue we have right now is that we haven't made the DAX/pmem
->>>> infrastructure work correctly and reliably for general use.  Hence
->>>> adding new APIs to workaround cases where we haven't yet provided
->>>> correct behaviour, let alone optimised for performance is, quite
->>>> frankly, a clear case premature optimisation.
->>> Again, I see the two things as separate issues.  You need both.
->>> Implementing MAP_SYNC doesn't mean we don't have to solve the bigger
->>> issue of making existing applications work safely.
->> I want to add one more thing to this discussion, just for the sake of
->> clarity.  When I talk about existing applications and pmem, I mean
->> applications that already know how to detect and recover from torn
->> sectors.  Any application that assumes hardware does not tear sectors
->> should be run on a file system layered on top of the btt.
-> Which turns off DAX, and hence makes this a moot discussion because
-> mmap is then buffered through the page cache and hence applications
-> *must use msync/fsync* to provide data integrity. Which also makes
-> them safe to use with DAX if we have a working fsync.
->
-> Keep in mind that existing storage technologies tear fileystem data
-> writes, too, because user data writes are filesystem block sized and
-> not atomic at the device level (i.e.  typical is 512 byte sector, 4k
-> filesystem block size, so there are 7 points in a single write where
-> a tear can occur on a crash).
-Is that really true? Storage to date is on the PCIE/SATA etc IO chain. 
-The locks and application crash scenarios when traversing down this 
-chain are such that the device will not have its DMA programmed until 
-the whole 4K etc page is flushed to memory, pinned for DMA, etc. Then 
-the DMA to the device is kicked off. If power crashes during the DMA, 
-either we have devices which are supercapped or battery backed to flush 
-their write caches and or have firmware which will abort the damaged 
-results of the torn DMA on the devices internal meta-data recovery when 
-power is restored. (The hardware/firmware on an HDD has been way more 
-complex than the simple mind model might lead one to expect for years). 
-All of this wrapped inside filesystem transaction semantics.
+On Thu, Feb 25, 2016 at 11:24:57AM -0500, Jeff Moyer wrote:
+> Hi, Dave,
+> 
+> Dave Chinner <david@fromorbit.com> writes:
+> 
+> > Well, let me clarify what I said a bit here, because I feel like I'm
+> > being unfairly blamed for putting data integrity as the highest
+> > priority for DAX+pmem instead of falling in line and chanting
+> > "Performance! Performance! Performance!" with everyone else.
+> 
+> It's totally fair.  ;-)
+> 
+> > Let me state this clearly: I'm not opposed to making optimisations
+> > that change the way applications and the kernel interact. I like the
+> > idea of MAP_SYNC, but I see this sort of API/behaviour change as a
+> > last resort when all else fails, not a "first and only" optimisation
+> > option.
+> 
+> So, calling it "first and only" seems a bit unfair on your part.
 
-This is a crucial difference for "storage class memory" on the DRAM bus. 
-The NVDIMMs cannot be DMA masters and instead passively receive 
-cache-line writes. A "buffered DIMM" as alluded to in the pmem.io Device 
-Writers Guide might have intelligence on the DIIMM to detect, map and 
-recover tearing via the Block Window Aperture driver interface but on a 
-PMEM interface cannot do so. Hence btt on the host with full 
-transparency to manage the memory on the NVDIMM is required for the PMEM 
-driver. Given this it doesn't make sense to try and put it on the device 
-for the BW driver either.
+Maybe so, but it's a valid observation - it's being pushed as a way
+of avoidning needing to make the kernel code work correctly and
+fast. i.e. the argument is "new, unoptimised code is too slow, so we
+want a knob to avoid it completely".
 
-In both cases, btt is not indirecting the buffer (as for a DMA master IO 
-type device) but is simply using the same pmem api primitives to manage 
-its own meta data about the filesystem writes to detect and recover from 
-tears after the event. In what sense is DAX disabled for this?
+Boaz keeps saying that we can make the kernel code faster, but he's
+still pushing to enable bypassing that code rather than sending
+patches to make the kernel pmem infrastructure faster.  Such
+bypasses lead to the situation that the kernel code isn't used by
+the applications that could benefit from optimisation and
+improvement of the kernel code because they don't use it anymore.
+This is what I meant as "first and only" kernel optimisation.
 
-So I think (please correct me if I'm wrong) but actually the 
-hardware/firmware guys have been fixing the torn sector problem for the 
-last 30 years and the "storage on the memory channel" has reintroduced 
-the problem. So to use as SSD analogy, you fix this problem with the 
-FTL, and as we've seen with recent software defined flash and 
-openchannel approaches, you can either have the FTL on the device or on 
-the host. Absence of the bus master DMA on a DIMM (even with the BW 
-aperture software) makes a device based solution problematic so the host 
-solution a la btt is required for both PMEM and BW.
+> I
+> don't think anyone asking for a MAP_SYNC option doesn't also want other
+> applications to work well.  That aside, this is where your opinion
+> differs from mine: I don't see MAP_SYNC as a last resort option.  And
+> let me be clear, this /is/ an opinion.  I have no hard facts to back it
+> up, precisely because we don't have any application we can use for a
+> comparison.
 
->
-> IOWs existing storage already has the capability of tearing user
-> data on crash and has been doing so for a least they last 30 years.
-> Hence I really don't see any fundamental difference here with
-> pmem+DAX - the only difference is that the tear granuarlity is
-> smaller (CPU cacheline rather than sector).
->
-> Cheers,
->
-> Dave.
+Right, we have no numbers, and we don't yet have an optimised kernel
+side implementation to compare against. Until we have the ability to
+compare apples with apples, we should be pushing back against API
+changes that are based on oranges being tastier than apples.
+
+> But, it seems plausible to me that no matter how well you
+> optimize your msync implementation, it will still be more expensive than
+> an application that doesn't call msync at all.  This obviously depends
+> on how the application is using the programming model, among other
+> things.  I agree that we would need real data to back this up.  However,
+> I don't see any reason to preclude such an implementation, or to leave
+> it as a last resort.  I think it should be part of our planning process
+> if it's reasonably feasible.
+
+Essentially I see this situation/request as conceptually the same as
+O_DIRECT for read/write - O_DIRECT bypasses the kernel dirty range
+tracking and, as such, has nasty cache coherency issues when you mix
+it with buffered IO. Nor does it play well with mmap, it has
+different semantics for every filesystem and the kernel code has
+been optimised to the point of fragility.
+
+And, of course, O_DIRECT requires applications to do exactly the
+right things to extract performance gains and maintain data
+integrity. If they get it right, they will be faster than using the
+page cache, but we know that applications often get it very wrong.
+And even when they get it right, data corruption can still occur
+because some thrid party accessed file in a different manner (e.g. a
+backup) and triggered one of the known, fundamentally unfixable
+coherency problems.
+
+However, despite the fact we are stuck with O_DIRECT and it's
+deranged monkeys (which I am one of), we should not be ignoring the
+problems that bypassing the kernel infrastructure has caused us and
+continues to cause us. As such, we really need to think hard about
+whether we should be repeating the development of such a bypass
+feature. If we do, we stand a very good chance of ending up in the
+same place - a bunch of code that does not play well with others,
+and a nightmare to test because it's expected to work and not
+corrupt data...
+
+We should try very hard not to repeat the biggest mistake O_DIRECT
+made: we need to define and document exactly what behaviour we
+guarantee, how it works and exaclty what responsisbilities the
+kernel and userspace have in *great detail* /before/ we add the
+mechanism to the kernel.
+
+Think it through carefully - API changes and semantics are forever.
+We don't want to add something that in a couple of years we are
+wishing we never added....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
