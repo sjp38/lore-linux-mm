@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 101C36B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:10:17 -0500 (EST)
-Received: by mail-io0-f173.google.com with SMTP id z135so74655640iof.0
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:10:17 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id z8si1184561igg.2.2016.02.24.18.10.15
-        for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 18:10:16 -0800 (PST)
-Date: Thu, 25 Feb 2016 11:11:34 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 1/2] mm: introduce page reference manipulation
- functions
-Message-ID: <20160225021134.GA14784@js1304-P5Q-DELUXE>
-References: <1456212078-22732-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160223153244.83a5c3ca430c4248a4a34cc0@linux-foundation.org>
- <20160225003454.GB9723@js1304-P5Q-DELUXE>
- <20160224175333.8957903d.akpm@linux-foundation.org>
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C57E56B0253
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:11:06 -0500 (EST)
+Received: by mail-oi0-f48.google.com with SMTP id x21so30594844oix.2
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:11:06 -0800 (PST)
+Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
+        by mx.google.com with ESMTPS id u9si4648094oiu.134.2016.02.24.18.11.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 18:11:06 -0800 (PST)
+Received: by mail-ob0-x22d.google.com with SMTP id jq7so36102622obb.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:11:06 -0800 (PST)
+Date: Wed, 24 Feb 2016 18:10:57 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Problems with swapping in v4.5-rc on POWER
+Message-ID: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160224175333.8957903d.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Wed, Feb 24, 2016 at 05:53:33PM -0800, Andrew Morton wrote:
-> On Thu, 25 Feb 2016 09:34:55 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> 
-> > > 
-> > > The patches will be a bit of a pain to maintain but surprisingly they
-> > > apply OK at present.  It's possible that by the time they hit upstream,
-> > > some direct ->_count references will still be present and it will
-> > > require a second pass to complete the conversion.
-> > 
-> > In fact, the patch doesn't change direct ->_count reference for
-> > *read*. That's the reason that it is surprisingly OK at present.
-> > 
-> > It's a good idea to change direct ->_count reference even for read.
-> > How about changing it in rc2 after mering this patch in rc1?
-> 
-> Sounds fair enough.
-> 
-> Although I'm counting only 11 such sites so perhaps we just go ahead
-> and do it?
+I've plagiarized the subject from Paulus's "Problems with THP" mail
+last weekend; but my similar problems are on PowerMac G5 baremetal,
+with 4kB pages, not capable of THP and no THP configured in.
 
-Okay. It's less than I thought. I will do it soon.
+Under heavily swapping load, running kernel builds on tmpfs in limited
+memory, I've been seeing random segfaults too, internal compiler errors
+etc.  Not easily reproduced: sometimes happens in minutes, sometimes
+not for several hours.
 
-Thanks.
+I tried and failed to construct a reproducer for you: my lack of a good
+recipe has deterred me from reporting it, and seeing Paulus's mail on
+THP gave me hope that the answer would come up in that thread; but no,
+that was quickly resolved as a THP issue, since fixed.
+
+(Mine had appeared to be fixed in v4.5-rc4 anyway; but I guess I
+just didn't try hard enough, it resurfaced on -rc5 immediately.)
+
+I've seen no sign of such problems on x86.  And I saw no sign of such
+problems on v4.4-rc8-mm1, when I included the fixes to the _PAGE_PTE
+and _PAGE_SWP_SOFT_DIRTY swapoff issues we discussed back then (in
+33 hours of load, should be good enough; but did see such problems
+a couple of times before including those fixes - I took them to be
+a side-effect of the page flags issue, but now rather doubt that).
+
+The minutes or hours thing: I wonder if that indicates a missing
+initialization somewhere: that can easily show up soon after booting,
+but then the machine settles into a steady state of reusing the same
+structures, now initialized; until much later something disturbs the
+state and it has to allocate more.  Sheer speculation, but I wonder.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
