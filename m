@@ -1,44 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E83E6B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 04:48:47 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id q63so30137448pfb.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 01:48:47 -0800 (PST)
-Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
-        by mx.google.com with ESMTP id e29si11457191pfb.131.2016.02.25.01.48.44
-        for <linux-mm@kvack.org>;
-        Thu, 25 Feb 2016 01:48:46 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <20160203132718.GI6757@dhcp22.suse.cz> <alpine.LSU.2.11.1602241832160.15564@eggly.anvils> <20160225064845.GA505@swordfish> <000001d16fad$63fff840$2bffe8c0$@alibaba-inc.com> <20160225092739.GE17573@dhcp22.suse.cz>
-In-Reply-To: <20160225092739.GE17573@dhcp22.suse.cz>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Date: Thu, 25 Feb 2016 17:48:26 +0800
-Message-ID: <000201d16fb1$acc98ec0$065cac40$@alibaba-inc.com>
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D81976B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 05:27:46 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id g62so25507576wme.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:27:46 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id z2si3328172wmz.40.2016.02.25.02.27.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Feb 2016 02:27:45 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id c200so2617181wme.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 02:27:45 -0800 (PST)
+Date: Thu, 25 Feb 2016 11:27:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC] ext4: use __GFP_NOFAIL in ext4_free_blocks()
+Message-ID: <20160225102743.GF17573@dhcp22.suse.cz>
+References: <20160224170912.2195.8153.stgit@buzz>
+ <56CEC2EC.5000506@kyup.com>
+ <20160225090839.GC17573@dhcp22.suse.cz>
+ <56CEC568.6080809@kyup.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56CEC568.6080809@kyup.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>
-Cc: 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>, 'Hugh Dickins' <hughd@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@i-love.sakura.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>
+To: Nikolay Borisov <kernel@kyup.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Theodore Ts'o <tytso@mit.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Monakhov <dmonakhov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-> >
-> > Can you please schedule a run for the diff attached, in which
-> > non-expensive allocators are allowed to burn more CPU cycles.
+On Thu 25-02-16 11:12:08, Nikolay Borisov wrote:
 > 
-> I do not think your patch will help. As you can see, both OOMs were for
-> order-2 and there simply are no order-2+ free blocks usable for the
-> allocation request so the watermark check will fail for all eligible
-> zones and no_progress_loops is simply ignored. This is what I've tried
-> to address by patch I have just posted as a reply to Hugh's email
-> http://lkml.kernel.org/r/20160225092315.GD17573@dhcp22.suse.cz
 > 
-Hm, Mr. Swap can tell us more.
+> On 02/25/2016 11:08 AM, Michal Hocko wrote:
+> > On Thu 25-02-16 11:01:32, Nikolay Borisov wrote:
+> >>
+> >>
+> >> On 02/24/2016 07:09 PM, Konstantin Khlebnikov wrote:
+> >>> This might be unexpected but pages allocated for sbi->s_buddy_cache are
+> >>> charged to current memory cgroup. So, GFP_NOFS allocation could fail if
+> >>> current task has been killed by OOM or if current memory cgroup has no
+> >>> free memory left. Block allocator cannot handle such failures here yet.
+> >>>
+> >>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> >>
+> >> Adding new users of GFP_NOFAIL is deprecated.
+> > 
+> > This is not true. GFP_NOFAIL should be used where the allocation failure
+> > is no tolleratable and it is much more preferrable to doing an opencoded
+> > endless loop over page allocator.
+> 
+> In that case the comments in buffered_rmqueue,
 
-Hillf
+yes, will post the patch. The warning for order > 1 is still valid.
+
+> and the WARN_ON in
+> __alloc_pages_may_oom and __alloc_pages_slowpath perhaps should be
+> removed since they are misleading?
+
+We are only warning about absurd cases where __GFP_NOFAIL doesn't make
+any sense.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
