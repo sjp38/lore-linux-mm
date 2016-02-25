@@ -1,111 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B01106B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 16:40:11 -0500 (EST)
-Received: by mail-pf0-f178.google.com with SMTP id c10so40752049pfc.2
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 13:40:11 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id r83si14844581pfb.124.2016.02.25.13.40.10
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D20E6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 17:13:40 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id ho8so40165740pac.2
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:13:40 -0800 (PST)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-250.mail.alibaba.com. [205.204.113.250])
+        by mx.google.com with ESMTP id am4si14974964pad.172.2016.02.25.14.13.36
         for <linux-mm@kvack.org>;
-        Thu, 25 Feb 2016 13:40:10 -0800 (PST)
-Date: Fri, 26 Feb 2016 08:39:19 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160225213919.GC30721@dastard>
-References: <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
- <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
- <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
- <20160224225623.GL14668@dastard>
- <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com>
- <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
- <20160225201517.GA30721@dastard>
- <56CF6D4C.1020101@inphi.com>
+        Thu, 25 Feb 2016 14:13:37 -0800 (PST)
+Message-ID: <56CF7D5D.1020609@emindsoft.com.cn>
+Date: Fri, 26 Feb 2016 06:17:01 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56CF6D4C.1020101@inphi.com>
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <20160225085719.GA17573@dhcp22.suse.cz> <56CF0E6A.2090204@emindsoft.com.cn> <20160225144718.GD4204@dhcp22.suse.cz>
+In-Reply-To: <20160225144718.GD4204@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Terry <pterry@inphi.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org
 
-On Thu, Feb 25, 2016 at 01:08:28PM -0800, Phil Terry wrote:
-> On 02/25/2016 12:15 PM, Dave Chinner wrote:
-> >On Thu, Feb 25, 2016 at 02:11:49PM -0500, Jeff Moyer wrote:
-> >>Jeff Moyer <jmoyer@redhat.com> writes:
-> >>
-> >>>>The big issue we have right now is that we haven't made the DAX/pmem
-> >>>>infrastructure work correctly and reliably for general use.  Hence
-> >>>>adding new APIs to workaround cases where we haven't yet provided
-> >>>>correct behaviour, let alone optimised for performance is, quite
-> >>>>frankly, a clear case premature optimisation.
-> >>>Again, I see the two things as separate issues.  You need both.
-> >>>Implementing MAP_SYNC doesn't mean we don't have to solve the bigger
-> >>>issue of making existing applications work safely.
-> >>I want to add one more thing to this discussion, just for the sake of
-> >>clarity.  When I talk about existing applications and pmem, I mean
-> >>applications that already know how to detect and recover from torn
-> >>sectors.  Any application that assumes hardware does not tear sectors
-> >>should be run on a file system layered on top of the btt.
-> >Which turns off DAX, and hence makes this a moot discussion because
-> >mmap is then buffered through the page cache and hence applications
-> >*must use msync/fsync* to provide data integrity. Which also makes
-> >them safe to use with DAX if we have a working fsync.
-> >
-> >Keep in mind that existing storage technologies tear fileystem data
-> >writes, too, because user data writes are filesystem block sized and
-> >not atomic at the device level (i.e.  typical is 512 byte sector, 4k
-> >filesystem block size, so there are 7 points in a single write where
-> >a tear can occur on a crash).
-> Is that really true? Storage to date is on the PCIE/SATA etc IO
-> chain. The locks and application crash scenarios when traversing
-> down this chain are such that the device will not have its DMA
-> programmed until the whole 4K etc page is flushed to memory, pinned
 
-Has nothing to do with DMA semantics. Storage devices we have to
-deal with have volatile write caches, and we can't assume anything
-about what they write when power fails except that single sector
-writes are atomic.
+On 2/25/16 22:47, Michal Hocko wrote:
+>>
+>> For the "comment placement" the common way is below, but still make git
+>> grep harder:
+> 
+> if you did git grep ZONE_MOVABLE you would get less information
+> 
 
-> In both cases, btt is not indirecting the buffer (as for a DMA
-> master IO type device) but is simply using the same pmem api
-> primitives to manage its own meta data about the filesystem writes
-> to detect and recover from tears after the event. In what sense is
-> DAX disabled for this?
+OK.
 
-BTT is, IIRC, using writeahead logging to stage every IO into pmem
-so that after a crash the entire write can be recovered and replayed
-to overwrite any torn sectors. This requires buffering at page cache
-level, as direct writes to the pmem will not get logged. Hence DAX
-cannot be used on BTT devices. Indeed:
+>>
+>> -#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+>> +/* ZONE_MOVABLE allowed */
+>> +#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)
+>>
+>> Then how about:
+>>
+>> -#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+>> +#define __GFP_MOVABLE	\
+>> 		((__force gfp_t)___GFP_MOVABLE) /* ZONE_MOVABLE allowed */
+>>
+>> or:
+>>
+>> -#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+>> +#define __GFP_MOVABLE	/* ZONE_MOVABLE allowed */ \
+>> 			((__force gfp_t)___GFP_MOVABLE)
+> 
+> Now looks worse then other, really. Please try to think what would be
+> a benefit of such change. As Mel already pointed out git blame would
+> take an additional step to get back to the patch which has introduced
+> them. And what is the advantage? Make 80 characters-per-line rule happy?
+> I just do not think this is worth changes at all.
+> 
 
-static const struct block_device_operations btt_fops = {
-        .owner =                THIS_MODULE,
-        .rw_page =              btt_rw_page,
-        .getgeo =               btt_getgeo,
-        .revalidate_disk =      nvdimm_revalidate_disk,
-};
+For 80 column limitation:
 
-There's no .direct_access method implemented for btt devices, so
-it's clear that filesystems on BTT devices cannot enable DAX.
+ - I often use vsp (vertical split window) in vim to reading code in the
+   2 files, 80 columns limitation can avoid the line wrap, which will
+   let code reading better.
 
-> So I think (please correct me if I'm wrong) but actually the
-> hardware/firmware guys have been fixing the torn sector problem for
+ - Sometimes we need copy/past the code to a pdf files (e.g. print the
+   interface header file contents to a new document as appendix), or
+   print the code to a physical paper (e.g. write a book).
 
-I was not talking about torn /sectors/. I was talking about a user
-data write being made up of *multiple sectors*, and so there is no
-atomicity guarantee for a user data write on existing storage when
-the filesystem block size (user data IO size) is larger than the
-device sector size. 
+For worth or worthless:
 
-Cheers,
+  The shared header files (e.g. in our case), have more chances to be
+  read or printed than the normal source code files. So for me, we need
+  take more care about the coding styles of them.
 
-Dave.
+For git-blame:
+
+ - It really a good feature! Originally, I did not know about it :-).
+
+ - Can it instead of sending trivial patch? (I guess not).
+
+
+Thanks.
 -- 
-Dave Chinner
-david@fromorbit.com
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
