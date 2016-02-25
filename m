@@ -1,137 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FB376B0256
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 17:28:01 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id x65so40068827pfb.1
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:28:01 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id 70si15072742pfk.205.2016.02.25.14.27.59
-        for <linux-mm@kvack.org>;
-        Thu, 25 Feb 2016 14:28:00 -0800 (PST)
-Date: Fri, 26 Feb 2016 09:27:06 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Message-ID: <20160225222705.GD30721@dastard>
-References: <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
- <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
- <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
- <20160224225623.GL14668@dastard>
- <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com>
- <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
- <20160225201517.GA30721@dastard>
- <x49io1cik45.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <x49io1cik45.fsf@segfault.boston.devel.redhat.com>
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 799FF6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 17:35:56 -0500 (EST)
+Received: by mail-qk0-f172.google.com with SMTP id s5so25549564qkd.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:35:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h75si10136062qhc.86.2016.02.25.14.35.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Feb 2016 14:35:55 -0800 (PST)
+Message-ID: <1456439750.15821.97.camel@redhat.com>
+Subject: Re: [RFC v5 0/3] mm: make swapin readahead to gain more thp
+ performance
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 25 Feb 2016 17:35:50 -0500
+In-Reply-To: <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
+References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+	 <20150914144106.ee205c3ae3f4ec0e5202c9fe@linux-foundation.org>
+	 <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-074UBnQQ639I/tHqz/QM"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Hugh Dickins <hughd@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-On Thu, Feb 25, 2016 at 03:57:14PM -0500, Jeff Moyer wrote:
-> Good morning, Dave,
-> 
-> Dave Chinner <david@fromorbit.com> writes:
-> 
-> > On Thu, Feb 25, 2016 at 02:11:49PM -0500, Jeff Moyer wrote:
-> >> Jeff Moyer <jmoyer@redhat.com> writes:
-> >> 
-> >> >> The big issue we have right now is that we haven't made the DAX/pmem
-> >> >> infrastructure work correctly and reliably for general use.  Hence
-> >> >> adding new APIs to workaround cases where we haven't yet provided
-> >> >> correct behaviour, let alone optimised for performance is, quite
-> >> >> frankly, a clear case premature optimisation.
-> >> >
-> >> > Again, I see the two things as separate issues.  You need both.
-> >> > Implementing MAP_SYNC doesn't mean we don't have to solve the bigger
-> >> > issue of making existing applications work safely.
-> >> 
-> >> I want to add one more thing to this discussion, just for the sake of
-> >> clarity.  When I talk about existing applications and pmem, I mean
-> >> applications that already know how to detect and recover from torn
-> >> sectors.  Any application that assumes hardware does not tear sectors
-> >> should be run on a file system layered on top of the btt.
-> >
-> > Which turns off DAX, and hence makes this a moot discussion because
-> 
-> You're missing the point.  You can't take applications that don't know
-> how to deal with torn sectors and put them on a block device that does
-> not provide power fail write atomicity of a single sector.
 
-Very few applications actually care about atomic sector writes.
-Databases are probably the only class of application that really do
-care about both single sector and multi-sector atomic write
-behaviour, and many of them can be configured to assume single
-sector writes can be torn.
+--=-074UBnQQ639I/tHqz/QM
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Torn user data writes have always been possible, and so pmem does
-not introduce any new semantics that applications have to handle.
+On Wed, 2016-02-24 at 23:36 -0800, Hugh Dickins wrote:
+>=C2=A0
+> Doesn't this imply that __collapse_huge_page_swapin() will initiate
+> all
+> the necessary swapins for a THP, then (given the
+> FAULT_FLAG_ALLOW_RETRY)
+> not wait for them to complete, so khugepaged will give up on that
+> extent
+> and move on to another; then after another full circuit of all the
+> mms
+> it needs to examine, it will arrive back at this extent and build a
+> THP
+> from the swapins it arranged last time.
+>=20
+> Which may work well when a system transitions from busy+swappingout
+> to idle+swappingin, but isn't that rather a special case?=C2=A0 It feels
+> (meaning, I've not measured at all) as if the inbetween busyish case
+> will waste a lot of I/O and memory on swapins that have to be
+> discarded
+> again before khugepaged has made its sedate way back to slotting them
+> in.
+>=C2=A0
 
-> > Keep in mind that existing storage technologies tear fileystem data
-> > writes, too, because user data writes are filesystem block sized and
-> > not atomic at the device level (i.e.  typical is 512 byte sector, 4k
-> > filesystem block size, so there are 7 points in a single write where
-> > a tear can occur on a crash).
-> 
-> You are conflating torn pages (pages being a generic term for anything
-> greater than a sector) and torn sectors.
+There may be a fairly simple way to prevent
+that from becoming an issue.
 
-No, I'm not. I'm pointing out that applications that really care
-about data integrity already have the capability to recovery from
-torn sectors in the event of a crash. pmem+DAX does not introduce
-any new way of corrupting user data for these applications.
+When khugepaged wakes up, it can check the
+PGSWPOUT or even the PGSTEAL_* stats for
+the system, and skip swapin readahead if
+there was swapout activity (or any page
+reclaim activity?) since the time it last
+ran.
 
-> > IOWs existing storage already has the capability of tearing user
-> > data on crash and has been doing so for a least they last 30 years.
-> 
-> And yet applications assume that this doesn't happen.  Have a look at
-> this:
->   https://www.sqlite.org/psow.html
+That way the swapin readahead will do
+its thing when transitioning from
+busy + swapout to idle + swapin, but not
+while the system is under permanent memory
+pressure.
 
-Quote:
+Am I forgetting anything obvious?
 
-"All versions of SQLite up to and including version 3.7.9 assume
-that the filesystem does not provide powersafe overwrite. [...]
+Is this too aggressive?
 
-Hence it seems reasonable to assume powersafe overwrite for modern
-disks. [...] Caution is advised though. As Roger Binns noted on the
-SQLite developers mailing list: "'poorly written' should be the main
-assumption about drive firmware."
+Not aggressive enough?
 
-IOWs, SQLite used to always assume that single sector overwrites can
-be torn, and now that it is optional it recommends that users should
-assume this is the way their storage behaves in order to be safe. In
-this config, it uses the write ahead log even for single sector
-writes, and hence can recover from torn sector writes without having
-to detect that the write was torn.
+Could PGPGOUT + PGSWPOUT be a useful
+in-between between just PGSWPOUT or
+PGSTEAL_*?
 
-Quote:
+--=C2=A0
+All rights reversed
 
-"SQLite never assumes that database page writes are atomic,
- regardless of the PSOW setting.(1) And hence SQLite is always able
- to automatically recover from torn pages induced by a crash."
+--=-074UBnQQ639I/tHqz/QM
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-This is Because multi-sector writes are always staged through the
-write ahead log and hence are cleanly recoverable after a crash
-without having to detect whether a torn write occurred or not.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-IOWs, you've just pointed to an application that demonstrates
-pmem-safe behaviour - just configure the database files with
-"file:somefile.db?psow=0" and it will assume that individual sector
-writes can be torn, and it will always recover.
+iQEcBAABAgAGBQJWz4HGAAoJEM553pKExN6DDK4H/3bbdh3MuvAyY/KD/HtKXDqw
+9bz98E5L6kjgaSkCUaZmC3jq3U4BoBATu169W+aQTyikMgyoPXuBzkhEf3aeryEx
+vYfA10y9UD02WbxW0rk6RAChFdk5OWLSGz57JHK2a+mPn36Vjiz9XaSPkBpiHP7z
+CylmEliSeIElGzNdbIqIgrR5ZJKHdezIxmo9V0oq3U3z4b1+rLvBHrzdPOrLKxpQ
+KsPwUn2uk8ski6LTrMoBuFdOoDbXotOABXZgrAzJuTrqA8Z/gLhhuwBerUq0N8YW
+zKnBniX6SDSXCmiqSonl1kAoTmLGL73saDqnul9F8GRDSgW1k3Z99sf2ORmzgYE=
+=rGAk
+-----END PGP SIGNATURE-----
 
-Hence I'm not sure exactly what point you are trying to make with
-this example.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--=-074UBnQQ639I/tHqz/QM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
