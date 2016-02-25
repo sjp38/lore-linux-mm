@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EE5396B0253
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 08:49:36 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id a4so28360474wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 05:49:36 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id v125si4182832wme.79.2016.02.25.05.49.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 05:49:33 -0800 (PST)
-Date: Thu, 25 Feb 2016 14:49:33 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [LSF/MM ATTEND] HMM (heterogeneous memory manager) and GPU
-Message-ID: <20160225134933.GD22747@8bytes.org>
-References: <20160128175536.GA20797@gmail.com>
- <1454460057.4788.117.camel@infradead.org>
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 774586B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 09:08:51 -0500 (EST)
+Received: by mail-oi0-f51.google.com with SMTP id j125so40698598oih.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 06:08:51 -0800 (PST)
+Received: from out21.biz.mail.alibaba.com (out21.biz.mail.alibaba.com. [205.204.114.132])
+        by mx.google.com with ESMTP id i64si6836550oib.83.2016.02.25.06.08.47
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 06:08:49 -0800 (PST)
+Message-ID: <56CF0BB6.2040102@emindsoft.com.cn>
+Date: Thu, 25 Feb 2016 22:12:06 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <alpine.DEB.2.10.1602250952030.16296@hxeon>
+In-Reply-To: <alpine.DEB.2.10.1602250952030.16296@hxeon>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1454460057.4788.117.camel@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Jerome Glisse <j.glisse@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: SeongJae Park <sj38.park@gmail.com>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org
 
-Hey,
-
-On Wed, Feb 03, 2016 at 12:40:57AM +0000, David Woodhouse wrote:
-> There are a few related issues here around Shared Virtual Memory, and
-> lifetime management of the associated MM, and the proposal discussed at
-> the Kernel Summit for "off-CPU tasks".
+On 2/25/16 09:01, SeongJae Park wrote:
 > 
-> I've hit a situation with the Intel SVM code in 4.4 where the device
-> driver binds a PASID, and also has mmap() functionality on the same
-> file descriptor that the PASID is associated with.
+> Well, the indentation for the comment and the '\' looks odd to me.  If
+> the 80 column limit is necessary, how about moving the comment to above
+> line of the macro as below?  Because comments are usually placed before
+> the target they are explaining, I believe this may better to read.
 > 
-> So on process exit, the MM doesn't die because the PASID binding still
-> exists. The VMA of the mmap doesn't die because the MM still exists. So
-> the underlying file remains open because the VMA still exists. And the
-> PASID binding thus doesn't die because the file is still open.
+>  -#define __GFP_MOVABLE        ((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+>  +/* ZONE_MOVABLE allowed */
+>  +#define __GFP_MOVABLE        ((__force gfp_t)___GFP_MOVABLE)
 > 
-> I've posted a patchA1 which moves us closer to the amd_iommu_v2 model,
-> although I'm still *strongly* resisting the temptation to call out into
-> device driver code from the mmu_notifier's release callback.
+> Maybe the opinion can be applied to below similar changes, too.
 > 
-> I would like to attend LSF/MM this year so we can continue to work on
-> those issues a?? now that we actually have some hardware in the field and
-> a better idea of how we can build a unified access model for SVM across
-> the different IOMMU types.
 
-That sounds very interesting and I'd like to participate in this
-discussion. Unfortunatly I can't make it to the mm-sumit this year, so I
-didn't even apply for an invitation.
+At least for me, what you said above is OK (it is a common way).
 
-But if this gets discussed there I am interested in the outcome. I still
-have a prototype for the off-cpu task concept on my list of thing to
-implement. The problem is that I can't really test any changes I make
-because I don't have SVM hardware and on the AMD side the user-space
-part needed for testing only runs on Ubuntu with some AMD provided
-kernel :(
+And welcome other members' suggestions.
 
+Thanks.
+-- 
+Chen Gang (e??a??)
 
-	Joerg
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
