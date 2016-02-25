@@ -1,58 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C57E56B0253
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:11:06 -0500 (EST)
-Received: by mail-oi0-f48.google.com with SMTP id x21so30594844oix.2
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:11:06 -0800 (PST)
-Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
-        by mx.google.com with ESMTPS id u9si4648094oiu.134.2016.02.24.18.11.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Feb 2016 18:11:06 -0800 (PST)
-Received: by mail-ob0-x22d.google.com with SMTP id jq7so36102622obb.0
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:11:06 -0800 (PST)
-Date: Wed, 24 Feb 2016 18:10:57 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Problems with swapping in v4.5-rc on POWER
-Message-ID: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6996B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:40:46 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id g6so4988377igt.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:40:46 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.232])
+        by mx.google.com with ESMTP id u72si7111644ioi.167.2016.02.24.18.40.45
+        for <linux-mm@kvack.org>;
+        Wed, 24 Feb 2016 18:40:45 -0800 (PST)
+Date: Wed, 24 Feb 2016 21:40:42 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] writeback: call writeback tracepoints withoud holding
+ list_lock in wb_writeback()
+Message-ID: <20160224214042.71c3493b@grimm.local.home>
+In-Reply-To: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
+References: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Yang Shi <yang.shi@linaro.org>
+Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, tglx@linutronix.de, bigeasy@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-I've plagiarized the subject from Paulus's "Problems with THP" mail
-last weekend; but my similar problems are on PowerMac G5 baremetal,
-with 4kB pages, not capable of THP and no THP configured in.
+On Wed, 24 Feb 2016 14:47:23 -0800
+Yang Shi <yang.shi@linaro.org> wrote:
 
-Under heavily swapping load, running kernel builds on tmpfs in limited
-memory, I've been seeing random segfaults too, internal compiler errors
-etc.  Not easily reproduced: sometimes happens in minutes, sometimes
-not for several hours.
+> commit 5634cc2aa9aebc77bc862992e7805469dcf83dac ("writeback: update writeback
+> tracepoints to report cgroup") made writeback tracepoints report cgroup
+> writeback, but it may trigger the below bug on -rt kernel due to the list_lock
+> held for the for loop in wb_writeback().
 
-I tried and failed to construct a reproducer for you: my lack of a good
-recipe has deterred me from reporting it, and seeing Paulus's mail on
-THP gave me hope that the answer would come up in that thread; but no,
-that was quickly resolved as a THP issue, since fixed.
+list_lock is a sleeping mutex, it's not disabling preemption. Moving it
+doesn't make a difference.
 
-(Mine had appeared to be fixed in v4.5-rc4 anyway; but I guess I
-just didn't try hard enough, it resurfaced on -rc5 immediately.)
+> 
+> BUG: sleeping function called from invalid context at kernel/locking/rtmutex.c:930
+> in_atomic(): 1, irqs_disabled(): 0, pid: 625, name: kworker/u16:3
 
-I've seen no sign of such problems on x86.  And I saw no sign of such
-problems on v4.4-rc8-mm1, when I included the fixes to the _PAGE_PTE
-and _PAGE_SWP_SOFT_DIRTY swapoff issues we discussed back then (in
-33 hours of load, should be good enough; but did see such problems
-a couple of times before including those fixes - I took them to be
-a side-effect of the page flags issue, but now rather doubt that).
+Something else disabled preemption. And note, nothing in the tracepoint
+should have called a sleeping function.
 
-The minutes or hours thing: I wonder if that indicates a missing
-initialization somewhere: that can easily show up soon after booting,
-but then the machine settles into a steady state of reusing the same
-structures, now initialized; until much later something disturbs the
-state and it has to allocate more.  Sheer speculation, but I wonder.
 
-Hugh
+> INFO: lockdep is turned off.
+> Preemption disabled at:[<ffffffc000374a5c>] wb_writeback+0xec/0x830
+> 
+> CPU: 7 PID: 625 Comm: kworker/u16:3 Not tainted 4.4.1-rt5 #20
+> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+> Workqueue: writeback wb_workfn (flush-7:0)
+> Call trace:
+> [<ffffffc00008d708>] dump_backtrace+0x0/0x200
+> [<ffffffc00008d92c>] show_stack+0x24/0x30
+> [<ffffffc0007b0f40>] dump_stack+0x88/0xa8
+> [<ffffffc000127d74>] ___might_sleep+0x2ec/0x300
+> [<ffffffc000d5d550>] rt_spin_lock+0x38/0xb8
+> [<ffffffc0003e0548>] kernfs_path_len+0x30/0x90
+> [<ffffffc00036b360>] trace_event_raw_event_writeback_work_class+0xe8/0x2e8
+
+How accurate is this trace back? Here's the code that is executed in
+this tracepoint:
+
+	TP_fast_assign(
+		struct device *dev = bdi->dev;
+		if (!dev)
+			dev = default_backing_dev_info.dev;
+		strncpy(__entry->name, dev_name(dev), 32);
+		__entry->nr_pages = work->nr_pages;
+		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
+		__entry->sync_mode = work->sync_mode;
+		__entry->for_kupdate = work->for_kupdate;
+		__entry->range_cyclic = work->range_cyclic;
+		__entry->for_background	= work->for_background;
+		__entry->reason = work->reason;
+	),
+
+See anything that would sleep?
+
+> [<ffffffc000374f90>] wb_writeback+0x620/0x830
+> [<ffffffc000376224>] wb_workfn+0x61c/0x950
+> [<ffffffc000110adc>] process_one_work+0x3ac/0xb30
+> [<ffffffc0001112fc>] worker_thread+0x9c/0x7a8
+> [<ffffffc00011a9e8>] kthread+0x190/0x1b0
+> [<ffffffc000086ca0>] ret_from_fork+0x10/0x30
+> 
+> The list_lock was moved outside the for loop by commit
+> e8dfc30582995ae12454cda517b17d6294175b07 ("writeback: elevate queue_io()
+> into wb_writeback())", however, the commit log says "No behavior change", so
+> it sounds safe to have the list_lock acquired inside the for loop as it did
+> before.
+> 
+> Just acquire list_lock at the necessary points and keep all writeback
+> tracepoints outside the critical area protected by list_lock in
+> wb_writeback().
+
+But list_lock itself is a sleeping lock. This doesn't make sense.
+
+This is not the bug you are looking for.
+
+-- Steve
+
+> 
+> Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> ---
+>  fs/fs-writeback.c | 12 +++++++-----
+>  1 file changed, 7 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 1f76d89..9b7b5f6 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -1623,7 +1623,6 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  	work->older_than_this = &oldest_jif;
+>  
+>  	blk_start_plug(&plug);
+> -	spin_lock(&wb->list_lock);
+>  	for (;;) {
+>  		/*
+>  		 * Stop writeback when nr_pages has been consumed
+> @@ -1661,15 +1660,19 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  			oldest_jif = jiffies;
+>  
+>  		trace_writeback_start(wb, work);
+> +
+> +		spin_lock(&wb->list_lock);
+>  		if (list_empty(&wb->b_io))
+>  			queue_io(wb, work);
+>  		if (work->sb)
+>  			progress = writeback_sb_inodes(work->sb, wb, work);
+>  		else
+>  			progress = __writeback_inodes_wb(wb, work);
+> -		trace_writeback_written(wb, work);
+>  
+>  		wb_update_bandwidth(wb, wb_start);
+> +		spin_unlock(&wb->list_lock);
+> +
+> +		trace_writeback_written(wb, work);
+>  
+>  		/*
+>  		 * Did we write something? Try for more
+> @@ -1693,15 +1696,14 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  		 */
+>  		if (!list_empty(&wb->b_more_io))  {
+>  			trace_writeback_wait(wb, work);
+> +			spin_lock(&wb->list_lock);
+>  			inode = wb_inode(wb->b_more_io.prev);
+> -			spin_lock(&inode->i_lock);
+>  			spin_unlock(&wb->list_lock);
+> +			spin_lock(&inode->i_lock);
+>  			/* This function drops i_lock... */
+>  			inode_sleep_on_writeback(inode);
+> -			spin_lock(&wb->list_lock);
+>  		}
+>  	}
+> -	spin_unlock(&wb->list_lock);
+>  	blk_finish_plug(&plug);
+>  
+>  	return nr_pages - work->nr_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
