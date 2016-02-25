@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EABD6B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:36:23 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id fl4so25975430pad.0
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:36:23 -0800 (PST)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id bm5si9984685pad.107.2016.02.24.21.36.22
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 160DE6B0254
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:43:09 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id q63so26572011pfb.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:43:09 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id o90si10021879pfi.192.2016.02.24.21.43.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Feb 2016 21:36:22 -0800 (PST)
-Received: by mail-pf0-x232.google.com with SMTP id x65so26495592pfb.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:36:22 -0800 (PST)
-Date: Wed, 24 Feb 2016 21:36:13 -0800 (PST)
+        Wed, 24 Feb 2016 21:43:08 -0800 (PST)
+Received: by mail-pa0-x22c.google.com with SMTP id fl4so26072768pad.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:43:08 -0800 (PST)
+Date: Wed, 24 Feb 2016 21:43:06 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: Problems with swapping in v4.5-rc on POWER
-In-Reply-To: <1456373550.30375.3.camel@ellerman.id.au>
-Message-ID: <alpine.LSU.2.11.1602242131480.6876@eggly.anvils>
-References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils> <1456373550.30375.3.camel@ellerman.id.au>
+In-Reply-To: <877fhttmr1.fsf@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.11.1602242136270.6876@eggly.anvils>
+References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils> <877fhttmr1.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Hugh Dickins <hughd@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hughd@google.com>, Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Thu, 25 Feb 2016, Michael Ellerman wrote:
+On Thu, 25 Feb 2016, Aneesh Kumar K.V wrote:
 > 
-> I do run tests on G5, but obviously not rigorously enough. I kicked off a few
-> kernel builds on mine and it survived, though once it hits swap it's almost
-> unusably slow. I'll leave it running overnight and see if I hit anything.
+> Can you test the impact of the merge listed below ?(ie, revert the merge and see if
+> we can reproduce and also verify with merge applied). This will give us a
+> set of commits to look closer. We had quiet a lot of page table
+> related changes going in this merge window. 
+> 
+> f689b742f217b2ffe7 ("Pull powerpc updates from Michael Ellerman:")
+> 
+> That is the merge commit that added _PAGE_PTE. 
 
-Oh yes, I'd forgotten how unusably slow: I tend to forget that I slipped an
-SSD in there some while back, just for the swapping: slow, but not unusable.
-
-Thanks, I'm hoping you will be able to reproduce it yourself.
+Another experiment running on it at the moment, I'd like to give that
+a few more hours, and then will try the revert you suggest.  But does
+that merge revert cleanly, did you try?  I'm afraid of interactions,
+whether obvious or subtle, with the THP refcounting rework.  Oh, since
+I don't have THP configured on, maybe I can ignore any issues from that.
 
 Hugh
 
