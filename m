@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D126B0254
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 17:17:52 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id a4so47069438wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:17:52 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id rx6si12225659wjb.4.2016.02.25.14.17.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 14:17:51 -0800 (PST)
-Date: Thu, 25 Feb 2016 17:17:46 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 07/27] mm, vmscan: Have kswapd only scan based on the
- highest requested zone
-Message-ID: <20160225221746.GA12258@cmpxchg.org>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <1456239890-20737-8-git-send-email-mgorman@techsingularity.net>
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E466E6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 17:25:49 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id hb3so23213099igb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:25:49 -0800 (PST)
+Received: from out1134-233.mail.aliyun.com (out1134-233.mail.aliyun.com. [42.120.134.233])
+        by mx.google.com with ESMTP id s84si12804203ioi.32.2016.02.25.14.25.48
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 14:25:49 -0800 (PST)
+Message-ID: <56CF8043.1030603@emindsoft.com.cn>
+Date: Fri, 26 Feb 2016 06:29:23 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456239890-20737-8-git-send-email-mgorman@techsingularity.net>
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <20160225092752.GU2854@techsingularity.net> <56CF1202.2020809@emindsoft.com.cn> <20160225160707.GX2854@techsingularity.net>
+In-Reply-To: <20160225160707.GX2854@techsingularity.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Tue, Feb 23, 2016 at 03:04:30PM +0000, Mel Gorman wrote:
-> kswapd checks all eligible zones to see if they need balancing even if it was
-> woken for a lower zone. This made sense when we reclaimed on a per-zone basis
-> because we wanted to shrink zones fairly so avoid age-inversion problems.
-> Ideally this is completely unnecessary when reclaiming on a per-node basis.
-> In theory, there may still be anomalies when all requests are for lower
-> zones and very old pages are preserved in higher zones but this should be
-> the exceptional case.
+On 2/26/16 00:07, Mel Gorman wrote:
+>>> On Thu, Feb 25, 2016 at 06:26:31AM +0800, chengang@emindsoft.com.cn wrote:
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> I do not want this patch to go through the trivial tree. It still adds
+> another step to identifying relevant commits through git blame and has
+> limited, if any, benefit to maintainability.
+> 
+>>   "it's preferable to preserve blame than go through a layer of cleanup
+>>   when looking for the commit that defined particular flags".
+>>
+> 
+> git blame identifies what commit last altered a line. If a cleanup patch
+> is encountered then the tree before that commit needs to be examined
+> which adds time. It's rare that cleanup patches on their own are useful
+> and this is one of those cases.
+> 
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+git is a tool mainly for analyzing code, but not mainly for normal
+reading main code.
 
-As I mentioned in the other subthread, this should probably be fine,
-although it would be good, generally, to have some sort of statistics
-on how much of the age-distorting reclaim is happening, and then maybe
-mention its existence in the changelog of this patch. Just an idea.
+So for me, the coding styles need not consider about git.
+
+
+Thanks.
+-- 
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
