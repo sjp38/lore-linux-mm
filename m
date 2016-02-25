@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C613F6B0258
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:07:34 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id g62so46849089wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 12:07:34 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id in5si11609627wjb.155.2016.02.25.12.07.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 12:07:33 -0800 (PST)
-Date: Thu, 25 Feb 2016 15:07:21 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] mm: scale kswapd watermarks in proportion to memory
-Message-ID: <20160225200721.GB3370@cmpxchg.org>
-References: <1456184002-15729-1-git-send-email-hannes@cmpxchg.org>
- <20160225003744.GC9723@js1304-P5Q-DELUXE>
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 332AA6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:20:55 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id z8so21750448ige.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 12:20:55 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id m65si12326482ioa.163.2016.02.25.12.20.53
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 12:20:54 -0800 (PST)
+Date: Fri, 26 Feb 2016 07:15:17 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Message-ID: <20160225201517.GA30721@dastard>
+References: <56CCD54C.3010600@plexistor.com>
+ <CAPcyv4iqO=Pzu_r8tV6K2G953c5HqJRdqCE1pymfDmURy8_ODw@mail.gmail.com>
+ <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
+ <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
+ <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com>
+ <20160224225623.GL14668@dastard>
+ <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com>
+ <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160225003744.GC9723@js1304-P5Q-DELUXE>
+In-Reply-To: <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Joonsoo,
-
-On Thu, Feb 25, 2016 at 09:37:44AM +0900, Joonsoo Kim wrote:
-> On Mon, Feb 22, 2016 at 03:33:22PM -0800, Johannes Weiner wrote:
-> > In machines with 140G of memory and enterprise flash storage, we have
-> > seen read and write bursts routinely exceed the kswapd watermarks and
-> > cause thundering herds in direct reclaim. Unfortunately, the only way
-> > to tune kswapd aggressiveness is through adjusting min_free_kbytes -
-> > the system's emergency reserves - which is entirely unrelated to the
-> > system's latency requirements. In order to get kswapd to maintain a
-> > 250M buffer of free memory, the emergency reserves need to be set to
-> > 1G. That is a lot of memory wasted for no good reason.
-> > 
-> > On the other hand, it's reasonable to assume that allocation bursts
-> > and overall allocation concurrency scale with memory capacity, so it
-> > makes sense to make kswapd aggressiveness a function of that as well.
-> > 
-> > Change the kswapd watermark scale factor from the currently fixed 25%
-> > of the tunable emergency reserve to a tunable 0.001% of memory.
+On Thu, Feb 25, 2016 at 02:11:49PM -0500, Jeff Moyer wrote:
+> Jeff Moyer <jmoyer@redhat.com> writes:
 > 
-> s/0.001%/0.1%
-
-Of course, you are right. Thanks for pointing it out.
-
-Andrew, I'm attaching a drop-in replacement for what you have, since
-it includes fixing the changelog. But it might be easier to edit the
-patch for these two instances in place.
-
-> > @@ -803,6 +803,24 @@ performance impact. Reclaim code needs to take various locks to find freeable
-> >  directory and inode objects. With vfs_cache_pressure=1000, it will look for
-> >  ten times more freeable objects than there are.
-> >  
-> > +=============================================================
-> > +
-> > +watermark_scale_factor:
-> > +
-> > +This factor controls the aggressiveness of kswapd. It defines the
-> > +amount of memory left in a node/system before kswapd is woken up and
-> > +how much memory needs to be free before kswapd goes back to sleep.
-> > +
-> > +The unit is in fractions of 10,000. The default value of 10 means the
-> > +distances between watermarks are 0.001% of the available memory in the
-> > +node/system. The maximum value is 1000, or 10% of memory.
+> >> The big issue we have right now is that we haven't made the DAX/pmem
+> >> infrastructure work correctly and reliably for general use.  Hence
+> >> adding new APIs to workaround cases where we haven't yet provided
+> >> correct behaviour, let alone optimised for performance is, quite
+> >> frankly, a clear case premature optimisation.
+> >
+> > Again, I see the two things as separate issues.  You need both.
+> > Implementing MAP_SYNC doesn't mean we don't have to solve the bigger
+> > issue of making existing applications work safely.
 > 
-> Ditto for 0.001%.
+> I want to add one more thing to this discussion, just for the sake of
+> clarity.  When I talk about existing applications and pmem, I mean
+> applications that already know how to detect and recover from torn
+> sectors.  Any application that assumes hardware does not tear sectors
+> should be run on a file system layered on top of the btt.
+
+Which turns off DAX, and hence makes this a moot discussion because
+mmap is then buffered through the page cache and hence applications
+*must use msync/fsync* to provide data integrity. Which also makes
+them safe to use with DAX if we have a working fsync.
+
+Keep in mind that existing storage technologies tear fileystem data
+writes, too, because user data writes are filesystem block sized and
+not atomic at the device level (i.e.  typical is 512 byte sector, 4k
+filesystem block size, so there are 7 points in a single write where
+a tear can occur on a crash).
+
+IOWs existing storage already has the capability of tearing user
+data on crash and has been doing so for a least they last 30 years.
+Hence I really don't see any fundamental difference here with
+pmem+DAX - the only difference is that the tear granuarlity is
+smaller (CPU cacheline rather than sector).
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
