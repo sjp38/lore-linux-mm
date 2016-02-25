@@ -1,146 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A9B236B0254
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:16:51 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id c200so50351409wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:16:51 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id n4si1608928wje.137.2016.02.25.15.16.50
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CB84B6B0255
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:16:56 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id x65so40702106pfb.1
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:16:56 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id 7si15334598pfm.127.2016.02.25.15.16.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 15:16:50 -0800 (PST)
-Received: by mail-wm0-x22a.google.com with SMTP id c200so50351071wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:16:50 -0800 (PST)
-Date: Fri, 26 Feb 2016 01:16:44 +0200
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: Re: [RFC v5 0/3] mm: make swapin readahead to gain more thp
- performance
-Message-ID: <20160225231644.GA13782@debian>
-References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
- <20150914144106.ee205c3ae3f4ec0e5202c9fe@linux-foundation.org>
- <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
+        Thu, 25 Feb 2016 15:16:56 -0800 (PST)
+Received: by mail-pa0-x22b.google.com with SMTP id fl4so39858422pad.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 15:16:56 -0800 (PST)
+Subject: Re: [PATCH] writeback: call writeback tracepoints withoud holding
+ list_lock in wb_writeback()
+References: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
+ <20160224214042.71c3493b@grimm.local.home> <56CF5848.7050806@linaro.org>
+ <20160225145432.3749e5ec@gandalf.local.home>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <56CF8B66.8070108@linaro.org>
+Date: Thu, 25 Feb 2016 15:16:54 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
+In-Reply-To: <20160225145432.3749e5ec@gandalf.local.home>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, tglx@linutronix.de, bigeasy@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-On Wed, Feb 24, 2016 at 11:36:30PM -0800, Hugh Dickins wrote:
-> On Mon, 14 Sep 2015, Andrew Morton wrote:
-> > On Mon, 14 Sep 2015 22:31:42 +0300 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
-> > 
-> > > This patch series makes swapin readahead up to a
-> > > certain number to gain more thp performance and adds
-> > > tracepoint for khugepaged_scan_pmd, collapse_huge_page,
-> > > __collapse_huge_page_isolate.
-> > 
-> > I'll merge this series for testing.  Hopefully Andrea and/or Hugh will
-> > find time for a quality think about the issue before 4.3 comes around.
-> > 
-> > It would be much better if we didn't have that sysfs knob - make the
-> > control automatic in some fashion.
-> > 
-> > If we can't think of a way of doing that then at least let's document
-> > max_ptes_swap very carefully.  Explain to our users what it does, why
-> > they should care about it, how they should set about determining (ie:
-> > measuring) its effect upon their workloads.
-> 
-> Ebru, I don't know whether you realize, but your THP swapin work has
-> been languishing in mmotm for five months now, without getting any
-> nearer to Linus's tree.
-> 
-> That's partly my fault - sorry - for not responding to Andrew's nudge
-> above.  But I think you also got caught up in conference, and in the
-> end did not get around to answering outstanding issues: please take a
-> look at your mailbox from last September, to see what more is needed.
-> 
-I've seen my patch series in mmotm mails but I thought,
-other parts of thp have problem so those are going to be
-forwarded to Linus's tree when other parts fixed.
+On 2/25/2016 11:54 AM, Steven Rostedt wrote:
+> On Thu, 25 Feb 2016 11:38:48 -0800
+> "Shi, Yang" <yang.shi@linaro.org> wrote:
+>
+>> On 2/24/2016 6:40 PM, Steven Rostedt wrote:
+>>> On Wed, 24 Feb 2016 14:47:23 -0800
+>>> Yang Shi <yang.shi@linaro.org> wrote:
+>>>
+>>>> commit 5634cc2aa9aebc77bc862992e7805469dcf83dac ("writeback: update writeback
+>>>> tracepoints to report cgroup") made writeback tracepoints report cgroup
+>>>> writeback, but it may trigger the below bug on -rt kernel due to the list_lock
+>>>> held for the for loop in wb_writeback().
+>>>
+>>> list_lock is a sleeping mutex, it's not disabling preemption. Moving it
+>>> doesn't make a difference.
+>>>
+>>>>
+>>>> BUG: sleeping function called from invalid context at kernel/locking/rtmutex.c:930
+>>>> in_atomic(): 1, irqs_disabled(): 0, pid: 625, name: kworker/u16:3
+>>>
+>>> Something else disabled preemption. And note, nothing in the tracepoint
+>>> should have called a sleeping function.
+>>
+>> Yes, it makes me confused too. It sounds like the preempt_ip address is
+>> not that accurate.
+>
+> Yep, but the change you made doesn't look to be the fix.
 
-I did not know the file: http://www.ozlabs.org/~akpm/mmotm/series
-It shows explicitly the problem of patches.
-Thank you for summarizing it below.
+Actually, regardless whether this is the right fix for the splat, it 
+makes me be wondering if the spin lock which protects the whole for loop 
+is really necessary. It sounds feasible to move it into the for loop and 
+just protect the necessary area.
 
-> Here's what mmotm's series file says...
-> 
-> #mm-add-tracepoint-for-scanning-pages.patch+2: Andrea/Hugh review?. 2 Fengguang warnings, one "kernel test robot" oops
-> #mm-make-optimistic-check-for-swapin-readahead.patch: TBU (docs)
-I've sent doc patch: http://lkml.iu.edu/hypermail/linux/kernel/1509.2/01783.html
-> mm-make-optimistic-check-for-swapin-readahead.patch
-> mm-make-optimistic-check-for-swapin-readahead-fix-2.patch
-> #mm-make-swapin-readahead-to-improve-thp-collapse-rate.patch: Hugh/Kirill want collapse_huge_page() rework
-> mm-make-swapin-readahead-to-improve-thp-collapse-rate.patch
-> mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix.patch
-> mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-2.patch
-> #mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-3.patch: Ebru to test?
-I've tested my whole patch series and could not produce the fault
-again. I've also seen Tested-by tag from Sergey so I did not sent
-the tag.
-> mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-3.patch
-> 
-> ...but I think some of that is stale.  There were a few little bugs
-> when it first went into mmotm, which Kirill very swiftly fixed up,
-> and I don't think it has given anybody any trouble since then.
-> 
-> But do I want to see this work go in?  Yes and no.  The problem it
-> fixes (that although we give out a THP to someone who faults a single
-> page of it, after swapout the THP cannot be recovered until they have
-> faulted in every page of it) is real and embarrassing; the code is good;
-> and I don't mind the max_ptes_swap tunable that concerns Andrew above;
-> but Kirill and Vlastimil made important points that still trouble me.
-> 
-> I can't locate Kirill's mail right now, perhaps I'm misremembering:
-> but wasn't he concerned by your __collapse_huge_page_swapin() (likely
-> to be allocating many small pages) being called under down_write of
-> mmap_sem?  That's usually something we soon regret, and even down_read
-> of mmap_sem across many memory allocations would be unfortunate
-> (khugepaged used to allocate its THP that way, but we have
-> Vlastimil to thank for stopping that in his 8b1645685acf).
-> 
-> And didn't Vlastimil (9/4/15) make some other unanswered
-> observations about the call to __collapse_huge_page_swapin():
-> 
-> > Hmm it seems rather wasteful to call this when no swap entries were detected.
-> > Also it seems pointless to try continue collapsing when we have just only issued
-> > async swap-in? What are the chances they would finish in time?
-> > 
-> > I'm less sure about the relation vs khugepaged_alloc_page(). At this point, we
-> > have already succeeded the hugepage allocation. It makes sense not to swap-in if
-> > we can't allocate a hugepage. It makes also sense not to allocate a hugepage if
-> > we will just issue async swap-ins and then free the hugepage back. Swap-in means
-> > disk I/O that's best avoided if not useful. But the reclaim for hugepage
-> > allocation might also involve disk I/O. At worst, it could be creating new swap
-> > pte's in the very pmd we are scanning... Thoughts?
-> 
-I did not take enough responsibility, you're right. I should have
-asked regarding the patch at least.
-> Doesn't this imply that __collapse_huge_page_swapin() will initiate all
-> the necessary swapins for a THP, then (given the FAULT_FLAG_ALLOW_RETRY)
-> not wait for them to complete, so khugepaged will give up on that extent
-> and move on to another; then after another full circuit of all the mms
-> it needs to examine, it will arrive back at this extent and build a THP
-> from the swapins it arranged last time.
-> 
-> Which may work well when a system transitions from busy+swappingout
-> to idle+swappingin, but isn't that rather a special case?  It feels
-> (meaning, I've not measured at all) as if the inbetween busyish case
-> will waste a lot of I/O and memory on swapins that have to be discarded
-> again before khugepaged has made its sedate way back to slotting them in.
-> 
-> So I wonder how useful this is in its present form.  The problem being,
-> not with your code as such, but the whole nature of khugepaged.  When
-> I had to solve a similar problem with recovering huge tmpfs pages (not
-> yet posted), I did briefly consider whether to hook in to use khugepaged;
-> but rejected that, and have never regretted using a workqueue item for
-> the extent instead.  Did Vlastimil (argh, him again!) propose something
-> similar to replace khugepaged?  Or should khugepaged fire off workqueue
-> items for THP extents needing swapin?
-> 
-> Hugh
+>
+>>
+>>>
+>>>
+>>>> INFO: lockdep is turned off.
+>>>> Preemption disabled at:[<ffffffc000374a5c>] wb_writeback+0xec/0x830
+>
+> Can you disassemble the vmlinux file to see exactly where that call is.
+> I use gdb to find the right locations.
+>
+>   gdb> li *0xffffffc000374a5c
+>   gdb> disass 0xffffffc000374a5c
+
+I use gdb to get the code too.
+
+It does point to the spin_lock.
+
+(gdb) list *0xffffffc000374a5c
+0xffffffc000374a5c is in wb_writeback (fs/fs-writeback.c:1621).
+1616
+1617            oldest_jif = jiffies;
+1618            work->older_than_this = &oldest_jif;
+1619
+1620            blk_start_plug(&plug);
+1621            spin_lock(&wb->list_lock);
+1622            for (;;) {
+1623                    /*
+1624                     * Stop writeback when nr_pages has been consumed
+1625                     */
+
+
+The disassemble:
+    0xffffffc000374a58 <+232>:   bl      0xffffffc0001300b0 
+<migrate_disable>
+    0xffffffc000374a5c <+236>:   mov     x0, x22
+    0xffffffc000374a60 <+240>:   bl      0xffffffc000d5d518 <rt_spin_lock>
+
+>
+>>>>
+>>>> CPU: 7 PID: 625 Comm: kworker/u16:3 Not tainted 4.4.1-rt5 #20
+>>>> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+>>>> Workqueue: writeback wb_workfn (flush-7:0)
+>>>> Call trace:
+>>>> [<ffffffc00008d708>] dump_backtrace+0x0/0x200
+>>>> [<ffffffc00008d92c>] show_stack+0x24/0x30
+>>>> [<ffffffc0007b0f40>] dump_stack+0x88/0xa8
+>>>> [<ffffffc000127d74>] ___might_sleep+0x2ec/0x300
+>>>> [<ffffffc000d5d550>] rt_spin_lock+0x38/0xb8
+>>>> [<ffffffc0003e0548>] kernfs_path_len+0x30/0x90
+>>>> [<ffffffc00036b360>] trace_event_raw_event_writeback_work_class+0xe8/0x2e8
+>>>
+>>> How accurate is this trace back? Here's the code that is executed in
+>>> this tracepoint:
+>>>
+>>> 	TP_fast_assign(
+>>> 		struct device *dev = bdi->dev;
+>>> 		if (!dev)
+>>> 			dev = default_backing_dev_info.dev;
+>>> 		strncpy(__entry->name, dev_name(dev), 32);
+>>> 		__entry->nr_pages = work->nr_pages;
+>>> 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
+>>> 		__entry->sync_mode = work->sync_mode;
+>>> 		__entry->for_kupdate = work->for_kupdate;
+>>> 		__entry->range_cyclic = work->range_cyclic;
+>>> 		__entry->for_background	= work->for_background;
+>>> 		__entry->reason = work->reason;
+>>> 	),
+>>>
+>>> See anything that would sleep?
+>>
+>> According to the stack backtrace, kernfs_path_len calls slepping lock,
+>> which is called by __trace_wb_cgroup_size(wb) in __dynamic_array(char,
+>> cgroup, __trace_wb_cgroup_size(wb)).
+>>
+>> The below is the definition:
+>>
+>> DECLARE_EVENT_CLASS(writeback_work_class,
+>>           TP_PROTO(struct bdi_writeback *wb, struct wb_writeback_work *work),
+>>           TP_ARGS(wb, work),
+>>           TP_STRUCT__entry(
+>>                   __array(char, name, 32)
+>>                   __field(long, nr_pages)
+>>                   __field(dev_t, sb_dev)
+>>                   __field(int, sync_mode)
+>>                   __field(int, for_kupdate)
+>>                   __field(int, range_cyclic)
+>>                   __field(int, for_background)
+>>                   __field(int, reason)
+>>                   __dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
+>>
+>
+> Ah, thanks for pointing that out. I missed that.
+
+It sounds not correct if tracepoint doesn't allow sleep.
+
+I considered to change sleeping lock to raw lock in kernfs_* functions, 
+but it sounds not reasonable since they are used heavily by cgroup.
+
+Thanks,
+Yang
+
+>
+> -- Steve
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
