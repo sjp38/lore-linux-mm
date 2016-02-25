@@ -1,151 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 514D16B0005
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 03:57:23 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id c200so18062422wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:57:23 -0800 (PST)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id fc13si8635388wjc.44.2016.02.25.00.57.21
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0EE6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 04:01:36 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id b205so22286284wmb.1
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 01:01:36 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id g139si2975277wmd.7.2016.02.25.01.01.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 00:57:22 -0800 (PST)
-Received: by mail-wm0-f43.google.com with SMTP id a4so17527435wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:57:21 -0800 (PST)
-Date: Thu, 25 Feb 2016 09:57:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
-Message-ID: <20160225085719.GA17573@dhcp22.suse.cz>
-References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
+        Thu, 25 Feb 2016 01:01:34 -0800 (PST)
+Received: by mail-wm0-f52.google.com with SMTP id c200so18223508wme.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 01:01:34 -0800 (PST)
+Subject: Re: [PATCH RFC] ext4: use __GFP_NOFAIL in ext4_free_blocks()
+References: <20160224170912.2195.8153.stgit@buzz>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <56CEC2EC.5000506@kyup.com>
+Date: Thu, 25 Feb 2016 11:01:32 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
+In-Reply-To: <20160224170912.2195.8153.stgit@buzz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: chengang@emindsoft.com.cn
-Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Theodore Ts'o <tytso@mit.edu>
+Cc: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Monakhov <dmonakhov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Thu 25-02-16 06:26:31, chengang@emindsoft.com.cn wrote:
-> From: Chen Gang <chengang@emindsoft.com.cn>
-> 
-> Always notice about 80 columns, and the white space near '|'.
-> 
-> Let the wrapped function parameters align as the same styles.
-> 
-> Remove redundant statement "enum zone_type z;" in function gfp_zone.
 
-I do not think this is an improvement. The comment placement is just odd
-and artificially splitting the mask into more lines makes git grep
-harder to use.
 
-> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-> ---
->  include/linux/gfp.h | 35 ++++++++++++++++++++---------------
->  1 file changed, 20 insertions(+), 15 deletions(-)
+On 02/24/2016 07:09 PM, Konstantin Khlebnikov wrote:
+> This might be unexpected but pages allocated for sbi->s_buddy_cache are
+> charged to current memory cgroup. So, GFP_NOFS allocation could fail if
+> current task has been killed by OOM or if current memory cgroup has no
+> free memory left. Block allocator cannot handle such failures here yet.
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 36e0c5e..cf904ef 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -53,8 +53,10 @@ struct vm_area_struct;
->  #define __GFP_DMA	((__force gfp_t)___GFP_DMA)
->  #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
->  #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
-> -#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
-> -#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
-> +#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE) \
-> +						/* ZONE_MOVABLE allowed */
-> +#define GFP_ZONEMASK	(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32 | \
-> +			 __GFP_MOVABLE)
->  
->  /*
->   * Page mobility and placement hints
-> @@ -151,9 +153,12 @@ struct vm_area_struct;
->   */
->  #define __GFP_IO	((__force gfp_t)___GFP_IO)
->  #define __GFP_FS	((__force gfp_t)___GFP_FS)
-> -#define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
-> -#define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
-> -#define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
-> +#define __GFP_DIRECT_RECLAIM ((__force gfp_t)___GFP_DIRECT_RECLAIM) \
-> +							/* Caller can reclaim */
-> +#define __GFP_KSWAPD_RECLAIM ((__force gfp_t)___GFP_KSWAPD_RECLAIM) \
-> +							/* kswapd can wake */
-> +#define __GFP_RECLAIM	((__force gfp_t)(___GFP_DIRECT_RECLAIM | \
-> +			 ___GFP_KSWAPD_RECLAIM))
->  #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
->  #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
->  #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
-> @@ -262,7 +267,7 @@ struct vm_area_struct;
->  			 ~__GFP_KSWAPD_RECLAIM)
->  
->  /* Convert GFP flags to their corresponding migrate type */
-> -#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-> +#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
->  #define GFP_MOVABLE_SHIFT 3
->  
->  static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-> @@ -377,11 +382,10 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
->  
->  static inline enum zone_type gfp_zone(gfp_t flags)
->  {
-> -	enum zone_type z;
->  	int bit = (__force int) (flags & GFP_ZONEMASK);
-> +	enum zone_type z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-> +			    ((1 << GFP_ZONES_SHIFT) - 1);
->  
-> -	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-> -					 ((1 << GFP_ZONES_SHIFT) - 1);
->  	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
->  	return z;
->  }
-> @@ -428,8 +432,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  		       struct zonelist *zonelist, nodemask_t *nodemask);
->  
->  static inline struct page *
-> -__alloc_pages(gfp_t gfp_mask, unsigned int order,
-> -		struct zonelist *zonelist)
-> +__alloc_pages(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist)
->  {
->  	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
->  }
-> @@ -453,7 +456,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
->   * online.
->   */
->  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
-> -						unsigned int order)
-> +					    unsigned int order)
->  {
->  	if (nid == NUMA_NO_NODE)
->  		nid = numa_mem_id();
-> @@ -470,8 +473,9 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
->  	return alloc_pages_current(gfp_mask, order);
->  }
->  extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
-> -			struct vm_area_struct *vma, unsigned long addr,
-> -			int node, bool hugepage);
-> +				    struct vm_area_struct *vma,
-> +				    unsigned long addr, int node,
-> +				    bool hugepage);
->  #define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
->  	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
->  #else
-> @@ -552,7 +556,8 @@ static inline bool pm_suspended_storage(void)
->  }
->  #endif /* CONFIG_PM_SLEEP */
->  
-> -#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
-> +#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
-> +     defined(CONFIG_CMA)
->  /* The below functions must be run on a range from a single zone. */
->  extern int alloc_contig_range(unsigned long start, unsigned long end,
->  			      unsigned migratetype);
-> -- 
-> 1.9.3
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
--- 
-Michal Hocko
-SUSE Labs
+Adding new users of GFP_NOFAIL is deprecated. Where exactly does the
+block allocator fail, I skimmed the code and failing ext4_mb_load_buddy
+seems to be handled at all call sites. There are some BUG_ONs but from
+the comments there I guess they should occur when we try to find a page
+and not allocate a new one?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
