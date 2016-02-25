@@ -1,126 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 603BD6B0254
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:54:36 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id g203so99945853iof.2
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 11:54:36 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0092.hostedemail.com. [216.40.44.92])
-        by mx.google.com with ESMTPS id ph3si6425724igb.20.2016.02.25.11.54.35
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 019A46B0256
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 14:56:17 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id g62so43027482wme.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 11:56:16 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id ha10si11589578wjc.117.2016.02.25.11.56.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 11:54:35 -0800 (PST)
-Date: Thu, 25 Feb 2016 14:54:32 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] writeback: call writeback tracepoints withoud holding
- list_lock in wb_writeback()
-Message-ID: <20160225145432.3749e5ec@gandalf.local.home>
-In-Reply-To: <56CF5848.7050806@linaro.org>
-References: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
-	<20160224214042.71c3493b@grimm.local.home>
-	<56CF5848.7050806@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Feb 2016 11:56:15 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 63D279909D
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 19:56:15 +0000 (UTC)
+Date: Thu, 25 Feb 2016 19:56:13 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
+ disable it by default
+Message-ID: <20160225195613.GZ2854@techsingularity.net>
+References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
+ <20160225190144.GE1180@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160225190144.GE1180@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, tglx@linutronix.de, bigeasy@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linaro-kernel@lists.linaro.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 25 Feb 2016 11:38:48 -0800
-"Shi, Yang" <yang.shi@linaro.org> wrote:
-
-> On 2/24/2016 6:40 PM, Steven Rostedt wrote:
-> > On Wed, 24 Feb 2016 14:47:23 -0800
-> > Yang Shi <yang.shi@linaro.org> wrote:
-> >  
-> >> commit 5634cc2aa9aebc77bc862992e7805469dcf83dac ("writeback: update writeback
-> >> tracepoints to report cgroup") made writeback tracepoints report cgroup
-> >> writeback, but it may trigger the below bug on -rt kernel due to the list_lock
-> >> held for the for loop in wb_writeback().  
-> >
-> > list_lock is a sleeping mutex, it's not disabling preemption. Moving it
-> > doesn't make a difference.
-> >  
-> >>
-> >> BUG: sleeping function called from invalid context at kernel/locking/rtmutex.c:930
-> >> in_atomic(): 1, irqs_disabled(): 0, pid: 625, name: kworker/u16:3  
-> >
-> > Something else disabled preemption. And note, nothing in the tracepoint
-> > should have called a sleeping function.  
+On Thu, Feb 25, 2016 at 08:01:44PM +0100, Andrea Arcangeli wrote:
+> On Thu, Feb 25, 2016 at 05:12:19PM +0000, Mel Gorman wrote:
+> > some cases, this will reduce THP usage but the benefit of THP is hard to
+> > measure and not a universal win where as a stall to reclaim/compaction is
 > 
-> Yes, it makes me confused too. It sounds like the preempt_ip address is 
-> not that accurate.
+> It depends on the workload: with virtual machines THP is essential
+> from the start without having to wait half a khugepaged cycle in
+> average, especially on large systems.
 
-Yep, but the change you made doesn't look to be the fix.
+Which is a specialised case that does not apply to all users. Remember
+that the data showed that a basic streaming write of an anon mapping on
+a freshly booted NUMA system was enough to stall the process for long
+periods of time.
 
-> 
-> >
-> >  
-> >> INFO: lockdep is turned off.
-> >> Preemption disabled at:[<ffffffc000374a5c>] wb_writeback+0xec/0x830
+Even in the specialised case, a single VM reaching its peak performance
+may rely on getting THP but if that's at the cost of reclaiming other
+pages that may be hot to a second VM then it's an overall loss.
 
-Can you disassemble the vmlinux file to see exactly where that call is.
-I use gdb to find the right locations.
+Finally, for the specialised case, if it really is that critical then
+pages could be freed preemptively from userspace before the VM starts.
+For example, allocate and free X hugetlbfs pages before the migration.
 
- gdb> li *0xffffffc000374a5c
- gdb> disass 0xffffffc000374a5c
+Right now, there are numerous tuning guides out there that are suggest
+disabling THP entirely due to the stalls. On my own desktop, I occasionally
+see a new process halt the system for a few seconds and it was possible
+to see that THP allocations were happening at the time.
 
-> >>
-> >> CPU: 7 PID: 625 Comm: kworker/u16:3 Not tainted 4.4.1-rt5 #20
-> >> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
-> >> Workqueue: writeback wb_workfn (flush-7:0)
-> >> Call trace:
-> >> [<ffffffc00008d708>] dump_backtrace+0x0/0x200
-> >> [<ffffffc00008d92c>] show_stack+0x24/0x30
-> >> [<ffffffc0007b0f40>] dump_stack+0x88/0xa8
-> >> [<ffffffc000127d74>] ___might_sleep+0x2ec/0x300
-> >> [<ffffffc000d5d550>] rt_spin_lock+0x38/0xb8
-> >> [<ffffffc0003e0548>] kernfs_path_len+0x30/0x90
-> >> [<ffffffc00036b360>] trace_event_raw_event_writeback_work_class+0xe8/0x2e8  
-> >
-> > How accurate is this trace back? Here's the code that is executed in
-> > this tracepoint:
-> >
-> > 	TP_fast_assign(
-> > 		struct device *dev = bdi->dev;
-> > 		if (!dev)
-> > 			dev = default_backing_dev_info.dev;
-> > 		strncpy(__entry->name, dev_name(dev), 32);
-> > 		__entry->nr_pages = work->nr_pages;
-> > 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
-> > 		__entry->sync_mode = work->sync_mode;
-> > 		__entry->for_kupdate = work->for_kupdate;
-> > 		__entry->range_cyclic = work->range_cyclic;
-> > 		__entry->for_background	= work->for_background;
-> > 		__entry->reason = work->reason;
-> > 	),
-> >
-> > See anything that would sleep?  
-> 
-> According to the stack backtrace, kernfs_path_len calls slepping lock, 
-> which is called by __trace_wb_cgroup_size(wb) in __dynamic_array(char, 
-> cgroup, __trace_wb_cgroup_size(wb)).
-> 
-> The below is the definition:
-> 
-> DECLARE_EVENT_CLASS(writeback_work_class,
->          TP_PROTO(struct bdi_writeback *wb, struct wb_writeback_work *work),
->          TP_ARGS(wb, work),
->          TP_STRUCT__entry(
->                  __array(char, name, 32)
->                  __field(long, nr_pages)
->                  __field(dev_t, sb_dev)
->                  __field(int, sync_mode)
->                  __field(int, for_kupdate)
->                  __field(int, range_cyclic)
->                  __field(int, for_background)
->                  __field(int, reason)
->                  __dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
+> We see this effect for example
+> in postcopy live migraiton where --postcopy-after-precopy is essential
+> to reach peak performance during database workloads in guest,
+> immediately after postcopy completes. With --postcopy-after-precopy
+> only those pages that may be triggering userfaults will need to be
+> collapsed with khugepaged and all the rest that was previously passed
+> over with precopy has an high probability to be immediately THP backed
+> also thanks to defrag/direct-compaction. Failing at starting
+> the destination node largely THP backed is very visible in benchmark
+> (even if a full precopy pass is done first). Later on the performance
+> increases again as khugepaged fixes things, but it takes some time.
 > 
 
-Ah, thanks for pointing that out. I missed that.
+If it's critical that the performance is identical then I would suggest
+a pre-migration step of alloc/free of hugetlbfs pages to force the
+defragmentation. Alternatively trigger compaction from proc and if
+necessary use memhog to allocate/free the required memory followed by a
+proc compaction. It's a little less tidy but it solves the corner case
+while leaving the common case free of stalls.
 
--- Steve
+> So unless we've a very good kcompatd or a workqueue doing the job of
+> providing enough THP for page faults, I'm skeptical of this.
+
+Unfortunately, it'll never be perfect. We went through a cycle of having
+really high success rates of allocations in 3.0 days and the cost in
+reclaim and disruption was way too high.
+
+> Another problem is that khugepaged isn't able to collapse shared
+> readonly anon pages, mostly because of the rmap complexities.  I agree
+> with Kirill we should be looking into how make this work, although I
+> doubt the simpler refcounting is going to help much in this regard as
+> the problem is in dealing with rmap, not so much with refcounts.
+
+I think that's important but I'm not seeing right now how it's related
+to preventing processes stalling for long periods of time in direct
+reclaim and compaction.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
