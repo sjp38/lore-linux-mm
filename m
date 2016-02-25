@@ -1,42 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 677146B0254
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 09:16:51 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id c200so30619959wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 06:16:51 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id w7si4318978wmw.101.2016.02.25.06.16.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 06:16:50 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id g62so3723762wme.2
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 06:16:50 -0800 (PST)
-Date: Thu, 25 Feb 2016 15:16:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/5] oom: clear TIF_MEMDIE after oom_reaper managed to
- unmap the address space
-Message-ID: <20160225141647.GC4204@dhcp22.suse.cz>
-References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
- <1454505240-23446-4-git-send-email-mhocko@kernel.org>
- <201602252028.BAE39532.MFOHFLOQSOVFJt@I-love.SAKURA.ne.jp>
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FA5B6B0255
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 09:20:11 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id hb3so13805355igb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 06:20:11 -0800 (PST)
+Received: from out1134-233.mail.aliyun.com (out1134-233.mail.aliyun.com. [42.120.134.233])
+        by mx.google.com with ESMTP id 78si10690162ior.54.2016.02.25.06.20.09
+        for <linux-mm@kvack.org>;
+        Thu, 25 Feb 2016 06:20:10 -0800 (PST)
+Message-ID: <56CF0E6A.2090204@emindsoft.com.cn>
+Date: Thu, 25 Feb 2016 22:23:38 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201602252028.BAE39532.MFOHFLOQSOVFJt@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <20160225085719.GA17573@dhcp22.suse.cz>
+In-Reply-To: <20160225085719.GA17573@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org
 
-On Thu 25-02-16 20:28:35, Tetsuo Handa wrote:
-[...]
-> Did you decide what to do if the OOM reaper is unable to take mmap_sem
-> for the associated mm struct?
+On 2/25/16 16:57, Michal Hocko wrote:
+> On Thu 25-02-16 06:26:31, chengang@emindsoft.com.cn wrote:
+>>
+>> Always notice about 80 columns, and the white space near '|'.
+>>
+>> Let the wrapped function parameters align as the same styles.
+>>
+>> Remove redundant statement "enum zone_type z;" in function gfp_zone.
+> 
+> I do not think this is an improvement. The comment placement is just odd
+> and artificially splitting the mask into more lines makes git grep
+> harder to use.
+> 
 
-Not yet because I consider it outside of the context of this submission.
+Excuse me, I am not quite sure your meaning is the whole contents of the
+patch is worthless, or only for the "comment placement"?
+
+For the "comment placement" the common way is below, but still make git
+grep harder:
+
+-#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
++/* ZONE_MOVABLE allowed */
++#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)
+
+Then how about:
+
+-#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
++#define __GFP_MOVABLE	\
+		((__force gfp_t)___GFP_MOVABLE) /* ZONE_MOVABLE allowed */
+
+or:
+
+-#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
++#define __GFP_MOVABLE	/* ZONE_MOVABLE allowed */ \
+			((__force gfp_t)___GFP_MOVABLE)
+
+
+Thanks.
 -- 
-Michal Hocko
-SUSE Labs
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
