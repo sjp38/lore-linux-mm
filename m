@@ -1,86 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 67E816B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 23:52:42 -0500 (EST)
-Received: by mail-qk0-f181.google.com with SMTP id o6so15730611qkc.2
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 20:52:42 -0800 (PST)
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com. [129.33.205.208])
-        by mx.google.com with ESMTPS id w132si6393168qka.53.2016.02.24.20.52.41
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EABD6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 00:36:23 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id fl4so25975430pad.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:36:23 -0800 (PST)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id bm5si9984685pad.107.2016.02.24.21.36.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Feb 2016 20:52:41 -0800 (PST)
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 24 Feb 2016 23:52:41 -0500
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id BD887C90041
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 23:52:35 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1P4qcE329032658
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 04:52:38 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1P4qceb018088
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 23:52:38 -0500
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 21:36:22 -0800 (PST)
+Received: by mail-pf0-x232.google.com with SMTP id x65so26495592pfb.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:36:22 -0800 (PST)
+Date: Wed, 24 Feb 2016 21:36:13 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: Problems with swapping in v4.5-rc on POWER
-In-Reply-To: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
-References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
-Date: Thu, 25 Feb 2016 10:22:34 +0530
-Message-ID: <877fhttmr1.fsf@linux.vnet.ibm.com>
+In-Reply-To: <1456373550.30375.3.camel@ellerman.id.au>
+Message-ID: <alpine.LSU.2.11.1602242131480.6876@eggly.anvils>
+References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils> <1456373550.30375.3.camel@ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Hugh Dickins <hughd@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hugh Dickins <hughd@google.com> writes:
+On Thu, 25 Feb 2016, Michael Ellerman wrote:
+> 
+> I do run tests on G5, but obviously not rigorously enough. I kicked off a few
+> kernel builds on mine and it survived, though once it hits swap it's almost
+> unusably slow. I'll leave it running overnight and see if I hit anything.
 
-> I've plagiarized the subject from Paulus's "Problems with THP" mail
-> last weekend; but my similar problems are on PowerMac G5 baremetal,
-> with 4kB pages, not capable of THP and no THP configured in.
->
-> Under heavily swapping load, running kernel builds on tmpfs in limited
-> memory, I've been seeing random segfaults too, internal compiler errors
-> etc.  Not easily reproduced: sometimes happens in minutes, sometimes
-> not for several hours.
->
-> I tried and failed to construct a reproducer for you: my lack of a good
-> recipe has deterred me from reporting it, and seeing Paulus's mail on
-> THP gave me hope that the answer would come up in that thread; but no,
-> that was quickly resolved as a THP issue, since fixed.
->
-> (Mine had appeared to be fixed in v4.5-rc4 anyway; but I guess I
-> just didn't try hard enough, it resurfaced on -rc5 immediately.)
->
-> I've seen no sign of such problems on x86.  And I saw no sign of such
-> problems on v4.4-rc8-mm1, when I included the fixes to the _PAGE_PTE
-> and _PAGE_SWP_SOFT_DIRTY swapoff issues we discussed back then (in
-> 33 hours of load, should be good enough; but did see such problems
-> a couple of times before including those fixes - I took them to be
-> a side-effect of the page flags issue, but now rather doubt that).
->
+Oh yes, I'd forgotten how unusably slow: I tend to forget that I slipped an
+SSD in there some while back, just for the swapping: slow, but not unusable.
 
-Can you test the impact of the merge listed below ?(ie, revert the merge and see if
-we can reproduce and also verify with merge applied). This will give us a
-set of commits to look closer. We had quiet a lot of page table
-related changes going in this merge window. 
+Thanks, I'm hoping you will be able to reproduce it yourself.
 
-f689b742f217b2ffe7 ("Pull powerpc updates from Michael Ellerman:")
-
-That is the merge commit that added _PAGE_PTE. 
-
-
-> The minutes or hours thing: I wonder if that indicates a missing
-> initialization somewhere: that can easily show up soon after booting,
-> but then the machine settles into a steady state of reusing the same
-> structures, now initialized; until much later something disturbs the
-> state and it has to allocate more.  Sheer speculation, but I wonder.
->
-
-
--aneesh
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
