@@ -1,92 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2107B6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 19:36:28 -0500 (EST)
-Received: by mail-io0-f181.google.com with SMTP id g203so71961073iof.2
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 16:36:28 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id s95si6501786ioe.115.2016.02.24.16.36.26
-        for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 16:36:27 -0800 (PST)
-Date: Thu, 25 Feb 2016 09:37:44 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2] mm: scale kswapd watermarks in proportion to memory
-Message-ID: <20160225003744.GC9723@js1304-P5Q-DELUXE>
-References: <1456184002-15729-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D9C8C6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 20:01:43 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fl4so22118650pad.0
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 17:01:43 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id yk10si8456513pac.24.2016.02.24.17.01.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 17:01:42 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id fl4so1822101pad.2
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 17:01:42 -0800 (PST)
+From: SeongJae Park <sj38.park@gmail.com>
+Date: Thu, 25 Feb 2016 10:01:36 +0900 (KST)
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+In-Reply-To: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
+Message-ID: <alpine.DEB.2.10.1602250952030.16296@hxeon>
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456184002-15729-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Chen Gang <chengang@emindsoft.com.cn>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-kernel@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org, mgorman@techsingularity.net, vdavydov@virtuozzo.com, dan.j.williams@intel.com, linux-mm@kvack.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-Hello, Johannes.
+Hello Chen,
 
-Just nitpick below.
 
-On Mon, Feb 22, 2016 at 03:33:22PM -0800, Johannes Weiner wrote:
-> In machines with 140G of memory and enterprise flash storage, we have
-> seen read and write bursts routinely exceed the kswapd watermarks and
-> cause thundering herds in direct reclaim. Unfortunately, the only way
-> to tune kswapd aggressiveness is through adjusting min_free_kbytes -
-> the system's emergency reserves - which is entirely unrelated to the
-> system's latency requirements. In order to get kswapd to maintain a
-> 250M buffer of free memory, the emergency reserves need to be set to
-> 1G. That is a lot of memory wasted for no good reason.
-> 
-> On the other hand, it's reasonable to assume that allocation bursts
-> and overall allocation concurrency scale with memory capacity, so it
-> makes sense to make kswapd aggressiveness a function of that as well.
-> 
-> Change the kswapd watermark scale factor from the currently fixed 25%
-> of the tunable emergency reserve to a tunable 0.001% of memory.
+On Thu, 25 Feb 2016, chengang@emindsoft.com.cn wrote:
 
-s/0.001%/0.1%
-
-> Beyond 1G of memory, this will produce bigger watermark steps than the
-> current formula in default settings. Ensure that the new formula never
-> chooses steps smaller than that, i.e. 25% of the emergency reserve.
-> 
-> On a 140G machine, this raises the default watermark steps - the
-> distance between min and low, and low and high - from 16M to 143M.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Mel Gorman <mgorman@suse.de>
+> From: Chen Gang <chengang@emindsoft.com.cn>
+>
+> Always notice about 80 columns, and the white space near '|'.
+>
+> Let the wrapped function parameters align as the same styles.
+>
+> Remove redundant statement "enum zone_type z;" in function gfp_zone.
+>
+> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
 > ---
->  Documentation/sysctl/vm.txt | 18 ++++++++++++++++++
->  include/linux/mm.h          |  1 +
->  include/linux/mmzone.h      |  2 ++
->  kernel/sysctl.c             | 10 ++++++++++
->  mm/page_alloc.c             | 29 +++++++++++++++++++++++++++--
->  5 files changed, 58 insertions(+), 2 deletions(-)
-> 
-> v2: Ensure 25% of emergency reserves as a minimum on small machines -Rik
-> 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 89a887c..b02d940 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -803,6 +803,24 @@ performance impact. Reclaim code needs to take various locks to find freeable
->  directory and inode objects. With vfs_cache_pressure=1000, it will look for
->  ten times more freeable objects than there are.
->  
-> +=============================================================
-> +
-> +watermark_scale_factor:
-> +
-> +This factor controls the aggressiveness of kswapd. It defines the
-> +amount of memory left in a node/system before kswapd is woken up and
-> +how much memory needs to be free before kswapd goes back to sleep.
-> +
-> +The unit is in fractions of 10,000. The default value of 10 means the
-> +distances between watermarks are 0.001% of the available memory in the
-> +node/system. The maximum value is 1000, or 10% of memory.
+> include/linux/gfp.h | 35 ++++++++++++++++++++---------------
+> 1 file changed, 20 insertions(+), 15 deletions(-)
+>
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 36e0c5e..cf904ef 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -53,8 +53,10 @@ struct vm_area_struct;
+> #define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+> #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+> #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+> -#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+> -#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
+> +#define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE) \
+> +						/* ZONE_MOVABLE allowed */
 
-Ditto for 0.001%.
+Well, the indentation for the comment and the '\' looks odd to me.  If
+the 80 column limit is necessary, how about moving the comment to above
+line of the macro as below?  Because comments are usually placed before
+the target they are explaining, I believe this may better to read.
 
-Thanks.
+  -#define __GFP_MOVABLE        ((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+  +/* ZONE_MOVABLE allowed */
+  +#define __GFP_MOVABLE        ((__force gfp_t)___GFP_MOVABLE)
+
+Maybe the opinion can be applied to below similar changes, too.
+
+
+Thanks,
+SeongJae Park.
+
+> +#define GFP_ZONEMASK	(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32 | \
+> +			 __GFP_MOVABLE)
+>
+> /*
+>  * Page mobility and placement hints
+> @@ -151,9 +153,12 @@ struct vm_area_struct;
+>  */
+> #define __GFP_IO	((__force gfp_t)___GFP_IO)
+> #define __GFP_FS	((__force gfp_t)___GFP_FS)
+> -#define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
+> -#define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
+> -#define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
+> +#define __GFP_DIRECT_RECLAIM ((__force gfp_t)___GFP_DIRECT_RECLAIM) \
+> +							/* Caller can reclaim */
+> +#define __GFP_KSWAPD_RECLAIM ((__force gfp_t)___GFP_KSWAPD_RECLAIM) \
+> +							/* kswapd can wake */
+> +#define __GFP_RECLAIM	((__force gfp_t)(___GFP_DIRECT_RECLAIM | \
+> +			 ___GFP_KSWAPD_RECLAIM))
+> #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+> #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
+> #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
+> @@ -262,7 +267,7 @@ struct vm_area_struct;
+> 			 ~__GFP_KSWAPD_RECLAIM)
+>
+> /* Convert GFP flags to their corresponding migrate type */
+> -#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+> +#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
+> #define GFP_MOVABLE_SHIFT 3
+>
+> static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+> @@ -377,11 +382,10 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+>
+> static inline enum zone_type gfp_zone(gfp_t flags)
+> {
+> -	enum zone_type z;
+> 	int bit = (__force int) (flags & GFP_ZONEMASK);
+> +	enum zone_type z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+> +			    ((1 << GFP_ZONES_SHIFT) - 1);
+>
+> -	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+> -					 ((1 << GFP_ZONES_SHIFT) - 1);
+> 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+> 	return z;
+> }
+> @@ -428,8 +432,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+> 		       struct zonelist *zonelist, nodemask_t *nodemask);
+>
+> static inline struct page *
+> -__alloc_pages(gfp_t gfp_mask, unsigned int order,
+> -		struct zonelist *zonelist)
+> +__alloc_pages(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist)
+> {
+> 	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+> }
+> @@ -453,7 +456,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+>  * online.
+>  */
+> static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+> -						unsigned int order)
+> +					    unsigned int order)
+> {
+> 	if (nid == NUMA_NO_NODE)
+> 		nid = numa_mem_id();
+> @@ -470,8 +473,9 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+> 	return alloc_pages_current(gfp_mask, order);
+> }
+> extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+> -			struct vm_area_struct *vma, unsigned long addr,
+> -			int node, bool hugepage);
+> +				    struct vm_area_struct *vma,
+> +				    unsigned long addr, int node,
+> +				    bool hugepage);
+> #define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+> 	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+> #else
+> @@ -552,7 +556,8 @@ static inline bool pm_suspended_storage(void)
+> }
+> #endif /* CONFIG_PM_SLEEP */
+>
+> -#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+> +#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
+> +     defined(CONFIG_CMA)
+> /* The below functions must be run on a range from a single zone. */
+> extern int alloc_contig_range(unsigned long start, unsigned long end,
+> 			      unsigned migratetype);
+> -- 
+> 1.9.3
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
