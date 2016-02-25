@@ -1,161 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B6996B0005
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 21:40:46 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id g6so4988377igt.1
-        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 18:40:46 -0800 (PST)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.232])
-        by mx.google.com with ESMTP id u72si7111644ioi.167.2016.02.24.18.40.45
-        for <linux-mm@kvack.org>;
-        Wed, 24 Feb 2016 18:40:45 -0800 (PST)
-Date: Wed, 24 Feb 2016 21:40:42 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] writeback: call writeback tracepoints withoud holding
- list_lock in wb_writeback()
-Message-ID: <20160224214042.71c3493b@grimm.local.home>
-In-Reply-To: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
-References: <1456354043-31420-1-git-send-email-yang.shi@linaro.org>
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 171F56B0253
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2016 22:47:17 -0500 (EST)
+Received: by mail-oi0-f46.google.com with SMTP id x21so31739393oix.2
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 19:47:17 -0800 (PST)
+Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
+        by mx.google.com with ESMTPS id sd10si4923193obb.48.2016.02.24.19.47.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Feb 2016 19:47:16 -0800 (PST)
+Received: by mail-ob0-x231.google.com with SMTP id ts10so38096464obc.1
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2016 19:47:16 -0800 (PST)
+Date: Wed, 24 Feb 2016 19:47:06 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+In-Reply-To: <20160203132718.GI6757@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <20160203132718.GI6757@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, tglx@linutronix.de, bigeasy@linutronix.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linaro-kernel@lists.linaro.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 24 Feb 2016 14:47:23 -0800
-Yang Shi <yang.shi@linaro.org> wrote:
+On Wed, 3 Feb 2016, Michal Hocko wrote:
+> Hi,
+> this thread went mostly quite. Are all the main concerns clarified?
+> Are there any new concerns? Are there any objections to targeting
+> this for the next merge window?
 
-> commit 5634cc2aa9aebc77bc862992e7805469dcf83dac ("writeback: update writeback
-> tracepoints to report cgroup") made writeback tracepoints report cgroup
-> writeback, but it may trigger the below bug on -rt kernel due to the list_lock
-> held for the for loop in wb_writeback().
+Sorry to say at this late date, but I do have one concern: hopefully
+you can tweak something somewhere, or point me to some tunable that
+I can adjust (I've not studied the patches, sorry).
 
-list_lock is a sleeping mutex, it's not disabling preemption. Moving it
-doesn't make a difference.
+This rework makes it impossible to run my tmpfs swapping loads:
+they're soon OOM-killed when they ran forever before, so swapping
+does not get the exercise on mmotm that it used to.  (But I'm not
+so arrogant as to expect you to optimize for my load!)
 
-> 
-> BUG: sleeping function called from invalid context at kernel/locking/rtmutex.c:930
-> in_atomic(): 1, irqs_disabled(): 0, pid: 625, name: kworker/u16:3
+Maybe it's just that I'm using tmpfs, and there's code that's conscious
+of file and anon, but doesn't cope properly with the awkward shmem case.
 
-Something else disabled preemption. And note, nothing in the tracepoint
-should have called a sleeping function.
+(Of course, tmpfs is and always has been a problem for OOM-killing,
+given that it takes up memory, but none is freed by killing processes:
+but although that is a tiresome problem, it's not what either of us is
+attacking here.)
 
+Taking many of the irrelevancies out of my load, here's something you
+could try, first on v4.5-rc5 and then on mmotm.
 
-> INFO: lockdep is turned off.
-> Preemption disabled at:[<ffffffc000374a5c>] wb_writeback+0xec/0x830
-> 
-> CPU: 7 PID: 625 Comm: kworker/u16:3 Not tainted 4.4.1-rt5 #20
-> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
-> Workqueue: writeback wb_workfn (flush-7:0)
-> Call trace:
-> [<ffffffc00008d708>] dump_backtrace+0x0/0x200
-> [<ffffffc00008d92c>] show_stack+0x24/0x30
-> [<ffffffc0007b0f40>] dump_stack+0x88/0xa8
-> [<ffffffc000127d74>] ___might_sleep+0x2ec/0x300
-> [<ffffffc000d5d550>] rt_spin_lock+0x38/0xb8
-> [<ffffffc0003e0548>] kernfs_path_len+0x30/0x90
-> [<ffffffc00036b360>] trace_event_raw_event_writeback_work_class+0xe8/0x2e8
+Boot with mem=1G (or boot your usual way, and do something to occupy
+most of the memory: I think /proc/sys/vm/nr_hugepages provides a great
+way to gobble up most of the memory, though it's not how I've done it).
 
-How accurate is this trace back? Here's the code that is executed in
-this tracepoint:
+Make sure you have swap: 2G is more than enough.  Copy the v4.5-rc5
+kernel source tree into a tmpfs: size=2G is more than enough.
+make defconfig there, then make -j20.
 
-	TP_fast_assign(
-		struct device *dev = bdi->dev;
-		if (!dev)
-			dev = default_backing_dev_info.dev;
-		strncpy(__entry->name, dev_name(dev), 32);
-		__entry->nr_pages = work->nr_pages;
-		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
-		__entry->sync_mode = work->sync_mode;
-		__entry->for_kupdate = work->for_kupdate;
-		__entry->range_cyclic = work->range_cyclic;
-		__entry->for_background	= work->for_background;
-		__entry->reason = work->reason;
-	),
+On a v4.5-rc5 kernel that builds fine, on mmotm it is soon OOM-killed.
 
-See anything that would sleep?
+Except that you'll probably need to fiddle around with that j20,
+it's true for my laptop but not for my workstation.  j20 just happens
+to be what I've had there for years, that I now see breaking down
+(I can lower to j6 to proceed, perhaps could go a bit higher,
+but it still doesn't exercise swap very much).
 
-> [<ffffffc000374f90>] wb_writeback+0x620/0x830
-> [<ffffffc000376224>] wb_workfn+0x61c/0x950
-> [<ffffffc000110adc>] process_one_work+0x3ac/0xb30
-> [<ffffffc0001112fc>] worker_thread+0x9c/0x7a8
-> [<ffffffc00011a9e8>] kthread+0x190/0x1b0
-> [<ffffffc000086ca0>] ret_from_fork+0x10/0x30
-> 
-> The list_lock was moved outside the for loop by commit
-> e8dfc30582995ae12454cda517b17d6294175b07 ("writeback: elevate queue_io()
-> into wb_writeback())", however, the commit log says "No behavior change", so
-> it sounds safe to have the list_lock acquired inside the for loop as it did
-> before.
-> 
-> Just acquire list_lock at the necessary points and keep all writeback
-> tracepoints outside the critical area protected by list_lock in
-> wb_writeback().
+This OOM detection rework significantly lowers the number of jobs
+which can be run in parallel without being OOM-killed.  Which would
+be welcome if it were choosing to abort in place of thrashing, but
+the system was far from thrashing: j20 took a few seconds more than
+j6, and even j30 didn't take 50% longer.
 
-But list_lock itself is a sleeping lock. This doesn't make sense.
+(I have /proc/sys/vm/swappiness 100, if that matters.)
 
-This is not the bug you are looking for.
-
--- Steve
-
-> 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> ---
->  fs/fs-writeback.c | 12 +++++++-----
->  1 file changed, 7 insertions(+), 5 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 1f76d89..9b7b5f6 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -1623,7 +1623,6 @@ static long wb_writeback(struct bdi_writeback *wb,
->  	work->older_than_this = &oldest_jif;
->  
->  	blk_start_plug(&plug);
-> -	spin_lock(&wb->list_lock);
->  	for (;;) {
->  		/*
->  		 * Stop writeback when nr_pages has been consumed
-> @@ -1661,15 +1660,19 @@ static long wb_writeback(struct bdi_writeback *wb,
->  			oldest_jif = jiffies;
->  
->  		trace_writeback_start(wb, work);
-> +
-> +		spin_lock(&wb->list_lock);
->  		if (list_empty(&wb->b_io))
->  			queue_io(wb, work);
->  		if (work->sb)
->  			progress = writeback_sb_inodes(work->sb, wb, work);
->  		else
->  			progress = __writeback_inodes_wb(wb, work);
-> -		trace_writeback_written(wb, work);
->  
->  		wb_update_bandwidth(wb, wb_start);
-> +		spin_unlock(&wb->list_lock);
-> +
-> +		trace_writeback_written(wb, work);
->  
->  		/*
->  		 * Did we write something? Try for more
-> @@ -1693,15 +1696,14 @@ static long wb_writeback(struct bdi_writeback *wb,
->  		 */
->  		if (!list_empty(&wb->b_more_io))  {
->  			trace_writeback_wait(wb, work);
-> +			spin_lock(&wb->list_lock);
->  			inode = wb_inode(wb->b_more_io.prev);
-> -			spin_lock(&inode->i_lock);
->  			spin_unlock(&wb->list_lock);
-> +			spin_lock(&inode->i_lock);
->  			/* This function drops i_lock... */
->  			inode_sleep_on_writeback(inode);
-> -			spin_lock(&wb->list_lock);
->  		}
->  	}
-> -	spin_unlock(&wb->list_lock);
->  	blk_finish_plug(&plug);
->  
->  	return nr_pages - work->nr_pages;
+I hope there's an easy answer to this: thanks!
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
