@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D9A6B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:32:57 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id g62so64286952wme.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:32:57 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id p3si15155331wjb.157.2016.02.26.02.32.56
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D92236B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:37:45 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id c200so66401387wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:37:45 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id cd8si15182846wjc.91.2016.02.26.02.37.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 02:32:56 -0800 (PST)
-Received: by mail-wm0-x22e.google.com with SMTP id g62so66886532wme.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:32:56 -0800 (PST)
-Date: Fri, 26 Feb 2016 13:32:53 +0300
+        Fri, 26 Feb 2016 02:37:44 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id g62so64448354wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:37:44 -0800 (PST)
+Date: Fri, 26 Feb 2016 13:37:42 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
- disable it by default
-Message-ID: <20160226103253.GA22450@node.shutemov.name>
-References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
- <20160225190144.GE1180@redhat.com>
+Subject: Re: THP race?
+Message-ID: <20160226103742.GC22450@node.shutemov.name>
+References: <20160223154950.GA22449@node.shutemov.name>
+ <20160223180609.GC23289@redhat.com>
+ <20160223183832.GB21820@node.shutemov.name>
+ <20160223192835.GJ9157@redhat.com>
+ <CAA9_cmcoVs=bM5Q+=tGEBFoA-OG9A50NiM2vz+mXBkCtu0jm-A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160225190144.GE1180@redhat.com>
+In-Reply-To: <CAA9_cmcoVs=bM5Q+=tGEBFoA-OG9A50NiM2vz+mXBkCtu0jm-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Feb 25, 2016 at 08:01:44PM +0100, Andrea Arcangeli wrote:
-> Another problem is that khugepaged isn't able to collapse shared
-> readonly anon pages, mostly because of the rmap complexities.  I agree
-> with Kirill we should be looking into how make this work, although I
-> doubt the simpler refcounting is going to help much in this regard as
-> the problem is in dealing with rmap, not so much with refcounts.
+On Thu, Feb 25, 2016 at 10:45:05AM -0800, Dan Williams wrote:
+> On Tue, Feb 23, 2016 at 11:28 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > On Tue, Feb 23, 2016 at 09:38:32PM +0300, Kirill A. Shutemov wrote:
+> >> pmd_trans_unstable(pmd), otherwise looks good:
+> >
+> > Yes sorry.
+> >
+> >> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >
+> > Thanks for the quick ack, I just noticed or I would have added it to
+> > the resubmit, but it can be still added to -mm.
+> >
+> >> BTW, I guess DAX would need to introduce the same infrastructure for
+> >> pmd_devmap(). Dan?
+> >
+> > There is a i_mmap_lock_write in the truncate path that saves the day
+> > for the pmd zapping in the truncate() case without mmap_sem (the only
+> > case anon THP doesn't need to care about as truncate isn't possible in
+> > the anon case), but not in the MADV_DONTNEED madvise case that runs
+> > only with the mmap_sem for reading.
+> >
+> > The only objective of this "infrastructure" is to add no pmd_lock()ing
+> > overhead to the page fault, if the mapping is already established but
+> > not huge, and we've just to walk through the pmd to reach the
+> > pte. All because MADV_DONTNEED is running with the mmap_sem for
+> > reading unlike munmap and other slower syscalls that are forced to
+> > mangle the vmas and have to take the mmap_sem for writing regardless.
+> >
+> > The question for DAX is if it should do a pmd_devmap check inside
+> > pmd_none_or_trans_huge_or_clear_bad() after pmd_trans_huge() and get
+> > away with a one liner, or add its own infrastructure with
+> > pmd_devmap_unstable(). In the pmd_devmap case the problem isn't just
+> > in __handle_mm_fault. If it could share the same infrastructure it'd
+> > be ideal.
+> >
+> 
+> Yes, I see no reason why we can't/shoudn't move the pmd_devmap() check
+> inside pmd_none_or_trans_huge_or_clear_bad().
 
-Could you elaborate on problems with rmap? I have looked into this deeply
-yet.
-
-Do you see anything what would prevent following basic scheme:
-
- - Identify series of small pages as candidate for collapsing into
-   a compound page. Not sure how difficult it would be. I guess it can be
-   done by looking for adjacent pages which belong to the same anon_vma.
-
- - Setup migration entries for pte which maps these pages.
-
- - Collapse small pages into compound page. IIUC, it only will be possible
-   if these pages are not pinned.
-
- - Replace migration entries with ptes which point to subpages of the new
-   compound page.
-
- - Scan over all vmas mapping this compound page, looking for VMA suitable
-   for huge page. We cannot collapse it right away due lock inversion of
-   anon_vma->rwsem vs. mmap_sem.
-
- - For found VMAs, collapse page table into PMD one VMA a time under
-   down_write(mmap_sem).
-
-Even if would fail to create any PMDs, we would reduce LRU pressure by
-collapsing small pages into compound one.
+Are you going take care about this?
 
 -- 
  Kirill A. Shutemov
