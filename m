@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 75E9E6B0254
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 06:41:26 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id b205so68642771wmb.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 03:41:26 -0800 (PST)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id fy9si15482618wjb.72.2016.02.26.03.41.24
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 41CA26B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 07:15:09 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id g62so70271508wme.1
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 04:15:09 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
+        by mx.google.com with ESMTPS id k4si15648252wje.12.2016.02.26.04.15.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 26 Feb 2016 03:41:25 -0800 (PST)
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 26 Feb 2016 11:41:24 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 599C917D8062
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:41:43 +0000 (GMT)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1QBfKrP57802958
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:41:20 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1QBfJX6016582
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 06:41:20 -0500
-Date: Fri, 26 Feb 2016 12:41:18 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] thp, mm: remove comments on serializion of THP split
- vs. gup_fast
-Message-ID: <20160226124118.41ad93a2@mschwide>
-In-Reply-To: <20160226110650.GY6356@twins.programming.kicks-ass.net>
-References: <1456329561-4319-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<20160224185025.65711ed6@thinkpad>
-	<20160225150744.GA19707@node.shutemov.name>
-	<alpine.LSU.2.11.1602252233280.9793@eggly.anvils>
-	<20160226110650.GY6356@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Feb 2016 04:15:08 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] staging/goldfish: use 6-arg get_user_pages()
+Date: Fri, 26 Feb 2016 12:59:43 +0100
+Message-Id: <1456488033-4044939-1-git-send-email-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arm-kernel@lists.infradead.org, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jin Qian <jinqian@android.com>, linux-kernel@vger.kernel.org
 
-On Fri, 26 Feb 2016 12:06:50 +0100
-Peter Zijlstra <peterz@infradead.org> wrote:
+After commit cde70140fed8 ("mm/gup: Overload get_user_pages() functions"),
+we get warning for this file, as it calls get_user_pages() with eight
+arguments after the change of the calling convention to use only six:
 
-> On Thu, Feb 25, 2016 at 10:50:14PM -0800, Hugh Dickins wrote:
-> 
-> > For example, see the fallback tlb_remove_table_one() in mm/memory.c:
-> > that one uses smp_call_function() sending IPI to all CPUs concerned,
-> > without waiting an RCU grace period at all.
-> 
-> The better comment is with mmu_table_batch.
-> 
-> Its been too long for me to fully remember, nor have I really paid much
-> attention to this code in the past few years, so any memory I might have
-> had might be totally wrong.
-> 
-> But relying on rcu_read_lock_sched() and friends would mean replacing
-> that smp_call_function() with synchronize_sched().
+drivers/platform/goldfish/goldfish_pipe.c: In function 'goldfish_pipe_read_write':
+drivers/platform/goldfish/goldfish_pipe.c:312:3: error: 'get_user_pages8' is deprecated [-Werror=deprecated-declarations]
 
-That makes sense, just tried that together with a big fat printk to see if
-we hit that out-of-memory condition in the page table freeing code.
-The system is swapping like mad but no message so far.
- 
-> A real quick look at the current code seems to suggest that _might_ just
-> work, but note that that will be slower, RT and HPC people will like you
-> for it though.
-> 
-> So it depends on how hard we hit that special, totally out of memory,
-> case, and if we care about some performance if we do.
+This removes the first two arguments, which are now the default.
 
-If the system is out of memory bad enough for the page allocation to fail
-an additional synchronize_sched() call probably won't hurt too much. Most
-of the time we'll be waiting for I/O anyway.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+The API change is currently only in the mm/pkeys branch of the
+tip tree, while the goldfish_pipe driver started using the
+old API in the staging/next branch.
 
+Andrew could pick it up into linux-mm in the meantime, or I can
+resend it at some later point if nobody else does the change
+after 4.6-rc1.
+---
+ drivers/platform/goldfish/goldfish_pipe.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/platform/goldfish/goldfish_pipe.c b/drivers/platform/goldfish/goldfish_pipe.c
+index 9973cebb4d6f..07462d79d040 100644
+--- a/drivers/platform/goldfish/goldfish_pipe.c
++++ b/drivers/platform/goldfish/goldfish_pipe.c
+@@ -309,8 +309,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
+ 		 * much memory to the process.
+ 		 */
+ 		down_read(&current->mm->mmap_sem);
+-		ret = get_user_pages(current, current->mm, address, 1,
+-				     !is_write, 0, &page, NULL);
++		ret = get_user_pages(address, 1, !is_write, 0, &page, NULL);
+ 		up_read(&current->mm->mmap_sem);
+ 		if (ret < 0)
+ 			break;
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
