@@ -1,41 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f48.google.com (mail-lf0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 253836B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:47:50 -0500 (EST)
-Received: by mail-lf0-f48.google.com with SMTP id j78so56894292lfb.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 08:47:50 -0800 (PST)
-Received: from mail-lb0-x236.google.com (mail-lb0-x236.google.com. [2a00:1450:4010:c04::236])
-        by mx.google.com with ESMTPS id n184si6022727lfb.169.2016.02.26.08.47.48
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7495C6B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:48:52 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id g62so79958576wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 08:48:52 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id e13si5053153wme.27.2016.02.26.08.48.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 08:47:48 -0800 (PST)
-Received: by mail-lb0-x236.google.com with SMTP id ep2so17862575lbb.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 08:47:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1456461361-4345-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1456461361-4345-1-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Fri, 26 Feb 2016 19:47:48 +0300
-Message-ID: <CAPAsAGytHfMaX8VzgWX-PBXcH8aO0G82L3ZX5dSNa=trBFVsyg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/slub: support left redzone
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Fri, 26 Feb 2016 08:48:51 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id g62so79957936wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 08:48:51 -0800 (PST)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v4 0/7] SLAB support for KASAN
+Date: Fri, 26 Feb 2016 17:48:40 +0100
+Message-Id: <cover.1456504662.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2016-02-26 7:36 GMT+03:00  <js1304@gmail.com>:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> SLUB already has a redzone debugging feature.  But it is only positioned
-> at the end of object (aka right redzone) so it cannot catch left oob.
-> Although current object's right redzone acts as left redzone of next
-> object, first object in a slab cannot take advantage of this effect.  This
-> patch explicitly adds a left red zone to each object to detect left oob
-> more precisely.
->
+This patch set implements SLAB support for KASAN
 
-So why for each object? Can't we have left redzone only for the first object?
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
+
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
+
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
+---
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
+
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
+
+v4: - fix kbuild error reports
+---
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 ++++++--
+ include/linux/slab.h                 |  10 +-
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig.kasan                    |   4 +-
+ lib/Makefile                         |   7 +
+ lib/stackdepot.c                     | 274 +++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 221 +++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  45 ++++++
+ mm/kasan/quarantine.c                | 306 +++++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  71 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  58 ++++++-
+ mm/slab.h                            |   2 +
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  21 +--
+ 44 files changed, 1214 insertions(+), 90 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
+
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
