@@ -1,64 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 484CD6B0009
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 21:33:40 -0500 (EST)
-Received: by mail-oi0-f41.google.com with SMTP id w5so53361979oie.3
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:33:40 -0800 (PST)
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 341F86B0009
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2016 21:54:10 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id jq7so66698823obb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:54:10 -0800 (PST)
 Received: from mail-ob0-x241.google.com (mail-ob0-x241.google.com. [2607:f8b0:4003:c01::241])
-        by mx.google.com with ESMTPS id x192si8988679oif.66.2016.02.25.18.33.39
+        by mx.google.com with ESMTPS id n206si9065410oif.52.2016.02.25.18.54.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 18:33:39 -0800 (PST)
-Received: by mail-ob0-x241.google.com with SMTP id u2so4454548obz.3
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:33:39 -0800 (PST)
+        Thu, 25 Feb 2016 18:54:09 -0800 (PST)
+Received: by mail-ob0-x241.google.com with SMTP id u2so4481514obz.3
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 18:54:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <56CF8043.1030603@emindsoft.com.cn>
-References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
- <20160225092752.GU2854@techsingularity.net> <56CF1202.2020809@emindsoft.com.cn>
- <20160225160707.GX2854@techsingularity.net> <56CF8043.1030603@emindsoft.com.cn>
+In-Reply-To: <1456356923-5164-2-git-send-email-keescook@chromium.org>
+References: <1456356923-5164-1-git-send-email-keescook@chromium.org> <1456356923-5164-2-git-send-email-keescook@chromium.org>
 From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Fri, 26 Feb 2016 10:32:59 +0800
-Message-ID: <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com>
-Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+Date: Fri, 26 Feb 2016 10:53:29 +0800
+Message-ID: <CAHz2CGWrUQMicbLUxkD95VxEGe65NM9Mo76wHj3BoNgnEnnHzg@mail.gmail.com>
+Subject: Re: [RFC][PATCH v3 1/2] mm/page_poison.c: Enable PAGE_POISONING as a
+ separate option
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <chengang@emindsoft.com.cn>
-Cc: Mel Gorman <mgorman@techsingularity.net>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Laura Abbott <labbott@fedoraproject.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mathias Krause <minipli@googlemail.com>, Dave Hansen <dave.hansen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Feb 26, 2016 at 6:29 AM, Chen Gang <chengang@emindsoft.com.cn> wrote:
-> git is a tool mainly for analyzing code, but not mainly for normal
-> reading main code.
+On Thu, Feb 25, 2016 at 7:35 AM, Kees Cook <keescook@chromium.org> wrote:
+>  config PAGE_POISONING
+> -       bool
+> +       bool "Poison pages after freeing"
+> +       select PAGE_EXTENSION
+> +       select PAGE_POISONING_NO_SANITY if HIBERNATION
+> +       ---help---
+> +         Fill the pages with poison patterns after free_pages() and verify
+> +         the patterns before alloc_pages. The filling of the memory helps
+> +         reduce the risk of information leaks from freed data. This does
+> +         have a potential performance impact.
+> +
+> +         If unsure, say N
+> +
+
+I would suggest that you add some wording in the help text to clarify
+that what "poisoning"
+means here is not the same as that in "HWPoison".
+
+The previous one is pattern padding, while the latter one is just
+nomenclature borrowed from
+Intel for memory failure.
+
+> +config PAGE_POISONING_NO_SANITY
+> +       depends on PAGE_POISONING
+> +       bool "Only poison, don't sanity check"
+> +       ---help---
+> +          Skip the sanity checking on alloc, only fill the pages with
+> +          poison on free. This reduces some of the overhead of the
+> +          poisoning feature.
+> +
+> +          If you are only interested in sanitization, say Y. Otherwise
+> +          say N.
+> diff --git a/mm/Makefile b/mm/Makefile
+> index fb1a7948c107..ec59c071b4f9 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -13,7 +13,6 @@ KCOV_INSTRUMENT_slob.o := n
+>  KCOV_INSTRUMENT_slab.o := n
+>  KCOV_INSTRUMENT_slub.o := n
+>  KCOV_INSTRUMENT_page_alloc.o := n
+> -KCOV_INSTRUMENT_debug-pagealloc.o := n
+>  KCOV_INSTRUMENT_kmemleak.o := n
+>  KCOV_INSTRUMENT_kmemcheck.o := n
+>  KCOV_INSTRUMENT_memcontrol.o := n
+> @@ -63,9 +62,6 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
+>  obj-$(CONFIG_SLOB) += slob.o
+>  obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+>  obj-$(CONFIG_KSM) += ksm.o
+> -ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+> -       obj-$(CONFIG_DEBUG_PAGEALLOC) += debug-pagealloc.o
+> -endif
+>  obj-$(CONFIG_PAGE_POISONING) += page_poison.o
+>  obj-$(CONFIG_SLAB) += slab.o
+>  obj-$(CONFIG_SLUB) += slub.o
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index a34c359d8e81..0bdb3cfd83b5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1026,6 +1026,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+>                                            PAGE_SIZE << order);
+>         }
+>         arch_free_page(page, order);
+> +       kernel_poison_pages(page, 1 << order, 0);
+>         kernel_map_pages(page, 1 << order, 0);
 >
-> So for me, the coding styles need not consider about git.
+>         return true;
+> @@ -1497,6 +1498,7 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+>
+>         arch_alloc_page(page, order);
+>         kernel_map_pages(page, 1 << order, 1);
+> +       kernel_poison_pages(page, 1 << order, 1);
+>         kasan_alloc_pages(page, order);
+>
+>         if (gfp_flags & __GFP_ZERO)
+> diff --git a/mm/page_poison.c b/mm/page_poison.c
+> index 92ead727b8f0..884a6f854432 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -80,7 +80,7 @@ static void poison_page(struct page *page)
+>         kunmap_atomic(addr);
+>  }
+>
+> -void poison_pages(struct page *page, int n)
+> +static void poison_pages(struct page *page, int n)
+>  {
+>         int i;
+>
+> @@ -101,6 +101,9 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
+>         unsigned char *start;
+>         unsigned char *end;
+>
+> +       if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+> +               return;
+> +
+>         start = memchr_inv(mem, PAGE_POISON, bytes);
+>         if (!start)
+>                 return;
+> @@ -113,9 +116,9 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
+>         if (!__ratelimit(&ratelimit))
+>                 return;
+>         else if (start == end && single_bit_flip(*start, PAGE_POISON))
+> -               printk(KERN_ERR "pagealloc: single bit error\n");
+> +               pr_err("pagealloc: single bit error\n");
+>         else
+> -               printk(KERN_ERR "pagealloc: memory corruption\n");
+> +               pr_err("pagealloc: memory corruption\n");
+>
+>         print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, start,
+>                         end - start + 1, 1);
+> @@ -135,10 +138,28 @@ static void unpoison_page(struct page *page)
+>         kunmap_atomic(addr);
+>  }
+>
+> -void unpoison_pages(struct page *page, int n)
+> +static void unpoison_pages(struct page *page, int n)
+>  {
+>         int i;
+>
+>         for (i = 0; i < n; i++)
+>                 unpoison_page(page + i);
+>  }
+> +
+> +void kernel_poison_pages(struct page *page, int numpages, int enable)
+> +{
+> +       if (!page_poisoning_enabled())
+> +               return;
+> +
+> +       if (enable)
+> +               unpoison_pages(page, numpages);
+> +       else
+> +               poison_pages(page, numpages);
+> +}
+> +
+> +#ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+> +void __kernel_map_pages(struct page *page, int numpages, int enable)
+> +{
+> +       /* This function does nothing, all work is done via poison pages */
+> +}
+> +#endif
 
-For you, maybe yes.
+IMHO,  kernel_map_pages is originally incorporated for debugging page
+allocation.
+And latter for archs that do not support arch-specific page poisoning,
+a software poisoning
+method was used.
 
-But for most of the developers/learners,  git blame does help a lot.
-Kernel code was not as complicated as it is now, it is keeping evolving.
+So I think it is not appropriate to use two interfaces in the alloc/free hooks.
 
-So basically a history chain is indispensable in studying such a complex system.
-git blame fits in this role.  I benefited a lot from using it when I
-started to learn the code,
-And,  a pure coding style fix is sometimes really troublesome as I
-have to use git blame
-to go another step up along the history chain,  which is time
-consuming and boring.
-
-But after all, I bet you will be fond of using it if you dive deeper
-into the kernel code studying.
-And if you do,  you will know why so many developers in this thread
-are so upset and allergic
-to such coding-style fix.
-
-As for coding style, actually IMHO this patch is even _not_ a coding
-style, more like a code shuffle, indeed.
-
-And for your commit history, I found actually you have already
-contributed some quit good patches.
-I don't think it is helpful for a non-layman contributor to keep
-generating such code churn.
-
+The kernel_poison_pages actually should be an implementation detail
+and should be hided
+in the kernel_map_pages interface.
 
 
 Thanks,
