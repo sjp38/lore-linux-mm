@@ -1,61 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 41CA26B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 07:15:09 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id g62so70271508wme.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 04:15:09 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
-        by mx.google.com with ESMTPS id k4si15648252wje.12.2016.02.26.04.15.08
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 980846B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 08:30:52 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id g62so70306911wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:30:52 -0800 (PST)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id wl1si15923219wjc.217.2016.02.26.05.30.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 04:15:08 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] staging/goldfish: use 6-arg get_user_pages()
-Date: Fri, 26 Feb 2016 12:59:43 +0100
-Message-Id: <1456488033-4044939-1-git-send-email-arnd@arndb.de>
+        Fri, 26 Feb 2016 05:30:51 -0800 (PST)
+Received: by mail-wm0-x230.google.com with SMTP id g62so72642527wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:30:51 -0800 (PST)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v3 0/7] SLAB support for KASAN
+Date: Fri, 26 Feb 2016 14:30:39 +0100
+Message-Id: <cover.1456492360.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-arm-kernel@lists.infradead.org, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jin Qian <jinqian@android.com>, linux-kernel@vger.kernel.org
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-After commit cde70140fed8 ("mm/gup: Overload get_user_pages() functions"),
-we get warning for this file, as it calls get_user_pages() with eight
-arguments after the change of the calling convention to use only six:
+This patch set implements SLAB support for KASAN
 
-drivers/platform/goldfish/goldfish_pipe.c: In function 'goldfish_pipe_read_write':
-drivers/platform/goldfish/goldfish_pipe.c:312:3: error: 'get_user_pages8' is deprecated [-Werror=deprecated-declarations]
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
 
-This removes the first two arguments, which are now the default.
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
 ---
-The API change is currently only in the mm/pkeys branch of the
-tip tree, while the goldfish_pipe driver started using the
-old API in the staging/next branch.
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
 
-Andrew could pick it up into linux-mm in the meantime, or I can
-resend it at some later point if nobody else does the change
-after 4.6-rc1.
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
 ---
- drivers/platform/goldfish/goldfish_pipe.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 ++++++--
+ include/linux/slab.h                 |   6 +
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig.kasan                    |   4 +-
+ lib/Makefile                         |   7 +
+ lib/stackdepot.c                     | 274 +++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 221 +++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  45 ++++++
+ mm/kasan/quarantine.c                | 306 +++++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  69 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  58 ++++++-
+ mm/slab.h                            |   4 +
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  21 +--
+ 44 files changed, 1212 insertions(+), 88 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
 
-diff --git a/drivers/platform/goldfish/goldfish_pipe.c b/drivers/platform/goldfish/goldfish_pipe.c
-index 9973cebb4d6f..07462d79d040 100644
---- a/drivers/platform/goldfish/goldfish_pipe.c
-+++ b/drivers/platform/goldfish/goldfish_pipe.c
-@@ -309,8 +309,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
- 		 * much memory to the process.
- 		 */
- 		down_read(&current->mm->mmap_sem);
--		ret = get_user_pages(current, current->mm, address, 1,
--				     !is_write, 0, &page, NULL);
-+		ret = get_user_pages(address, 1, !is_write, 0, &page, NULL);
- 		up_read(&current->mm->mmap_sem);
- 		if (ret < 0)
- 			break;
 -- 
-2.7.0
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
