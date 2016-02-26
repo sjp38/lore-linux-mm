@@ -1,92 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0557D6B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 06:13:19 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id a4so65416350wme.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 03:13:18 -0800 (PST)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id a13si3499218wmd.86.2016.02.26.03.13.17
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 75E9E6B0254
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 06:41:26 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id b205so68642771wmb.1
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 03:41:26 -0800 (PST)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id fy9si15482618wjb.72.2016.02.26.03.41.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 03:13:18 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id B00941C23A4
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:13:17 +0000 (GMT)
-Date: Fri, 26 Feb 2016 11:13:16 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
- disable it by default
-Message-ID: <20160226111316.GB2854@techsingularity.net>
-References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
- <20160225190144.GE1180@redhat.com>
- <20160225195613.GZ2854@techsingularity.net>
- <20160225230219.GF1180@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Feb 2016 03:41:25 -0800 (PST)
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Fri, 26 Feb 2016 11:41:24 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 599C917D8062
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:41:43 +0000 (GMT)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u1QBfKrP57802958
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:41:20 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u1QBfJX6016582
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 06:41:20 -0500
+Date: Fri, 26 Feb 2016 12:41:18 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] thp, mm: remove comments on serializion of THP split
+ vs. gup_fast
+Message-ID: <20160226124118.41ad93a2@mschwide>
+In-Reply-To: <20160226110650.GY6356@twins.programming.kicks-ass.net>
+References: <1456329561-4319-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20160224185025.65711ed6@thinkpad>
+	<20160225150744.GA19707@node.shutemov.name>
+	<alpine.LSU.2.11.1602252233280.9793@eggly.anvils>
+	<20160226110650.GY6356@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160225230219.GF1180@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Fri, Feb 26, 2016 at 12:02:19AM +0100, Andrea Arcangeli wrote:
-> On Thu, Feb 25, 2016 at 07:56:13PM +0000, Mel Gorman wrote:
-> > Which is a specialised case that does not apply to all users. Remember
-> > that the data showed that a basic streaming write of an anon mapping on
-> > a freshly booted NUMA system was enough to stall the process for long
-> > periods of time.
-> > 
-> > Even in the specialised case, a single VM reaching its peak performance
-> > may rely on getting THP but if that's at the cost of reclaiming other
-> > pages that may be hot to a second VM then it's an overall loss.
+On Fri, 26 Feb 2016 12:06:50 +0100
+Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Thu, Feb 25, 2016 at 10:50:14PM -0800, Hugh Dickins wrote:
 > 
-> You're mixing the concern of that THP will use more memory with the
-> cost of defragmentation.
-
-There are three cases
-
-1. THP was allocated when the application only required 4K and consumes
-   more memory. This has always been the case but not the concern here
-2. Memory is fragmented but there are enough free pages. In this case,
-   only compaction is required and the memory footprint is the same
-3. Memory is fragmentation and pages have to be freed before compaction.
-
-It's 3 I was referred to even though all the cases are important.
-
-> If you've memory issues and you are ok to
-> sacrifice performance for swapping less you should disable THP, set it
-> to never, and that's it.
+> > For example, see the fallback tlb_remove_table_one() in mm/memory.c:
+> > that one uses smp_call_function() sending IPI to all CPUs concerned,
+> > without waiting an RCU grace period at all.
 > 
+> The better comment is with mmu_table_batch.
+> 
+> Its been too long for me to fully remember, nor have I really paid much
+> attention to this code in the past few years, so any memory I might have
+> had might be totally wrong.
+> 
+> But relying on rcu_read_lock_sched() and friends would mean replacing
+> that smp_call_function() with synchronize_sched().
 
-I want to get to the half-way point where THP is used if easily available
-without worrying that there will be stalls at some point in the future
-or requiring application modification for madvise. That's better than the
-all or nothing approach that users are currently faced with. I wince every
-time I see a tuning guide suggesting THP be disabled and have handled too
-many bugs where disabling THP was a workaround.
+That makes sense, just tried that together with a big fat printk to see if
+we hit that out-of-memory condition in the page table freeing code.
+The system is swapping like mad but no message so far.
+ 
+> A real quick look at the current code seems to suggest that _might_ just
+> work, but note that that will be slower, RT and HPC people will like you
+> for it though.
+> 
+> So it depends on how hard we hit that special, totally out of memory,
+> case, and if we care about some performance if we do.
 
-That said, you made a number of important points. I'm not going to respond
-to them individually because I believe I understand your concerns and now
-agree with them.  I've prototyped a patch that modifies the defrag tunable
-as follows;
-
-1. By default, "madvise" and direct reclaim/compaction for applications
-   that specifically requested that behaviour. This will avoid breaking
-   MADV_HUGEPAGE which you mentioned in a few places
-2. "never" will never reclaim anything and was the default behaviour of
-   version 1 but will not be the default in version 2.
-3. "defer" will wake kswapd which will reclaim or wake kcompactd
-   whichever is necessary. This is new but avoids stalls while helping
-   khugepaged do its work quickly in the near future.
-4. "always" will direct reclaim/compact just like todays behaviour
-
-I'm testing it at the moment to make sure each of the options behave
-correctly.
+If the system is out of memory bad enough for the page allocation to fail
+an additional synchronize_sched() call probably won't hurt too much. Most
+of the time we'll be waiting for I/O anyway.
 
 -- 
-Mel Gorman
-SUSE Labs
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
