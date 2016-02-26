@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E42E36B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 04:33:20 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id b205so64521719wmb.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 01:33:20 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id gk3si14891249wjd.195.2016.02.26.01.33.19
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2306B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:04:56 -0500 (EST)
+Received: by mail-io0-f177.google.com with SMTP id l127so117108412iof.3
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:04:56 -0800 (PST)
+Received: from sabe.cs.wisc.edu (sabe.cs.wisc.edu. [128.105.6.20])
+        by mx.google.com with ESMTPS id w62si15952761iof.21.2016.02.26.02.04.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 01:33:19 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id g62so8057273wme.2
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 01:33:19 -0800 (PST)
-Date: Fri, 26 Feb 2016 10:33:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20160226093317.GC8940@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602252219020.9793@eggly.anvils>
+        Fri, 26 Feb 2016 02:04:55 -0800 (PST)
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	(authenticated bits=0)
+	by sabe.cs.wisc.edu (8.14.7/8.14.1) with ESMTP id u1QA4s6l020907
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES128-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 04:04:54 -0600
+Received: by mail-oi0-f51.google.com with SMTP id w80so2355367oiw.2
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:04:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1602252219020.9793@eggly.anvils>
+In-Reply-To: <CAPcyv4jYXN0qJdvgv1yP+Wi6W+=RRk2QP225okHtqnXAMWihFQ@mail.gmail.com>
+References: <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com>
+ <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com> <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com>
+ <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com> <20160224225623.GL14668@dastard>
+ <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com> <x49twkwiozu.fsf@segfault.boston.devel.redhat.com>
+ <20160225201517.GA30721@dastard> <x49io1cik45.fsf@segfault.boston.devel.redhat.com>
+ <20160225222705.GD30721@dastard> <CAPcyv4jYXN0qJdvgv1yP+Wi6W+=RRk2QP225okHtqnXAMWihFQ@mail.gmail.com>
+From: Thanumalayan Sankaranarayana Pillai <madthanu@cs.wisc.edu>
+Date: Fri, 26 Feb 2016 04:04:29 -0600
+Message-ID: <CAJ6LpRrVpHjPuRMRA2VuQLDQabQZfVAyUitaYM7hg0b11u1KVg@mail.gmail.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Oleg Nesterov <oleg@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu 25-02-16 22:32:54, Hugh Dickins wrote:
-> On Thu, 25 Feb 2016, Michal Hocko wrote:
-[...]
-> > From d09de26cee148b4d8c486943b4e8f3bd7ad6f4be Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Thu, 4 Feb 2016 14:56:59 +0100
-> > Subject: [PATCH] mm, oom: protect !costly allocations some more
-> > 
-> > should_reclaim_retry will give up retries for higher order allocations
-> > if none of the eligible zones has any requested or higher order pages
-> > available even if we pass the watermak check for order-0. This is done
-> > because there is no guarantee that the reclaimable and currently free
-> > pages will form the required order.
-> > 
-> > This can, however, lead to situations were the high-order request (e.g.
-> > order-2 required for the stack allocation during fork) will trigger
-> > OOM too early - e.g. after the first reclaim/compaction round. Such a
-> > system would have to be highly fragmented and the OOM killer is just a
-> > matter of time but let's stick to our MAX_RECLAIM_RETRIES for the high
-> > order and not costly requests to make sure we do not fail prematurely.
-> > 
-> > This also means that we do not reset no_progress_loops at the
-> > __alloc_pages_slowpath for high order allocations to guarantee a bounded
-> > number of retries.
-> > 
-> > Longterm it would be much better to communicate with the compaction
-> > and retry only if the compaction considers it meaningfull.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> It didn't really help, I'm afraid: it reduces the actual number of OOM
-> kills which occur before the job is terminated, but doesn't stop the
-> job from being terminated very soon.
+On Thu, Feb 25, 2016 at 10:02 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> [ adding Thanu ]
+>
+>> Very few applications actually care about atomic sector writes.
+>> Databases are probably the only class of application that really do
+>> care about both single sector and multi-sector atomic write
+>> behaviour, and many of them can be configured to assume single
+>> sector writes can be torn.
+>>
+>> Torn user data writes have always been possible, and so pmem does
+>> not introduce any new semantics that applications have to handle.
+>>
 
-Yeah this is not a magic bullet. I am happy to hear that the patch
-actually helped to reduce the number of OOM kills, though, because that is
-what it aims to do. I also believe that supports (at least partially) my
-suspicious that it is compaction which doesn't try enough.
-order-0 reclaim, even when done repeatedly, doesn't have a great
-chances to form higher order pages. Especially when there is a lot of
-migrateable memory. I have already talked about this with Vlastimil and
-he said that compaction can indeed back off too early because it doesn't
-care about !costly request much at all. We will have a look into this
-more next week.
--- 
-Michal Hocko
-SUSE Labs
+I know about BTT and DAX only at a conceptual level and hence do not understand
+this mailing thread fully. But I can provide examples of important applications
+expecting atomicity at a 512B or a smaller granularity. Here is a list:
+
+(1) LMDB [1] that Dan mentioned, which expects "linear writes" (i.e., don't
+need atomicity, but need the first byte to be written before the second byte)
+
+(2) PostgreSQL expects atomicity [2]
+
+(3) SQLite depends on linear writes [3] (we were unable to find these
+dependencies during our testing, however). Also, PSOW in SQLite is not relevant
+to this discussion as I understand it; PSOW deals with corruption of data
+*around* the actual written bytes.
+
+(4) We found that ZooKeeper depends on atomicity during our testing, but we did
+not contact the ZooKeeper developers about this. Some details in our paper [4].
+
+It is tempting to assume that applications do not use the concept of disk
+sectors and deal with only file-system blocks (which are not atomic in
+practice), and take measures to deal with the non-atomic file-system blocks.
+But, in reality, applications seem to assume that 512B (more or less) sectors
+are atomic or linear, and build their consistency mechanisms around that.
+
+[1] http://www.openldap.org/list~s/openldap-devel/201410/msg00004.html
+[2] http://www.postgresql.org/docs/9.5/static/wal-internals.html , "To deal
+with the case where pg_control is corrupt" ...
+[3] https://www.sqlite.org/atomiccommit.html , "SQLite does always assume that
+a sector write is linear" ...
+[4] http://research.cs.wisc.edu/wind/Publications/alice-osdi14.pdf
+
+Regards,
+Thanu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
