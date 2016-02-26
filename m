@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E51916B0254
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 01:01:42 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id c10so47842298pfc.2
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 22:01:42 -0800 (PST)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id e69si17590634pfd.66.2016.02.25.22.01.42
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 93895828E1
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 01:01:46 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id e127so46382621pfe.3
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 22:01:46 -0800 (PST)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id lu9si685862pab.215.2016.02.25.22.01.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Feb 2016 22:01:42 -0800 (PST)
-Received: by mail-pf0-x22f.google.com with SMTP id q63so46290558pfb.0
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 22:01:42 -0800 (PST)
+        Thu, 25 Feb 2016 22:01:45 -0800 (PST)
+Received: by mail-pf0-x22a.google.com with SMTP id q63so46291478pfb.0
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2016 22:01:45 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH v2 03/17] mm/slab: remove the checks for slab implementation bug
-Date: Fri, 26 Feb 2016 15:01:10 +0900
-Message-Id: <1456466484-3442-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 04/17] mm/slab: activate debug_pagealloc in SLAB when it is actually enabled
+Date: Fri, 26 Feb 2016 15:01:11 +0900
+Message-Id: <1456466484-3442-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1456466484-3442-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1456466484-3442-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,10 +24,6 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Some of "#if DEBUG" are for reporting slab implementation bug rather than
-user usecase bug.  It's not really needed because slab is stable for a
-quite long time and it makes code too dirty.  This patch remove it.
-
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>
@@ -36,105 +32,63 @@ Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Jesper Dangaard Brouer <brouer@redhat.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/slab.c | 29 +++++++----------------------
- 1 file changed, 7 insertions(+), 22 deletions(-)
+ mm/slab.c | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 3634dc1..14c3f9c 100644
+index 14c3f9c..4807cf4 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -2110,8 +2110,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	if (!(flags & SLAB_DESTROY_BY_RCU))
- 		flags |= SLAB_POISON;
- #endif
--	if (flags & SLAB_DESTROY_BY_RCU)
--		BUG_ON(flags & SLAB_POISON);
- #endif
+@@ -1838,7 +1838,8 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
  
- 	/*
-@@ -2368,9 +2366,6 @@ static int drain_freelist(struct kmem_cache *cache,
- 		}
- 
- 		page = list_entry(p, struct page, lru);
--#if DEBUG
--		BUG_ON(page->active);
--#endif
- 		list_del(&page->lru);
- 		/*
- 		 * Safe to drop the lock. The slab is no longer linked
-@@ -2528,30 +2523,23 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
+ 		if (cachep->flags & SLAB_POISON) {
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-			if (cachep->size % PAGE_SIZE == 0 &&
++			if (debug_pagealloc_enabled() &&
++				cachep->size % PAGE_SIZE == 0 &&
+ 					OFF_SLAB(cachep))
+ 				kernel_map_pages(virt_to_page(objp),
+ 					cachep->size / PAGE_SIZE, 1);
+@@ -2176,7 +2177,8 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+ 	 * to check size >= 256. It guarantees that all necessary small
+ 	 * sized slab is initialized in current slab initialization sequence.
+ 	 */
+-	if (!slab_early_init && size >= kmalloc_size(INDEX_NODE) &&
++	if (debug_pagealloc_enabled() &&
++		!slab_early_init && size >= kmalloc_size(INDEX_NODE) &&
+ 		size >= 256 && cachep->object_size > cache_line_size() &&
+ 		ALIGN(size, cachep->align) < PAGE_SIZE) {
+ 		cachep->obj_offset += PAGE_SIZE - ALIGN(size, cachep->align);
+@@ -2232,7 +2234,8 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+ 		 * poisoning, then it's going to smash the contents of
+ 		 * the redzone and userword anyhow, so switch them off.
+ 		 */
+-		if (size % PAGE_SIZE == 0 && flags & SLAB_POISON)
++		if (debug_pagealloc_enabled() &&
++			size % PAGE_SIZE == 0 && flags & SLAB_POISON)
+ 			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
+ #endif
  	}
- }
- 
--static void *slab_get_obj(struct kmem_cache *cachep, struct page *page,
--				int nodeid)
-+static void *slab_get_obj(struct kmem_cache *cachep, struct page *page)
- {
- 	void *objp;
- 
- 	objp = index_to_obj(cachep, page, get_free_obj(page, page->active));
- 	page->active++;
--#if DEBUG
--	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
--#endif
- 
- 	return objp;
- }
- 
--static void slab_put_obj(struct kmem_cache *cachep, struct page *page,
--				void *objp, int nodeid)
-+static void slab_put_obj(struct kmem_cache *cachep,
-+			struct page *page, void *objp)
- {
- 	unsigned int objnr = obj_to_index(cachep, page, objp);
- #if DEBUG
- 	unsigned int i;
- 
--	/* Verify that the slab belongs to the intended node */
--	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
--
- 	/* Verify double free bug */
- 	for (i = page->active; i < cachep->num; i++) {
- 		if (get_free_obj(page, i) == objnr) {
-@@ -2817,8 +2805,7 @@ retry:
- 			STATS_INC_ACTIVE(cachep);
- 			STATS_SET_HIGH(cachep);
- 
--			ac_put_obj(cachep, ac, slab_get_obj(cachep, page,
--									node));
-+			ac_put_obj(cachep, ac, slab_get_obj(cachep, page));
- 		}
- 
- 		/* move slabp to correct slabp list: */
-@@ -3101,7 +3088,7 @@ retry:
- 
- 	BUG_ON(page->active == cachep->num);
- 
--	obj = slab_get_obj(cachep, page, nodeid);
-+	obj = slab_get_obj(cachep, page);
- 	n->free_objects--;
- 	/* move slabp to correct slabp list: */
- 	list_del(&page->lru);
-@@ -3252,7 +3239,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
- 		page = virt_to_head_page(objp);
- 		list_del(&page->lru);
- 		check_spinlock_acquired_node(cachep, node);
--		slab_put_obj(cachep, page, objp, node);
-+		slab_put_obj(cachep, page, objp);
- 		STATS_DEC_ACTIVE(cachep);
- 		n->free_objects++;
- 
-@@ -3282,9 +3269,7 @@ static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
- 	LIST_HEAD(list);
- 
- 	batchcount = ac->batchcount;
--#if DEBUG
--	BUG_ON(!batchcount || batchcount > ac->avail);
--#endif
-+
- 	check_irq_off();
- 	n = get_node(cachep, node);
- 	spin_lock(&n->list_lock);
+@@ -2716,7 +2719,8 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
+ 	set_obj_status(page, objnr, OBJECT_FREE);
+ 	if (cachep->flags & SLAB_POISON) {
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-		if ((cachep->size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
++		if (debug_pagealloc_enabled() &&
++			(cachep->size % PAGE_SIZE) == 0 && OFF_SLAB(cachep)) {
+ 			store_stackinfo(cachep, objp, caller);
+ 			kernel_map_pages(virt_to_page(objp),
+ 					 cachep->size / PAGE_SIZE, 0);
+@@ -2861,7 +2865,8 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
+ 		return objp;
+ 	if (cachep->flags & SLAB_POISON) {
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-		if ((cachep->size % PAGE_SIZE) == 0 && OFF_SLAB(cachep))
++		if (debug_pagealloc_enabled() &&
++			(cachep->size % PAGE_SIZE) == 0 && OFF_SLAB(cachep))
+ 			kernel_map_pages(virt_to_page(objp),
+ 					 cachep->size / PAGE_SIZE, 1);
+ 		else
 -- 
 1.9.1
 
