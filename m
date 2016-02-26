@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 469C26B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 12:01:00 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id a4so77993497wme.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 09:01:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w4si5099258wmb.67.2016.02.26.09.00.59
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9146B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 12:02:37 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id dm2so82635653obb.2
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 09:02:37 -0800 (PST)
+Received: from mail-ob0-x233.google.com (mail-ob0-x233.google.com. [2607:f8b0:4003:c01::233])
+        by mx.google.com with ESMTPS id to8si11896346oec.46.2016.02.26.09.02.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 26 Feb 2016 09:00:59 -0800 (PST)
-Date: Fri, 26 Feb 2016 18:00:56 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 08/20] kthread: Allow to cancel kthread work
-Message-ID: <20160226170056.GA12548@pathway.suse.cz>
-References: <1456153030-12400-9-git-send-email-pmladek@suse.com>
- <201602230025.uuCAc4Tn%fengguang.wu@intel.com>
- <20160224161805.GB3305@pathway.suse.cz>
- <20160225125932.GI6357@twins.programming.kicks-ass.net>
- <20160226153818.GI3305@pathway.suse.cz>
- <20160226162552.GB6356@twins.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Feb 2016 09:02:36 -0800 (PST)
+Received: by mail-ob0-x233.google.com with SMTP id jq7so82763837obb.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 09:02:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160226162552.GB6356@twins.programming.kicks-ass.net>
+In-Reply-To: <alpine.DEB.2.20.1602261013140.24939@east.gentwo.org>
+References: <1456466484-3442-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1456466484-3442-13-git-send-email-iamjoonsoo.kim@lge.com>
+	<alpine.DEB.2.20.1602261013140.24939@east.gentwo.org>
+Date: Sat, 27 Feb 2016 02:02:36 +0900
+Message-ID: <CAAmzW4ORSVsS_iji3gAcvepFqd3wsq0bXnxYOqnrYPH5ePykzA@mail.gmail.com>
+Subject: Re: [PATCH v2 12/17] mm/slab: do not change cache size if debug
+ pagealloc isn't possible
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri 2016-02-26 17:25:52, Peter Zijlstra wrote:
-> On Fri, Feb 26, 2016 at 04:38:18PM +0100, Petr Mladek wrote:
-> > On Thu 2016-02-25 13:59:32, Peter Zijlstra wrote:
-> > > On Wed, Feb 24, 2016 at 05:18:05PM +0100, Petr Mladek wrote:
-> > > > @@ -770,7 +782,22 @@ void delayed_kthread_work_timer_fn(unsigned long __data)
-> > > >  	if (WARN_ON_ONCE(!worker))
-> > > >  		return;
-> > > >  
-> > > > -	spin_lock(&worker->lock);
-> > > > +	/*
-> > > > +	 * We might be unable to take the lock if someone is trying to
-> > > > +	 * cancel this work and calls del_timer_sync() when this callback
-> > > > +	 * has already been removed from the timer list.
-> > > > +	 */
-> > > > +	while (!spin_trylock(&worker->lock)) {
-> > > > +		/*
-> > > > +		 * Busy wait with spin_is_locked() to avoid cache bouncing.
-> > > > +		 * Break when canceling is set to avoid a deadlock.
-> > > > +		 */
-> > > > +		do {
-> > > > +			if (work->canceling)
-> > > > +				return;
-> > > > +			cpu_relax();
-> > > > +		} while (spin_is_locked(&worker->lock));
-> > > > +	}
-> > > >  	/* Work must not be used with more workers, see queue_kthread_work(). */
-> > > >  	WARN_ON_ONCE(work->worker != worker);
-> > > >  
-> > > 
-> > > This is pretty vile; why can't you drop the lock over del_timer_sync() ?
-> > 
-> > We would need to take the lock later and check if nobody has set the timer
-> > again in the meantime.
-> 
-> Well, if ->cancelling is !0, nobody should be re-queueing, re-arming
-> timers etc.., right?
+2016-02-27 1:13 GMT+09:00 Christoph Lameter <cl@linux.com>:
+> On Fri, 26 Feb 2016, js1304@gmail.com wrote:
+>
+>> We can fail to setup off slab in some conditions.  Even in this case,
+>> debug pagealloc increases cache size to PAGE_SIZE in advance and it is
+>> waste because debug pagealloc cannot work for it when it isn't the off
+>> slab.  To improve this situation, this patch checks first that this cache
+>> with increased size is suitable for off slab.  It actually increases cache
+>> size when it is suitable for off-slab, so possible waste is removed.
+>
+> Maybe add some explanations to the code? You tried to simplify it earlier
+> and make it understandable. This makes it difficult to understand it.
 
-Which rings a bell. __cancel_kthread_work()/del_timer_sync() is used
-also from mod_timer_sync() and we do not increment ->canceling there.
-See the 9th patch. It is racy and I have to fix it.
+There is some explanation above the changed stuff although it doesn't
+appear in the patch. And, this patch doesn't change any condition for it.
+What this patch does is checking if it is suitable for off slab cache
+in advance.
+Before this patch, it is checked after increasing size and if it isn't
+suitable for off slab cache, it cannot be used for debug_pagealloc with
+increased size.
 
-
-> And since you do add_timer() while holding the spinlock, this should all
-> work out, no?
-
-Interesting idea. Yes, it should work. But is this really easier? The
-try_again/relock/recheck code is not trivial either.
-
-I personally slightly more prefer the current code. I am open
-to use your version ff you persist on it. But I also do not want
-to end up in a ping-pong re-implementation as Tejun king of suggested
-the current code.
-
-
-Thanks a lot,
-Petr
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
