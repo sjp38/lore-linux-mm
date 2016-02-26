@@ -1,96 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EFE46B0005
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 12:45:35 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id y8so42803105igp.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 09:45:35 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0226.hostedemail.com. [216.40.44.226])
-        by mx.google.com with ESMTPS id ii10si5784122igb.46.2016.02.26.09.45.34
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1236B0005
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 14:50:20 -0500 (EST)
+Received: by mail-qk0-f177.google.com with SMTP id s5so35891773qkd.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 11:50:20 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f185si14575599qhd.52.2016.02.26.11.50.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 09:45:34 -0800 (PST)
-Date: Fri, 26 Feb 2016 12:45:31 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v3 4/7] arch, ftrace: For KASAN put hard/soft IRQ
- entries into separate sections
-Message-ID: <20160226124531.365bc27d@gandalf.local.home>
-In-Reply-To: <c387c8362eb0eeb622fd7425904b9b429fc636f0.1456492360.git.glider@google.com>
-References: <cover.1456492360.git.glider@google.com>
-	<c387c8362eb0eeb622fd7425904b9b429fc636f0.1456492360.git.glider@google.com>
+        Fri, 26 Feb 2016 11:50:19 -0800 (PST)
+Date: Fri, 26 Feb 2016 20:50:15 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
+ disable it by default
+Message-ID: <20160226195015.GK1180@redhat.com>
+References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
+ <20160225190144.GE1180@redhat.com>
+ <20160225195613.GZ2854@techsingularity.net>
+ <20160225230219.GF1180@redhat.com>
+ <20160226111316.GB2854@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160226111316.GB2854@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 26 Feb 2016 14:30:43 +0100
-Alexander Potapenko <glider@google.com> wrote:
+Hello Mel,
 
-> diff --git a/include/linux/ftrace.h b/include/linux/ftrace.h
-> index c2b340e..4da848d 100644
-> --- a/include/linux/ftrace.h
-> +++ b/include/linux/ftrace.h
-> @@ -799,16 +799,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
->   */
->  #define __notrace_funcgraph		notrace
->  
-> -/*
-> - * We want to which function is an entrypoint of a hardirq.
-> - * That will help us to put a signal on output.
-> - */
-> -#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
-> -
-> -/* Limits of hardirq entrypoints */
-> -extern char __irqentry_text_start[];
-> -extern char __irqentry_text_end[];
-> -
->  #define FTRACE_NOTRACE_DEPTH 65536
->  #define FTRACE_RETFUNC_DEPTH 50
->  #define FTRACE_RETSTACK_ALLOC_SIZE 32
-> @@ -845,7 +835,6 @@ static inline void unpause_graph_tracing(void)
->  #else /* !CONFIG_FUNCTION_GRAPH_TRACER */
->  
->  #define __notrace_funcgraph
-> -#define __irq_entry
->  #define INIT_FTRACE_GRAPH
->  
->  static inline void ftrace_graph_init_task(struct task_struct *t) { }
-> diff --git a/include/linux/interrupt.h b/include/linux/interrupt.h
-> index 0e95fcc..1dcecaf 100644
-> --- a/include/linux/interrupt.h
-> +++ b/include/linux/interrupt.h
-> @@ -673,4 +673,24 @@ extern int early_irq_init(void);
->  extern int arch_probe_nr_irqs(void);
->  extern int arch_early_irq_init(void);
->  
-> +#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
-> +/*
-> + * We want to know which function is an entrypoint of a hardirq or a softirq.
-> + */
-> +#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
-> +#define __softirq_entry  \
-> +	__attribute__((__section__(".softirqentry.text")))
-> +
-> +/* Limits of hardirq entrypoints */
-> +extern char __irqentry_text_start[];
-> +extern char __irqentry_text_end[];
-> +/* Limits of softirq entrypoints */
-> +extern char __softirqentry_text_start[];
-> +extern char __softirqentry_text_end[];
-> +
-> +#else
-> +#define __irq_entry
-> +#define __softirq_entry
-> +#endif
-> +
->  #endif
-> diff --git a/kernel/softirq.c b/kernel/softirq.c
+On Fri, Feb 26, 2016 at 11:13:16AM +0000, Mel Gorman wrote:
+> 1. By default, "madvise" and direct reclaim/compaction for applications
+>    that specifically requested that behaviour. This will avoid breaking
+>    MADV_HUGEPAGE which you mentioned in a few places
 
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Defragging memory synchronously only under madvise is fine with me.
 
--- Steve
+> 2. "never" will never reclaim anything and was the default behaviour of
+>    version 1 but will not be the default in version 2.
+> 3. "defer" will wake kswapd which will reclaim or wake kcompactd
+>    whichever is necessary. This is new but avoids stalls while helping
+>    khugepaged do its work quickly in the near future.
+
+This is an kABI visible change, but it should be ok. I'm not aware of
+any program that parses that file and could get confused.
+
+"defer" sounds an interesting default option if it could be made to
+work better.
+
+> 4. "always" will direct reclaim/compact just like todays behaviour
+
+I suspect there are a number of apps that took advantage of the
+"always" setting without realizing it, but we only could notice the
+ones that don't. In any case those apps can start to call
+MADV_HUGEPAGE if they don't already and that will provide a definitive
+fix. With this approach MADV_HUGEPAGE will provide the same
+reliability in allocation as before so there will be no problem then.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
