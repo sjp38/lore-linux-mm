@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC496B0009
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:27:50 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id hb3so31851503igb.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:27:50 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id m1si16047295iom.95.2016.02.26.02.27.49
-        for <linux-mm@kvack.org>;
-        Fri, 26 Feb 2016 02:27:50 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <20160203132718.GI6757@dhcp22.suse.cz> <alpine.LSU.2.11.1602241832160.15564@eggly.anvils> <20160225092315.GD17573@dhcp22.suse.cz> <alpine.LSU.2.11.1602252219020.9793@eggly.anvils> <009a01d1706a$e666dc00$b3349400$@alibaba-inc.com> <20160226092406.GB8940@dhcp22.suse.cz>
-In-Reply-To: <20160226092406.GB8940@dhcp22.suse.cz>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Date: Fri, 26 Feb 2016 18:27:16 +0800
-Message-ID: <00bd01d17080$445ceb00$cd16c100$@alibaba-inc.com>
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D9A6B0009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 05:32:57 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id g62so64286952wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:32:57 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id p3si15155331wjb.157.2016.02.26.02.32.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Feb 2016 02:32:56 -0800 (PST)
+Received: by mail-wm0-x22e.google.com with SMTP id g62so66886532wme.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 02:32:56 -0800 (PST)
+Date: Fri, 26 Feb 2016 13:32:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
+ disable it by default
+Message-ID: <20160226103253.GA22450@node.shutemov.name>
+References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
+ <20160225190144.GE1180@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160225190144.GE1180@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>
-Cc: 'Hugh Dickins' <hughd@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@i-love.sakura.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
->> 
-> > --- a/mm/page_alloc.c	Thu Feb 25 15:43:18 2016
-> > +++ b/mm/page_alloc.c	Fri Feb 26 15:18:55 2016
-> > @@ -3113,6 +3113,8 @@ should_reclaim_retry(gfp_t gfp_mask, uns
-> >  	struct zone *zone;
-> >  	struct zoneref *z;
-> >
-> > +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> > +		return true;
-> 
-> This is defeating the whole purpose of the rework - to behave
-> deterministically. You have just disabled the oom killer completely.
-> This is not the way to go
-> 
-Then in another direction, below is what I can do.
+On Thu, Feb 25, 2016 at 08:01:44PM +0100, Andrea Arcangeli wrote:
+> Another problem is that khugepaged isn't able to collapse shared
+> readonly anon pages, mostly because of the rmap complexities.  I agree
+> with Kirill we should be looking into how make this work, although I
+> doubt the simpler refcounting is going to help much in this regard as
+> the problem is in dealing with rmap, not so much with refcounts.
 
-thanks
-Hillf
---- a/mm/page_alloc.c	Thu Feb 25 15:43:18 2016
-+++ b/mm/page_alloc.c	Fri Feb 26 18:14:59 2016
-@@ -3366,8 +3366,11 @@ retry:
- 		no_progress_loops++;
- 
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
--				 did_some_progress > 0, no_progress_loops))
-+				 did_some_progress > 0, no_progress_loops)) {
-+		/* Burn more cycles if any zone seems to satisfy our request */
-+		no_progress_loops /= 2;
- 		goto retry;
-+	}
- 
- 	/* Reclaim has failed us, start killing things */
- 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
---
+Could you elaborate on problems with rmap? I have looked into this deeply
+yet.
 
+Do you see anything what would prevent following basic scheme:
+
+ - Identify series of small pages as candidate for collapsing into
+   a compound page. Not sure how difficult it would be. I guess it can be
+   done by looking for adjacent pages which belong to the same anon_vma.
+
+ - Setup migration entries for pte which maps these pages.
+
+ - Collapse small pages into compound page. IIUC, it only will be possible
+   if these pages are not pinned.
+
+ - Replace migration entries with ptes which point to subpages of the new
+   compound page.
+
+ - Scan over all vmas mapping this compound page, looking for VMA suitable
+   for huge page. We cannot collapse it right away due lock inversion of
+   anon_vma->rwsem vs. mmap_sem.
+
+ - For found VMAs, collapse page table into PMD one VMA a time under
+   down_write(mmap_sem).
+
+Even if would fail to create any PMDs, we would reduce LRU pressure by
+collapsing small pages into compound one.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
