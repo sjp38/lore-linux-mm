@@ -1,128 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E2A3E6B0005
-	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 01:26:09 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fy10so62295964pac.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:26:09 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id 70si25179424pfn.223.2016.02.26.22.26.09
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 20C696B0005
+	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 01:33:52 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id x65so63794885pfb.1
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:33:52 -0800 (PST)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id m81si25216929pfi.201.2016.02.26.22.33.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 22:26:09 -0800 (PST)
-Received: by mail-pa0-x235.google.com with SMTP id fl4so62372391pad.0
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:26:09 -0800 (PST)
+        Fri, 26 Feb 2016 22:33:51 -0800 (PST)
+Received: by mail-pf0-x232.google.com with SMTP id e127so64271172pfe.3
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:33:51 -0800 (PST)
+Date: Sat, 27 Feb 2016 15:31:53 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH] mm/zsmalloc: add compact column to pool stat
-Date: Sat, 27 Feb 2016 15:23:53 +0900
-Message-Id: <1456554233-9088-1-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC][PATCH v2 3/3] mm/zsmalloc: increase ZS_MAX_PAGES_PER_ZSPAGE
+Message-ID: <20160227063153.GB396@swordfish>
+References: <20160222004758.GB4958@swordfish>
+ <20160222013442.GB27829@bbox>
+ <20160222020113.GB488@swordfish>
+ <20160222023432.GC27829@bbox>
+ <20160222035954.GC11961@swordfish>
+ <20160222044145.GE27829@bbox>
+ <20160222104325.GA4859@swordfish>
+ <20160223082532.GG27829@bbox>
+ <20160223103527.GA5012@swordfish>
+ <20160223160515.GA13851@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160223160515.GA13851@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add a new column to pool stats, which will tell us class' zs_can_compact()
-number, so it will be easier to analyze zsmalloc fragmentation.
+Hello Minchan,
 
-At the moment, we have only numbers of FULL and ALMOST_EMPTY classes, but
-they don't tell us how badly the class is fragmented internally.
+sorry for very long reply.
 
-The new /sys/kernel/debug/zsmalloc/zramX/classes output look as follows:
-
- class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage compact
+On (02/24/16 01:05), Minchan Kim wrote:
 [..]
-    12   224           0            2           146          5          8                4       4
-    13   240           0            0             0          0          0                1       0
-    14   256           1           13          1840       1672        115                1      10
-    15   272           0            0             0          0          0                1       0
+> > And the thing is -- quite huge internal class fragmentation. These are the 'normal'
+> > classes, not affected by ORDER modification in any way:
+> > 
+> >  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage compact
+> >    107  1744           1           23           196         76         84                3      51
+> >    111  1808           0            0            63         63         28                4       0
+> >    126  2048           0          160           568        408        284                1      80
+> >    144  2336          52          620          8631       5747       4932                4    1648
+> >    151  2448         123          406         10090       8736       6054                3     810
+> >    168  2720           0          512         15738      14926      10492                2     540
+> >    190  3072           0            2           136        130        102                3       3
+> > 
+> > 
+> > so I've been thinking about using some sort of watermaks (well, zsmalloc is an allocator
+> > after all, allocators love watermarks :-)). we can't defeat this fragmentation, we never
+> > know in advance which of the pages will be modified or we the size class those pages will
+> > land after compression. but we know stats for every class -- zs_can_compact(),
+> > obj_allocated/obj_used, etc. so we can start class compaction if we detect that internal
+> > fragmentation is too high (e.g. 30+% of class pages can be compacted).
+> 
+> AFAIRC, we discussed about that when I introduced compaction.
+> Namely, per-class compaction.
+> I love it and just wanted to do after soft landing of compaction.
+> So, it's good time to introduce it. ;-)
+
+ah, yeah, indeed. I vaguely recall this. my first 'auto-compaction' submission
+has had this "compact every class in zs_free()", which was a subject to 10+%
+performance penalty on some of the tests. but with watermarks this will be less
+dramatic, I think.
+
+> > 
+> > on the other hand, we always can wait for the shrinker to come in and do the job for us,
+> > but that can take some time.
+> 
+> Sure, with the feature, we can remove shrinker itself, I think.
+> > 
+> > what's your opinion on this?
+> 
+> I will be very happy.
+
+good, I'll take a look later, to avoid any conflicts with your re-work.
+
 [..]
-    49   816           0            3           745        735        149                1       2
-    51   848           3            4           361        306         76                4       8
-    52   864          12           14           378        268         81                3      21
-    54   896           1           12           117         57         26                2      12
-    57   944           0            0             0          0          0                3       0
-[..]
- Total                26          131         12709      10994       1071                      134
+> > does it look to you good enough to be committed on its own (off the series)?
+> 
+> I think it's good to have. Firstly, I thought we can get the information
+> by existing stats with simple math on userspace but changed my mind
+> because we could change the implementation sometime so such simple math
+> might not be perfect in future and even, we can expose it easily so yes,
+> let's do it.
 
-For example, from this particular output we can easily conclude that class-896
-is heavily fragmented -- it occupies 26 pages, 12 can be freed by compaction.
+thanks! submitted.
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- mm/zsmalloc.c | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 43e4cbc..046d364 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -494,6 +494,8 @@ static void __exit zs_stat_exit(void)
- 	debugfs_remove_recursive(zs_stat_root);
- }
- 
-+static unsigned long zs_can_compact(struct size_class *class);
-+
- static int zs_stats_size_show(struct seq_file *s, void *v)
- {
- 	int i;
-@@ -501,14 +503,15 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
- 	struct size_class *class;
- 	int objs_per_zspage;
- 	unsigned long class_almost_full, class_almost_empty;
--	unsigned long obj_allocated, obj_used, pages_used;
-+	unsigned long obj_allocated, obj_used, pages_used, compact;
- 	unsigned long total_class_almost_full = 0, total_class_almost_empty = 0;
- 	unsigned long total_objs = 0, total_used_objs = 0, total_pages = 0;
-+	unsigned long total_compact = 0;
- 
--	seq_printf(s, " %5s %5s %11s %12s %13s %10s %10s %16s\n",
-+	seq_printf(s, " %5s %5s %11s %12s %13s %10s %10s %16s %7s\n",
- 			"class", "size", "almost_full", "almost_empty",
- 			"obj_allocated", "obj_used", "pages_used",
--			"pages_per_zspage");
-+			"pages_per_zspage", "compact");
- 
- 	for (i = 0; i < zs_size_classes; i++) {
- 		class = pool->size_class[i];
-@@ -521,6 +524,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
- 		class_almost_empty = zs_stat_get(class, CLASS_ALMOST_EMPTY);
- 		obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
- 		obj_used = zs_stat_get(class, OBJ_USED);
-+		compact = zs_can_compact(class);
- 		spin_unlock(&class->lock);
- 
- 		objs_per_zspage = get_maxobj_per_zspage(class->size,
-@@ -528,23 +532,25 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
- 		pages_used = obj_allocated / objs_per_zspage *
- 				class->pages_per_zspage;
- 
--		seq_printf(s, " %5u %5u %11lu %12lu %13lu %10lu %10lu %16d\n",
-+		seq_printf(s, " %5u %5u %11lu %12lu %13lu"
-+				" %10lu %10lu %16d %7lu\n",
- 			i, class->size, class_almost_full, class_almost_empty,
- 			obj_allocated, obj_used, pages_used,
--			class->pages_per_zspage);
-+			class->pages_per_zspage, compact);
- 
- 		total_class_almost_full += class_almost_full;
- 		total_class_almost_empty += class_almost_empty;
- 		total_objs += obj_allocated;
- 		total_used_objs += obj_used;
- 		total_pages += pages_used;
-+		total_compact += compact;
- 	}
- 
- 	seq_puts(s, "\n");
--	seq_printf(s, " %5s %5s %11lu %12lu %13lu %10lu %10lu\n",
-+	seq_printf(s, " %5s %5s %11lu %12lu %13lu %10lu %10lu %16s %7lu\n",
- 			"Total", "", total_class_almost_full,
- 			total_class_almost_empty, total_objs,
--			total_used_objs, total_pages);
-+			total_used_objs, total_pages, "", total_compact);
- 
- 	return 0;
- }
--- 
-2.7.1
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
