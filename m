@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 834306B0005
-	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 11:53:16 -0500 (EST)
-Received: by mail-yk0-f172.google.com with SMTP id z13so47567818ykd.0
-        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 08:53:16 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id m127si5821131ywe.417.2016.02.27.08.53.15
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7366B0005
+	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 18:14:31 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id p65so26842134wmp.1
+        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 15:14:31 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ly10si23808601wjb.9.2016.02.27.15.14.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Feb 2016 08:53:15 -0800 (PST)
-Date: Sat, 27 Feb 2016 11:53:01 -0500
-From: Theodore Ts'o <tytso@mit.edu>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 27 Feb 2016 15:14:30 -0800 (PST)
+Date: Sun, 28 Feb 2016 00:14:19 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
 Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
-Message-ID: <20160227165301.GA9506@thunk.org>
-References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
- <20160225092752.GU2854@techsingularity.net>
- <56CF1202.2020809@emindsoft.com.cn>
- <20160225160707.GX2854@techsingularity.net>
- <56CF8043.1030603@emindsoft.com.cn>
- <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com>
- <56D06E8A.9070106@emindsoft.com.cn>
- <20160227024548.GP1215@thunk.org>
- <56D1B364.8050209@emindsoft.com.cn>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <56D1B364.8050209@emindsoft.com.cn>
+Message-ID: <alpine.LNX.2.00.1602280009110.22700@cbobk.fhfr.pm>
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <20160225092752.GU2854@techsingularity.net> <56CF1202.2020809@emindsoft.com.cn> <20160225160707.GX2854@techsingularity.net> <56CF8043.1030603@emindsoft.com.cn>
+ <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com> <56D06E8A.9070106@emindsoft.com.cn> <20160227024548.GP1215@thunk.org> <56D1B364.8050209@emindsoft.com.cn>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chen Gang <chengang@emindsoft.com.cn>
-Cc: Jianyu Zhan <nasa4836@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Jianyu Zhan <nasa4836@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Sat, Feb 27, 2016 at 10:32:04PM +0800, Chen Gang wrote:
-> I don't think so. Of cause NOT the "CODE CHURN". It is not correct to
-> make an early decision during discussing.
+On Sat, 27 Feb 2016, Chen Gang wrote:
 
-There is no discussion.  If the maintainer has NAK'ed it.  That's the
-end of the dicsussion.  Period.  See:
+> > Mel, as an MM developer, has already NACK'ed the patch, which means
+> > you should not send the patch to **any** upstream maintainer for
+> > inclusion.
+> 
+> I don't think I "should not ...". I only care about correctness and
+> contribution, I don't care about any members ideas and their thinking.
+> When we have different ideas or thinking, we need discuss.
 
-ftp://ftp.kernel.org/pub/linux/kernel/people/rusty/trivial/template-index.html
+If by "discuss" you mean "30+ email thread about where to put a line 
+break", please drop me from CC next time this discussion is going to 
+happen. Thanks.
 
-Also note the comment from the above:
+> For common shared header files, for me, we should really take more care
+> about the coding styles.
+> 
+>  - If the common shared header files don't care about the coding styles,
+>    I guess any body files will have much more excuses for "do not care
+>    about coding styles".
+> 
+>  - That means our kernel whole source files need not care about coding
+>    styles at all!!
+> 
+>  - It is really really VERY BAD!!
+> 
+> If someone only dislike me to send the related patches, I suggest: Let
+> another member(s) "run checkpatch -file" on the whole "./include" sub-
+> directory, and fix all coding styles issues.
 
-   NOTE: This means I'll only take whitespace/indentation fixes from the
-   author or maintainer.
+Which is exactly what you shouldn't do.
 
-      	   	      	   			       	     - Ted
+The ultimate goal of the Linux kernel is not 100% strict complicance to 
+the CodingStyle document no matter what. The ultimate goal is to have a 
+kernel that is under control. By polluting git blame, you are taking on 
+aspect of the "under control" away.
+
+Common sense needs to be used; horribly terrible coding style needs to be 
+fixed, sure. Is 82-characters long line horribly terrible coding style? 
+No, it's not.
+
+Thanks,
+
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
