@@ -1,147 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B774828DF
-	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 06:42:58 -0500 (EST)
-Received: by mail-lb0-f180.google.com with SMTP id x1so58847927lbj.3
-        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 03:42:58 -0800 (PST)
-Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
-        by mx.google.com with ESMTPS id n66si1231531lfb.86.2016.02.27.03.42.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Feb 2016 03:42:57 -0800 (PST)
-Received: by mail-lf0-x232.google.com with SMTP id l143so67363739lfe.2
-        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 03:42:57 -0800 (PST)
-Subject: [PATCH 3/3] radix-tree tests: add test for radix_tree_iter_next
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 27 Feb 2016 14:42:54 +0300
-Message-ID: <145657337431.9016.5746594400200475943.stgit@zurg>
-In-Reply-To: <145657336413.9016.2011291702664991604.stgit@zurg>
-References: <145657336413.9016.2011291702664991604.stgit@zurg>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 089FA6B0005
+	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 09:28:45 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id g6so56940274igt.1
+        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 06:28:45 -0800 (PST)
+Received: from out11.biz.mail.alibaba.com (out11.biz.mail.alibaba.com. [205.204.114.131])
+        by mx.google.com with ESMTP id m8si9853404igx.42.2016.02.27.06.28.42
+        for <linux-mm@kvack.org>;
+        Sat, 27 Feb 2016 06:28:44 -0800 (PST)
+Message-ID: <56D1B364.8050209@emindsoft.com.cn>
+Date: Sat, 27 Feb 2016 22:32:04 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn> <20160225092752.GU2854@techsingularity.net> <56CF1202.2020809@emindsoft.com.cn> <20160225160707.GX2854@techsingularity.net> <56CF8043.1030603@emindsoft.com.cn> <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com> <56D06E8A.9070106@emindsoft.com.cn> <20160227024548.GP1215@thunk.org>
+In-Reply-To: <20160227024548.GP1215@thunk.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>, Jianyu Zhan <nasa4836@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-Without fix test crashes inside tagged iteration.
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
----
- tools/testing/radix-tree/regression3.c |   47 +++++++++++++++++++++++++++-----
- 1 file changed, 39 insertions(+), 8 deletions(-)
+On 2/27/16 10:45, Theodore Ts'o wrote:
+> On Fri, Feb 26, 2016 at 11:26:02PM +0800, Chen Gang wrote:
+>>> As for coding style, actually IMHO this patch is even _not_ a coding
+>>> style, more like a code shuffle, indeed.
+>>>
+>>
+>> "80 column limitation" is about coding style, I guess, all of us agree
+>> with it.
+> 
+> No, it's been accepted that checkpatch requiring people to reformat
+> code to within be 80 columns limitation was actively harmful, and it
+> no longer does that.
+> 
+> Worse, it now complains when you split a printf string across lines,
+> so there were patches that split a string across multiple lines to
+> make checkpatch shut up.  And now there are patches that join the
+> string back together.
+> 
+> And if you now start submitting patches to split them up again because
+> you think the 80 column restriction is so darned important, that would
+> be even ***more*** code churn.
+> 
 
-diff --git a/tools/testing/radix-tree/regression3.c b/tools/testing/radix-tree/regression3.c
-index 17d3ba5f4a0a..1f06ed73d0a8 100644
---- a/tools/testing/radix-tree/regression3.c
-+++ b/tools/testing/radix-tree/regression3.c
-@@ -5,6 +5,10 @@
-  * In following radix_tree_next_slot current chunk size becomes zero.
-  * This isn't checked and it tries to dereference null pointer in slot.
-  *
-+ * Helper radix_tree_iter_next reset slot to NULL and next_index to index + 1,
-+ * for tagger iteraction it also must reset cached tags in iterator to abort
-+ * next radix_tree_next_slot and go to slow-path into radix_tree_next_chunk.
-+ *
-  * Running:
-  * This test should run to completion immediately. The above bug would
-  * cause it to segfault.
-@@ -24,26 +28,27 @@
- void regression3_test(void)
- {
- 	RADIX_TREE(root, GFP_KERNEL);
--	void *ptr = (void *)4ul;
-+	void *ptr0 = (void *)4ul;
-+	void *ptr = (void *)8ul;
- 	struct radix_tree_iter iter;
- 	void **slot;
- 	bool first;
- 
- 	printf("running regression test 3 (should take milliseconds)\n");
- 
--	radix_tree_insert(&root, 0, ptr);
-+	radix_tree_insert(&root, 0, ptr0);
- 	radix_tree_tag_set(&root, 0, 0);
- 
- 	first = true;
- 	radix_tree_for_each_tagged(slot, &root, &iter, 0, 0) {
--//		printk("tagged %ld %p\n", iter.index, *slot);
-+		printf("tagged %ld %p\n", iter.index, *slot);
- 		if (first) {
- 			radix_tree_insert(&root, 1, ptr);
- 			radix_tree_tag_set(&root, 1, 0);
- 			first = false;
- 		}
- 		if (radix_tree_deref_retry(*slot)) {
--//			printk("retry %ld\n", iter.index);
-+			printf("retry at %ld\n", iter.index);
- 			slot = radix_tree_iter_retry(&iter);
- 			continue;
- 		}
-@@ -52,13 +57,13 @@ void regression3_test(void)
- 
- 	first = true;
- 	radix_tree_for_each_slot(slot, &root, &iter, 0) {
--//		printk("slot %ld %p\n", iter.index, *slot);
-+		printf("slot %ld %p\n", iter.index, *slot);
- 		if (first) {
- 			radix_tree_insert(&root, 1, ptr);
- 			first = false;
- 		}
- 		if (radix_tree_deref_retry(*slot)) {
--//			printk("retry %ld\n", iter.index);
-+			printk("retry at %ld\n", iter.index);
- 			slot = radix_tree_iter_retry(&iter);
- 			continue;
- 		}
-@@ -67,18 +72,44 @@ void regression3_test(void)
- 
- 	first = true;
- 	radix_tree_for_each_contig(slot, &root, &iter, 0) {
--//		printk("contig %ld %p\n", iter.index, *slot);
-+		printk("contig %ld %p\n", iter.index, *slot);
- 		if (first) {
- 			radix_tree_insert(&root, 1, ptr);
- 			first = false;
- 		}
- 		if (radix_tree_deref_retry(*slot)) {
--//			printk("retry %ld\n", iter.index);
-+			printk("retry at %ld\n", iter.index);
- 			slot = radix_tree_iter_retry(&iter);
- 			continue;
- 		}
- 	}
- 
-+	radix_tree_for_each_slot(slot, &root, &iter, 0) {
-+		printf("slot %ld %p\n", iter.index, *slot);
-+		if (!iter.index) {
-+			printf("next at %ld\n", iter.index);
-+			slot = radix_tree_iter_next(&iter);
-+		}
-+	}
-+
-+	radix_tree_for_each_contig(slot, &root, &iter, 0) {
-+		printf("contig %ld %p\n", iter.index, *slot);
-+		if (!iter.index) {
-+			printf("next at %ld\n", iter.index);
-+			slot = radix_tree_iter_next(&iter);
-+		}
-+	}
-+
-+	radix_tree_tag_set(&root, 0, 0);
-+	radix_tree_tag_set(&root, 1, 0);
-+	radix_tree_for_each_tagged(slot, &root, &iter, 0, 0) {
-+		printf("tagged %ld %p\n", iter.index, *slot);
-+		if (!iter.index) {
-+			printf("next at %ld\n", iter.index);
-+			slot = radix_tree_iter_next(&iter);
-+		}
-+	}
-+
- 	radix_tree_delete(&root, 0);
- 	radix_tree_delete(&root, 1);
- 
+I don't think so. Of cause NOT the "CODE CHURN". It is not correct to
+make an early decision during discussing.
+
+"80 column limitation" is mentioned in "Documentation/CodingStyle", if
+we have very good reason for it, we can break this limitation (for me,
+what you said above are really some of good reasons).
+
+But in our case (the patch), can anybody find any "good reasons" for it?
+at least, at present, I can not find:
+
+ - It is a common shared base header file, it is almost not used for
+   code analyzing (e.g. git diff, git blame).
+
+ - Is it helpful for "grep xxx filename | grep yyy"? Please check the
+   patch, I can not find (maybe __GFP_MOVABL definition be? but it is
+   still not obvious, if some member stick to, we can keep it no touch).
+
+ - Could anyone find any good reasons for it within this patch?
+
+
+> Which is one of the reasons why some of us aren't terribly happy with
+> people who start running checkpatch -file on other people's code and
+> start submitting patches, either through the trivial patch portal or
+> not.
+> 
+
+For me, as a individual developer, I don't like this way, either. So of
+cause, I don't care about this way.
+
+I am just reading the common shared header files about mm. At least, I
+can understand some common sense of mm, and also read through the whole
+other headers to know what they are.
+
+When I find something valuable more or less, I shall send related patch
+for it.
+
+> Mel, as an MM developer, has already NACK'ed the patch, which means
+> you should not send the patch to **any** upstream maintainer for
+> inclusion.
+
+I don't think I "should not ...". I only care about correctness and
+contribution, I don't care about any members ideas and their thinking.
+When we have different ideas or thinking, we need discuss.
+
+For common shared header files, for me, we should really take more care
+about the coding styles.
+
+ - If the common shared header files don't care about the coding styles,
+   I guess any body files will have much more excuses for "do not care
+   about coding styles".
+
+ - That means our kernel whole source files need not care about coding
+   styles at all!!
+
+ - It is really really VERY BAD!!
+
+If someone only dislike me to send the related patches, I suggest: Let
+another member(s) "run checkpatch -file" on the whole "./include" sub-
+directory, and fix all coding styles issues.
+
+
+Thanks.
+-- 
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
