@@ -1,66 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f169.google.com (mail-yw0-f169.google.com [209.85.161.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 395BB6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2016 21:46:12 -0500 (EST)
-Received: by mail-yw0-f169.google.com with SMTP id h129so83691535ywb.1
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 18:46:12 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id a9si5058592ywb.65.2016.02.26.18.46.11
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A3E6B0005
+	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 01:26:09 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id fy10so62295964pac.1
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:26:09 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id 70si25179424pfn.223.2016.02.26.22.26.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Feb 2016 18:46:11 -0800 (PST)
-Date: Fri, 26 Feb 2016 21:45:48 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
-Message-ID: <20160227024548.GP1215@thunk.org>
-References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
- <20160225092752.GU2854@techsingularity.net>
- <56CF1202.2020809@emindsoft.com.cn>
- <20160225160707.GX2854@techsingularity.net>
- <56CF8043.1030603@emindsoft.com.cn>
- <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com>
- <56D06E8A.9070106@emindsoft.com.cn>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56D06E8A.9070106@emindsoft.com.cn>
+        Fri, 26 Feb 2016 22:26:09 -0800 (PST)
+Received: by mail-pa0-x235.google.com with SMTP id fl4so62372391pad.0
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2016 22:26:09 -0800 (PST)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] mm/zsmalloc: add compact column to pool stat
+Date: Sat, 27 Feb 2016 15:23:53 +0900
+Message-Id: <1456554233-9088-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <chengang@emindsoft.com.cn>
-Cc: Jianyu Zhan <nasa4836@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri, Feb 26, 2016 at 11:26:02PM +0800, Chen Gang wrote:
-> > As for coding style, actually IMHO this patch is even _not_ a coding
-> > style, more like a code shuffle, indeed.
-> > 
-> 
-> "80 column limitation" is about coding style, I guess, all of us agree
-> with it.
+Add a new column to pool stats, which will tell us class' zs_can_compact()
+number, so it will be easier to analyze zsmalloc fragmentation.
 
-No, it's been accepted that checkpatch requiring people to reformat
-code to within be 80 columns limitation was actively harmful, and it
-no longer does that.
+At the moment, we have only numbers of FULL and ALMOST_EMPTY classes, but
+they don't tell us how badly the class is fragmented internally.
 
-Worse, it now complains when you split a printf string across lines,
-so there were patches that split a string across multiple lines to
-make checkpatch shut up.  And now there are patches that join the
-string back together.
+The new /sys/kernel/debug/zsmalloc/zramX/classes output look as follows:
 
-And if you now start submitting patches to split them up again because
-you think the 80 column restriction is so darned important, that would
-be even ***more*** code churn.
+ class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage compact
+[..]
+    12   224           0            2           146          5          8                4       4
+    13   240           0            0             0          0          0                1       0
+    14   256           1           13          1840       1672        115                1      10
+    15   272           0            0             0          0          0                1       0
+[..]
+    49   816           0            3           745        735        149                1       2
+    51   848           3            4           361        306         76                4       8
+    52   864          12           14           378        268         81                3      21
+    54   896           1           12           117         57         26                2      12
+    57   944           0            0             0          0          0                3       0
+[..]
+ Total                26          131         12709      10994       1071                      134
 
-Which is one of the reasons why some of us aren't terribly happy with
-people who start running checkpatch -file on other people's code and
-start submitting patches, either through the trivial patch portal or
-not.
+For example, from this particular output we can easily conclude that class-896
+is heavily fragmented -- it occupies 26 pages, 12 can be freed by compaction.
 
-Mel, as an MM developer, has already NACK'ed the patch, which means
-you should not send the patch to **any** upstream maintainer for
-inclusion.
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/zsmalloc.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
 
-						- Ted
-						
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 43e4cbc..046d364 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -494,6 +494,8 @@ static void __exit zs_stat_exit(void)
+ 	debugfs_remove_recursive(zs_stat_root);
+ }
+ 
++static unsigned long zs_can_compact(struct size_class *class);
++
+ static int zs_stats_size_show(struct seq_file *s, void *v)
+ {
+ 	int i;
+@@ -501,14 +503,15 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 	struct size_class *class;
+ 	int objs_per_zspage;
+ 	unsigned long class_almost_full, class_almost_empty;
+-	unsigned long obj_allocated, obj_used, pages_used;
++	unsigned long obj_allocated, obj_used, pages_used, compact;
+ 	unsigned long total_class_almost_full = 0, total_class_almost_empty = 0;
+ 	unsigned long total_objs = 0, total_used_objs = 0, total_pages = 0;
++	unsigned long total_compact = 0;
+ 
+-	seq_printf(s, " %5s %5s %11s %12s %13s %10s %10s %16s\n",
++	seq_printf(s, " %5s %5s %11s %12s %13s %10s %10s %16s %7s\n",
+ 			"class", "size", "almost_full", "almost_empty",
+ 			"obj_allocated", "obj_used", "pages_used",
+-			"pages_per_zspage");
++			"pages_per_zspage", "compact");
+ 
+ 	for (i = 0; i < zs_size_classes; i++) {
+ 		class = pool->size_class[i];
+@@ -521,6 +524,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 		class_almost_empty = zs_stat_get(class, CLASS_ALMOST_EMPTY);
+ 		obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
+ 		obj_used = zs_stat_get(class, OBJ_USED);
++		compact = zs_can_compact(class);
+ 		spin_unlock(&class->lock);
+ 
+ 		objs_per_zspage = get_maxobj_per_zspage(class->size,
+@@ -528,23 +532,25 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 		pages_used = obj_allocated / objs_per_zspage *
+ 				class->pages_per_zspage;
+ 
+-		seq_printf(s, " %5u %5u %11lu %12lu %13lu %10lu %10lu %16d\n",
++		seq_printf(s, " %5u %5u %11lu %12lu %13lu"
++				" %10lu %10lu %16d %7lu\n",
+ 			i, class->size, class_almost_full, class_almost_empty,
+ 			obj_allocated, obj_used, pages_used,
+-			class->pages_per_zspage);
++			class->pages_per_zspage, compact);
+ 
+ 		total_class_almost_full += class_almost_full;
+ 		total_class_almost_empty += class_almost_empty;
+ 		total_objs += obj_allocated;
+ 		total_used_objs += obj_used;
+ 		total_pages += pages_used;
++		total_compact += compact;
+ 	}
+ 
+ 	seq_puts(s, "\n");
+-	seq_printf(s, " %5s %5s %11lu %12lu %13lu %10lu %10lu\n",
++	seq_printf(s, " %5s %5s %11lu %12lu %13lu %10lu %10lu %16s %7lu\n",
+ 			"Total", "", total_class_almost_full,
+ 			total_class_almost_empty, total_objs,
+-			total_used_objs, total_pages);
++			total_used_objs, total_pages, "", total_compact);
+ 
+ 	return 0;
+ }
+-- 
+2.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
