@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CA69C6B0005
-	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 10:18:34 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p65so19613501wmp.1
-        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 07:18:34 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id vx5si22034381wjc.219.2016.02.27.07.18.33
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 834306B0005
+	for <linux-mm@kvack.org>; Sat, 27 Feb 2016 11:53:16 -0500 (EST)
+Received: by mail-yk0-f172.google.com with SMTP id z13so47567818ykd.0
+        for <linux-mm@kvack.org>; Sat, 27 Feb 2016 08:53:16 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id m127si5821131ywe.417.2016.02.27.08.53.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Feb 2016 07:18:33 -0800 (PST)
-Date: Sat, 27 Feb 2016 16:18:32 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v5 04/20] kthread: Add drain_kthread_worker()
-Message-ID: <20160227151832.GG6356@twins.programming.kicks-ass.net>
-References: <1456153030-12400-1-git-send-email-pmladek@suse.com>
- <1456153030-12400-5-git-send-email-pmladek@suse.com>
- <20160225123551.GG6357@twins.programming.kicks-ass.net>
- <20160226152309.GH3305@pathway.suse.cz>
+        Sat, 27 Feb 2016 08:53:15 -0800 (PST)
+Date: Sat, 27 Feb 2016 11:53:01 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
+Message-ID: <20160227165301.GA9506@thunk.org>
+References: <1456352791-2363-1-git-send-email-chengang@emindsoft.com.cn>
+ <20160225092752.GU2854@techsingularity.net>
+ <56CF1202.2020809@emindsoft.com.cn>
+ <20160225160707.GX2854@techsingularity.net>
+ <56CF8043.1030603@emindsoft.com.cn>
+ <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com>
+ <56D06E8A.9070106@emindsoft.com.cn>
+ <20160227024548.GP1215@thunk.org>
+ <56D1B364.8050209@emindsoft.com.cn>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160226152309.GH3305@pathway.suse.cz>
+In-Reply-To: <56D1B364.8050209@emindsoft.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Chen Gang <chengang@emindsoft.com.cn>
+Cc: Jianyu Zhan <nasa4836@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Fri, Feb 26, 2016 at 04:23:09PM +0100, Petr Mladek wrote:
-> I do not have a strong opinion here. On one hand, such a check might
-> help with debugging. On the other hand, workqueues have happily lived
-> without it for years.
+On Sat, Feb 27, 2016 at 10:32:04PM +0800, Chen Gang wrote:
+> I don't think so. Of cause NOT the "CODE CHURN". It is not correct to
+> make an early decision during discussing.
 
-TJ and me have a different view on these things. I'm always for the
-strictest possible semantics with strong validation. TJ always worries a
-lot about existing users.
+There is no discussion.  If the maintainer has NAK'ed it.  That's the
+end of the dicsussion.  Period.  See:
 
-Luckily, you don't have users yet :-)
+ftp://ftp.kernel.org/pub/linux/kernel/people/rusty/trivial/template-index.html
+
+Also note the comment from the above:
+
+   NOTE: This means I'll only take whitespace/indentation fixes from the
+   author or maintainer.
+
+      	   	      	   			       	     - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
