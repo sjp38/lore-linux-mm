@@ -1,104 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C9746B0005
-	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 10:25:27 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fy10so77370133pac.1
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 07:25:27 -0800 (PST)
-Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-250.mail.alibaba.com. [205.204.113.250])
-        by mx.google.com with ESMTP id n88si35917024pfb.139.2016.02.28.07.25.24
-        for <linux-mm@kvack.org>;
-        Sun, 28 Feb 2016 07:25:25 -0800 (PST)
-Message-ID: <56D3122F.1000802@emindsoft.com.cn>
-Date: Sun, 28 Feb 2016 23:28:47 +0800
-From: Chen Gang <chengang@emindsoft.com.cn>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FDF16B0005
+	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 11:16:52 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l68so30260926wml.1
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 08:16:52 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ld8si27521595wjc.77.2016.02.28.08.16.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 28 Feb 2016 08:16:51 -0800 (PST)
+Date: Sun, 28 Feb 2016 11:16:44 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 08/27] mm, vmscan: Make kswapd reclaim in terms of nodes
+Message-ID: <20160228161644.GC25622@cmpxchg.org>
+References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
+ <1456239890-20737-9-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH trivial] include/linux/gfp.h: Improve the coding styles
-References: <20160225092752.GU2854@techsingularity.net> <56CF1202.2020809@emindsoft.com.cn> <20160225160707.GX2854@techsingularity.net> <56CF8043.1030603@emindsoft.com.cn> <CAHz2CGWqndOZQPveuXJaGZQg_YHX+4OmSAB3rtN05RsHk440DA@mail.gmail.com> <56D06E8A.9070106@emindsoft.com.cn> <20160227024548.GP1215@thunk.org> <56D1B364.8050209@emindsoft.com.cn> <20160227165301.GA9506@thunk.org> <56D23D94.50707@emindsoft.com.cn> <20160228132717.GD2854@techsingularity.net>
-In-Reply-To: <20160228132717.GD2854@techsingularity.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1456239890-20737-9-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Theodore Ts'o <tytso@mit.edu>, Jianyu Zhan <nasa4836@gmail.com>, trivial@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@virtuozzo.com, Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
+On Tue, Feb 23, 2016 at 03:04:31PM +0000, Mel Gorman wrote:
+> @@ -3299,20 +3191,37 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  			break;
+>  
+>  		/*
+> +		 * Stop reclaiming if any eligible zone is balanced and clear
+> +		 * node writeback or congested.
+> +		 */
+> +		for (i = 0; i <= classzone_idx; i++) {
+> +			zone = pgdat->node_zones + i;
+> +			if (!populated_zone(zone))
+> +				continue;
+> +
+> +			if (zone_balanced(zone, sc.order, 0, classzone_idx)) {
+> +				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+> +				clear_bit(PGDAT_DIRTY, &pgdat->flags);
+> +				goto out;
+> +			}
+> +		}
+> +
+> +		/*
+>  		 * Raise priority if scanning rate is too low or there was no
+>  		 * progress in reclaiming pages
+>  		 */
+>  		if (raise_priority || !sc.nr_reclaimed)
+>  			sc.priority--;
+> -	} while (sc.priority >= 1 &&
+> -			!pgdat_balanced(pgdat, order, classzone_idx));
+> +	} while (sc.priority >= 1);
+>  
+>  out:
+>  	/*
+> -	 * Return the highest zone idx we were reclaiming at so
+> -	 * prepare_kswapd_sleep() makes the same decisions as here.
+> +	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
+> +	 * makes a decision on the order we were last reclaiming at. However,
+> +	 * if another caller entered the allocator slow path while kswapd
+> +	 * was awake, order will remain at the higher level
+>  	 */
+> -	return end_zone;
+> +	return order;
 
-On 2/28/16 21:27, Mel Gorman wrote:
-> On Sun, Feb 28, 2016 at 08:21:40AM +0800, Chen Gang wrote:
->>
->> For me, NAK also needs reasons.
->>
-> 
-> You already got the reasons. Not only does a patch of this type interfere
-> with git blame which is important even in headers but I do not think the
-> patch actually improves the readability of the code. For example, the
-> comments move to the line after the defintions which to my eye at least
-> looks clumsy and weird.
->
+It's sc.order that's updated based on fragmentation, not order.
 
-For me, in local headers, they may be often modified, and also may be
-complex, so the code analyzing maybe also be used often. But in common
-shared headers in ./include (e.g. gfp.h), most of them are simple enough.
+There is also a now-stale comment above the function saying it returns
+the highest reclaimed zone index.
 
- - Since common shared headers are usually simple, code analyzing is
-   still useful, but not like the body files or local headers (code
-   analyzing are very useful for body files and local headers).
- 
- - Common shared headers are quite often read by most programmers, so
-   common shared headers need take more care about its coding styles.
+Otherwise, the patch looks good to me.
 
- - Then for common shared headers, the coding style is 1st.
-
-And for __GFP_MOVABLE definition (with ZONE_MOVABLE), I guess, we can
-keep it no touch (like what I originally said: if the related member
-stick to, we can keep it no touch).
-
-And for me, the other macro definitions which out of 80 columns, can be
-fixed in normal ways (let the related comments ahead of macro definition
-), does this change also have negative effect?
-
-
->> I guess they are related with this patch, and their NAKs' reason are: mm
->> and trivial don't care about this coding style issue, is it correct?
->>
-> 
-> No. Coding style is important but it's a guideline not a law.
-
-Yes.
-
-For me, vertical split window in vim is very useful, I almost always use
-this feature when read source code in full screen under Macbook client,
-when columns are 86+, it will be wrapped (I feel really not quite good).
-
-And occasionally (really not often), we may copy/past part of contents
-in the header files (e.g. constant definition) to the pdf file as
-appendix.
-
-So except the string broken, or "grep -rn xxx * | grep yyy", 80 columns
-limitation is always helpful to me.
-
->                                                               There are
-> cases where breaking it results in perfectly readable code. At least one
-> my my own recent patches was flagged by checkpatch as having style issues
-> but fixing the style was considerably harder to read so I left it. If the
-> definitions in that header need to change again in the future and there
-> are style issues then they can be fixed in the context of a functional
-> change instead of patching style just for the sake of it.
-> 
-
-For me, except just modify the related contents, usually, we need devide
-the patch into 2: one for real modification, the other for coding styles.
-
-And in some of common, base, shared headers in ./include (e.g. gfp.h), I
-guess, most of contents *should* not be changed quite often, so the bad
-coding styles probably will be alive in a long term.
-
-
-Thanks.
--- 
-Chen Gang (e??a??)
-
-Managing Natural Environments is the Duty of Human Beings.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
