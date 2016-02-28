@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2482D6B0253
-	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 17:04:48 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id p65so23254323wmp.0
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 14:04:48 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.73])
-        by mx.google.com with ESMTPS id y3si28761158wjy.136.2016.02.28.14.04.46
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E25E6B0256
+	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 17:32:20 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id d32so47576576qgd.0
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 14:32:20 -0800 (PST)
+Received: from sasl.smtp.pobox.com (pb-smtp0.int.icgroup.com. [208.72.237.35])
+        by mx.google.com with ESMTPS id f189si23482928qhc.12.2016.02.28.14.32.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Feb 2016 14:04:47 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] [RFC] mm/page_ref, crypto/async_pq: don't put_page from __exit
-Date: Sun, 28 Feb 2016 22:57:23 +0100
-Message-Id: <1456696663-2340682-1-git-send-email-arnd@arndb.de>
+        Sun, 28 Feb 2016 14:32:19 -0800 (PST)
+Date: Sun, 28 Feb 2016 17:32:17 -0500 (EST)
+From: Geoffrey Thomas <geofft@ldpreload.com>
+Subject: [PATCH] mm/hugetlb: hugetlb_no_page: Rate-limit warning message
+Message-ID: <alpine.DEB.2.11.1602281708490.32312@titan.ldpreload.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, Michal Nazarewicz <mina86@mina86.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-The addition of tracepoints to the page reference tracking had an
-unfortunate side-effect in at least one driver that calls put_page
-from its exit function, resulting in a link error:
+The warning message "killed due to inadequate hugepage pool" simply 
+indicates that SIGBUS was sent, not that the process was forcibly killed. 
+If the process has a signal handler installed does not fix the problem, 
+this message can rapidly spam the kernel log.
 
-`.exit.text' referenced in section `__jump_table' of crypto/built-in.o: defined in discarded section `.exit.text' of crypto/built-in.o
-
-I could not come up with a nice solution that ignores __jump_table
-entries in discarded code, so we probably now have to treat this
-as something a driver is not allowed to do. Removing the __exit
-annotation avoids the problem in this particular driver, but the
-same problem could come back any time in other code.
-
-On a related problem regarding the runtime patching for SMP
-operations on ARM uniprocessor systems, we resorted to not
-drop the .exit section at link time, but that doesn't seem
-appropriate here.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: 0f80830dd044 ("mm/page_ref: add tracepoint to track down page reference manipulation")
+Signed-off-by: Geoffrey Thomas <geofft@ldpreload.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- crypto/async_tx/async_pq.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On my amd64 dev machine that does not have hugepages configured, I can 
+reproduce the repeated warnings easily by setting vm.nr_hugepages=2 (i.e., 
+4 megabytes of huge pages) and running something that sets a signal 
+handler and forks, like
 
-diff --git a/crypto/async_tx/async_pq.c b/crypto/async_tx/async_pq.c
-index c0748bbd4c08..be167145aa55 100644
---- a/crypto/async_tx/async_pq.c
-+++ b/crypto/async_tx/async_pq.c
-@@ -442,7 +442,7 @@ static int __init async_pq_init(void)
- 	return -ENOMEM;
- }
- 
--static void __exit async_pq_exit(void)
-+static void async_pq_exit(void)
- {
- 	put_page(pq_scribble_page);
- }
+#include <sys/mman.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+sig_atomic_t counter = 10;
+void handler(int signal) {
+ 	if (counter-- == 0)
+ 		exit(0);
+}
+
+int main(void) {
+ 	int status;
+ 	char *addr = mmap(NULL, 4 * 1048576, PROT_READ | PROT_WRITE,
+ 			  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+ 	if (addr == MAP_FAILED) {perror("mmap"); return 1;}
+ 	*addr = 'x';
+ 	switch (fork()) {
+ 		case -1:
+ 			perror("fork"); return 1;
+ 		case 0:
+ 			signal(SIGBUS, handler);
+ 			*addr = 'x';
+ 			break;
+ 		default:
+ 			*addr = 'x';
+ 			wait(&status);
+ 			if (WIFSIGNALED(status)) {
+ 				psignal(WTERMSIG(status), "child");
+ 			}
+ 			break;
+ 	}
+}
+
+  mm/hugetlb.c | 2 +-
+  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 01f2b48..0e27a9d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3502,7 +3502,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+  	 * COW. Warn that such a situation has occurred as it may not be obvious
+  	 */
+  	if (is_vma_resv_set(vma, HPAGE_RESV_UNMAPPED)) {
+-		pr_warning("PID %d killed due to inadequate hugepage pool\n",
++		pr_warn_ratelimited("PID %d killed due to inadequate hugepage pool\n",
+  			   current->pid);
+  		return ret;
+  	}
 -- 
-2.7.0
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
