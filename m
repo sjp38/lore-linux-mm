@@ -1,94 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A296B0254
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:42:18 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id 4so15183624pfd.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:42:17 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ze7si43422298pac.34.2016.02.29.06.42.17
-        for <linux-mm@kvack.org>;
-        Mon, 29 Feb 2016 06:42:17 -0800 (PST)
-From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Subject: RE: [PATCH 2/3] radix-tree: make 'indirect' bit available to
- exception entries.
-Date: Mon, 29 Feb 2016 14:41:55 +0000
-Message-ID: <100D68C7BA14664A8938383216E40DE0421D3AE9@FMSMSX114.amr.corp.intel.com>
-References: <145663588892.3865.9987439671424028216.stgit@notabene>
- <145663616977.3865.9772784012366988314.stgit@notabene>
-In-Reply-To: <145663616977.3865.9772784012366988314.stgit@notabene>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6025C6B0254
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:45:26 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id n186so52742709wmn.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:45:26 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id z2si20694000wmz.40.2016.02.29.06.45.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Feb 2016 06:45:25 -0800 (PST)
+Received: by mail-wm0-x22d.google.com with SMTP id p65so48527884wmp.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:45:25 -0800 (PST)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH v2 0/9] arm64: optimize virt_to_page and page_address
+Date: Mon, 29 Feb 2016 15:44:35 +0100
+Message-Id: <1456757084-1078-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, nios2-dev@lists.rocketboards.org, lftan@altera.com, jonas@southpole.se, linux@lists.openrisc.net, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-U28gYmFzZWQgb24gdGhlIGJvdHRvbSB0d28gYml0cywgd2UgY2FuIHRlbGwgd2hhdCB0aGlzIGVu
-dHJ5IGlzOg0KDQowMCAtIGRhdGEgcG9pbnRlcg0KMDEgLSBpbmRpcmVjdCBlbnRyeSAocG9pbnRl
-ciB0byBhbm90aGVyIGxldmVsIG9mIHRoZSByYWRpeCB0cmVlKQ0KMTAgLSBleGNlcHRpb25hbCBl
-bnRyeQ0KMTEgLSBsb2NrZWQgZXhjZXB0aW9uYWwgZW50cnkNCg0KSSB3YXMgY29uY2VybmVkIHRo
-YXQgdGhpcyBwYXRjaCB3b3VsZCBjbGFzaCB3aXRoIHRoZSBzdXBwb3J0IGZvciBtdWx0aS1vcmRl
-ciBlbnRyaWVzIGluIHRoZSByYWRpeCB0cmVlLCBidXQgYWZ0ZXIgc29tZSB0aG91Z2h0LCBJIG5v
-dyBiZWxpZXZlIHRoYXQgaXQgZG9lc24ndC4gIFRoZSBtdWx0aS1vcmRlciBlbnRyaWVzIGNoYW5n
-ZXMgcGVybWl0IGZpbmRpbmcgZGF0YSBwb2ludGVycyBvciBleGNlcHRpb25hbCBlbnRyaWVzIGlu
-IHRoZSB0cmVlIHdoZXJlIGJlZm9yZSBvbmx5IGluZGlyZWN0IGVudHJpZXMgY291bGQgYmUgZm91
-bmQsIGJ1dCB3aXRoIHRoZSBjaGFuZ2VzIHRvIHJhZGl4X3RyZWVfaXNfaW5kaXJlY3RfcHRyIGJl
-bG93LCBldmVyeXRoaW5nIHNob3VsZCB3b3JrIGZpbmUuDQoNCi0tLS0tT3JpZ2luYWwgTWVzc2Fn
-ZS0tLS0tDQpGcm9tOiBOZWlsQnJvd24gW21haWx0bzpuZWlsYkBzdXNlLmNvbV0gDQpTZW50OiBT
-YXR1cmRheSwgRmVicnVhcnkgMjcsIDIwMTYgOTowOSBQTQ0KVG86IFJvc3MgWndpc2xlcjsgV2ls
-Y294LCBNYXR0aGV3IFI7IEFuZHJldyBNb3J0b247IEphbiBLYXJhDQpDYzogbGludXgta2VybmVs
-QHZnZXIua2VybmVsLm9yZzsgbGludXgtZnNkZXZlbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1t
-QGt2YWNrLm9yZw0KU3ViamVjdDogW1BBVENIIDIvM10gcmFkaXgtdHJlZTogbWFrZSAnaW5kaXJl
-Y3QnIGJpdCBhdmFpbGFibGUgdG8gZXhjZXB0aW9uIGVudHJpZXMuDQoNCkEgcG9pbnRlciB0byBh
-IHJhZGl4X3RyZWVfbm9kZSB3aWxsIGFsd2F5cyBoYXZlIHRoZSAnZXhjZXB0aW9uJw0KYml0IGNs
-ZWFyZWQsIHNvIGlmIHRoZSBleGNlcHRpb24gYml0IGlzIHNldCB0aGUgdmFsdWUgY2Fubm90DQpi
-ZSBhbiBpbmRpcmVjdCBwb2ludGVyLiAgVGh1cyBpdCBpcyBzYWZlIHRvIG1ha2UgdGhlICdpbmRp
-cmVjdCBiaXQnDQphdmFpbGFibGUgdG8gc3RvcmUgZXh0cmEgaW5mb3JtYXRpb24gaW4gZXhjZXB0
-aW9uIGVudHJpZXMuDQoNClRoaXMgcGF0Y2ggYWRkcyBhICdQVFJfTUFTSycgYW5kIGEgdmFsdWUg
-aXMgb25seSB0cmVhdGVkIGFzDQphbiBpbmRpcmVjdCAocG9pbnRlcikgZW50cnkgdGhlIDIgbHMt
-Yml0cyBhcmUgJzAxJy4NCg0KVGhlIGNoYW5nZSBpbiByYWRpeC10cmVlLmMgZW5zdXJlcyB0aGUg
-c3RvcmVkIHZhbHVlIHN0aWxsIGxvb2tzIGxpa2UgYW4NCmluZGlyZWN0IHBvaW50ZXIsIGFuZCBz
-YXZlcyBhIGxvYWQgYXMgd2VsbC4NCg0KV2UgY291bGQgc3dhcCB0aGUgdHdvIGJpdHMgYW5kIHNv
-IGtlZXAgYWxsIHRoZSBleGVjdGlvbmFsIGJpdHMgY29udGlnaW91cy4NCkJ1dCBJIGhhdmUgb3Ro
-ZXIgcGxhbnMgZm9yIHRoYXQgYml0Li4uLg0KDQpTaWduZWQtb2ZmLWJ5OiBOZWlsQnJvd24gPG5l
-aWxiQHN1c2UuY29tPg0KLS0tDQogaW5jbHVkZS9saW51eC9yYWRpeC10cmVlLmggfCAgIDExICsr
-KysrKysrKy0tDQogbGliL3JhZGl4LXRyZWUuYyAgICAgICAgICAgfCAgICAyICstDQogMiBmaWxl
-cyBjaGFuZ2VkLCAxMCBpbnNlcnRpb25zKCspLCAzIGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0
-IGEvaW5jbHVkZS9saW51eC9yYWRpeC10cmVlLmggYi9pbmNsdWRlL2xpbnV4L3JhZGl4LXRyZWUu
-aA0KaW5kZXggOTY4MTUwYWI4YTFjLi40NTBjMTJiNTQ2YjcgMTAwNjQ0DQotLS0gYS9pbmNsdWRl
-L2xpbnV4L3JhZGl4LXRyZWUuaA0KKysrIGIvaW5jbHVkZS9saW51eC9yYWRpeC10cmVlLmgNCkBA
-IC00MCw4ICs0MCwxMyBAQA0KICAqIEluZGlyZWN0IHBvaW50ZXIgaW4gZmFjdCBpcyBhbHNvIHVz
-ZWQgdG8gdGFnIHRoZSBsYXN0IHBvaW50ZXIgb2YgYSBub2RlDQogICogd2hlbiBpdCBpcyBzaHJ1
-bmssIGJlZm9yZSB3ZSByY3UgZnJlZSB0aGUgbm9kZS4gU2VlIHNocmluayBjb2RlIGZvcg0KICAq
-IGRldGFpbHMuDQorICoNCisgKiBUbyBhbGxvdyBhbiBleGNlcHRpb24gZW50cnkgdG8gb25seSBs
-b3NlIG9uZSBiaXQsIHdlIGlnbm9yZQ0KKyAqIHRoZSBJTkRJUkVDVCBiaXQgd2hlbiB0aGUgZXhj
-ZXB0aW9uIGJpdCBpcyBzZXQuICBTbyBhbiBlbnRyeSBpcw0KKyAqIGluZGlyZWN0IGlmIHRoZSBs
-ZWFzdCBzaWduaWZpY2FudCAyIGJpdHMgYXJlIDAxLg0KICAqLw0KICNkZWZpbmUgUkFESVhfVFJF
-RV9JTkRJUkVDVF9QVFIJCTENCisjZGVmaW5lIFJBRElYX1RSRUVfSU5ESVJFQ1RfTUFTSwkzDQog
-LyoNCiAgKiBBIGNvbW1vbiB1c2Ugb2YgdGhlIHJhZGl4IHRyZWUgaXMgdG8gc3RvcmUgcG9pbnRl
-cnMgdG8gc3RydWN0IHBhZ2VzOw0KICAqIGJ1dCBzaG1lbS90bXBmcyBuZWVkcyBhbHNvIHRvIHN0
-b3JlIHN3YXAgZW50cmllcyBpbiB0aGUgc2FtZSB0cmVlOg0KQEAgLTUzLDcgKzU4LDggQEANCiAN
-CiBzdGF0aWMgaW5saW5lIGludCByYWRpeF90cmVlX2lzX2luZGlyZWN0X3B0cih2b2lkICpwdHIp
-DQogew0KLQlyZXR1cm4gKGludCkoKHVuc2lnbmVkIGxvbmcpcHRyICYgUkFESVhfVFJFRV9JTkRJ
-UkVDVF9QVFIpOw0KKwlyZXR1cm4gKCh1bnNpZ25lZCBsb25nKXB0ciAmIFJBRElYX1RSRUVfSU5E
-SVJFQ1RfTUFTSykNCisJCT09IFJBRElYX1RSRUVfSU5ESVJFQ1RfUFRSOw0KIH0NCiANCiAvKioq
-IHJhZGl4LXRyZWUgQVBJIHN0YXJ0cyBoZXJlICoqKi8NCkBAIC0yMjEsNyArMjI3LDggQEAgc3Rh
-dGljIGlubGluZSB2b2lkICpyYWRpeF90cmVlX2RlcmVmX3Nsb3RfcHJvdGVjdGVkKHZvaWQgKipw
-c2xvdCwNCiAgKi8NCiBzdGF0aWMgaW5saW5lIGludCByYWRpeF90cmVlX2RlcmVmX3JldHJ5KHZv
-aWQgKmFyZykNCiB7DQotCXJldHVybiB1bmxpa2VseSgodW5zaWduZWQgbG9uZylhcmcgJiBSQURJ
-WF9UUkVFX0lORElSRUNUX1BUUik7DQorCXJldHVybiB1bmxpa2VseSgoKHVuc2lnbmVkIGxvbmcp
-YXJnICYgUkFESVhfVFJFRV9JTkRJUkVDVF9NQVNLKQ0KKwkJCT09IFJBRElYX1RSRUVfSU5ESVJF
-Q1RfUFRSKTsNCiB9DQogDQogLyoqDQpkaWZmIC0tZ2l0IGEvbGliL3JhZGl4LXRyZWUuYyBiL2xp
-Yi9yYWRpeC10cmVlLmMNCmluZGV4IDZiNzllOTAyNmUyNC4uMzdkNDY0M2FiNWMwIDEwMDY0NA0K
-LS0tIGEvbGliL3JhZGl4LXRyZWUuYw0KKysrIGIvbGliL3JhZGl4LXRyZWUuYw0KQEAgLTEzMDUs
-NyArMTMwNSw3IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCByYWRpeF90cmVlX3NocmluayhzdHJ1Y3Qg
-cmFkaXhfdHJlZV9yb290ICpyb290KQ0KIAkJICogdG8gZm9yY2UgY2FsbGVycyB0byByZXRyeS4N
-CiAJCSAqLw0KIAkJaWYgKHJvb3QtPmhlaWdodCA9PSAwKQ0KLQkJCSooKHVuc2lnbmVkIGxvbmcg
-KikmdG9fZnJlZS0+c2xvdHNbMF0pIHw9DQorCQkJKigodW5zaWduZWQgbG9uZyAqKSZ0b19mcmVl
-LT5zbG90c1swXSkgPQ0KIAkJCQkJCVJBRElYX1RSRUVfSU5ESVJFQ1RfUFRSOw0KIA0KIAkJcmFk
-aXhfdHJlZV9ub2RlX2ZyZWUodG9fZnJlZSk7DQoNCg0K
+Apologies for the wall of text. This is a followup to 'restrict virt_to_page
+to linear region (instead of __pa)' [1], posted on the 24th of this month.
+This series applies onto current arm64/for-next/core (5be8b70af1ca 'arm64:
+lse: deal with clobbered IP registers after branch via PLT') with
+arm64/fixes/core (dfd55ad85e4a 'arm64: vmemmap: use virtual projection of
+linear region') merged into it. Complete branch can be found here [2].
+
+In current -next, the implementations of virt_to_page and its converse
+[lowmem_]page_address resolve to
+
+   virt_to_page
+     6f0:   b6300180        tbz     x0, #38, 720 <bar+0x30>
+     6f4:   90000001        adrp    x1, 0 <memstart_addr>
+     6f8:   92409400        and     x0, x0, #0x3fffffffff
+     6fc:   f9400021        ldr     x1, [x1]
+     700:   8b000020        add     x0, x1, x0
+     704:   370001e1        tbnz    w1, #0, 740 <bar+0x50>
+     708:   d34cfc00        lsr     x0, x0, #12
+     70c:   d2dff7c1        mov     x1, #0xffbe00000000
+     710:   f2ffffe1        movk    x1, #0xffff, lsl #48
+     714:   8b001820        add     x0, x1, x0, lsl #6
+     718:   d65f03c0        ret
+     71c:   d503201f        nop
+     720:   90000001        adrp    x1, 0 <init_pgd>
+     724:   f9400021        ldr     x1, [x1]
+     728:   cb010000        sub     x0, x0, x1
+     72c:   d2dff7c1        mov     x1, #0xffbe00000000
+     730:   d34cfc00        lsr     x0, x0, #12
+     734:   f2ffffe1        movk    x1, #0xffff, lsl #48
+     738:   8b001820        add     x0, x1, x0, lsl #6
+     73c:   d65f03c0        ret
+     740:   d4210000        brk     #0x800
+
+   page_address:
+     6c0:   90000002        adrp    x2, 0 <memstart_addr>
+     6c4:   d2c00841        mov     x1, #0x4200000000
+     6c8:   8b010000        add     x0, x0, x1
+     6cc:   9346fc01        asr     x1, x0, #6
+     6d0:   f9400040        ldr     x0, [x2]
+     6d4:   d374cc21        lsl     x1, x1, #12
+     6d8:   37000080        tbnz    w0, #0, 6e8 <foo+0x28>
+     6dc:   cb000020        sub     x0, x1, x0
+     6e0:   b25a6400        orr     x0, x0, #0xffffffc000000000
+     6e4:   d65f03c0        ret
+     6e8:   d4210000        brk     #0x800
+
+Disappointingly, after cherrypicking commit dfd55ad85e ("arm64: vmemmap:
+use virtual projection of linear region") from arm64/fixes/core, which
+should make this translation independent of the physical start of RAM,
+things don't improve much, and even get slightly worse:
+
+   virt_to_page
+     6f8:   b6300180        tbz     x0, #38, 728 <bar+0x30>
+     6fc:   90000001        adrp    x1, 0 <memstart_addr>
+     700:   92409400        and     x0, x0, #0x3fffffffff
+     704:   f9400021        ldr     x1, [x1]
+     708:   8b000020        add     x0, x1, x0
+     70c:   37000261        tbnz    w1, #0, 758 <bar+0x60>
+     710:   d34cfc00        lsr     x0, x0, #12
+     714:   d2dff7c2        mov     x2, #0xffbe00000000
+     718:   cb813000        sub     x0, x0, x1, asr #12
+     71c:   f2ffffe2        movk    x2, #0xffff, lsl #48
+     720:   8b001840        add     x0, x2, x0, lsl #6
+     724:   d65f03c0        ret
+     728:   90000002        adrp    x2, 0 <init_pgd>
+     72c:   90000001        adrp    x1, 0 <memstart_addr>
+     730:   f9400042        ldr     x2, [x2]
+     734:   f9400021        ldr     x1, [x1]
+     738:   cb020000        sub     x0, x0, x2
+     73c:   d2dff7c2        mov     x2, #0xffbe00000000
+     740:   d34cfc00        lsr     x0, x0, #12
+     744:   f2ffffe2        movk    x2, #0xffff, lsl #48
+     748:   cb813000        sub     x0, x0, x1, asr #12
+     74c:   8b001840        add     x0, x2, x0, lsl #6
+     750:   d65f03c0        ret
+     754:   d503201f        nop
+     758:   d4210000        brk     #0x800
+
+   page_address:
+     6c0:   90000002        adrp    x2, 0 <memstart_addr>
+     6c4:   d2c00841        mov     x1, #0x4200000000
+     6c8:   f9400043        ldr     x3, [x2]
+     6cc:   934cfc62        asr     x2, x3, #12
+     6d0:   8b021800        add     x0, x0, x2, lsl #6
+     6d4:   8b010001        add     x1, x0, x1
+     6d8:   9346fc21        asr     x1, x1, #6
+     6dc:   d374cc21        lsl     x1, x1, #12
+     6e0:   37000083        tbnz    w3, #0, 6f0 <foo+0x30>
+     6e4:   cb030020        sub     x0, x1, x3
+     6e8:   b25a6400        orr     x0, x0, #0xffffffc000000000
+     6ec:   d65f03c0        ret
+     6f0:   d4210000        brk     #0x800
+
+The thing to note here is that the expression is evaluated in a way that
+does not allow the compiler to eliminate the read of memstart_addr,
+presumably since it is unaware that its value is aligned to PAGE_SIZE, and
+that shifting it down and up again by 12 bits produces the exact same value.
+
+So let's give the compiler a hand here. First of all, let's reimplement
+virt_to_page() (patch #6) so that it explicitly translates without taking
+the physical placement into account. This results in the virt_to_page()
+translation to only work correctly for addresses above PAGE_OFFSET, but
+this is a reasonable restriction to impose, even if it means a couple of
+incorrect uses need to be fixed (patches #1 to #4). If we also, in patch #5,
+move the vmemmap region right below the linear region (which guarantees that
+the region is always aligned to a power-of-2 upper bound of its size, which
+means we can treat VMEMMAP_START as a bitmask rather than an offset), we end
+up with
+
+   virt_to_page
+     6d0:   d34c9400        ubfx    x0, x0, #12, #26
+     6d4:   d2dff7c1        mov     x1, #0xffbe00000000
+     6d8:   f2ffffe1        movk    x1, #0xffff, lsl #48
+     6dc:   aa001820        orr     x0, x1, x0, lsl #6
+     6e0:   d65f03c0        ret
+
+In the same way, we can get page_address to look like this
+
+   page_address:
+     6c0:   d37a7c00        ubfiz   x0, x0, #6, #32
+     6c4:   b25a6400        orr     x0, x0, #0xffffffc000000000
+     6c8:   d65f03c0        ret
+
+However, in this case, we need to slightly refactor the implementation of
+lowmem_page_paddress(), since it performs an explicit page-to-pa-to-va
+translation, rather than going through an opaque arch-defined definition
+of page_to_virt. (patches #7 to #9)
+
+[1] http://thread.gmane.org/gmane.linux.ports.arm.kernel/481327
+[2] https://git.linaro.org/people/ard.biesheuvel/linux-arm.git/shortlog/refs/heads/arm64-vmemmap
+    (git url git://git.linaro.org/people/ard.biesheuvel/linux-arm.git arm64-vmemmap)
+
+Ard Biesheuvel (9):
+  arm64: vdso: avoid virt_to_page() translations on kernel symbols
+  arm64: mm: free __init memory via the linear mapping
+  arm64: mm: avoid virt_to_page() translation for the zero page
+  arm64: insn: avoid virt_to_page() translations on core kernel symbols
+  arm64: mm: move vmemmap region right below the linear region
+  arm64: mm: restrict virt_to_page() to the linear mapping
+  nios2: use correct void* return type for page_to_virt()
+  openrisc: drop wrongly typed definition of page_to_virt()
+  mm: replace open coded page to virt conversion with page_to_virt()
+
+ arch/arm64/include/asm/memory.h  | 30 ++++++++++++++++++--
+ arch/arm64/include/asm/pgtable.h | 13 +++------
+ arch/arm64/kernel/insn.c         |  2 +-
+ arch/arm64/kernel/vdso.c         |  7 +++--
+ arch/arm64/mm/dump.c             | 16 +++++------
+ arch/arm64/mm/init.c             | 19 +++++++++----
+ arch/nios2/include/asm/io.h      |  1 -
+ arch/nios2/include/asm/page.h    |  2 +-
+ arch/nios2/include/asm/pgtable.h |  2 +-
+ arch/openrisc/include/asm/page.h |  2 --
+ include/linux/mm.h               |  6 +++-
+ 11 files changed, 65 insertions(+), 35 deletions(-)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
