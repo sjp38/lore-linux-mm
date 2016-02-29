@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A17BE6B025E
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:30 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id l68so58408537wml.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:30 -0800 (PST)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 511886B025F
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:32 -0500 (EST)
+Received: by mail-wm0-f44.google.com with SMTP id l68so36715657wml.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:32 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 12/18] aio: make aio_setup_ring killable
-Date: Mon, 29 Feb 2016 14:26:51 +0100
-Message-Id: <1456752417-9626-13-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 13/18] exec: make exec path waiting for mmap_sem killable
+Date: Mon, 29 Feb 2016 14:26:52 +0100
+Message-Id: <1456752417-9626-14-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,38 +17,57 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher 
 
 From: Michal Hocko <mhocko@suse.com>
 
-aio_setup_ring waits for mmap_sem in writable mode. If the waiting
-task gets killed by the oom killer it would block oom_reaper from
+setup_arg_pages requires mmap_sem for write. If the waiting task
+gets killed by the oom killer it would block oom_reaper from
 asynchronous address space reclaim and reduce the chances of timely
 OOM resolving. Wait for the lock in the killable mode and return with
-EINTR if the task got killed while waiting. This will also expedite
-the return to the userspace and do_exit.
+EINTR if the task got killed while waiting. All the callers are already
+handling error path and the fatal signal doesn't need any additional
+treatment.
 
-Cc: Benjamin LaHaise <bcrl@kvack.org>
+The same applies to __bprm_mm_init.
+
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/aio.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ fs/exec.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 56bcdf4105f4..1c2e7e2c1b2b 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -520,7 +520,12 @@ static int aio_setup_ring(struct kioctx *ctx)
- 	ctx->mmap_size = nr_pages * PAGE_SIZE;
- 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
+diff --git a/fs/exec.c b/fs/exec.c
+index c4010b8207a1..29f2f22ae067 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -267,7 +267,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 	if (!vma)
+ 		return -ENOMEM;
  
 -	down_write(&mm->mmap_sem);
 +	if (down_write_killable(&mm->mmap_sem)) {
-+		ctx->mmap_size = 0;
-+		aio_free_ring(ctx);
-+		return -EINTR;
++		err = -EINTR;
++		goto err_free;
 +	}
+ 	vma->vm_mm = mm;
+ 
+ 	/*
+@@ -294,6 +297,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 	return 0;
+ err:
+ 	up_write(&mm->mmap_sem);
++err_free:
+ 	bprm->vma = NULL;
+ 	kmem_cache_free(vm_area_cachep, vma);
+ 	return err;
+@@ -700,7 +704,9 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 		bprm->loader -= stack_shift;
+ 	bprm->exec -= stack_shift;
+ 
+-	down_write(&mm->mmap_sem);
++	if (down_write_killable(&mm->mmap_sem))
++		return -EINTR;
 +
- 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
- 				       PROT_READ | PROT_WRITE,
- 				       MAP_SHARED, 0, &unused);
+ 	vm_flags = VM_STACK_FLAGS;
+ 
+ 	/*
 -- 
 2.7.0
 
