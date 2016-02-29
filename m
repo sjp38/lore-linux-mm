@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 520BB6B0009
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:33:15 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l68so73684135wml.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:33:15 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id b188si21320764wmh.99.2016.02.29.09.33.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 09:33:14 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id p65so1132751wmp.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:33:14 -0800 (PST)
-Date: Mon, 29 Feb 2016 18:33:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] writeback: move list_lock down into the for loop
-Message-ID: <20160229173312.GK16930@dhcp22.suse.cz>
-References: <1456505185-21566-1-git-send-email-yang.shi@linaro.org>
- <20160229150618.GA16939@dhcp22.suse.cz>
- <56D47F90.9050903@linaro.org>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EDC56B0259
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:38:55 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id d32so65296369qgd.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:38:55 -0800 (PST)
+Date: Mon, 29 Feb 2016 18:38:45 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 07/18] mm, proc: make clear_refs killable
+Message-ID: <20160229173845.GC3615@redhat.com>
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-8-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56D47F90.9050903@linaro.org>
+In-Reply-To: <1456752417-9626-8-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
 
-On Mon 29-02-16 09:27:44, Shi, Yang wrote:
-> On 2/29/2016 7:06 AM, Michal Hocko wrote:
-> >On Fri 26-02-16 08:46:25, Yang Shi wrote:
-> >>The list_lock was moved outside the for loop by commit
-> >>e8dfc30582995ae12454cda517b17d6294175b07 ("writeback: elevate queue_io()
-> >>into wb_writeback())", however, the commit log says "No behavior change", so
-> >>it sounds safe to have the list_lock acquired inside the for loop as it did
-> >>before.
-> >>Leave tracepoints outside the critical area since tracepoints already have
-> >>preempt disabled.
-> >
-> >The patch says what but it completely misses the why part.
-> 
-> I'm just wondering the finer grained lock may reach a little better
-> performance, i.e. more likely for preempt, lower latency.
+On 02/29, Michal Hocko wrote:
+>
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1027,11 +1027,15 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+>  		};
+>
+>  		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
+> +			if (down_write_killable(&mm->mmap_sem)) {
+> +				put_task_struct(task);
+> +				return -EINTR;
+> +			}
+> +
+>  			/*
+>  			 * Writing 5 to /proc/pid/clear_refs resets the peak
+>  			 * resident set size to this mm's current rss value.
+>  			 */
+> -			down_write(&mm->mmap_sem);
+>  			reset_mm_hiwater_rss(mm);
+>  			up_write(&mm->mmap_sem);
+>  			goto out_mm;
+> @@ -1043,7 +1047,10 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+>  				if (!(vma->vm_flags & VM_SOFTDIRTY))
+>  					continue;
+>  				up_read(&mm->mmap_sem);
+> -				down_write(&mm->mmap_sem);
+> +				if (down_write_killable(&mm->mmap_sem)) {
+> +					put_task_struct(task);
+> +					return -EINTR;
+> +				}
 
-If this is supposed to be a performance enhancement then some numbers
-would definitely make it easier to get in. Or even an arguments to back
-your theory. Basing your argument on 4+ years commit doesn't really seem
-sound... Just to make it clear, I am not opposing the patch I just
-stumbled over it and the changelog was just too terrible which made me
-response.
--- 
-Michal Hocko
-SUSE Labs
+Both lack mmput() afaics. Don't you need "goto out_mm" rather then "return" ? In
+this case you do not need put_task_struct().
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
