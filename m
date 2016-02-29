@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B276B0253
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 01:25:10 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id fl4so86569207pad.0
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 22:25:10 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id l62si40682772pfi.125.2016.02.28.22.25.09
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C99D66B0255
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 02:03:26 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p65so55112396wmp.1
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:03:26 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id p10si30670859wjf.119.2016.02.28.23.03.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Feb 2016 22:25:09 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id w128so41538371pfb.2
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 22:25:09 -0800 (PST)
-Date: Mon, 29 Feb 2016 15:26:28 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm/zsmalloc: add compact column to pool stat
-Message-ID: <20160229062628.GA576@swordfish>
-References: <1456554233-9088-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20160229060247.GA3382@bbox>
+        Sun, 28 Feb 2016 23:03:25 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id p65so55112056wmp.1
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:03:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160229060247.GA3382@bbox>
+In-Reply-To: <alpine.LSU.2.11.1602281602470.2997@eggly.anvils>
+References: <1455827801-13082-1-git-send-email-hannes@cmpxchg.org>
+	<alpine.LSU.2.11.1602181422550.2289@eggly.anvils>
+	<CALYGNiMHAtaZfGovYeud65Eix8v0OSWSx8F=4K+pqF6akQah0A@mail.gmail.com>
+	<20160219131307.a38646706cc514fcaf18793a@linux-foundation.org>
+	<alpine.LSU.2.11.1602281602470.2997@eggly.anvils>
+Date: Mon, 29 Feb 2016 10:03:25 +0300
+Message-ID: <CALYGNiPzZ=GtKn1v0NQZhRu=Ns6P5SVNOaeMPT17XK=T4n5F0w@mail.gmail.com>
+Subject: Re: [RFC PATCH] proc: do not include shmem and driver pages in /proc/meminfo::Cached
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-Hello,
+On Mon, Feb 29, 2016 at 3:03 AM, Hugh Dickins <hughd@google.com> wrote:
+> On Fri, 19 Feb 2016, Andrew Morton wrote:
+>> On Fri, 19 Feb 2016 09:40:45 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>>
+>> > >> What are your thoughts on this?
+>> > >
+>> > > My thoughts are NAK.  A misleading stat is not so bad as a
+>> > > misleading stat whose meaning we change in some random kernel.
+>> > >
+>> > > By all means improve Documentation/filesystems/proc.txt on Cached.
+>> > > By all means promote Active(file)+Inactive(file)-Buffers as often a
+>> > > better measure (though Buffers itself is obscure to me - is it intended
+>> > > usually to approximate resident FS metadata?).  By all means work on
+>> > > /proc/meminfo-v2 (though that may entail dispiritingly long discussions).
+>> > >
+>> > > We have to assume that Cached has been useful to some people, and that
+>> > > they've learnt to subtract Shmem from it, if slow or no swap concerns them.
+>> > >
+>> > > Added Konstantin to Cc: he's had valuable experience of people learning
+>> > > to adapt to the numbers that we put out.
+>> > >
+>> >
+>> > I think everything will ok. Subtraction of shmem isn't widespread practice,
+>> > more like secret knowledge. This wasn't documented and people who use
+>> > this should be aware that this might stop working at any time. So, ACK.
+>>
+>> It worries me as well - we're deliberately altering the behaviour of
+>> existing userspace code.  Not all of those alterations will be welcome!
+>>
+>> We could add a shiny new field into meminfo and train people to migrate
+>> to that.  But that would just be a sum of already-available fields.  In
+>> an ideal world we could solve all of this with documentation and
+>> cluebatting (and some apologizing!).
+>
+> Ah, I missed this, and just sent a redundant addition to the thread;
+> followed by this doubly redundant addition.
 
-On (02/29/16 15:02), Minchan Kim wrote:
-> On Sat, Feb 27, 2016 at 03:23:53PM +0900, Sergey Senozhatsky wrote:
-> > Add a new column to pool stats, which will tell us class' zs_can_compact()
-> > number, so it will be easier to analyze zsmalloc fragmentation.
-> 
-> Just nitpick:
-> 
-> Strictly speaking, zs_can_compact number is number of "ideal freeable page
-> by compaction". How about using high level term in description rather than
-> function name?
+"Cached" has been used for ages as amount of "potentially free memory".
+This patch corrects it in original meaning and makes it closer to that
+"potential"
+meaining at the same time.
 
-OK, makes sense.
+MemAvailable means exactly that and thing else so logic behind it could be
+tuned and changed in the future. Thus, adding new fields makes no sense.
 
 
-> > At the moment, we have only numbers of FULL and ALMOST_EMPTY classes, but
-> > they don't tell us how badly the class is fragmented internally.
-> > 
-> > The new /sys/kernel/debug/zsmalloc/zramX/classes output look as follows:
-> > 
-> >  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage compact
-> > [..]
-> >     12   224           0            2           146          5          8                4       4
-> >     13   240           0            0             0          0          0                1       0
-> >     14   256           1           13          1840       1672        115                1      10
-> >     15   272           0            0             0          0          0                1       0
-> > [..]
-> >     49   816           0            3           745        735        149                1       2
-> >     51   848           3            4           361        306         76                4       8
-> >     52   864          12           14           378        268         81                3      21
-> >     54   896           1           12           117         57         26                2      12
-> >     57   944           0            0             0          0          0                3       0
-> > [..]
-> >  Total                26          131         12709      10994       1071                      134
-> > 
-> > For example, from this particular output we can easily conclude that class-896
-> > is heavily fragmented -- it occupies 26 pages, 12 can be freed by compaction.
-> 
-> How about using "freeable" or something which could represent "freeable"?
-> IMO, it's more strightforward for user.
-
-OK. didn't want to put any long column name there, which would bloat the
-output. will take a look.
-
-> Other than that,
-> 
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> 
-> 
-> Thanks for the nice job!
-
-thanks.
-
-	-ss
+BTW
+Glibc recently switched sysconf(_SC_PHYS_PAGES) / sysconf(_SC_AVPHYS_PAGES)
+from /proc/meminfo MemTotal / MemFree to sysinfo(2) totalram / freeram for
+performance reason. It seems possible to expose MemAvailable via sysinfo:
+there is space for one field. Probably it's also possible to switch
+_SC_AVPHYS_PAGES
+to really available memory and add memcg awareness too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
