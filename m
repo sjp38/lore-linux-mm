@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E39346B0005
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:57:22 -0500 (EST)
-Received: by mail-qk0-f181.google.com with SMTP id s5so57823417qkd.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:57:22 -0800 (PST)
-Date: Mon, 29 Feb 2016 16:57:13 +0100
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 23EF96B0253
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:58:06 -0500 (EST)
+Received: by mail-qk0-f178.google.com with SMTP id o6so57999121qkc.2
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:58:06 -0800 (PST)
+Date: Mon, 29 Feb 2016 16:57:58 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 15/18] uprobes: wait for mmap_sem for write killable
-Message-ID: <20160229155712.GA1964@redhat.com>
+Subject: Re: [PATCH 11/18] coredump: make coredump_wait wait for mma_sem for
+ write killable
+Message-ID: <20160229155757.GB1964@redhat.com>
 References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-16-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-12-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1456752417-9626-16-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1456752417-9626-12-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
@@ -21,19 +22,18 @@ Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.or
 
 On 02/29, Michal Hocko wrote:
 >
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -1130,7 +1130,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
->  	struct vm_area_struct *vma;
->  	int ret;
->
+> --- a/fs/coredump.c
+> +++ b/fs/coredump.c
+> @@ -410,7 +410,9 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
+>  	core_state->dumper.task = tsk;
+>  	core_state->dumper.next = NULL;
+>  
 > -	down_write(&mm->mmap_sem);
 > +	if (down_write_killable(&mm->mmap_sem))
 > +		return -EINTR;
 > +
 
-Yes, but then dup_xol_work() should probably check fatal_signal_pending() to
-suppress uprobe_warn(), the warning looks like a kernel problem.
+ACK, thanks.
 
 Oleg.
 
