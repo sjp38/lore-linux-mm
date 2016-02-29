@@ -1,91 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A2C6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:25:31 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id ts10so132640072obc.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 04:25:31 -0800 (PST)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0061.outbound.protection.outlook.com. [207.46.100.61])
-        by mx.google.com with ESMTPS id i5si21300547obh.19.2016.02.29.04.25.30
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 64F806B0009
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:33:52 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id p65so66431792wmp.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 04:33:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d187si20147034wmc.105.2016.02.29.04.33.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Feb 2016 04:25:30 -0800 (PST)
-Date: Mon, 29 Feb 2016 13:25:11 +0100
-From: Robert Richter <robert.richter@caviumnetworks.com>
-Subject: Re: [PATCH 0/2] arm64, cma, gicv3-its: Use CMA for allocation of
- large device tables
-Message-ID: <20160229122511.GS24726@rric.localdomain>
-References: <1456398164-16864-1-git-send-email-rrichter@caviumnetworks.com>
- <56D42199.7040207@arm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Feb 2016 04:33:51 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
+References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D43AAB.2010802@suse.cz>
+Date: Mon, 29 Feb 2016 13:33:47 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <56D42199.7040207@arm.com>
+In-Reply-To: <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Tirumalesh Chalamarla <tchalamarla@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On 29.02.16 10:46:49, Marc Zyngier wrote:
-> On 25/02/16 11:02, Robert Richter wrote:
-> > From: Robert Richter <rrichter@cavium.com>
-> > 
-> > This series implements the use of CMA for allocation of large device
-> > tables for the arm64 gicv3 interrupt controller.
-> > 
-> > There are 2 patches, the first is for early activation of cma, which
-> > needs to be done before interrupt initialization to make it available
-> > to the gicv3. The second implements the use of CMA to allocate
-> > gicv3-its device tables.
-> > 
-> > This solves the problem where mem allocation is limited to 4MB. A
-> > previous patch sent to the list to address this that instead increases
-> > FORCE_MAX_ZONEORDER becomes obsolete.
-> 
-> I think you're looking at the problem the wrong way. Instead of going
-> through CMA directly, I'd rather go through the normal DMA API
-> (dma_alloc_coherent), which can itself try CMA (should it be enabled).
-> 
-> That will give you all the benefit of the CMA allocation, and also make
-> the driver more robust. I meant to do this for a while, and never found
-> the time. Any chance you could have a look?
+On 02/02/2016 06:42 AM, Andrew Morton wrote:
+> On Wed, 27 Jan 2016 22:19:14 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+>
+>> ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
+>> mm zones that are bumping up against the current maximum limit of 4
+>> zones, i.e. 2 bits in page->flags.  When adding a zone this equation
+>> still needs to be satisified:
+>>
+>>      SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
+>> 	  <= BITS_PER_LONG - NR_PAGEFLAGS
+>>
+>> ZONE_DEVICE currently tries to satisfy this equation by requiring that
+>> ZONE_DMA be disabled, but this is untenable given generic kernels want
+>> to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
+>> to increase the amount of memory covered per section, but that limits
+>> the minimum granularity at which consecutive memory ranges can be added
+>> via devm_memremap_pages().
+>>
+>> The trade-off of what is acceptable to sacrifice depends heavily on the
+>> platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
+>> page->flags is constrained, but those platforms likely do not care about
+>> the minimum granularity of memory hotplug.  A big iron machine with 1024
+>> numa nodes can likely sacrifice ZONE_DMA where a general purpose
+>> distribution kernel can not.
+>>
+>> CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
+>> when the number of configured zones exceeds 4.  It documents the
+>> configuration symbols and definitions that get modified when ZONES_WIDTH
+>> is greater than 2.
+>>
+>> For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
+>> document the definitions that get modified when a 32-bit configuration
+>> wants more zone bits.
+>
+> So if you want ZONE_DMA, you're limited to 512 NUMA nodes?
+>
+> That seems reasonable.
 
-I was considering this first, and in fact the backend used is the
-same. The problem is that irq initialization is much more earlier than
-standard device probing. The gic even does not have its own struct
-device and is not initialized like devices are. This makes the whole
-dma_alloc_coherent() approach not feasable, at least this would
-require introducing and using a dev struct for the gic. But still this
-migth not work as it could be too early during boot. I also think
-there were reasons not implementing the gic as a device.
+Sorry for the late reply, but it seems that with !SPARSEMEM, or with 
+SPARSEMEM_VMEMMAP, reducing NUMA nodes isn't even necessary, because 
+SECTIONS_WIDTH is zero (see the diagrams in linux/page-flags-layout.h). 
+In my brief tests with 4.4 based kernel with SPARSEMEM_VMEMMAP it seems 
+that with 1024 NUMA nodes and 8192 CPU's, there's still 7 bits left 
+(i.e. 6 with CONFIG_NR_ZONES_EXTENDED).
 
-I was following more the approach of iommu/mmu implementations which
-use dma_alloc_from_contiguous() directly. I think this is more close
-to the device tables for its.
+With the danger of becoming even more complex, could the limit also 
+depend on CONFIG_SPARSEMEM/VMEMMAP to reflect that somehow?
 
-Code path of dma_alloc_coherent():
+Or does it even make sense to limit the Kconfig choice like this? Same 
+reduction of bits could be achieved in multiple ways. Less CPU's means 
+smaller LAST_CPUPID_SHIFT. NUMA_BALACING disabled means LAST_CPUPID_SHIFT=0.
 
- dma_alloc_coherent()
-    v
- dma_alloc_attrs()             <---- Requires get_dma_ops(dev) != NULL
-    v
- dma_alloc_from_coherent()
-    v
- ...
-
-The difference it that dma_alloc_coherent() tries cma first and then
-proceeds with ops->alloc() (which is __dma_alloc() for arm64) if
-dma_alloc_from_coherent() fails. In my implementation I am directly
-using dma_alloc_from_coherent() and only for large mem sizes.
-
-So both approaches uses finally the same allocation, but for gicv3-its
-the generic dma framework is not used since the gic is not implemented
-as a device.
-
-Does this makes sense to you?
-
-Thanks,
-
--Robert
+What would be perhaps better is to (in case things don't fit) show what 
+uses how many bits and what are the relevant config options to tune to 
+make it fit?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
