@@ -1,43 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B8B828E1
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:16:25 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id n186so51391225wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:16:25 -0800 (PST)
-Date: Mon, 29 Feb 2016 15:16:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/18] change mmap_sem taken for write killable
-Message-ID: <20160229141622.GC16930@dhcp22.suse.cz>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <20160229140416.GA12506@node.shutemov.name>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A9B81828E1
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:28:48 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id fy10so92850521pac.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:28:48 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id lx14si8234629pab.106.2016.02.29.06.28.47
+        for <linux-mm@kvack.org>;
+        Mon, 29 Feb 2016 06:28:47 -0800 (PST)
+From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Subject: RE: [PATCH 1/3] DAX: move RADIX_DAX_ definitions to dax.c
+Date: Mon, 29 Feb 2016 14:28:46 +0000
+Message-ID: <100D68C7BA14664A8938383216E40DE0421D3AB4@FMSMSX114.amr.corp.intel.com>
+References: <145663588892.3865.9987439671424028216.stgit@notabene>
+ <145663616971.3865.212066814876758706.stgit@notabene>
+In-Reply-To: <145663616971.3865.212066814876758706.stgit@notabene>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160229140416.GA12506@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>
+To: NeilBrown <neilb@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon 29-02-16 17:04:16, Kirill A. Shutemov wrote:
-[...]
-> > Most of the patches are really trivial because the lock is help from a
-> > shallow syscall paths where we can return EINTR trivially. Others seem
-> > to be easy as well as the callers are already handling fatal errors and
-> > bail and return to userspace which should be sufficient to handle the
-> > failure gracefully. I am not familiar with all those code paths so a
-> > deeper review is really appreciated.
-> 
-> What about effect on userspace? IIUC, we would have now EINTR returned
-> from bunch of syscall, which haven't had this errno on the table before.
-> Should we care?
-
-Those function will return EINTR only when the current was _killed_ when
-we do not return to the userspace. So there shouldn't be any visible
-effect.
--- 
-Michal Hocko
-SUSE Labs
+SSBhZ3JlZSB3aXRoIHRoaXMgcGF0Y2gsIGJ1dCBpdCdzIGFscmVhZHkgcGFydCBvZiB0aGUgcGF0
+Y2hzZXQgdGhhdCBJJ20gd29ya2luZyBvbiwgc28gbWVyZ2luZyB0aGlzIHBhdGNoIG5vdyB3b3Vs
+ZCBqdXN0IGludHJvZHVjZSBjaHVybiBmb3IgbWUuDQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0t
+LS0tDQpGcm9tOiBOZWlsQnJvd24gW21haWx0bzpuZWlsYkBzdXNlLmNvbV0gDQpTZW50OiBTYXR1
+cmRheSwgRmVicnVhcnkgMjcsIDIwMTYgOTowOSBQTQ0KVG86IFJvc3MgWndpc2xlcjsgV2lsY294
+LCBNYXR0aGV3IFI7IEFuZHJldyBNb3J0b247IEphbiBLYXJhDQpDYzogbGludXgta2VybmVsQHZn
+ZXIua2VybmVsLm9yZzsgbGludXgtZnNkZXZlbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2
+YWNrLm9yZw0KU3ViamVjdDogW1BBVENIIDEvM10gREFYOiBtb3ZlIFJBRElYX0RBWF8gZGVmaW5p
+dGlvbnMgdG8gZGF4LmMNCg0KVGhlc2UgZG9uJ3QgYmVsb25nIGluIHJhZGl4LXRyZWUuYyBhbnkg
+bW9yZSB0aGFuIFBBR0VDQUNIRV9UQUdfKiBkby4NCkxldCdzIHRyeSB0byBtYWludGFpbiB0aGUg
+aWRlYSB0aGF0IHJhZGl4LXRyZWUgc2ltcGx5IGltcGxlbWVudHMgYW4NCmFic3RyYWN0IGRhdGEg
+dHlwZS4NCg0KU2lnbmVkLW9mZi1ieTogTmVpbEJyb3duIDxuZWlsYkBzdXNlLmNvbT4NCi0tLQ0K
+IGZzL2RheC5jICAgICAgICAgICAgICAgICAgIHwgICAgOSArKysrKysrKysNCiBpbmNsdWRlL2xp
+bnV4L3JhZGl4LXRyZWUuaCB8ICAgIDkgLS0tLS0tLS0tDQogMiBmaWxlcyBjaGFuZ2VkLCA5IGlu
+c2VydGlvbnMoKyksIDkgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9mcy9kYXguYyBiL2Zz
+L2RheC5jDQppbmRleCA3MTExNzI0NTBkYTYuLjljNGQ2OTdmYjZmYyAxMDA2NDQNCi0tLSBhL2Zz
+L2RheC5jDQorKysgYi9mcy9kYXguYw0KQEAgLTMyLDYgKzMyLDE1IEBADQogI2luY2x1ZGUgPGxp
+bnV4L3Bmbl90Lmg+DQogI2luY2x1ZGUgPGxpbnV4L3NpemVzLmg+DQogDQorI2RlZmluZSBSQURJ
+WF9EQVhfTUFTSwkweGYNCisjZGVmaW5lIFJBRElYX0RBWF9TSElGVAk0DQorI2RlZmluZSBSQURJ
+WF9EQVhfUFRFICAoMHg0IHwgUkFESVhfVFJFRV9FWENFUFRJT05BTF9FTlRSWSkNCisjZGVmaW5l
+IFJBRElYX0RBWF9QTUQgICgweDggfCBSQURJWF9UUkVFX0VYQ0VQVElPTkFMX0VOVFJZKQ0KKyNk
+ZWZpbmUgUkFESVhfREFYX1RZUEUoZW50cnkpICgodW5zaWduZWQgbG9uZyllbnRyeSAmIFJBRElY
+X0RBWF9NQVNLKQ0KKyNkZWZpbmUgUkFESVhfREFYX1NFQ1RPUihlbnRyeSkgKCgodW5zaWduZWQg
+bG9uZyllbnRyeSA+PiBSQURJWF9EQVhfU0hJRlQpKQ0KKyNkZWZpbmUgUkFESVhfREFYX0VOVFJZ
+KHNlY3RvciwgcG1kKSAoKHZvaWQgKikoKHVuc2lnbmVkIGxvbmcpc2VjdG9yIDw8IFwNCisJCVJB
+RElYX0RBWF9TSElGVCB8IChwbWQgPyBSQURJWF9EQVhfUE1EIDogUkFESVhfREFYX1BURSkpKQ0K
+Kw0KIHN0YXRpYyBsb25nIGRheF9tYXBfYXRvbWljKHN0cnVjdCBibG9ja19kZXZpY2UgKmJkZXYs
+IHN0cnVjdCBibGtfZGF4X2N0bCAqZGF4KQ0KIHsNCiAJc3RydWN0IHJlcXVlc3RfcXVldWUgKnEg
+PSBiZGV2LT5iZF9xdWV1ZTsNCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L3JhZGl4LXRyZWUu
+aCBiL2luY2x1ZGUvbGludXgvcmFkaXgtdHJlZS5oDQppbmRleCBmNTRiZTcwODIyMDcuLjk2ODE1
+MGFiOGExYyAxMDA2NDQNCi0tLSBhL2luY2x1ZGUvbGludXgvcmFkaXgtdHJlZS5oDQorKysgYi9p
+bmNsdWRlL2xpbnV4L3JhZGl4LXRyZWUuaA0KQEAgLTUxLDE1ICs1MSw2IEBADQogI2RlZmluZSBS
+QURJWF9UUkVFX0VYQ0VQVElPTkFMX0VOVFJZCTINCiAjZGVmaW5lIFJBRElYX1RSRUVfRVhDRVBU
+SU9OQUxfU0hJRlQJMg0KIA0KLSNkZWZpbmUgUkFESVhfREFYX01BU0sJMHhmDQotI2RlZmluZSBS
+QURJWF9EQVhfU0hJRlQJNA0KLSNkZWZpbmUgUkFESVhfREFYX1BURSAgKDB4NCB8IFJBRElYX1RS
+RUVfRVhDRVBUSU9OQUxfRU5UUlkpDQotI2RlZmluZSBSQURJWF9EQVhfUE1EICAoMHg4IHwgUkFE
+SVhfVFJFRV9FWENFUFRJT05BTF9FTlRSWSkNCi0jZGVmaW5lIFJBRElYX0RBWF9UWVBFKGVudHJ5
+KSAoKHVuc2lnbmVkIGxvbmcpZW50cnkgJiBSQURJWF9EQVhfTUFTSykNCi0jZGVmaW5lIFJBRElY
+X0RBWF9TRUNUT1IoZW50cnkpICgoKHVuc2lnbmVkIGxvbmcpZW50cnkgPj4gUkFESVhfREFYX1NI
+SUZUKSkNCi0jZGVmaW5lIFJBRElYX0RBWF9FTlRSWShzZWN0b3IsIHBtZCkgKCh2b2lkICopKCh1
+bnNpZ25lZCBsb25nKXNlY3RvciA8PCBcDQotCQlSQURJWF9EQVhfU0hJRlQgfCAocG1kID8gUkFE
+SVhfREFYX1BNRCA6IFJBRElYX0RBWF9QVEUpKSkNCi0NCiBzdGF0aWMgaW5saW5lIGludCByYWRp
+eF90cmVlX2lzX2luZGlyZWN0X3B0cih2b2lkICpwdHIpDQogew0KIAlyZXR1cm4gKGludCkoKHVu
+c2lnbmVkIGxvbmcpcHRyICYgUkFESVhfVFJFRV9JTkRJUkVDVF9QVFIpOw0KDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
