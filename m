@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D0A596B0254
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 14:42:06 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p65so5901938wmp.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 11:42:06 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5477B6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 15:03:06 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id p65so5058239wmp.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:03:06 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id w133si21773945wma.109.2016.02.29.11.42.05
+        by mx.google.com with ESMTPS id 143si21906052wme.24.2016.02.29.12.03.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 11:42:05 -0800 (PST)
-Date: Mon, 29 Feb 2016 14:41:59 -0500
+        Mon, 29 Feb 2016 12:03:05 -0800 (PST)
+Date: Mon, 29 Feb 2016 15:02:55 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: readahead: do not cap readahead() and MADV_WILLNEED
-Message-ID: <20160229194159.GB29896@cmpxchg.org>
-References: <1456277927-12044-1-git-send-email-hannes@cmpxchg.org>
- <CA+55aFzQr-8fOfzA97nZd07L8EFRgXSLSorrw1xVm_KMYinfdA@mail.gmail.com>
+Subject: Re: [PATCH] mm: memcontrol: reset memory.low on css offline
+Message-ID: <20160229200255.GA32539@cmpxchg.org>
+References: <1456766193-16255-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzQr-8fOfzA97nZd07L8EFRgXSLSorrw1xVm_KMYinfdA@mail.gmail.com>
+In-Reply-To: <1456766193-16255-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
 
-On Tue, Feb 23, 2016 at 06:34:59PM -0800, Linus Torvalds wrote:
-> Why do you think that "Just do what the user asked for" is obviously
-> the right thing?
+On Mon, Feb 29, 2016 at 08:16:33PM +0300, Vladimir Davydov wrote:
+> When a cgroup directory is removed, the memory cgroup subsys state does
+> not disappear immediately. Instead, it's left hanging around until the
+> last reference to it is gone, which implies reclaiming all pages from
+> its lruvec.
+> 
+> In the unified hierarchy, there's the memory.low knob, which can be used
+> to set a best-effort protection for a memory cgroup - the reclaimer
+> first scans those cgroups whose consumption is above memory.low, and
+> only if it fails to reclaim enough pages, it gets to the rest.
+> 
+> Currently this protection is not reset when the cgroup directory is
+> removed. As a result, if a dead memory cgroup has a lot of page cache
+> charged to it and a high value of memory.low, it will result in higher
+> pressure exerted on live cgroups, and userspace will have no ways to
+> detect such consumers and reconfigure memory.low properly.
+> 
+> To fix this, let's reset memory.low on css offline.
 
-In our situation, we are trying to prime the cache for what we know
-will be the definite workingset of the application. We don't care if
-it maxes out the IO capacity, and we don't care if it throws out any
-existing cache to accomplish the task. In fact, if you're sure about
-the workingset, that is desired behavior. It's basically read(), but
-without the pointless copying and waiting for completion.
-
-One of the mistakes I made was to look only at the manpage, and not at
-how readahead() is or has historically been used in the field.
-
-One such usecase is warming the system during bootup, where system
-software fires off readahead against all manner of libraries and
-executables that are likely to be used. In that scenario the caller
-really doesn't know for sure it's reading the right thing. And if not,
-the optimistic readahead shouldn't vaccuum up all the resources and
-interfere with the IO and memory demands of the *actual* workingset.
-
-It seems that the optimistic readahead during bootup is being phased
-out nowadays. Systemd took over with systemd-readahead, then dropped
-it eventually citing lack of desired performance benefits and
-relevance; there is another project called preload but it appears
-defunct as well. For all we know, though, there still are people who
-fire off optimistic readahead, and we can't regress them. Certainly
-older or customized userspace still running bootup readahead, or maybe
-comparable applications where workingsets are estimated by heuristics.
-
-It's unfortunate, because I frankly doubt we ever got the "else" part,
-the not-interfering-with-the-real-workload part, working anyway. The
-fact that distros are moving away from it or that we ended up limiting
-the window to near-ineffective levels seem to be a symptoms of that.
-That means the facility is now stuck somewhere in between questionable
-for optimistic readahead and not useful for reliable cache priming.
-
-We can't really make it work for both cases as their requirements are
-in direct conflict with each other. Lowering the limit from cache+free
-to 128k was a regression for priming a big known workingset, but there
-is also no point in going back now and risk regressing the other side.
-
-So it appears best to add a new syscall with clearly defined semantics
-to forcefully prime the cache.
-
-That, or switch to read() from a separate thread for cache priming.
-
-Hmm?
+We already have mem_cgroup_css_reset() for soft-offlining a css - when
+the css is asked to be disabled but another subsystem still uses it.
+Can we just call that function during offline as well? The css can be
+around for quite a bit after the user deleted it. Eliminating *any*
+user-supplied configurations and zapping it back to defaults makes
+sense in general, so that we never have to worry about any remnants.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
