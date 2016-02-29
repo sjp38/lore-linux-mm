@@ -1,39 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 316F6828E1
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:58:25 -0500 (EST)
-Received: by mail-qk0-f179.google.com with SMTP id s5so59367566qkd.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:58:25 -0800 (PST)
-Date: Mon, 29 Feb 2016 18:58:17 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 07/18] mm, proc: make clear_refs killable
-Message-ID: <20160229175816.GE3615@redhat.com>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-8-git-send-email-mhocko@kernel.org>
- <20160229173845.GC3615@redhat.com>
- <20160229175338.GM16930@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160229175338.GM16930@dhcp22.suse.cz>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FC8D828DF
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:01:35 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l68so684974wml.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:01:35 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id r8si33312598wjq.3.2016.02.29.10.01.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Feb 2016 10:01:34 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id l68so2377068wml.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:01:34 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, proc: make clear_refs killable
+Date: Mon, 29 Feb 2016 18:56:27 +0100
+Message-Id: <1456768587-24893-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1456752417-9626-8-git-send-email-mhocko@kernel.org>
+References: <1456752417-9626-8-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Petr Cermak <petrcermak@chromium.org>
 
-On 02/29, Michal Hocko wrote:
->
-> On Mon 29-02-16 18:38:45, Oleg Nesterov wrote:
-> 
-> > In this case you do not need put_task_struct().
-> 
-> Why not? Both are after get_proc_task which takes a reference to the
-> task...
+From: Michal Hocko <mhocko@suse.com>
 
-Yes, but we already have put_task_struct(task) in the "out_mm" path, so
-"goto out_mm" should work just fine?
+CLEAR_REFS_MM_HIWATER_RSS and CLEAR_REFS_SOFT_DIRTY are relying on
+mmap_sem for write. If the waiting task gets killed by the oom killer
+and it would operate on the current's mm it would block oom_reaper from
+asynchronous address space reclaim and reduce the chances of timely OOM
+resolving. Wait for the lock in the killable mode and return with EINTR
+if the task got killed while waiting. This will also expedite the return
+to the userspace and do_exit even if the mm is remote.
 
-Oleg.
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Petr Cermak <petrcermak@chromium.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ fs/proc/task_mmu.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 9df431642042..bb117356a04e 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1027,11 +1027,15 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		};
+ 
+ 		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
++			if (down_write_killable(&mm->mmap_sem)) {
++				count = -EINTR;
++				goto out_mm;
++			}
++
+ 			/*
+ 			 * Writing 5 to /proc/pid/clear_refs resets the peak
+ 			 * resident set size to this mm's current rss value.
+ 			 */
+-			down_write(&mm->mmap_sem);
+ 			reset_mm_hiwater_rss(mm);
+ 			up_write(&mm->mmap_sem);
+ 			goto out_mm;
+@@ -1043,7 +1047,10 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 				if (!(vma->vm_flags & VM_SOFTDIRTY))
+ 					continue;
+ 				up_read(&mm->mmap_sem);
+-				down_write(&mm->mmap_sem);
++				if (down_write_killable(&mm->mmap_sem)) {
++					count = -EINTR;
++					goto out_mm;
++				}
+ 				for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 					vma->vm_flags &= ~VM_SOFTDIRTY;
+ 					vma_set_page_prot(vma);
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
