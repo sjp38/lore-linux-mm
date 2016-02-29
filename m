@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E6FD46B0258
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:23 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id n186so49197973wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:23 -0800 (PST)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FFD46B0259
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:25 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id n186so49199110wmn.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:25 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 08/18] mm, fork: make dup_mmap wait for mmap_sem for write killable
-Date: Mon, 29 Feb 2016 14:26:47 +0100
-Message-Id: <1456752417-9626-9-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 09/18] ipc, shm: make shmem attach/detach wait for mmap_sem killable
+Date: Mon, 29 Feb 2016 14:26:48 +0100
+Message-Id: <1456752417-9626-10-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,37 +17,46 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher 
 
 From: Michal Hocko <mhocko@suse.com>
 
-dup_mmap needs to lock current's mm mmap_sem for write. If the waiting
-task gets killed by the oom killer it would block oom_reaper from
-asynchronous address space reclaim and reduce the chances of timely OOM
-resolving. Wait for the lock in the killable mode and return with EINTR
-if the task got killed while waiting.
+shmat and shmdt rely on mmap_sem for write. If the waiting task
+gets killed by the oom killer it would block oom_reaper from
+asynchronous address space reclaim and reduce the chances of timely
+OOM resolving. Wait for the lock in the killable mode and return with
+EINTR if the task got killed while waiting.
 
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- kernel/fork.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ ipc/shm.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d277e83ed3e0..e064bc8453dc 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -413,7 +413,10 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	unsigned long charge;
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 331fc1b0b3c7..b8cfa05940d2 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -1200,7 +1200,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+ 	if (err)
+ 		goto out_fput;
  
- 	uprobe_start_dup_mmap();
--	down_write(&oldmm->mmap_sem);
-+	if (down_write_killable(&oldmm->mmap_sem)) {
-+		uprobe_end_dup_mmap();
-+		return -EINTR;
+-	down_write(&current->mm->mmap_sem);
++	if (down_write_killable(&current->mm->mmap_sem)) {
++		err = -EINVAL;
++		goto out_fput;
 +	}
- 	flush_cache_dup_mm(oldmm);
- 	uprobe_dup_mmap(oldmm, mm);
++
+ 	if (addr && !(shmflg & SHM_REMAP)) {
+ 		err = -EINVAL;
+ 		if (addr + size < addr)
+@@ -1271,7 +1275,8 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
+ 	if (addr & ~PAGE_MASK)
+ 		return retval;
+ 
+-	down_write(&mm->mmap_sem);
++	if (down_write_killable(&mm->mmap_sem))
++		return -EINTR;
+ 
  	/*
+ 	 * This function tries to be smart and unmap shm segments that
 -- 
 2.7.0
 
