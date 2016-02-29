@@ -1,54 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B315A6B0270
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:03:31 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id p65so72572806wmp.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:03:31 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id hh4si32577222wjc.172.2016.02.29.07.03.29
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB6F6B0271
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:06:21 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id n186so53760379wmn.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:06:21 -0800 (PST)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id qs3si32543414wjc.230.2016.02.29.07.06.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 07:03:29 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id l68so40821620wml.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:03:29 -0800 (PST)
-Date: Mon, 29 Feb 2016 18:03:27 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/18] change mmap_sem taken for write killable
-Message-ID: <20160229150327.GA13188@node.shutemov.name>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <20160229140416.GA12506@node.shutemov.name>
- <20160229141622.GC16930@dhcp22.suse.cz>
+        Mon, 29 Feb 2016 07:06:20 -0800 (PST)
+Received: by mail-wm0-f41.google.com with SMTP id l68so40950240wml.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:06:20 -0800 (PST)
+Date: Mon, 29 Feb 2016 16:06:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] writeback: move list_lock down into the for loop
+Message-ID: <20160229150618.GA16939@dhcp22.suse.cz>
+References: <1456505185-21566-1-git-send-email-yang.shi@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160229141622.GC16930@dhcp22.suse.cz>
+In-Reply-To: <1456505185-21566-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Yang Shi <yang.shi@linaro.org>
+Cc: tj@kernel.org, jack@suse.cz, axboe@fb.com, fengguang.wu@intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Mon, Feb 29, 2016 at 03:16:22PM +0100, Michal Hocko wrote:
-> On Mon 29-02-16 17:04:16, Kirill A. Shutemov wrote:
-> [...]
-> > > Most of the patches are really trivial because the lock is help from a
-> > > shallow syscall paths where we can return EINTR trivially. Others seem
-> > > to be easy as well as the callers are already handling fatal errors and
-> > > bail and return to userspace which should be sufficient to handle the
-> > > failure gracefully. I am not familiar with all those code paths so a
-> > > deeper review is really appreciated.
-> > 
-> > What about effect on userspace? IIUC, we would have now EINTR returned
-> > from bunch of syscall, which haven't had this errno on the table before.
-> > Should we care?
+On Fri 26-02-16 08:46:25, Yang Shi wrote:
+> The list_lock was moved outside the for loop by commit
+> e8dfc30582995ae12454cda517b17d6294175b07 ("writeback: elevate queue_io()
+> into wb_writeback())", however, the commit log says "No behavior change", so
+> it sounds safe to have the list_lock acquired inside the for loop as it did
+> before.
+> Leave tracepoints outside the critical area since tracepoints already have
+> preempt disabled.
+
+The patch says what but it completely misses the why part.
+
 > 
-> Those function will return EINTR only when the current was _killed_ when
-> we do not return to the userspace. So there shouldn't be any visible
-> effect.
-
-Ah. I confused killable with interruptible.
+> Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> ---
+> Tested with ltp on 8 cores Cortex-A57 machine.
+> 
+>  fs/fs-writeback.c | 12 +++++++-----
+>  1 file changed, 7 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 1f76d89..9b7b5f6 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -1623,7 +1623,6 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  	work->older_than_this = &oldest_jif;
+>  
+>  	blk_start_plug(&plug);
+> -	spin_lock(&wb->list_lock);
+>  	for (;;) {
+>  		/*
+>  		 * Stop writeback when nr_pages has been consumed
+> @@ -1661,15 +1660,19 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  			oldest_jif = jiffies;
+>  
+>  		trace_writeback_start(wb, work);
+> +
+> +		spin_lock(&wb->list_lock);
+>  		if (list_empty(&wb->b_io))
+>  			queue_io(wb, work);
+>  		if (work->sb)
+>  			progress = writeback_sb_inodes(work->sb, wb, work);
+>  		else
+>  			progress = __writeback_inodes_wb(wb, work);
+> -		trace_writeback_written(wb, work);
+>  
+>  		wb_update_bandwidth(wb, wb_start);
+> +		spin_unlock(&wb->list_lock);
+> +
+> +		trace_writeback_written(wb, work);
+>  
+>  		/*
+>  		 * Did we write something? Try for more
+> @@ -1693,15 +1696,14 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  		 */
+>  		if (!list_empty(&wb->b_more_io))  {
+>  			trace_writeback_wait(wb, work);
+> +			spin_lock(&wb->list_lock);
+>  			inode = wb_inode(wb->b_more_io.prev);
+> -			spin_lock(&inode->i_lock);
+>  			spin_unlock(&wb->list_lock);
+> +			spin_lock(&inode->i_lock);
+>  			/* This function drops i_lock... */
+>  			inode_sleep_on_writeback(inode);
+> -			spin_lock(&wb->list_lock);
+>  		}
+>  	}
+> -	spin_unlock(&wb->list_lock);
+>  	blk_finish_plug(&plug);
+>  
+>  	return nr_pages - work->nr_pages;
+> -- 
+> 2.0.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
