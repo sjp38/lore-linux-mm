@@ -1,46 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CE859828E6
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:02:02 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id n186so728322wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:02:02 -0800 (PST)
-Date: Mon, 29 Feb 2016 19:02:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 07/18] mm, proc: make clear_refs killable
-Message-ID: <20160229180200.GO16930@dhcp22.suse.cz>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-8-git-send-email-mhocko@kernel.org>
- <20160229173845.GC3615@redhat.com>
- <20160229175338.GM16930@dhcp22.suse.cz>
- <20160229175816.GE3615@redhat.com>
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id DE889828E6
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:04:39 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id s6so91584969obg.3
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:04:39 -0800 (PST)
+Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
+        by mx.google.com with ESMTPS id d7si1539598oby.86.2016.02.29.10.04.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Feb 2016 10:04:39 -0800 (PST)
+Received: by mail-ob0-x236.google.com with SMTP id ts10so142176336obc.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:04:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160229175816.GE3615@redhat.com>
+In-Reply-To: <1456738445-876239-1-git-send-email-arnd@arndb.de>
+References: <1456738445-876239-1-git-send-email-arnd@arndb.de>
+Date: Mon, 29 Feb 2016 10:04:38 -0800
+Message-ID: <CAPcyv4jJzUieZ0i2jBqANwmYPUBVmQmhoDTPnr0KjPQXnoZqWQ@mail.gmail.com>
+Subject: Re: [PATCH] crypto/async_pq: use __free_page() instead of put_page()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux MM <linux-mm@kvack.org>, Herbert Xu <herbert@gondor.apana.org.au>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Nazarewicz <mina86@mina86.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, NeilBrown <neilb@suse.com>, Markus Stockhausen <stockhausen@collogia.de>, Vinod Koul <vinod.koul@intel.com>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon 29-02-16 18:58:17, Oleg Nesterov wrote:
-> On 02/29, Michal Hocko wrote:
-> >
-> > On Mon 29-02-16 18:38:45, Oleg Nesterov wrote:
-> > 
-> > > In this case you do not need put_task_struct().
-> > 
-> > Why not? Both are after get_proc_task which takes a reference to the
-> > task...
-> 
-> Yes, but we already have put_task_struct(task) in the "out_mm" path, so
-> "goto out_mm" should work just fine?
+On Mon, Feb 29, 2016 at 1:33 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+> The addition of tracepoints to the page reference tracking had an
+> unfortunate side-effect in at least one driver that calls put_page
+> from its exit function, resulting in a link error:
+>
+> `.exit.text' referenced in section `__jump_table' of crypto/built-in.o: defined in discarded section `.exit.text' of crypto/built-in.o
+>
+> From a cursory look at that this driver, it seems that it may be
+> doing the wrong thing here anyway, as the page gets allocated
+> using 'alloc_page()', and should be freed using '__free_page()'
+> rather than 'put_page()'.
+>
+> With this patch, I no longer get any other build errors from the
+> page_ref patch, so hopefully we can assume that it's always wrong
+> to call any of those functions from __exit code, and that no other
+> driver does it.
+>
+> Fixes: 0f80830dd044 ("mm/page_ref: add tracepoint to track down page reference manipulation")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-OK, got what you mean now. That's what I did and is on the way. I just
-thought you mean that put_task_struct is implicit for other reason.
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
--- 
-Michal Hocko
-SUSE Labs
+Vinod, will you take this one?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
