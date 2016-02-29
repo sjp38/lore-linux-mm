@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f54.google.com (mail-lf0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 77FE96B0253
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 11:31:37 -0500 (EST)
-Received: by mail-lf0-f54.google.com with SMTP id v124so1952649lff.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:31:37 -0800 (PST)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com. [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id t68si12801689lfd.55.2016.02.29.08.31.36
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E0F46B0005
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:02:19 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fl4so94996296pad.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:02:19 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id fl1si5330240pab.55.2016.02.29.09.02.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 08:31:36 -0800 (PST)
-Received: by mail-lb0-x22b.google.com with SMTP id x1so83120322lbj.3
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:31:36 -0800 (PST)
-Subject: Re: [PATCH v4 6/7] kasan: Test fix: Warn if the UAF could not be
- detected in kmalloc_uaf2
-References: <cover.1456504662.git.glider@google.com>
- <9d9de65bc0661ccb4a663a4b59c0bb096e642cde.1456504662.git.glider@google.com>
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Message-ID: <56D47267.5070308@gmail.com>
-Date: Mon, 29 Feb 2016 19:31:35 +0300
+        Mon, 29 Feb 2016 09:02:18 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
+Date: Mon, 29 Feb 2016 20:02:09 +0300
+Message-ID: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <9d9de65bc0661ccb4a663a4b59c0bb096e642cde.1456504662.git.glider@google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
-Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+An mm_struct may be pinned by a file. An example is vhost-net device
+created by a qemu/kvm (see vhost_net_ioctl -> vhost_net_set_owner ->
+vhost_dev_set_owner). If such process gets OOM-killed, the reference to
+its mm_struct will only be released from exit_task_work -> ____fput ->
+__fput -> vhost_net_release -> vhost_dev_cleanup, which is called after
+exit_mmap, where TIF_MEMDIE is cleared. As a result, we can start
+selecting the next victim before giving the last one a chance to free
+its memory. In practice, this leads to killing several VMs along with
+the fattest one.
 
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+ kernel/exit.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-On 02/26/2016 07:48 PM, Alexander Potapenko wrote:
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> ---
->  lib/test_kasan.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-
-> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-> index 90ad74f..82169fb 100644
-> --- a/lib/test_kasan.c
-> +++ b/lib/test_kasan.c
-> @@ -294,6 +294,8 @@ static noinline void __init kmalloc_uaf2(void)
->  	}
->  
->  	ptr1[40] = 'x';
-> +	if (ptr1 == ptr2)
-> +		pr_err("Could not detect use-after-free: ptr1 == ptr2\n");
->  	kfree(ptr2);
->  }
->  
-> 
+diff --git a/kernel/exit.c b/kernel/exit.c
+index fd90195667e1..cc50e12165f7 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -434,8 +434,6 @@ static void exit_mm(struct task_struct *tsk)
+ 	task_unlock(tsk);
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+-	if (test_thread_flag(TIF_MEMDIE))
+-		exit_oom_victim(tsk);
+ }
+ 
+ static struct task_struct *find_alive_thread(struct task_struct *p)
+@@ -746,6 +744,8 @@ void do_exit(long code)
+ 		disassociate_ctty(1);
+ 	exit_task_namespaces(tsk);
+ 	exit_task_work(tsk);
++	if (test_thread_flag(TIF_MEMDIE))
++		exit_oom_victim(tsk);
+ 	exit_thread();
+ 
+ 	/*
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
