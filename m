@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F806B0009
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:33:52 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p65so66431792wmp.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 04:33:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d187si20147034wmc.105.2016.02.29.04.33.51
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Feb 2016 04:33:51 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
-References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D43AAB.2010802@suse.cz>
-Date: Mon, 29 Feb 2016 13:33:47 +0100
-MIME-Version: 1.0
-In-Reply-To: <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0751F6B0009
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:10 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p65so45307334wmp.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:09 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/18] change mmap_sem taken for write killable
+Date: Mon, 29 Feb 2016 14:26:39 +0100
+Message-Id: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On 02/02/2016 06:42 AM, Andrew Morton wrote:
-> On Wed, 27 Jan 2016 22:19:14 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
->
->> ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
->> mm zones that are bumping up against the current maximum limit of 4
->> zones, i.e. 2 bits in page->flags.  When adding a zone this equation
->> still needs to be satisified:
->>
->>      SECTIONS_WIDTH + ZONES_WIDTH + NODES_SHIFT + LAST_CPUPID_SHIFT
->> 	  <= BITS_PER_LONG - NR_PAGEFLAGS
->>
->> ZONE_DEVICE currently tries to satisfy this equation by requiring that
->> ZONE_DMA be disabled, but this is untenable given generic kernels want
->> to support ZONE_DEVICE and ZONE_DMA simultaneously.  ZONE_CMA would like
->> to increase the amount of memory covered per section, but that limits
->> the minimum granularity at which consecutive memory ranges can be added
->> via devm_memremap_pages().
->>
->> The trade-off of what is acceptable to sacrifice depends heavily on the
->> platform.  For example, ZONE_CMA is targeted for 32-bit platforms where
->> page->flags is constrained, but those platforms likely do not care about
->> the minimum granularity of memory hotplug.  A big iron machine with 1024
->> numa nodes can likely sacrifice ZONE_DMA where a general purpose
->> distribution kernel can not.
->>
->> CONFIG_NR_ZONES_EXTENDED is a configuration symbol that gets selected
->> when the number of configured zones exceeds 4.  It documents the
->> configuration symbols and definitions that get modified when ZONES_WIDTH
->> is greater than 2.
->>
->> For now, it steals a bit from NODES_SHIFT.  Later on it can be used to
->> document the definitions that get modified when a 32-bit configuration
->> wants more zone bits.
->
-> So if you want ZONE_DMA, you're limited to 512 NUMA nodes?
->
-> That seems reasonable.
+Hi,
+this is a follow up work for oom_reaper [1]. As the async OOM killing
+depends on oom_sem for read we would really appreciate if a holder for
+write stood in the way. This patchset is changing many of down_write
+calls to be killable to help those cases when the writer is blocked and
+waiting for readers to release the lock and so help __oom_reap_task to
+process the oom victim.
 
-Sorry for the late reply, but it seems that with !SPARSEMEM, or with 
-SPARSEMEM_VMEMMAP, reducing NUMA nodes isn't even necessary, because 
-SECTIONS_WIDTH is zero (see the diagrams in linux/page-flags-layout.h). 
-In my brief tests with 4.4 based kernel with SPARSEMEM_VMEMMAP it seems 
-that with 1024 NUMA nodes and 8192 CPU's, there's still 7 bits left 
-(i.e. 6 with CONFIG_NR_ZONES_EXTENDED).
+Most of the patches are really trivial because the lock is help from a
+shallow syscall paths where we can return EINTR trivially. Others seem
+to be easy as well as the callers are already handling fatal errors and
+bail and return to userspace which should be sufficient to handle the
+failure gracefully. I am not familiar with all those code paths so a
+deeper review is really appreciated.
 
-With the danger of becoming even more complex, could the limit also 
-depend on CONFIG_SPARSEMEM/VMEMMAP to reflect that somehow?
+As this work is touching more areas which are not directly connected I
+have tried to keep the CC list as small as possible and people who I
+believed would be familiar are CCed only to the specific patches (all
+should have received the cover though).
 
-Or does it even make sense to limit the Kconfig choice like this? Same 
-reduction of bits could be achieved in multiple ways. Less CPU's means 
-smaller LAST_CPUPID_SHIFT. NUMA_BALACING disabled means LAST_CPUPID_SHIFT=0.
+This patchset is based on linux-next and it depends on down_write_killable
+for rw_semaphores posted recently [2].
 
-What would be perhaps better is to (in case things don't fit) show what 
-uses how many bits and what are the relevant config options to tune to 
-make it fit?
+I haven't covered all the mmap_write(mm->mmap_sem) instances here
+
+$ git grep "down_write(.*\<mmap_sem\>)" next/master | wc -l
+102
+$ git grep "down_write(.*\<mmap_sem\>)" | wc -l
+66
+
+I have tried to cover those which should be relatively easy to review in
+this series because this alone should be a nice improvement. Other places
+can be changed on top.
+
+Any feedback is highly appreciated.
+
+---
+[1] http://lkml.kernel.org/r/1452094975-551-1-git-send-email-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/1456750705-7141-1-git-send-email-mhocko@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
