@@ -1,53 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E47E26B0264
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:40 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id l68so36721125wml.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:40 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 18/18] drm/amdgpu: make amdgpu_mn_get wait for mmap_sem killable
-Date: Mon, 29 Feb 2016 14:26:57 +0100
-Message-Id: <1456752417-9626-19-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id F02056B026F
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:31:03 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id w128so47519858pfb.2
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:31:03 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id bx6si43131374pad.6.2016.02.29.05.31.03
+        for <linux-mm@kvack.org>;
+        Mon, 29 Feb 2016 05:31:03 -0800 (PST)
+Subject: Re: [PATCH 0/2] arm64, cma, gicv3-its: Use CMA for allocation of
+ large device tables
+References: <1456398164-16864-1-git-send-email-rrichter@caviumnetworks.com>
+ <56D42199.7040207@arm.com> <20160229122511.GS24726@rric.localdomain>
+From: Marc Zyngier <marc.zyngier@arm.com>
+Message-ID: <56D44812.6000309@arm.com>
+Date: Mon, 29 Feb 2016 13:30:58 +0000
+MIME-Version: 1.0
+In-Reply-To: <20160229122511.GS24726@rric.localdomain>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
+To: Robert Richter <robert.richter@caviumnetworks.com>
+Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Tirumalesh Chalamarla <tchalamarla@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On 29/02/16 12:25, Robert Richter wrote:
+> On 29.02.16 10:46:49, Marc Zyngier wrote:
+>> On 25/02/16 11:02, Robert Richter wrote:
+>>> From: Robert Richter <rrichter@cavium.com>
+>>>
+>>> This series implements the use of CMA for allocation of large device
+>>> tables for the arm64 gicv3 interrupt controller.
+>>>
+>>> There are 2 patches, the first is for early activation of cma, which
+>>> needs to be done before interrupt initialization to make it available
+>>> to the gicv3. The second implements the use of CMA to allocate
+>>> gicv3-its device tables.
+>>>
+>>> This solves the problem where mem allocation is limited to 4MB. A
+>>> previous patch sent to the list to address this that instead increases
+>>> FORCE_MAX_ZONEORDER becomes obsolete.
+>>
+>> I think you're looking at the problem the wrong way. Instead of going
+>> through CMA directly, I'd rather go through the normal DMA API
+>> (dma_alloc_coherent), which can itself try CMA (should it be enabled).
+>>
+>> That will give you all the benefit of the CMA allocation, and also make
+>> the driver more robust. I meant to do this for a while, and never found
+>> the time. Any chance you could have a look?
+> 
+> I was considering this first, and in fact the backend used is the
+> same. The problem is that irq initialization is much more earlier than
+> standard device probing. The gic even does not have its own struct
+> device and is not initialized like devices are. This makes the whole
+> dma_alloc_coherent() approach not feasable, at least this would
+> require introducing and using a dev struct for the gic. But still this
+> migth not work as it could be too early during boot. I also think
+> there were reasons not implementing the gic as a device.
+> 
+> I was following more the approach of iommu/mmu implementations which
+> use dma_alloc_from_contiguous() directly. I think this is more close
+> to the device tables for its.
+> 
+> Code path of dma_alloc_coherent():
+> 
+>  dma_alloc_coherent()
+>     v
+>  dma_alloc_attrs()             <---- Requires get_dma_ops(dev) != NULL
+>     v
+>  dma_alloc_from_coherent()
+>     v
+>  ...
+> 
+> The difference it that dma_alloc_coherent() tries cma first and then
+> proceeds with ops->alloc() (which is __dma_alloc() for arm64) if
+> dma_alloc_from_coherent() fails. In my implementation I am directly
+> using dma_alloc_from_coherent() and only for large mem sizes.
+> 
+> So both approaches uses finally the same allocation, but for gicv3-its
+> the generic dma framework is not used since the gic is not implemented
+> as a device.
 
-amdgpu_mn_get which is called during ioct path relies on mmap_sem for
-write. If the waiting task gets killed by the oom killer it would block
-oom_reaper from asynchronous address space reclaim and reduce the
-chances of timely OOM resolving. Wait for the lock in the killable mode
-and return with EINTR if the task got killed while waiting.
+And that's what I propose we change.
 
-Cc: David Airlie <airlied@linux.ie>
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+The core GIC itself indeed isn't a device, and I'm not proposing we make
+it a device (yet). But the ITS is only used much later in the game, and
+we could move the table allocation to a different time (when the actual
+domains are allocated, for example...). Then, we'd have a set of devices
+available, and the DMA API is our friend again.
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-index d7ec9bd6755f..6f44f1c23be3 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-@@ -181,7 +181,10 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
- 	int r;
- 
- 	mutex_lock(&adev->mn_lock);
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem)) {
-+		mutex_unlock(&adev->mn_lock);
-+		return -EINTR;
-+	}
- 
- 	hash_for_each_possible(adev->mn_hash, rmn, node, (unsigned long)mm)
- 		if (rmn->mm == mm)
+	M.
 -- 
-2.7.0
+Jazz is not dead. It just smells funny...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
