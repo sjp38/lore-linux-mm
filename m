@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 93EB26B0005
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:07:19 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l68so1028344wml.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:07:19 -0800 (PST)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id 17si33296870wjv.159.2016.02.29.10.07.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 10:07:18 -0800 (PST)
-Received: by mail-wm0-f50.google.com with SMTP id n186so950763wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:07:18 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, fork: make dup_mmap wait for mmap_sem for write killable
-Date: Mon, 29 Feb 2016 19:07:12 +0100
-Message-Id: <1456769232-27592-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1456752417-9626-9-git-send-email-mhocko@kernel.org>
-References: <1456752417-9626-9-git-send-email-mhocko@kernel.org>
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 163906B0254
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:10:30 -0500 (EST)
+Received: by mail-qg0-f52.google.com with SMTP id y9so123372264qgd.3
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:10:30 -0800 (PST)
+Date: Mon, 29 Feb 2016 19:10:19 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 13/18] exec: make exec path waiting for mmap_sem killable
+Message-ID: <20160229181018.GF3615@redhat.com>
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-14-git-send-email-mhocko@kernel.org>
+ <20160229172333.GB3615@redhat.com>
+ <20160229174739.GL16930@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160229174739.GL16930@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-From: Michal Hocko <mhocko@suse.com>
+On 02/29, Michal Hocko wrote:
+>
+> On Mon 29-02-16 18:23:34, Oleg Nesterov wrote:
+> > On 02/29, Michal Hocko wrote:
+> > >
+> > > @@ -267,7 +267,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+> > >  	if (!vma)
+> > >  		return -ENOMEM;
+> > >
+> > > -	down_write(&mm->mmap_sem);
+> > > +	if (down_write_killable(&mm->mmap_sem)) {
+> > > +		err = -EINTR;
+> > > +		goto err_free;
+> > > +	}
+> > >  	vma->vm_mm = mm;
+> >
+> > I won't argue, but this looks unnecessary. Nobody else can see this new mm,
+> > down_write() can't block.
+> >
+> > In fact I think we can just remove down_write/up_write here. Except perhaps
+> > there is lockdep_assert_held() somewhere in these paths.
+>
+> This is what I had initially but then I've noticed that mm_alloc() does
+> mm_init(current)->init_new_context(current)
 
-dup_mmap needs to lock current's mm mmap_sem for write. If the waiting
-task gets killed by the oom killer it would block oom_reaper from
-asynchronous address space reclaim and reduce the chances of timely OOM
-resolving. Wait for the lock in the killable mode and return with EINTR
-if the task got killed while waiting.
+yes, and init_new_context() is arch dependant...
 
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- kernel/fork.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+> code doesn't seem much harder to follow, the callers are already
+> handling all error paths so I guess it would be better to simply move on
+> this.
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d277e83ed3e0..139968026b76 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -413,7 +413,10 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	unsigned long charge;
- 
- 	uprobe_start_dup_mmap();
--	down_write(&oldmm->mmap_sem);
-+	if (down_write_killable(&oldmm->mmap_sem)) {
-+		retval = -EINTR;
-+		goto fail_uprobe_end;
-+	}
- 	flush_cache_dup_mm(oldmm);
- 	uprobe_dup_mmap(oldmm, mm);
- 	/*
-@@ -525,6 +528,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	up_write(&mm->mmap_sem);
- 	flush_tlb_mm(oldmm);
- 	up_write(&oldmm->mmap_sem);
-+fail_uprobe_end:
- 	uprobe_end_dup_mmap();
- 	return retval;
- fail_nomem_anon_vma_fork:
--- 
-2.7.0
+Yes, agreed, please forget.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
