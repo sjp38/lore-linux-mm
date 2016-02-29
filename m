@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 163906B0254
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:10:30 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id y9so123372264qgd.3
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:10:30 -0800 (PST)
-Date: Mon, 29 Feb 2016 19:10:19 +0100
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E596B0257
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 13:11:09 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id y89so121982971qge.2
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 10:11:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i64si26804523qhc.61.2016.02.29.10.11.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Feb 2016 10:11:08 -0800 (PST)
+Date: Mon, 29 Feb 2016 19:11:06 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 13/18] exec: make exec path waiting for mmap_sem killable
-Message-ID: <20160229181018.GF3615@redhat.com>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-14-git-send-email-mhocko@kernel.org>
- <20160229172333.GB3615@redhat.com>
- <20160229174739.GL16930@dhcp22.suse.cz>
+Subject: Re: [PATCH] uprobes: wait for mmap_sem for write killable
+Message-ID: <20160229181105.GG3615@redhat.com>
+References: <1456752417-9626-16-git-send-email-mhocko@kernel.org>
+ <1456767743-18665-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160229174739.GL16930@dhcp22.suse.cz>
+In-Reply-To: <1456767743-18665-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
 On 02/29, Michal Hocko wrote:
 >
-> On Mon 29-02-16 18:23:34, Oleg Nesterov wrote:
-> > On 02/29, Michal Hocko wrote:
-> > >
-> > > @@ -267,7 +267,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
-> > >  	if (!vma)
-> > >  		return -ENOMEM;
-> > >
-> > > -	down_write(&mm->mmap_sem);
-> > > +	if (down_write_killable(&mm->mmap_sem)) {
-> > > +		err = -EINTR;
-> > > +		goto err_free;
-> > > +	}
-> > >  	vma->vm_mm = mm;
-> >
-> > I won't argue, but this looks unnecessary. Nobody else can see this new mm,
-> > down_write() can't block.
-> >
-> > In fact I think we can just remove down_write/up_write here. Except perhaps
-> > there is lockdep_assert_held() somewhere in these paths.
->
-> This is what I had initially but then I've noticed that mm_alloc() does
-> mm_init(current)->init_new_context(current)
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -1130,7 +1130,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
+>  	struct vm_area_struct *vma;
+>  	int ret;
+>  
+> -	down_write(&mm->mmap_sem);
+> +	if (down_write_killable(&mm->mmap_sem))
+> +		return -EINTR;
+> +
+>  	if (mm->uprobes_state.xol_area) {
+>  		ret = -EALREADY;
+>  		goto fail;
+> @@ -1468,7 +1470,8 @@ static void dup_xol_work(struct callback_head *work)
+>  	if (current->flags & PF_EXITING)
+>  		return;
+>  
+> -	if (!__create_xol_area(current->utask->dup_xol_addr))
+> +	if (!__create_xol_area(current->utask->dup_xol_addr) &&
+> +			!fatal_signal_pending(current)
+>  		uprobe_warn(current, "dup xol area");
+>  }
 
-yes, and init_new_context() is arch dependant...
-
-> code doesn't seem much harder to follow, the callers are already
-> handling all error paths so I guess it would be better to simply move on
-> this.
-
-Yes, agreed, please forget.
+Looks good, thanks.
 
 Oleg.
 
