@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C99D66B0255
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 02:03:26 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p65so55112396wmp.1
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:03:26 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id p10si30670859wjf.119.2016.02.28.23.03.25
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1151C6B0257
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 02:40:03 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id jq7so126576322obb.0
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:40:03 -0800 (PST)
+Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
+        by mx.google.com with ESMTPS id u133si20491117oib.78.2016.02.28.23.40.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Feb 2016 23:03:25 -0800 (PST)
-Received: by mail-wm0-x232.google.com with SMTP id p65so55112056wmp.1
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:03:25 -0800 (PST)
+        Sun, 28 Feb 2016 23:40:02 -0800 (PST)
+Received: by mail-oi0-x22b.google.com with SMTP id d205so16832378oia.0
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:40:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1602281602470.2997@eggly.anvils>
-References: <1455827801-13082-1-git-send-email-hannes@cmpxchg.org>
-	<alpine.LSU.2.11.1602181422550.2289@eggly.anvils>
-	<CALYGNiMHAtaZfGovYeud65Eix8v0OSWSx8F=4K+pqF6akQah0A@mail.gmail.com>
-	<20160219131307.a38646706cc514fcaf18793a@linux-foundation.org>
-	<alpine.LSU.2.11.1602281602470.2997@eggly.anvils>
-Date: Mon, 29 Feb 2016 10:03:25 +0300
-Message-ID: <CALYGNiPzZ=GtKn1v0NQZhRu=Ns6P5SVNOaeMPT17XK=T4n5F0w@mail.gmail.com>
-Subject: Re: [RFC PATCH] proc: do not include shmem and driver pages in /proc/meminfo::Cached
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+In-Reply-To: <1456696663-2340682-1-git-send-email-arnd@arndb.de>
+References: <1456696663-2340682-1-git-send-email-arnd@arndb.de>
+Date: Mon, 29 Feb 2016 16:40:02 +0900
+Message-ID: <CAAmzW4N0YJc_O9ArC8e7Q5y4rmbHjj6-Q1yfvZ5LvORvG764cg@mail.gmail.com>
+Subject: Re: [PATCH] [RFC] mm/page_ref, crypto/async_pq: don't put_page from __exit
+From: Joonsoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, Michal Nazarewicz <mina86@mina86.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 29, 2016 at 3:03 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Fri, 19 Feb 2016, Andrew Morton wrote:
->> On Fri, 19 Feb 2016 09:40:45 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>
->> > >> What are your thoughts on this?
->> > >
->> > > My thoughts are NAK.  A misleading stat is not so bad as a
->> > > misleading stat whose meaning we change in some random kernel.
->> > >
->> > > By all means improve Documentation/filesystems/proc.txt on Cached.
->> > > By all means promote Active(file)+Inactive(file)-Buffers as often a
->> > > better measure (though Buffers itself is obscure to me - is it intended
->> > > usually to approximate resident FS metadata?).  By all means work on
->> > > /proc/meminfo-v2 (though that may entail dispiritingly long discussions).
->> > >
->> > > We have to assume that Cached has been useful to some people, and that
->> > > they've learnt to subtract Shmem from it, if slow or no swap concerns them.
->> > >
->> > > Added Konstantin to Cc: he's had valuable experience of people learning
->> > > to adapt to the numbers that we put out.
->> > >
->> >
->> > I think everything will ok. Subtraction of shmem isn't widespread practice,
->> > more like secret knowledge. This wasn't documented and people who use
->> > this should be aware that this might stop working at any time. So, ACK.
->>
->> It worries me as well - we're deliberately altering the behaviour of
->> existing userspace code.  Not all of those alterations will be welcome!
->>
->> We could add a shiny new field into meminfo and train people to migrate
->> to that.  But that would just be a sum of already-available fields.  In
->> an ideal world we could solve all of this with documentation and
->> cluebatting (and some apologizing!).
+2016-02-29 6:57 GMT+09:00 Arnd Bergmann <arnd@arndb.de>:
+> The addition of tracepoints to the page reference tracking had an
+> unfortunate side-effect in at least one driver that calls put_page
+> from its exit function, resulting in a link error:
 >
-> Ah, I missed this, and just sent a redundant addition to the thread;
-> followed by this doubly redundant addition.
+> `.exit.text' referenced in section `__jump_table' of crypto/built-in.o: defined in discarded section `.exit.text' of crypto/built-in.o
+>
+> I could not come up with a nice solution that ignores __jump_table
+> entries in discarded code, so we probably now have to treat this
+> as something a driver is not allowed to do. Removing the __exit
+> annotation avoids the problem in this particular driver, but the
+> same problem could come back any time in other code.
+>
+> On a related problem regarding the runtime patching for SMP
+> operations on ARM uniprocessor systems, we resorted to not
+> drop the .exit section at link time, but that doesn't seem
+> appropriate here.
+>
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: 0f80830dd044 ("mm/page_ref: add tracepoint to track down page reference manipulation")
+> ---
+>  crypto/async_tx/async_pq.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/crypto/async_tx/async_pq.c b/crypto/async_tx/async_pq.c
+> index c0748bbd4c08..be167145aa55 100644
+> --- a/crypto/async_tx/async_pq.c
+> +++ b/crypto/async_tx/async_pq.c
+> @@ -442,7 +442,7 @@ static int __init async_pq_init(void)
+>         return -ENOMEM;
+>  }
+>
+> -static void __exit async_pq_exit(void)
+> +static void async_pq_exit(void)
+>  {
+>         put_page(pq_scribble_page);
+>  }
 
-"Cached" has been used for ages as amount of "potentially free memory".
-This patch corrects it in original meaning and makes it closer to that
-"potential"
-meaining at the same time.
+Hello, Arnd.
 
-MemAvailable means exactly that and thing else so logic behind it could be
-tuned and changed in the future. Thus, adding new fields makes no sense.
+I think that we can avoid this error by using __free_page().
+It would not be inlined so calling it would have no problem.
 
+Could you test it, please?
 
-BTW
-Glibc recently switched sysconf(_SC_PHYS_PAGES) / sysconf(_SC_AVPHYS_PAGES)
-from /proc/meminfo MemTotal / MemFree to sysinfo(2) totalram / freeram for
-performance reason. It seems possible to expose MemAvailable via sysinfo:
-there is space for one field. Probably it's also possible to switch
-_SC_AVPHYS_PAGES
-to really available memory and add memcg awareness too.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
