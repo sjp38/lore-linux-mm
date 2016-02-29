@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A15FE6B0253
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:16:43 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fy10so95025527pac.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:16:43 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id 79si44123010pfm.61.2016.02.29.09.16.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 09:16:42 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH] mm: memcontrol: reset memory.low on css offline
-Date: Mon, 29 Feb 2016 20:16:33 +0300
-Message-ID: <1456766193-16255-1-git-send-email-vdavydov@virtuozzo.com>
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 811886B0256
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:23:43 -0500 (EST)
+Received: by mail-qk0-f180.google.com with SMTP id o6so59107668qkc.2
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:23:43 -0800 (PST)
+Date: Mon, 29 Feb 2016 18:23:34 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 13/18] exec: make exec path waiting for mmap_sem killable
+Message-ID: <20160229172333.GB3615@redhat.com>
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-14-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1456752417-9626-14-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-When a cgroup directory is removed, the memory cgroup subsys state does
-not disappear immediately. Instead, it's left hanging around until the
-last reference to it is gone, which implies reclaiming all pages from
-its lruvec.
+On 02/29, Michal Hocko wrote:
+>
+> @@ -267,7 +267,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+>  	if (!vma)
+>  		return -ENOMEM;
+>  
+> -	down_write(&mm->mmap_sem);
+> +	if (down_write_killable(&mm->mmap_sem)) {
+> +		err = -EINTR;
+> +		goto err_free;
+> +	}
+>  	vma->vm_mm = mm;
 
-In the unified hierarchy, there's the memory.low knob, which can be used
-to set a best-effort protection for a memory cgroup - the reclaimer
-first scans those cgroups whose consumption is above memory.low, and
-only if it fails to reclaim enough pages, it gets to the rest.
+I won't argue, but this looks unnecessary. Nobody else can see this new mm,
+down_write() can't block.
 
-Currently this protection is not reset when the cgroup directory is
-removed. As a result, if a dead memory cgroup has a lot of page cache
-charged to it and a high value of memory.low, it will result in higher
-pressure exerted on live cgroups, and userspace will have no ways to
-detect such consumers and reconfigure memory.low properly.
+In fact I think we can just remove down_write/up_write here. Except perhaps
+there is lockdep_assert_held() somewhere in these paths.
 
-To fix this, let's reset memory.low on css offline.
-
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
- mm/memcontrol.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ae8b81c55685..ab7bfe870c7d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4214,6 +4214,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 
- 	memcg_offline_kmem(memcg);
- 	wb_memcg_offline(memcg);
-+
-+	memcg->low = 0;
- }
- 
- static void mem_cgroup_css_released(struct cgroup_subsys_state *css)
--- 
-2.1.4
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
