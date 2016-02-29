@@ -1,71 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0487D6B0259
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:42:38 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id n186so61001298wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:42:37 -0800 (PST)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id r76si21368406wmg.70.2016.02.29.09.42.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 09:42:33 -0800 (PST)
-Received: by mail-wm0-f47.google.com with SMTP id n186so60996792wmn.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:42:33 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] uprobes: wait for mmap_sem for write killable
-Date: Mon, 29 Feb 2016 18:42:23 +0100
-Message-Id: <1456767743-18665-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1456752417-9626-16-git-send-email-mhocko@kernel.org>
-References: <1456752417-9626-16-git-send-email-mhocko@kernel.org>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D88916B025C
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 12:46:22 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id 124so34265770pfg.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 09:46:22 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id 10si44308727pfk.172.2016.02.29.09.46.21
+        for <linux-mm@kvack.org>;
+        Mon, 29 Feb 2016 09:46:21 -0800 (PST)
+Date: Mon, 29 Feb 2016 10:46:03 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 1/3] DAX: move RADIX_DAX_ definitions to dax.c
+Message-ID: <20160229174603.GA13447@linux.intel.com>
+References: <145663588892.3865.9987439671424028216.stgit@notabene>
+ <145663616971.3865.212066814876758706.stgit@notabene>
+ <100D68C7BA14664A8938383216E40DE0421D3AB4@FMSMSX114.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <100D68C7BA14664A8938383216E40DE0421D3AB4@FMSMSX114.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Cc: NeilBrown <neilb@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon, Feb 29, 2016 at 02:28:46PM +0000, Wilcox, Matthew R wrote:
+> I agree with this patch, but it's already part of the patchset that I'm
+> working on, so merging this patch now would just introduce churn for me.
+> 
+> -----Original Message-----
+> From: NeilBrown [mailto:neilb@suse.com] 
+> Sent: Saturday, February 27, 2016 9:09 PM
+> To: Ross Zwisler; Wilcox, Matthew R; Andrew Morton; Jan Kara
+> Cc: linux-kernel@vger.kernel.org; linux-fsdevel@vger.kernel.org; linux-mm@kvack.org
+> Subject: [PATCH 1/3] DAX: move RADIX_DAX_ definitions to dax.c
+> 
+> These don't belong in radix-tree.c any more than PAGECACHE_TAG_* do.
+> Let's try to maintain the idea that radix-tree simply implements an
+> abstract data type.
 
-xol_add_vma needs mmap_sem for write. If the waiting task gets killed by
-the oom killer it would block oom_reaper from asynchronous address space
-reclaim and reduce the chances of timely OOM resolving. Wait for the
-lock in the killable mode and return with EINTR if the task got killed
-while waiting.
+Looks good.  I'm fine with this change, whether it happens via this standalone
+patch or via Matthew's larger change set.
 
-Do not warn in dup_xol_work if __create_xol_area failed due to fatal
-signal pending because this is usually considered a kernel issue.
-
-Cc: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- kernel/events/uprobes.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 8eef5f55d3f0..fb4a6bcc88ce 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -1130,7 +1130,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
- 	struct vm_area_struct *vma;
- 	int ret;
- 
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
-+
- 	if (mm->uprobes_state.xol_area) {
- 		ret = -EALREADY;
- 		goto fail;
-@@ -1468,7 +1470,8 @@ static void dup_xol_work(struct callback_head *work)
- 	if (current->flags & PF_EXITING)
- 		return;
- 
--	if (!__create_xol_area(current->utask->dup_xol_addr))
-+	if (!__create_xol_area(current->utask->dup_xol_addr) &&
-+			!fatal_signal_pending(current)
- 		uprobe_warn(current, "dup xol area");
- }
- 
--- 
-2.7.0
+> 
+> Signed-off-by: NeilBrown <neilb@suse.com>
+> ---
+>  fs/dax.c                   |    9 +++++++++
+>  include/linux/radix-tree.h |    9 ---------
+>  2 files changed, 9 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 711172450da6..9c4d697fb6fc 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -32,6 +32,15 @@
+>  #include <linux/pfn_t.h>
+>  #include <linux/sizes.h>
+>  
+> +#define RADIX_DAX_MASK	0xf
+> +#define RADIX_DAX_SHIFT	4
+> +#define RADIX_DAX_PTE  (0x4 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +#define RADIX_DAX_PMD  (0x8 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +#define RADIX_DAX_TYPE(entry) ((unsigned long)entry & RADIX_DAX_MASK)
+> +#define RADIX_DAX_SECTOR(entry) (((unsigned long)entry >> RADIX_DAX_SHIFT))
+> +#define RADIX_DAX_ENTRY(sector, pmd) ((void *)((unsigned long)sector << \
+> +		RADIX_DAX_SHIFT | (pmd ? RADIX_DAX_PMD : RADIX_DAX_PTE)))
+> +
+>  static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
+>  {
+>  	struct request_queue *q = bdev->bd_queue;
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index f54be7082207..968150ab8a1c 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -51,15 +51,6 @@
+>  #define RADIX_TREE_EXCEPTIONAL_ENTRY	2
+>  #define RADIX_TREE_EXCEPTIONAL_SHIFT	2
+>  
+> -#define RADIX_DAX_MASK	0xf
+> -#define RADIX_DAX_SHIFT	4
+> -#define RADIX_DAX_PTE  (0x4 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> -#define RADIX_DAX_PMD  (0x8 | RADIX_TREE_EXCEPTIONAL_ENTRY)
+> -#define RADIX_DAX_TYPE(entry) ((unsigned long)entry & RADIX_DAX_MASK)
+> -#define RADIX_DAX_SECTOR(entry) (((unsigned long)entry >> RADIX_DAX_SHIFT))
+> -#define RADIX_DAX_ENTRY(sector, pmd) ((void *)((unsigned long)sector << \
+> -		RADIX_DAX_SHIFT | (pmd ? RADIX_DAX_PMD : RADIX_DAX_PTE)))
+> -
+>  static inline int radix_tree_is_indirect_ptr(void *ptr)
+>  {
+>  	return (int)((unsigned long)ptr & RADIX_TREE_INDIRECT_PTR);
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
