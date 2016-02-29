@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DB826B0005
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 14:11:39 -0500 (EST)
-Received: by mail-lb0-f180.google.com with SMTP id ed16so7838287lbb.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 11:11:39 -0800 (PST)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id l190si13032838lfl.11.2016.02.29.11.11.37
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D0A596B0254
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 14:42:06 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p65so5901938wmp.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 11:42:06 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id w133si21773945wma.109.2016.02.29.11.42.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 11:11:37 -0800 (PST)
-Received: by mail-lf0-x229.google.com with SMTP id v124so5089770lff.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 11:11:37 -0800 (PST)
+        Mon, 29 Feb 2016 11:42:05 -0800 (PST)
+Date: Mon, 29 Feb 2016 14:41:59 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: readahead: do not cap readahead() and MADV_WILLNEED
+Message-ID: <20160229194159.GB29896@cmpxchg.org>
+References: <1456277927-12044-1-git-send-email-hannes@cmpxchg.org>
+ <CA+55aFzQr-8fOfzA97nZd07L8EFRgXSLSorrw1xVm_KMYinfdA@mail.gmail.com>
 MIME-Version: 1.0
-Date: Mon, 29 Feb 2016 11:11:37 -0800
-Message-ID: <CANaxB-wA_3qh78NUBc2ODqYHyXJLK0O6FRCdWizXBRPpWoBaGQ@mail.gmail.com>
-Subject: linux-next: Unable to write into a vma if it has been mapped without PROT_READ
-From: Andrey Wagin <avagin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzQr-8fOfzA97nZd07L8EFRgXSLSorrw1xVm_KMYinfdA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-next@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
 
-Hello Everyone,
+On Tue, Feb 23, 2016 at 06:34:59PM -0800, Linus Torvalds wrote:
+> Why do you think that "Just do what the user asked for" is obviously
+> the right thing?
 
-I found that now we can't write into a vma if it was mapped without PROT_READ:
+In our situation, we are trying to prime the cache for what we know
+will be the definite workingset of the application. We don't care if
+it maxes out the IO capacity, and we don't care if it throws out any
+existing cache to accomplish the task. In fact, if you're sure about
+the workingset, that is desired behavior. It's basically read(), but
+without the pointless copying and waiting for completion.
 
-mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f2ac7eb8000
---- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_ACCERR, si_addr=0x7f2ac7eb8000} ---
-+++ killed by SIGSEGV (core dumped) +++
-Segmentation fault
-[root@linux-next-test ~]# cat test.c
-#include <sys/mman.h>
-#include <stdlib.h>
+One of the mistakes I made was to look only at the manpage, and not at
+how readahead() is or has historically been used in the field.
 
-int main()
-{
-    int *p;
+One such usecase is warming the system during bootup, where system
+software fires off readahead against all manner of libraries and
+executables that are likely to be used. In that scenario the caller
+really doesn't know for sure it's reading the right thing. And if not,
+the optimistic readahead shouldn't vaccuum up all the resources and
+interfere with the IO and memory demands of the *actual* workingset.
 
-    p = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    p[0] = 1;
+It seems that the optimistic readahead during bootup is being phased
+out nowadays. Systemd took over with systemd-readahead, then dropped
+it eventually citing lack of desired performance benefits and
+relevance; there is another project called preload but it appears
+defunct as well. For all we know, though, there still are people who
+fire off optimistic readahead, and we can't regress them. Certainly
+older or customized userspace still running bootup readahead, or maybe
+comparable applications where workingsets are estimated by heuristics.
 
-    return 0;
-}
+It's unfortunate, because I frankly doubt we ever got the "else" part,
+the not-interfering-with-the-real-workload part, working anyway. The
+fact that distros are moving away from it or that we ended up limiting
+the window to near-ineffective levels seem to be a symptoms of that.
+That means the facility is now stuck somewhere in between questionable
+for optimistic readahead and not useful for reliable cache priming.
 
-[root@linux-next-test ~]# uname -a
-Linux linux-next-test 4.5.0-rc6-next-20160229 #1 SMP Mon Feb 29
-17:38:25 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+We can't really make it work for both cases as their requirements are
+in direct conflict with each other. Lowering the limit from cache+free
+to 128k was a regression for priming a big known workingset, but there
+is also no point in going back now and risk regressing the other side.
 
-This issue appeared in 4.5.0-rc5-next-20160226.
+So it appears best to add a new syscall with clearly defined semantics
+to forcefully prime the cache.
 
-https://ci.openvz.org/job/CRIU-linux-next/152/console
+That, or switch to read() from a separate thread for cache priming.
 
-Thanks,
-Andrew
+Hmm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
