@@ -1,91 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C3C36B0005
-	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 22:19:23 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id w128so38810800pfb.2
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 19:19:23 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id fk1si934747pad.35.2016.02.28.19.19.22
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 37CDA6B0005
+	for <linux-mm@kvack.org>; Sun, 28 Feb 2016 23:49:20 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id bj10so15691567pad.2
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 20:49:20 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id n11si40152193pfa.190.2016.02.28.20.49.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Feb 2016 19:19:22 -0800 (PST)
-Received: by mail-pa0-x229.google.com with SMTP id fl4so83946416pad.0
-        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 19:19:22 -0800 (PST)
-Date: Sun, 28 Feb 2016 19:19:11 -0800 (PST)
+        Sun, 28 Feb 2016 20:49:19 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id 124so23698992pfg.0
+        for <linux-mm@kvack.org>; Sun, 28 Feb 2016 20:49:19 -0800 (PST)
+Date: Sun, 28 Feb 2016 20:49:10 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/5] oom reaper: handle mlocked pages
-In-Reply-To: <20160223132157.GD14178@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1602281844180.3975@eggly.anvils>
-References: <1454505240-23446-1-git-send-email-mhocko@kernel.org> <1454505240-23446-3-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1602221734140.4688@chino.kir.corp.google.com> <20160223132157.GD14178@dhcp22.suse.cz>
+Subject: [PATCH] mm: __delete_from_page_cache WARN_ON(page_mapped)
+Message-ID: <alpine.LSU.2.11.1602282042110.1472@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 23 Feb 2016, Michal Hocko wrote:
-> On Mon 22-02-16 17:36:07, David Rientjes wrote:
-> > 
-> > Are we concerned about munlock_vma_pages_all() taking lock_page() and 
-> > perhaps stalling forever, the same way it would stall in exit_mmap() for 
-> > VM_LOCKED vmas, if another thread has locked the same page and is doing an 
-> > allocation?
-> 
-> This is a good question. I have checked for that particular case
-> previously and managed to convinced myself that this is OK(ish).
-> munlock_vma_pages_range locks only THP pages to prevent from the
-> parallel split-up AFAICS.
+Commit e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount()
+for compound pages") changed the famous BUG_ON(page_mapped(page)) in
+__delete_from_page_cache() to VM_BUG_ON_PAGE(page_mapped(page)): which
+gives us more info when CONFIG_DEBUG_VM=y, but nothing at all when not.
 
-I think you're mistaken on that: there is also the lock_page()
-on every page in Phase 2 of __munlock_pagevec().
+Although it has not usually been very helpul, being hit long after the
+error in question, we do need to know if it actually happens on users'
+systems; but reinstating a crash there is likely to be opposed :)
 
-> And split_huge_page_to_list doesn't seem
-> to depend on an allocation. It can block on anon_vma lock but I didn't
-> see any allocation requests from there either. I might be missing
-> something of course. Do you have any specific path in mind?
-> 
-> > I'm wondering if in that case it would be better to do a 
-> > best-effort munlock_vma_pages_all() with trylock_page() and just give up 
-> > on releasing memory from that particular vma.  In that case, there may be 
-> > other memory that can be freed with unmap_page_range() that would handle 
-> > this livelock.
+In the non-debug case, use WARN_ON() plus dump_page() and add_taint() -
+I don't really believe LOCKDEP_NOW_UNRELIABLE, but that seems to be the
+standard procedure now.  Move that, or the VM_BUG_ON_PAGE(), up before
+the deletion from tree: so that the unNULLified page->mapping gives a
+little more information.
 
-I agree with David, that we ought to trylock_page() throughout munlock:
-just so long as it gets to do the TestClearPageMlocked without demanding
-page lock, the rest is the usual sugarcoating for accurate Mlocked stats,
-and leave the rest for reclaim to fix up.
+If the inode is being evicted (rather than truncated), it won't have
+any vmas left, so it's safe(ish) to assume that the raised mapcount is
+erroneous, and we can discount it from page_count to avoid leaking the
+page (I'm less worried by leaking the occasional 4kB, than losing a
+potential 2MB page with each 4kB page leaked).
 
-> 
-> I have tried to code it up but I am not really sure the whole churn is
-> really worth it - unless I am missing something that would really make
-> the THP case likely to hit in the real life.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+I think this should go into v4.5, so I've written it with an atomic_sub
+on page->_count; but Joonsoo will probably want some page_ref thingy.
 
-Though I must have known about it forever, it was a shock to see all
-those page locks demanded in exit, brought home to us a week or so ago.
+ mm/filemap.c |   22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
 
-The proximate cause in this case was my own change, to defer pte_alloc
-to suit huge tmpfs: it had not previously occurred to me that I was
-now doing the pte_alloc while __do_fault holds page lock.  Bad Hugh.
-But change not yet upstream, so not so urgent for you.
-
->From time immemorial, free_swap_and_cache() and free_swap_cache() only
-ever trylock a page, precisely so that they never hold up munmap or exit
-(well, if I looked harder, I might find lock ordering reasons too).
-
-> 
-> Just for the reference this is what I came up with (just compile tested).
-
-I tried something similar internally (on an earlier kernel).  Like
-you I've set that work aside for now, there were quicker ways to fix
-the issue at hand.  But it does continue to offend me that munlock
-demands all those page locks: so if you don't get back to it before me,
-I shall eventually.
-
-I didn't understand why you complicated yours with the "enforce"
-arg to munlock_vma_pages_range(): why not just trylock in all cases?
-
-Hugh
+--- 4.5-rc6/mm/filemap.c	2016-02-28 09:04:38.816707844 -0800
++++ linux/mm/filemap.c	2016-02-28 19:45:23.406263928 -0800
+@@ -195,6 +195,27 @@ void __delete_from_page_cache(struct pag
+ 	else
+ 		cleancache_invalidate_page(mapping, page);
+ 
++	VM_BUG_ON_PAGE(page_mapped(page), page);
++	if (!IS_ENABLED(CONFIG_DEBUG_VM) && WARN_ON(page_mapped(page))) {
++		int mapcount;
++
++		dump_page(page, "still mapped when deleted");
++		add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
++
++		mapcount = page_mapcount(page);
++		if (mapping_exiting(mapping) &&
++		    page_count(page) >= mapcount + 2) {
++			/*
++			 * All vmas have already been torn down, so it's
++			 * a good bet that actually the page is unmapped,
++			 * and we'd prefer not to leak it: if we're wrong,
++			 * some other bad page check should catch it later.
++			 */
++			page_mapcount_reset(page);
++			atomic_sub(mapcount, &page->_count);
++		}
++	}
++
+ 	page_cache_tree_delete(mapping, page, shadow);
+ 
+ 	page->mapping = NULL;
+@@ -205,7 +226,6 @@ void __delete_from_page_cache(struct pag
+ 		__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	if (PageSwapBacked(page))
+ 		__dec_zone_page_state(page, NR_SHMEM);
+-	VM_BUG_ON_PAGE(page_mapped(page), page);
+ 
+ 	/*
+ 	 * At this point page must be either written or cleaned by truncate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
