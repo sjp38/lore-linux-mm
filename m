@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D03146B0260
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:35 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id p65so45324635wmp.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:35 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5076B0261
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 08:27:37 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id l68so58412855wml.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 05:27:37 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 15/18] uprobes: wait for mmap_sem for write killable
-Date: Mon, 29 Feb 2016 14:26:54 +0100
-Message-Id: <1456752417-9626-16-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 16/18] drm/i915: make i915_gem_mmap_ioctl wait for mmap_sem killable
+Date: Mon, 29 Feb 2016 14:26:55 +0100
+Message-Id: <1456752417-9626-17-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,33 +17,35 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher 
 
 From: Michal Hocko <mhocko@suse.com>
 
-xol_add_vma needs mmap_sem for write. If the waiting task gets killed by
-the oom killer it would block oom_reaper from asynchronous address space
-reclaim and reduce the chances of timely OOM resolving. Wait for the
-lock in the killable mode and return with EINTR if the task got killed
-while waiting.
+i915_gem_mmap_ioctl relies on mmap_sem for write. If the waiting
+task gets killed by the oom killer it would block oom_reaper from
+asynchronous address space reclaim and reduce the chances of timely OOM
+resolving. Wait for the lock in the killable mode and return with EINTR
+if the task got killed while waiting.
 
-Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Daniel Vetter <daniel.vetter@intel.com>
+Cc: David Airlie <airlied@linux.ie>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- kernel/events/uprobes.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ drivers/gpu/drm/i915/i915_gem.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 8eef5f55d3f0..a79315d0f711 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -1130,7 +1130,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
- 	struct vm_area_struct *vma;
- 	int ret;
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index f68f34606f2f..a50136cbd332 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -1754,7 +1754,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
+ 		struct mm_struct *mm = current->mm;
+ 		struct vm_area_struct *vma;
  
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
-+
- 	if (mm->uprobes_state.xol_area) {
- 		ret = -EALREADY;
- 		goto fail;
+-		down_write(&mm->mmap_sem);
++		if (down_write_killable(&mm->mmap_sem)) {
++			drm_gem_object_unreference_unlocked(obj);
++			return -EINTR;
++		}
+ 		vma = find_vma(mm, addr);
+ 		if (vma)
+ 			vma->vm_page_prot =
 -- 
 2.7.0
 
