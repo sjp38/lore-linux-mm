@@ -1,180 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E7C946B0256
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 06:34:54 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id yy13so90785526pab.3
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 03:34:54 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ly8si42523947pab.89.2016.02.29.03.34.53
-        for <linux-mm@kvack.org>;
-        Mon, 29 Feb 2016 03:34:53 -0800 (PST)
-Date: Mon, 29 Feb 2016 11:34:48 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: tty: memory leak in tty_register_driver
-Message-ID: <20160229113448.GC7935@e104818-lin.cambridge.arm.com>
-References: <CACT4Y+bZticikTpnc0djxRBLCWhj=2DqQk=KRf5zDvrLdHzEbQ@mail.gmail.com>
- <CACT4Y+a+L3+VUEV7c2Q6c7tb8A57dpsitM=P6KVSHV=WYrpahw@mail.gmail.com>
- <20160228234657.GA28225@MBP.local>
- <CACT4Y+a-J5_t2xsHn6RGWoHPE-huJ2zJ0S01zR1kJew=c6SUsQ@mail.gmail.com>
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 87A2C6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 07:25:31 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id ts10so132640072obc.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 04:25:31 -0800 (PST)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0061.outbound.protection.outlook.com. [207.46.100.61])
+        by mx.google.com with ESMTPS id i5si21300547obh.19.2016.02.29.04.25.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 29 Feb 2016 04:25:30 -0800 (PST)
+Date: Mon, 29 Feb 2016 13:25:11 +0100
+From: Robert Richter <robert.richter@caviumnetworks.com>
+Subject: Re: [PATCH 0/2] arm64, cma, gicv3-its: Use CMA for allocation of
+ large device tables
+Message-ID: <20160229122511.GS24726@rric.localdomain>
+References: <1456398164-16864-1-git-send-email-rrichter@caviumnetworks.com>
+ <56D42199.7040207@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+a-J5_t2xsHn6RGWoHPE-huJ2zJ0S01zR1kJew=c6SUsQ@mail.gmail.com>
+In-Reply-To: <56D42199.7040207@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, LKML <linux-kernel@vger.kernel.org>, Peter Hurley <peter@hurleysoftware.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, J Freyensee <james_p_freyensee@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Bolle <pebolle@tiscali.nl>, Alexander Potapenko <glider@google.com>, Kostya Serebryany <kcc@google.com>, Sasha Levin <sasha.levin@oracle.com>, syzkaller <syzkaller@googlegroups.com>
+To: Marc Zyngier <marc.zyngier@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Tirumalesh Chalamarla <tchalamarla@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 29, 2016 at 11:22:58AM +0100, Dmitry Vyukov wrote:
-> On Mon, Feb 29, 2016 at 12:47 AM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
-> > On Sun, Feb 28, 2016 at 05:42:24PM +0100, Dmitry Vyukov wrote:
-> >> On Mon, Feb 15, 2016 at 11:42 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> >> > When I am running the following program in a parallel loop, kmemleak
-> >> > starts reporting memory leaks of objects allocated in
-> >> > tty_register_driver during boot. These leaks start popping up
-> >> > chaotically and as you can see they originate in different drivers
-> >> > (synclinkmp_init, isdn_init, chr_dev_init, sysfs_init).
-> >> >
-> >> > On commit 388f7b1d6e8ca06762e2454d28d6c3c55ad0fe95 (4.5-rc3).
-> > [...]
-> >> > unreferenced object 0xffff88006708dc20 (size 8):
-> >> >   comm "swapper/0", pid 1, jiffies 4294672590 (age 930.839s)
-> >> >   hex dump (first 8 bytes):
-> >> >     74 74 79 53 4c 4d 38 00                          ttySLM8.
-> >> >   backtrace:
-> >> >     [<ffffffff81765d10>] __kmalloc_track_caller+0x1b0/0x320 mm/slub.c:4068
-> >> >     [<ffffffff816b37a9>] kstrdup+0x39/0x70 mm/util.c:53
-> >> >     [<ffffffff816b3826>] kstrdup_const+0x46/0x60 mm/util.c:74
-> >> >     [<ffffffff8194e5bb>] __kernfs_new_node+0x2b/0x2b0 fs/kernfs/dir.c:536
-> >> >     [<ffffffff81951c70>] kernfs_new_node+0x80/0xe0 fs/kernfs/dir.c:572
-> >> >     [<ffffffff81957223>] kernfs_create_link+0x33/0x150 fs/kernfs/symlink.c:32
-> >> >     [<ffffffff81959c4b>] sysfs_do_create_link_sd.isra.2+0x8b/0x120
-> > [...]
-> >> +Catalin (kmemleak maintainer)
-> >>
-> >> I am noticed a weird thing. I am not 100% sure but it seems that the
-> >> leaks are reported iff I run leak checking concurrently with the
-> >> programs running. And if I run the program several thousand times and
-> >> then run leak checking, then no leaks reported.
-> >>
-> >> Catalin, it is possible that it is a kmemleak false positive?
-> >
-> > Yes, it's possible. If you run kmemleak scanning continuously (or at
-> > very short intervals) and especially in parallel with some intensive
-> > tasks, it will miss pointers that may be stored in registers (on other
-> > CPUs) or moved between task stacks, other memory locations. Linked lists
-> > are especially prone to such false positives.
-> >
-> > Kmemleak tries to work around this by checksumming each object, so it
-> > will only be reported if it hasn't changed on two consecutive scans.
-> > Since the default scanning is 10min, it is very unlikely to trigger
-> > false positives in such scenarios. However, if you reduce the scanning
-> > time (or trigger it manually in a loop), you can hit this condition.
-> >
-> >> I see that kmemleak just scans thread stacks one-by-one. I would
-> >> expect that kmemleak should stop all threads, then scan all stacks and
-> >> all registers of all threads, and then restart threads. If it does not
-> >> scan registers or does not stop threads, then I think it should be
-> >> possible that a pointer value can sneak off kmemleak. Does it make
-> >> sense?
-> >
-> > Given how long it takes to scan the memory, stopping the threads is not
-> > really feasible. You could do something like stop_machine() only for
-> > scanning the current stack on all CPUs but it still wouldn't catch
-> > pointers being moved around in memory unless you stop the system
-> > completely for a full scan. The heuristic about periodic scanning and
-> > checksumming seems to work fine in normal usage scenarios.
-> >
-> > For your tests, I would recommend that you run the tests for a long(ish)
-> > time and only do two kmemleak scans at the end after they finished (and
-> > with a few seconds delay between them). Continuous scanning is less
-> > reliable.
+On 29.02.16 10:46:49, Marc Zyngier wrote:
+> On 25/02/16 11:02, Robert Richter wrote:
+> > From: Robert Richter <rrichter@cavium.com>
+> > 
+> > This series implements the use of CMA for allocation of large device
+> > tables for the arm64 gicv3 interrupt controller.
+> > 
+> > There are 2 patches, the first is for early activation of cma, which
+> > needs to be done before interrupt initialization to make it available
+> > to the gicv3. The second implements the use of CMA to allocate
+> > gicv3-its device tables.
+> > 
+> > This solves the problem where mem allocation is limited to 4MB. A
+> > previous patch sent to the list to address this that instead increases
+> > FORCE_MAX_ZONEORDER becomes obsolete.
 > 
-> Let me describe my usage scenario first. I am running automatic
-> testing 24x7. Currently a VM executes a dozen of small programs (a
-> dozen of syscalls each), then I run manual leak scanning.
+> I think you're looking at the problem the wrong way. Instead of going
+> through CMA directly, I'd rather go through the normal DMA API
+> (dma_alloc_coherent), which can itself try CMA (should it be enabled).
+> 
+> That will give you all the benefit of the CMA allocation, and also make
+> the driver more robust. I meant to do this for a while, and never found
+> the time. Any chance you could have a look?
 
-IIUC, you said that the leak reporting happens iff you run leak checking
-concurrently with the test programs running. If you run the kmemleak
-scanning afterwards, there are no leaks reported. As I explained, that's
-the normal usage I would expect.
+I was considering this first, and in fact the backend used is the
+same. The problem is that irq initialization is much more earlier than
+standard device probing. The gic even does not have its own struct
+device and is not initialized like devices are. This makes the whole
+dma_alloc_coherent() approach not feasable, at least this would
+require introducing and using a dev struct for the gic. But still this
+migth not work as it could be too early during boot. I also think
+there were reasons not implementing the gic as a device.
 
-> I can't run significantly more programs between scans, because then I
-> won't be able to restore reproducers for bugs and they will be
-> unactionable. I could run leak checking after each program, but it
-> will increase overhead significantly. So a dozen of programs is a
-> trade-off. And I disable automatic scanning.
+I was following more the approach of iommu/mmu implementations which
+use dma_alloc_from_contiguous() directly. I think this is more close
+to the device tables for its.
 
-That's fine, not an issue here.
+Code path of dma_alloc_coherent():
 
-> False positives are super unpleasant in automatic testing. If a tool
-> false positive rate if high, I just disable it, it is unusable. It is
-> not that bad for leak checking. But each false positive consumes human
-> (my) time.
+ dma_alloc_coherent()
+    v
+ dma_alloc_attrs()             <---- Requires get_dma_ops(dev) != NULL
+    v
+ dma_alloc_from_coherent()
+    v
+ ...
 
-Indeed. I've spent a significant amount of time in the early kmemleak
-days just trying to prove whether it's a real leak or not but these days
-with the automatic scanning, false positives seem to be very low ratio.
+The difference it that dma_alloc_coherent() tries cma first and then
+proceeds with ops->alloc() (which is __dma_alloc() for arm64) if
+dma_alloc_from_coherent() fails. In my implementation I am directly
+using dma_alloc_from_coherent() and only for large mem sizes.
 
-> So I need to run scanning twice, because the first one never reports leaks.
+So both approaches uses finally the same allocation, but for gicv3-its
+the generic dma framework is not used since the gic is not implemented
+as a device.
 
-That's because of the checksumming. For example, you have objects stored
-in a list. On some delete or insert, the list_head is temporarily
-modified, possibly stored in CPU registers on another CPU. For this
-brief time, kmemleak may no longer detect a pointer to the rest of the
-list, hence reporting a big part of it as leaked objects.
+Does this makes sense to you?
 
-Since list deletion/insertion requires a modification of an object
-list_head, it's checksum changes, hence if this value has changed since
-the previous scan, kmemleak will not report the object, assuming it is
-something transient. If you run two scans in quick succession, it
-possible that the transient condition hasn't cleared yet, so you risk a
-false positive. Of course, I could place some random delay in kmemleak
-between successive scans but I assumed that most people would leave it
-running on the default 10min scan.
+Thanks,
 
-I had other heuristics like object age but checksumming proved to be the
-most efficient, with the minor drawback that you'd have to run the
-scanning twice before reporting. And any kind of delayed reporting (e.g.
-X secs since the last checksum modification) would most likely break
-your testing workflow.
-
-> For the false positives due to registers/pointer jumping, will it help
-> if I run scanning one more time if leaks are detected? I mean: run
-> scanning twice, if leaks are found sleep for several seconds and run
-> scanning third time. Since leaks are usually not detected I can afford
-> to sleep more and do one or two additional scans.
-
-This should work.
-
-> The question here: will kmemleak _remove_ an object for leaked
-> objects, if it discovered reachable or contents change on subsequent
-> scans?
-
-Yes, it will remove them from /sys/kernel/debug/kmemleak even if they
-were previously reported.
-
-> Regarding stopping all threads and doing proper scan, why is not it
-> feasible? Will kernel break if we stall all CPUs for seconds? In
-> automatic testing scenarios a stalled for several seconds machine is
-> not a problem. But on the other hand, absence of false positives is a
-> must. And it would improve testing bandwidth, because we don't need
-> sleep and second scan.
-
-Scanning time is the main issue with it taking minutes on some slow ARM
-machines (my primary testing target). Such timing was significantly
-improved with commit 93ada579b0ee ("mm: kmemleak: optimise kmemleak_lock
-acquiring during kmemleak_scan") but even if it is few seconds, it is
-not suitable for a live, interactive system.
-
-What we could do though, since you already trigger the scanning
-manually, is to add a "stopscan" command that you echo into
-/sys/kernel/debug/kmemleak and performs a stop_machine() during memory
-scanning. If you have time, please feel free to give it a try ;).
-
--- 
-Catalin
+-Robert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
