@@ -1,179 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 10B606B0009
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 13:14:13 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p65so47366898wmp.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 10:14:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y127si403149wmg.13.2016.03.01.10.14.11
+	by kanga.kvack.org (Postfix) with ESMTP id 1DA3C6B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 13:33:49 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id l68so48278848wml.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 10:33:49 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ex19si38641749wjc.64.2016.03.01.10.33.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Mar 2016 10:14:11 -0800 (PST)
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160229203502.GW16930@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602292251170.7563@eggly.anvils>
- <20160301133846.GF9461@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D5DBF0.2020004@suse.cz>
-Date: Tue, 1 Mar 2016 19:14:08 +0100
-MIME-Version: 1.0
-In-Reply-To: <20160301133846.GF9461@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Mar 2016 10:33:47 -0800 (PST)
+Date: Tue, 1 Mar 2016 10:33:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [slab] a1fd55538c:  WARNING: CPU: 0 PID: 0 at
+ kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller()
+Message-Id: <20160301103344.6f3095a269db284fbe0c3c2c@linux-foundation.org>
+In-Reply-To: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
+References: <56aa2b47.MwdlkrzZ08oDKqh8%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: kernel test robot <fengguang.wu@intel.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@linux.intel.com
 
-On 03/01/2016 02:38 PM, Michal Hocko wrote:
-> $ grep compact /proc/vmstat
-> compact_migrate_scanned 113983
-> compact_free_scanned 1433503
-> compact_isolated 134307
-> compact_stall 128
-> compact_fail 26
-> compact_success 102
-> compact_kcompatd_wake 0
->
-> So the whole load has done the direct compaction only 128 times during
-> that test. This doesn't sound much to me
-> $ grep allocstall /proc/vmstat
-> allocstall 1061
->
-> we entered the direct reclaim much more but most of the load will be
-> order-0 so this might be still ok. So I've tried the following:
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1993894b4219..107d444afdb1 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2910,6 +2910,9 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->   						mode, contended_compaction);
->   	current->flags &= ~PF_MEMALLOC;
->
-> +	if (order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER)
-> +		trace_printk("order:%d gfp_mask:%pGg compact_result:%lu\n", order, &gfp_mask, compact_result);
-> +
->   	switch (compact_result) {
->   	case COMPACT_DEFERRED:
->   		*deferred_compaction = true;
->
-> And the result was:
-> $ cat /debug/tracing/trace_pipe | tee ~/trace.log
->               gcc-8707  [001] ....   137.946370: __alloc_pages_direct_compact: order:2 gfp_mask:GFP_KERNEL_ACCOUNT|__GFP_NOTRACK compact_result:1
->               gcc-8726  [000] ....   138.528571: __alloc_pages_direct_compact: order:2 gfp_mask:GFP_KERNEL_ACCOUNT|__GFP_NOTRACK compact_result:1
->
-> this shows that order-2 memory pressure is not overly high in my
-> setup. Both attempts ended up COMPACT_SKIPPED which is interesting.
->
-> So I went back to 800M of hugetlb pages and tried again. It took ages
-> so I have interrupted that after one hour (there was still no OOM). The
-> trace log is quite interesting regardless:
-> $ wc -l ~/trace.log
-> 371 /root/trace.log
->
-> $ grep compact_stall /proc/vmstat
-> compact_stall 190
->
-> so the compaction was still ignored more than actually invoked for
-> !costly allocations:
-> sed 's@.*order:\([[:digit:]]\).* compact_result:\([[:digit:]]\)@\1 \2@' ~/trace.log | sort | uniq -c
->      190 2 1
->      122 2 3
->       59 2 4
->
-> #define COMPACT_SKIPPED         1
-> #define COMPACT_PARTIAL         3
-> #define COMPACT_COMPLETE        4
->
-> that means that compaction is even not tried in half cases! This
-> doesn't sounds right to me, especially when we are talking about
-> <= PAGE_ALLOC_COSTLY_ORDER requests which are implicitly nofail, because
-> then we simply rely on the order-0 reclaim to automagically form higher
-> blocks. This might indeed work when we retry many times but I guess this
-> is not a good approach. It leads to a excessive reclaim and the stall
-> for allocation can be really large.
->
-> One of the suspicious places is __compaction_suitable which does order-0
-> watermark check (increased by 2<<order). I have put another trace_printk
-> there and it clearly pointed out this was the case.
+On Thu, 28 Jan 2016 22:52:55 +0800 kernel test robot <fengguang.wu@intel.com> wrote:
 
-Yes, compaction is historically quite careful to avoid making low memory 
-conditions worse, and to prevent work if it doesn't look like it can ultimately 
-succeed the allocation (so having not enough base pages means that compacting 
-them is considered pointless). This aspect of preventing non-zero-order OOMs is 
-somewhat unexpected :)
+> Greetings,
+> 
+> 0day kernel testing robot got the below dmesg and the first bad commit is
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> 
+> commit a1fd55538cae9f411059c9b067a3d48c41aa876b
+> Author:     Jesper Dangaard Brouer <brouer@redhat.com>
+> AuthorDate: Thu Jan 28 09:47:16 2016 +1100
+> Commit:     Stephen Rothwell <sfr@canb.auug.org.au>
+> CommitDate: Thu Jan 28 09:47:16 2016 +1100
+> 
+>     slab: use slab_pre_alloc_hook in SLAB allocator shared with SLUB
+>     
+> ...
+>
+> [    0.000000] ------------[ cut here ]------------
+> [    0.000000] WARNING: CPU: 0 PID: 0 at kernel/locking/lockdep.c:2601 trace_hardirqs_on_caller+0x341/0x380()
+> [    0.000000] DEBUG_LOCKS_WARN_ON(unlikely(early_boot_irqs_disabled))
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.5.0-rc1-00069-ga1fd555 #1
+> [    0.000000]  ffffffff82403dd8 ffffffff82403d90 ffffffff813b937d ffffffff82403dc8
+> [    0.000000]  ffffffff810eb4d3 ffffffff812617cc 0000000000000001 ffff88000fcc50a8
+> [    0.000000]  ffff8800000984c0 00000000024000c0 ffffffff82403e28 ffffffff810eb5c7
+> [    0.000000] Call Trace:
+> [    0.000000]  [<ffffffff813b937d>] dump_stack+0x27/0x3a
+> [    0.000000]  [<ffffffff810eb4d3>] warn_slowpath_common+0xa3/0x100
+> [    0.000000]  [<ffffffff812617cc>] ? cache_alloc_refill+0x7ac/0x910
+> [    0.000000]  [<ffffffff810eb5c7>] warn_slowpath_fmt+0x57/0x70
+> [    0.000000]  [<ffffffff81143e61>] trace_hardirqs_on_caller+0x341/0x380
+> [    0.000000]  [<ffffffff81143ebd>] trace_hardirqs_on+0x1d/0x30
+> [    0.000000]  [<ffffffff812617cc>] cache_alloc_refill+0x7ac/0x910
+> [    0.000000]  [<ffffffff8121df6a>] ? pcpu_mem_zalloc+0x5a/0xc0
+> [    0.000000]  [<ffffffff81261fce>] __kmalloc+0x24e/0x440
+> [    0.000000]  [<ffffffff8121df6a>] pcpu_mem_zalloc+0x5a/0xc0
+> [    0.000000]  [<ffffffff829213aa>] percpu_init_late+0x4d/0xbb
 
-> So I have tried the following:
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 4d99e1f5055c..7364e48cf69a 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1276,6 +1276,9 @@ static unsigned long __compaction_suitable(struct zone *zone, int order,
->   								alloc_flags))
->   		return COMPACT_PARTIAL;
->
-> +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> +		return COMPACT_CONTINUE;
-> +
->   	/*
->   	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
->   	 * This is because during migration, copies of pages need to be
->
-> and retried the same test (without huge pages):
-> $ time make -j20 > /dev/null
->
-> real    8m46.626s
-> user    14m15.823s
-> sys     2m45.471s
->
-> the time increased but I haven't checked how stable the result is.
->
-> $ grep compact /proc/vmstat
-> compact_migrate_scanned 139822
-> compact_free_scanned 1661642
-> compact_isolated 139407
-> compact_stall 129
-> compact_fail 58
-> compact_success 71
-> compact_kcompatd_wake 1
->
-> $ grep allocstall /proc/vmstat
-> allocstall 1665
->
-> this is worse because we have scanned more pages for migration but the
-> overall success rate was much smaller and the direct reclaim was invoked
-> more. I do not have a good theory for that and will play with this some
-> more. Maybe other changes are needed deeper in the compaction code.
+The next patch
+(http://ozlabs.org/~akpm/mmotm/broken-out/slab-use-slab_pre_alloc_hook-in-slab-allocator-shared-with-slub-fix.patch)
+should have fixed this?
 
-I was under impression that similar checks to compaction_suitable() were done 
-also in compact_finished(), to stop compacting if memory got low due to parallel 
-activity. But I guess it was a patch from Joonsoo that didn't get merged.
-
-My only other theory so far is that watermark checks fail in 
-__isolate_free_page() when we want to grab page(s) as migration targets. I would 
-suggest enabling all compaction tracepoint and the migration tracepoint. Looking 
-at the trace could hopefully help faster than going one trace_printk() per attempt.
-
-Once we learn all the relevant places/checks, we can think about how to 
-communicate to them that this compaction attempt is "important" and should 
-continue as long as possible even in low-memory conditions. Maybe not just a 
-costly order check, but we also have alloc_flags or could add something to 
-compact_control, etc.
-
-> I will play with this some more but I would be really interested to hear
-> whether this helped Hugh with his setup. Vlastimi, Joonsoo does this
-> even make sense to you?
+> [    0.000000]  [<ffffffff828f41c9>] start_kernel+0x30b/0x6e1
+> [    0.000000]  [<ffffffff828f3120>] ? early_idt_handler_array+0x120/0x120
+> [    0.000000]  [<ffffffff828f332f>] x86_64_start_reservations+0x46/0x4f
+> [    0.000000]  [<ffffffff828f34d4>] x86_64_start_kernel+0x19c/0x1b2
+> [    0.000000] ---[ end trace cb88537fdc8fa200 ]---
 >
->> I was only suggesting to allocate hugetlb pages, if you preferred
->> not to reboot with artificially reduced RAM.  Not an issue if you're
->> booting VMs.
->
-> Ohh, I see.
->
->
+> ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
