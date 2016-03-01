@@ -1,105 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B4EB6B0005
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 02:29:16 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id d205so40472746oia.0
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 23:29:16 -0800 (PST)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id eb7si24422309oeb.35.2016.02.29.23.29.15
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 845336B0005
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 03:31:36 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id l68so24363142wml.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 00:31:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h84si24405780wmf.124.2016.03.01.00.31.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Feb 2016 23:29:15 -0800 (PST)
-Received: by mail-ob0-x231.google.com with SMTP id xx9so45660552obc.2
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 23:29:15 -0800 (PST)
-Date: Mon, 29 Feb 2016 23:29:06 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-In-Reply-To: <20160229203502.GW16930@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1602292251170.7563@eggly.anvils>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org> <20160203132718.GI6757@dhcp22.suse.cz> <alpine.LSU.2.11.1602241832160.15564@eggly.anvils> <20160229203502.GW16930@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 01 Mar 2016 00:31:35 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
+References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
+ <56D43AAB.2010802@suse.cz>
+ <CAPcyv4i587ow4yEFN+81rd=_kVL3YV1daU7cDM4V4YCAhDMRVA@mail.gmail.com>
+ <56D4DCFE.9040806@suse.cz>
+ <CAPcyv4j1JbpuoiurRe7hbnBbxthK3wtuoQXzwQ7rAcc+2MYV9A@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D55359.3080809@suse.cz>
+Date: Tue, 1 Mar 2016 09:31:21 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAPcyv4j1JbpuoiurRe7hbnBbxthK3wtuoQXzwQ7rAcc+2MYV9A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On Mon, 29 Feb 2016, Michal Hocko wrote:
-> On Wed 24-02-16 19:47:06, Hugh Dickins wrote:
-> [...]
-> > Boot with mem=1G (or boot your usual way, and do something to occupy
-> > most of the memory: I think /proc/sys/vm/nr_hugepages provides a great
-> > way to gobble up most of the memory, though it's not how I've done it).
-> > 
-> > Make sure you have swap: 2G is more than enough.  Copy the v4.5-rc5
-> > kernel source tree into a tmpfs: size=2G is more than enough.
-> > make defconfig there, then make -j20.
-> > 
-> > On a v4.5-rc5 kernel that builds fine, on mmotm it is soon OOM-killed.
-> > 
-> > Except that you'll probably need to fiddle around with that j20,
-> > it's true for my laptop but not for my workstation.  j20 just happens
-> > to be what I've had there for years, that I now see breaking down
-> > (I can lower to j6 to proceed, perhaps could go a bit higher,
-> > but it still doesn't exercise swap very much).
-> 
-> I have tried to reproduce and failed in a virtual on my laptop. I
-> will try with another host with more CPUs (because my laptop has only
-> two). Just for the record I did: boot 1G machine in kvm, I have 2G swap
-> and reserve 800M for hugetlb pages (I got 445 of them). Then I extract
-> the kernel source to tmpfs (-o size=2G), make defconfig and make -j20
-> (16, 10 no difference really). I was also collecting vmstat in the
-> background. The compilation takes ages but the behavior seems consistent
-> and stable.
+On 03/01/2016 03:06 AM, Dan Williams wrote:
+> On Mon, Feb 29, 2016 at 4:06 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> On 29.2.2016 18:55, Dan Williams wrote:
+>>> On Mon, Feb 29, 2016 at 4:33 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>>> On 02/02/2016 06:42 AM, Andrew Morton wrote:
+>>>
+>>> In this case it's already part of the equation because:
+>>>
+>>> config ZONE_DEVICE
+>>>        depends on MEMORY_HOTPLUG
+>>>        depends on MEMORY_HOTREMOVE
+>>>
+>>> ...and those in turn depend on SPARSEMEM.
+>>
+>> Fine, but then SPARSEMEM_VMEMMAP should be still an available subvariant of
+>> SPARSEMEM with SECTION_WIDTH=0.
+>
+> It should be, but not for the ZONE_DEVICE case.  ZONE_DEVICE depends
+> on x86_64 which means ZONE_DEVICE also implies SPARSEMEM_VMEMMAP
+> since:
+>
+> config ARCH_SPARSEMEM_ENABLE
+>         def_bool y
+>         depends on X86_64 || NUMA || X86_32 || X86_32_NON_STANDARD
+>         select SPARSEMEM_STATIC if X86_32
+>         select SPARSEMEM_VMEMMAP_ENABLE if X86_64
+>
+> Now, if a future patch wants to reclaim page flags space for other
+> usages outside of ZONE_DEVICE it can do the work to handle the
+> SPARSEMEM_VMEMMAP=n case.  I don't see a reason to fold that
+> distinction into the current patch given the current constraints.
 
-Thanks a lot for giving it a go.
+OK so that IUUC shows that x86_64 should be always fine without decreasing the 
+range for NODES_SHIFT? That's basically my point - since there's a configuration 
+where things don't fit (32bit?), the patch broadly decreases range for 
+NODES_SHIFT for everyone, right?
 
-I'm puzzled.  445 hugetlb pages in 800M surprises me: some of them
-are less than 2M big??  But probably that's just a misunderstanding
-or typo somewhere.
-
-Ignoring that, you're successfully doing a make -20 defconfig build
-in tmpfs, with only 224M of RAM available, plus 2G of swap?  I'm not
-at all surprised that it takes ages, but I am very surprised that it
-does not OOM.  I suppose by rights it ought not to OOM, the built
-tree occupies only a little more than 1G, so you do have enough swap;
-but I wouldn't get anywhere near that myself without OOMing - I give
-myself 1G of RAM (well, minus whatever the booted system takes up)
-to do that build in, four times your RAM, yet in my case it OOMs.
-
-That source tree alone occupies more than 700M, so just copying it
-into your tmpfs would take a long time.  I'd expect a build in 224M
-RAM plus 2G of swap to take so long, that I'd be very grateful to be
-OOM killed, even if there is technically enough space.  Unless
-perhaps it's some superfast swap that you have?
-
-I was only suggesting to allocate hugetlb pages, if you preferred
-not to reboot with artificially reduced RAM.  Not an issue if you're
-booting VMs.
-
-It's true that my testing has been done on the physical machines,
-no virtualization involved: I expect that accounts for some difference
-between us, but as much difference as we're seeing?  That's strange.
-
-> 
-> If I try 900M for huge pages then I get OOMs but this happens with the
-> mmotm without my oom rework patch set as well.
-
-Right, not at all surprising.
-
-> 
-> It would be great if you could retry and collect /proc/vmstat data
-> around the OOM time to see what compaction did? (I was using the
-> attached little program to reduce interference during OOM (no forks, the
-> code locked in and the resulting file preallocated - e.g.
-> read_vmstat 1s vmstat.log 10M and interrupt it by ctrl+c after the OOM
-> hits).
-> 
-> Thanks!
-
-I'll give it a try, thanks, but not tonight.
-
-Hugh
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
