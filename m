@@ -1,61 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 260B3828E2
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 08:54:51 -0500 (EST)
-Received: by mail-oi0-f45.google.com with SMTP id m82so128916473oif.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 05:54:51 -0800 (PST)
-Received: from mail-oi0-x22e.google.com (mail-oi0-x22e.google.com. [2607:f8b0:4003:c06::22e])
-        by mx.google.com with ESMTPS id r15si25829078oie.31.2016.03.01.05.54.50
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CDDD828E2
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 09:01:37 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id p65so34804046wmp.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 06:01:37 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id 16si25622175wmx.75.2016.03.01.06.01.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 05:54:50 -0800 (PST)
-Received: by mail-oi0-x22e.google.com with SMTP id d205so46296195oia.0
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 05:54:50 -0800 (PST)
+        Tue, 01 Mar 2016 06:01:36 -0800 (PST)
+Received: by mail-wm0-f43.google.com with SMTP id n186so38313530wmn.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 06:01:36 -0800 (PST)
+Date: Tue, 1 Mar 2016 15:01:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -mm] oom: make oom_reaper_list single linked
+Message-ID: <20160301140133.GG9461@dhcp22.suse.cz>
+References: <1456824500-30661-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jJzUieZ0i2jBqANwmYPUBVmQmhoDTPnr0KjPQXnoZqWQ@mail.gmail.com>
-References: <1456738445-876239-1-git-send-email-arnd@arndb.de>
-	<CAPcyv4jJzUieZ0i2jBqANwmYPUBVmQmhoDTPnr0KjPQXnoZqWQ@mail.gmail.com>
-Date: Tue, 1 Mar 2016 22:54:50 +0900
-Message-ID: <CAAmzW4Nq8LiFGzyR4YjG8OPev-Pj1dUad+Bus2puSAk_tUcCsA@mail.gmail.com>
-Subject: Re: [PATCH] crypto/async_pq: use __free_page() instead of put_page()
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1456824500-30661-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux MM <linux-mm@kvack.org>, Herbert Xu <herbert@gondor.apana.org.au>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Nazarewicz <mina86@mina86.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, NeilBrown <neilb@suse.com>, Markus Stockhausen <stockhausen@collogia.de>, Vinod Koul <vinod.koul@intel.com>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2016-03-01 3:04 GMT+09:00 Dan Williams <dan.j.williams@intel.com>:
-> On Mon, Feb 29, 2016 at 1:33 AM, Arnd Bergmann <arnd@arndb.de> wrote:
->> The addition of tracepoints to the page reference tracking had an
->> unfortunate side-effect in at least one driver that calls put_page
->> from its exit function, resulting in a link error:
->>
->> `.exit.text' referenced in section `__jump_table' of crypto/built-in.o: defined in discarded section `.exit.text' of crypto/built-in.o
->>
->> From a cursory look at that this driver, it seems that it may be
->> doing the wrong thing here anyway, as the page gets allocated
->> using 'alloc_page()', and should be freed using '__free_page()'
->> rather than 'put_page()'.
->>
->> With this patch, I no longer get any other build errors from the
->> page_ref patch, so hopefully we can assume that it's always wrong
->> to call any of those functions from __exit code, and that no other
->> driver does it.
->>
->> Fixes: 0f80830dd044 ("mm/page_ref: add tracepoint to track down page reference manipulation")
->> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
->
-> Acked-by: Dan Williams <dan.j.williams@intel.com>
->
-> Vinod, will you take this one?
+On Tue 01-03-16 12:28:20, Vladimir Davydov wrote:
+> Entries are only added/removed from oom_reaper_list at head so we can
+> use a single linked list and hence save a word in task_struct.
 
-Problematic patch ("mm/page_ref: ~~~") is not yet merged one. It is on mmotm
-and this fix should go together with it or before it. I think that
-handling this fix by
-Andrew is easier to all.
+There was a larger hole when I've checked the last time but why not.
+ 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Thanks.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+>  include/linux/sched.h |  2 +-
+>  mm/oom_kill.c         | 15 +++++++--------
+>  2 files changed, 8 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 2118e963fba7..7b76e65595c3 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1853,7 +1853,7 @@ struct task_struct {
+>  #endif
+>  	int pagefault_disabled;
+>  #ifdef CONFIG_MMU
+> -	struct list_head oom_reaper_list;
+> +	struct task_struct *oom_reaper_list;
+>  #endif
+>  /* CPU-specific state of this task */
+>  	struct thread_struct thread;
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 5d5eca9d6737..1a91d9a26bc9 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -423,7 +423,7 @@ bool oom_killer_disabled __read_mostly;
+>   */
+>  static struct task_struct *oom_reaper_th;
+>  static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+> -static LIST_HEAD(oom_reaper_list);
+> +static struct task_struct *oom_reaper_list;
+>  static DEFINE_SPINLOCK(oom_reaper_lock);
+>  
+>  
+> @@ -530,13 +530,11 @@ static int oom_reaper(void *unused)
+>  	while (true) {
+>  		struct task_struct *tsk = NULL;
+>  
+> -		wait_event_freezable(oom_reaper_wait,
+> -				     (!list_empty(&oom_reaper_list)));
+> +		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
+>  		spin_lock(&oom_reaper_lock);
+> -		if (!list_empty(&oom_reaper_list)) {
+> -			tsk = list_first_entry(&oom_reaper_list,
+> -					struct task_struct, oom_reaper_list);
+> -			list_del(&tsk->oom_reaper_list);
+> +		if (oom_reaper_list != NULL) {
+> +			tsk = oom_reaper_list;
+> +			oom_reaper_list = tsk->oom_reaper_list;
+>  		}
+>  		spin_unlock(&oom_reaper_lock);
+>  
+> @@ -555,7 +553,8 @@ static void wake_oom_reaper(struct task_struct *tsk)
+>  	get_task_struct(tsk);
+>  
+>  	spin_lock(&oom_reaper_lock);
+> -	list_add(&tsk->oom_reaper_list, &oom_reaper_list);
+> +	tsk->oom_reaper_list = oom_reaper_list;
+> +	oom_reaper_list = tsk;
+>  	spin_unlock(&oom_reaper_lock);
+>  	wake_up(&oom_reaper_wait);
+>  }
+> -- 
+> 2.1.4
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
