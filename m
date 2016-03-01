@@ -1,105 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 447636B0254
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 16:07:11 -0500 (EST)
-Received: by mail-oi0-f51.google.com with SMTP id c203so46271743oia.2
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 13:07:11 -0800 (PST)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id j21si10124322oib.97.2016.03.01.13.07.10
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E26596B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 16:44:05 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p65so54510407wmp.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 13:44:05 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id l67si1257673wmg.76.2016.03.01.13.44.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 13:07:10 -0800 (PST)
-Received: by mail-oi0-x232.google.com with SMTP id c203so46271540oia.2
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 13:07:10 -0800 (PST)
+        Tue, 01 Mar 2016 13:44:04 -0800 (PST)
+Received: by mail-wm0-x234.google.com with SMTP id l68so52485746wml.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 13:44:04 -0800 (PST)
+Date: Wed, 2 Mar 2016 00:44:02 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86, pkeys: fix access_error() denial of writes to
+ write-only VMA
+Message-ID: <20160301214402.GA20162@node.shutemov.name>
+References: <20160301194133.65D0110C@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160301125340.ffcc278e7f35fc3a28268e08@linux-foundation.org>
-References: <20160301195504.40400.79558.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20160301125340.ffcc278e7f35fc3a28268e08@linux-foundation.org>
-Date: Tue, 1 Mar 2016 13:07:10 -0800
-Message-ID: <CAPcyv4hxU-JM5mwM_YnZciyEBieVtyPf42QQpZv30HnhbcrTRQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] semaphore: fix uninitialized list_head vs list_force_poison
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160301194133.65D0110C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Peter Zijlstra <peterz@infradead.org>, XFS Developers <xfs@oss.sgi.com>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, avagin@gmail.com, linux-next@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Tue, Mar 1, 2016 at 12:53 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 01 Mar 2016 11:55:04 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
->
->> list_force_poison is a debug mechanism to make sure that ZONE_DEVICE
->> pages never appear on an lru.  Those pages only exist for enabling DMA
->> to device discovered memory ranges and are not suitable for general
->> purpose allocations.  list_force_poison() explicitly initializes a
->> list_head with a poison value that list_add() can use to detect mistaken
->> use of page->lru.
->>
->> Unfortunately, it seems calling list_add() leads to the poison value
->> leaking on to the stack and occasionally cause stack-allocated
->> list_heads to be inadvertently "force poisoned".
->>
->>  list_add attempted on force-poisoned entry
->>  WARNING: at lib/list_debug.c:34
->>  [..]
->>  NIP [c00000000043c390] __list_add+0xb0/0x150
->>  LR [c00000000043c38c] __list_add+0xac/0x150
->>  Call Trace:
->>  [c000000fb5fc3320] [c00000000043c38c] __list_add+0xac/0x150 (unreliable)
->>  [c000000fb5fc33a0] [c00000000081b454] __down+0x4c/0xf8
->>  [c000000fb5fc3410] [c00000000010b6f8] down+0x68/0x70
->>  [c000000fb5fc3450] [d0000000201ebf4c] xfs_buf_lock+0x4c/0x150 [xfs]
->>
->>  list_add attempted on force-poisoned entry(0000000000000500),
->>   new->next == d0000000059ecdb0, new->prev == 0000000000000500
->>  WARNING: at lib/list_debug.c:33
->>  [..]
->>  NIP [c00000000042db78] __list_add+0xa8/0x140
->>  LR [c00000000042db74] __list_add+0xa4/0x140
->>  Call Trace:
->>  [c0000004c749f620] [c00000000042db74] __list_add+0xa4/0x140 (unreliable)
->>  [c0000004c749f6b0] [c0000000008010ec] rwsem_down_read_failed+0x6c/0x1a0
->>  [c0000004c749f760] [c000000000800828] down_read+0x58/0x60
->>  [c0000004c749f7e0] [d000000005a1a6bc] xfs_log_commit_cil+0x7c/0x600 [xfs]
->>
->> We can squash these uninitialized list_heads as they pop-up as this
->> patch does, or maybe need to rethink how to implement the
->> list_force_poison() safety mechanism.
->
-> Yes, problem.
->
->>  kernel/locking/rwsem-xadd.c |    4 +++-
->>  kernel/locking/semaphore.c  |    4 +++-
->
-> The patch adds slight overhead and there will be other uninitialized
-> list_heads around the place and more will turn up in the future.
->
-> I don't see how list_force_poison is fixable, really - we're relying
-> upon some uninitialized word of memory not having some particular value.
-> Good luck with that.
->
-> Maybe we simply remove list_force_poison() - it isn't terribly
-> important?
->
->         /* ZONE_DEVICE pages must never appear on a slab lru */
->
-> Can we instead add a check of page_zone(page) into the lru-addition
-> sites?
+On Tue, Mar 01, 2016 at 11:41:33AM -0800, Dave Hansen wrote:
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> Andrey Wagin reported that a simple test case was broken by:
+> 
+> 	2b5f7d013fc ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
+> 
+> This test case creates an unreadable VMA and my patch assumed
+> that all writes must be to readable VMAs.
+> 
+> The simplest fix for this is to remove the pkey-related bits
+> in access_error().  For execute-only support, I believe the
+> existing version is sufficient because the permissions we
+> are trying to enforce are entirely expressed in vma->vm_flags.
+> We just depend on pkeys to get *an* exception, it does not
+> matter that PF_PK was set, or even what state PKRU is in.
+> 
+> I will re-add the necessary bits with the full pkeys
+> implementation that includes the new syscalls.
+> 
+> The three cases that matter are:
+> 
+> 1. If a write to an execute-only VMA occurs, we will see PF_WRITE
+>    set, but !VM_WRITE on the VMA, and return 1.  All execute-only
+>    VMAs have VM_WRITE clear by definition.
+> 2. If a read occurs on a present PTE, we will fall in to the "read,
+>    present" case and return 1.
+> 3. If a read occurs to a non-present PTE, we will miss the "read,
+>    not present" case, because the execute-only VMA will have
+>    VM_EXEC set, and we will properly return 0 allowing the PTE to
+>    be populated.
+> 
+> Test program:
+> 
+> #include <sys/mman.h>
+> #include <stdlib.h>
+> 
+> int main()
+> {
+> 	int *p;
+> 	p = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+> 	p[0] = 1;
+> 
+> 	return 0;
+> }
+> 
+> Fixes: 62b5f7d013fc ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: Andrey Wagin <avagin@gmail.com>,
+> Cc: linux-next@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: x86@kernel.org
 
-That's a possibility although I also wanted to catch drivers that
-think they can use page->lru as long as they have a reference against
-the page.  However, moving the safety mechanism to the individual call
-sites guarantees that we'll miss some.  It trades one form of
-wack-a-mole for another, so I think just killing list_force_poison()
-is our best option.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-> There are probably quite a few possible places.  (Why does the
-> comment say "slab"?).
-
-Yeah, it should say zone lru, I was referring to placing a ZONE_DEVICE
-page on a free list that would allow it to be allocated via
-alloc_page().
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
