@@ -1,76 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 845336B0005
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 03:31:36 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l68so24363142wml.0
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 00:31:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h84si24405780wmf.124.2016.03.01.00.31.34
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A2B296B0254
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 04:28:30 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id fy10so108820504pac.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 01:28:30 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id t63si49266489pfa.240.2016.03.01.01.28.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Mar 2016 00:31:35 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
-References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
- <56D43AAB.2010802@suse.cz>
- <CAPcyv4i587ow4yEFN+81rd=_kVL3YV1daU7cDM4V4YCAhDMRVA@mail.gmail.com>
- <56D4DCFE.9040806@suse.cz>
- <CAPcyv4j1JbpuoiurRe7hbnBbxthK3wtuoQXzwQ7rAcc+2MYV9A@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D55359.3080809@suse.cz>
-Date: Tue, 1 Mar 2016 09:31:21 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Mar 2016 01:28:29 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH -mm] oom: make oom_reaper_list single linked
+Date: Tue, 1 Mar 2016 12:28:20 +0300
+Message-ID: <1456824500-30661-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4j1JbpuoiurRe7hbnBbxthK3wtuoQXzwQ7rAcc+2MYV9A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/01/2016 03:06 AM, Dan Williams wrote:
-> On Mon, Feb 29, 2016 at 4:06 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> On 29.2.2016 18:55, Dan Williams wrote:
->>> On Mon, Feb 29, 2016 at 4:33 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>> On 02/02/2016 06:42 AM, Andrew Morton wrote:
->>>
->>> In this case it's already part of the equation because:
->>>
->>> config ZONE_DEVICE
->>>        depends on MEMORY_HOTPLUG
->>>        depends on MEMORY_HOTREMOVE
->>>
->>> ...and those in turn depend on SPARSEMEM.
->>
->> Fine, but then SPARSEMEM_VMEMMAP should be still an available subvariant of
->> SPARSEMEM with SECTION_WIDTH=0.
->
-> It should be, but not for the ZONE_DEVICE case.  ZONE_DEVICE depends
-> on x86_64 which means ZONE_DEVICE also implies SPARSEMEM_VMEMMAP
-> since:
->
-> config ARCH_SPARSEMEM_ENABLE
->         def_bool y
->         depends on X86_64 || NUMA || X86_32 || X86_32_NON_STANDARD
->         select SPARSEMEM_STATIC if X86_32
->         select SPARSEMEM_VMEMMAP_ENABLE if X86_64
->
-> Now, if a future patch wants to reclaim page flags space for other
-> usages outside of ZONE_DEVICE it can do the work to handle the
-> SPARSEMEM_VMEMMAP=n case.  I don't see a reason to fold that
-> distinction into the current patch given the current constraints.
+Entries are only added/removed from oom_reaper_list at head so we can
+use a single linked list and hence save a word in task_struct.
 
-OK so that IUUC shows that x86_64 should be always fine without decreasing the 
-range for NODES_SHIFT? That's basically my point - since there's a configuration 
-where things don't fit (32bit?), the patch broadly decreases range for 
-NODES_SHIFT for everyone, right?
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+ include/linux/sched.h |  2 +-
+ mm/oom_kill.c         | 15 +++++++--------
+ 2 files changed, 8 insertions(+), 9 deletions(-)
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 2118e963fba7..7b76e65595c3 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1853,7 +1853,7 @@ struct task_struct {
+ #endif
+ 	int pagefault_disabled;
+ #ifdef CONFIG_MMU
+-	struct list_head oom_reaper_list;
++	struct task_struct *oom_reaper_list;
+ #endif
+ /* CPU-specific state of this task */
+ 	struct thread_struct thread;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5d5eca9d6737..1a91d9a26bc9 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -423,7 +423,7 @@ bool oom_killer_disabled __read_mostly;
+  */
+ static struct task_struct *oom_reaper_th;
+ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+-static LIST_HEAD(oom_reaper_list);
++static struct task_struct *oom_reaper_list;
+ static DEFINE_SPINLOCK(oom_reaper_lock);
+ 
+ 
+@@ -530,13 +530,11 @@ static int oom_reaper(void *unused)
+ 	while (true) {
+ 		struct task_struct *tsk = NULL;
+ 
+-		wait_event_freezable(oom_reaper_wait,
+-				     (!list_empty(&oom_reaper_list)));
++		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
+ 		spin_lock(&oom_reaper_lock);
+-		if (!list_empty(&oom_reaper_list)) {
+-			tsk = list_first_entry(&oom_reaper_list,
+-					struct task_struct, oom_reaper_list);
+-			list_del(&tsk->oom_reaper_list);
++		if (oom_reaper_list != NULL) {
++			tsk = oom_reaper_list;
++			oom_reaper_list = tsk->oom_reaper_list;
+ 		}
+ 		spin_unlock(&oom_reaper_lock);
+ 
+@@ -555,7 +553,8 @@ static void wake_oom_reaper(struct task_struct *tsk)
+ 	get_task_struct(tsk);
+ 
+ 	spin_lock(&oom_reaper_lock);
+-	list_add(&tsk->oom_reaper_list, &oom_reaper_list);
++	tsk->oom_reaper_list = oom_reaper_list;
++	oom_reaper_list = tsk;
+ 	spin_unlock(&oom_reaper_lock);
+ 	wake_up(&oom_reaper_wait);
+ }
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
