@@ -1,53 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0918B6B0256
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 10:43:47 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id y8so22998446igp.0
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 07:43:47 -0800 (PST)
-Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
-        by mx.google.com with ESMTPS id m23si29019929iod.142.2016.03.01.07.43.46
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 43C926B0005
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 10:52:17 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id 124so53218988pfg.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 07:52:17 -0800 (PST)
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com. [209.85.192.178])
+        by mx.google.com with ESMTPS id c64si51187962pfd.70.2016.03.01.07.52.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 07:43:46 -0800 (PST)
-Received: by mail-io0-x230.google.com with SMTP id l127so226537123iof.3
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 07:43:46 -0800 (PST)
+        Tue, 01 Mar 2016 07:52:16 -0800 (PST)
+Received: by mail-pf0-f178.google.com with SMTP id 124so53218839pfg.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 07:52:16 -0800 (PST)
+Date: Tue, 1 Mar 2016 16:52:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
+Message-ID: <20160301155212.GJ9461@dhcp22.suse.cz>
+References: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20160301153957.GA22107@localhost.localdomain>
-References: <1456757084-1078-1-git-send-email-ard.biesheuvel@linaro.org>
-	<1456757084-1078-6-git-send-email-ard.biesheuvel@linaro.org>
-	<20160301153957.GA22107@localhost.localdomain>
-Date: Tue, 1 Mar 2016 16:43:46 +0100
-Message-ID: <CAKv+Gu9q-Z2mXtvPQUA2du_VhAwLGp04-5E8cGtyk1zVbGjZEA@mail.gmail.com>
-Subject: Re: [PATCH v2 5/9] arm64: mm: move vmemmap region right below the
- linear region
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Jonas Bonn <jonas@southpole.se>, "linux-mm@kvack.org" <linux-mm@kvack.org>, nios2-dev@lists.rocketboards.org, linux@lists.openrisc.net, lftan@altera.com, Andrew Morton <akpm@linux-foundation.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Michael S. Tsirkin" <mst@redhat.com>
 
-On 1 March 2016 at 16:39, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> On Mon, Feb 29, 2016 at 03:44:40PM +0100, Ard Biesheuvel wrote:
->> @@ -404,6 +404,12 @@ void __init mem_init(void)
->>       BUILD_BUG_ON(TASK_SIZE_32                       > TASK_SIZE_64);
->>  #endif
->>
->> +     /*
->> +      * Make sure we chose the upper bound of sizeof(struct page)
->> +      * correctly.
->> +      */
->> +     BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
->
-> Since with the vmemmap fix you already assume that PAGE_OFFSET is half
-> of the VA space, we should add another check on PAGE_OFFSET !=
-> UL(0xffffffffffffffff) << (VA_BITS - 1), just in case someone thinks
-> they could map a bit of extra RAM without going for a larger VA.
->
+[CCing vhost-net maintainer]
 
-Indeed. The __pa() check only checks a single bit, so it must be split
-exactly in half, unless we want to revisit that in the future (if
-__pa() is no longer on a hot path after changes like these).
+On Mon 29-02-16 20:02:09, Vladimir Davydov wrote:
+> An mm_struct may be pinned by a file. An example is vhost-net device
+> created by a qemu/kvm (see vhost_net_ioctl -> vhost_net_set_owner ->
+> vhost_dev_set_owner).
+
+The more I think about that the more I am wondering whether this is
+actually OK and correct. Why does the driver have to pin the address
+space? Nothing really prevents from parallel tearing down of the address
+space anyway so the code cannot expect all the vmas to stay. Would it be
+enough to pin the mm_struct only?
+
+I am not sure I understand the code properly but what prevents from
+the situation when a VHOST_SET_OWNER caller dies without calling
+VHOST_RESET_OWNER and so the mm would be pinned indefinitely?
+
+[Keeping the reset of the email for reference]
+
+> If such process gets OOM-killed, the reference to
+> its mm_struct will only be released from exit_task_work -> ____fput ->
+> __fput -> vhost_net_release -> vhost_dev_cleanup, which is called after
+> exit_mmap, where TIF_MEMDIE is cleared. As a result, we can start
+> selecting the next victim before giving the last one a chance to free
+> its memory. In practice, this leads to killing several VMs along with
+> the fattest one.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> ---
+>  kernel/exit.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/kernel/exit.c b/kernel/exit.c
+> index fd90195667e1..cc50e12165f7 100644
+> --- a/kernel/exit.c
+> +++ b/kernel/exit.c
+> @@ -434,8 +434,6 @@ static void exit_mm(struct task_struct *tsk)
+>  	task_unlock(tsk);
+>  	mm_update_next_owner(mm);
+>  	mmput(mm);
+> -	if (test_thread_flag(TIF_MEMDIE))
+> -		exit_oom_victim(tsk);
+>  }
+>  
+>  static struct task_struct *find_alive_thread(struct task_struct *p)
+> @@ -746,6 +744,8 @@ void do_exit(long code)
+>  		disassociate_ctty(1);
+>  	exit_task_namespaces(tsk);
+>  	exit_task_work(tsk);
+> +	if (test_thread_flag(TIF_MEMDIE))
+> +		exit_oom_victim(tsk);
+>  	exit_thread();
+>  
+>  	/*
+> -- 
+> 2.1.4
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
