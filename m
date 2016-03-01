@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 191D96B0257
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 11:14:08 -0500 (EST)
-Received: by mail-qg0-f47.google.com with SMTP id u110so16368731qge.3
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 08:14:08 -0800 (PST)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E9CC6B0257
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 11:22:37 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id b67so145891143qgb.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 08:22:37 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f11si456321qgf.11.2016.03.01.08.14.07
+        by mx.google.com with ESMTPS id 18si31434137qhd.49.2016.03.01.08.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 08:14:07 -0800 (PST)
-Date: Tue, 1 Mar 2016 18:14:02 +0200
+        Tue, 01 Mar 2016 08:22:36 -0800 (PST)
+Date: Tue, 1 Mar 2016 18:22:32 +0200
 From: "Michael S. Tsirkin" <mst@redhat.com>
 Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
-Message-ID: <20160301181136-mutt-send-email-mst@redhat.com>
+Message-ID: <20160301182027-mutt-send-email-mst@redhat.com>
 References: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
  <20160301155212.GJ9461@dhcp22.suse.cz>
  <20160301175431-mutt-send-email-mst@redhat.com>
@@ -51,34 +51,13 @@ On Tue, Mar 01, 2016 at 05:08:13PM +0100, Michal Hocko wrote:
 > doesn't pin the address space (mm_users) but rather mm_count (see
 > proc_mem_open).
 
-As I said, I need to research this.
+At a quick glance, it seems that it's needed: it calls
+get_user_pages(mm) and that looks like it will not DTRT (or even fail
+gracefully) if mm->mm_users == 0 and exit_mmap/etc was already called
+(or is in progress).
 
-> > > I am not sure I understand the code properly but what prevents from
-> > > the situation when a VHOST_SET_OWNER caller dies without calling
-> > > VHOST_RESET_OWNER and so the mm would be pinned indefinitely?
-> > > 
-> > > [Keeping the reset of the email for reference]
-> > 
-> > We have:
-> > 
-> > static const struct file_operations vhost_net_fops = {
-> >         .owner          = THIS_MODULE,
-> >         .release        = vhost_net_release,
-> > ...
-> > };
-> > 
-> > When caller dies and after fds are closed,
-> > vhost_net_release calls vhost_dev_cleanup and that
-> > drops the mm reference.
-> 
-> Can another process have the device open as well and prevent from
-> destruction?
-
-Yes.
-
-> -- 
-> Michal Hocko
-> SUSE Labs
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
