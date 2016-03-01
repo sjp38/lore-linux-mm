@@ -1,90 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B296B0254
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 04:28:30 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fy10so108820504pac.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 01:28:30 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id t63si49266489pfa.240.2016.03.01.01.28.29
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 797AB6B0005
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 05:25:21 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id p65so26684703wmp.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 02:25:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id la5si36592457wjb.232.2016.03.01.02.25.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 01:28:29 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH -mm] oom: make oom_reaper_list single linked
-Date: Tue, 1 Mar 2016 12:28:20 +0300
-Message-ID: <1456824500-30661-1-git-send-email-vdavydov@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 01 Mar 2016 02:25:20 -0800 (PST)
+Date: Tue, 1 Mar 2016 11:25:41 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Support for 1GB THP
+Message-ID: <20160301102541.GD27666@quack.suse.cz>
+References: <20160301070911.GD3730@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160301070911.GD3730@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Entries are only added/removed from oom_reaper_list at head so we can
-use a single linked list and hence save a word in task_struct.
+Hi,
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
- include/linux/sched.h |  2 +-
- mm/oom_kill.c         | 15 +++++++--------
- 2 files changed, 8 insertions(+), 9 deletions(-)
+On Tue 01-03-16 02:09:11, Matthew Wilcox wrote:
+> There are a few issues around 1GB THP support that I've come up against
+> while working on DAX support that I think may be interesting to discuss
+> in person.
+> 
+>  - Do we want to add support for 1GB THP for anonymous pages?  DAX support
+>    is driving the initial 1GB THP support, but would anonymous VMAs also
+>    benefit from 1GB support?  I'm not volunteering to do this work, but
+>    it might make an interesting conversation if we can identify some users
+>    who think performance would be better if they had 1GB THP support.
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 2118e963fba7..7b76e65595c3 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1853,7 +1853,7 @@ struct task_struct {
- #endif
- 	int pagefault_disabled;
- #ifdef CONFIG_MMU
--	struct list_head oom_reaper_list;
-+	struct task_struct *oom_reaper_list;
- #endif
- /* CPU-specific state of this task */
- 	struct thread_struct thread;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5d5eca9d6737..1a91d9a26bc9 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -423,7 +423,7 @@ bool oom_killer_disabled __read_mostly;
-  */
- static struct task_struct *oom_reaper_th;
- static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
--static LIST_HEAD(oom_reaper_list);
-+static struct task_struct *oom_reaper_list;
- static DEFINE_SPINLOCK(oom_reaper_lock);
+Some time ago I was thinking about 1GB THP and I was wondering: What is the
+motivation for 1GB pages for persistent memory? Is it the savings in memory
+used for page tables? Or is it about the cost of fault?
+
+If it is mainly about the fault cost, won't some fault-around logic (i.e.
+filling more PMD entries in one PMD fault) go a long way towards reducing
+fault cost without some complications?
+
+>  - Latency of a major page fault.  According to various public reviews,
+>    main memory bandwidth is about 30GB/s on a Core i7-5960X with 4
+>    DDR4 channels.  I think people are probably fairly unhappy about
+>    doing only 30 page faults per second.  So maybe we need a more complex
+>    scheme to handle major faults where we insert a temporary 2MB mapping,
+>    prepare the other 2MB pages in the background, then merge them into
+>    a 1GB mapping when they're completed.
+
+Yeah, here is one of the complications I have mentioned above ;)
  
- 
-@@ -530,13 +530,11 @@ static int oom_reaper(void *unused)
- 	while (true) {
- 		struct task_struct *tsk = NULL;
- 
--		wait_event_freezable(oom_reaper_wait,
--				     (!list_empty(&oom_reaper_list)));
-+		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
- 		spin_lock(&oom_reaper_lock);
--		if (!list_empty(&oom_reaper_list)) {
--			tsk = list_first_entry(&oom_reaper_list,
--					struct task_struct, oom_reaper_list);
--			list_del(&tsk->oom_reaper_list);
-+		if (oom_reaper_list != NULL) {
-+			tsk = oom_reaper_list;
-+			oom_reaper_list = tsk->oom_reaper_list;
- 		}
- 		spin_unlock(&oom_reaper_lock);
- 
-@@ -555,7 +553,8 @@ static void wake_oom_reaper(struct task_struct *tsk)
- 	get_task_struct(tsk);
- 
- 	spin_lock(&oom_reaper_lock);
--	list_add(&tsk->oom_reaper_list, &oom_reaper_list);
-+	tsk->oom_reaper_list = oom_reaper_list;
-+	oom_reaper_list = tsk;
- 	spin_unlock(&oom_reaper_lock);
- 	wake_up(&oom_reaper_wait);
- }
+>  - Cache pressure from 1GB page support.  If we're using NT stores, they
+>    bypass the cache, and all should be good.  But if there are
+>    architectures that support THP and not NT stores, zeroing a page is
+>    just going to obliterate their caches.
+
+Even doing fsync() - and thus flush all cache lines associated with 1GB
+page - is likely going to take noticeable chunk of time. The granularity of
+cache flushing in kernel is another thing that makes me somewhat cautious
+about 1GB pages.
+
+> Other topics that might interest people from a VM/FS point of view:
+> 
+>  - Uses for (or replacement of) the radix tree.  We're currently
+>    looking at using the radix tree with DAX in order to reduce the number
+>    of calls into the filesystem.  That's leading to various enhancements
+>    to the radix tree, such as support for a lock bit for exceptional
+>    entries (Neil Brown), and support for multi-order entries (me).
+>    Is the (enhanced) radix tree the right data structure to be using
+>    for this brave new world of huge pages in the page cache, or should
+>    we be looking at some other data structure like an RB-tree?
+
+I was also thinking whether we wouldn't be better off with some other data
+structure than radix tree for DAX. And I didn't really find anything that
+I'd be satisfied with. The main advantages of radix tree I see are - it is
+of constant depth, it supports lockless lookups, it is relatively simple
+(although with the additions we'd need this advantage slowly vanishes), it
+is pretty space efficient for common cases.
+
+For your multi-order entries I was wondering whether we shouldn't relax the
+requirement that all nodes have the same number of slots - e.g. we could
+have number of slots variable with node depth so that PMD and eventually PUD
+multi-order slots end up being a single entry at appropriate radix tree
+level.
+
+								Honza
 -- 
-2.1.4
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
