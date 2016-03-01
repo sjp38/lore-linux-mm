@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 17F966B0256
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 14:55:45 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id p65so49027336wmp.0
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 11:55:45 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 62si844544wmc.4.2016.03.01.11.55.44
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F3DA6B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 15:53:44 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l68so56142515wml.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 12:53:44 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 202si1040942wmy.77.2016.03.01.12.53.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 11:55:44 -0800 (PST)
-Date: Tue, 1 Mar 2016 14:54:38 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] cgroup: reset css on destruction
-Message-ID: <20160301195438.GB22717@cmpxchg.org>
-References: <69629961aefc48c021b895bb0c8297b56c11a577.1456830735.git.vdavydov@virtuozzo.com>
- <92b11b89791412df49e73597b87912e8f143a3f7.1456830735.git.vdavydov@virtuozzo.com>
- <20160301163018.GE3965@htj.duckdns.org>
- <20160301165630.GB2426@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160301165630.GB2426@esperanza>
+        Tue, 01 Mar 2016 12:53:43 -0800 (PST)
+Date: Tue, 1 Mar 2016 12:53:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH] semaphore: fix uninitialized list_head vs
+ list_force_poison
+Message-Id: <20160301125340.ffcc278e7f35fc3a28268e08@linux-foundation.org>
+In-Reply-To: <20160301195504.40400.79558.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <20160301195504.40400.79558.stgit@dwillia2-desk3.amr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-kernel@vger.kernel.org, Eryu Guan <eguan@redhat.com>, Peter Zijlstra <peterz@infradead.org>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Tue, Mar 01, 2016 at 07:56:30PM +0300, Vladimir Davydov wrote:
-> From: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Subject: [PATCH] cgroup: reset css on destruction
+On Tue, 01 Mar 2016 11:55:04 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+
+> list_force_poison is a debug mechanism to make sure that ZONE_DEVICE
+> pages never appear on an lru.  Those pages only exist for enabling DMA
+> to device discovered memory ranges and are not suitable for general
+> purpose allocations.  list_force_poison() explicitly initializes a
+> list_head with a poison value that list_add() can use to detect mistaken
+> use of page->lru.
 > 
-> An associated css can be around for quite a while after a cgroup
-> directory has been removed. In general, it makes sense to reset it to
-> defaults so as not to worry about any remnants. For instance, memory
-> cgroup needs to reset memory.low, otherwise pages charged to a dead
-> cgroup might never get reclaimed. There's ->css_reset callback, which
-> would fit perfectly for the purpose. Currently, it's only called when a
-> subsystem is disabled in the unified hierarchy and there are other
-> subsystems dependant on it. Let's call it on css destruction as well.
+> Unfortunately, it seems calling list_add() leads to the poison value
+> leaking on to the stack and occasionally cause stack-allocated
+> list_heads to be inadvertently "force poisoned".
 > 
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+>  list_add attempted on force-poisoned entry
+>  WARNING: at lib/list_debug.c:34
+>  [..]
+>  NIP [c00000000043c390] __list_add+0xb0/0x150
+>  LR [c00000000043c38c] __list_add+0xac/0x150
+>  Call Trace:
+>  [c000000fb5fc3320] [c00000000043c38c] __list_add+0xac/0x150 (unreliable)
+>  [c000000fb5fc33a0] [c00000000081b454] __down+0x4c/0xf8
+>  [c000000fb5fc3410] [c00000000010b6f8] down+0x68/0x70
+>  [c000000fb5fc3450] [d0000000201ebf4c] xfs_buf_lock+0x4c/0x150 [xfs]
+> 
+>  list_add attempted on force-poisoned entry(0000000000000500),
+>   new->next == d0000000059ecdb0, new->prev == 0000000000000500
+>  WARNING: at lib/list_debug.c:33
+>  [..]
+>  NIP [c00000000042db78] __list_add+0xa8/0x140
+>  LR [c00000000042db74] __list_add+0xa4/0x140
+>  Call Trace:
+>  [c0000004c749f620] [c00000000042db74] __list_add+0xa4/0x140 (unreliable)
+>  [c0000004c749f6b0] [c0000000008010ec] rwsem_down_read_failed+0x6c/0x1a0
+>  [c0000004c749f760] [c000000000800828] down_read+0x58/0x60
+>  [c0000004c749f7e0] [d000000005a1a6bc] xfs_log_commit_cil+0x7c/0x600 [xfs]
+> 
+> We can squash these uninitialized list_heads as they pop-up as this
+> patch does, or maybe need to rethink how to implement the
+> list_force_poison() safety mechanism.
 
-It's already in a git tree, but FWIW
+Yes, problem.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>  kernel/locking/rwsem-xadd.c |    4 +++-
+>  kernel/locking/semaphore.c  |    4 +++-
+
+The patch adds slight overhead and there will be other uninitialized
+list_heads around the place and more will turn up in the future.
+
+I don't see how list_force_poison is fixable, really - we're relying
+upon some uninitialized word of memory not having some particular value.
+Good luck with that.
+
+Maybe we simply remove list_force_poison() - it isn't terribly
+important?
+
+	/* ZONE_DEVICE pages must never appear on a slab lru */
+
+Can we instead add a check of page_zone(page) into the lru-addition
+sites?  There are probably quite a few possible places.  (Why does the
+comment say "slab"?).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
