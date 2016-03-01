@@ -1,59 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B06F86B0009
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 19:06:23 -0500 (EST)
-Received: by mail-wm0-f52.google.com with SMTP id l68so11619277wml.1
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 16:06:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id km9si34485748wjb.149.2016.02.29.16.06.22
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Feb 2016 16:06:22 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
-References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160201214213.2bdf9b4e.akpm@linux-foundation.org>
- <56D43AAB.2010802@suse.cz>
- <CAPcyv4i587ow4yEFN+81rd=_kVL3YV1daU7cDM4V4YCAhDMRVA@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D4DCFE.9040806@suse.cz>
-Date: Tue, 1 Mar 2016 01:06:22 +0100
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BA916B0005
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 20:00:57 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id 4so23549006pfd.1
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 17:00:57 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id k81si46447148pfj.154.2016.02.29.17.00.56
+        for <linux-mm@kvack.org>;
+        Mon, 29 Feb 2016 17:00:56 -0800 (PST)
+Subject: Re: linux-next: Unable to write into a vma if it has been mapped
+ without PROT_READ
+References: <CANaxB-wA_3qh78NUBc2ODqYHyXJLK0O6FRCdWizXBRPpWoBaGQ@mail.gmail.com>
+ <20160229201559.GB13188@node.shutemov.name>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <56D4E9C7.4020108@linux.intel.com>
+Date: Mon, 29 Feb 2016 17:00:55 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4i587ow4yEFN+81rd=_kVL3YV1daU7cDM4V4YCAhDMRVA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20160229201559.GB13188@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Wagin <avagin@gmail.com>
+Cc: linux-next@vger.kernel.org, linux-mm@kvack.org
 
-On 29.2.2016 18:55, Dan Williams wrote:
-> On Mon, Feb 29, 2016 at 4:33 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> On 02/02/2016 06:42 AM, Andrew Morton wrote:
->>> So if you want ZONE_DMA, you're limited to 512 NUMA nodes?
->>>
->>> That seems reasonable.
->>
->>
->> Sorry for the late reply, but it seems that with !SPARSEMEM, or with
->> SPARSEMEM_VMEMMAP, reducing NUMA nodes isn't even necessary, because
->> SECTIONS_WIDTH is zero (see the diagrams in linux/page-flags-layout.h). In
->> my brief tests with 4.4 based kernel with SPARSEMEM_VMEMMAP it seems that
->> with 1024 NUMA nodes and 8192 CPU's, there's still 7 bits left (i.e. 6 with
->> CONFIG_NR_ZONES_EXTENDED).
->>
->> With the danger of becoming even more complex, could the limit also depend
->> on CONFIG_SPARSEMEM/VMEMMAP to reflect that somehow?
+On 02/29/2016 12:15 PM, Kirill A. Shutemov wrote:
+> On Mon, Feb 29, 2016 at 11:11:37AM -0800, Andrey Wagin wrote:
+>> > Hello Everyone,
+>> > 
+>> > I found that now we can't write into a vma if it was mapped without PROT_READ:
+>> > 
+>> > mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f2ac7eb8000
+>> > --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_ACCERR, si_addr=0x7f2ac7eb8000} ---
+>> > +++ killed by SIGSEGV (core dumped) +++
+>> > Segmentation fault
+>> > [root@linux-next-test ~]# cat test.c
+>> > #include <sys/mman.h>
+>> > #include <stdlib.h>
+>> > 
+>> > int main()
+>> > {
+>> >     int *p;
+>> > 
+>> >     p = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+>> >     p[0] = 1;
+>> > 
+>> >     return 0;
+>> > }
+>> > 
+>> > [root@linux-next-test ~]# uname -a
+>> > Linux linux-next-test 4.5.0-rc6-next-20160229 #1 SMP Mon Feb 29
+>> > 17:38:25 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+>> > 
+>> > This issue appeared in 4.5.0-rc5-next-20160226.
+>> > 
+>> > https://ci.openvz.org/job/CRIU-linux-next/152/console
+> Looks like the regression is caused by change in access_error() by commit
+> 62b5f7d013fc ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
+> as per next-20160229.
 > 
-> In this case it's already part of the equation because:
+> 		/*
+> 		 * Assume all accesses require either read or execute
+> 		 * permissions.  This is not an instruction access, so
+> 		 * it requires read permissions.
+> 		 */
+> 		if (!(vma->vm_flags & VM_READ))
+> 			return 1;
 > 
-> config ZONE_DEVICE
->        depends on MEMORY_HOTPLUG
->        depends on MEMORY_HOTREMOVE
-> 
-> ...and those in turn depend on SPARSEMEM.
+> The assumption is false, taking this testcase into account.
 
-Fine, but then SPARSEMEM_VMEMMAP should be still an available subvariant of
-SPARSEMEM with SECTION_WIDTH=0.
+I'm taking a look at it.  I might just be able to remove that check, but
+I need to do a little due diligence with the execute-only support and
+make sure I'm not breaking it.
+
+Thanks for reporting this, btw!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
