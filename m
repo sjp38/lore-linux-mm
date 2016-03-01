@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA846B0253
-	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 21:56:50 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id w128so58712304pfb.2
-        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 18:56:50 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id iv8si7992264pac.104.2016.02.29.18.56.49
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B8EB26B0254
+	for <linux-mm@kvack.org>; Mon, 29 Feb 2016 21:57:17 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id fl4so103108906pad.0
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 18:57:17 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id kx15si8547828pab.43.2016.02.29.18.57.17
         for <linux-mm@kvack.org>;
-        Mon, 29 Feb 2016 18:56:49 -0800 (PST)
-Subject: [PATCH 1/2] libnvdimm,
- pmem: fix 'pfn' support for section-misaligned namespaces
+        Mon, 29 Feb 2016 18:57:17 -0800 (PST)
+Subject: [PATCH 2/2] mm: fix mixed zone detection in devm_memremap_pages
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 29 Feb 2016 18:56:26 -0800
-Message-ID: <20160301025626.12812.4840.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 29 Feb 2016 18:56:31 -0800
+Message-ID: <20160301025631.12812.85197.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <20160301025620.12812.87268.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <20160301025620.12812.87268.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -23,69 +22,47 @@ List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-The altmap for a section-misaligned namespace needs to arrange for the
-base_pfn to be section-aligned.  As a result the 'reserve' region (pfns
-from base that do not have a struct page) must be increased.  Otherwise
-we trip the altmap validation check in __add_pages:
+The check for whether we overlap "System RAM" needs to be done at
+section granularity.  For example a system with the following mapping:
 
-	if (altmap->base_pfn != phys_start_pfn
-			|| vmem_altmap_offset(altmap) > nr_pages) {
-		pr_warn_once("memory add fail, invalid altmap\n");
-		return -EINVAL;
-	}
+    100000000-37bffffff : System RAM
+    37c000000-837ffffff : Persistent Memory
+
+...is unable to use devm_memremap_pages() as it would result in two
+zones colliding within a given section.
 
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/nvdimm/pmem.c |   29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ kernel/memremap.c |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index efc2a5e671c6..6a6283ab974c 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -356,6 +356,31 @@ static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
- 	return 0;
- }
- 
-+/*
-+ * We hotplug memory at section granularity, pad the reserved area from
-+ * the previous section base to the namespace base address.
-+ */
-+static unsigned long init_altmap_base(resource_size_t base)
-+{
-+	unsigned long base_pfn = __phys_to_pfn(base);
-+
-+#ifdef CONFIG_SPARSEMEM
-+	base_pfn = SECTION_ALIGN_DOWN(base_pfn);
-+#endif
-+	return base_pfn;
-+}
-+
-+static unsigned long init_altmap_reserve(resource_size_t base)
-+{
-+	unsigned long base_pfn = __phys_to_pfn(base);
-+	unsigned long reserve = __phys_to_pfn(SZ_8K);
-+
-+#ifdef CONFIG_SPARSEMEM
-+	reserve += base_pfn - SECTION_ALIGN_DOWN(base_pfn);
-+#endif
-+	return reserve;
-+}
-+
- static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b981a7b023f0..4c7d08339f62 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -270,9 +270,10 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap)
  {
- 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-@@ -369,8 +394,8 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
- 	phys_addr_t offset;
- 	int rc;
- 	struct vmem_altmap __altmap = {
--		.base_pfn = __phys_to_pfn(nsio->res.start),
--		.reserve = __phys_to_pfn(SZ_8K),
-+		.base_pfn = init_altmap_base(nsio->res.start),
-+		.reserve = init_altmap_reserve(nsio->res.start),
- 	};
+-	int is_ram = region_intersects(res->start, resource_size(res),
+-			"System RAM");
+-	resource_size_t key, align_start, align_size, align_end;
++	resource_size_t align_start = res->start & ~(SECTION_SIZE - 1);
++	resource_size_t align_size = ALIGN(resource_size(res), SECTION_SIZE);
++	int is_ram = region_intersects(align_start, align_size, "System RAM");
++	resource_size_t key, align_end;
+ 	struct dev_pagemap *pgmap;
+ 	struct page_map *page_map;
+ 	unsigned long pfn;
+@@ -314,8 +315,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
  
- 	if (!nd_pfn->uuid || !nd_pfn->ndns)
+ 	mutex_lock(&pgmap_lock);
+ 	error = 0;
+-	align_start = res->start & ~(SECTION_SIZE - 1);
+-	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+ 	align_end = align_start + align_size - 1;
+ 	for (key = align_start; key <= align_end; key += SECTION_SIZE) {
+ 		struct dev_pagemap *dup;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
