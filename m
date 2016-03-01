@@ -1,142 +1,175 @@
-From: David Rientjes via Linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
-Subject: (unknown)
-Date: Wed,  3 Feb 2016 08:52:46 +1100 (AEDT)
-Message-ID: <mailman.1145.1454449904.12304.linuxppc-dev@lists.ozlabs.org>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com>
- <1453889401-43496-3-git-send-email-borntraeger@de.ibm.com>
- <alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com>
- <56A9E3D1.3090001@de.ibm.com>
- <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-Reply-To: David Rientjes <rientjes@google.com>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============7384601280624994056=="
-Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-In-Reply-To: <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
-List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
-List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
-List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
-List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
-Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
-Sender: "Linuxppc-dev"
- <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, davej@codemonkey.org.uk, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3146B0005
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 01:19:56 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id l6so9340428pfl.3
+        for <linux-mm@kvack.org>; Mon, 29 Feb 2016 22:19:56 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id w9si9399279pfi.224.2016.02.29.22.19.55
+        for <linux-mm@kvack.org>;
+        Mon, 29 Feb 2016 22:19:55 -0800 (PST)
+Date: Tue, 1 Mar 2016 14:18:56 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: mn10300, c6x: CONFIG_GENERIC_BUG must depend on CONFIG_BUG
+Message-ID: <201603011418.lCbS3v2i%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="/04w6evG8XlLl3ft"
+Content-Disposition: inline
+In-Reply-To: <20160229124937.984ac318110f686d96532088@linux-foundation.org>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, kbuild test robot <fengguang.wu@intel.com>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
---===============7384601280624994056==
-Content-Type: message/rfc822
+
+--/04w6evG8XlLl3ft
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
-Return-Path: <rientjes@google.com>
-X-Original-To: linuxppc-dev@lists.ozlabs.org
-Delivered-To: linuxppc-dev@lists.ozlabs.org
-Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com [IPv6:2607:f8b0:400e:c00::236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by lists.ozlabs.org (Postfix) with ESMTPS id D87CF1A0204
-	for <linuxppc-dev@lists.ozlabs.org>; Wed,  3 Feb 2016 08:51:39 +1100 (AEDT)
-Authentication-Results: lists.ozlabs.org;
-	dkim=pass (2048-bit key; unprotected) header.d=google.com header.i=@google.com header.b=aD1uBLau;
-	dkim-atps=neutral
-Received: by mail-pf0-x236.google.com with SMTP id w123so1092865pfb.0
-        for <linuxppc-dev@lists.ozlabs.org>; Tue, 02 Feb 2016 13:51:39 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20120113;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version:content-type;
-        bh=TMWMuLKyzFjVKjQSgHVUsYZgrlplQT3uS4flE+ygaPc=;
-        b=aD1uBLauawXUiBi2he0qc8KnyGTs8u4u37Cu6F6Rl5Oq10qCWGr0kyfOJKQB1a8VAe
-         eKOPPnwDuFe7JDN0OCz07oqQaMGR1sN6SDTBFEgUymC17vV+oMOmUdS31JJ2qMi/KNfU
-         4K7EmK3GwWWw91yx1QnUAPK9TcswDYuTc33Lm1ejLxvToMzi5vkUT0YqEkR/95yUNcbc
-         DbyxDhaxB0Gtcq1LCKFhI19zzIOnfuN/vXPdvF4QvdNAJfRLNqrvcQIvEdeEbtDXv/Hz
-         X6i2tuCQ5IJQOh2dTXwA0i82981c5wYxyRFYq1ravuxIBZB5VwHck/0BLlvNzqbJKcIR
-         kNbw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20130820;
-        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
-         :references:user-agent:mime-version:content-type;
-        bh=TMWMuLKyzFjVKjQSgHVUsYZgrlplQT3uS4flE+ygaPc=;
-        b=VmI7Ms17YN631rQJ5xmb0HRl9qvk7mV8nsm9MyWKjp8lfuNmdfMcGURE0lNUMWXH8S
-         m6p29NKZ8Bmdxw+Zplm0poU6GrrC0QHToHLxZJB5MMv5wVwMumQ4bt4BVFITLEJhGR54
-         yI+8t0tJHRLTW/70/X7wiwPtNgsqIm1Y45Nmj0HX9yMxc6h6ZOvkx7lcaaeUVzJc3Qw4
-         NGwcQgDCG7sThiSuYurTMhjPTFcCRvrLOFyGB7tOd0FuHgMNJBKAxNjHWj/8AknjEvA6
-         vgtxaf172PvBTuX3nmURVTV6/XptTLTbwws/g64gfuiGti8d3+9ewHUhvTaA0dCohcUE
-         3bVQ==
-X-Gm-Message-State: AG10YOQHWLxlPp5DPEiVbdnaTfG5Aa+oF126n7ucspKBGGyINH75fafLDDKT2islq/MM6ls7
-X-Received: by 10.98.8.14 with SMTP id c14mr50487655pfd.42.1454449896347;
-        Tue, 02 Feb 2016 13:51:36 -0800 (PST)
-Received: from [2620:0:1008:1200:845f:fa21:c55:89c2] ([2620:0:1008:1200:845f:fa21:c55:89c2])
-        by smtp.gmail.com with ESMTPSA id 72sm4853028pfk.28.2016.02.02.13.51.35
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Feb 2016 13:51:35 -0800 (PST)
-Date: Tue, 2 Feb 2016 13:51:34 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
-    linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org,
-    x86@kernel.org, linuxppc-dev@lists.ozlabs.org, davem@davemloft.net,
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, davej@codemonkey.org.uk
-Subject: Re: [PATCH v3 2/3] x86: query dynamic DEBUG_PAGEALLOC setting
-In-Reply-To: <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1602021351290.4977@chino.kir.corp.google.com>
-References: <1453889401-43496-1-git-send-email-borntraeger@de.ibm.com> <1453889401-43496-3-git-send-email-borntraeger@de.ibm.com> <alpine.DEB.2.10.1601271414180.23510@chino.kir.corp.google.com> <56A9E3D1.3090001@de.ibm.com>
- <alpine.DEB.2.10.1601281500160.31035@chino.kir.corp.google.com>
-User-Agent: Alpine 2.10 (DEB 1266 2009-07-14)
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Hi Andrew,
 
-On Thu, 28 Jan 2016, David Rientjes wrote:
+[auto build test ERROR on v4.5-rc6]
+[also build test ERROR on next-20160229]
+[if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
 
-> On Thu, 28 Jan 2016, Christian Borntraeger wrote:
-> 
-> > Indeed, I only touched the identity mapping and dump stack.
-> > The question is do we really want to change free_init_pages as well?
-> > The unmapping during runtime causes significant overhead, but the
-> > unmapping after init imposes almost no runtime overhead. Of course,
-> > things get fishy now as what is enabled and what not.
-> > 
-> > Kconfig after my patch "mm/debug_pagealloc: Ask users for default setting of debug_pagealloc"
-> > (in mm) now states
-> > ----snip----
-> > By default this option will have a small overhead, e.g. by not
-> > allowing the kernel mapping to be backed by large pages on some
-> > architectures. Even bigger overhead comes when the debugging is
-> > enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
-> > command line parameter.
-> > ----snip----
-> > 
-> > So I am tempted to NOT change free_init_pages, but the x86 maintainers
-> > can certainly decide differently. Ingo, Thomas, H. Peter, please advise.
-> > 
-> 
-> I'm sorry, but I thought the discussion of the previous version of the 
-> patchset led to deciding that all CONFIG_DEBUG_PAGEALLOC behavior would be 
-> controlled by being enabled on the commandline and checked with 
-> debug_pagealloc_enabled().
-> 
-> I don't think we should have a CONFIG_DEBUG_PAGEALLOC that does some stuff 
-> and then a commandline parameter or CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT 
-> to enable more stuff.  It should either be all enabled by the commandline 
-> (or config option) or split into a separate entity.  
-> CONFIG_DEBUG_PAGEALLOC_LIGHT and CONFIG_DEBUG_PAGEALLOC would be fine, but 
-> the current state is very confusing about what is being done and what 
-> isn't.
-> 
+url:    https://github.com/0day-ci/linux/commits/Andrew-Morton/mn10300-c6x-CONFIG_GENERIC_BUG-must-depend-on-CONFIG_BUG/20160301-045134
+config: mn10300-allnoconfig (attached as .config)
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=mn10300 
 
-Ping?
+All errors (new ones prefixed by >>):
 
---===============7384601280624994056==
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
+>> arch/mn10300/kernel/fpu-nofpu.c:27:36: error: unknown type name 'elf_fpregset_t'
+    int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpreg)
+                                       ^
+
+vim +/elf_fpregset_t +27 arch/mn10300/kernel/fpu-nofpu.c
+
+278d91c4 Akira Takeuchi 2010-10-27  11  #include <asm/fpu.h>
+278d91c4 Akira Takeuchi 2010-10-27  12  
+278d91c4 Akira Takeuchi 2010-10-27  13  /*
+278d91c4 Akira Takeuchi 2010-10-27  14   * handle an FPU operational exception
+278d91c4 Akira Takeuchi 2010-10-27  15   * - there's a possibility that if the FPU is asynchronous, the signal might
+278d91c4 Akira Takeuchi 2010-10-27  16   *   be meant for a process other than the current one
+278d91c4 Akira Takeuchi 2010-10-27  17   */
+278d91c4 Akira Takeuchi 2010-10-27  18  asmlinkage
+278d91c4 Akira Takeuchi 2010-10-27  19  void unexpected_fpu_exception(struct pt_regs *regs, enum exception_code code)
+278d91c4 Akira Takeuchi 2010-10-27  20  {
+278d91c4 Akira Takeuchi 2010-10-27  21  	panic("An FPU exception was received, but there's no FPU enabled.");
+278d91c4 Akira Takeuchi 2010-10-27  22  }
+278d91c4 Akira Takeuchi 2010-10-27  23  
+278d91c4 Akira Takeuchi 2010-10-27  24  /*
+278d91c4 Akira Takeuchi 2010-10-27  25   * fill in the FPU structure for a core dump
+278d91c4 Akira Takeuchi 2010-10-27  26   */
+278d91c4 Akira Takeuchi 2010-10-27 @27  int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpreg)
+278d91c4 Akira Takeuchi 2010-10-27  28  {
+278d91c4 Akira Takeuchi 2010-10-27  29  	return 0; /* not valid */
+278d91c4 Akira Takeuchi 2010-10-27  30  }
+
+:::::: The code at line 27 was first introduced by commit
+:::::: 278d91c4609d55202c1e63d5fc5f01466cc7bbab MN10300: Make the FPU operate in non-lazy mode under SMP
+
+:::::: TO: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
+:::::: CC: David Howells <dhowells@redhat.com>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--/04w6evG8XlLl3ft
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
-Content-Disposition: inline
 
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18KTGludXhwcGMt
-ZGV2IG1haWxpbmcgbGlzdApMaW51eHBwYy1kZXZAbGlzdHMub3psYWJzLm9yZwpodHRwczovL2xp
-c3RzLm96bGFicy5vcmcvbGlzdGluZm8vbGludXhwcGMtZGV2
+H4sICIkz1VYAAy5jb25maWcArVtbk9u4jn6fX6FN9iGpOkn6lj4zu9UPFEVZHEuiIlLuy9aW
+ynGru13x7Vj2TPrfL0hKbckCnfOwqUpiCxBIgiDwAYTf//beI/vdejndzWfTxeLVe65W1Xa6
+qx69p/mi+m8vEF4qlMcCrj4Dczxf7X9+Wa7Ozy7Pzryrz18/n33azq69cbVdVQuPrldP8+c9
+CJivV7+9/42KNOSjMkkN/81r+4Akl5flBXx/73WfXHrz2lutd15d7Xqkq/KiS2rFJkVXRMRH
+UcISVEZaJASRkN9KlpQjlrKc01JmPI0FHR/m2VIoibmfE8XKgMXkfsgQ3TIYXR0I3wpOxzGX
+nUckp1EZEVnyWIwuyuKyp4BIqCwuRiXNCmSiAQubT0bmuy+L+fcvy/XjflHVX/6zSEnCypzF
+jEj25fPM7MK732AD3nsjs6ELLWy/OWyJn4sxS0uRljLJDnPkKVclSycwWT1UwtXN5UVLpLmQ
+sqQiyXjMbt69O0y+eVYqJhUye1AqiScsl1ykvfe6hJIUSuBLJ0WsQEFS6XXevPuwWq+qjx0x
+8l5OeEbRnbeTBrsQ+X1JlCI0QvnCiKRBzFBaIRnsf5dkVMvzb169/16/1rtqeVBtaxNALmUk
+bhFz0lbGJixVEohGlpovq22NiYseygzeEgGnXXtJhaZw15QNGaXoYwK2IkvFE9D8YFVggF/U
+tP7h7WBK3nT16NW76a72prPZer/azVfPh7kpMHJtsSWhVBSp4umoXVBOC08OVwMs9yXQukuB
+ryW7g0UqdMKKyLHUTChVvywViWNthIlIcRE5Y4ZT5YTiCmsnAY6Olb4Q+Fz8gsdB6fP0Arc2
+PrYfcFMc5aLIJE6LGB1ngqdK740SOT5LCXyBOSlGFr4S7aLw2cdjOE4Tc8rzAJ8HLUUGlsEf
+WBmKvJTwATmUEZmwsuDB+fXBuu0Wdjc2gXPL4fDk+FpGTCWwt/r4ghuIcaZ7GcqTHGMgyPsE
+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
 
---===============7384601280624994056==--
+--/04w6evG8XlLl3ft--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
