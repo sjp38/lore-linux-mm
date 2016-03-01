@@ -1,127 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5570D6B0253
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 16:59:56 -0500 (EST)
-Received: by mail-pf0-f170.google.com with SMTP id 4so41908502pfd.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 13:59:56 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id am4si14355955pad.172.2016.03.01.13.59.55
-        for <linux-mm@kvack.org>;
-        Tue, 01 Mar 2016 13:59:55 -0800 (PST)
-Date: Tue, 1 Mar 2016 14:59:36 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 2/3] radix-tree: make 'indirect' bit available to
- exception entries.
-Message-ID: <20160301215936.GC12700@linux.intel.com>
-References: <145663588892.3865.9987439671424028216.stgit@notabene>
- <145663616977.3865.9772784012366988314.stgit@notabene>
- <100D68C7BA14664A8938383216E40DE0421D3AE9@FMSMSX114.amr.corp.intel.com>
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E08CD6B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 17:15:10 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id 4so42121257pfd.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 14:15:10 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id kx15si14565499pab.43.2016.03.01.14.15.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Mar 2016 14:15:10 -0800 (PST)
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Support for 1GB THP
+References: <20160301070911.GD3730@linux.intel.com>
+ <20160301102541.GD27666@quack.suse.cz>
+ <20160301214403.GJ3730@linux.intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56D61467.5000006@oracle.com>
+Date: Tue, 1 Mar 2016 14:15:03 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <100D68C7BA14664A8938383216E40DE0421D3AE9@FMSMSX114.amr.corp.intel.com>
+In-Reply-To: <20160301214403.GJ3730@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Cc: NeilBrown <neilb@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Feb 29, 2016 at 02:41:55PM +0000, Wilcox, Matthew R wrote:
-> So based on the bottom two bits, we can tell what this entry is:
+On 03/01/2016 01:44 PM, Matthew Wilcox wrote:
+> On Tue, Mar 01, 2016 at 11:25:41AM +0100, Jan Kara wrote:
+>> On Tue 01-03-16 02:09:11, Matthew Wilcox wrote:
+>>> There are a few issues around 1GB THP support that I've come up against
+>>> while working on DAX support that I think may be interesting to discuss
+>>> in person.
+>>>
+>>>  - Do we want to add support for 1GB THP for anonymous pages?  DAX support
+>>>    is driving the initial 1GB THP support, but would anonymous VMAs also
+>>>    benefit from 1GB support?  I'm not volunteering to do this work, but
+>>>    it might make an interesting conversation if we can identify some users
+>>>    who think performance would be better if they had 1GB THP support.
+>>
+>> Some time ago I was thinking about 1GB THP and I was wondering: What is the
+>> motivation for 1GB pages for persistent memory? Is it the savings in memory
+>> used for page tables? Or is it about the cost of fault?
 > 
-> 00 - data pointer
-> 01 - indirect entry (pointer to another level of the radix tree)
-> 10 - exceptional entry
-> 11 - locked exceptional entry
+> I think it's both.  I heard from one customer who calculated that with
+> a 6TB server, mapping every page into a process would take ~24MB of
+> page tables.  Multiply that by the 50,000 processes they expect to run
+> on a server of that size consumes 1.2TB of DRAM.  Using 1GB pages reduces
+> that by a factor of 512, down to 2GB.
 > 
-> I was concerned that this patch would clash with the support for multi-order
-> entries in the radix tree, but after some thought, I now believe that it
-> doesn't.  The multi-order entries changes permit finding data pointers or
-> exceptional entries in the tree where before only indirect entries could be
-> found, but with the changes to radix_tree_is_indirect_ptr below, everything
-> should work fine.
+> Another topic to consider then would be generalising the page table
+> sharing code that is currently specific to hugetlbfs.  I didn't bring
+> it up as I haven't researched it in any detail, and don't know how hard
+> it would be.
 
-Yep, this seems workable to me.
+Well, I have started down that path and have it working for some very
+simple cases with some very hacked up code.  Too early/ugly to share.
+I'm struggling a bit with fact that you can have both regular and huge
+page mappings of the same regions.  The hugetlb code only has to deal
+with huge pages.
 
-> -----Original Message-----
-> From: NeilBrown [mailto:neilb@suse.com] 
-> Sent: Saturday, February 27, 2016 9:09 PM
-> To: Ross Zwisler; Wilcox, Matthew R; Andrew Morton; Jan Kara
-> Cc: linux-kernel@vger.kernel.org; linux-fsdevel@vger.kernel.org; linux-mm@kvack.org
-> Subject: [PATCH 2/3] radix-tree: make 'indirect' bit available to exception entries.
-> 
-> A pointer to a radix_tree_node will always have the 'exception'
-> bit cleared, so if the exception bit is set the value cannot
-> be an indirect pointer.  Thus it is safe to make the 'indirect bit'
-> available to store extra information in exception entries.
-> 
-> This patch adds a 'PTR_MASK' and a value is only treated as
-> an indirect (pointer) entry the 2 ls-bits are '01'.
-> 
-> The change in radix-tree.c ensures the stored value still looks like an
-> indirect pointer, and saves a load as well.
-> 
-> We could swap the two bits and so keep all the exectional bits contigious.
-> But I have other plans for that bit....
-> 
-> Signed-off-by: NeilBrown <neilb@suse.com>
-> ---
->  include/linux/radix-tree.h |   11 +++++++++--
->  lib/radix-tree.c           |    2 +-
->  2 files changed, 10 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index 968150ab8a1c..450c12b546b7 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -40,8 +40,13 @@
->   * Indirect pointer in fact is also used to tag the last pointer of a node
->   * when it is shrunk, before we rcu free the node. See shrink code for
->   * details.
-> + *
-> + * To allow an exception entry to only lose one bit, we ignore
-> + * the INDIRECT bit when the exception bit is set.  So an entry is
-> + * indirect if the least significant 2 bits are 01.
->   */
->  #define RADIX_TREE_INDIRECT_PTR		1
-> +#define RADIX_TREE_INDIRECT_MASK	3
->  /*
->   * A common use of the radix tree is to store pointers to struct pages;
->   * but shmem/tmpfs needs also to store swap entries in the same tree:
-> @@ -53,7 +58,8 @@
->  
->  static inline int radix_tree_is_indirect_ptr(void *ptr)
->  {
-> -	return (int)((unsigned long)ptr & RADIX_TREE_INDIRECT_PTR);
-> +	return ((unsigned long)ptr & RADIX_TREE_INDIRECT_MASK)
-> +		== RADIX_TREE_INDIRECT_PTR;
->  }
->  
->  /*** radix-tree API starts here ***/
-> @@ -221,7 +227,8 @@ static inline void *radix_tree_deref_slot_protected(void **pslot,
->   */
->  static inline int radix_tree_deref_retry(void *arg)
->  {
-> -	return unlikely((unsigned long)arg & RADIX_TREE_INDIRECT_PTR);
-> +	return unlikely(((unsigned long)arg & RADIX_TREE_INDIRECT_MASK)
-> +			== RADIX_TREE_INDIRECT_PTR);
->  }
->  
->  /**
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index 6b79e9026e24..37d4643ab5c0 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -1305,7 +1305,7 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
->  		 * to force callers to retry.
->  		 */
->  		if (root->height == 0)
-> -			*((unsigned long *)&to_free->slots[0]) |=
-> +			*((unsigned long *)&to_free->slots[0]) =
->  						RADIX_TREE_INDIRECT_PTR;
->  
->  		radix_tree_node_free(to_free);
-> 
-> 
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
