@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0996B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 21:01:55 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id p65so8877403wmp.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 18:01:54 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c202si1301698wmh.93.2016.03.07.18.01.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 18:01:54 -0800 (PST)
-Date: Mon, 7 Mar 2016 18:02:05 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm broken on arm with ebc495cfcea9 (mm: cleanup *pte_alloc*
- interfaces)
-Message-Id: <20160307180205.1df26ec3.akpm@linux-foundation.org>
-In-Reply-To: <56DE2A92.5010806@redhat.com>
-References: <56DE2A92.5010806@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 3948B6B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 21:36:15 -0500 (EST)
+Received: by mail-io0-f177.google.com with SMTP id n190so10621284iof.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 18:36:15 -0800 (PST)
+Received: from bogon.localdomain ([219.143.95.81])
+        by mx.google.com with ESMTP id m65si1329157ioa.163.2016.03.07.18.36.13
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 18:36:14 -0800 (PST)
+From: Li Zhang <zhlcindy@gmail.com>
+Subject: [PATCH RFC 0/2] mm: Enable page parallel initialisation for Power
+Date: Wed,  2 Mar 2016 16:49:35 +0800
+Message-Id: <1456908577-4702-1-git-send-email-zhlcindy@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-On Mon, 7 Mar 2016 17:27:46 -0800 Laura Abbott <labbott@redhat.com> wrote:
+From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-> Hi,
-> 
-> I just tried the master of mmotm and ran into compilation issues on arm:
-> 
-> ...
->
-> It looks like this is caused by ebc495cfcea9 (mm: cleanup *pte_alloc* interfaces)
-> which added
-> 
-> #define pte_alloc(mm, pmd, address)                     \
->          (unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, pmd, address))
-> 
-> 
+Uptream has supported page parallel initialisation for X86 and the
+boot time is improved greately. Some tests have been done for Power.
 
-http://ozlabs.org/~akpm/mmots/broken-out/mm-cleanup-pte_alloc-interfaces-fix.patch
-and
-http://ozlabs.org/~akpm/mmots/broken-out/mm-cleanup-pte_alloc-interfaces-fix-2.patch
-should fix up arm?
+Here is the result I have done with different memory size.
+
+* 4GB memory:
+    boot time is as the following: 
+    with patch vs without patch: 10.4s vs 24.5s
+    boot time is improved 57%
+* 200GB memory: 
+   boot time looks the same with and without patches.
+   boot time is about 38s
+* 32TB memory: 
+   boot time looks the same with and without patches 
+   boot time is about 160s.
+   The boot time is much shorter than X86 with 24TB memory.
+   From community discussion, it costs about 694s for X86 24T system.
+
+>From code view, parallel initialisation improve the performance by
+deferring memory initilisation to kswap with N kthreads, it should
+improve the performance therotically. 
+
+>From the test result, On X86, performance is improved greatly with huge
+memory. But on Power platform, it is improved greatly with less than 
+100GB memory. For huge memory, it is not improved greatly. But it saves 
+the time with several threads at least, as the following information 
+shows(32TB system log):
+
+[   22.648169] node 9 initialised, 16607461 pages in 280ms
+[   22.783772] node 3 initialised, 23937243 pages in 410ms
+[   22.858877] node 6 initialised, 29179347 pages in 490ms
+[   22.863252] node 2 initialised, 29179347 pages in 490ms
+[   22.907545] node 0 initialised, 32049614 pages in 540ms
+[   22.920891] node 15 initialised, 32212280 pages in 550ms
+[   22.923236] node 4 initialised, 32306127 pages in 550ms
+[   22.923384] node 12 initialised, 32314319 pages in 550ms
+[   22.924754] node 8 initialised, 32314319 pages in 550ms
+[   22.940780] node 13 initialised, 33353677 pages in 570ms
+[   22.940796] node 11 initialised, 33353677 pages in 570ms
+[   22.941700] node 5 initialised, 33353677 pages in 570ms
+[   22.941721] node 10 initialised, 33353677 pages in 570ms
+[   22.941876] node 7 initialised, 33353677 pages in 570ms
+[   22.944946] node 14 initialised, 33353677 pages in 570ms
+[   22.946063] node 1 initialised, 33345485 pages in 580ms
+
+It saves the time about 550*16 ms at least, although it can be ignore to compare 
+the boot time about 160 seconds. What's more, the boot time is much shorter 
+on Power even without patches than x86 for huge memory machine. 
+
+So this patchset is still necessary to be enabled for Power. 
+
+Li Zhang (2):
+  mm: meminit: initialise more memory for inode/dentry hash tables in
+    early boot
+  Enable page parallel initialisation
+
+ arch/powerpc/Kconfig |  1 +
+ mm/page_alloc.c      | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
