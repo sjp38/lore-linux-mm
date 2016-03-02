@@ -1,98 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D8BA26B0254
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 11:58:28 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p65so86611708wmp.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 08:58:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jr1si43982318wjb.156.2016.03.02.08.58.27
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E48D6B0009
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 12:36:43 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l68so90689662wml.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:36:43 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id g73si3693937wmg.53.2016.03.02.09.36.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 08:58:27 -0800 (PST)
-Subject: Re: [PATCH v4 2/2] mm/page_ref: add tracepoint to track down page
- reference manipulation
-References: <1456448282-897-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1456448282-897-2-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D71BB2.5060503@suse.cz>
-Date: Wed, 2 Mar 2016 17:58:26 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Mar 2016 09:36:41 -0800 (PST)
+Received: by mail-wm0-f46.google.com with SMTP id p65so88115567wmp.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:36:41 -0800 (PST)
+Date: Wed, 2 Mar 2016 18:36:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: kswapd consumes 100% CPU when highest zone is small
+Message-ID: <20160302173639.GD26701@dhcp22.suse.cz>
+References: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1456448282-897-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Jerry Lee <leisurelysw24@gmail.com>
+Cc: linux-mm@kvack.org
 
-On 02/26/2016 01:58 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> CMA allocation should be guaranteed to succeed by definition, but,
-> unfortunately, it would be failed sometimes. It is hard to track down
-> the problem, because it is related to page reference manipulation and
-> we don't have any facility to analyze it.
->
-> This patch adds tracepoints to track down page reference manipulation.
-> With it, we can find exact reason of failure and can fix the problem.
-> Following is an example of tracepoint output. (note: this example is
-> stale version that printing flags as the number. Recent version will
-> print it as human readable string.)
->
-> Enabling this feature bloat kernel text 30 KB in my configuration.
->
->     text    data     bss     dec     hex filename
-> 12127327        2243616 1507328 15878271         f2487f vmlinux_disabled
-> 12157208        2258880 1507328 15923416         f2f8d8 vmlinux_enabled
->
+On Wed 02-03-16 14:20:38, Jerry Lee wrote:
+> Hi,
+> 
+> I have a x86_64 system with 2G RAM using linux-3.12.x.  During copying
+> large
+> files (e.g. 100GB), kswapd easily consumes 100% CPU until the file is
+> deleted
+> or the page cache is dropped.  With setting the min_free_kbytes from 16384
+> to
+> 65536, the symptom is mitigated but I can't totally get rid of the problem.
+> 
+> After some trial and error, I found that highest zone is always unbalanced
+> with
+> order-0 page request so that pgdat_blanaced() continuously return false and
+> kswapd can't sleep.
+> 
+> Here's the watermarks (min_free_kbytes = 65536) in my system:
+> Node 0, zone      DMA
+>   pages free     2167
+>         min      138
+>         low      172
+>         high     207
+>         scanned  0
+>         spanned  4095
+>         present  3996
+>         managed  3974
+> 
+> Node 0, zone    DMA32
+>   pages free     215375
+>         min      16226
+>         low      20282
+>         high     24339
+>         scanned  0
+>         spanned  1044480
+>         present  490971
+>         managed  464223
+> 
+> Node 0, zone   Normal
+>   pages free     7
+>         min      18
+>         low      22
+>         high     27
+>         scanned  0
+>         spanned  1536
+>         present  1536
+>         managed  523
 
-That's not bad, and it's even configurable. Thanks for taking the extra 
-care about overhead since v1.
+The zone Normal is just too small and that confuses the reclaim path.
 
-> Note that, due to header file dependency problem between mm.h and
-> tracepoint.h, this feature has to open code the static key functions
-> for tracepoints. Proposed by Steven Rostedt in following link.
->
-> https://lkml.org/lkml/2015/12/9/699
->
-> v3:
-> o Add commit description and code comment why this patch open code
-> the static key functions for tracepoints.
-> o Notify that example is stale version.
-> o Add "depends on TRACEPOINTS".
->
-> v2:
-> o Use static key of each tracepoints to avoid function call overhead
-> when tracepoints are disabled.
-> o Print human-readable page flag thanks to newly introduced %pgp option.
-> o Add more description to Kconfig.debug.
->
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Besides, when the kswapd crazily spins, the value of the following entries
+> in vmstat increases quickly even when I stop copying file:
+> 
+> pgalloc_dma 17719
+> pgalloc_dma32 3262823
+> slabs_scanned 937728
+> kswapd_high_wmark_hit_quickly 54333233
+> pageoutrun 54333235
+> 
+> Is there anything I could do to totally get rid of the problem?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> +config DEBUG_PAGE_REF
-> +	bool "Enable tracepoint to track down page reference manipulation"
-> +	depends on DEBUG_KERNEL
-> +	depends on TRACEPOINTS
-> +	---help---
-> +	  This is the feature to add tracepoint for tracking down page reference
-> +	  manipulation. This tracking is useful to diagnosis functional failure
-> +	  due to migration failure caused by page reference mismatch. Be
-
-OK.
-
-> +	  careful to turn on this feature because it could bloat some kernel
-> +	  text. In my configuration, it bloats 30 KB. Although kernel text will
-> +	  be bloated, there would be no runtime performance overhead if
-> +	  tracepoint isn't enabled thanks to jump label.
-
-I would just write something like:
-
-Enabling this feature adds about 30 KB to the kernel code, but runtime 
-performance overhead is virtually none until the tracepoints are 
-actually enabled.
+I would try to sacrifice those few megs and get rid of zone normal
+completely. AFAIR mem=4G should limit the max_pfn to 4G so DMA32 should
+cover the shole memory.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
