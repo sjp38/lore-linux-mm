@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C13828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:14:29 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id 63so5356210pfe.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:14:29 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 76si58453615pfb.3.2016.03.02.06.14.28
-        for <linux-mm@kvack.org>;
-        Wed, 02 Mar 2016 06:14:28 -0800 (PST)
-Date: Wed, 2 Mar 2016 09:14:26 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Support for 1GB THP
-Message-ID: <20160302141426.GM3730@linux.intel.com>
-References: <20160301070911.GD3730@linux.intel.com>
- <20160301102541.GD27666@quack.suse.cz>
- <20160301214403.GJ3730@linux.intel.com>
- <1456871764.2369.59.camel@HansenPartnership.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CA27B828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:17:39 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id n186so87891406wmn.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:17:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id km6si43324671wjc.1.2016.03.02.06.17.38
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 02 Mar 2016 06:17:38 -0800 (PST)
+Subject: Re: [PATCH mmotm] mm, sl[au]b: print gfp_flags as strings in
+ slab_out_of_memory()
+References: <1456859312-26207-1-git-send-email-vbabka@suse.cz>
+ <alpine.DEB.2.10.1603011439390.24913@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D6F5FE.6050709@suse.cz>
+Date: Wed, 2 Mar 2016 15:17:34 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456871764.2369.59.camel@HansenPartnership.com>
+In-Reply-To: <alpine.DEB.2.10.1603011439390.24913@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Mar 01, 2016 at 02:36:04PM -0800, James Bottomley wrote:
-> On Tue, 2016-03-01 at 16:44 -0500, Matthew Wilcox wrote:
-> > I think it's both.  I heard from one customer who calculated that 
-> > with a 6TB server, mapping every page into a process would take ~24MB 
-> > of page tables.  Multiply that by the 50,000 processes they expect to
-> > run on a server of that size consumes 1.2TB of DRAM.  Using 1GB pages
-> > reduces that by a factor of 512, down to 2GB.
-> 
-> This sounds a bit implausible:
+On 03/01/2016 11:41 PM, David Rientjes wrote:
+> On Tue, 1 Mar 2016, Vlastimil Babka wrote:
+>
+>> We can now print gfp_flags more human-readable. Make use of this in
+>> slab_out_of_memory() for SLUB and SLAB. Also convert the SLAB variant it to
+>> pr_warn() along the way.
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Pekka Enberg <penberg@kernel.org>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-Well, that's the customer workload.  They have terabytes of data, and they
-want to map all of it into all 50k processes.  I know it's not how I use
-my machine, but that's customers for you ...
+Thanks.
+
+> Although I've always been curious about the usefulness of these out of
+> memory calls in the first place.  They are obviously for debugging, but
+> have they actually helped to diagnose anything?
+
+Uh no idea, maybe other SL*B maintainers have more experience. But what 
+did prompt me to write this patch is that I've recently have actually 
+seen the output of those in some (presumably linux-mm) thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
