@@ -1,76 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5415F828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:59:09 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id fz5so68555154obc.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:59:09 -0800 (PST)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id f8si5425054obh.105.2016.03.02.06.59.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 06:59:08 -0800 (PST)
-Received: by mail-oi0-x233.google.com with SMTP id c203so62127710oia.2
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:59:08 -0800 (PST)
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EE08A828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 10:01:08 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id d205so72022438oia.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 07:01:08 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id rz4si8444402oeb.51.2016.03.02.07.01.07
+        for <linux-mm@kvack.org>;
+        Wed, 02 Mar 2016 07:01:08 -0800 (PST)
+Date: Thu, 3 Mar 2016 00:01:12 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160302150112.GA18192@bbox>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+ <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
+ <20160302021954.GA22355@js1304-P5Q-DELUXE>
+ <20160302095056.GB26701@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <56D6FB77.2090801@suse.cz>
-References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
-	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
-	<20160302063322.GB32695@js1304-P5Q-DELUXE>
-	<56D6BACB.7060005@suse.cz>
-	<CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
-	<56D6F41D.9080107@suse.cz>
-	<CAAmzW4PGgYkL9xnCXgSQ=8kW0sJkaYyrxenb_XKHcW1wDGMEyw@mail.gmail.com>
-	<56D6FB77.2090801@suse.cz>
-Date: Wed, 2 Mar 2016 23:59:08 +0900
-Message-ID: <CAAmzW4METKGH27_tcnBLp1CQU3UK+YmfXJ4MwHuwUfqynAp_eg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
- up kcompactd
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160302095056.GB26701@dhcp22.suse.cz>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-2016-03-02 23:40 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 03/02/2016 03:22 PM, Joonsoo Kim wrote:
->> 2016-03-02 23:09 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->>> On 03/02/2016 02:57 PM, Joonsoo Kim wrote:
->>>>
->>>>
->>>> Yes, I know.
->>>> What I'd like to say here is that you need to care current_is_kswapd() in
->>>> this patch. This patch unintentionally change the back ground compaction
->>>> thread
->>>> behaviour to restart compaction by every 64 trials because calling
->>>> curret_is_kswapd()
->>>
->>>> by kcompactd would return false and is treated as direct reclaim.
->>>
->>> Oh, you mean this path to reset the skip bits. I see. But if skip bits are
->>> already reset by kswapd when waking kcompactd, then effect of another (rare)
->>> reset in kcompactd itself will be minimal?
->>
->> If you care current_is_kswapd() in this patch properly (properly means change
->> like "current_is_kcompactd()), reset in kswapd would not
->> happen because, compact_blockskip_flush would not be set by kcompactd.
->>
->> In this case, patch 5 would have it's own meaning so cannot be folded.
->
-> So I understand that patch 5 would be just about this?
->
-> -       if (compaction_restarting(zone, cc->order) && !current_is_kcompactd())
-> +       if (compaction_restarting(zone, cc->order))
->                 __reset_isolation_suitable(zone);
+On Wed, Mar 02, 2016 at 10:50:56AM +0100, Michal Hocko wrote:
+> On Wed 02-03-16 11:19:54, Joonsoo Kim wrote:
+> > On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
+> [...]
+> > > > +	/*
+> > > > +	 * OK, so the watermak check has failed. Make sure we do all the
+> > > > +	 * retries for !costly high order requests and hope that multiple
+> > > > +	 * runs of compaction will generate some high order ones for us.
+> > > > +	 *
+> > > > +	 * XXX: ideally we should teach the compaction to try _really_ hard
+> > > > +	 * if we are in the retry path - something like priority 0 for the
+> > > > +	 * reclaim
+> > > > +	 */
+> > > > +	if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
+> > > > +		return true;
+> > > > +
+> > > >  	return false;
+> > 
+> > This seems not a proper fix. Checking watermark with high order has
+> > another meaning that there is high order page or not. This isn't
+> > what we want here.
+> 
+> Why not? Why should we retry the reclaim if we do not have >=order page
+> available? Reclaim itself doesn't guarantee any of the freed pages will
+> form the requested order. The ordering on the LRU lists is pretty much
+> random wrt. pfn ordering. On the other hand if we have a page available
+> which is just hidden by watermarks then it makes perfect sense to retry
+> and free even order-0 pages.
+> 
+> > So, following fix is needed.
+> 
+> > 'if (order)' check isn't needed. It is used to clarify the meaning of
+> > this fix. You can remove it.
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 1993894..8c80375 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3125,6 +3125,10 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+> >         if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+> >                 return false;
+> >  
+> > +       /* To check whether compaction is available or not */
+> > +       if (order)
+> > +               order = 0;
+> > +
+> 
+> This would enforce the order 0 wmark check which is IMHO not correct as
+> per above.
+> 
+> >         /*
+> >          * Keep reclaiming pages while there is a chance this will lead
+> >          * somewhere.  If none of the target zones can satisfy our allocation
+> > 
+> > > >  }
+> > > >  
+> > > > @@ -3281,11 +3293,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> > > >  		goto noretry;
+> > > >  
+> > > >  	/*
+> > > > -	 * Costly allocations might have made a progress but this doesn't mean
+> > > > -	 * their order will become available due to high fragmentation so do
+> > > > -	 * not reset the no progress counter for them
+> > > > +	 * High order allocations might have made a progress but this doesn't
+> > > > +	 * mean their order will become available due to high fragmentation so
+> > > > +	 * do not reset the no progress counter for them
+> > > >  	 */
+> > > > -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+> > > > +	if (did_some_progress && !order)
+> > > >  		no_progress_loops = 0;
+> > > >  	else
+> > > >  		no_progress_loops++;
+> > 
+> > This unconditionally increases no_progress_loops for high order
+> > allocation, so, after 16 iterations, it will fail. If compaction isn't
+> > enabled in Kconfig, 16 times reclaim attempt would not be sufficient
+> > to make high order page. Should we consider this case also?
+> 
+> How many retries would help? I do not think any number will work
+> reliably. Configurations without compaction enabled are asking for
+> problems by definition IMHO. Relying on order-0 reclaim for high order
+> allocations simply cannot work.
 
-Yeah, you understand correctly. :)
+I left compaction code for a long time so a super hero might make it
+perfect now but I don't think the dream come true yet and I believe
+any algorithm has a drawback so we end up relying on a fallback approach
+in case of not working compaction correctly.
 
-> I'm more inclined to fold it in that case.
-
-Patch would be just simple, but, I guess it would cause some difference
-in test result. But, I'm okay for folding.
-
-Thanks.
+My suggestion is to reintroduce *lumpy reclaim* and kicks in only when
+compaction gave up by some reasons. It would be better to rely on
+random number retrial of reclaim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
