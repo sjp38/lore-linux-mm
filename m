@@ -1,103 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F8B828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 10:21:34 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l68so82626210wml.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 07:21:34 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FB7E6B0254
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 10:22:46 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p65so82660989wmp.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 07:22:46 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y127si5426489wmg.13.2016.03.02.07.21.33
+        by mx.google.com with ESMTPS id d73si5410353wma.57.2016.03.02.07.22.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 07:21:33 -0800 (PST)
-Date: Wed, 2 Mar 2016 16:21:32 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: How to avoid printk() delay caused by cond_resched() ?
-Message-ID: <20160302152132.GE22171@pathway.suse.cz>
-References: <201603022101.CAH73907.OVOOMFHFFtQJSL@I-love.SAKURA.ne.jp>
- <20160302133810.GB22171@pathway.suse.cz>
- <201603022311.CGC64089.HOOLJFVSMFQOtF@I-love.SAKURA.ne.jp>
+        Wed, 02 Mar 2016 07:22:45 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+ <1454938691-2197-5-git-send-email-vbabka@suse.cz>
+ <20160302063322.GB32695@js1304-P5Q-DELUXE> <56D6BACB.7060005@suse.cz>
+ <CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+ <56D6F41D.9080107@suse.cz>
+ <CAAmzW4PGgYkL9xnCXgSQ=8kW0sJkaYyrxenb_XKHcW1wDGMEyw@mail.gmail.com>
+ <56D6FB77.2090801@suse.cz>
+ <CAAmzW4METKGH27_tcnBLp1CQU3UK+YmfXJ4MwHuwUfqynAp_eg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D70543.60806@suse.cz>
+Date: Wed, 2 Mar 2016 16:22:43 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201603022311.CGC64089.HOOLJFVSMFQOtF@I-love.SAKURA.ne.jp>
+In-Reply-To: <CAAmzW4METKGH27_tcnBLp1CQU3UK+YmfXJ4MwHuwUfqynAp_eg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sergey.senozhatsky@gmail.com, jack@suse.com, tj@kernel.org, kyle@kernel.org, davej@codemonkey.org.uk, calvinowens@fb.com, akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed 2016-03-02 23:11:30, Tetsuo Handa wrote:
-> That's a good news. I was wishing that there were a dedicated kernel
-> thread which does printk() operation. While at it, I ask for an API
-> which waits for printk buffer to be flushed (something like below) so that
-> a watchdog thread which might dump thousands of threads from sleepable
-> context (like my dump) can avoid "** XXX printk messages dropped **"
-> messages.
+On 03/02/2016 03:59 PM, Joonsoo Kim wrote:
+> 2016-03-02 23:40 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+>> On 03/02/2016 03:22 PM, Joonsoo Kim wrote:
+>>
+>> So I understand that patch 5 would be just about this?
+>>
+>> -       if (compaction_restarting(zone, cc->order) && !current_is_kcompactd())
+>> +       if (compaction_restarting(zone, cc->order))
+>>                  __reset_isolation_suitable(zone);
 >
-> ----------
-> diff --git a/include/linux/console.h b/include/linux/console.h
-> index ea731af..11e936c 100644
-> --- a/include/linux/console.h
-> +++ b/include/linux/console.h
-> @@ -147,6 +147,7 @@ extern int unregister_console(struct console *);
->  extern struct console *console_drivers;
->  extern void console_lock(void);
->  extern int console_trylock(void);
-> +extern void wait_console_flushed(unsigned long timeout);
->  extern void console_unlock(void);
->  extern void console_conditional_schedule(void);
->  extern void console_unblank(void);
-> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> index 9917f69..2eb60df 100644
-> --- a/kernel/printk/printk.c
-> +++ b/kernel/printk/printk.c
-> @@ -121,6 +121,15 @@ static int __down_trylock_console_sem(unsigned long ip)
->  	up(&console_sem);\
->  } while (0)
->  
-> +static int __down_timeout_console_sem(unsigned long timeout, unsigned long ip)
-> +{
-> +	if (down_timeout(&console_sem, timeout))
-> +		return 1;
-> +	mutex_acquire(&console_lock_dep_map, 0, 1, ip);
-> +	return 0;
-> +}
-> +#define down_timeout_console_sem(timeout) __down_timeout_console_sem((timeout), _RET_IP_)
-> +
->  /*
->   * This is used for debugging the mess that is the VT code by
->   * keeping track if we have the console semaphore held. It's
-> @@ -2125,6 +2134,21 @@ int console_trylock(void)
->  }
->  EXPORT_SYMBOL(console_trylock);
->  
-> +void wait_console_flushed(unsigned long timeout)
-> +{
-> +	might_sleep();
-> +
-> +	if (down_timeout_console_sem(timeout))
-> +		return;
-> +	if (console_suspended) {
-> +		up_console_sem();
-> +		return;
-> +	}
-> +	console_locked = 1;
-> +	console_may_schedule = 1;
-> +	console_unlock();
-> +}
+> Yeah, you understand correctly. :)
+>
+>> I'm more inclined to fold it in that case.
+>
+> Patch would be just simple, but, I guess it would cause some difference
+> in test result. But, I'm okay for folding.
 
-This tries to take over the responsibility for printing to the
-console. I would personally solve this by a wait queue.
-console_unlock() might wakeup all waiters when empty. This
-will work also when the console stuff is offloaded into
-the workqueue.
+Thanks. Andrew, should I send now patch folding patch 4/5 and 5/5 with 
+all the accumulated fixlets (including those I sent earlier today) and 
+combined changelog, or do you want to apply the new fixlets separately 
+first and let them sit for a week or so? In any case, sorry for the churn.
 
-But there still might be dropped messages if there is a flood
-of them from another process. Note that even userspace could push
-messages into the kernel ring buffer via /dev/kmsg. We need
-to be careful against DOS attacks.
-
-Best Regards,
-Petr
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
