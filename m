@@ -1,125 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F0366B0263
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 08:38:12 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l68so85681639wml.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 05:38:12 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 187si5821182wmg.2.2016.03.02.05.38.11
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B0DB2828EE
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 08:57:51 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id fz5so66751339obc.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 05:57:51 -0800 (PST)
+Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
+        by mx.google.com with ESMTPS id e8si8910771oek.62.2016.03.02.05.57.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 05:38:11 -0800 (PST)
-Date: Wed, 2 Mar 2016 14:38:10 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: How to avoid printk() delay caused by cond_resched() ?
-Message-ID: <20160302133810.GB22171@pathway.suse.cz>
-References: <201603022101.CAH73907.OVOOMFHFFtQJSL@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Mar 2016 05:57:50 -0800 (PST)
+Received: by mail-ob0-x22e.google.com with SMTP id rt7so26468960obb.3
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 05:57:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201603022101.CAH73907.OVOOMFHFFtQJSL@I-love.SAKURA.ne.jp>
+In-Reply-To: <56D6BACB.7060005@suse.cz>
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
+	<20160302063322.GB32695@js1304-P5Q-DELUXE>
+	<56D6BACB.7060005@suse.cz>
+Date: Wed, 2 Mar 2016 22:57:50 +0900
+Message-ID: <CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sergey.senozhatsky@gmail.com, jack@suse.com, tj@kernel.org, kyle@kernel.org, davej@codemonkey.org.uk, calvinowens@fb.com, akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed 2016-03-02 21:01:03, Tetsuo Handa wrote:
-> I have a question about "printk: set may_schedule for some of
-> console_trylock() callers" in linux-next.git.
-> 
-> I'm trying to dump information of all threads which might be relevant
-> to stalling inside memory allocator. But it seems to me that since this
-> patch changed to allow calling cond_resched() from printk() if it is
-> safe to do so, it is now possible that the thread which invoked the OOM
-> killer can sleep for minutes with the oom_lock mutex held when my dump is
-> in progress. I want to release oom_lock mutex as soon as possible so
-> that other threads can call out_of_memory() to get TIF_MEMDIE and exit
-> their allocations.
-> 
-> So, how can I prevent printk() triggered by out_of_memory() from sleeping
-> for minutes with oom_lock mutex held? Guard it with preempt_disable() /
-> preempt_enable() ? Guard it with rcu_read_lock() / rcu_read_unlock() ? 
+2016-03-02 19:04 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+> On 03/02/2016 07:33 AM, Joonsoo Kim wrote:
+>>>
+>>>
+>>>                                    4.5-rc1     4.5-rc1
+>>>                                     3-test      4-test
+>>> Minor Faults                    106940795   106582816
+>>> Major Faults                          829         813
+>>> Swap Ins                              482         311
+>>> Swap Outs                            6278        5598
+>>> Allocation stalls                     128         184
+>>> DMA allocs                            145          32
+>>> DMA32 allocs                     74646161    74843238
+>>> Normal allocs                    26090955    25886668
+>>> Movable allocs                          0           0
+>>> Direct pages scanned                32938       31429
+>>> Kswapd pages scanned              2183166     2185293
+>>> Kswapd pages reclaimed            2152359     2134389
+>>> Direct pages reclaimed              32735       31234
+>>> Kswapd efficiency                     98%         97%
+>>> Kswapd velocity                  1243.877    1228.666
+>>> Direct efficiency                     99%         99%
+>>> Direct velocity                    18.767      17.671
+>>> Percentage direct scans                1%          1%
+>>> Zone normal velocity              299.981     291.409
+>>> Zone dma32 velocity               962.522     954.928
+>>> Zone dma velocity                   0.142       0.000
+>>> Page writes by reclaim           6278.800    5598.600
+>>> Page writes file                        0           0
+>>> Page writes anon                     6278        5598
+>>> Page reclaim immediate                 93          96
+>>> Sector Reads                      4357114     4307161
+>>> Sector Writes                    11053628    11053091
+>>> Page rescued immediate                  0           0
+>>> Slabs scanned                     1592829     1555770
+>>> Direct inode steals                  1557        2025
+>>> Kswapd inode steals                 46056       45418
+>>> Kswapd skipped wait                     0           0
+>>> THP fault alloc                       579         614
+>>> THP collapse alloc                    304         324
+>>> THP splits                              0           0
+>>> THP fault fallback                    793         730
+>>> THP collapse fail                      11          14
+>>> Compaction stalls                    1013         959
+>>> Compaction success                     92          69
+>>> Compaction failures                   920         890
+>>> Page migrate success               238457      662054
+>>> Page migrate failure                23021       32846
+>>> Compaction pages isolated          504695     1370326
+>>> Compaction migrate scanned         661390     7025772
+>>> Compaction free scanned          13476658    73302642
+>>> Compaction cost                       262         762
+>>>
+>>> After this patch we see improvements in allocation success rate
+>>> (especially for
+>>> phase 3) along with increased compaction activity. The compaction stalls
+>>> (direct compaction) in the interfering kernel builds (probably THP's)
+>>> also
+>>> decreased somewhat to kcompactd activity, yet THP alloc successes
+>>> improved a
+>>> bit.
+>>
+>>
+>> Why you did the test with THP? THP interferes result of main test so
+>> it would be better not to enable it.
 >
-> ----------
-> [  460.893958] tgid=11161 invoked oom-killer: gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), order=0, oom_score_adj=1000
-> [  463.892897] tgid=11161 cpuset=/ mems_allowed=0
-> [  463.894724] CPU: 1 PID: 12346 Comm: tgid=11161 Not tainted 4.5.0-rc6-next-20160302+ #318
-> [  463.897026] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-> [  463.899841]  0000000000000286 00000000733ef955 ffff8800778a79b0 ffffffff813a2ded
-> [  463.902164]  0000000000000000 ffff8800778a7be0 ffff8800778a7a50 ffffffff811c24d0
-> [  463.904474]  0000000000000206 ffffffff81810c30 ffff8800778a79f0 ffffffff810bf839
-> [  463.906801] Call Trace:
-> [  463.908101]  [<ffffffff813a2ded>] dump_stack+0x85/0xc8
-> [  463.909921]  [<ffffffff811c24d0>] dump_header+0x5b/0x3b0
-> [  463.911759]  [<ffffffff810bf839>] ? trace_hardirqs_on_caller+0xf9/0x1c0
-> [  463.913833]  [<ffffffff810bf90d>] ? trace_hardirqs_on+0xd/0x10
-> [  463.915751]  [<ffffffff81146f2d>] oom_kill_process+0x37d/0x570
-> [  463.918024]  [<ffffffff81147366>] out_of_memory+0x1f6/0x5a0
-> [  463.919890]  [<ffffffff81147424>] ? out_of_memory+0x2b4/0x5a0
-> [  463.921784]  [<ffffffff8114d041>] __alloc_pages_nodemask+0xc91/0xeb0
-> [  463.923788]  [<ffffffff81196726>] alloc_pages_current+0x96/0x1b0
-> [  463.925729]  [<ffffffff8114188d>] __page_cache_alloc+0x12d/0x160
-> [  463.927682]  [<ffffffff8114537a>] filemap_fault+0x48a/0x6a0
-> [  463.929547]  [<ffffffff81145247>] ? filemap_fault+0x357/0x6a0
-> [  463.931409]  [<ffffffff812b9e09>] xfs_filemap_fault+0x39/0x60
-> [  463.933255]  [<ffffffff8116f19d>] __do_fault+0x6d/0x150
-> [  463.934974]  [<ffffffff81175b1d>] handle_mm_fault+0xecd/0x1800
-> [  463.936791]  [<ffffffff81174ca3>] ? handle_mm_fault+0x53/0x1800
-> [  463.938617]  [<ffffffff8105a796>] __do_page_fault+0x1e6/0x520
-> [  463.940380]  [<ffffffff8105ab00>] do_page_fault+0x30/0x80
-> [  463.942074]  [<ffffffff817113e8>] page_fault+0x28/0x30
-> [  463.943750] Mem-Info:
-> (...snipped...)
-> [  554.754959] MemAlloc: tgid=11161(12346) flags=0x400040 switches=865 seq=169 gfp=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD) order=0 delay=81602
-> [  554.754962] tgid=11161      R  running task        0 12346  11056 0x00000080
-> [  554.754965]  ffff8800778a7838 ffff880034510000 ffff8800778b0000 ffff8800778a8000
-> [  554.754966]  0000000000000091 ffffffff82a86fbc 0000000000000004 0000000000000000
-> [  554.754967]  ffff8800778a7850 ffffffff8170a5dd 0000000000000296 ffff8800778a7860
-> [  554.754968] Call Trace:
-> [  554.754974]  [<ffffffff8170a5dd>] preempt_schedule_common+0x1f/0x42
-> [  554.754975]  [<ffffffff8170a617>] _cond_resched+0x17/0x20
-> [  554.754978]  [<ffffffff810d17b9>] console_unlock+0x509/0x5c0
-> [  554.754979]  [<ffffffff810d1b93>] vprintk_emit+0x323/0x540
-> [  554.754981]  [<ffffffff810d1f0a>] vprintk_default+0x1a/0x20
-> [  554.754983]  [<ffffffff8114069e>] printk+0x58/0x6f
-> [  554.754986]  [<ffffffff813aaede>] show_mem+0x1e/0xe0
-> [  554.754988]  [<ffffffff811c24ec>] dump_header+0x77/0x3b0
-> [  554.754990]  [<ffffffff810bf839>] ? trace_hardirqs_on_caller+0xf9/0x1c0
-> [  554.754991]  [<ffffffff810bf90d>] ? trace_hardirqs_on+0xd/0x10
-> [  554.754993]  [<ffffffff81146f2d>] oom_kill_process+0x37d/0x570
-> [  554.754995]  [<ffffffff81147366>] out_of_memory+0x1f6/0x5a0
-> [  554.754996]  [<ffffffff81147424>] ? out_of_memory+0x2b4/0x5a0
-> [  554.754997]  [<ffffffff8114d041>] __alloc_pages_nodemask+0xc91/0xeb0
-> [  554.755000]  [<ffffffff81196726>] alloc_pages_current+0x96/0x1b0
-> [  554.755001]  [<ffffffff8114188d>] __page_cache_alloc+0x12d/0x160
-> [  554.755003]  [<ffffffff8114537a>] filemap_fault+0x48a/0x6a0
-> [  554.755004]  [<ffffffff81145247>] ? filemap_fault+0x357/0x6a0
-> [  554.755006]  [<ffffffff812b9e09>] xfs_filemap_fault+0x39/0x60
-> [  554.755007]  [<ffffffff8116f19d>] __do_fault+0x6d/0x150
-> [  554.755009]  [<ffffffff81175b1d>] handle_mm_fault+0xecd/0x1800
-> [  554.755010]  [<ffffffff81174ca3>] ? handle_mm_fault+0x53/0x1800
-> [  554.755012]  [<ffffffff8105a796>] __do_page_fault+0x1e6/0x520
-> [  554.755013]  [<ffffffff8105ab00>] do_page_fault+0x30/0x80
-> [  554.755015]  [<ffffffff817113e8>] page_fault+0x28/0x30
-> ----------
-> 
-> CONFIG_PREEMPT_NONE=y
-> # CONFIG_PREEMPT_VOLUNTARY is not set
-> # CONFIG_PREEMPT is not set
-> CONFIG_PREEMPT_COUNT=y
+>
+> Hmm I've always left it enabled. It makes for a more realistic interference
+> and would also show unintended regressions in that closely related area.
 
-preempt_disable() / preempt_enable() would do the job.
-The question is where to put it. If you are concerned about
-the delay, you might want to disable preemption around
-the whole locked area, so that it works reasonable also
-in the preemptive kernel.
+But, it makes review hard because complex analysis is needed to
+understand the result.
 
-I am looking forward to have the console printing offloaded
-into the workqueues. Then printk() will become consistently
-"fast" operation and will cause less surprises like this.
+Following is the example.
 
-Best Regards,
-Petr
+"The compaction stalls
+(direct compaction) in the interfering kernel builds (probably THP's) also
+decreased somewhat to kcompactd activity, yet THP alloc successes improved a
+bit."
+
+So, why do we need this comment to understand effect of this patch? If you did
+a test without THP, it would not be necessary.
+
+>> And, this patch increased compaction activity (10 times for migrate
+>> scanned)
+>> may be due to resetting skip block information.
+>
+>
+> Note that kswapd compaction activity was completely non-existent for reasons
+> outlined in the changelog.
+>> Isn't is better to disable it
+>> for this patch to work as similar as possible that kswapd does and
+>> re-enable it
+>> on next patch? If something goes bad, it can simply be reverted.
+>>
+>> Look like it is even not mentioned in the description.
+>
+>
+> Yeah skip block information is discussed in the next patch, which mentions
+> that it's being reset and why. I think it makes more sense, as when kswapd
+
+Yes, I know.
+What I'd like to say here is that you need to care current_is_kswapd() in
+this patch. This patch unintentionally change the back ground compaction thread
+behaviour to restart compaction by every 64 trials because calling
+curret_is_kswapd()
+by kcompactd would return false and is treated as direct reclaim.
+Result of patch 4
+and patch 5 would be same.
+
+Thanks.
+
+> reclaims from low watermark to high, potentially many pageblocks have new
+> free pages and the skip bits are obsolete. Next, kcompactd is separate
+> thread, so it doesn't stall allocations (or kswapd reclaim) by its activity.
+> Personally I hope that one day we can get rid of the skip bits completely.
+> They can make the stats look apparently nicer, but I think their effect is
+> nearly random.
+>
+>>> @@ -3066,8 +3071,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat,
+>>> int order, long remaining,
+>>>    */
+>>>   static bool kswapd_shrink_zone(struct zone *zone,
+>>>                                int classzone_idx,
+>>> -                              struct scan_control *sc,
+>>> -                              unsigned long *nr_attempted)
+>>> +                              struct scan_control *sc)
+>>>   {
+>>>         int testorder = sc->order;
+>>
+>>
+>> You can remove testorder completely.
+>
+>
+> Hm right, thanks.
+>
+>>> -static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>>> -                                                       int
+>>> *classzone_idx)
+>>> +static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>>>   {
+>>>         int i;
+>>>         int end_zone = 0;       /* Inclusive.  0 = ZONE_DMA */
+>>> @@ -3166,9 +3155,7 @@ static unsigned long balance_pgdat(pg_data_t
+>>> *pgdat, int order,
+>>>         count_vm_event(PAGEOUTRUN);
+>>>
+>>>         do {
+>>> -               unsigned long nr_attempted = 0;
+>>>                 bool raise_priority = true;
+>>> -               bool pgdat_needs_compaction = (order > 0);
+>>>
+>>>                 sc.nr_reclaimed = 0;
+>>>
+>>> @@ -3203,7 +3190,7 @@ static unsigned long balance_pgdat(pg_data_t
+>>> *pgdat, int order,
+>>>                                 break;
+>>>                         }
+>>>
+>>> -                       if (!zone_balanced(zone, order, 0, 0)) {
+>>> +                       if (!zone_balanced(zone, order, true, 0, 0)) {
+>>
+>>
+>> Should we use highorder = true? We eventually skip to reclaim in the
+>> kswapd_shrink_zone() when zone_balanced(,,false,,) is true.
+>
+>
+> Hmm right. I probably thought that the value of end_zone ->
+> balanced_classzone_idx would be important when waking kcompactd, but it's
+> not used, so it's causing just some wasted CPU cycles.
+>
+> Thanks for the reviews!
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
