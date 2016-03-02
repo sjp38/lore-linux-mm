@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3948B6B0005
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A933A6B0253
 	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 21:36:15 -0500 (EST)
-Received: by mail-io0-f177.google.com with SMTP id n190so10621284iof.0
+Received: by mail-ig0-f181.google.com with SMTP id ir4so64120394igb.1
         for <linux-mm@kvack.org>; Mon, 07 Mar 2016 18:36:15 -0800 (PST)
 Received: from bogon.localdomain ([219.143.95.81])
-        by mx.google.com with ESMTP id m65si1329157ioa.163.2016.03.07.18.36.13
+        by mx.google.com with ESMTP id n6si16028689igk.95.2016.03.07.18.36.14
         for <linux-mm@kvack.org>;
-        Mon, 07 Mar 2016 18:36:14 -0800 (PST)
+        Mon, 07 Mar 2016 18:36:15 -0800 (PST)
 From: Li Zhang <zhlcindy@gmail.com>
-Subject: [PATCH RFC 0/2] mm: Enable page parallel initialisation for Power
-Date: Wed,  2 Mar 2016 16:49:35 +0800
-Message-Id: <1456908577-4702-1-git-send-email-zhlcindy@gmail.com>
+Subject: [PATCH RFC 2/2] powerpc/mm: Enable page parallel initialisation
+Date: Wed,  2 Mar 2016 16:49:37 +0800
+Message-Id: <1456908577-4702-3-git-send-email-zhlcindy@gmail.com>
+In-Reply-To: <1456908577-4702-1-git-send-email-zhlcindy@gmail.com>
+References: <1456908577-4702-1-git-send-email-zhlcindy@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net
@@ -19,66 +21,31 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.
 
 From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-Uptream has supported page parallel initialisation for X86 and the
-boot time is improved greately. Some tests have been done for Power.
+Parallel initialisation has been enabled for X86,
+boot time is improved greatly.
+On Power8, for small memory, it is improved greatly.
+Here is the result from my test on Power8 platform:
 
-Here is the result I have done with different memory size.
+For 4GB memory: 57% is improved
+For 50GB memory: 22% is improve
 
-* 4GB memory:
-    boot time is as the following: 
-    with patch vs without patch: 10.4s vs 24.5s
-    boot time is improved 57%
-* 200GB memory: 
-   boot time looks the same with and without patches.
-   boot time is about 38s
-* 32TB memory: 
-   boot time looks the same with and without patches 
-   boot time is about 160s.
-   The boot time is much shorter than X86 with 24TB memory.
-   From community discussion, it costs about 694s for X86 24T system.
+Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+---
+ arch/powerpc/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
->From code view, parallel initialisation improve the performance by
-deferring memory initilisation to kswap with N kthreads, it should
-improve the performance therotically. 
-
->From the test result, On X86, performance is improved greatly with huge
-memory. But on Power platform, it is improved greatly with less than 
-100GB memory. For huge memory, it is not improved greatly. But it saves 
-the time with several threads at least, as the following information 
-shows(32TB system log):
-
-[   22.648169] node 9 initialised, 16607461 pages in 280ms
-[   22.783772] node 3 initialised, 23937243 pages in 410ms
-[   22.858877] node 6 initialised, 29179347 pages in 490ms
-[   22.863252] node 2 initialised, 29179347 pages in 490ms
-[   22.907545] node 0 initialised, 32049614 pages in 540ms
-[   22.920891] node 15 initialised, 32212280 pages in 550ms
-[   22.923236] node 4 initialised, 32306127 pages in 550ms
-[   22.923384] node 12 initialised, 32314319 pages in 550ms
-[   22.924754] node 8 initialised, 32314319 pages in 550ms
-[   22.940780] node 13 initialised, 33353677 pages in 570ms
-[   22.940796] node 11 initialised, 33353677 pages in 570ms
-[   22.941700] node 5 initialised, 33353677 pages in 570ms
-[   22.941721] node 10 initialised, 33353677 pages in 570ms
-[   22.941876] node 7 initialised, 33353677 pages in 570ms
-[   22.944946] node 14 initialised, 33353677 pages in 570ms
-[   22.946063] node 1 initialised, 33345485 pages in 580ms
-
-It saves the time about 550*16 ms at least, although it can be ignore to compare 
-the boot time about 160 seconds. What's more, the boot time is much shorter 
-on Power even without patches than x86 for huge memory machine. 
-
-So this patchset is still necessary to be enabled for Power. 
-
-Li Zhang (2):
-  mm: meminit: initialise more memory for inode/dentry hash tables in
-    early boot
-  Enable page parallel initialisation
-
- arch/powerpc/Kconfig |  1 +
- mm/page_alloc.c      | 11 +++++++++--
- 2 files changed, 10 insertions(+), 2 deletions(-)
-
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index e4824fd..83073c2 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -158,6 +158,7 @@ config PPC
+ 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+ 	select HAVE_ARCH_SECCOMP_FILTER
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+ 
+ config GENERIC_CSUM
+ 	def_bool CPU_LITTLE_ENDIAN
 -- 
 2.1.0
 
