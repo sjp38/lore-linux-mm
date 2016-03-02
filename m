@@ -1,151 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E9B6B0009
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 19:34:35 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id 4so44061893pfd.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 16:34:35 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ny6si53783466pab.59.2016.03.01.16.34.34
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 345C36B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 21:19:37 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id y8so35329208igp.0
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 18:19:37 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id uw2si2622499igb.57.2016.03.01.18.19.35
         for <linux-mm@kvack.org>;
-        Tue, 01 Mar 2016 16:34:34 -0800 (PST)
-Subject: [PATCH v2] mm: exclude ZONE_DEVICE from GFP_ZONE_TABLE
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 01 Mar 2016 16:32:04 -0800
-Message-ID: <20160302002829.38211.89593.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Tue, 01 Mar 2016 18:19:36 -0800 (PST)
+Date: Wed, 2 Mar 2016 11:19:54 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160302021954.GA22355@js1304-P5Q-DELUXE>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+ <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160229210213.GX16930@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
-mm zones that are bumping up against the current maximum limit of 4
-zones, i.e. 2 bits in page->flags for the GFP_ZONE_TABLE.
+On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
+> Andrew,
+> could you queue this one as well, please? This is more a band aid than a
+> real solution which I will be working on as soon as I am able to
+> reproduce the issue but the patch should help to some degree at least.
 
-The GFP_ZONE_TABLE poses an interesting constraint since
-include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
-build.  We need to be careful to only build the table for zones that
-have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
-purpose.  This patch does not attempt to solve the problem of adding a
-new zone that also has a corresponding GFP_ flag.
+I'm not sure that this is a way to go. See below.
 
-Vlastimil points out that ZONE_DEVICE, by depending on x86_64 and
-SPARSEMEM_VMEMMAP implies that SECTIONS_WIDTH is zero.  In other words
-even though ZONE_DEVICE does not fit in GFP_ZONE_TABLE it is free to
-consume another bit in page->flags (expand ZONES_WIDTH) with room to
-spare.
+> 
+> On Thu 25-02-16 10:23:15, Michal Hocko wrote:
+> > From d09de26cee148b4d8c486943b4e8f3bd7ad6f4be Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Thu, 4 Feb 2016 14:56:59 +0100
+> > Subject: [PATCH] mm, oom: protect !costly allocations some more
+> > 
+> > should_reclaim_retry will give up retries for higher order allocations
+> > if none of the eligible zones has any requested or higher order pages
+> > available even if we pass the watermak check for order-0. This is done
+> > because there is no guarantee that the reclaimable and currently free
+> > pages will form the required order.
+> > 
+> > This can, however, lead to situations were the high-order request (e.g.
+> > order-2 required for the stack allocation during fork) will trigger
+> > OOM too early - e.g. after the first reclaim/compaction round. Such a
+> > system would have to be highly fragmented and the OOM killer is just a
+> > matter of time but let's stick to our MAX_RECLAIM_RETRIES for the high
+> > order and not costly requests to make sure we do not fail prematurely.
+> > 
+> > This also means that we do not reset no_progress_loops at the
+> > __alloc_pages_slowpath for high order allocations to guarantee a bounded
+> > number of retries.
+> > 
+> > Longterm it would be much better to communicate with the compaction
+> > and retry only if the compaction considers it meaningfull.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  mm/page_alloc.c | 20 ++++++++++++++++----
+> >  1 file changed, 16 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 269a04f20927..f05aca36469b 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3106,6 +3106,18 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+> >  		}
+> >  	}
+> >  
+> > +	/*
+> > +	 * OK, so the watermak check has failed. Make sure we do all the
+> > +	 * retries for !costly high order requests and hope that multiple
+> > +	 * runs of compaction will generate some high order ones for us.
+> > +	 *
+> > +	 * XXX: ideally we should teach the compaction to try _really_ hard
+> > +	 * if we are in the retry path - something like priority 0 for the
+> > +	 * reclaim
+> > +	 */
+> > +	if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
+> > +		return true;
+> > +
+> >  	return false;
 
-Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
-Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-Reported-by: Mark <markk@clara.co.uk>
-Reported-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
-Changes since v1 [1]:
+This seems not a proper fix. Checking watermark with high order has
+another meaning that there is high order page or not. This isn't
+what we want here. So, following fix is needed.
 
-1/ Drop NR_ZONES_EXTENDED and its adjustments to NODES_SHIFT, we have
-   enough room in page flags given the current config constraints of
-   ZONE_DEVICE that imply that SECTIONS_WIDTH is zero. (Vlastimil).
+'if (order)' check isn't needed. It is used to clarify the meaning of
+this fix. You can remove it.
 
-2/ Fold in the 80 column fixes from
-   mm-config_nr_zones_extended-fix.patch (Andrew)
-
-[1]: http://marc.info/?l=linux-mm&m=145396199024296&w=2
-
- include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
- include/linux/page-flags-layout.h |    2 ++
- mm/Kconfig                        |    2 --
- 3 files changed, 22 insertions(+), 15 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index af1f2b24bbe4..dddd4767bd2f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
-  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
-  *
-- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
-+ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
-  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1993894..8c80375 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3125,6 +3125,10 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+        if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+                return false;
  
--#if 16 * ZONES_SHIFT > BITS_PER_LONG
--#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
-+#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
-+/* ZONE_DEVICE is not a valid GFP zone specifier */
-+#define GFP_ZONES_SHIFT 2
-+#else
-+#define GFP_ZONES_SHIFT ZONES_SHIFT
-+#endif
++       /* To check whether compaction is available or not */
++       if (order)
++               order = 0;
 +
-+#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
-+#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
- #endif
- 
- #define GFP_ZONE_TABLE ( \
--	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
--	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
--	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
--	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
--	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
--	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
--	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
--	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
-+	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)				       \
-+	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)		       \
-+	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)	       \
-+	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		       \
-+	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
-+	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)    \
-+	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)\
-+	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)\
- )
- 
- /*
-@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- 	enum zone_type z;
- 	int bit = (__force int) (flags & GFP_ZONEMASK);
- 
--	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
--					 ((1 << ZONES_SHIFT) - 1);
-+	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-+					 ((1 << GFP_ZONES_SHIFT) - 1);
- 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
- 	return z;
- }
-diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-index da523661500a..77b078c103b2 100644
---- a/include/linux/page-flags-layout.h
-+++ b/include/linux/page-flags-layout.h
-@@ -17,6 +17,8 @@
- #define ZONES_SHIFT 1
- #elif MAX_NR_ZONES <= 4
- #define ZONES_SHIFT 2
-+#elif MAX_NR_ZONES <= 8
-+#define ZONES_SHIFT 3
- #else
- #error ZONES_SHIFT -- too many zones configured adjust calculation
- #endif
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 03cbfa072f42..664fa2416909 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -652,8 +652,6 @@ config IDLE_PAGE_TRACKING
- 
- config ZONE_DEVICE
- 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
--	default !ZONE_DMA
--	depends on !ZONE_DMA
- 	depends on MEMORY_HOTPLUG
- 	depends on MEMORY_HOTREMOVE
- 	depends on X86_64 #arch_add_memory() comprehends device memory
+        /*
+         * Keep reclaiming pages while there is a chance this will lead
+         * somewhere.  If none of the target zones can satisfy our allocation
+
+> >  }
+> >  
+> > @@ -3281,11 +3293,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  		goto noretry;
+> >  
+> >  	/*
+> > -	 * Costly allocations might have made a progress but this doesn't mean
+> > -	 * their order will become available due to high fragmentation so do
+> > -	 * not reset the no progress counter for them
+> > +	 * High order allocations might have made a progress but this doesn't
+> > +	 * mean their order will become available due to high fragmentation so
+> > +	 * do not reset the no progress counter for them
+> >  	 */
+> > -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+> > +	if (did_some_progress && !order)
+> >  		no_progress_loops = 0;
+> >  	else
+> >  		no_progress_loops++;
+
+This unconditionally increases no_progress_loops for high order
+allocation, so, after 16 iterations, it will fail. If compaction isn't
+enabled in Kconfig, 16 times reclaim attempt would not be sufficient
+to make high order page. Should we consider this case also?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
