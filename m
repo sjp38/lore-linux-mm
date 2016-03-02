@@ -1,70 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 381E5828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:06:31 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id ts10so198895076obc.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:06:31 -0800 (PST)
-Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
-        by mx.google.com with ESMTPS id wc7si8775465oeb.88.2016.03.02.06.06.30
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 61CF1828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:09:37 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id l68so79512224wml.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:09:37 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j187si5046643wma.69.2016.03.02.06.09.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 06:06:30 -0800 (PST)
-Received: by mail-ob0-x22b.google.com with SMTP id ts10so198894780obc.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:06:30 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 02 Mar 2016 06:09:36 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+ <1454938691-2197-5-git-send-email-vbabka@suse.cz>
+ <20160302063322.GB32695@js1304-P5Q-DELUXE> <56D6BACB.7060005@suse.cz>
+ <CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D6F41D.9080107@suse.cz>
+Date: Wed, 2 Mar 2016 15:09:33 +0100
 MIME-Version: 1.0
-In-Reply-To: <20160302123752.GE26686@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
-	<20160203132718.GI6757@dhcp22.suse.cz>
-	<alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
-	<20160229203502.GW16930@dhcp22.suse.cz>
-	<alpine.LSU.2.11.1602292251170.7563@eggly.anvils>
-	<20160301133846.GF9461@dhcp22.suse.cz>
-	<56D5DBF0.2020004@suse.cz>
-	<20160302025507.GC22355@js1304-P5Q-DELUXE>
-	<20160302123752.GE26686@dhcp22.suse.cz>
-Date: Wed, 2 Mar 2016 23:06:29 +0900
-Message-ID: <CAAmzW4OtbSTXpAjMes_fZUvi0fO4riygOh_K_zxQbDUNCWva+Q@mail.gmail.com>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-2016-03-02 21:37 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> On Wed 02-03-16 11:55:07, Joonsoo Kim wrote:
->> On Tue, Mar 01, 2016 at 07:14:08PM +0100, Vlastimil Babka wrote:
-> [...]
->> > Yes, compaction is historically quite careful to avoid making low
->> > memory conditions worse, and to prevent work if it doesn't look like
->> > it can ultimately succeed the allocation (so having not enough base
->> > pages means that compacting them is considered pointless). This
->> > aspect of preventing non-zero-order OOMs is somewhat unexpected :)
+On 03/02/2016 02:57 PM, Joonsoo Kim wrote:
+> 2016-03-02 19:04 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+>> On 03/02/2016 07:33 AM, Joonsoo Kim wrote:
+>>>
+>>>
+>>> Why you did the test with THP? THP interferes result of main test so
+>>> it would be better not to enable it.
 >>
->> It's better not to assume that compaction would succeed all the times.
->> Compaction has some limitations so it sometimes fails.
->> For example, in lowmem situation, it only scans small parts of memory
->> and if that part is fragmented by non-movable page, compaction would fail.
->> And, compaction would defer requests 64 times at maximum if successive
->> compaction failure happens before.
 >>
->> Depending on compaction heavily is right direction to go but I think
->> that it's not ready for now. More reclaim would relieve problem.
+>> Hmm I've always left it enabled. It makes for a more realistic interference
+>> and would also show unintended regressions in that closely related area.
 >
-> I really fail to see why. The reclaimable memory can be migrated as
-> well, no? Relying on the order-0 reclaim makes only sense to get over
-> wmarks.
+> But, it makes review hard because complex analysis is needed to
+> understand the result.
+>
+> Following is the example.
+>
+> "The compaction stalls
+> (direct compaction) in the interfering kernel builds (probably THP's) also
+> decreased somewhat to kcompactd activity, yet THP alloc successes improved a
+> bit."
+>
+> So, why do we need this comment to understand effect of this patch? If you did
+> a test without THP, it would not be necessary.
 
-Attached link on previous reply mentioned limitation of current compaction
-implementation. Briefly speaking, It would not scan all range of memory
-due to algorithm limitation so even if there is reclaimable memory that
-can be also migrated, compaction could fail.
+I see. Next time I'll do a run with THP disabled.
 
-There is no such limitation on reclaim and that's why I think that compaction
-is not ready for now.
+>>> And, this patch increased compaction activity (10 times for migrate
+>>> scanned)
+>>> may be due to resetting skip block information.
+>>
+>>
+>> Note that kswapd compaction activity was completely non-existent for reasons
+>> outlined in the changelog.
+>>> Isn't is better to disable it
+>>> for this patch to work as similar as possible that kswapd does and
+>>> re-enable it
+>>> on next patch? If something goes bad, it can simply be reverted.
+>>>
+>>> Look like it is even not mentioned in the description.
+>>
+>>
+>> Yeah skip block information is discussed in the next patch, which mentions
+>> that it's being reset and why. I think it makes more sense, as when kswapd
+>
+> Yes, I know.
+> What I'd like to say here is that you need to care current_is_kswapd() in
+> this patch. This patch unintentionally change the back ground compaction thread
+> behaviour to restart compaction by every 64 trials because calling
+> curret_is_kswapd()
+ > by kcompactd would return false and is treated as direct reclaim.
 
-Thanks.
+Oh, you mean this path to reset the skip bits. I see. But if skip bits 
+are already reset by kswapd when waking kcompactd, then effect of 
+another (rare) reset in kcompactd itself will be minimal?
+
+> Result of patch 4
+> and patch 5 would be same.
+
+It's certainly possible to fold patch 5 into 4. I posted them separately 
+mainly to make review more feasible. But the differences in results are 
+already quite small.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
