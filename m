@@ -1,120 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DAA36B0253
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 04:50:59 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l68so76318601wml.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 01:50:59 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id bm5si42078836wjb.92.2016.03.02.01.50.58
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F78D6B0256
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 05:05:03 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id l68so76894336wml.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 02:05:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i12si42121964wjr.175.2016.03.02.02.05.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 01:50:58 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id l68so8619508wml.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 01:50:58 -0800 (PST)
-Date: Wed, 2 Mar 2016 10:50:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20160302095056.GB26701@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160302021954.GA22355@js1304-P5Q-DELUXE>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 02 Mar 2016 02:05:02 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+ <1454938691-2197-5-git-send-email-vbabka@suse.cz>
+ <20160302063322.GB32695@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D6BACB.7060005@suse.cz>
+Date: Wed, 2 Mar 2016 11:04:59 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160302021954.GA22355@js1304-P5Q-DELUXE>
+In-Reply-To: <20160302063322.GB32695@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed 02-03-16 11:19:54, Joonsoo Kim wrote:
-> On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
-[...]
-> > > +	/*
-> > > +	 * OK, so the watermak check has failed. Make sure we do all the
-> > > +	 * retries for !costly high order requests and hope that multiple
-> > > +	 * runs of compaction will generate some high order ones for us.
-> > > +	 *
-> > > +	 * XXX: ideally we should teach the compaction to try _really_ hard
-> > > +	 * if we are in the retry path - something like priority 0 for the
-> > > +	 * reclaim
-> > > +	 */
-> > > +	if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
-> > > +		return true;
-> > > +
-> > >  	return false;
-> 
-> This seems not a proper fix. Checking watermark with high order has
-> another meaning that there is high order page or not. This isn't
-> what we want here.
+On 03/02/2016 07:33 AM, Joonsoo Kim wrote:
+>>
+>>                                    4.5-rc1     4.5-rc1
+>>                                     3-test      4-test
+>> Minor Faults                    106940795   106582816
+>> Major Faults                          829         813
+>> Swap Ins                              482         311
+>> Swap Outs                            6278        5598
+>> Allocation stalls                     128         184
+>> DMA allocs                            145          32
+>> DMA32 allocs                     74646161    74843238
+>> Normal allocs                    26090955    25886668
+>> Movable allocs                          0           0
+>> Direct pages scanned                32938       31429
+>> Kswapd pages scanned              2183166     2185293
+>> Kswapd pages reclaimed            2152359     2134389
+>> Direct pages reclaimed              32735       31234
+>> Kswapd efficiency                     98%         97%
+>> Kswapd velocity                  1243.877    1228.666
+>> Direct efficiency                     99%         99%
+>> Direct velocity                    18.767      17.671
+>> Percentage direct scans                1%          1%
+>> Zone normal velocity              299.981     291.409
+>> Zone dma32 velocity               962.522     954.928
+>> Zone dma velocity                   0.142       0.000
+>> Page writes by reclaim           6278.800    5598.600
+>> Page writes file                        0           0
+>> Page writes anon                     6278        5598
+>> Page reclaim immediate                 93          96
+>> Sector Reads                      4357114     4307161
+>> Sector Writes                    11053628    11053091
+>> Page rescued immediate                  0           0
+>> Slabs scanned                     1592829     1555770
+>> Direct inode steals                  1557        2025
+>> Kswapd inode steals                 46056       45418
+>> Kswapd skipped wait                     0           0
+>> THP fault alloc                       579         614
+>> THP collapse alloc                    304         324
+>> THP splits                              0           0
+>> THP fault fallback                    793         730
+>> THP collapse fail                      11          14
+>> Compaction stalls                    1013         959
+>> Compaction success                     92          69
+>> Compaction failures                   920         890
+>> Page migrate success               238457      662054
+>> Page migrate failure                23021       32846
+>> Compaction pages isolated          504695     1370326
+>> Compaction migrate scanned         661390     7025772
+>> Compaction free scanned          13476658    73302642
+>> Compaction cost                       262         762
+>>
+>> After this patch we see improvements in allocation success rate (especially for
+>> phase 3) along with increased compaction activity. The compaction stalls
+>> (direct compaction) in the interfering kernel builds (probably THP's) also
+>> decreased somewhat to kcompactd activity, yet THP alloc successes improved a
+>> bit.
+>
+> Why you did the test with THP? THP interferes result of main test so
+> it would be better not to enable it.
 
-Why not? Why should we retry the reclaim if we do not have >=order page
-available? Reclaim itself doesn't guarantee any of the freed pages will
-form the requested order. The ordering on the LRU lists is pretty much
-random wrt. pfn ordering. On the other hand if we have a page available
-which is just hidden by watermarks then it makes perfect sense to retry
-and free even order-0 pages.
+Hmm I've always left it enabled. It makes for a more realistic 
+interference and would also show unintended regressions in that closely 
+related area.
 
-> So, following fix is needed.
+> And, this patch increased compaction activity (10 times for migrate scanned)
+> may be due to resetting skip block information.
 
-> 'if (order)' check isn't needed. It is used to clarify the meaning of
-> this fix. You can remove it.
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1993894..8c80375 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3125,6 +3125,10 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->         if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->                 return false;
->  
-> +       /* To check whether compaction is available or not */
-> +       if (order)
-> +               order = 0;
-> +
+Note that kswapd compaction activity was completely non-existent for 
+reasons outlined in the changelog.
 
-This would enforce the order 0 wmark check which is IMHO not correct as
-per above.
+> Isn't is better to disable it
+> for this patch to work as similar as possible that kswapd does and re-enable it
+> on next patch? If something goes bad, it can simply be reverted.
+>
+> Look like it is even not mentioned in the description.
 
->         /*
->          * Keep reclaiming pages while there is a chance this will lead
->          * somewhere.  If none of the target zones can satisfy our allocation
-> 
-> > >  }
-> > >  
-> > > @@ -3281,11 +3293,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> > >  		goto noretry;
-> > >  
-> > >  	/*
-> > > -	 * Costly allocations might have made a progress but this doesn't mean
-> > > -	 * their order will become available due to high fragmentation so do
-> > > -	 * not reset the no progress counter for them
-> > > +	 * High order allocations might have made a progress but this doesn't
-> > > +	 * mean their order will become available due to high fragmentation so
-> > > +	 * do not reset the no progress counter for them
-> > >  	 */
-> > > -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
-> > > +	if (did_some_progress && !order)
-> > >  		no_progress_loops = 0;
-> > >  	else
-> > >  		no_progress_loops++;
-> 
-> This unconditionally increases no_progress_loops for high order
-> allocation, so, after 16 iterations, it will fail. If compaction isn't
-> enabled in Kconfig, 16 times reclaim attempt would not be sufficient
-> to make high order page. Should we consider this case also?
+Yeah skip block information is discussed in the next patch, which 
+mentions that it's being reset and why. I think it makes more sense, as 
+when kswapd reclaims from low watermark to high, potentially many 
+pageblocks have new free pages and the skip bits are obsolete. Next, 
+kcompactd is separate thread, so it doesn't stall allocations (or kswapd 
+reclaim) by its activity.
+Personally I hope that one day we can get rid of the skip bits 
+completely. They can make the stats look apparently nicer, but I think 
+their effect is nearly random.
 
-How many retries would help? I do not think any number will work
-reliably. Configurations without compaction enabled are asking for
-problems by definition IMHO. Relying on order-0 reclaim for high order
-allocations simply cannot work.
+>> @@ -3066,8 +3071,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>>    */
+>>   static bool kswapd_shrink_zone(struct zone *zone,
+>>   			       int classzone_idx,
+>> -			       struct scan_control *sc,
+>> -			       unsigned long *nr_attempted)
+>> +			       struct scan_control *sc)
+>>   {
+>>   	int testorder = sc->order;
+>
+> You can remove testorder completely.
 
--- 
-Michal Hocko
-SUSE Labs
+Hm right, thanks.
+
+>> -static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>> -							int *classzone_idx)
+>> +static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>>   {
+>>   	int i;
+>>   	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>> @@ -3166,9 +3155,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>>   	count_vm_event(PAGEOUTRUN);
+>>
+>>   	do {
+>> -		unsigned long nr_attempted = 0;
+>>   		bool raise_priority = true;
+>> -		bool pgdat_needs_compaction = (order > 0);
+>>
+>>   		sc.nr_reclaimed = 0;
+>>
+>> @@ -3203,7 +3190,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>>   				break;
+>>   			}
+>>
+>> -			if (!zone_balanced(zone, order, 0, 0)) {
+>> +			if (!zone_balanced(zone, order, true, 0, 0)) {
+>
+> Should we use highorder = true? We eventually skip to reclaim in the
+> kswapd_shrink_zone() when zone_balanced(,,false,,) is true.
+
+Hmm right. I probably thought that the value of end_zone -> 
+balanced_classzone_idx would be important when waking kcompactd, but 
+it's not used, so it's causing just some wasted CPU cycles.
+
+Thanks for the reviews!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
