@@ -1,110 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B373828E1
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 07:25:41 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l68so77713003wml.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 04:25:41 -0800 (PST)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A259828E1
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 07:27:40 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l68so82637626wml.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 04:27:39 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z5si4598663wmg.38.2016.03.02.04.25.39
+        by mx.google.com with ESMTPS id r187si4598352wmd.58.2016.03.02.04.27.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 04:25:40 -0800 (PST)
-Subject: Re: [PATCH v2 2/5] mm, compaction: introduce kcompactd
+        Wed, 02 Mar 2016 04:27:39 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
 References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
- <1454938691-2197-3-git-send-email-vbabka@suse.cz>
- <20160302060906.GA32695@js1304-P5Q-DELUXE>
+ <1454938691-2197-5-git-send-email-vbabka@suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D6DBC1.2030701@suse.cz>
-Date: Wed, 2 Mar 2016 13:25:37 +0100
+Message-ID: <56D6DC39.4020608@suse.cz>
+Date: Wed, 2 Mar 2016 13:27:37 +0100
 MIME-Version: 1.0
-In-Reply-To: <20160302060906.GA32695@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1454938691-2197-5-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
->> +		if (zone_watermark_ok(zone, cc.order, low_wmark_pages(zone),
->> +						cc.classzone_idx, 0)) {
->> +			success = true;
->> +			compaction_defer_reset(zone, cc.order, false);
->> +		} else if (cc.mode != MIGRATE_ASYNC &&
->> +						status == COMPACT_COMPLETE) {
->> +			defer_compaction(zone, cc.order);
->> +		}
-> 
-> We alerady set mode to MIGRATE_SYNC_LIGHT so this cc.mode check looks weird.
-> It would be better to change it and add some comment that we can
-> safely call defer_compaction() here.
-
-Right.
- 
->> +
->> +		VM_BUG_ON(!list_empty(&cc.freepages));
->> +		VM_BUG_ON(!list_empty(&cc.migratepages));
->> +	}
->> +
->> +	/*
->> +	 * Regardless of success, we are done until woken up next. But remember
->> +	 * the requested order/classzone_idx in case it was higher/tighter than
->> +	 * our current ones
->> +	 */
->> +	if (pgdat->kcompactd_max_order <= cc.order)
->> +		pgdat->kcompactd_max_order = 0;
->> +	if (pgdat->classzone_idx >= cc.classzone_idx)
->> +		pgdat->classzone_idx = pgdat->nr_zones - 1;
->> +}
-> 
-> Maybe, you intend to update kcompactd_classzone_idx.
-
-Oops, true. Thanks for the review!
-
-Here's a fixlet.
+A fixlet for things Joonsoo caught.
 
 ----8<----
 From: Vlastimil Babka <vbabka@suse.cz>
-Date: Wed, 2 Mar 2016 10:15:22 +0100
-Subject: mm-compaction-introduce-kcompactd-fix-3
+Date: Wed, 2 Mar 2016 11:50:16 +0100
+Subject: mm-kswapd-replace-kswapd-compaction-with-waking-up-kcompactd-fix
 
-Remove extraneous check for sync compaction before deferring.
-Correctly adjust kcompactd's classzone_idx instead of kswapd's.
+Change zone_balanced() check in balance_pgdat() to consider only base pages
+as that's the same what kswapd_shrink_zone() later does. So a zone that would
+be selected due to lack of high-order pages would not be reclaimed anyway,
+and just cause extra CPU churn.
+
+Also remove unnecessary variable testorder in kswapd_shrink_zone().
 
 Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ mm/vmscan.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index c03715ba65c7..9a605c3d4177 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1811,8 +1811,11 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 						cc.classzone_idx, 0)) {
- 			success = true;
- 			compaction_defer_reset(zone, cc.order, false);
--		} else if (cc.mode != MIGRATE_ASYNC &&
--						status == COMPACT_COMPLETE) {
-+		} else if (status == COMPACT_COMPLETE) {
-+			/*
-+			 * We use sync migration mode here, so we defer like
-+			 * sync direct compaction does.
-+			 */
- 			defer_compaction(zone, cc.order);
- 		}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b8478a737ef5..23bc7e643ad8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3073,7 +3073,6 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 			       int classzone_idx,
+ 			       struct scan_control *sc)
+ {
+-	int testorder = sc->order;
+ 	unsigned long balance_gap;
+ 	bool lowmem_pressure;
  
-@@ -1827,8 +1830,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+@@ -3094,7 +3093,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	 * reclaim is necessary
  	 */
- 	if (pgdat->kcompactd_max_order <= cc.order)
- 		pgdat->kcompactd_max_order = 0;
--	if (pgdat->classzone_idx >= cc.classzone_idx)
--		pgdat->classzone_idx = pgdat->nr_zones - 1;
-+	if (pgdat->kcompactd_classzone_idx >= cc.classzone_idx)
-+		pgdat->kcompactd_classzone_idx = pgdat->nr_zones - 1;
- }
+ 	lowmem_pressure = (buffer_heads_over_limit && is_highmem(zone));
+-	if (!lowmem_pressure && zone_balanced(zone, testorder, false,
++	if (!lowmem_pressure && zone_balanced(zone, sc->order, false,
+ 						balance_gap, classzone_idx))
+ 		return true;
  
- void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
+@@ -3109,7 +3108,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	 * waits.
+ 	 */
+ 	if (zone_reclaimable(zone) &&
+-	    zone_balanced(zone, testorder, false, 0, classzone_idx)) {
++	    zone_balanced(zone, sc->order, false, 0, classzone_idx)) {
+ 		clear_bit(ZONE_CONGESTED, &zone->flags);
+ 		clear_bit(ZONE_DIRTY, &zone->flags);
+ 	}
+@@ -3190,7 +3189,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 				break;
+ 			}
+ 
+-			if (!zone_balanced(zone, order, true, 0, 0)) {
++			if (!zone_balanced(zone, order, false, 0, 0)) {
+ 				end_zone = i;
+ 				break;
+ 			} else {
 -- 
 2.7.2
 
