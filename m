@@ -1,78 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D39186B0009
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 12:41:15 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id g6so51149503igt.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:41:15 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0145.hostedemail.com. [216.40.44.145])
-        by mx.google.com with ESMTPS id m8si7137175igv.95.2016.03.02.09.41.15
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8372F6B0009
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 13:47:37 -0500 (EST)
+Received: by mail-qk0-f179.google.com with SMTP id x1so86137191qkc.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 10:47:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f189si37224227qhc.12.2016.03.02.10.47.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 09:41:15 -0800 (PST)
-Date: Wed, 2 Mar 2016 12:41:10 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v4 4/7] arch, ftrace: For KASAN put hard/soft IRQ
- entries into separate sections
-Message-ID: <20160302124110.3769070a@gandalf.local.home>
-In-Reply-To: <ae0fd7e5bdabbea6ad3f164a3b21e05e6c26deea.1456504662.git.glider@google.com>
-References: <cover.1456504662.git.glider@google.com>
-	<ae0fd7e5bdabbea6ad3f164a3b21e05e6c26deea.1456504662.git.glider@google.com>
+        Wed, 02 Mar 2016 10:47:36 -0800 (PST)
+Date: Wed, 2 Mar 2016 19:47:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] mm: thp: Redefine default THP defrag behaviour
+ disable it by default
+Message-ID: <20160302184732.GC4946@redhat.com>
+References: <1456420339-29709-1-git-send-email-mgorman@techsingularity.net>
+ <20160225190144.GE1180@redhat.com>
+ <20160226103253.GA22450@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160226103253.GA22450@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 26 Feb 2016 17:48:44 +0100
-Alexander Potapenko <glider@google.com> wrote:
-
-> KASAN needs to know whether the allocation happens in an IRQ handler.
-> This lets us strip everything below the IRQ entry point to reduce the
-> number of unique stack traces needed to be stored.
+On Fri, Feb 26, 2016 at 01:32:53PM +0300, Kirill A. Shutemov wrote:
+> Could you elaborate on problems with rmap? I have looked into this deeply
+> yet.
 > 
-> Move the definition of __irq_entry to <linux/interrupt.h> so that the
-> users don't need to pull in <linux/ftrace.h>. Also introduce the
-> __softirq_entry macro which is similar to __irq_entry, but puts the
-> corresponding functions to the .softirqentry.text section.
+> Do you see anything what would prevent following basic scheme:
 > 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
+>  - Identify series of small pages as candidate for collapsing into
+>    a compound page. Not sure how difficult it would be. I guess it can be
+>    done by looking for adjacent pages which belong to the same anon_vma.
 
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Just like if there was no other process sharing them yes.
 
--- Steve
-
-> ---
-> v2: - per request from Steven Rostedt, moved the declarations of __softirq_entry
-> and __irq_entry to <linux/interrupt.h>
-> 
-> v3: - minor description changes
-> ---
->  arch/arm/kernel/vmlinux.lds.S        |  1 +
->  arch/arm64/kernel/vmlinux.lds.S      |  1 +
->  arch/blackfin/kernel/vmlinux.lds.S   |  1 +
->  arch/c6x/kernel/vmlinux.lds.S        |  1 +
->  arch/metag/kernel/vmlinux.lds.S      |  1 +
->  arch/microblaze/kernel/vmlinux.lds.S |  1 +
->  arch/mips/kernel/vmlinux.lds.S       |  1 +
->  arch/nios2/kernel/vmlinux.lds.S      |  1 +
->  arch/openrisc/kernel/vmlinux.lds.S   |  1 +
->  arch/parisc/kernel/vmlinux.lds.S     |  1 +
->  arch/powerpc/kernel/vmlinux.lds.S    |  1 +
->  arch/s390/kernel/vmlinux.lds.S       |  1 +
->  arch/sh/kernel/vmlinux.lds.S         |  1 +
->  arch/sparc/kernel/vmlinux.lds.S      |  1 +
->  arch/tile/kernel/vmlinux.lds.S       |  1 +
->  arch/x86/kernel/vmlinux.lds.S        |  1 +
->  include/asm-generic/vmlinux.lds.h    | 12 +++++++++++-
->  include/linux/ftrace.h               | 11 -----------
->  include/linux/interrupt.h            | 20 ++++++++++++++++++++
->  kernel/softirq.c                     |  2 +-
->  kernel/trace/trace_functions_graph.c |  1 +
->  21 files changed, 49 insertions(+), 13 deletions(-)
-> 
+>  - Setup migration entries for pte which maps these pages.
 >
+> 
+>  - Collapse small pages into compound page. IIUC, it only will be possible
+>    if these pages are not pinned.
+> 
+>  - Replace migration entries with ptes which point to subpages of the new
+>    compound page.
+> 
+>  - Scan over all vmas mapping this compound page, looking for VMA suitable
+>    for huge page. We cannot collapse it right away due lock inversion of
+>    anon_vma->rwsem vs. mmap_sem.
+> 
+>  - For found VMAs, collapse page table into PMD one VMA a time under
+>    down_write(mmap_sem).
+> 
+> Even if would fail to create any PMDs, we would reduce LRU pressure by
+> collapsing small pages into compound one.
+
+I see how your new refcounting simplifies things as we don't have to
+do create hugepmds immediately, but we still have to modify all ptes
+of all sharers, not just those belonging to the vma we collapsed (or
+we'd be effectively copying-on-collapse in turn losing the
+sharing).
+
+If we'd defer it and leave temporarily new THP and old 4k pages both
+allocated and independently mapped, a process running in the old ptes
+could gup_fast and a process in the new ptes could gup_fast too and
+we'd up with double memory usage, so we'd need a way to redirect
+gup_fast in the old pte to the new THP, so the future pins goes to the
+new THP always. Some new linkage between old ptes and new ptes would
+also be needed to keep walking it slowly and it shall be invalidated
+during COWs.
+
+Doing it incrementally and not updating all ptes at once wouldn't be
+straightforward. Doing it not incrementally would mean paying the cost
+of updating (in the worst case) up to hundred thousand ptes at full
+CPU usage for a later gain we're not sure about. Said that I think
+it's worthy goal to achieve, especially if we remove compaction from
+direct reclaim.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
