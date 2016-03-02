@@ -1,95 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 61A33828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:21:28 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id a9so12056097pat.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:21:28 -0800 (PST)
-Received: from smtpbg302.qq.com (smtpbg302.qq.com. [184.105.206.27])
-        by mx.google.com with ESMTPS id 65si58495954pfc.6.2016.03.02.06.21.27
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 519EB828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:22:12 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id ts10so199356147obc.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:22:12 -0800 (PST)
+Received: from mail-ob0-x22c.google.com (mail-ob0-x22c.google.com. [2607:f8b0:4003:c01::22c])
+        by mx.google.com with ESMTPS id g5si30542618oif.122.2016.03.02.06.22.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 06:21:27 -0800 (PST)
-Subject: Re: kswapd consumes 100% CPU when highest zone is small
-References: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
-From: chen feng <puck.chen@foxmail.com>
-Message-ID: <56D6F6D7.50103@foxmail.com>
-Date: Wed, 2 Mar 2016 22:21:11 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Mar 2016 06:22:11 -0800 (PST)
+Received: by mail-ob0-x22c.google.com with SMTP id fz5so67465474obc.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:22:11 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <56D6F41D.9080107@suse.cz>
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
+	<20160302063322.GB32695@js1304-P5Q-DELUXE>
+	<56D6BACB.7060005@suse.cz>
+	<CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+	<56D6F41D.9080107@suse.cz>
+Date: Wed, 2 Mar 2016 23:22:11 +0900
+Message-ID: <CAAmzW4PGgYkL9xnCXgSQ=8kW0sJkaYyrxenb_XKHcW1wDGMEyw@mail.gmail.com>
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
+ up kcompactd
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerry Lee <leisurelysw24@gmail.com>, linux-mm@kvack.org, puck.chen@huawei.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+2016-03-02 23:09 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+> On 03/02/2016 02:57 PM, Joonsoo Kim wrote:
+>>
+>> 2016-03-02 19:04 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+>>>
+>>> On 03/02/2016 07:33 AM, Joonsoo Kim wrote:
+>>>>
+>>>>
+>>>>
+>>>> Why you did the test with THP? THP interferes result of main test so
+>>>> it would be better not to enable it.
+>>>
+>>>
+>>>
+>>> Hmm I've always left it enabled. It makes for a more realistic
+>>> interference
+>>> and would also show unintended regressions in that closely related area.
+>>
+>>
+>> But, it makes review hard because complex analysis is needed to
+>> understand the result.
+>>
+>> Following is the example.
+>>
+>> "The compaction stalls
+>> (direct compaction) in the interfering kernel builds (probably THP's) also
+>> decreased somewhat to kcompactd activity, yet THP alloc successes improved
+>> a
+>> bit."
+>>
+>> So, why do we need this comment to understand effect of this patch? If you
+>> did
+>> a test without THP, it would not be necessary.
+>
+>
+> I see. Next time I'll do a run with THP disabled.
+>
+>>>> And, this patch increased compaction activity (10 times for migrate
+>>>> scanned)
+>>>> may be due to resetting skip block information.
+>>>
+>>>
+>>>
+>>> Note that kswapd compaction activity was completely non-existent for
+>>> reasons
+>>> outlined in the changelog.
+>>>>
+>>>> Isn't is better to disable it
+>>>> for this patch to work as similar as possible that kswapd does and
+>>>> re-enable it
+>>>> on next patch? If something goes bad, it can simply be reverted.
+>>>>
+>>>> Look like it is even not mentioned in the description.
+>>>
+>>>
+>>>
+>>> Yeah skip block information is discussed in the next patch, which
+>>> mentions
+>>> that it's being reset and why. I think it makes more sense, as when
+>>> kswapd
+>>
+>>
+>> Yes, I know.
+>> What I'd like to say here is that you need to care current_is_kswapd() in
+>> this patch. This patch unintentionally change the back ground compaction
+>> thread
+>> behaviour to restart compaction by every 64 trials because calling
+>> curret_is_kswapd()
+>
+>> by kcompactd would return false and is treated as direct reclaim.
+>
+> Oh, you mean this path to reset the skip bits. I see. But if skip bits are
+> already reset by kswapd when waking kcompactd, then effect of another (rare)
+> reset in kcompactd itself will be minimal?
 
+If you care current_is_kswapd() in this patch properly (properly means change
+like "current_is_kcompactd()), reset in kswapd would not
+happen because, compact_blockskip_flush would not be set by kcompactd.
 
-On 2016/3/2 14:20, Jerry Lee wrote:
-> Hi,
-> 
-> I have a x86_64 system with 2G RAM using linux-3.12.x.  During copying
-> large
-> files (e.g. 100GB), kswapd easily consumes 100% CPU until the file is
-> deleted
-> or the page cache is dropped.  With setting the min_free_kbytes from 16384
-> to
-> 65536, the symptom is mitigated but I can't totally get rid of the problem.
-> 
-> After some trial and error, I found that highest zone is always unbalanced
-> with
-> order-0 page request so that pgdat_blanaced() continuously return false and
-> kswapd can't sleep.
-> 
-> Here's the watermarks (min_free_kbytes = 65536) in my system:
-> Node 0, zone      DMA
->   pages free     2167
->         min      138
->         low      172
->         high     207
->         scanned  0
->         spanned  4095
->         present  3996
->         managed  3974
-> 
-> Node 0, zone    DMA32
->   pages free     215375
->         min      16226
->         low      20282
->         high     24339
->         scanned  0
->         spanned  1044480
->         present  490971
->         managed  464223
-> 
-> Node 0, zone   Normal
->   pages free     7
->         min      18
->         low      22
->         high     27
->         scanned  0
->         spanned  1536
->         present  1536
->         managed  523
-> 
-> Besides, when the kswapd crazily spins, the value of the following entries
-> in vmstat increases quickly even when I stop copying file:
-> 
-> pgalloc_dma 17719
-> pgalloc_dma32 3262823
-> slabs_scanned 937728
-> kswapd_high_wmark_hit_quickly 54333233
-> pageoutrun 54333235
-> 
-> Is there anything I could do to totally get rid of the problem?
-> \
-Yes, I have the same issue on arm64 platform.
+In this case, patch 5 would have it's own meaning so cannot be folded.
 
-I think you can increase the normal ZONE size. And I think there will be a memory alloc process
-in your system which tigger the kswapd too frequently.
+Thanks.
 
-You can set this process to no-kswapd flag will also solve this issue.
-> Thanks
-> 
+>> Result of patch 4
+>> and patch 5 would be same.
+>
+>
+> It's certainly possible to fold patch 5 into 4. I posted them separately
+> mainly to make review more feasible. But the differences in results are
+> already quite small.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
