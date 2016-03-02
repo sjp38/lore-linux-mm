@@ -1,92 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B126B0009
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 18:43:42 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id m82so141445895oif.1
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 15:43:42 -0800 (PST)
-Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
-        by mx.google.com with ESMTPS id q203si27209389oih.142.2016.03.01.15.43.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Mar 2016 15:43:42 -0800 (PST)
-Received: by mail-ob0-x22d.google.com with SMTP id rt7so10792713obb.3
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 15:43:41 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <56D55359.3080809@suse.cz>
-References: <20160128061914.32541.97351.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20160201214213.2bdf9b4e.akpm@linux-foundation.org>
-	<56D43AAB.2010802@suse.cz>
-	<CAPcyv4i587ow4yEFN+81rd=_kVL3YV1daU7cDM4V4YCAhDMRVA@mail.gmail.com>
-	<56D4DCFE.9040806@suse.cz>
-	<CAPcyv4j1JbpuoiurRe7hbnBbxthK3wtuoQXzwQ7rAcc+2MYV9A@mail.gmail.com>
-	<56D55359.3080809@suse.cz>
-Date: Tue, 1 Mar 2016 15:43:41 -0800
-Message-ID: <CAPcyv4iw+gR3x+=bb6VkfBWxm2E9KXAkzMAZ81_kD1kOACOYXg@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: CONFIG_NR_ZONES_EXTENDED
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E9B6B0009
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2016 19:34:35 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id 4so44061893pfd.1
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2016 16:34:35 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ny6si53783466pab.59.2016.03.01.16.34.34
+        for <linux-mm@kvack.org>;
+        Tue, 01 Mar 2016 16:34:34 -0800 (PST)
+Subject: [PATCH v2] mm: exclude ZONE_DEVICE from GFP_ZONE_TABLE
 From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Date: Tue, 01 Mar 2016 16:32:04 -0800
+Message-ID: <20160302002829.38211.89593.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+To: akpm@linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Mar 1, 2016 at 12:31 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 03/01/2016 03:06 AM, Dan Williams wrote:
->>
->> On Mon, Feb 29, 2016 at 4:06 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>
->>> On 29.2.2016 18:55, Dan Williams wrote:
->>>>
->>>> On Mon, Feb 29, 2016 at 4:33 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>>>
->>>>> On 02/02/2016 06:42 AM, Andrew Morton wrote:
->>>>
->>>>
->>>> In this case it's already part of the equation because:
->>>>
->>>> config ZONE_DEVICE
->>>>        depends on MEMORY_HOTPLUG
->>>>        depends on MEMORY_HOTREMOVE
->>>>
->>>> ...and those in turn depend on SPARSEMEM.
->>>
->>>
->>> Fine, but then SPARSEMEM_VMEMMAP should be still an available subvariant
->>> of
->>> SPARSEMEM with SECTION_WIDTH=0.
->>
->>
->> It should be, but not for the ZONE_DEVICE case.  ZONE_DEVICE depends
->> on x86_64 which means ZONE_DEVICE also implies SPARSEMEM_VMEMMAP
->> since:
->>
->> config ARCH_SPARSEMEM_ENABLE
->>         def_bool y
->>         depends on X86_64 || NUMA || X86_32 || X86_32_NON_STANDARD
->>         select SPARSEMEM_STATIC if X86_32
->>         select SPARSEMEM_VMEMMAP_ENABLE if X86_64
->>
->> Now, if a future patch wants to reclaim page flags space for other
->> usages outside of ZONE_DEVICE it can do the work to handle the
->> SPARSEMEM_VMEMMAP=n case.  I don't see a reason to fold that
->> distinction into the current patch given the current constraints.
->
->
-> OK so that IUUC shows that x86_64 should be always fine without decreasing
-> the range for NODES_SHIFT? That's basically my point - since there's a
-> configuration where things don't fit (32bit?), the patch broadly decreases
-> range for NODES_SHIFT for everyone, right?
+ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
+mm zones that are bumping up against the current maximum limit of 4
+zones, i.e. 2 bits in page->flags for the GFP_ZONE_TABLE.
 
-So I went hunting for the x86_64 config that sent me off in this
-direction in the first place, but I can't reproduce it.  I'm indeed
-able to fit ZONE_DEVICE + ZONE_DMA + NODES_SHIFT(10) without
-overflowing page flags.  Maybe we reduced some usage page->flags usage
-between 4.3 and 4.5 and I missed it?
+The GFP_ZONE_TABLE poses an interesting constraint since
+include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
+build.  We need to be careful to only build the table for zones that
+have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
+purpose.  This patch does not attempt to solve the problem of adding a
+new zone that also has a corresponding GFP_ flag.
 
-In any event, you're right we can indeed fit ZONE_DEVICE into the
-current MAXSMP definition.  I'll respin the patch.
+Vlastimil points out that ZONE_DEVICE, by depending on x86_64 and
+SPARSEMEM_VMEMMAP implies that SECTIONS_WIDTH is zero.  In other words
+even though ZONE_DEVICE does not fit in GFP_ZONE_TABLE it is free to
+consume another bit in page->flags (expand ZONES_WIDTH) with room to
+spare.
 
-Thanks for probing on this!
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
+Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Reported-by: Mark <markk@clara.co.uk>
+Reported-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+Changes since v1 [1]:
+
+1/ Drop NR_ZONES_EXTENDED and its adjustments to NODES_SHIFT, we have
+   enough room in page flags given the current config constraints of
+   ZONE_DEVICE that imply that SECTIONS_WIDTH is zero. (Vlastimil).
+
+2/ Fold in the 80 column fixes from
+   mm-config_nr_zones_extended-fix.patch (Andrew)
+
+[1]: http://marc.info/?l=linux-mm&m=145396199024296&w=2
+
+ include/linux/gfp.h               |   33 ++++++++++++++++++++-------------
+ include/linux/page-flags-layout.h |    2 ++
+ mm/Kconfig                        |    2 --
+ 3 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index af1f2b24bbe4..dddd4767bd2f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -329,22 +329,29 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+  *
+- * ZONES_SHIFT must be <= 2 on 32 bit platforms.
++ * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
+  */
+ 
+-#if 16 * ZONES_SHIFT > BITS_PER_LONG
+-#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
++#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
++/* ZONE_DEVICE is not a valid GFP zone specifier */
++#define GFP_ZONES_SHIFT 2
++#else
++#define GFP_ZONES_SHIFT ZONES_SHIFT
++#endif
++
++#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
++#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+ #endif
+ 
+ #define GFP_ZONE_TABLE ( \
+-	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+-	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
+-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
+-	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
+-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
+-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
++	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)				       \
++	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)		       \
++	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)	       \
++	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		       \
++	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
++	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)    \
++	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)\
++	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)\
+ )
+ 
+ /*
+@@ -369,8 +376,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+ 	enum zone_type z;
+ 	int bit = (__force int) (flags & GFP_ZONEMASK);
+ 
+-	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+-					 ((1 << ZONES_SHIFT) - 1);
++	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
++					 ((1 << GFP_ZONES_SHIFT) - 1);
+ 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+ 	return z;
+ }
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+index da523661500a..77b078c103b2 100644
+--- a/include/linux/page-flags-layout.h
++++ b/include/linux/page-flags-layout.h
+@@ -17,6 +17,8 @@
+ #define ZONES_SHIFT 1
+ #elif MAX_NR_ZONES <= 4
+ #define ZONES_SHIFT 2
++#elif MAX_NR_ZONES <= 8
++#define ZONES_SHIFT 3
+ #else
+ #error ZONES_SHIFT -- too many zones configured adjust calculation
+ #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 03cbfa072f42..664fa2416909 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -652,8 +652,6 @@ config IDLE_PAGE_TRACKING
+ 
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
+-	default !ZONE_DMA
+-	depends on !ZONE_DMA
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on X86_64 #arch_add_memory() comprehends device memory
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
