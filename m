@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E48D6B0009
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 12:36:43 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l68so90689662wml.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:36:43 -0800 (PST)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id g73si3693937wmg.53.2016.03.02.09.36.41
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D39186B0009
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 12:41:15 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id g6so51149503igt.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:41:15 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0145.hostedemail.com. [216.40.44.145])
+        by mx.google.com with ESMTPS id m8si7137175igv.95.2016.03.02.09.41.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 09:36:41 -0800 (PST)
-Received: by mail-wm0-f46.google.com with SMTP id p65so88115567wmp.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 09:36:41 -0800 (PST)
-Date: Wed, 2 Mar 2016 18:36:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: kswapd consumes 100% CPU when highest zone is small
-Message-ID: <20160302173639.GD26701@dhcp22.suse.cz>
-References: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
+        Wed, 02 Mar 2016 09:41:15 -0800 (PST)
+Date: Wed, 2 Mar 2016 12:41:10 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v4 4/7] arch, ftrace: For KASAN put hard/soft IRQ
+ entries into separate sections
+Message-ID: <20160302124110.3769070a@gandalf.local.home>
+In-Reply-To: <ae0fd7e5bdabbea6ad3f164a3b21e05e6c26deea.1456504662.git.glider@google.com>
+References: <cover.1456504662.git.glider@google.com>
+	<ae0fd7e5bdabbea6ad3f164a3b21e05e6c26deea.1456504662.git.glider@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerry Lee <leisurelysw24@gmail.com>
-Cc: linux-mm@kvack.org
+To: Alexander Potapenko <glider@google.com>
+Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 02-03-16 14:20:38, Jerry Lee wrote:
-> Hi,
-> 
-> I have a x86_64 system with 2G RAM using linux-3.12.x.  During copying
-> large
-> files (e.g. 100GB), kswapd easily consumes 100% CPU until the file is
-> deleted
-> or the page cache is dropped.  With setting the min_free_kbytes from 16384
-> to
-> 65536, the symptom is mitigated but I can't totally get rid of the problem.
-> 
-> After some trial and error, I found that highest zone is always unbalanced
-> with
-> order-0 page request so that pgdat_blanaced() continuously return false and
-> kswapd can't sleep.
-> 
-> Here's the watermarks (min_free_kbytes = 65536) in my system:
-> Node 0, zone      DMA
->   pages free     2167
->         min      138
->         low      172
->         high     207
->         scanned  0
->         spanned  4095
->         present  3996
->         managed  3974
-> 
-> Node 0, zone    DMA32
->   pages free     215375
->         min      16226
->         low      20282
->         high     24339
->         scanned  0
->         spanned  1044480
->         present  490971
->         managed  464223
-> 
-> Node 0, zone   Normal
->   pages free     7
->         min      18
->         low      22
->         high     27
->         scanned  0
->         spanned  1536
->         present  1536
->         managed  523
+On Fri, 26 Feb 2016 17:48:44 +0100
+Alexander Potapenko <glider@google.com> wrote:
 
-The zone Normal is just too small and that confuses the reclaim path.
+> KASAN needs to know whether the allocation happens in an IRQ handler.
+> This lets us strip everything below the IRQ entry point to reduce the
+> number of unique stack traces needed to be stored.
+> 
+> Move the definition of __irq_entry to <linux/interrupt.h> so that the
+> users don't need to pull in <linux/ftrace.h>. Also introduce the
+> __softirq_entry macro which is similar to __irq_entry, but puts the
+> corresponding functions to the .softirqentry.text section.
+> 
+> Signed-off-by: Alexander Potapenko <glider@google.com>
 
-> 
-> Besides, when the kswapd crazily spins, the value of the following entries
-> in vmstat increases quickly even when I stop copying file:
-> 
-> pgalloc_dma 17719
-> pgalloc_dma32 3262823
-> slabs_scanned 937728
-> kswapd_high_wmark_hit_quickly 54333233
-> pageoutrun 54333235
-> 
-> Is there anything I could do to totally get rid of the problem?
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
 
-I would try to sacrifice those few megs and get rid of zone normal
-completely. AFAIR mem=4G should limit the max_pfn to 4G so DMA32 should
-cover the shole memory.
--- 
-Michal Hocko
-SUSE Labs
+-- Steve
+
+> ---
+> v2: - per request from Steven Rostedt, moved the declarations of __softirq_entry
+> and __irq_entry to <linux/interrupt.h>
+> 
+> v3: - minor description changes
+> ---
+>  arch/arm/kernel/vmlinux.lds.S        |  1 +
+>  arch/arm64/kernel/vmlinux.lds.S      |  1 +
+>  arch/blackfin/kernel/vmlinux.lds.S   |  1 +
+>  arch/c6x/kernel/vmlinux.lds.S        |  1 +
+>  arch/metag/kernel/vmlinux.lds.S      |  1 +
+>  arch/microblaze/kernel/vmlinux.lds.S |  1 +
+>  arch/mips/kernel/vmlinux.lds.S       |  1 +
+>  arch/nios2/kernel/vmlinux.lds.S      |  1 +
+>  arch/openrisc/kernel/vmlinux.lds.S   |  1 +
+>  arch/parisc/kernel/vmlinux.lds.S     |  1 +
+>  arch/powerpc/kernel/vmlinux.lds.S    |  1 +
+>  arch/s390/kernel/vmlinux.lds.S       |  1 +
+>  arch/sh/kernel/vmlinux.lds.S         |  1 +
+>  arch/sparc/kernel/vmlinux.lds.S      |  1 +
+>  arch/tile/kernel/vmlinux.lds.S       |  1 +
+>  arch/x86/kernel/vmlinux.lds.S        |  1 +
+>  include/asm-generic/vmlinux.lds.h    | 12 +++++++++++-
+>  include/linux/ftrace.h               | 11 -----------
+>  include/linux/interrupt.h            | 20 ++++++++++++++++++++
+>  kernel/softirq.c                     |  2 +-
+>  kernel/trace/trace_functions_graph.c |  1 +
+>  21 files changed, 49 insertions(+), 13 deletions(-)
+> 
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
