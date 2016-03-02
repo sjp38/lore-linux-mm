@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C038E828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:36:19 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id w128so90495059pfb.2
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:36:19 -0800 (PST)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id b8si42878485pfd.34.2016.03.02.06.36.18
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 8245F828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:38:45 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id fz5so67952929obc.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:38:45 -0800 (PST)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id f10si4897466obt.98.2016.03.02.06.38.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 06:36:18 -0800 (PST)
-Received: by mail-pa0-x232.google.com with SMTP id fl4so133895882pad.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:36:18 -0800 (PST)
-Date: Wed, 2 Mar 2016 23:34:15 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: How to avoid printk() delay caused by cond_resched() ?
-Message-ID: <20160302143415.GB614@swordfish>
-References: <201603022101.CAH73907.OVOOMFHFFtQJSL@I-love.SAKURA.ne.jp>
- <20160302133810.GB22171@pathway.suse.cz>
+        Wed, 02 Mar 2016 06:38:44 -0800 (PST)
+Received: by mail-oi0-x232.google.com with SMTP id c203so61670975oia.2
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:38:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160302133810.GB22171@pathway.suse.cz>
+In-Reply-To: <56D6DC13.8060008@huawei.com>
+References: <56D6DC13.8060008@huawei.com>
+Date: Wed, 2 Mar 2016 23:38:44 +0900
+Message-ID: <CAAmzW4OV4J_zGh2MSCqE0-x6Z_BopB+ucSVLV6kp53Cw4obkfg@mail.gmail.com>
+Subject: Re: a question about slub in function __slab_free()
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, sergey.senozhatsky@gmail.com, jack@suse.com, tj@kernel.org, kyle@kernel.org, davej@codemonkey.org.uk, calvinowens@fb.com, akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On (03/02/16 14:38), Petr Mladek wrote:
-[..]
-> > 
-> > CONFIG_PREEMPT_NONE=y
-> > # CONFIG_PREEMPT_VOLUNTARY is not set
-> > # CONFIG_PREEMPT is not set
-> > CONFIG_PREEMPT_COUNT=y
-> 
-> preempt_disable() / preempt_enable() would do the job.
-> The question is where to put it. If you are concerned about
-> the delay, you might want to disable preemption around
-> the whole locked area, so that it works reasonable also
-> in the preemptive kernel.
+2016-03-02 21:26 GMT+09:00 Xishi Qiu <qiuxishi@huawei.com>:
+> ___slab_alloc()
+>         deactivate_slab()
+>                 add_full(s, n, page);
+> The page will be added to full list and the frozen is 0, right?
+>
+> __slab_free()
+>         prior = page->freelist;  // prior is NULL
+>         was_frozen = new.frozen;  // was_frozen is 0
+>         ...
+>                 /*
+>                  * Slab was on no list before and will be
+>                  * partially empty
+>                  * We can defer the list move and instead
+>                  * freeze it.
+>                  */
+>                 new.frozen = 1;
+>         ...
+>
+> I don't understand why "Slab was on no list before"?
 
-another question is why cond_resched() is suddenly so expensive?
-my guess is because of OOM, so we switch to tasks that potentially
-do direct reclaims, etc. if so, then even offloaded printk will take
-a significant amount of time to print the logs to the consoles; just
-because it does cond_resched() after every call_console_drivers().
+add_full() is defined only for CONFIG_SLUB_DEBUG.
+And, actual add happens if slub_debug=u is enabled.
+In other cases, fully used slab isn't attached on any list.
 
-
-> I am looking forward to have the console printing offloaded
-> into the workqueues. Then printk() will become consistently
-> "fast" operation and will cause less surprises like this.
-
-I'm all for it. I need this rework badly. If Jan is too busy at
-the moment, which I surely can understand, then I'll be happy to
-help ("pick up the patches". please, don't get me wrong).
-
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
