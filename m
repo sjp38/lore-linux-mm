@@ -1,149 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E2936828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:01:34 -0500 (EST)
-Received: by mail-qg0-f46.google.com with SMTP id t4so12649180qge.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:01:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z81si36027603qhc.87.2016.03.02.06.01.33
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C83B828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:06:16 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l68so86970741wml.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:06:15 -0800 (PST)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id sc8si43151829wjb.216.2016.03.02.06.06.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 06:01:34 -0800 (PST)
-Date: Wed, 2 Mar 2016 22:01:29 +0800
-From: Eryu Guan <eguan@redhat.com>
-Subject: Re: [PATCH] list: kill list_force_poison()
-Message-ID: <20160302140129.GQ11419@eguan.usersys.redhat.com>
-References: <20160301214432.4473.76919.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 02 Mar 2016 06:06:14 -0800 (PST)
+Received: by mail-wm0-f66.google.com with SMTP id 1so9811377wmg.2
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:06:14 -0800 (PST)
+Date: Wed, 2 Mar 2016 15:06:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160302140611.GI26686@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+ <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
+ <20160302021954.GA22355@js1304-P5Q-DELUXE>
+ <20160302095056.GB26701@dhcp22.suse.cz>
+ <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160301214432.4473.76919.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, xfs@oss.sgi.com
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, Mar 01, 2016 at 01:44:32PM -0800, Dan Williams wrote:
-> Given we have uninitialized list_heads being passed to list_add() it
-> will always be the case that those uninitialized values randomly trigger
-> the poison value.  Especially since a list_add() operation will seed the
-> stack with the poison value for later stack allocations to trip over.
-> For example, see these two false positive reports:
+On Wed 02-03-16 22:32:09, Joonsoo Kim wrote:
+> 2016-03-02 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > On Wed 02-03-16 11:19:54, Joonsoo Kim wrote:
+> >> On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
+> > [...]
+> >> > > + /*
+> >> > > +  * OK, so the watermak check has failed. Make sure we do all the
+> >> > > +  * retries for !costly high order requests and hope that multiple
+> >> > > +  * runs of compaction will generate some high order ones for us.
+> >> > > +  *
+> >> > > +  * XXX: ideally we should teach the compaction to try _really_ hard
+> >> > > +  * if we are in the retry path - something like priority 0 for the
+> >> > > +  * reclaim
+> >> > > +  */
+> >> > > + if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
+> >> > > +         return true;
+> >> > > +
+> >> > >   return false;
+> >>
+> >> This seems not a proper fix. Checking watermark with high order has
+> >> another meaning that there is high order page or not. This isn't
+> >> what we want here.
+> >
+> > Why not? Why should we retry the reclaim if we do not have >=order page
+> > available? Reclaim itself doesn't guarantee any of the freed pages will
+> > form the requested order. The ordering on the LRU lists is pretty much
+> > random wrt. pfn ordering. On the other hand if we have a page available
+> > which is just hidden by watermarks then it makes perfect sense to retry
+> > and free even order-0 pages.
 > 
->  list_add attempted on force-poisoned entry
->  WARNING: at lib/list_debug.c:34
->  [..]
->  NIP [c00000000043c390] __list_add+0xb0/0x150
->  LR [c00000000043c38c] __list_add+0xac/0x150
->  Call Trace:
->  [c000000fb5fc3320] [c00000000043c38c] __list_add+0xac/0x150 (unreliable)
->  [c000000fb5fc33a0] [c00000000081b454] __down+0x4c/0xf8
->  [c000000fb5fc3410] [c00000000010b6f8] down+0x68/0x70
->  [c000000fb5fc3450] [d0000000201ebf4c] xfs_buf_lock+0x4c/0x150 [xfs]
-> 
->  list_add attempted on force-poisoned entry(0000000000000500),
->   new->next == d0000000059ecdb0, new->prev == 0000000000000500
->  WARNING: at lib/list_debug.c:33
->  [..]
->  NIP [c00000000042db78] __list_add+0xa8/0x140
->  LR [c00000000042db74] __list_add+0xa4/0x140
->  Call Trace:
->  [c0000004c749f620] [c00000000042db74] __list_add+0xa4/0x140 (unreliable)
->  [c0000004c749f6b0] [c0000000008010ec] rwsem_down_read_failed+0x6c/0x1a0
->  [c0000004c749f760] [c000000000800828] down_read+0x58/0x60
->  [c0000004c749f7e0] [d000000005a1a6bc] xfs_log_commit_cil+0x7c/0x600 [xfs]
-> 
-> Reported-by: Eryu Guan <eguan@redhat.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: <xfs@oss.sgi.com>
-> Fixes: commit 5c2c2587b132 ("mm, dax, pmem: introduce {get|put}_dev_pagemap() for dax-gup")
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> If we have >= order page available, we would not reach here. We would
+> just allocate it.
 
-With this patch applied, I don't see the warning after 1000 iterations
-(of course, the warning has been removed :-)).
+not really, we can still be under the low watermark. Note that the
+target for the should_reclaim_retry watermark check includes also the
+reclaimable memory.
+ 
+> And, should_reclaim_retry() is not just for reclaim. It is also for
+> retrying compaction.
+> 
+> That watermark check is to check further reclaim/compaction
+> is meaningful. And, for high order case, if there is enough freepage,
+> compaction could make high order page even if there is no high order
+> page now.
+> 
+> Adding freeable memory and checking watermark with it doesn't help
+> in this case because number of high order page isn't changed with it.
+> 
+> I just did quick review to your patches so maybe I am wrong.
+> Am I missing something?
+
+The core idea behind should_reclaim_retry is to check whether the
+reclaiming all the pages would help to get over the watermark and there
+is at least one >= order page. Then it really makes sense to retry. As
+the compaction has already was performed before this is called we should
+have created some high order pages already. The decay guarantees that we
+eventually trigger the OOM killer after some attempts.
+
+If the compaction can backoff and ignore our requests then we are
+screwed of course and that should be addressed imho at the compaction
+layer. Maybe we can tell the compaction to try harder but I would like
+to understand why this shouldn't be a default behavior for !costly
+orders.
+ 
+[...]
+> >> > > @@ -3281,11 +3293,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >> > >           goto noretry;
+> >> > >
+> >> > >   /*
+> >> > > -  * Costly allocations might have made a progress but this doesn't mean
+> >> > > -  * their order will become available due to high fragmentation so do
+> >> > > -  * not reset the no progress counter for them
+> >> > > +  * High order allocations might have made a progress but this doesn't
+> >> > > +  * mean their order will become available due to high fragmentation so
+> >> > > +  * do not reset the no progress counter for them
+> >> > >    */
+> >> > > - if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+> >> > > + if (did_some_progress && !order)
+> >> > >           no_progress_loops = 0;
+> >> > >   else
+> >> > >           no_progress_loops++;
+> >>
+> >> This unconditionally increases no_progress_loops for high order
+> >> allocation, so, after 16 iterations, it will fail. If compaction isn't
+> >> enabled in Kconfig, 16 times reclaim attempt would not be sufficient
+> >> to make high order page. Should we consider this case also?
+> >
+> > How many retries would help? I do not think any number will work
+> > reliably. Configurations without compaction enabled are asking for
+> > problems by definition IMHO. Relying on order-0 reclaim for high order
+> > allocations simply cannot work.
+> 
+> At least, reset no_progress_loops when did_some_progress. High
+> order allocation up to PAGE_ALLOC_COSTLY_ORDER is as important
+> as order 0. And, reclaim something would increase probability of
+> compaction success.
+
+This is something I still do not understand. Why would reclaiming
+random order-0 pages help compaction? Could you clarify this please?
+
+> Why do we limit retry as 16 times with no evidence of potential
+> impossibility of making high order page?
+
+If we tried to compact 16 times without any progress then this sounds
+like a sufficient evidence to me. Well, this number is somehow arbitrary
+but the main point is to limit it to _some_ number, if we can show that
+a larger value would work better then we can update it of course.
+
+> And, 16 retry looks not good to me because compaction could defer
+> actual doing up to 64 times.
+
+OK, this is something that needs to be handled in a better way. The
+primary question would be why to defer the compaction for <=
+PAGE_ALLOC_COSTLY_ORDER requests in the first place. I guess I do see
+why it makes sense it for the best effort mode of operation but !costly
+orders should be trying much harder as they are nofail, no?
 
 Thanks!
-Eryu
-
-P.S.
-With the RFC patch posted eariler, warnings are still triggered.
-
-> ---
->  include/linux/list.h |   11 -----------
->  kernel/memremap.c    |    9 +++++++--
->  lib/list_debug.c     |    9 ---------
->  3 files changed, 7 insertions(+), 22 deletions(-)
-> 
-> diff --git a/include/linux/list.h b/include/linux/list.h
-> index 30cf4200ab40..5356f4d661a7 100644
-> --- a/include/linux/list.h
-> +++ b/include/linux/list.h
-> @@ -113,17 +113,6 @@ extern void __list_del_entry(struct list_head *entry);
->  extern void list_del(struct list_head *entry);
->  #endif
->  
-> -#ifdef CONFIG_DEBUG_LIST
-> -/*
-> - * See devm_memremap_pages() which wants DEBUG_LIST=y to assert if one
-> - * of the pages it allocates is ever passed to list_add()
-> - */
-> -extern void list_force_poison(struct list_head *entry);
-> -#else
-> -/* fallback to the less strict LIST_POISON* definitions */
-> -#define list_force_poison list_del
-> -#endif
-> -
->  /**
->   * list_replace - replace old entry by new one
->   * @old : the element to be replaced
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index b981a7b023f0..778191e3e887 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -351,8 +351,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
->  	for_each_device_pfn(pfn, page_map) {
->  		struct page *page = pfn_to_page(pfn);
->  
-> -		/* ZONE_DEVICE pages must never appear on a slab lru */
-> -		list_force_poison(&page->lru);
-> +		/*
-> +		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-> +		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
-> +		 * freed or placed on a driver-private list.  Seed the
-> +		 * storage with LIST_POISON* values.
-> +		 */
-> +		list_del(&page->lru);
->  		page->pgmap = pgmap;
->  	}
->  	devres_add(dev, page_map);
-> diff --git a/lib/list_debug.c b/lib/list_debug.c
-> index 3345a089ef7b..3859bf63561c 100644
-> --- a/lib/list_debug.c
-> +++ b/lib/list_debug.c
-> @@ -12,13 +12,6 @@
->  #include <linux/kernel.h>
->  #include <linux/rculist.h>
->  
-> -static struct list_head force_poison;
-> -void list_force_poison(struct list_head *entry)
-> -{
-> -	entry->next = &force_poison;
-> -	entry->prev = &force_poison;
-> -}
-> -
->  /*
->   * Insert a new entry between two known consecutive entries.
->   *
-> @@ -30,8 +23,6 @@ void __list_add(struct list_head *new,
->  			      struct list_head *prev,
->  			      struct list_head *next)
->  {
-> -	WARN(new->next == &force_poison || new->prev == &force_poison,
-> -		"list_add attempted on force-poisoned entry\n");
->  	WARN(next->prev != prev,
->  		"list_add corruption. next->prev should be "
->  		"prev (%p), but was %p. (next=%p).\n",
-> 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
