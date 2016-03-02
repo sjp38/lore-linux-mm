@@ -1,212 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B0DB2828EE
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 08:57:51 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id fz5so66751339obc.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 05:57:51 -0800 (PST)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id e8si8910771oek.62.2016.03.02.05.57.50
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E2936828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:01:34 -0500 (EST)
+Received: by mail-qg0-f46.google.com with SMTP id t4so12649180qge.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:01:34 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z81si36027603qhc.87.2016.03.02.06.01.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 05:57:50 -0800 (PST)
-Received: by mail-ob0-x22e.google.com with SMTP id rt7so26468960obb.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 05:57:50 -0800 (PST)
+        Wed, 02 Mar 2016 06:01:34 -0800 (PST)
+Date: Wed, 2 Mar 2016 22:01:29 +0800
+From: Eryu Guan <eguan@redhat.com>
+Subject: Re: [PATCH] list: kill list_force_poison()
+Message-ID: <20160302140129.GQ11419@eguan.usersys.redhat.com>
+References: <20160301214432.4473.76919.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <56D6BACB.7060005@suse.cz>
-References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
-	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
-	<20160302063322.GB32695@js1304-P5Q-DELUXE>
-	<56D6BACB.7060005@suse.cz>
-Date: Wed, 2 Mar 2016 22:57:50 +0900
-Message-ID: <CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
- up kcompactd
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160301214432.4473.76919.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, xfs@oss.sgi.com
 
-2016-03-02 19:04 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 03/02/2016 07:33 AM, Joonsoo Kim wrote:
->>>
->>>
->>>                                    4.5-rc1     4.5-rc1
->>>                                     3-test      4-test
->>> Minor Faults                    106940795   106582816
->>> Major Faults                          829         813
->>> Swap Ins                              482         311
->>> Swap Outs                            6278        5598
->>> Allocation stalls                     128         184
->>> DMA allocs                            145          32
->>> DMA32 allocs                     74646161    74843238
->>> Normal allocs                    26090955    25886668
->>> Movable allocs                          0           0
->>> Direct pages scanned                32938       31429
->>> Kswapd pages scanned              2183166     2185293
->>> Kswapd pages reclaimed            2152359     2134389
->>> Direct pages reclaimed              32735       31234
->>> Kswapd efficiency                     98%         97%
->>> Kswapd velocity                  1243.877    1228.666
->>> Direct efficiency                     99%         99%
->>> Direct velocity                    18.767      17.671
->>> Percentage direct scans                1%          1%
->>> Zone normal velocity              299.981     291.409
->>> Zone dma32 velocity               962.522     954.928
->>> Zone dma velocity                   0.142       0.000
->>> Page writes by reclaim           6278.800    5598.600
->>> Page writes file                        0           0
->>> Page writes anon                     6278        5598
->>> Page reclaim immediate                 93          96
->>> Sector Reads                      4357114     4307161
->>> Sector Writes                    11053628    11053091
->>> Page rescued immediate                  0           0
->>> Slabs scanned                     1592829     1555770
->>> Direct inode steals                  1557        2025
->>> Kswapd inode steals                 46056       45418
->>> Kswapd skipped wait                     0           0
->>> THP fault alloc                       579         614
->>> THP collapse alloc                    304         324
->>> THP splits                              0           0
->>> THP fault fallback                    793         730
->>> THP collapse fail                      11          14
->>> Compaction stalls                    1013         959
->>> Compaction success                     92          69
->>> Compaction failures                   920         890
->>> Page migrate success               238457      662054
->>> Page migrate failure                23021       32846
->>> Compaction pages isolated          504695     1370326
->>> Compaction migrate scanned         661390     7025772
->>> Compaction free scanned          13476658    73302642
->>> Compaction cost                       262         762
->>>
->>> After this patch we see improvements in allocation success rate
->>> (especially for
->>> phase 3) along with increased compaction activity. The compaction stalls
->>> (direct compaction) in the interfering kernel builds (probably THP's)
->>> also
->>> decreased somewhat to kcompactd activity, yet THP alloc successes
->>> improved a
->>> bit.
->>
->>
->> Why you did the test with THP? THP interferes result of main test so
->> it would be better not to enable it.
->
->
-> Hmm I've always left it enabled. It makes for a more realistic interference
-> and would also show unintended regressions in that closely related area.
+On Tue, Mar 01, 2016 at 01:44:32PM -0800, Dan Williams wrote:
+> Given we have uninitialized list_heads being passed to list_add() it
+> will always be the case that those uninitialized values randomly trigger
+> the poison value.  Especially since a list_add() operation will seed the
+> stack with the poison value for later stack allocations to trip over.
+> For example, see these two false positive reports:
+> 
+>  list_add attempted on force-poisoned entry
+>  WARNING: at lib/list_debug.c:34
+>  [..]
+>  NIP [c00000000043c390] __list_add+0xb0/0x150
+>  LR [c00000000043c38c] __list_add+0xac/0x150
+>  Call Trace:
+>  [c000000fb5fc3320] [c00000000043c38c] __list_add+0xac/0x150 (unreliable)
+>  [c000000fb5fc33a0] [c00000000081b454] __down+0x4c/0xf8
+>  [c000000fb5fc3410] [c00000000010b6f8] down+0x68/0x70
+>  [c000000fb5fc3450] [d0000000201ebf4c] xfs_buf_lock+0x4c/0x150 [xfs]
+> 
+>  list_add attempted on force-poisoned entry(0000000000000500),
+>   new->next == d0000000059ecdb0, new->prev == 0000000000000500
+>  WARNING: at lib/list_debug.c:33
+>  [..]
+>  NIP [c00000000042db78] __list_add+0xa8/0x140
+>  LR [c00000000042db74] __list_add+0xa4/0x140
+>  Call Trace:
+>  [c0000004c749f620] [c00000000042db74] __list_add+0xa4/0x140 (unreliable)
+>  [c0000004c749f6b0] [c0000000008010ec] rwsem_down_read_failed+0x6c/0x1a0
+>  [c0000004c749f760] [c000000000800828] down_read+0x58/0x60
+>  [c0000004c749f7e0] [d000000005a1a6bc] xfs_log_commit_cil+0x7c/0x600 [xfs]
+> 
+> Reported-by: Eryu Guan <eguan@redhat.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: <xfs@oss.sgi.com>
+> Fixes: commit 5c2c2587b132 ("mm, dax, pmem: introduce {get|put}_dev_pagemap() for dax-gup")
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-But, it makes review hard because complex analysis is needed to
-understand the result.
+With this patch applied, I don't see the warning after 1000 iterations
+(of course, the warning has been removed :-)).
 
-Following is the example.
+Thanks!
+Eryu
 
-"The compaction stalls
-(direct compaction) in the interfering kernel builds (probably THP's) also
-decreased somewhat to kcompactd activity, yet THP alloc successes improved a
-bit."
+P.S.
+With the RFC patch posted eariler, warnings are still triggered.
 
-So, why do we need this comment to understand effect of this patch? If you did
-a test without THP, it would not be necessary.
-
->> And, this patch increased compaction activity (10 times for migrate
->> scanned)
->> may be due to resetting skip block information.
->
->
-> Note that kswapd compaction activity was completely non-existent for reasons
-> outlined in the changelog.
->> Isn't is better to disable it
->> for this patch to work as similar as possible that kswapd does and
->> re-enable it
->> on next patch? If something goes bad, it can simply be reverted.
->>
->> Look like it is even not mentioned in the description.
->
->
-> Yeah skip block information is discussed in the next patch, which mentions
-> that it's being reset and why. I think it makes more sense, as when kswapd
-
-Yes, I know.
-What I'd like to say here is that you need to care current_is_kswapd() in
-this patch. This patch unintentionally change the back ground compaction thread
-behaviour to restart compaction by every 64 trials because calling
-curret_is_kswapd()
-by kcompactd would return false and is treated as direct reclaim.
-Result of patch 4
-and patch 5 would be same.
-
-Thanks.
-
-> reclaims from low watermark to high, potentially many pageblocks have new
-> free pages and the skip bits are obsolete. Next, kcompactd is separate
-> thread, so it doesn't stall allocations (or kswapd reclaim) by its activity.
-> Personally I hope that one day we can get rid of the skip bits completely.
-> They can make the stats look apparently nicer, but I think their effect is
-> nearly random.
->
->>> @@ -3066,8 +3071,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat,
->>> int order, long remaining,
->>>    */
->>>   static bool kswapd_shrink_zone(struct zone *zone,
->>>                                int classzone_idx,
->>> -                              struct scan_control *sc,
->>> -                              unsigned long *nr_attempted)
->>> +                              struct scan_control *sc)
->>>   {
->>>         int testorder = sc->order;
->>
->>
->> You can remove testorder completely.
->
->
-> Hm right, thanks.
->
->>> -static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->>> -                                                       int
->>> *classzone_idx)
->>> +static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->>>   {
->>>         int i;
->>>         int end_zone = 0;       /* Inclusive.  0 = ZONE_DMA */
->>> @@ -3166,9 +3155,7 @@ static unsigned long balance_pgdat(pg_data_t
->>> *pgdat, int order,
->>>         count_vm_event(PAGEOUTRUN);
->>>
->>>         do {
->>> -               unsigned long nr_attempted = 0;
->>>                 bool raise_priority = true;
->>> -               bool pgdat_needs_compaction = (order > 0);
->>>
->>>                 sc.nr_reclaimed = 0;
->>>
->>> @@ -3203,7 +3190,7 @@ static unsigned long balance_pgdat(pg_data_t
->>> *pgdat, int order,
->>>                                 break;
->>>                         }
->>>
->>> -                       if (!zone_balanced(zone, order, 0, 0)) {
->>> +                       if (!zone_balanced(zone, order, true, 0, 0)) {
->>
->>
->> Should we use highorder = true? We eventually skip to reclaim in the
->> kswapd_shrink_zone() when zone_balanced(,,false,,) is true.
->
->
-> Hmm right. I probably thought that the value of end_zone ->
-> balanced_classzone_idx would be important when waking kcompactd, but it's
-> not used, so it's causing just some wasted CPU cycles.
->
-> Thanks for the reviews!
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> ---
+>  include/linux/list.h |   11 -----------
+>  kernel/memremap.c    |    9 +++++++--
+>  lib/list_debug.c     |    9 ---------
+>  3 files changed, 7 insertions(+), 22 deletions(-)
+> 
+> diff --git a/include/linux/list.h b/include/linux/list.h
+> index 30cf4200ab40..5356f4d661a7 100644
+> --- a/include/linux/list.h
+> +++ b/include/linux/list.h
+> @@ -113,17 +113,6 @@ extern void __list_del_entry(struct list_head *entry);
+>  extern void list_del(struct list_head *entry);
+>  #endif
+>  
+> -#ifdef CONFIG_DEBUG_LIST
+> -/*
+> - * See devm_memremap_pages() which wants DEBUG_LIST=y to assert if one
+> - * of the pages it allocates is ever passed to list_add()
+> - */
+> -extern void list_force_poison(struct list_head *entry);
+> -#else
+> -/* fallback to the less strict LIST_POISON* definitions */
+> -#define list_force_poison list_del
+> -#endif
+> -
+>  /**
+>   * list_replace - replace old entry by new one
+>   * @old : the element to be replaced
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index b981a7b023f0..778191e3e887 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -351,8 +351,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>  	for_each_device_pfn(pfn, page_map) {
+>  		struct page *page = pfn_to_page(pfn);
+>  
+> -		/* ZONE_DEVICE pages must never appear on a slab lru */
+> -		list_force_poison(&page->lru);
+> +		/*
+> +		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+> +		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+> +		 * freed or placed on a driver-private list.  Seed the
+> +		 * storage with LIST_POISON* values.
+> +		 */
+> +		list_del(&page->lru);
+>  		page->pgmap = pgmap;
+>  	}
+>  	devres_add(dev, page_map);
+> diff --git a/lib/list_debug.c b/lib/list_debug.c
+> index 3345a089ef7b..3859bf63561c 100644
+> --- a/lib/list_debug.c
+> +++ b/lib/list_debug.c
+> @@ -12,13 +12,6 @@
+>  #include <linux/kernel.h>
+>  #include <linux/rculist.h>
+>  
+> -static struct list_head force_poison;
+> -void list_force_poison(struct list_head *entry)
+> -{
+> -	entry->next = &force_poison;
+> -	entry->prev = &force_poison;
+> -}
+> -
+>  /*
+>   * Insert a new entry between two known consecutive entries.
+>   *
+> @@ -30,8 +23,6 @@ void __list_add(struct list_head *new,
+>  			      struct list_head *prev,
+>  			      struct list_head *next)
+>  {
+> -	WARN(new->next == &force_poison || new->prev == &force_poison,
+> -		"list_add attempted on force-poisoned entry\n");
+>  	WARN(next->prev != prev,
+>  		"list_add corruption. next->prev should be "
+>  		"prev (%p), but was %p. (next=%p).\n",
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
