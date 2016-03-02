@@ -1,132 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 07280828F2
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:11:57 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id xx9so85790419obc.2
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:11:57 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ge5si4898697obb.82.2016.03.02.06.11.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 06:11:56 -0800 (PST)
-Subject: Re: How to avoid printk() delay caused by cond_resched() ?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201603022101.CAH73907.OVOOMFHFFtQJSL@I-love.SAKURA.ne.jp>
-	<20160302133810.GB22171@pathway.suse.cz>
-In-Reply-To: <20160302133810.GB22171@pathway.suse.cz>
-Message-Id: <201603022311.CGC64089.HOOLJFVSMFQOtF@I-love.SAKURA.ne.jp>
-Date: Wed, 2 Mar 2016 23:11:30 +0900
-Mime-Version: 1.0
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C13828F2
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 09:14:29 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id 63so5356210pfe.3
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 06:14:29 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 76si58453615pfb.3.2016.03.02.06.14.28
+        for <linux-mm@kvack.org>;
+        Wed, 02 Mar 2016 06:14:28 -0800 (PST)
+Date: Wed, 2 Mar 2016 09:14:26 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Support for 1GB THP
+Message-ID: <20160302141426.GM3730@linux.intel.com>
+References: <20160301070911.GD3730@linux.intel.com>
+ <20160301102541.GD27666@quack.suse.cz>
+ <20160301214403.GJ3730@linux.intel.com>
+ <1456871764.2369.59.camel@HansenPartnership.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1456871764.2369.59.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pmladek@suse.com
-Cc: sergey.senozhatsky@gmail.com, jack@suse.com, tj@kernel.org, kyle@kernel.org, davej@codemonkey.org.uk, calvinowens@fb.com, akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-Petr Mladek wrote:
-> On Wed 2016-03-02 21:01:03, Tetsuo Handa wrote:
-> > I have a question about "printk: set may_schedule for some of
-> > console_trylock() callers" in linux-next.git.
-> > 
-> > I'm trying to dump information of all threads which might be relevant
-> > to stalling inside memory allocator. But it seems to me that since this
-> > patch changed to allow calling cond_resched() from printk() if it is
-> > safe to do so, it is now possible that the thread which invoked the OOM
-> > killer can sleep for minutes with the oom_lock mutex held when my dump is
-> > in progress. I want to release oom_lock mutex as soon as possible so
-> > that other threads can call out_of_memory() to get TIF_MEMDIE and exit
-> > their allocations.
-> > 
-> > So, how can I prevent printk() triggered by out_of_memory() from sleeping
-> > for minutes with oom_lock mutex held? Guard it with preempt_disable() /
-> > preempt_enable() ? Guard it with rcu_read_lock() / rcu_read_unlock() ? 
-> >
+On Tue, Mar 01, 2016 at 02:36:04PM -0800, James Bottomley wrote:
+> On Tue, 2016-03-01 at 16:44 -0500, Matthew Wilcox wrote:
+> > I think it's both.  I heard from one customer who calculated that 
+> > with a 6TB server, mapping every page into a process would take ~24MB 
+> > of page tables.  Multiply that by the 50,000 processes they expect to
+> > run on a server of that size consumes 1.2TB of DRAM.  Using 1GB pages
+> > reduces that by a factor of 512, down to 2GB.
 > 
-> preempt_disable() / preempt_enable() would do the job.
+> This sounds a bit implausible:
 
-I see. Thank you.
-
-> The question is where to put it. If you are concerned about
-> the delay, you might want to disable preemption around
-> the whole locked area, so that it works reasonable also
-> in the preemptive kernel.
-> 
-
-We had a similar problem in the past. I'll again propose
-http://lkml.kernel.org/r/201509191605.CAF13520.QVSFHLtFJOMOOF@I-love.SAKURA.ne.jp .
-
-> I am looking forward to have the console printing offloaded
-> into the workqueues. Then printk() will become consistently
-> "fast" operation and will cause less surprises like this.
-> 
-
-That's a good news. I was wishing that there were a dedicated kernel
-thread which does printk() operation. While at it, I ask for an API
-which waits for printk buffer to be flushed (something like below) so that
-a watchdog thread which might dump thousands of threads from sleepable
-context (like my dump) can avoid "** XXX printk messages dropped **"
-messages.
-
-----------
-diff --git a/include/linux/console.h b/include/linux/console.h
-index ea731af..11e936c 100644
---- a/include/linux/console.h
-+++ b/include/linux/console.h
-@@ -147,6 +147,7 @@ extern int unregister_console(struct console *);
- extern struct console *console_drivers;
- extern void console_lock(void);
- extern int console_trylock(void);
-+extern void wait_console_flushed(unsigned long timeout);
- extern void console_unlock(void);
- extern void console_conditional_schedule(void);
- extern void console_unblank(void);
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 9917f69..2eb60df 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -121,6 +121,15 @@ static int __down_trylock_console_sem(unsigned long ip)
- 	up(&console_sem);\
- } while (0)
- 
-+static int __down_timeout_console_sem(unsigned long timeout, unsigned long ip)
-+{
-+	if (down_timeout(&console_sem, timeout))
-+		return 1;
-+	mutex_acquire(&console_lock_dep_map, 0, 1, ip);
-+	return 0;
-+}
-+#define down_timeout_console_sem(timeout) __down_timeout_console_sem((timeout), _RET_IP_)
-+
- /*
-  * This is used for debugging the mess that is the VT code by
-  * keeping track if we have the console semaphore held. It's
-@@ -2125,6 +2134,21 @@ int console_trylock(void)
- }
- EXPORT_SYMBOL(console_trylock);
- 
-+void wait_console_flushed(unsigned long timeout)
-+{
-+	might_sleep();
-+
-+	if (down_timeout_console_sem(timeout))
-+		return;
-+	if (console_suspended) {
-+		up_console_sem();
-+		return;
-+	}
-+	console_locked = 1;
-+	console_may_schedule = 1;
-+	console_unlock();
-+}
-+
- int is_console_locked(void)
- {
- 	return console_locked;
-----------
-
-> Best Regards,
-> Petr
-> 
+Well, that's the customer workload.  They have terabytes of data, and they
+want to map all of it into all 50k processes.  I know it's not how I use
+my machine, but that's customers for you ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
