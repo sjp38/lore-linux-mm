@@ -1,130 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B849A6B0266
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 12:45:08 -0500 (EST)
-Received: by mail-lb0-f177.google.com with SMTP id cf7so16276687lbb.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 09:45:08 -0800 (PST)
-Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
-        by mx.google.com with ESMTPS id d191si9254131lfg.204.2016.03.03.09.45.06
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BD06B0268
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 12:45:57 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id p65so631308wmp.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 09:45:57 -0800 (PST)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id wh1si6495783wjb.106.2016.03.03.09.45.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Mar 2016 09:45:06 -0800 (PST)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1abXJB-0001ni-EC
-	for linux-mm@kvack.org; Thu, 03 Mar 2016 18:45:05 +0100
-Received: from 178.167.174.162.threembb.ie ([178.167.174.162])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 18:45:05 +0100
-Received: from hyc by 178.167.174.162.threembb.ie with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 18:45:05 +0100
-From: Howard Chu <hyc@symas.com>
-Subject: Re: [RFC 0/2] New =?utf-8?b?TUFQX1BNRU1fQVdBUkU=?= mmap flag
-Date: Thu, 3 Mar 2016 17:38:57 +0000 (UTC)
-Message-ID: <loom.20160303T183139-827@post.gmane.org>
-References: <x49egc3c8gf.fsf@segfault.boston.devel.redhat.com> <CAPcyv4jUkMikW_x1EOTHXH4GC5DkPieL=sGd0-ajZqmG6C7DEg@mail.gmail.com> <x49a8mrc7rn.fsf@segfault.boston.devel.redhat.com> <CAPcyv4hMJ_+o2hYU7xnKEWUcKpcPVd66e2KChwL96Qxxk2R8iQ@mail.gmail.com> <x49a8mqgni5.fsf@segfault.boston.devel.redhat.com> <20160224225623.GL14668@dastard> <x49y4a8iwpy.fsf@segfault.boston.devel.redhat.com> <x49twkwiozu.fsf@segfault.boston.devel.redhat.com> <20160225201517.GA30721@dastard> <x49io1cik45.fsf@segfault.boston.devel.redhat.com> <20160225222705.GD30721@dastard> <CAPcyv4jYXN0qJdvgv1yP+Wi6W+=RRk2QP225okHtqnXAMWihFQ@mail.gmail.com> <CAJ6LpRrVpHjPuRMRA2VuQLDQabQZfVAyUitaYM7hg0b11u1KVg@mail.gmail.com> <56D2C92C.4060903@plexistor.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Mar 2016 09:45:56 -0800 (PST)
+Received: by mail-wm0-x22b.google.com with SMTP id n186so626521wmn.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 09:45:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160303174015.GG19139@leverpostej>
+References: <1457024068-2236-1-git-send-email-mark.rutland@arm.com>
+	<CAG_fn=WAfu4oD1Qb1xUnX765RpUznWm1y+FKYqqiM8VO53F+Ag@mail.gmail.com>
+	<20160303174015.GG19139@leverpostej>
+Date: Thu, 3 Mar 2016 18:45:55 +0100
+Message-ID: <CAG_fn=VBOqPSwhKy2OCj7cgM=XaD338L=UfPDcg9X3tCwc6B_g@mail.gmail.com>
+Subject: Re: [PATCHv2 0/3] KASAN: clean stale poison upon cold re-entry to kernel
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, mingo@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, catalin.marinas@arm.com, lorenzo.pieralisi@arm.com, peterz@infradead.org, will.deacon@arm.com, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Boaz Harrosh <boaz <at> plexistor.com> writes:
+On Thu, Mar 3, 2016 at 6:40 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> Hi,
+>
+> On Thu, Mar 03, 2016 at 06:17:31PM +0100, Alexander Potapenko wrote:
+>> Please replace "ASAN" with "KASAN".
+>>
+>> On Thu, Mar 3, 2016 at 5:54 PM, Mark Rutland <mark.rutland@arm.com> wrot=
+e:
+>> > Functions which the compiler has instrumented for ASAN place poison on
+>> > the stack shadow upon entry and remove this poison prior to returning.
+>> >
+>> > In some cases (e.g. hotplug and idle), CPUs may exit the kernel a numb=
+er
+>> > of levels deep in C code. If there are any instrumented functions on
+>> > this critical path, these will leave portions of the idle thread stack
+>> > shadow poisoned.
+>> >
+>> > If a CPU returns to the kernel via a different path (e.g. a cold entry=
+),
+>> > then depending on stack frame layout subsequent calls to instrumented
+>> > functions may use regions of the stack with stale poison, resulting in
+>> > (spurious) KASAN splats to the console.
+>> >
+>> > Contemporary GCCs always add stack shadow poisoning when ASAN is
+>> > enabled, even when asked to not instrument a function [1], so we can't
+>> > simply annotate functions on the critical path to avoid poisoning.
+>> >
+>> > Instead, this series explicitly removes any stale poison before it can
+>> > be hit. In the common hotplug case we clear the entire stack shadow in
+>> > common code, before a CPU is brought online.
+>> >
+>> > On architectures which perform a cold return as part of cpu idle may
+>> > retain an architecture-specific amount of stack contents. To retain th=
+e
+>> > poison for this retained context, the arch code must call the core KAS=
+AN
+>> > code, passing a "watermark" stack pointer value beyond which shadow wi=
+ll
+>> > be cleared. Architectures which don't perform a cold return as part of
+>> > idle do not need any additional code.
+>
+> For the above, and the rest of the series, ASAN consistently refers to
+> the compiler AddressSanitizer feature, and KASAN consistently refers to
+> the Linux-specific infrastructure. A simple s/[^K]ASAN/KASAN/ would
+> arguably be wrong (e.g. when referring to GCC behaviour above).
+I don't think there's been any convention about the compiler feature
+name, we usually talked about ASan as a userspace tool and KASAN as a
+kernel-space one, although they share the compiler part.
 
-> 
-> On 02/26/2016 12:04 PM, Thanumalayan Sankaranarayana Pillai wrote:
-> > On Thu, Feb 25, 2016 at 10:02 PM, Dan Williams <dan.j.williams <at>
-intel.com> wrote:
-> >> [ adding Thanu ]
-> >>
-> >>> Very few applications actually care about atomic sector writes.
-> >>> Databases are probably the only class of application that really do
-> >>> care about both single sector and multi-sector atomic write
-> >>> behaviour, and many of them can be configured to assume single
-> >>> sector writes can be torn.
-> >>>
-> >>> Torn user data writes have always been possible, and so pmem does
-> >>> not introduce any new semantics that applications have to handle.
-> >>>
-> > 
-> > I know about BTT and DAX only at a conceptual level and hence do not
-understand
-> > this mailing thread fully. But I can provide examples of important
-applications
-> > expecting atomicity at a 512B or a smaller granularity. Here is a list:
-> > 
-> > (1) LMDB [1] that Dan mentioned, which expects "linear writes" (i.e., don't
-> > need atomicity, but need the first byte to be written before the second
-byte)
-> > 
-> > (2) PostgreSQL expects atomicity [2]
-> > 
-> > (3) SQLite depends on linear writes [3] (we were unable to find these
-> > dependencies during our testing, however). Also, PSOW in SQLite is not
-relevant
-> > to this discussion as I understand it; PSOW deals with corruption of data
-> > *around* the actual written bytes.
-> > 
-> > (4) We found that ZooKeeper depends on atomicity during our testing, but
-we did
-> > not contact the ZooKeeper developers about this. Some details in our
-paper [4].
-> > 
-> > It is tempting to assume that applications do not use the concept of disk
-> > sectors and deal with only file-system blocks (which are not atomic in
-> > practice), and take measures to deal with the non-atomic file-system blocks.
-> > But, in reality, applications seem to assume that 512B (more or less)
-sectors
-> > are atomic or linear, and build their consistency mechanisms around that.
-> > 
-> 
-> This all discussion is a shock to me. where were these guys hiding, under
-a rock?
-> 
-> In the NFS world you can get not torn sectors but torn words. You may have
-> reorder of writes, you may have data holes the all deal. Until you get back
-> a successful sync nothing is guarantied. It is not only a client
-> crash but also a network breach, and so on. So you never know what can happen.
-> 
-> So are you saying all these applications do not run on NFS?
-
-Speaking for LMDB: LMDB is entirely dependent on mmap, and the coherence of
-a unified buffer cache. None of this is supported on NFS, so NFS has never
-been a concern for us. We explicitly document that LMDB cannot be used over NFS.
-
-Speaking more generally, you're talking nonsense. NFS by default transmits
-*pages* over UDP - datagrams are all-or-nothing, you can't get torn words.
-Likewise, NFS over TCP means individual pages are transmitted with
-individual bytes in order within a page.
-
-> Thanks
-> Boaz
-> 
-> > [1] http://www.openldap.org/list~s/openldap-devel/201410/msg00004.html
-> > [2] http://www.postgresql.org/docs/9.5/static/wal-internals.html , "To deal
-> > with the case where pg_control is corrupt" ...
-> > [3] https://www.sqlite.org/atomiccommit.html , "SQLite does always
-assume that
-> > a sector write is linear" ...
-> > [4] http://research.cs.wisc.edu/wind/Publications/alice-osdi14.pdf
-> > 
-> > Regards,
-> > Thanu
-> > _______________________________________________
-> > Linux-nvdimm mailing list
-> > Linux-nvdimm <at> lists.01.org
-> > https://lists.01.org/mailman/listinfo/linux-nvdimm
-> > 
---
-  -- Howard Chu
-  CTO, Symas Corp.           http://www.symas.com
-  Director, Highland Sun     http://highlandsun.com/hyc/
-  Chief Architect, OpenLDAP  http://www.openldap.org/project/
+> If there is a this needs rework, then I'm happy to s/[^K]ASAN/ASan/ to
+> follow the usual ASan naming convention and avoid confusion. Otherwise,
+> spinning a v3 is simply churn.
+I don't insist on changing this, I should've chimed in before.
+Feel free to retain the above patch description.
+> Thanks,
+> Mark.
 
 
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
+leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
