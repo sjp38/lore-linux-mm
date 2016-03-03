@@ -1,190 +1,343 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D316B025B
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 17:27:07 -0500 (EST)
-Received: by mail-io0-f173.google.com with SMTP id l127so43680425iof.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 14:27:07 -0800 (PST)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id d7si499561igo.56.2016.03.03.14.27.06
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 473D76B025E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 17:50:18 -0500 (EST)
+Received: by mail-wm0-f45.google.com with SMTP id n186so10878446wmn.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 14:50:18 -0800 (PST)
+Received: from smtp5-g21.free.fr (smtp5-g21.free.fr. [212.27.42.5])
+        by mx.google.com with ESMTPS id jo9si737112wjb.100.2016.03.03.14.50.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 14:27:06 -0800 (PST)
-Received: by mail-ig0-x229.google.com with SMTP id y8so30759714igp.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 14:27:06 -0800 (PST)
+        Thu, 03 Mar 2016 14:50:17 -0800 (PST)
+Date: Thu, 3 Mar 2016 23:49:56 +0100
+From: Pierre Moreau <pierre.morrow@free.fr>
+Subject: Re: [Nouveau] RFC: [PATCH] x86/kmmio: fix mmiotrace for hugepages
+Message-ID: <20160303224956.GA1487@pmoreau.org>
+References: <1456966991-6861-1-git-send-email-nouveau@karolherbst.de>
 MIME-Version: 1.0
-In-Reply-To: <56D8777F.1080703@oracle.com>
-References: <1456944849-21869-1-git-send-email-khalid.aziz@oracle.com>
- <CAGRGNgXH1P8Syz_08ZBfR2FZ5CQKghesHakiG56o4DD+_B+gQg@mail.gmail.com> <56D8777F.1080703@oracle.com>
-From: Julian Calaby <julian.calaby@gmail.com>
-Date: Fri, 4 Mar 2016 09:26:46 +1100
-Message-ID: <CAGRGNgWCpJpXNO9Q=UXc6ec-V78PTFownVuedbPfnHyG8BQMoA@mail.gmail.com>
-Subject: Re: [PATCH] sparc64: Add support for Application Data Integrity (ADI)
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="VbJkn9YxBvnuCH5J"
+Content-Disposition: inline
+In-Reply-To: <1456966991-6861-1-git-send-email-nouveau@karolherbst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: "David S. Miller" <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, zhenzhang.zhang@huawei.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, Arnd Bergmann <arnd@arndb.de>, sparclinux <sparclinux@vger.kernel.org>, rob.gardner@oracle.com, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, Konstantin Khlebnikov <koct9i@gmail.com>, oleg@redhat.com, Greg Thelen <gthelen@google.com>, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andy Lutomirski <luto@kernel.org>, ebiederm@xmission.com, Benjamin Segall <bsegall@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, dave@stgolabs.net, Alexey Dobriyan <adobriyan@gmail.com>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Karol Herbst <nouveau@karolherbst.de>
+Cc: linux-kernel@vger.kernel.org, nouveau@lists.freedesktop.org, rostedt@goodmis.org, linux-mm@kvack.org, mingo@redhat.com, linux-x86_64@vger.kernel.org
 
-Hi Khalid,
 
-On Fri, Mar 4, 2016 at 4:42 AM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
-> On 03/02/2016 06:33 PM, Julian Calaby wrote:
->>
->> Hi Khalid,
->>
->> A couple of other comments:
->>
->> On Thu, Mar 3, 2016 at 5:54 AM, Khalid Aziz <khalid.aziz@oracle.com>
->> wrote:
->>>
->>>
->>> Enable Application Data Integrity (ADI) support in the sparc
->>> kernel for applications to use ADI in userspace. ADI is a new
->>> feature supported on sparc M7 and newer processors. ADI is supported
->>> for data fetches only and not instruction fetches. This patch adds
->>> prctl commands to enable and disable ADI (TSTATE.mcde), return ADI
->>> parameters to userspace, enable/disable MCD (Memory Corruption
->>> Detection) on selected memory ranges and enable TTE.mcd in PTEs. It
->>> also adds handlers for all traps related to MCD. ADI is not enabled
->>> by default for any task and a task must explicitly enable ADI
->>> (TSTATE.mcde), turn MCD on on a memory range and set version tag
->>> for ADI to be effective for the task. This patch adds support for
->>> ADI for hugepages only. Addresses passed into system calls must be
->>> non-ADI tagged addresses.
->>>
->>> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
->>> ---
->>> NOTES: ADI is a new feature added to M7 processor to allow hardware
->>>          to catch rogue accesses to memory. An app can enable ADI on
->>>          its data pages, set version tags on them and use versioned
->>>          addresses (bits 63-60 of the address contain a version tag)
->>>          to access the data pages. If a rogue app attempts to access
->>>          ADI enabled data pages, its access is blocked and processor
->>>          generates an exception. Enabling this functionality for all
->>>          data pages of an app requires adding infrastructure to save
->>>          version tags for any data pages that get swapped out and
->>>          restoring those tags when pages are swapped back in. In this
->>>          first implementation I am enabling ADI for hugepages only
->>>          since these pages are locked in memory and hence avoid the
->>>          issue of saving and restoring tags. Once this core functionality
->>>          is stable, ADI for other memory pages can be enabled more
->>>          easily.
->>>
->>>   Documentation/prctl/sparc_adi.txt     |  62 ++++++++++
->>>   Documentation/sparc/adi.txt           | 206
->>> +++++++++++++++++++++++++++++++
->>>   arch/sparc/Kconfig                    |  12 ++
->>>   arch/sparc/include/asm/hugetlb.h      |  14 +++
->>>   arch/sparc/include/asm/hypervisor.h   |   2 +
->>>   arch/sparc/include/asm/mmu_64.h       |   1 +
->>>   arch/sparc/include/asm/pgtable_64.h   |  15 +++
->>>   arch/sparc/include/asm/processor_64.h |  19 +++
->>>   arch/sparc/include/asm/ttable.h       |  10 ++
->>>   arch/sparc/include/uapi/asm/asi.h     |   3 +
->>>   arch/sparc/include/uapi/asm/pstate.h  |  10 ++
->>>   arch/sparc/kernel/entry.h             |   3 +
->>>   arch/sparc/kernel/head_64.S           |   1 +
->>>   arch/sparc/kernel/mdesc.c             |  81 +++++++++++++
->>>   arch/sparc/kernel/process_64.c        | 221
->>> ++++++++++++++++++++++++++++++++++
->>>   arch/sparc/kernel/sun4v_mcd.S         |  16 +++
->>>   arch/sparc/kernel/traps_64.c          |  96 ++++++++++++++-
->>>   arch/sparc/kernel/ttable_64.S         |   6 +-
->>>   include/linux/mm.h                    |   2 +
->>>   include/uapi/asm-generic/siginfo.h    |   5 +-
->>>   include/uapi/linux/prctl.h            |  16 +++
->>>   kernel/sys.c                          |  30 +++++
->>>   22 files changed, 825 insertions(+), 6 deletions(-)
->>>   create mode 100644 Documentation/prctl/sparc_adi.txt
->>>   create mode 100644 Documentation/sparc/adi.txt
->>>   create mode 100644 arch/sparc/kernel/sun4v_mcd.S
->>>
->>> diff --git a/arch/sparc/include/asm/pgtable_64.h
->>> b/arch/sparc/include/asm/pgtable_64.h
->>> index 131d36f..cddea30 100644
->>> --- a/arch/sparc/include/asm/pgtable_64.h
->>> +++ b/arch/sparc/include/asm/pgtable_64.h
->>> @@ -162,6 +162,9 @@ bool kern_addr_valid(unsigned long addr);
->>>   #define _PAGE_E_4V       _AC(0x0000000000000800,UL) /* side-Effect
->>> */
->>>   #define _PAGE_CP_4V      _AC(0x0000000000000400,UL) /* Cacheable in
->>> P-Cache */
->>>   #define _PAGE_CV_4V      _AC(0x0000000000000200,UL) /* Cacheable in
->>> V-Cache */
->>> +/* Bit 9 is used to enable MCD corruption detection instead on M7
->>> + */
->>> +#define _PAGE_MCD_4V     _AC(0x0000000000000200,UL) /* Memory Corruption
->>> */
->>
->>
->> I'm not sure that everywhere _PAGE_CV_4V is used is guarded against
->> setting it on M7, could someone who knows the code better than I do
->> please check that? It looks like the tests around it's use are
->> essentially "is it sun4v".
->>
->> I'm probably being paranoid, but reused values like this make me worry.
->>
->
-> I took care of this issue in an earlier patch (commit
-> 494e5b6faeda1d1e830a13e10b3c7bc323f35d97 - "sparc: Resolve conflict between
-> sparc v9 and M7 on usage of bit 9 of TTE"), so I think we are ok here.
+--VbJkn9YxBvnuCH5J
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Ah, I remember those changes, however I didn't recall which processor
-they were for, so that's awesome.
+The secondary hit exception thrown while MMIOtracing NVIDIA's driver is gone
+with this patch.
 
->>>   #define _PAGE_P_4V       _AC(0x0000000000000100,UL) /* Privileged Page
->>> */
->>>   #define _PAGE_EXEC_4V    _AC(0x0000000000000080,UL) /* Executable Page
->>> */
->>>   #define _PAGE_W_4V       _AC(0x0000000000000040,UL) /* Writable
->>> */
->>> diff --git a/arch/sparc/include/uapi/asm/pstate.h
->>> b/arch/sparc/include/uapi/asm/pstate.h
->>> index cf832e1..d0521db 100644
->>> --- a/arch/sparc/include/uapi/asm/pstate.h
->>> +++ b/arch/sparc/include/uapi/asm/pstate.h
->>> @@ -10,7 +10,12 @@
->>>    *
->>> -----------------------------------------------------------------------
->>>    *  63  12  11   10    9     8    7   6   5     4     3     2     1
->>> 0
->>>    */
->>> +/* IG on V9 conflicts with MCDE on M7. PSTATE_MCDE will only be used on
->>> + * processors that support ADI which do not use IG, hence there is no
->>> + * functional conflict
->>> + */
->>>   #define PSTATE_IG   _AC(0x0000000000000800,UL) /* Interrupt Globals.
->>> */
->>> +#define PSTATE_MCDE _AC(0x0000000000000800,UL) /* MCD Enable
->>> */
->>
->>
->> Again, I can't tell if the code that uses PSTATE_IG is guarded against
->> use on M7. Could someone else please check? It's used in cherrs.S
->> which appears to be Cheetah specific, so that's not a problem, however
->> it's also used in ultra.S in xcall_sync_tick which might get patched
->> out however I don't know the code well enough to be certain. I'm also
->> guessing that as this file is in include/uapi, userspace could use it
->> for something.
->
->
-> My understanding of the code in ultra.S is xcall_sync_tick doe snot get
-> called on sun4v, so PSTATE_IG will not get set unintentionally on M7.
-> include/uapi is an interesting thought. PSTATE is a privileged register, so
-> userspace can not write to it directly without using a system call. I don't
-> think that is an issue here.
+Tested-by: Pierre Moreau <pierre.morrow@free.fr>
 
-Is it something userspace would interpret then? I guess any software
-making use of the PSTATE or TSTATE registers would have to handle any
-processor differences itself.
+On 02:03 AM - Mar 03 2016, Karol Herbst wrote:
+> Because Linux might use bigger pages than the 4K pages to handle those mm=
+io
+> ioremaps, the kmmio code shouldn't rely on the pade id as it currently do=
+es.
+>=20
+> Using the memory address instead of the page id let's us lookup how big t=
+he
+> page is and what it's base address is, so that we won't get a page fault
+> within the same page twice anymore.
+>=20
+> I don't know if I got this right though, so please read this change with
+> great care
+>=20
+> v2: use page_level macros
+>=20
+> Signed-off-by: Karol Herbst <nouveau@karolherbst.de>
+> ---
+>  arch/x86/mm/kmmio.c | 89 ++++++++++++++++++++++++++++++++++++-----------=
+------
+>  1 file changed, 60 insertions(+), 29 deletions(-)
+>=20
+> diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c
+> index 637ab34..d203beb 100644
+> --- a/arch/x86/mm/kmmio.c
+> +++ b/arch/x86/mm/kmmio.c
+> @@ -33,7 +33,7 @@
+>  struct kmmio_fault_page {
+>  	struct list_head list;
+>  	struct kmmio_fault_page *release_next;
+> -	unsigned long page; /* location of the fault page */
+> +	unsigned long addr; /* the requested address */
+>  	pteval_t old_presence; /* page presence prior to arming */
+>  	bool armed;
+> =20
+> @@ -70,9 +70,16 @@ unsigned int kmmio_count;
+>  static struct list_head kmmio_page_table[KMMIO_PAGE_TABLE_SIZE];
+>  static LIST_HEAD(kmmio_probes);
+> =20
+> -static struct list_head *kmmio_page_list(unsigned long page)
+> +static struct list_head *kmmio_page_list(unsigned long addr)
+>  {
+> -	return &kmmio_page_table[hash_long(page, KMMIO_PAGE_HASH_BITS)];
+> +	unsigned int l;
+> +	pte_t *pte =3D lookup_address(addr, &l);
+> +
+> +	if (!pte)
+> +		return NULL;
+> +	addr &=3D page_level_mask(l);
+> +
+> +	return &kmmio_page_table[hash_long(addr, KMMIO_PAGE_HASH_BITS)];
+>  }
+> =20
+>  /* Accessed per-cpu */
+> @@ -98,15 +105,19 @@ static struct kmmio_probe *get_kmmio_probe(unsigned =
+long addr)
+>  }
+> =20
+>  /* You must be holding RCU read lock. */
+> -static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
+> +static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long addr)
+>  {
+>  	struct list_head *head;
+>  	struct kmmio_fault_page *f;
+> +	unsigned int l;
+> +	pte_t *pte =3D lookup_address(addr, &l);
+> =20
+> -	page &=3D PAGE_MASK;
+> -	head =3D kmmio_page_list(page);
+> +	if (!pte)
+> +		return NULL;
+> +	addr &=3D page_level_mask(l);
+> +	head =3D kmmio_page_list(addr);
+>  	list_for_each_entry_rcu(f, head, list) {
+> -		if (f->page =3D=3D page)
+> +		if (f->addr =3D=3D addr)
+>  			return f;
+>  	}
+>  	return NULL;
+> @@ -137,10 +148,10 @@ static void clear_pte_presence(pte_t *pte, bool cle=
+ar, pteval_t *old)
+>  static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
+>  {
+>  	unsigned int level;
+> -	pte_t *pte =3D lookup_address(f->page, &level);
+> +	pte_t *pte =3D lookup_address(f->addr, &level);
+> =20
+>  	if (!pte) {
+> -		pr_err("no pte for page 0x%08lx\n", f->page);
+> +		pr_err("no pte for addr 0x%08lx\n", f->addr);
+>  		return -1;
+>  	}
+> =20
+> @@ -156,7 +167,7 @@ static int clear_page_presence(struct kmmio_fault_pag=
+e *f, bool clear)
+>  		return -1;
+>  	}
+> =20
+> -	__flush_tlb_one(f->page);
+> +	__flush_tlb_one(f->addr);
+>  	return 0;
+>  }
+> =20
+> @@ -176,12 +187,12 @@ static int arm_kmmio_fault_page(struct kmmio_fault_=
+page *f)
+>  	int ret;
+>  	WARN_ONCE(f->armed, KERN_ERR pr_fmt("kmmio page already armed.\n"));
+>  	if (f->armed) {
+> -		pr_warning("double-arm: page 0x%08lx, ref %d, old %d\n",
+> -			   f->page, f->count, !!f->old_presence);
+> +		pr_warning("double-arm: addr 0x%08lx, ref %d, old %d\n",
+> +			   f->addr, f->count, !!f->old_presence);
+>  	}
+>  	ret =3D clear_page_presence(f, true);
+> -	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming 0x%08lx failed.\n"),
+> -		  f->page);
+> +	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming at 0x%08lx failed.\n"),
+> +		  f->addr);
+>  	f->armed =3D true;
+>  	return ret;
+>  }
+> @@ -191,7 +202,7 @@ static void disarm_kmmio_fault_page(struct kmmio_faul=
+t_page *f)
+>  {
+>  	int ret =3D clear_page_presence(f, false);
+>  	WARN_ONCE(ret < 0,
+> -			KERN_ERR "kmmio disarming 0x%08lx failed.\n", f->page);
+> +			KERN_ERR "kmmio disarming at 0x%08lx failed.\n", f->addr);
+>  	f->armed =3D false;
+>  }
+> =20
+> @@ -215,6 +226,12 @@ int kmmio_handler(struct pt_regs *regs, unsigned lon=
+g addr)
+>  	struct kmmio_context *ctx;
+>  	struct kmmio_fault_page *faultpage;
+>  	int ret =3D 0; /* default to fault not handled */
+> +	unsigned long page_base =3D addr;
+> +	unsigned int l;
+> +	pte_t *pte =3D lookup_address(addr, &l);
+> +	if (!pte)
+> +		return -EINVAL;
+> +	page_base &=3D page_level_mask(l);
+> =20
+>  	/*
+>  	 * Preemption is now disabled to prevent process switch during
+> @@ -227,7 +244,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long=
+ addr)
+>  	preempt_disable();
+>  	rcu_read_lock();
+> =20
+> -	faultpage =3D get_kmmio_fault_page(addr);
+> +	faultpage =3D get_kmmio_fault_page(page_base);
+>  	if (!faultpage) {
+>  		/*
+>  		 * Either this page fault is not caused by kmmio, or
+> @@ -239,7 +256,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long=
+ addr)
+> =20
+>  	ctx =3D &get_cpu_var(kmmio_ctx);
+>  	if (ctx->active) {
+> -		if (addr =3D=3D ctx->addr) {
+> +		if (page_base =3D=3D ctx->addr) {
+>  			/*
+>  			 * A second fault on the same page means some other
+>  			 * condition needs handling by do_page_fault(), the
+> @@ -267,9 +284,9 @@ int kmmio_handler(struct pt_regs *regs, unsigned long=
+ addr)
+>  	ctx->active++;
+> =20
+>  	ctx->fpage =3D faultpage;
+> -	ctx->probe =3D get_kmmio_probe(addr);
+> +	ctx->probe =3D get_kmmio_probe(page_base);
+>  	ctx->saved_flags =3D (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
+> -	ctx->addr =3D addr;
+> +	ctx->addr =3D page_base;
+> =20
+>  	if (ctx->probe && ctx->probe->pre_handler)
+>  		ctx->probe->pre_handler(ctx->probe, regs, addr);
+> @@ -354,12 +371,11 @@ out:
+>  }
+> =20
+>  /* You must be holding kmmio_lock. */
+> -static int add_kmmio_fault_page(unsigned long page)
+> +static int add_kmmio_fault_page(unsigned long addr)
+>  {
+>  	struct kmmio_fault_page *f;
+> =20
+> -	page &=3D PAGE_MASK;
+> -	f =3D get_kmmio_fault_page(page);
+> +	f =3D get_kmmio_fault_page(addr);
+>  	if (f) {
+>  		if (!f->count)
+>  			arm_kmmio_fault_page(f);
+> @@ -372,26 +388,25 @@ static int add_kmmio_fault_page(unsigned long page)
+>  		return -1;
+> =20
+>  	f->count =3D 1;
+> -	f->page =3D page;
+> +	f->addr =3D addr;
+> =20
+>  	if (arm_kmmio_fault_page(f)) {
+>  		kfree(f);
+>  		return -1;
+>  	}
+> =20
+> -	list_add_rcu(&f->list, kmmio_page_list(f->page));
+> +	list_add_rcu(&f->list, kmmio_page_list(f->addr));
+> =20
+>  	return 0;
+>  }
+> =20
+>  /* You must be holding kmmio_lock. */
+> -static void release_kmmio_fault_page(unsigned long page,
+> +static void release_kmmio_fault_page(unsigned long addr,
+>  				struct kmmio_fault_page **release_list)
+>  {
+>  	struct kmmio_fault_page *f;
+> =20
+> -	page &=3D PAGE_MASK;
+> -	f =3D get_kmmio_fault_page(page);
+> +	f =3D get_kmmio_fault_page(addr);
+>  	if (!f)
+>  		return;
+> =20
+> @@ -420,18 +435,27 @@ int register_kmmio_probe(struct kmmio_probe *p)
+>  	int ret =3D 0;
+>  	unsigned long size =3D 0;
+>  	const unsigned long size_lim =3D p->len + (p->addr & ~PAGE_MASK);
+> +	unsigned int l;
+> +	pte_t *pte;
+> =20
+>  	spin_lock_irqsave(&kmmio_lock, flags);
+>  	if (get_kmmio_probe(p->addr)) {
+>  		ret =3D -EEXIST;
+>  		goto out;
+>  	}
+> +
+> +	pte =3D lookup_address(p->addr, &l);
+> +	if (!pte) {
+> +		ret =3D -EINVAL;
+> +		goto out;
+> +	}
+> +
+>  	kmmio_count++;
+>  	list_add_rcu(&p->list, &kmmio_probes);
+>  	while (size < size_lim) {
+>  		if (add_kmmio_fault_page(p->addr + size))
+>  			pr_err("Unable to set page fault.\n");
+> -		size +=3D PAGE_SIZE;
+> +		size +=3D page_level_size(l);
+>  	}
+>  out:
+>  	spin_unlock_irqrestore(&kmmio_lock, flags);
+> @@ -506,11 +530,18 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
+>  	const unsigned long size_lim =3D p->len + (p->addr & ~PAGE_MASK);
+>  	struct kmmio_fault_page *release_list =3D NULL;
+>  	struct kmmio_delayed_release *drelease;
+> +	unsigned int l;
+> +	pte_t *pte;
+> +
+> +	pte =3D lookup_address(p->addr, &l);
+> +	if (!pte) {
+> +		return;
+> +	}
+> =20
+>  	spin_lock_irqsave(&kmmio_lock, flags);
+>  	while (size < size_lim) {
+>  		release_kmmio_fault_page(p->addr + size, &release_list);
+> -		size +=3D PAGE_SIZE;
+> +		size +=3D page_level_size(l);
+>  	}
+>  	list_del_rcu(&p->list);
+>  	kmmio_count--;
+> --=20
+> 2.7.2
+>=20
+> _______________________________________________
+> Nouveau mailing list
+> Nouveau@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/nouveau
 
-Thanks for explaining this!
+--VbJkn9YxBvnuCH5J
+Content-Type: application/pgp-signature; name="signature.asc"
 
--- 
-Julian Calaby
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-Email: julian.calaby@gmail.com
-Profile: http://www.google.com/profiles/julian.calaby/
+iQIcBAABCgAGBQJW2L+JAAoJEI7uMhYTPh3wweEP/jOBgUu8TECxCV3X2HDhiisf
+pca+jon8abFGC0SuP10+LMxQ9Lmjx/ShHDWdpJjYvR6ML7qjiOmI5YQTM5M+Q/gC
+Z0QdHONrHN9AgWef3U0uVQ0DKsqDqQJeWfKTdcuPb1M5bDF1sfbh17HRVF0e9O0X
+CO9tkGE9YC/ly1kVZsgUyWnX2iHTF/idxbv0U5vw7zAEeZzkQ08yh5D47Ai+ymFq
+2/RQ37LJwFrysC0NvCzbTAIZGyNmhN9y5+uUsHXbH5VEeEWFEGTEG4G3mTsA7vv9
+lriF4UQmrur+PAXMFF5Z/x7SNktGnPJM8Hu29Xr1yob7kL3b4jM9ApRtu1R0YrP0
+JvYSECojy67PoBHpN7X6KcuTPrMvCxr1ZMdzXlbR5EzFRlT28HcqSkO2l3w5HUsD
+ycC8uqYjfQgsNunnrNEkVCOK/dfkt+9s11A9VMO3M2xL18zo2Du8RdIqQWlzX/9Q
+dncoMXEr5HzyjwSqHDFyR7vWafh3njtN3nAlF2AnfRfzIbu+y2QsuEdW4BPz22MJ
+yro7fpYY2Z3XB1CK01H/tRvQ5t7x1yADKVIZjNx8r9Sw8+09Oky57xENSGRl7amG
+kZaPJ5O6z/tffOKf0EZK57XjtVgKhhoFlYWrS7KYhSkTVY7srAmZA1uo5EKSFzys
+gW337DEH69VR2uE09g+n
+=lZDi
+-----END PGP SIGNATURE-----
+
+--VbJkn9YxBvnuCH5J--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
