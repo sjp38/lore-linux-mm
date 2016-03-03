@@ -1,80 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E585828E5
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 05:53:10 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id 124so13101040pfg.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 02:53:10 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id n3si28302940pfb.123.2016.03.03.02.53.09
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 944AA828E5
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 05:53:14 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id 4so13092534pfd.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 02:53:14 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id rr8si26140484pab.223.2016.03.03.02.53.13
         for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 02:53:09 -0800 (PST)
+        Thu, 03 Mar 2016 02:53:13 -0800 (PST)
 From: Liang Li <liang.z.li@intel.com>
-Subject: [RFC kernel 0/2]A PV solution for KVM live migration optimization 
-Date: Thu,  3 Mar 2016 18:46:57 +0800
-Message-Id: <1457002019-15998-1-git-send-email-liang.z.li@intel.com>
+Subject: [RFC kernel 1/2] mm: Add the functions used to get free pages information
+Date: Thu,  3 Mar 2016 18:46:58 +0800
+Message-Id: <1457002019-15998-2-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <1457002019-15998-1-git-send-email-liang.z.li@intel.com>
+References: <1457002019-15998-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mst@redhat.com, linux-kernel@vger.kernel.org
 Cc: akpm@linux-foundation.org, pbonzini@redhat.com, rth@twiddle.net, ehabkost@redhat.com, quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, dgilbert@redhat.com, Liang Li <liang.z.li@intel.com>
 
-The current QEMU live migration implementation mark the all the
-guest's RAM pages as dirtied in the ram bulk stage, all these pages
-will be processed and that takes quit a lot of CPU cycles.
+get_total_pages_count() tries to get the page count of the system
+RAM.
+get_free_pages() is intend to construct a free pages bitmap by
+traversing the free_list.
 
->From guest's point of view, it doesn't care about the content in free
-pages. We can make use of this fact and skip processing the free
-pages in the ram bulk stage, it can save a lot CPU cycles and reduce
-the network traffic significantly while speed up the live migration
-process obviously.
+The free pages information will be sent to QEMU through virtio
+and used for live migration optimization.
 
-This patch set is the kernel side implementation.
+Signed-off-by: Liang Li <liang.z.li@intel.com>
+---
+ mm/page_alloc.c | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)
 
-It get the free pages information by traversing
-zone->free_area[order].free_list, and construct a free pages bitmap.
-The virtio-balloon driver is extended so as to send the free pages
-bitmap to QEMU for live migration optimization.
-
-Performance data
-================
-
-Test environment:
-
-CPU: Intel (R) Xeon(R) CPU ES-2699 v3 @ 2.30GHz
-Host RAM: 64GB
-Host Linux Kernel:  4.2.0             Host OS: CentOS 7.1
-Guest Linux Kernel:  4.5.rc6        Guest OS: CentOS 6.6
-Network:  X540-AT2 with 10 Gigabit connection
-Guest RAM: 8GB
-
-Case 1: Idle guest just boots:
-============================================
-                    | original  |    pv    
--------------------------------------------
-total time(ms)      |    1894   |   421
---------------------------------------------
-transferred ram(KB) |   398017  |  353242
-============================================
-
-
-Case 2: The guest has ever run some memory consuming workload, the
-workload is terminated just before live migration.
-============================================
-                    | original  |    pv    
--------------------------------------------
-total time(ms)      |   7436    |   552
---------------------------------------------
-transferred ram(KB) |  8146291  |  361375
-============================================
-
-Liang Li (2):
-  mm: Add the functions used to get free pages information
-  virtio-balloon: extend balloon driver to support a new feature
-
- drivers/virtio/virtio_balloon.c     | 108 ++++++++++++++++++++++++++++++++++--
- include/uapi/linux/virtio_balloon.h |   1 +
- mm/page_alloc.c                     |  58 +++++++++++++++++++
- 3 files changed, 162 insertions(+), 5 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 838ca8bb..81922e6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3860,6 +3860,63 @@ void show_free_areas(unsigned int filter)
+ 	show_swap_cache_info();
+ }
+ 
++#define PFN_4G (0x100000000 >> PAGE_SHIFT)
++
++unsigned long get_total_pages_count(unsigned long low_mem)
++{
++	if (max_pfn >= PFN_4G) {
++		unsigned long pfn_gap = PFN_4G - (low_mem >> PAGE_SHIFT);
++
++		return max_pfn - pfn_gap;
++	} else
++		return max_pfn;
++}
++EXPORT_SYMBOL(get_total_pages_count);
++
++static void mark_free_pages_bitmap(struct zone *zone,
++		 unsigned long *free_page_bitmap, unsigned long pfn_gap)
++{
++	unsigned long pfn, flags, i;
++	unsigned int order, t;
++	struct list_head *curr;
++
++	if (zone_is_empty(zone))
++		return;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	for_each_migratetype_order(order, t) {
++		list_for_each(curr, &zone->free_area[order].free_list[t]) {
++
++			pfn = page_to_pfn(list_entry(curr, struct page, lru));
++			for (i = 0; i < (1UL << order); i++) {
++				if ((pfn + i) >= PFN_4G)
++					set_bit_le(pfn + i - pfn_gap,
++						   free_page_bitmap);
++				else
++					set_bit_le(pfn + i, free_page_bitmap);
++			}
++		}
++	}
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++}
++
++void get_free_pages(unsigned long *free_page_bitmap,
++		unsigned long *free_pages_count,
++		unsigned long low_mem)
++{
++	struct zone *zone;
++	unsigned long pfn_gap;
++
++	pfn_gap = PFN_4G - (low_mem >> PAGE_SHIFT);
++	for_each_populated_zone(zone)
++		mark_free_pages_bitmap(zone, free_page_bitmap, pfn_gap);
++
++	*free_pages_count = global_page_state(NR_FREE_PAGES);
++}
++EXPORT_SYMBOL(get_free_pages);
++
+ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ {
+ 	zoneref->zone = zone;
 -- 
 1.8.3.1
 
