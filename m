@@ -1,159 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f47.google.com (mail-vk0-f47.google.com [209.85.213.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E150D6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 04:27:43 -0500 (EST)
-Received: by mail-vk0-f47.google.com with SMTP id c3so15506984vkb.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 01:27:43 -0800 (PST)
-Received: from mail-vk0-x22e.google.com (mail-vk0-x22e.google.com. [2607:f8b0:400c:c05::22e])
-        by mx.google.com with ESMTPS id e21si24914081vkd.21.2016.03.03.01.27.42
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0F36B025E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 04:41:19 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fy10so11901535pac.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 01:41:19 -0800 (PST)
+Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [125.16.236.8])
+        by mx.google.com with ESMTPS id c67si26915320pfj.47.2016.03.03.01.41.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 01:27:42 -0800 (PST)
-Received: by mail-vk0-x22e.google.com with SMTP id c3so15506729vkb.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 01:27:42 -0800 (PST)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Mar 2016 01:41:18 -0800 (PST)
+Received: from localhost
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 3 Mar 2016 15:11:14 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u239fBEG7340528
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2016 15:11:11 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u23FAHLf025443
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2016 20:40:18 +0530
+Message-ID: <56D806B4.9040203@linux.vnet.ibm.com>
+Date: Thu, 03 Mar 2016 15:11:08 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20160303082254.GA26202@dhcp22.suse.cz>
-References: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
-	<20160302173639.GD26701@dhcp22.suse.cz>
-	<CAKQB+fss2UZOP-39GCpQY3T8MJoErm_0AeDnnAPZZ4MEWLXs7g@mail.gmail.com>
-	<20160303082254.GA26202@dhcp22.suse.cz>
-Date: Thu, 3 Mar 2016 17:27:42 +0800
-Message-ID: <CAKQB+fs31HCrXqNXz3+Cr1djwiqokdMLNOZbppCB8T2bJB1Pbw@mail.gmail.com>
-Subject: Re: kswapd consumes 100% CPU when highest zone is small
-From: Jerry Lee <leisurelysw24@gmail.com>
-Content-Type: multipart/alternative; boundary=001a114406ea480457052d219c4f
+Subject: Re: [PATCH RFC 1/2] mm: meminit: initialise more memory for inode/dentry
+ hash tables in early boot
+References: <1456988501-29046-1-git-send-email-zhlcindy@gmail.com> <1456988501-29046-2-git-send-email-zhlcindy@gmail.com>
+In-Reply-To: <1456988501-29046-2-git-send-email-zhlcindy@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Li Zhang <zhlcindy@gmail.com>, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
---001a114406ea480457052d219c4f
-Content-Type: text/plain; charset=UTF-8
+On 03/03/2016 12:31 PM, Li Zhang wrote:
+> From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+> 
+> This patch is based on Mel Gorman's old patch in the mailing list,
+> https://lkml.org/lkml/2015/5/5/280 which is dicussed but it is
 
-On 3 March 2016 at 16:22, Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Thu 03-03-16 10:23:03, Jerry Lee wrote:
-> > On 3 March 2016 at 01:36, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > > On Wed 02-03-16 14:20:38, Jerry Lee wrote:
-> [...]
-> > > > Is there anything I could do to totally get rid of the problem?
-> > >
-> > > I would try to sacrifice those few megs and get rid of zone normal
-> > > completely. AFAIR mem=4G should limit the max_pfn to 4G so DMA32 should
-> > > cover the shole memory.
-> > >
-> >
-> > I came up with a patch that seem to work well on my system.  But, I
-> > am afraid that it breaks the rule that all zones must be balanced for
-> > order-0 request and It may cause some other side-effect?  I thought
-> > that the patch is just a workaround (a bad one) and not a cure-all.
->
-> One thing I haven't noticed previously is that you are running on the 3.12
-> kernel. I vaguely remember there were some fixes for small zones. Not
-> sure it would work for such a small zone but it would be worth trying I
-> guess. Could you retest with 4.4?
->
-
-Hi,
-
-Thanks for the quick feedback!
-
-Before sending a mail to linux-mm, I found that there were discussions and
-fixes for the small zone as you remember:
-https://lkml.org/lkml/2011/6/24/161 .
-However, the fixes is kind of old and should be already included into the
-current kernel version.  Speaking of retesting the issue with kernel-4.4,
-it's
-a bit hard for my right now because there are some customized hardware and
-drivers on my system but I could give it a try.
-
-BTW, there are some information I forgot to mention before.  Originally, I
-use
-kernel-3.4 on my system without the kswapd issue.  After upgrading to
-linux-3.12.x, the issue occur.  In addition, I found that there are other
-people
-encountering the same problem even linux-4.x are used. [1] The idea to
-increase the value of min_free_kbytes comes from the post. [1]
-
-[1] https://github.com/GalliumOS/galliumos-distro/issues/52
-
-Anyway, thanks again for your help and suggestion!
-
-- Jerry
+Typo here ....................................^^^^^^^^
 
 
+> fixed with a completion to wait for all memory initialised in
+> page_alloc_init_late(). It is to fix the oom problem on X86
 
-> --
-> Michal Hocko
-> SUSE Labs
->
+You can just write *out of memory* instead of *oom* or put them in
+capitals.
 
---001a114406ea480457052d219c4f
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+> with 24TB memory which allocates memory in late initialisation.
+> But for Power platform with 32TB memory, it causes a call trace
+> in vfs_caches_init->inode_init() and inode hash table needs more
+> memory.
+> So this patch allocates 1GB for 0.25TB/node for large system
+> as it is mentioned in https://lkml.org/lkml/2015/5/1/627
 
-<div dir=3D"ltr"><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">=
-On 3 March 2016 at 16:22, Michal Hocko <span dir=3D"ltr">&lt;<a href=3D"mai=
-lto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt;</span> w=
-rote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8e=
-x;border-left:1px solid rgb(204,204,204);padding-left:1ex"><span class=3D""=
->On Thu 03-03-16 10:23:03, Jerry Lee wrote:<br>
-&gt; On 3 March 2016 at 01:36, Michal Hocko &lt;<a href=3D"mailto:mhocko@ke=
-rnel.org">mhocko@kernel.org</a>&gt; wrote:<br>
-&gt;<br>
-&gt; &gt; On Wed 02-03-16 14:20:38, Jerry Lee wrote:<br>
-</span>[...]<br>
-<span class=3D"">&gt; &gt; &gt; Is there anything I could do to totally get=
- rid of the problem?<br>
-&gt; &gt;<br>
-&gt; &gt; I would try to sacrifice those few megs and get rid of zone norma=
-l<br>
-&gt; &gt; completely. AFAIR mem=3D4G should limit the max_pfn to 4G so DMA3=
-2 should<br>
-&gt; &gt; cover the shole memory.<br>
-&gt; &gt;<br>
-&gt;<br>
-&gt; I came up with a patch that seem to work well on my system.=C2=A0 But,=
- I<br>
-&gt; am afraid that it breaks the rule that all zones must be balanced for<=
-br>
-&gt; order-0 request and It may cause some other side-effect?=C2=A0 I thoug=
-ht<br>
-&gt; that the patch is just a workaround (a bad one) and not a cure-all.<br=
->
-<br>
-</span>One thing I haven&#39;t noticed previously is that you are running o=
-n the 3.12<br>
-kernel. I vaguely remember there were some fixes for small zones. Not<br>
-sure it would work for such a small zone but it would be worth trying I<br>
-guess. Could you retest with 4.4?<br></blockquote><div><br></div><div>Hi,<b=
-r><br></div><div>Thanks for the quick feedback!<br></div><div><br></div><di=
-v>Before sending a mail to linux-mm, I found that there were discussions an=
-d <br>fixes for the small zone as you remember: <a href=3D"https://lkml.org=
-/lkml/2011/6/24/161">https://lkml.org/lkml/2011/6/24/161</a> .<br></div><di=
-v>However, the fixes is kind of old and should be already included into the=
- <br></div><div>current kernel version.=C2=A0 Speaking of retesting the iss=
-ue with kernel-4.4, it&#39;s <br></div><div>a bit hard for my right now bec=
-ause there are some customized hardware and <br></div><div>drivers on my sy=
-stem but I could give it a try.<br><br></div><div>BTW, there are some infor=
-mation I forgot to mention before.=C2=A0 Originally, I use <br>kernel-3.4 o=
-n my system without the kswapd issue.=C2=A0 After upgrading to <br></div><d=
-iv>linux-3.12.x, the issue occur.=C2=A0 In addition, I found that there are=
- other people<br></div><div>encountering the same problem even linux-4.x ar=
-e used. [1] The idea to <br></div><div>increase the value of min_free_kbyte=
-s comes from the post. [1] </div><div><br></div><div>[1] <a href=3D"https:/=
-/github.com/GalliumOS/galliumos-distro/issues/52">https://github.com/Galliu=
-mOS/galliumos-distro/issues/52</a><br></div><div><br></div><div>Anyway, tha=
-nks again for your help and suggestion!<br><br></div><div>- Jerry<br></div>=
-<div><br>=C2=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:0px =
-0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-<div class=3D""><div class=3D"h5">--<br>
-Michal Hocko<br>
-SUSE Labs<br>
-</div></div></blockquote></div><br></div></div>
+I am wondering how its going to impact other architectures.
 
---001a114406ea480457052d219c4f--
+> 
+> This call trace is found on Power with 32TB memory, 1024CPUs, 16nodes.
+> The log from dmesg as the following:
+> 
+> [    0.091780] Dentry cache hash table entries: 2147483648 (order: 18,
+> 17179869184 bytes)
+> [    2.891012] vmalloc: allocation failure, allocated 16021913600 of
+> 17179934720 bytes
+> [    2.891034] swapper/0: page allocation failure: order:0,
+> mode:0x2080020
+> [    2.891038] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-0-ppc64
+> [    2.891041] Call Trace:
+> [    2.891046] [c0000000012bfa00] [c0000000007c4a50]
+>                 .dump_stack+0xb4/0xb664 (unreliable)
+> [    2.891051] [c0000000012bfa80] [c0000000001f93d4]
+>                 .warn_alloc_failed+0x114/0x160
+> [    2.891054] [c0000000012bfb30] [c00000000023c204]
+>                 .__vmalloc_area_node+0x1a4/0x2b0
+> [    2.891058] [c0000000012bfbf0] [c00000000023c3f4]
+>                 .__vmalloc_node_range+0xe4/0x110
+> [    2.891061] [c0000000012bfc90] [c00000000023c460]
+>                 .__vmalloc_node+0x40/0x50
+> [    2.891065] [c0000000012bfd10] [c000000000b67d60]
+>                 .alloc_large_system_hash+0x134/0x2a4
+> [    2.891068] [c0000000012bfdd0] [c000000000b70924]
+>                 .inode_init+0xa4/0xf0
+> [    2.891071] [c0000000012bfe60] [c000000000b706a0]
+>                 .vfs_caches_init+0x80/0x144
+> [    2.891074] [c0000000012bfef0] [c000000000b35208]
+>                 .start_kernel+0x40c/0x4e0
+> [    2.891078] [c0000000012bff90] [c000000000008cfc]
+>                 start_here_common+0x20/0x4a4
+> [    2.891080] Mem-Info:
+
+The dmesg output here needs some formatting.
+
+> 
+> Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 11 +++++++++--
+>  1 file changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 838ca8bb..4847f25 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+>  				unsigned long pfn, unsigned long zone_end,
+>  				unsigned long *nr_initialised)
+>  {
+> +	unsigned long max_initialise;
+> +
+>  	/* Always populate low zones for address-contrained allocations */
+>  	if (zone_end < pgdat_end_pfn(pgdat))
+>  		return true;
+> +	/*
+> +	* Initialise at least 2G of a node but also take into account that
+> +	* two large system hashes that can take up 1GB for 0.25TB/node.
+> +	*/
+> +	max_initialise = max(2UL << (30 - PAGE_SHIFT),
+> +		(pgdat->node_spanned_pages >> 8));
+>  
+> -	/* Initialise at least 2G of the highest zone */
+>  	(*nr_initialised)++;
+> -	if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
+> +	if ((*nr_initialised > max_initialise) &&
+
+Does this change need to be tested on all architectures ? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
