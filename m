@@ -1,181 +1,605 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B7878828DF
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 18:26:02 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id i18so6776901igh.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 15:26:02 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0077.hostedemail.com. [216.40.44.77])
-        by mx.google.com with ESMTPS id cz15si634432igc.81.2016.03.03.15.26.01
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0F3828DF
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 18:26:13 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id hb3so6834533igb.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 15:26:13 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0233.hostedemail.com. [216.40.44.233])
+        by mx.google.com with ESMTPS id e71si309258ioe.91.2016.03.03.15.26.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 15:26:02 -0800 (PST)
+        Thu, 03 Mar 2016 15:26:12 -0800 (PST)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 1/4] mm: Convert pr_warning to pr_warn
-Date: Thu,  3 Mar 2016 15:25:31 -0800
-Message-Id: <4d7b3004d1715ddf86c821527a334615ac2dfdf4.1457047399.git.joe@perches.com>
+Subject: [PATCH 2/4] mm: Coalesce split strings
+Date: Thu,  3 Mar 2016 15:25:32 -0800
+Message-Id: <8bc1865b2af7472be1cfc3728fe310f288083779.1457047399.git.joe@perches.com>
 In-Reply-To: <cover.1457047399.git.joe@perches.com>
 References: <cover.1457047399.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There are a mixture of pr_warning and pr_warn uses in mm.
-Use pr_warn consistently.
+Kernel style prefers a single string over split strings when
+the string is 'user-visible'.
 
 Miscellanea:
 
-o Coalesce formats
+o Add a missing newline
 o Realign arguments
 
 Signed-off-by: Joe Perches <joe@perches.com>
 ---
- mm/hugetlb.c  |  9 ++++-----
- mm/kmemleak.c | 14 +++++++-------
- mm/percpu.c   | 15 +++++++--------
- 3 files changed, 18 insertions(+), 20 deletions(-)
+ mm/dmapool.c        | 10 ++++------
+ mm/huge_memory.c    |  3 +--
+ mm/kasan/report.c   |  6 ++----
+ mm/kmemcheck.c      |  3 +--
+ mm/kmemleak.c       | 18 ++++++++----------
+ mm/memblock.c       |  3 +--
+ mm/memory_hotplug.c |  3 +--
+ mm/mempolicy.c      |  4 +---
+ mm/mmap.c           |  8 +++-----
+ mm/oom_kill.c       |  3 +--
+ mm/page_alloc.c     | 37 +++++++++++++++++--------------------
+ mm/page_owner.c     |  5 ++---
+ mm/percpu.c         |  4 ++--
+ mm/slab.c           | 28 ++++++++++------------------
+ mm/slab_common.c    | 10 ++++------
+ mm/slub.c           | 19 +++++++++----------
+ mm/sparse-vmemmap.c |  8 ++++----
+ mm/sparse.c         |  8 ++++----
+ mm/swapfile.c       |  3 +--
+ mm/vmalloc.c        |  4 ++--
+ 20 files changed, 78 insertions(+), 109 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 01f2b48..547e429 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2665,7 +2665,7 @@ void __init hugetlb_add_hstate(unsigned int order)
- 	unsigned long i;
- 
- 	if (size_to_hstate(PAGE_SIZE << order)) {
--		pr_warning("hugepagesz= specified twice, ignoring\n");
-+		pr_warn("hugepagesz= specified twice, ignoring\n");
- 		return;
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 57312b5..2821500 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -452,13 +452,11 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
+ 			}
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			if (pool->dev)
+-				dev_err(pool->dev, "dma_pool_free %s, dma %Lx "
+-					"already free\n", pool->name,
+-					(unsigned long long)dma);
++				dev_err(pool->dev, "dma_pool_free %s, dma %Lx already free\n",
++					pool->name, (unsigned long long)dma);
+ 			else
+-				printk(KERN_ERR "dma_pool_free %s, dma %Lx "
+-					"already free\n", pool->name,
+-					(unsigned long long)dma);
++				printk(KERN_ERR "dma_pool_free %s, dma %Lx already free\n",
++					pool->name, (unsigned long long)dma);
+ 			return;
+ 		}
  	}
- 	BUG_ON(hugetlb_max_hstate >= HUGE_MAX_HSTATE);
-@@ -2701,8 +2701,7 @@ static int __init hugetlb_nrpages_setup(char *s)
- 		mhp = &parsed_hstate->max_huge_pages;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5b38aa2..5b4a635 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -171,8 +171,7 @@ static void set_recommended_min_free_kbytes(void)
  
- 	if (mhp == last_mhp) {
--		pr_warning("hugepages= specified twice without "
--			   "interleaving hugepagesz=, ignoring\n");
-+		pr_warn("hugepages= specified twice without interleaving hugepagesz=, ignoring\n");
- 		return 1;
- 	}
+ 	if (recommended_min > min_free_kbytes) {
+ 		if (user_min_free_kbytes >= 0)
+-			pr_info("raising min_free_kbytes from %d to %lu "
+-				"to help transparent hugepage allocations\n",
++			pr_info("raising min_free_kbytes from %d to %lu to help transparent hugepage allocations\n",
+ 				min_free_kbytes, recommended_min);
  
-@@ -3502,8 +3501,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * COW. Warn that such a situation has occurred as it may not be obvious
+ 		min_free_kbytes = recommended_min;
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 12f222d..745aa8f 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -214,8 +214,7 @@ static void kasan_report_error(struct kasan_access_info *info)
  	 */
- 	if (is_vma_resv_set(vma, HPAGE_RESV_UNMAPPED)) {
--		pr_warning("PID %d killed due to inadequate hugepage pool\n",
--			   current->pid);
-+		pr_warn("PID %d killed due to inadequate hugepage pool\n",
-+			current->pid);
- 		return ret;
+ 	kasan_disable_current();
+ 	spin_lock_irqsave(&report_lock, flags);
+-	pr_err("================================="
+-		"=================================\n");
++	pr_err("==================================================================\n");
+ 	if (info->access_addr <
+ 			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
+ 		if ((unsigned long)info->access_addr < PAGE_SIZE)
+@@ -236,8 +235,7 @@ static void kasan_report_error(struct kasan_access_info *info)
+ 		print_address_description(info);
+ 		print_shadow_for_address(info->first_bad_addr);
+ 	}
+-	pr_err("================================="
+-		"=================================\n");
++	pr_err("==================================================================\n");
+ 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+ 	spin_unlock_irqrestore(&report_lock, flags);
+ 	kasan_enable_current();
+diff --git a/mm/kmemcheck.c b/mm/kmemcheck.c
+index 6f4f424..e5f8333 100644
+--- a/mm/kmemcheck.c
++++ b/mm/kmemcheck.c
+@@ -20,8 +20,7 @@ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
+ 	shadow = alloc_pages_node(node, flags | __GFP_NOTRACK, order);
+ 	if (!shadow) {
+ 		if (printk_ratelimit())
+-			printk(KERN_ERR "kmemcheck: failed to allocate "
+-				"shadow bitmap\n");
++			printk(KERN_ERR "kmemcheck: failed to allocate shadow bitmap\n");
+ 		return;
  	}
  
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 25c0ad3..a81cd76 100644
+index a81cd76..e642992 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
-@@ -276,7 +276,7 @@ static void kmemleak_disable(void);
-  * Print a warning and dump the stack trace.
-  */
- #define kmemleak_warn(x...)	do {		\
--	pr_warning(x);				\
-+	pr_warn(x);				\
- 	dump_stack();				\
- 	kmemleak_warning = 1;			\
- } while (0)
-@@ -543,7 +543,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 
- 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+@@ -596,8 +596,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 		else if (parent->pointer + parent->size <= ptr)
+ 			link = &parent->rb_node.rb_right;
+ 		else {
+-			kmemleak_stop("Cannot insert 0x%lx into the object "
+-				      "search tree (overlaps existing)\n",
++			kmemleak_stop("Cannot insert 0x%lx into the object search tree (overlaps existing)\n",
+ 				      ptr);
+ 			/*
+ 			 * No need for parent->lock here since "parent" cannot
+@@ -670,8 +669,8 @@ static void delete_object_part(unsigned long ptr, size_t size)
+ 	object = find_and_remove_object(ptr, 1);
  	if (!object) {
--		pr_warning("Cannot allocate a kmemleak_object structure\n");
-+		pr_warn("Cannot allocate a kmemleak_object structure\n");
- 		kmemleak_disable();
- 		return NULL;
- 	}
-@@ -764,7 +764,7 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
- 
- 	area = kmem_cache_alloc(scan_area_cache, gfp_kmemleak_mask(gfp));
- 	if (!area) {
--		pr_warning("Cannot allocate a scan area\n");
-+		pr_warn("Cannot allocate a scan area\n");
- 		goto out;
- 	}
- 
-@@ -1515,7 +1515,7 @@ static void start_scan_thread(void)
+ #ifdef DEBUG
+-		kmemleak_warn("Partially freeing unknown object at 0x%08lx "
+-			      "(size %zu)\n", ptr, size);
++		kmemleak_warn("Partially freeing unknown object at 0x%08lx (size %zu)\n",
++			      ptr, size);
+ #endif
  		return;
- 	scan_thread = kthread_run(kmemleak_scan_thread, NULL, "kmemleak");
- 	if (IS_ERR(scan_thread)) {
--		pr_warning("Failed to create the scan thread\n");
-+		pr_warn("Failed to create the scan thread\n");
- 		scan_thread = NULL;
  	}
+@@ -717,8 +716,8 @@ static void paint_ptr(unsigned long ptr, int color)
+ 
+ 	object = find_and_get_object(ptr, 0);
+ 	if (!object) {
+-		kmemleak_warn("Trying to color unknown object "
+-			      "at 0x%08lx as %s\n", ptr,
++		kmemleak_warn("Trying to color unknown object at 0x%08lx as %s\n",
++			      ptr,
+ 			      (color == KMEMLEAK_GREY) ? "Grey" :
+ 			      (color == KMEMLEAK_BLACK) ? "Black" : "Unknown");
+ 		return;
+@@ -1463,8 +1462,8 @@ static void kmemleak_scan(void)
+ 	if (new_leaks) {
+ 		kmemleak_found_leaks = true;
+ 
+-		pr_info("%d new suspected memory leaks (see "
+-			"/sys/kernel/debug/kmemleak)\n", new_leaks);
++		pr_info("%d new suspected memory leaks (see /sys/kernel/debug/kmemleak)\n",
++			new_leaks);
+ 	}
+ 
  }
-@@ -1874,8 +1874,8 @@ void __init kmemleak_init(void)
- 	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
+@@ -1795,8 +1794,7 @@ static void kmemleak_do_cleanup(struct work_struct *work)
+ 	if (!kmemleak_found_leaks)
+ 		__kmemleak_do_cleanup();
+ 	else
+-		pr_info("Kmemleak disabled without freeing internal data. "
+-			"Reclaim the memory with \"echo clear > /sys/kernel/debug/kmemleak\"\n");
++		pr_info("Kmemleak disabled without freeing internal data. Reclaim the memory with \"echo clear > /sys/kernel/debug/kmemleak\".\n");
+ }
  
- 	if (crt_early_log > ARRAY_SIZE(early_log))
--		pr_warning("Early log buffer exceeded (%d), please increase "
--			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
-+		pr_warn("Early log buffer exceeded (%d), please increase DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n",
-+			crt_early_log);
+ static DECLARE_WORK(cleanup_work, kmemleak_do_cleanup);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index dfff740..673a2f5 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -238,8 +238,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
+ 		 * so we use WARN_ONCE() here to see the stack trace if
+ 		 * fail happens.
+ 		 */
+-		WARN_ONCE(1, "memblock: bottom-up allocation failed, "
+-			     "memory hotunplug may be affected\n");
++		WARN_ONCE(1, "memblock: bottom-up allocation failed, memory hotunplug may be affected\n");
+ 	}
  
- 	/* the kernel is still in UP mode, so disabling the IRQs is enough */
- 	local_irq_save(flags);
-@@ -1960,7 +1960,7 @@ static int __init kmemleak_late_init(void)
- 	dentry = debugfs_create_file("kmemleak", S_IRUGO, NULL, NULL,
- 				     &kmemleak_fops);
- 	if (!dentry)
--		pr_warning("Failed to create the debugfs kmemleak file\n");
-+		pr_warn("Failed to create the debugfs kmemleak file\n");
- 	mutex_lock(&scan_mutex);
- 	start_scan_thread();
- 	mutex_unlock(&scan_mutex);
+ 	return __memblock_find_range_top_down(start, end, size, align, nid,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e62aa07..7249497 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1970,8 +1970,7 @@ static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
+ 
+ 		beginpa = PFN_PHYS(section_nr_to_pfn(mem->start_section_nr));
+ 		endpa = PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1;
+-		pr_warn("removing memory fails, because memory "
+-			"[%pa-%pa] is onlined\n",
++		pr_warn("removing memory fails, because memory [%pa-%pa] is onlined\n",
+ 			&beginpa, &endpa);
+ 	}
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 26a8104..6c759ff 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2559,9 +2559,7 @@ static void __init check_numabalancing_enable(void)
+ 		set_numabalancing_state(numabalancing_override == 1);
+ 
+ 	if (num_online_nodes() > 1 && !numabalancing_override) {
+-		pr_info("%s automatic NUMA balancing. "
+-			"Configure with numa_balancing= or the "
+-			"kernel.numa_balancing sysctl",
++		pr_info("%s automatic NUMA balancing. Configure with numa_balancing= or the kernel.numa_balancing sysctl\n",
+ 			numabalancing_default ? "Enabling" : "Disabling");
+ 		set_numabalancing_state(numabalancing_default);
+ 	}
+diff --git a/mm/mmap.c b/mm/mmap.c
+index b1e3013..bd2e1a53 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2525,9 +2525,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	unsigned long ret = -EINVAL;
+ 	struct file *file;
+ 
+-	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
+-			"See Documentation/vm/remap_file_pages.txt.\n",
+-			current->comm, current->pid);
++	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. See Documentation/vm/remap_file_pages.txt.\n",
++		     current->comm, current->pid);
+ 
+ 	if (prot)
+ 		return ret;
+@@ -2893,8 +2892,7 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
+ 	if (is_data_mapping(flags) &&
+ 	    mm->data_vm + npages > rlimit(RLIMIT_DATA) >> PAGE_SHIFT) {
+ 		if (ignore_rlimit_data)
+-			pr_warn_once("%s (%d): VmData %lu exceed data ulimit "
+-				     "%lu. Will be forbidden soon.\n",
++			pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Will be forbidden soon.\n",
+ 				     current->comm, current->pid,
+ 				     (mm->data_vm + npages) << PAGE_SHIFT,
+ 				     rlimit(RLIMIT_DATA));
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5d5eca9..e7133d7 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -391,8 +391,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ static void dump_header(struct oom_control *oc, struct task_struct *p,
+ 			struct mem_cgroup *memcg)
+ {
+-	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, "
+-			"oom_score_adj=%hd\n",
++	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
+ 		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
+ 		current->signal->oom_score_adj);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1993894..e85becb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4195,8 +4195,7 @@ static int __parse_numa_zonelist_order(char *s)
+ 		user_zonelist_order = ZONELIST_ORDER_ZONE;
+ 	} else {
+ 		printk(KERN_WARNING
+-			"Ignoring invalid numa_zonelist_order value:  "
+-			"%s\n", s);
++		       "Ignoring invalid numa_zonelist_order value:  %s\n", s);
+ 		return -EINVAL;
+ 	}
+ 	return 0;
+@@ -4660,12 +4659,11 @@ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
+ 	else
+ 		page_group_by_mobility_disabled = 0;
+ 
+-	pr_info("Built %i zonelists in %s order, mobility grouping %s.  "
+-		"Total pages: %ld\n",
+-			nr_online_nodes,
+-			zonelist_order_name[current_zonelist_order],
+-			page_group_by_mobility_disabled ? "off" : "on",
+-			vm_total_pages);
++	pr_info("Built %i zonelists in %s order, mobility grouping %s.  Total pages: %ld\n",
++		nr_online_nodes,
++		zonelist_order_name[current_zonelist_order],
++		page_group_by_mobility_disabled ? "off" : "on",
++		vm_total_pages);
+ #ifdef CONFIG_NUMA
+ 	pr_info("Policy zone: %s\n", zone_names[policy_zone]);
+ #endif
+@@ -6263,22 +6261,21 @@ void __init mem_init_print_info(const char *str)
+ 
+ #undef	adj_init_size
+ 
+-	pr_info("Memory: %luK/%luK available "
+-	       "(%luK kernel code, %luK rwdata, %luK rodata, "
+-	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
++	pr_info("Memory: %luK/%luK available (%luK kernel code, %luK rwdata, %luK rodata, %luK init, %luK bss, %luK reserved, %luK cma-reserved"
+ #ifdef	CONFIG_HIGHMEM
+-	       ", %luK highmem"
++		", %luK highmem"
+ #endif
+-	       "%s%s)\n",
+-	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
+-	       codesize >> 10, datasize >> 10, rosize >> 10,
+-	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
+-	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
+-	       totalcma_pages << (PAGE_SHIFT-10),
++		"%s%s)\n",
++		nr_free_pages() << (PAGE_SHIFT - 10),
++		physpages << (PAGE_SHIFT - 10),
++		codesize >> 10, datasize >> 10, rosize >> 10,
++		(init_data_size + init_code_size) >> 10, bss_size >> 10,
++		(physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT - 10),
++		totalcma_pages << (PAGE_SHIFT - 10),
+ #ifdef	CONFIG_HIGHMEM
+-	       totalhigh_pages << (PAGE_SHIFT-10),
++		totalhigh_pages << (PAGE_SHIFT - 10),
+ #endif
+-	       str ? ", " : "", str ? str : "");
++		str ? ", " : "", str ? str : "");
+ }
+ 
+ /**
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 44ad1f0..ac3d8d1 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -198,9 +198,8 @@ void __dump_page_owner(struct page *page)
+ 		return;
+ 	}
+ 
+-	pr_alert("page allocated via order %u, migratetype %s, "
+-			"gfp_mask %#x(%pGg)\n", page_ext->order,
+-			migratetype_names[mt], gfp_mask, &gfp_mask);
++	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
++		 page_ext->order, migratetype_names[mt], gfp_mask, &gfp_mask);
+ 	print_stack_trace(&trace, 0);
+ 
+ 	if (page_ext->last_migrate_reason != -1)
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 998607a..847814b 100644
+index 847814b..1571547 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -1033,8 +1033,8 @@ fail_unlock:
- 	spin_unlock_irqrestore(&pcpu_lock, flags);
- fail:
- 	if (!is_atomic && warn_limit) {
--		pr_warning("PERCPU: allocation failed, size=%zu align=%zu atomic=%d, %s\n",
--			   size, align, is_atomic, err);
-+		pr_warn("PERCPU: allocation failed, size=%zu align=%zu atomic=%d, %s\n",
-+			size, align, is_atomic, err);
- 		dump_stack();
- 		if (!--warn_limit)
- 			pr_info("PERCPU: limit reached, disable warning\n");
-@@ -1723,7 +1723,7 @@ static int __init percpu_alloc_setup(char *str)
- 		pcpu_chosen_fc = PCPU_FC_PAGE;
+@@ -888,8 +888,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 	size = ALIGN(size, 2);
+ 
+ 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+-		WARN(true, "illegal size (%zu) or align (%zu) for "
+-		     "percpu allocation\n", size, align);
++		WARN(true, "illegal size (%zu) or align (%zu) for percpu allocation\n",
++		     size, align);
+ 		return NULL;
+ 	}
+ 
+diff --git a/mm/slab.c b/mm/slab.c
+index b9ee775..7ee9532 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1565,11 +1565,9 @@ static void dump_line(char *data, int offset, int limit)
+ 	if (bad_count == 1) {
+ 		error ^= POISON_FREE;
+ 		if (!(error & (error - 1))) {
+-			printk(KERN_ERR "Single bit error detected. Probably "
+-					"bad RAM.\n");
++			printk(KERN_ERR "Single bit error detected. Probably bad RAM.\n");
+ #ifdef CONFIG_X86
+-			printk(KERN_ERR "Run memtest86+ or a similar memory "
+-					"test tool.\n");
++			printk(KERN_ERR "Run memtest86+ or a similar memory test tool.\n");
+ #else
+ 			printk(KERN_ERR "Run a memory test tool.\n");
  #endif
- 	else
--		pr_warning("PERCPU: unknown allocator %s specified\n", str);
-+		pr_warn("PERCPU: unknown allocator %s specified\n", str);
- 
- 	return 0;
+@@ -1692,11 +1690,9 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
+ 		}
+ 		if (cachep->flags & SLAB_RED_ZONE) {
+ 			if (*dbg_redzone1(cachep, objp) != RED_INACTIVE)
+-				slab_error(cachep, "start of a freed object "
+-					   "was overwritten");
++				slab_error(cachep, "start of a freed object was overwritten");
+ 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
+-				slab_error(cachep, "end of a freed object "
+-					   "was overwritten");
++				slab_error(cachep, "end of a freed object was overwritten");
+ 		}
+ 	}
  }
-@@ -2016,9 +2016,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+@@ -2397,11 +2393,9 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
  
- 	/* warn if maximum distance is further than 75% of vmalloc space */
- 	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
--		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
--			   "space 0x%lx\n", max_distance,
--			   VMALLOC_TOTAL);
-+		pr_warn("PERCPU: max_distance=0x%zx too large for vmalloc space 0x%lx\n",
-+			max_distance, VMALLOC_TOTAL);
- #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
- 		/* and fail if we have fallback */
- 		rc = -EINVAL;
-@@ -2100,8 +2099,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 		if (cachep->flags & SLAB_RED_ZONE) {
+ 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
+-				slab_error(cachep, "constructor overwrote the"
+-					   " end of an object");
++				slab_error(cachep, "constructor overwrote the end of an object");
+ 			if (*dbg_redzone1(cachep, objp) != RED_INACTIVE)
+-				slab_error(cachep, "constructor overwrote the"
+-					   " start of an object");
++				slab_error(cachep, "constructor overwrote the start of an object");
+ 		}
+ 		/* need to poison the objs? */
+ 		if (cachep->flags & SLAB_POISON) {
+@@ -2468,8 +2462,8 @@ static void slab_put_obj(struct kmem_cache *cachep,
+ 	/* Verify double free bug */
+ 	for (i = page->active; i < cachep->num; i++) {
+ 		if (get_free_obj(page, i) == objnr) {
+-			printk(KERN_ERR "slab: double free detected in cache "
+-					"'%s', objp %p\n", cachep->name, objp);
++			printk(KERN_ERR "slab: double free detected in cache '%s', objp %p\n",
++			       cachep->name, objp);
+ 			BUG();
+ 		}
+ 	}
+@@ -2900,8 +2894,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
+ 	if (cachep->flags & SLAB_RED_ZONE) {
+ 		if (*dbg_redzone1(cachep, objp) != RED_INACTIVE ||
+ 				*dbg_redzone2(cachep, objp) != RED_INACTIVE) {
+-			slab_error(cachep, "double free, or memory outside"
+-						" object was overwritten");
++			slab_error(cachep, "double free, or memory outside object was overwritten");
+ 			printk(KERN_ERR
+ 				"%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
+ 				objp, *dbg_redzone1(cachep, objp),
+@@ -4027,8 +4020,7 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
+ 		unsigned long node_frees = cachep->node_frees;
+ 		unsigned long overflows = cachep->node_overflow;
  
- 			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
- 			if (!ptr) {
--				pr_warning("PERCPU: failed to allocate %s page "
--					   "for cpu%u\n", psize_str, cpu);
-+				pr_warn("PERCPU: failed to allocate %s page for cpu%u\n",
-+					psize_str, cpu);
- 				goto enomem;
- 			}
- 			/* kmemleak tracks the percpu allocations separately */
+-		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu "
+-			   "%4lu %4lu %4lu %4lu %4lu",
++		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu %4lu %4lu %4lu %4lu %4lu",
+ 			   allocs, high, grown,
+ 			   reaped, errors, max_freeable, node_allocs,
+ 			   node_frees, overflows);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 8addc3c..e885e11 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -726,8 +726,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
+ 		err = shutdown_cache(s, &release, &need_rcu_barrier);
+ 
+ 	if (err) {
+-		pr_err("kmem_cache_destroy %s: "
+-		       "Slab cache still has objects\n", s->name);
++		pr_err("kmem_cache_destroy %s: Slab cache still has objects\n",
++		       s->name);
+ 		dump_stack();
+ 	}
+ out_unlock:
+@@ -1047,13 +1047,11 @@ static void print_slabinfo_header(struct seq_file *m)
+ #else
+ 	seq_puts(m, "slabinfo - version: 2.1\n");
+ #endif
+-	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> "
+-		 "<objperslab> <pagesperslab>");
++	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
+ 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
+ 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
+ #ifdef CONFIG_DEBUG_SLAB
+-	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> "
+-		 "<error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
++	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
+ 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
+ #endif
+ 	seq_putc(m, '\n');
+diff --git a/mm/slub.c b/mm/slub.c
+index d86720d..d6a37eb1 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -952,14 +952,14 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
+ 		max_objects = MAX_OBJS_PER_PAGE;
+ 
+ 	if (page->objects != max_objects) {
+-		slab_err(s, page, "Wrong number of objects. Found %d but "
+-			"should be %d", page->objects, max_objects);
++		slab_err(s, page, "Wrong number of objects. Found %d but should be %d",
++			 page->objects, max_objects);
+ 		page->objects = max_objects;
+ 		slab_fix(s, "Number of objects adjusted.");
+ 	}
+ 	if (page->inuse != page->objects - nr) {
+-		slab_err(s, page, "Wrong object count. Counter is %d but "
+-			"counted were %d", page->inuse, page->objects - nr);
++		slab_err(s, page, "Wrong object count. Counter is %d but counted were %d",
++			 page->inuse, page->objects - nr);
+ 		page->inuse = page->objects - nr;
+ 		slab_fix(s, "Object count adjusted.");
+ 	}
+@@ -1122,8 +1122,8 @@ static inline int free_consistency_checks(struct kmem_cache *s,
+ 
+ 	if (unlikely(s != page->slab_cache)) {
+ 		if (!PageSlab(page)) {
+-			slab_err(s, page, "Attempt to free object(0x%p) "
+-				"outside of slab", object);
++			slab_err(s, page, "Attempt to free object(0x%p) outside of slab",
++				 object);
+ 		} else if (!page->slab_cache) {
+ 			pr_err("SLUB <none>: no slab for object 0x%p.\n",
+ 			       object);
+@@ -3456,10 +3456,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ 	free_kmem_cache_nodes(s);
+ error:
+ 	if (flags & SLAB_PANIC)
+-		panic("Cannot create slab %s size=%lu realsize=%u "
+-			"order=%u offset=%u flags=%lx\n",
+-			s->name, (unsigned long)s->size, s->size,
+-			oo_order(s->oo), s->offset, flags);
++		panic("Cannot create slab %s size=%lu realsize=%u order=%u offset=%u flags=%lx\n",
++		      s->name, (unsigned long)s->size, s->size,
++		      oo_order(s->oo), s->offset, flags);
+ 	return -EINVAL;
+ }
+ 
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index b60802b..d3511f9 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -166,8 +166,8 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
+ 	int actual_node = early_pfn_to_nid(pfn);
+ 
+ 	if (node_distance(actual_node, node) > LOCAL_DISTANCE)
+-		printk(KERN_WARNING "[%lx-%lx] potential offnode "
+-			"page_structs\n", start, end - 1);
++		printk(KERN_WARNING "[%lx-%lx] potential offnode page_structs\n",
++		       start, end - 1);
+ }
+ 
+ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node)
+@@ -292,8 +292,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 		if (map_map[pnum])
+ 			continue;
+ 		ms = __nr_to_section(pnum);
+-		printk(KERN_ERR "%s: sparsemem memory map backing failed "
+-			"some memory will not be available.\n", __func__);
++		printk(KERN_ERR "%s: sparsemem memory map backing failed some memory will not be available.\n",
++		       __func__);
+ 		ms->section_mem_map = 0;
+ 	}
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 3717cee..7cdb27d 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -428,8 +428,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 		if (map_map[pnum])
+ 			continue;
+ 		ms = __nr_to_section(pnum);
+-		printk(KERN_ERR "%s: sparsemem memory map backing failed "
+-			"some memory will not be available.\n", __func__);
++		printk(KERN_ERR "%s: sparsemem memory map backing failed some memory will not be available.\n",
++		       __func__);
+ 		ms->section_mem_map = 0;
+ 	}
+ }
+@@ -456,8 +456,8 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+ 	if (map)
+ 		return map;
+ 
+-	printk(KERN_ERR "%s: sparsemem memory map backing failed "
+-			"some memory will not be available.\n", __func__);
++	printk(KERN_ERR "%s: sparsemem memory map backing failed some memory will not be available.\n",
++	       __func__);
+ 	ms->section_mem_map = 0;
+ 	return NULL;
+ }
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 3888438..560ad38 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2532,8 +2532,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
+ 	enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
+ 
+-	pr_info("Adding %uk swap on %s.  "
+-			"Priority:%d extents:%d across:%lluk %s%s%s%s%s\n",
++	pr_info("Adding %uk swap on %s.  Priority:%d extents:%d across:%lluk %s%s%s%s%s\n",
+ 		p->pages<<(PAGE_SHIFT-10), name->name, p->prio,
+ 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
+ 		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index d4b2e34..e86c24e 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -469,8 +469,8 @@ overflow:
+ 		goto retry;
+ 	}
+ 	if (printk_ratelimit())
+-		pr_warn("vmap allocation for size %lu failed: "
+-			"use vmalloc=<size> to increase size.\n", size);
++		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
++			size);
+ 	kfree(va);
+ 	return ERR_PTR(-EBUSY);
+ }
 -- 
 2.6.3.368.gf34be46
 
