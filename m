@@ -1,71 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 622A16B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 10:50:20 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id n186so137788693wmn.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 07:50:20 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o65si10988820wmg.41.2016.03.03.07.50.19
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Mar 2016 07:50:19 -0800 (PST)
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160302021954.GA22355@js1304-P5Q-DELUXE>
- <20160302095056.GB26701@dhcp22.suse.cz>
- <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
- <20160302140611.GI26686@dhcp22.suse.cz>
- <CAAmzW4NX2sooaghiqkFjFb3Yzazi6rGguQbDjiyWDnfBqP0a-A@mail.gmail.com>
- <20160303092634.GB26202@dhcp22.suse.cz>
- <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56D85D38.1060404@suse.cz>
-Date: Thu, 3 Mar 2016 16:50:16 +0100
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2576B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:15:14 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id y8so20229106igp.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:15:14 -0800 (PST)
+Received: from www9186uo.sakura.ne.jp (153.121.56.200.v6.sakura.ne.jp. [2001:e42:102:1109:153:121:56:200])
+        by mx.google.com with ESMTP id g14si12843556iod.162.2016.03.03.08.15.13
+        for <linux-mm@kvack.org>;
+        Thu, 03 Mar 2016 08:15:13 -0800 (PST)
+Date: Fri, 4 Mar 2016 01:15:12 +0900
+From: Naoya Horiguchi <nao.horiguchi@gmail.com>
+Subject: Re: [PATCH v1 03/11] mm: thp: add helpers related to thp/pmd
+ migration
+Message-ID: <20160303161512.GA14896@www9186uo.sakura.ne.jp>
+References: <1456990918-30906-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1456990918-30906-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20160303104051.GB30948@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20160303104051.GB30948@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org
 
-On 03/03/2016 03:10 PM, Joonsoo Kim wrote:
-> 
->> [...]
->>>>> At least, reset no_progress_loops when did_some_progress. High
->>>>> order allocation up to PAGE_ALLOC_COSTLY_ORDER is as important
->>>>> as order 0. And, reclaim something would increase probability of
->>>>> compaction success.
->>>>
->>>> This is something I still do not understand. Why would reclaiming
->>>> random order-0 pages help compaction? Could you clarify this please?
->>>
->>> I just can tell simple version. Please check the link from me on another reply.
->>> Compaction could scan more range of memory if we have more freepage.
->>> This is due to algorithm limitation. Anyway, so, reclaiming random
->>> order-0 pages helps compaction.
->>
->> I will have a look at that code but this just doesn't make any sense.
->> The compaction should be reshuffling pages, this shouldn't be a function
->> of free memory.
-> 
-> Please refer the link I mentioned before. There is a reason why more free
-> memory would help compaction success. Compaction doesn't work
-> like as random reshuffling. It has an algorithm to reduce system overall
-> fragmentation so there is limitation.
+On Thu, Mar 03, 2016 at 01:40:51PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Mar 03, 2016 at 04:41:50PM +0900, Naoya Horiguchi wrote:
+> > This patch prepares thp migration's core code. These code will be open when
+> > unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
+> > to allocate destination thps.
+> >
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  arch/x86/include/asm/pgtable.h    | 11 ++++++
+> >  arch/x86/include/asm/pgtable_64.h |  2 +
+> >  include/linux/swapops.h           | 62 +++++++++++++++++++++++++++++++
+> >  mm/huge_memory.c                  | 78 +++++++++++++++++++++++++++++++++++++++
+> >  mm/migrate.c                      | 23 ++++++++++++
+> >  5 files changed, 176 insertions(+)
+> >
+> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable.h
+> > index 0687c47..0df9afe 100644
+> > --- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable.h
+> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable.h
+> > @@ -515,6 +515,17 @@ static inline int pmd_present(pmd_t pmd)
+> >  	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
+> >  }
+> >
+> > +/*
+> > + * Unlike pmd_present(), __pmd_present() checks only _PAGE_PRESENT bit.
+> > + * Combined with is_migration_entry(), this routine is used to detect pmd
+> > + * migration entries. To make it work fine, callers should make sure that
+> > + * pmd_trans_huge() returns true beforehand.
+> > + */
+>
+> Hm. I don't this this would fly. What pevents false positive for PROT_NONE
+> pmds?
 
-I proposed another way to get better results from direct compaction -
-don't scan for free pages but get them directly from freelists:
+Nothing actually if we use __pmd_present alone. __pmd_present() is now used
+only via is_pmd_migration_entry() combined with is_migration_entry(), and
+is_migration_entry() should return false for PROT_NONE pmds (because
+is_migration_entry() requires characteristic bits SWP_MIGRATION_READ|WRITE,
+and they aren't compatible.) But I admit it might not be robust enough.
 
-https://lkml.org/lkml/2015/12/3/60
+>
+> I guess the problem is _PAGE_PSE, right? I don't really understand why we
+> need it in pmd_present().
 
-But your redesign would be useful too for kcompactd/khugepaged keeping
-overall fragmentation low.
+Yes, _PAGE_PSE in pmd_present() makes this branching harder/complicated.
+Some simplification seems necessary.
+
+>
+> Andrea?
+>
+> > +static inline int __pmd_present(pmd_t pmd)
+> > +{
+> > +	return pmd_flags(pmd) & _PAGE_PRESENT;
+> > +}
+> > +
+> >  #ifdef CONFIG_NUMA_BALANCING
+> >  /*
+> >   * These work without NUMA balancing but the kernel does not care. See the
+> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable_64.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable_64.h
+> > index 2ee7811..df869d0 100644
+> > --- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable_64.h
+> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable_64.h
+> > @@ -153,7 +153,9 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+> >  					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+> >  					 | ((offset) << SWP_OFFSET_SHIFT) })
+> >  #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+> > +#define __pmd_to_swp_entry(pte)		((swp_entry_t) { pmd_val((pmd)) })
+> >  #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+> > +#define __swp_entry_to_pmd(x)		((pmd_t) { .pmd = (x).val })
+> >
+> >  extern int kern_addr_valid(unsigned long addr);
+> >  extern void cleanup_highmap(void);
+> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/include/linux/swapops.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/include/linux/swapops.h
+> > index 5c3a5f3..b402a2c 100644
+> > --- v4.5-rc5-mmotm-2016-02-24-16-18/include/linux/swapops.h
+> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/include/linux/swapops.h
+> > @@ -163,6 +163,68 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+> >
+> >  #endif
+> >
+> > +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> > +extern int set_pmd_migration_entry(struct page *page,
+> > +		struct mm_struct *mm, unsigned long address);
+> > +
+> > +extern int remove_migration_pmd(struct page *new,
+> > +		struct vm_area_struct *vma, unsigned long addr, void *old);
+> > +
+> > +extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+> > +
+> > +static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+> > +{
+> > +	swp_entry_t arch_entry;
+> > +
+> > +	arch_entry = __pmd_to_swp_entry(pmd);
+> > +	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+> > +}
+> > +
+> > +static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> > +{
+> > +	swp_entry_t arch_entry;
+> > +
+> > +	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
+> > +	return __swp_entry_to_pmd(arch_entry);
+> > +}
+> > +
+> > +static inline int is_pmd_migration_entry(pmd_t pmd)
+> > +{
+> > +	return !__pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
+> > +}
+> > +#else
+> > +static inline int set_pmd_migration_entry(struct page *page,
+> > +				struct mm_struct *mm, unsigned long address)
+> > +{
+> > +	return 0;
+> > +}
+> > +
+> > +static inline int remove_migration_pmd(struct page *new,
+> > +		struct vm_area_struct *vma, unsigned long addr, void *old)
+> > +{
+> > +	return 0;
+> > +}
+> > +
+> > +static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
+> > +
+> > +static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+> > +{
+> > +	return swp_entry(0, 0);
+> > +}
+> > +
+> > +static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> > +{
+> > +	pmd_t pmd = {};
+> > +
+> > +	return pmd;
+> > +}
+> > +
+> > +static inline int is_pmd_migration_entry(pmd_t pmd)
+> > +{
+> > +	return 0;
+> > +}
+> > +#endif
+> > +
+> >  #ifdef CONFIG_MEMORY_FAILURE
+> >
+> >  extern atomic_long_t num_poisoned_pages __read_mostly;
+> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/mm/huge_memory.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/huge_memory.c
+> > index 46ad357..c6d5406 100644
+> > --- v4.5-rc5-mmotm-2016-02-24-16-18/mm/huge_memory.c
+> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/huge_memory.c
+> > @@ -3657,3 +3657,81 @@ static int __init split_huge_pages_debugfs(void)
+> >  }
+> >  late_initcall(split_huge_pages_debugfs);
+> >  #endif
+> > +
+> > +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> > +int set_pmd_migration_entry(struct page *page, struct mm_struct *mm,
+> > +				unsigned long addr)
+> > +{
+> > +	pte_t *pte;
+> > +	pmd_t *pmd;
+> > +	pmd_t pmdval;
+> > +	pmd_t pmdswp;
+> > +	swp_entry_t entry;
+> > +	spinlock_t *ptl;
+> > +
+> > +	mmu_notifier_invalidate_range_start(mm, addr, addr + HPAGE_PMD_SIZE);
+> > +	if (!page_check_address_transhuge(page, mm, addr, &pmd, &pte, &ptl))
+> > +		goto out;
+> > +	if (pte)
+> > +		goto out;
+> > +	pmdval = pmdp_huge_get_and_clear(mm, addr, pmd);
+> > +	entry = make_migration_entry(page, pmd_write(pmdval));
+> > +	pmdswp = swp_entry_to_pmd(entry);
+> > +	pmdswp = pmd_mkhuge(pmdswp);
+> > +	set_pmd_at(mm, addr, pmd, pmdswp);
+> > +	page_remove_rmap(page, true);
+> > +	page_cache_release(page);
+> > +	spin_unlock(ptl);
+> > +out:
+> > +	mmu_notifier_invalidate_range_end(mm, addr, addr + HPAGE_PMD_SIZE);
+> > +	return SWAP_AGAIN;
+> > +}
+> > +
+> > +int remove_migration_pmd(struct page *new, struct vm_area_struct *vma,
+> > +			unsigned long addr, void *old)
+> > +{
+> > +	struct mm_struct *mm = vma->vm_mm;
+> > +	spinlock_t *ptl;
+> > +	pgd_t *pgd;
+> > +	pud_t *pud;
+> > +	pmd_t *pmd;
+> > +	pmd_t pmde;
+> > +	swp_entry_t entry;
+> > +	unsigned long mmun_start = addr & HPAGE_PMD_MASK;
+> > +	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
+> > +
+> > +	pgd = pgd_offset(mm, addr);
+> > +	if (!pgd_present(*pgd))
+> > +		goto out;
+> > +	pud = pud_offset(pgd, addr);
+> > +	if (!pud_present(*pud))
+> > +		goto out;
+> > +	pmd = pmd_offset(pud, addr);
+> > +	if (!pmd)
+> > +		goto out;
+> > +	ptl = pmd_lock(mm, pmd);
+> > +	pmde = *pmd;
+> > +	barrier();
+>
+> Do we need a barrier under ptl?
+
+No, I'll drop this. Thank you.
+
+> > +	if (!is_pmd_migration_entry(pmde))
+> > +		goto unlock_ptl;
+> > +	entry = pmd_to_swp_entry(pmde);
+> > +	if (migration_entry_to_page(entry) != old)
+> > +		goto unlock_ptl;
+> > +	get_page(new);
+> > +	pmde = mk_huge_pmd(new, vma->vm_page_prot);
+> > +	if (is_write_migration_entry(entry))
+> > +		pmde = maybe_pmd_mkwrite(pmde, vma);
+> > +	flush_cache_range(vma, mmun_start, mmun_end);
+> > +	page_add_anon_rmap(new, vma, mmun_start, true);
+> > +	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
+> > +	set_pmd_at(mm, mmun_start, pmd, pmde);
+> > +	flush_tlb_range(vma, mmun_start, mmun_end);
+> > +	if (vma->vm_flags & VM_LOCKED)
+> > +		mlock_vma_page(new);
+> > +	update_mmu_cache_pmd(vma, addr, pmd);
+> > +unlock_ptl:
+> > +	spin_unlock(ptl);
+> > +out:
+> > +	return SWAP_AGAIN;
+> > +}
+> > +#endif
+> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/mm/migrate.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/migrate.c
+> > index 577c94b..14164f6 100644
+> > --- v4.5-rc5-mmotm-2016-02-24-16-18/mm/migrate.c
+> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/migrate.c
+> > @@ -118,6 +118,8 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+> >  		if (!ptep)
+> >  			goto out;
+> >  		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
+> > +	} else if (PageTransHuge(new)) {
+> > +		return remove_migration_pmd(new, vma, addr, old);
+>
+> Hm. THP now can be mapped with PTEs too..
+
+Right, and different calls of remove_migration_pte() handle pmd/pte migration
+entries separately, so this particular code seems OK to me.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
