@@ -1,338 +1,281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C63996B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:56:59 -0500 (EST)
-Received: by mail-qk0-f178.google.com with SMTP id x1so7593243qkc.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:56:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w82si4333303qka.3.2016.03.03.04.56.58
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B0AC16B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 08:10:14 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p65so34091091wmp.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 05:10:14 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 18si10310817wmo.45.2016.03.03.05.10.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 04:56:59 -0800 (PST)
-Date: Thu, 3 Mar 2016 14:56:51 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [RFC qemu 2/4] virtio-balloon: Add a new feature to balloon
- device
-Message-ID: <20160303125651.GA21382@redhat.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Mar 2016 05:10:13 -0800 (PST)
+Date: Thu, 3 Mar 2016 14:10:33 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/3] radix-tree: support locking of individual exception
+ entries.
+Message-ID: <20160303131033.GC12118@quack.suse.cz>
+References: <145663588892.3865.9987439671424028216.stgit@notabene>
+ <145663616983.3865.11911049648442320016.stgit@notabene>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="0OAP2g/MAC+5xKAE"
 Content-Disposition: inline
-In-Reply-To: <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <145663616983.3865.11911049648442320016.stgit@notabene>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, rth@twiddle.net, ehabkost@redhat.com, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, dgilbert@redhat.com
+To: NeilBrown <neilb@suse.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 03, 2016 at 06:44:26PM +0800, Liang Li wrote:
-> Extend the virtio balloon device to support a new feature, this
-> new feature can help to get guest's free pages information, which
-> can be used for live migration optimzation.
+
+--0OAP2g/MAC+5xKAE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi Neil,
+
+On Sun 28-02-16 16:09:29, NeilBrown wrote:
+> The least significant bit of an exception entry is used as a lock flag.
+> A caller can:
+>  - create a locked entry by simply adding an entry with this flag set
+>  - lock an existing entry with radix_tree_lookup_lock().  This may return
+>     NULL if the entry doesn't exists, or was deleted while waiting for
+>     the lock.  It may return a non-exception entry if that is what is
+>     found.  If it returns a locked entry then it has exclusive rights
+>     to delete the entry.
+>  - unlock an entry that is already locked.  This will wake any waiters.
+>  - delete an entry that is locked.  This will wake waiters so that they
+>    return NULL without looking at the slot in the radix tree.
 > 
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> These must all be called with the radix tree locked (i.e. a spinlock held).
+> That spinlock is passed to radix_tree_lookup_lock() so that it can drop
+> the lock while waiting.
+> 
+> This is a "demonstration of concept".  I haven't actually tested, only compiled.
+> A possible use case is for the exception entries used by DAX.
+> 
+> It is possible that some of the lookups can be optimised away in some
+> cases by storing a slot pointer.  I wanted to keep it reasonable
+> simple until it was determined if it might be useful.
 
-I don't understand why we need a new interface.
-Balloon already sends free pages to host.
-Just teach host to skip these pages.
+Thanks for having a look! So the patch looks like it would do the work but
+frankly the amount of hackiness in it has exceeded my personal threshold...
+several times ;)
 
-Maybe instead of starting with code, you
-should send a high level description to the
-virtio tc for consideration?
+In particular I don't quite understand why have you decided to re-lookup
+the exceptional entry in the wake function? That seems to be the source of
+a lot of a hackiness? I was hoping for something simpler like what I've
+attached (compile tested only). What do you think?
 
-You can do it through the mailing list or
-using the web form:
-http://www.oasis-open.org/committees/comments/form.php?wg_abbrev=virtio
+To avoid false wakeups and thundering herd issues which my simple version does
+have, we could do something like what I outline in the second patch. Now
+that I look at the result that is closer to your patch, just cleaner IMHO :).
+But I wanted to have it separated to see how much complexity does this
+additional functionality brings...
+
+Now I'm going to have a look how to use this in DAX...
+
+								Honza
 
 
+> Signed-off-by: NeilBrown <neilb@suse.com>
 > ---
->  balloon.c                                       | 30 ++++++++-
->  hw/virtio/virtio-balloon.c                      | 81 ++++++++++++++++++++++++-
->  include/hw/virtio/virtio-balloon.h              | 17 +++++-
->  include/standard-headers/linux/virtio_balloon.h |  1 +
->  include/sysemu/balloon.h                        | 10 ++-
->  5 files changed, 134 insertions(+), 5 deletions(-)
+>  include/linux/radix-tree.h |    8 ++
+>  lib/radix-tree.c           |  158 ++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 166 insertions(+)
 > 
-> diff --git a/balloon.c b/balloon.c
-> index f2ef50c..a37717e 100644
-> --- a/balloon.c
-> +++ b/balloon.c
-> @@ -36,6 +36,7 @@
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index 450c12b546b7..8f579f66574b 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -308,6 +308,14 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+>  int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
+>  unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item);
 >  
->  static QEMUBalloonEvent *balloon_event_fn;
->  static QEMUBalloonStatus *balloon_stat_fn;
-> +static QEMUBalloonFreePages *balloon_free_pages_fn;
->  static void *balloon_opaque;
->  static bool balloon_inhibited;
->  
-> @@ -65,9 +66,12 @@ static bool have_balloon(Error **errp)
->  }
->  
->  int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-> -                             QEMUBalloonStatus *stat_func, void *opaque)
-> +                             QEMUBalloonStatus *stat_func,
-> +                             QEMUBalloonFreePages *free_pages_func,
-> +                             void *opaque)
+> +void *radix_tree_lookup_lock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +			     unsigned long index, spinlock_t *lock);
+> +void radix_tree_unlock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +		       unsigned long index);
+> +void radix_tree_delete_unlock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +			      unsigned long index);
+> +
+> +
+>  static inline void radix_tree_preload_end(void)
 >  {
-> -    if (balloon_event_fn || balloon_stat_fn || balloon_opaque) {
-> +    if (balloon_event_fn || balloon_stat_fn || balloon_free_pages_fn
-> +        || balloon_opaque) {
->          /* We're already registered one balloon handler.  How many can
->           * a guest really have?
->           */
-> @@ -75,6 +79,7 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
->      }
->      balloon_event_fn = event_func;
->      balloon_stat_fn = stat_func;
-> +    balloon_free_pages_fn = free_pages_func;
->      balloon_opaque = opaque;
->      return 0;
->  }
-> @@ -86,6 +91,7 @@ void qemu_remove_balloon_handler(void *opaque)
->      }
->      balloon_event_fn = NULL;
->      balloon_stat_fn = NULL;
-> +    balloon_free_pages_fn = NULL;
->      balloon_opaque = NULL;
->  }
->  
-> @@ -116,3 +122,23 @@ void qmp_balloon(int64_t target, Error **errp)
->      trace_balloon_event(balloon_opaque, target);
->      balloon_event_fn(balloon_opaque, target);
+>  	preempt_enable();
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 37d4643ab5c0..a24ea002f3eb 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -1500,3 +1500,161 @@ void __init radix_tree_init(void)
+>  	radix_tree_init_maxindex();
+>  	hotcpu_notifier(radix_tree_callback, 0);
 >  }
 > +
-> +bool balloon_free_pages_support(void)
+> +/* Exception entry locking.
+> + * The least significant bit of an exception entry can be used as a
+> + * "locked" flag.  Supported locking operations are:
+> + * radix_tree_lookup_lock() - if the indexed entry exists, lock it and
+> + *         return the value, else return NULL.  If the indexed entry is not
+> + *         exceptional it is returned without locking.
+> + * radix_tree_unlock() - release the lock on the indexed entry
+> + * radix_tree_delete_unlock() - the entry must be locked.  It will be atomically
+> + *     unlocked and removed.  Any threads sleeping in lookup_lock() will return.
+> + * Each of these take a radix_tree_root, a wait_queue_head_t, and an index.
+> + * The '*lock' function also takes a spinlock_t which must be held when any
+> + * of the functions is called.  *lock will drop the spinlock while waiting for
+> + * the entry lock.
+> + *
+> + * As delete_unlock could free the radix_tree_node, waiters much not touch it
+> + * when woken.  We provide a wake function for the waitq which records when the
+> + * item has been deleted.
+> + *
+> + * The wait_queue_head passed should be one that is used for bit_wait, such
+> + * as zone->wait_table.  We re-use the 'flags' and 'timeout' fields of the
+> + * wait_bit_key to store the root and index that we are waiting for.
+> + * __wake_up may only be called on one of these keys while the radix tree
+> + * is locked.  The wakeup function will take the lock itself if appropriate, or
+> + * may record that the radix tree entry has been deleted.  In either case
+> + * the waiting function just looks at the status reported by the wakeup function
+> + * and doesn't look at the radix tree itself.
+> + *
+> + * There is no function for locking an entry while inserting it.  Simply
+> + * insert an entry that is already marked as 'locked' - lsb set.
+> + *
+> + */
+> +
+> +struct wait_slot_queue {
+> +	struct radix_tree_root	*root;
+> +	unsigned long		index;
+> +	wait_queue_t		wait;
+> +	enum {SLOT_WAITING, SLOT_LOCKED, SLOT_GONE} state;
+> +	void			*ret;
+> +};
+> +
+> +static inline int slot_locked(void *v)
 > +{
-> +    return balloon_free_pages_fn ? true : false;
+> +	unsigned long l = (unsigned long)v;
+> +	return l & 1;
 > +}
 > +
-> +int balloon_get_free_pages(unsigned long *free_pages_bitmap,
-> +                           unsigned long *free_pages_count)
+> +static inline void *lock_slot(void **v)
 > +{
-> +    if (!balloon_free_pages_fn) {
-> +        return -1;
-> +    }
-> +
-> +    if (!free_pages_bitmap || !free_pages_count) {
-> +        return -1;
-> +    }
-> +
-> +    return balloon_free_pages_fn(balloon_opaque,
-> +                                 free_pages_bitmap, free_pages_count);
-> + }
-> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-> index e9c30e9..a5b9d08 100644
-> --- a/hw/virtio/virtio-balloon.c
-> +++ b/hw/virtio/virtio-balloon.c
-> @@ -76,6 +76,12 @@ static bool balloon_stats_supported(const VirtIOBalloon *s)
->      return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_STATS_VQ);
->  }
->  
-> +static bool balloon_free_pages_supported(const VirtIOBalloon *s)
-> +{
-> +    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-> +    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_GET_FREE_PAGES);
+> +	unsigned long *l = (unsigned long *)v;
+> +	return (void*)(*l |= 1);
 > +}
 > +
->  static bool balloon_stats_enabled(const VirtIOBalloon *s)
->  {
->      return s->stats_poll_interval > 0;
-> @@ -293,6 +299,37 @@ out:
->      }
->  }
->  
-> +static void virtio_balloon_get_free_pages(VirtIODevice *vdev, VirtQueue *vq)
+> +static inline void * unlock_slot(void **v)
 > +{
-> +    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-> +    VirtQueueElement *elem;
-> +    size_t offset = 0;
-> +    uint64_t bitmap_bytes = 0, free_pages_count = 0;
-> +
-> +    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
-> +    if (!elem) {
-> +        return;
-> +    }
-> +    s->free_pages_vq_elem = elem;
-> +
-> +    if (!elem->out_num) {
-> +        return;
-> +    }
-> +
-> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
-> +               &free_pages_count, sizeof(uint64_t));
-> +
-> +    offset += sizeof(uint64_t);
-> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
-> +               &bitmap_bytes, sizeof(uint64_t));
-> +
-> +    offset += sizeof(uint64_t);
-> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
-> +               s->free_pages_bitmap, bitmap_bytes);
-> +    s->req_status = DONE;
-> +    s->free_pages_count = free_pages_count;
+> +	unsigned long *l = (unsigned long *)v;
+> +	return (void*)(*l &= ~1UL);
 > +}
 > +
->  static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
->  {
->      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-> @@ -362,6 +399,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
->      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
->      f |= dev->host_features;
->      virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
-> +    virtio_add_feature(&f, VIRTIO_BALLOON_F_GET_FREE_PAGES);
->      return f;
->  }
->  
-> @@ -372,6 +410,45 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
->                                               VIRTIO_BALLOON_PFN_SHIFT);
->  }
->  
-> +static int virtio_balloon_free_pages(void *opaque,
-> +                                     unsigned long *free_pages_bitmap,
-> +                                     unsigned long *free_pages_count)
+> +static int wake_slot_function(wait_queue_t *wait, unsigned mode, int sync,
+> +			      void *arg)
 > +{
-> +    VirtIOBalloon *s = opaque;
-> +    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-> +    VirtQueueElement *elem = s->free_pages_vq_elem;
-> +    int len;
+> +	struct wait_bit_key *key = arg;
+> +	struct wait_slot_queue *wait_slot =
+> +		container_of(wait, struct wait_slot_queue, wait);
+> +	void **slot;
 > +
-> +    if (!balloon_free_pages_supported(s)) {
-> +        return -1;
-> +    }
-> +
-> +    if (s->req_status == NOT_STARTED) {
-> +        s->free_pages_bitmap = free_pages_bitmap;
-> +        s->req_status = STARTED;
-> +        s->mem_layout.low_mem = pc_get_lowmem(PC_MACHINE(current_machine));
-> +        if (!elem->in_num) {
-> +            elem = virtqueue_pop(s->fvq, sizeof(VirtQueueElement));
-> +            if (!elem) {
-> +                return 0;
-> +            }
-> +            s->free_pages_vq_elem = elem;
-> +        }
-> +        len = iov_from_buf(elem->in_sg, elem->in_num, 0, &s->mem_layout,
-> +                           sizeof(s->mem_layout));
-> +        virtqueue_push(s->fvq, elem, len);
-> +        virtio_notify(vdev, s->fvq);
-> +        return 0;
-> +    } else if (s->req_status == STARTED) {
-> +        return 0;
-> +    } else if (s->req_status == DONE) {
-> +        *free_pages_count = s->free_pages_count;
-> +        s->req_status = NOT_STARTED;
-> +    }
-> +
-> +    return 1;
+> +	if (wait_slot->root != key->flags ||
+> +	    wait_slot->index != key->timeout)
+> +		/* Not waking this waiter */
+> +		return 0;
+> +	if (wait_slot->state != SLOT_WAITING)
+> +		/* Should be impossible.... */
+> +		return 1;
+> +	if (key->bit_nr == -3)
+> +		/* Was just deleted, no point in doing a lookup */
+> +		wait_slot = NULL;
+> +	else
+> +		wait_slot->ret = __radix_tree_lookup(
+> +			wait_slot->root, wait_slot->index, NULL, &slot);
+> +	if (!wait_slot->ret || !radix_tree_exceptional_entry(wait_slot->ret)) {
+> +		wait_slot->state = SLOT_GONE;
+> +		return 1;
+> +	}
+> +	if (slot_locked(slot))
+> +		/* still locked */
+> +		return 0;
+> +	wait_slot->ret = lock_slot(slot);
+> +	wait_slot->state = SLOT_LOCKED;
+> +	return 1;
 > +}
 > +
->  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
->  {
->      VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
-> @@ -429,7 +506,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
->                  sizeof(struct virtio_balloon_config));
->  
->      ret = qemu_add_balloon_handler(virtio_balloon_to_target,
-> -                                   virtio_balloon_stat, s);
-> +                                   virtio_balloon_stat,
-> +                                   virtio_balloon_free_pages, s);
->  
->      if (ret < 0) {
->          error_setg(errp, "Only one balloon device is supported");
-> @@ -440,6 +518,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
->      s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
->      s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
->      s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
-> +    s->fvq = virtio_add_queue(vdev, 128, virtio_balloon_get_free_pages);
->  
->      reset_stats(s);
->  
-> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
-> index 35f62ac..fc173e4 100644
-> --- a/include/hw/virtio/virtio-balloon.h
-> +++ b/include/hw/virtio/virtio-balloon.h
-> @@ -23,6 +23,16 @@
->  #define VIRTIO_BALLOON(obj) \
->          OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
->  
-> +typedef enum virtio_req_status {
-> +    NOT_STARTED,
-> +    STARTED,
-> +    DONE,
-> +} VIRTIO_REQ_STATUS;
+> +void *radix_tree_lookup_lock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +			     unsigned long index, spinlock_t *lock)
+> +{
+> +	void *ret, **slot;
+> +	struct wait_slot_queue wait;
 > +
-> +typedef struct MemLayout {
-> +    uint64_t low_mem;
-> +} MemLayout;
+> +	ret = __radix_tree_lookup(root, index, NULL, &slot);
+> +	if (!ret || !radix_tree_exceptional_entry(ret))
+> +		return ret;
+> +	if (!slot_locked(slot))
+> +		return lock_slot(slot);
 > +
->  typedef struct virtio_balloon_stat VirtIOBalloonStat;
->  
->  typedef struct virtio_balloon_stat_modern {
-> @@ -33,16 +43,21 @@ typedef struct virtio_balloon_stat_modern {
->  
->  typedef struct VirtIOBalloon {
->      VirtIODevice parent_obj;
-> -    VirtQueue *ivq, *dvq, *svq;
-> +    VirtQueue *ivq, *dvq, *svq, *fvq;
->      uint32_t num_pages;
->      uint32_t actual;
->      uint64_t stats[VIRTIO_BALLOON_S_NR];
->      VirtQueueElement *stats_vq_elem;
-> +    VirtQueueElement *free_pages_vq_elem;
->      size_t stats_vq_offset;
->      QEMUTimer *stats_timer;
->      int64_t stats_last_update;
->      int64_t stats_poll_interval;
->      uint32_t host_features;
-> +    uint64_t *free_pages_bitmap;
-> +    uint64_t free_pages_count;
-> +    MemLayout mem_layout;
-> +    VIRTIO_REQ_STATUS req_status;
->  } VirtIOBalloon;
->  
->  #endif
-> diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
-> index 2e2a6dc..95b7d0c 100644
-> --- a/include/standard-headers/linux/virtio_balloon.h
-> +++ b/include/standard-headers/linux/virtio_balloon.h
-> @@ -34,6 +34,7 @@
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
->  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-> +#define VIRTIO_BALLOON_F_GET_FREE_PAGES 3 /* Get the free pages bitmap */
->  
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> diff --git a/include/sysemu/balloon.h b/include/sysemu/balloon.h
-> index 3f976b4..205b272 100644
-> --- a/include/sysemu/balloon.h
-> +++ b/include/sysemu/balloon.h
-> @@ -18,11 +18,19 @@
->  
->  typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
->  typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
-> +typedef int (QEMUBalloonFreePages)(void *opaque,
-> +                                   unsigned long *free_pages_bitmap,
-> +                                   unsigned long *free_pages_count);
->  
->  int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-> -			     QEMUBalloonStatus *stat_func, void *opaque);
-> +                             QEMUBalloonStatus *stat_func,
-> +                             QEMUBalloonFreePages *free_pages_func,
-> +                             void *opaque);
->  void qemu_remove_balloon_handler(void *opaque);
->  bool qemu_balloon_is_inhibited(void);
->  void qemu_balloon_inhibit(bool state);
-> +bool balloon_free_pages_support(void);
-> +int balloon_get_free_pages(unsigned long *free_pages_bitmap,
-> +                           unsigned long *free_pages_count);
->  
->  #endif
-> -- 
-> 1.8.3.1
+> +	wait.wait.private = current;
+> +	wait.wait.func = wake_slot_function;
+> +	INIT_LIST_HEAD(&wait.wait.task_list);
+> +	wait.state = SLOT_WAITING;
+> +	wait.root = root;
+> +	wait.index = index;
+> +	wait.ret = NULL;
+> +	for (;;) {
+> +		prepare_to_wait(wq, &wait.wait,
+> +				TASK_UNINTERRUPTIBLE);
+> +		if (wait.state != SLOT_WAITING)
+> +			break;
+> +
+> +		spin_unlock(lock);
+> +		schedule();
+> +		spin_lock(lock);
+> +	}
+> +	finish_wait(wq, &wait.wait);
+> +	return wait.ret;
+> +}
+> +EXPORT_SYMBOL(radix_tree_lookup_lock);
+> +
+> +void radix_tree_unlock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +			unsigned long index)
+> +{
+> +	void *ret, **slot;
+> +
+> +	ret = __radix_tree_lookup(root, index, NULL, &slot);
+> +	if (WARN_ON_ONCE(!ret || !radix_tree_exceptional_entry(ret)))
+> +		return;
+> +	if (WARN_ON_ONCE(!slot_locked(slot)))
+> +		return;
+> +	unlock_slot(slot);
+> +
+> +	if (waitqueue_active(wq)) {
+> +		struct wait_bit_key key = {.flags = root, .bit_nr = -2,
+> +					   .timeout = index};
+> +		__wake_up(wq, TASK_NORMAL, 1, &key);
+> +	}
+> +}
+> +EXPORT_SYMBOL(radix_tree_unlock);
+> +
+> +void radix_tree_delete_unlock(struct radix_tree_root *root, wait_queue_head_t *wq,
+> +			      unsigned long index)
+> +{
+> +	radix_tree_delete(root, index);
+> +	if (waitqueue_active(wq)) {
+> +		/* -3 here indicates deletion */
+> +		struct wait_bit_key key = {.flags = root, .bit_nr = -3,
+> +					   .timeout = index};
+> +		__wake_up(wq, TASK_NORMAL, 1, &key);
+> +	}
+> +}
+> +EXPORT_SYMBOL(radix_tree_delete_unlock);
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--0OAP2g/MAC+5xKAE
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-radix-tree-support-locking-of-individual-exception-e.patch"
+
+
+--0OAP2g/MAC+5xKAE--
