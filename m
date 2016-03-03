@@ -1,76 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 55DFA6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:45:27 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id w104so15606207qge.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:45:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g188si40959424qkb.10.2016.03.03.04.45.26
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6976B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:54:26 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id fz5so19132848obc.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:54:26 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id s4si11797048obf.20.2016.03.03.04.54.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 04:45:26 -0800 (PST)
-Date: Thu, 3 Mar 2016 12:45:20 +0000
-From: "Daniel P. Berrange" <berrange@redhat.com>
-Subject: Re: [Qemu-devel] [RFC qemu 4/4] migration: filter out guest's free
- pages in ram bulk stage
-Message-ID: <20160303124520.GE32270@redhat.com>
-Reply-To: "Daniel P. Berrange" <berrange@redhat.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <1457001868-15949-5-git-send-email-liang.z.li@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Mar 2016 04:54:25 -0800 (PST)
+Subject: Re: Suspicious error for CMA stress test
+References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+From: Hanjun Guo <guohanjun@huawei.com>
+Message-ID: <56D832BD.5080305@huawei.com>
+Date: Thu, 3 Mar 2016 20:49:01 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1457001868-15949-5-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, ehabkost@redhat.com, kvm@vger.kernel.org, mst@redhat.com, dgilbert@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, pbonzini@redhat.com, akpm@linux-foundation.org, rth@twiddle.net
+To: Joonsoo Kim <js1304@gmail.com>, Laura Abbott <labbott@redhat.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Mar 03, 2016 at 06:44:28PM +0800, Liang Li wrote:
-> Get the free pages information through virtio and filter out the free
-> pages in the ram bulk stage. This can significantly reduce the total
-> live migration time as well as network traffic.
-> 
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> ---
->  migration/ram.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++------
->  1 file changed, 46 insertions(+), 6 deletions(-)
+On 2016/3/3 15:42, Joonsoo Kim wrote:
+> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+>> (cc -mm and Joonsoo Kim)
+>>
+>>
+>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+>>> Hi,
+>>>
+>>> I came across a suspicious error for CMA stress test:
+>>>
+>>> Before the test, I got:
+>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>> CmaTotal:         204800 kB
+>>> CmaFree:          195044 kB
+>>>
+>>>
+>>> After running the test:
+>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>> CmaTotal:         204800 kB
+>>> CmaFree:         6602584 kB
+>>>
+>>> So the freed CMA memory is more than total..
+>>>
+>>> Also the the MemFree is more than mem total:
+>>>
+>>> -bash-4.3# cat /proc/meminfo
+>>> MemTotal:       16342016 kB
+>>> MemFree:        22367268 kB
+>>> MemAvailable:   22370528 kB
+[...]
+>>
+>> I played with this a bit and can see the same problem. The sanity
+>> check of CmaFree < CmaTotal generally triggers in
+>> __move_zone_freepage_state in unset_migratetype_isolate.
+>> This also seems to be present as far back as v4.0 which was the
+>> first version to have the updated accounting from Joonsoo.
+>> Were there known limitations with the new freepage accounting,
+>> Joonsoo?
+> I don't know. I also played with this and looks like there is
+> accounting problem, however, for my case, number of free page is slightly less
+> than total. I will take a look.
+>
+> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+> look like your case.
 
-> @@ -1945,6 +1971,20 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
->                                              DIRTY_MEMORY_MIGRATION);
->      }
->      memory_global_dirty_log_start();
-> +
-> +    if (balloon_free_pages_support() &&
-> +        balloon_get_free_pages(migration_bitmap_rcu->free_pages_bmap,
-> +                               &free_pages_count) == 0) {
-> +        qemu_mutex_unlock_iothread();
-> +        while (balloon_get_free_pages(migration_bitmap_rcu->free_pages_bmap,
-> +                                      &free_pages_count) == 0) {
-> +            usleep(1000);
-> +        }
-> +        qemu_mutex_lock_iothread();
-> +
-> +        filter_out_guest_free_pages(migration_bitmap_rcu->free_pages_bmap);
-> +    }
+I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
+did some other test:
 
-IIUC, this code is synchronous wrt to the guest OS balloon drive. ie it
-is asking the geust for free pages and waiting for a response. If the
-guest OS has crashed this is going to mean QEMU waits forever and thus
-migration won't complete. Similarly you need to consider that the guest
-OS may be malicious and simply never respond.
+ - run with single thread with 100000 times, everything is fine.
 
-So if the migration code is going to use the guest balloon driver to get
-info about free pages it has to be done in an asynchronous manner so that
-migration can never be stalled by a slow/crashed/malicious guest driver.
+ - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
+   the same test with 100 multi-thread, then I got:
 
-Regards,
-Daniel
--- 
-|: http://berrange.com      -o-    http://www.flickr.com/photos/dberrange/ :|
-|: http://libvirt.org              -o-             http://virt-manager.org :|
-|: http://autobuild.org       -o-         http://search.cpan.org/~danberr/ :|
-|: http://entangle-photo.org       -o-       http://live.gnome.org/gtk-vnc :|
+-bash-4.3# cat /proc/meminfo | grep Cma
+CmaTotal: 204800 kB
+CmaFree: 225112 kB
+
+It only increased about 30M for free, not 6G+ in previous test, although
+the problem is not solved, the problem is less serious, is it a synchronization
+problem?
+
+Thanks
+Hanjun
+
+[1]:
+index ea506eb..4447494 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -379,6 +379,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+        if (!count)
+                return NULL;
+ 
++ mutex_lock(&cma_mutex);
+        mask = cma_bitmap_aligned_mask(cma, align);
+        offset = cma_bitmap_aligned_offset(cma, align);
+        bitmap_maxno = cma_bitmap_maxno(cma);
+@@ -402,17 +403,16 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+                mutex_unlock(&cma->lock);
+ 
+                pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+-           mutex_lock(&cma_mutex);
+                ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
+-           mutex_unlock(&cma_mutex);
+                if (ret == 0) {
+                        page = pfn_to_page(pfn);
+                        break;
+                }
+ 
+                cma_clear_bitmap(cma, pfn, count);
+-           if (ret != -EBUSY)
++         if (ret != -EBUSY) {
+                        break;
++         }
+ 
+                pr_debug("%s(): memory range at %p is busy, retrying\n",
+                         __func__, pfn_to_page(pfn));
+@@ -420,6 +420,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+                start = bitmap_no + mask + 1;
+        }
+ 
++ mutex_unlock(&cma_mutex);
+        trace_cma_alloc(pfn, page, count, align);
+ 
+        pr_debug("%s(): returned %p\n", __func__, page);
+@@ -445,15 +446,19 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+ 
+        pr_debug("%s(page %p)\n", __func__, (void *)pages);
+ 
++ mutex_lock(&cma_mutex);
+        pfn = page_to_pfn(pages);
+ 
+-   if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
++ if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count) {
++         mutex_unlock(&cma_mutex);
+                return false;
++ }
+ 
+        VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+ 
+        free_contig_range(pfn, count);
+        cma_clear_bitmap(cma, pfn, count);
++ mutex_unlock(&cma_mutex);
+        trace_cma_release(pfn, pages, count);
+ 
+        return true;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
