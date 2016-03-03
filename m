@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 33F0D6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:23:41 -0500 (EST)
-Received: by mail-wm0-f44.google.com with SMTP id p65so32306261wmp.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:23:41 -0800 (PST)
-Received: from e06smtp17.uk.ibm.com (e06smtp17.uk.ibm.com. [195.75.94.113])
-        by mx.google.com with ESMTPS id s3si10107499wmf.48.2016.03.03.04.23.39
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C8BB56B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:33:02 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id p65so29624224wmp.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:33:02 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id cf5si11147662wjb.6.2016.03.03.04.33.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Mar 2016 04:23:40 -0800 (PST)
-Received: from localhost
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cornelia.huck@de.ibm.com>;
-	Thu, 3 Mar 2016 12:23:39 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2ECBE17D8042
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 12:24:02 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u23CNajX54329366
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2016 12:23:36 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u23CNaBW015988
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2016 05:23:36 -0700
-Date: Thu, 3 Mar 2016 13:23:34 +0100
-From: Cornelia Huck <cornelia.huck@de.ibm.com>
-Subject: Re: [RFC qemu 2/4] virtio-balloon: Add a new feature to balloon
- device
-Message-ID: <20160303132334.5e4565df.cornelia.huck@de.ibm.com>
-In-Reply-To: <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
-	<1457001868-15949-3-git-send-email-liang.z.li@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Mar 2016 04:33:01 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id n186so3836425wmn.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:33:01 -0800 (PST)
+Date: Thu, 3 Mar 2016 13:32:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160303123258.GE26202@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+ <20160229203502.GW16930@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602292251170.7563@eggly.anvils>
+ <20160301133846.GF9461@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1603030039430.23352@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1603030039430.23352@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, mst@redhat.com, akpm@linux-foundation.org, pbonzini@redhat.com, rth@twiddle.net, ehabkost@redhat.com, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, dgilbert@redhat.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu,  3 Mar 2016 18:44:26 +0800
-Liang Li <liang.z.li@intel.com> wrote:
-
-> Extend the virtio balloon device to support a new feature, this
-> new feature can help to get guest's free pages information, which
-> can be used for live migration optimzation.
-
-Do you have a spec for this, e.g. as a patch to the virtio spec?
-
+On Thu 03-03-16 01:54:43, Hugh Dickins wrote:
+> On Tue, 1 Mar 2016, Michal Hocko wrote:
+[...]
+> > So I have tried the following:
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 4d99e1f5055c..7364e48cf69a 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -1276,6 +1276,9 @@ static unsigned long __compaction_suitable(struct zone *zone, int order,
+> >  								alloc_flags))
+> >  		return COMPACT_PARTIAL;
+> >  
+> > +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
+> > +		return COMPACT_CONTINUE;
+> > +
 > 
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> ---
->  balloon.c                                       | 30 ++++++++-
->  hw/virtio/virtio-balloon.c                      | 81 ++++++++++++++++++++++++-
->  include/hw/virtio/virtio-balloon.h              | 17 +++++-
->  include/standard-headers/linux/virtio_balloon.h |  1 +
->  include/sysemu/balloon.h                        | 10 ++-
->  5 files changed, 134 insertions(+), 5 deletions(-)
+> I gave that a try just now, but it didn't help me: OOMed much sooner,
+> after doing half as much work. 
 
-> +static int virtio_balloon_free_pages(void *opaque,
-> +                                     unsigned long *free_pages_bitmap,
-> +                                     unsigned long *free_pages_count)
-> +{
-> +    VirtIOBalloon *s = opaque;
-> +    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-> +    VirtQueueElement *elem = s->free_pages_vq_elem;
-> +    int len;
-> +
-> +    if (!balloon_free_pages_supported(s)) {
-> +        return -1;
-> +    }
-> +
-> +    if (s->req_status == NOT_STARTED) {
-> +        s->free_pages_bitmap = free_pages_bitmap;
-> +        s->req_status = STARTED;
-> +        s->mem_layout.low_mem = pc_get_lowmem(PC_MACHINE(current_machine));
+I do not have an explanation why it would cause oom sooner but this
+turned out to be incomplete. There is another wmaark check deeper in the
+compaction path. Could you try the one from
+http://lkml.kernel.org/r/20160302130022.GG26686@dhcp22.suse.cz
 
-Please don't leak pc-specific information into generic code.
+I will try to find a machine with more CPUs and try to reproduce this in
+the mean time.
+
+I will also have a look at the data you have collected.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
