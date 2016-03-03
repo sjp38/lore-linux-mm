@@ -1,98 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5BC6B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 00:51:12 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id hb3so57637819igb.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 21:51:12 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id d191si1417197ioe.15.2016.03.02.21.51.10
+Received: from mail-yw0-f177.google.com (mail-yw0-f177.google.com [209.85.161.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 99B8A6B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 01:10:11 -0500 (EST)
+Received: by mail-yw0-f177.google.com with SMTP id b72so7596476ywe.0
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 22:10:11 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id k4si12966652ybb.97.2016.03.02.22.10.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 21:51:11 -0800 (PST)
-Message-ID: <1456984266.28236.1.camel@ellerman.id.au>
-Subject: Re: Problems with swapping in v4.5-rc on POWER
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Thu, 03 Mar 2016 16:51:06 +1100
-In-Reply-To: <alpine.LSU.2.11.1603021226300.31251@eggly.anvils>
-References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
-	 <877fhttmr1.fsf@linux.vnet.ibm.com>
-	 <alpine.LSU.2.11.1602242136270.6876@eggly.anvils>
-	 <alpine.LSU.2.11.1602251322130.8063@eggly.anvils>
-	 <alpine.LSU.2.11.1602260157430.10399@eggly.anvils>
-	 <alpine.LSU.2.11.1603021226300.31251@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 02 Mar 2016 22:10:10 -0800 (PST)
+Subject: Re: kswapd consumes 100% CPU when highest zone is small
+References: <CAKQB+ft3q2O2xYG2CTmTM9OCRLCP2FPTfHQ3jvcFSM-FGrjgGA@mail.gmail.com>
+ <56D6F6D7.50103@foxmail.com>
+ <CAKQB+fso7XvRXrPdpD9L18pq0sVy7BbM1d5cZQMJ77wT-v-1PQ@mail.gmail.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <56D7D2D2.6030709@hisilicon.com>
+Date: Thu, 3 Mar 2016 13:59:46 +0800
+MIME-Version: 1.0
+In-Reply-To: <CAKQB+fso7XvRXrPdpD9L18pq0sVy7BbM1d5cZQMJ77wT-v-1PQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Jerry Lee <leisurelysw24@gmail.com>, chen feng <puck.chen@foxmail.com>
+Cc: linux-mm@kvack.org, puck.chen@huawei.com
 
-On Wed, 2016-03-02 at 12:49 -0800, Hugh Dickins wrote:
-> On Fri, 26 Feb 2016, Hugh Dickins wrote:
-> > On Thu, 25 Feb 2016, Hugh Dickins wrote:
-> > > On Wed, 24 Feb 2016, Hugh Dickins wrote:
-> > > > On Thu, 25 Feb 2016, Aneesh Kumar K.V wrote:
-> > > > > 
-> > > > > Can you test the impact of the merge listed below ?(ie, revert the merge and see if
-> > > > > we can reproduce and also verify with merge applied). This will give us a
-> > > > > set of commits to look closer. We had quiet a lot of page table
-> > > > > related changes going in this merge window. 
-> > > > > 
-> > > > > f689b742f217b2ffe7 ("Pull powerpc updates from Michael Ellerman:")
-> > > > > 
-> > > > > That is the merge commit that added _PAGE_PTE. 
-> > > > 
-> > > > Another experiment running on it at the moment, I'd like to give that
-> > > > a few more hours, and then will try the revert you suggest.  But does
-> > > > that merge revert cleanly, did you try?  I'm afraid of interactions,
-> > > > whether obvious or subtle, with the THP refcounting rework.  Oh, since
-> > > > I don't have THP configured on, maybe I can ignore any issues from that.
-> > > 
-> > > That revert worked painlessly, only a very few and simple conflicts,
-> > > I ran that under load for 12 hours, no problem seen.
-> > > 
-> > > I've now checked out an f689b742 tree and started on that, just to
-> > > confirm that it fails fairly quickly I hope; and will then proceed
-> > > to git bisect, giving that as bad and 37cea93b as good.
-> > > 
-> > > Given the uncertainty of whether 12 hours is really long enough to be
-> > > sure, and perhaps difficulties along the way, I don't rate my chances
-> > > of a reliable bisection higher than 60%, but we'll see.
-> > 
-> > I'm sure you won't want a breathless report from me on each bisection
-> > step, but I ought to report that: contrary to our expectations, the
-> > f689b742 survived without error for 12 hours, so appears to be good.
-> > I'll bisect between there and v4.5-rc1.
-> 
-> The bisection completed this morning (log appended below):
-> not a satisfactory conclusion, it's pointing to a davem/net merge.
-> 
-> I was uncomfortable when I marked that point bad in the first place:
-> it ran for 9 hours before hitting a compiler error, which was nearly
-> twice as long as the longest I'd seen before (5 hours), and
-> uncomfortably close to the 12 hours I've been taking as good.
-> 
-> My current thinking is that the powerpc merge that you indicated,
-> that I found to be "good", is the one that contains the bad commit;
-> but that the bug is very rare to manifest in that kernel, and my test
-> of the davem/net merge happened to be unusually unlucky to hit it.
-> 
-> Then some other later change makes it significantly easier to hit;
-> and identifying that change may make it much easier to pin down
-> what the original bug is.
-> 
-> So I've replayed the bisection up to that point, marked the davem/net
-> merge as good this time, and set off again in the hope that it will
-> lead somewhere more enlightening.  But prepared for disappointment.
 
-Thanks Hugh. That logic sounds reasonable, I doubt we can blame davem :)
 
-I've setup another box here to try and reproduce it. It's running with 4k
-pages, no THP, and it's going well into swap. Hopefully I can hit the same bug,
-but we'll see in 12 hours I guess.
+On 2016/3/3 9:56, Jerry Lee wrote:
+> Hi,
+> 
+> Thanks for sharing the same experience and workaround with me.
+> But it's kind of hard for me to set all the possible processes to no-kswapd flag
+> in advance so that they would not trigger kswapd in the future.
+> 
+> Cheers,
+> - Jerry
+> 
+> On 2 March 2016 at 22:21, chen feng <puck.chen@foxmail.com <mailto:puck.chen@foxmail.com>> wrote:
+> 
+> 
+> 
+>     On 2016/3/2 14:20, Jerry Lee wrote:
+>     > Hi,
+>     >
+>     > I have a x86_64 system with 2G RAM using linux-3.12.x.  During copying
+>     > large
+>     > files (e.g. 100GB), kswapd easily consumes 100% CPU until the file is
+>     > deleted
+>     > or the page cache is dropped.  With setting the min_free_kbytes from 16384
+>     > to
+>     > 65536, the symptom is mitigated but I can't totally get rid of the problem.
+>     >
+>     > After some trial and error, I found that highest zone is always unbalanced
+>     > with
+>     > order-0 page request so that pgdat_blanaced() continuously return false and
+>     > kswapd can't sleep.
+>     >
+>     > Here's the watermarks (min_free_kbytes = 65536) in my system:
+>     > Node 0, zone      DMA
+>     >   pages free     2167
+>     >         min      138
+>     >         low      172
+>     >         high     207
+>     >         scanned  0
+>     >         spanned  4095
+>     >         present  3996
+>     >         managed  3974
+>     >
+>     > Node 0, zone    DMA32
+>     >   pages free     215375
+>     >         min      16226
+>     >         low      20282
+>     >         high     24339
+>     >         scanned  0
+>     >         spanned  1044480
+>     >         present  490971
+>     >         managed  464223
+>     >
+>     > Node 0, zone   Normal
+>     >   pages free     7
+>     >         min      18
+>     >         low      22
+>     >         high     27
+>     >         scanned  0
+>     >         spanned  1536
+>     >         present  1536
+>     >         managed  523
+>     >
+>     > Besides, when the kswapd crazily spins, the value of the following entries
+>     > in vmstat increases quickly even when I stop copying file:
+>     >
+>     > pgalloc_dma 17719
+>     > pgalloc_dma32 3262823
+>     > slabs_scanned 937728
+>     > kswapd_high_wmark_hit_quickly 54333233
+>     > pageoutrun 54333235
+>     >
+>     > Is there anything I could do to totally get rid of the problem?
+>     > \
+>     Yes, I have the same issue on arm64 platform.
+> 
+>     I think you can increase the normal ZONE size. And I think there will be a memory alloc process
+>     in your system which tigger the kswapd too frequently.
+> 
+>     You can set this process to no-kswapd flag will also solve this issue.
+>     > Thanks
+>     >
 
-cheers
+Just hack the process who tigger it too frequenctly.
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
