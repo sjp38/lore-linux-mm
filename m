@@ -1,278 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 98A7F6B0255
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 02:42:13 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id fl4so10159971pad.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:42:13 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id wl2si2720002pab.236.2016.03.02.23.42.12
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C904E6B0256
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 02:42:14 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id rt7so12808178obb.3
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:42:14 -0800 (PST)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id k194si17804726oig.27.2016.03.02.23.42.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 23:42:12 -0800 (PST)
-Received: by mail-pa0-x231.google.com with SMTP id fy10so10114184pac.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:42:12 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1 03/11] mm: thp: add helpers related to thp/pmd migration
-Date: Thu,  3 Mar 2016 16:41:50 +0900
-Message-Id: <1456990918-30906-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1456990918-30906-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1456990918-30906-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Wed, 02 Mar 2016 23:42:13 -0800 (PST)
+Received: by mail-oi0-x22f.google.com with SMTP id r187so9693279oih.3
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:42:13 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <56D79284.3030009@redhat.com>
+References: <56D6F008.1050600@huawei.com>
+	<56D79284.3030009@redhat.com>
+Date: Thu, 3 Mar 2016 16:42:13 +0900
+Message-ID: <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+Subject: Re: Suspicious error for CMA stress test
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch prepares thp migration's core code. These code will be open when
-unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
-to allocate destination thps.
+2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+> (cc -mm and Joonsoo Kim)
+>
+>
+> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+>>
+>> Hi,
+>>
+>> I came across a suspicious error for CMA stress test:
+>>
+>> Before the test, I got:
+>> -bash-4.3# cat /proc/meminfo | grep Cma
+>> CmaTotal:         204800 kB
+>> CmaFree:          195044 kB
+>>
+>>
+>> After running the test:
+>> -bash-4.3# cat /proc/meminfo | grep Cma
+>> CmaTotal:         204800 kB
+>> CmaFree:         6602584 kB
+>>
+>> So the freed CMA memory is more than total..
+>>
+>> Also the the MemFree is more than mem total:
+>>
+>> -bash-4.3# cat /proc/meminfo
+>> MemTotal:       16342016 kB
+>> MemFree:        22367268 kB
+>> MemAvailable:   22370528 kB
+>>
+>> Here is the kernel module doing the stress test below (if the test case
+>> is wrong, correct me), any help would be great appreciated.
+>>
+>> The test is running on ARM64 platform (hisilicon D02) with 4.4 kernel, I
+>> think
+>> the 4.5-rc is the same as I didn't notice the updates for it.
+>>
+>> int malloc_dma(void *data)
+>> {
+>>      void *vaddr;
+>>      struct platform_device * pdev=(struct platform_device*)data;
+>>      dma_addr_t dma_handle;
+>>      int i;
+>>
+>>      for(i=0; i<1000; i++) {
+>>          vaddr=dma_alloc_coherent(&pdev->dev, malloc_size, &dma_handle,
+>> GFP_KERNEL);
+>>          if (!vaddr)
+>>              pr_err("alloc cma memory failed!\n");
+>>
+>>          mdelay(1);
+>>
+>>          if (vaddr)
+>>                  dma_free_coherent(&pdev->dev,malloc_size,vaddr,
+>> dma_handle);
+>>      }
+>>      pr_info("alloc free cma memory success return!\n");
+>>      return 0;
+>> }
+>>
+>> static int dma_alloc_coherent_init(struct platform_device *pdev)
+>> {
+>>      int i;
+>>
+>>      for(i=0; i<100; i++)   {
+>>          task[i] = kthread_create(malloc_dma,pdev,"malloc_dma_%d",i);
+>>          if(!task[i]) {
+>>              printk("kthread_create faile %d\n",i);
+>>              continue;
+>>          }
+>>          wake_up_process(task[i]);
+>>      }
+>>      return 0;
+>> }
+>>
+>> Thanks
+>> Hanjun
+>>
+>> The whole /proc/meminfo:
+>>
+>> -bash-4.3# cat /proc/meminfo
+>> MemTotal:       16342016 kB
+>> MemFree:        22367268 kB
+>> MemAvailable:   22370528 kB
+>> Buffers:            4292 kB
+>> Cached:            36444 kB
+>> SwapCached:            0 kB
+>> Active:            23564 kB
+>> Inactive:          25360 kB
+>> Active(anon):       8424 kB
+>> Inactive(anon):       64 kB
+>> Active(file):      15140 kB
+>> Inactive(file):    25296 kB
+>> Unevictable:           0 kB
+>> Mlocked:               0 kB
+>> SwapTotal:             0 kB
+>> SwapFree:              0 kB
+>> Dirty:                 0 kB
+>> Writeback:             0 kB
+>> AnonPages:          8196 kB
+>> Mapped:            16448 kB
+>> Shmem:               296 kB
+>> Slab:              26832 kB
+>> SReclaimable:       6300 kB
+>> SUnreclaim:        20532 kB
+>> KernelStack:        3088 kB
+>> PageTables:          404 kB
+>> NFS_Unstable:          0 kB
+>> Bounce:                0 kB
+>> WritebackTmp:          0 kB
+>> CommitLimit:     8171008 kB
+>> Committed_AS:      34336 kB
+>> VmallocTotal:   258998208 kB
+>> VmallocUsed:           0 kB
+>> VmallocChunk:          0 kB
+>> AnonHugePages:         0 kB
+>> CmaTotal:         204800 kB
+>> CmaFree:         6602584 kB
+>> HugePages_Total:       0
+>> HugePages_Free:        0
+>> HugePages_Rsvd:        0
+>> HugePages_Surp:        0
+>> Hugepagesize:       2048 kB
+>>
+>
+>
+> I played with this a bit and can see the same problem. The sanity
+> check of CmaFree < CmaTotal generally triggers in
+> __move_zone_freepage_state in unset_migratetype_isolate.
+> This also seems to be present as far back as v4.0 which was the
+> first version to have the updated accounting from Joonsoo.
+> Were there known limitations with the new freepage accounting,
+> Joonsoo?
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- arch/x86/include/asm/pgtable.h    | 11 ++++++
- arch/x86/include/asm/pgtable_64.h |  2 +
- include/linux/swapops.h           | 62 +++++++++++++++++++++++++++++++
- mm/huge_memory.c                  | 78 +++++++++++++++++++++++++++++++++++++++
- mm/migrate.c                      | 23 ++++++++++++
- 5 files changed, 176 insertions(+)
+I don't know. I also played with this and looks like there is
+accounting problem, however, for my case, number of free page is slightly less
+than total. I will take a look.
 
-diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable.h
-index 0687c47..0df9afe 100644
---- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable.h
-+++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable.h
-@@ -515,6 +515,17 @@ static inline int pmd_present(pmd_t pmd)
- 	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
- }
- 
-+/*
-+ * Unlike pmd_present(), __pmd_present() checks only _PAGE_PRESENT bit.
-+ * Combined with is_migration_entry(), this routine is used to detect pmd
-+ * migration entries. To make it work fine, callers should make sure that
-+ * pmd_trans_huge() returns true beforehand.
-+ */
-+static inline int __pmd_present(pmd_t pmd)
-+{
-+	return pmd_flags(pmd) & _PAGE_PRESENT;
-+}
-+
- #ifdef CONFIG_NUMA_BALANCING
- /*
-  * These work without NUMA balancing but the kernel does not care. See the
-diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable_64.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable_64.h
-index 2ee7811..df869d0 100644
---- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/include/asm/pgtable_64.h
-+++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/include/asm/pgtable_64.h
-@@ -153,7 +153,9 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
- 					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
- 					 | ((offset) << SWP_OFFSET_SHIFT) })
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
-+#define __pmd_to_swp_entry(pte)		((swp_entry_t) { pmd_val((pmd)) })
- #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
-+#define __swp_entry_to_pmd(x)		((pmd_t) { .pmd = (x).val })
- 
- extern int kern_addr_valid(unsigned long addr);
- extern void cleanup_highmap(void);
-diff --git v4.5-rc5-mmotm-2016-02-24-16-18/include/linux/swapops.h v4.5-rc5-mmotm-2016-02-24-16-18_patched/include/linux/swapops.h
-index 5c3a5f3..b402a2c 100644
---- v4.5-rc5-mmotm-2016-02-24-16-18/include/linux/swapops.h
-+++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/include/linux/swapops.h
-@@ -163,6 +163,68 @@ static inline int is_write_migration_entry(swp_entry_t entry)
- 
- #endif
- 
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+extern int set_pmd_migration_entry(struct page *page,
-+		struct mm_struct *mm, unsigned long address);
-+
-+extern int remove_migration_pmd(struct page *new,
-+		struct vm_area_struct *vma, unsigned long addr, void *old);
-+
-+extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
-+
-+static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-+{
-+	swp_entry_t arch_entry;
-+
-+	arch_entry = __pmd_to_swp_entry(pmd);
-+	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
-+}
-+
-+static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
-+{
-+	swp_entry_t arch_entry;
-+
-+	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
-+	return __swp_entry_to_pmd(arch_entry);
-+}
-+
-+static inline int is_pmd_migration_entry(pmd_t pmd)
-+{
-+	return !__pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
-+}
-+#else
-+static inline int set_pmd_migration_entry(struct page *page,
-+				struct mm_struct *mm, unsigned long address)
-+{
-+	return 0;
-+}
-+
-+static inline int remove_migration_pmd(struct page *new,
-+		struct vm_area_struct *vma, unsigned long addr, void *old)
-+{
-+	return 0;
-+}
-+
-+static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
-+
-+static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-+{
-+	return swp_entry(0, 0);
-+}
-+
-+static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
-+{
-+	pmd_t pmd = {};
-+
-+	return pmd;
-+}
-+
-+static inline int is_pmd_migration_entry(pmd_t pmd)
-+{
-+	return 0;
-+}
-+#endif
-+
- #ifdef CONFIG_MEMORY_FAILURE
- 
- extern atomic_long_t num_poisoned_pages __read_mostly;
-diff --git v4.5-rc5-mmotm-2016-02-24-16-18/mm/huge_memory.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/huge_memory.c
-index 46ad357..c6d5406 100644
---- v4.5-rc5-mmotm-2016-02-24-16-18/mm/huge_memory.c
-+++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/huge_memory.c
-@@ -3657,3 +3657,81 @@ static int __init split_huge_pages_debugfs(void)
- }
- late_initcall(split_huge_pages_debugfs);
- #endif
-+
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+int set_pmd_migration_entry(struct page *page, struct mm_struct *mm,
-+				unsigned long addr)
-+{
-+	pte_t *pte;
-+	pmd_t *pmd;
-+	pmd_t pmdval;
-+	pmd_t pmdswp;
-+	swp_entry_t entry;
-+	spinlock_t *ptl;
-+
-+	mmu_notifier_invalidate_range_start(mm, addr, addr + HPAGE_PMD_SIZE);
-+	if (!page_check_address_transhuge(page, mm, addr, &pmd, &pte, &ptl))
-+		goto out;
-+	if (pte)
-+		goto out;
-+	pmdval = pmdp_huge_get_and_clear(mm, addr, pmd);
-+	entry = make_migration_entry(page, pmd_write(pmdval));
-+	pmdswp = swp_entry_to_pmd(entry);
-+	pmdswp = pmd_mkhuge(pmdswp);
-+	set_pmd_at(mm, addr, pmd, pmdswp);
-+	page_remove_rmap(page, true);
-+	page_cache_release(page);
-+	spin_unlock(ptl);
-+out:
-+	mmu_notifier_invalidate_range_end(mm, addr, addr + HPAGE_PMD_SIZE);
-+	return SWAP_AGAIN;
-+}
-+
-+int remove_migration_pmd(struct page *new, struct vm_area_struct *vma,
-+			unsigned long addr, void *old)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	spinlock_t *ptl;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pmd_t pmde;
-+	swp_entry_t entry;
-+	unsigned long mmun_start = addr & HPAGE_PMD_MASK;
-+	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		goto out;
-+	pud = pud_offset(pgd, addr);
-+	if (!pud_present(*pud))
-+		goto out;
-+	pmd = pmd_offset(pud, addr);
-+	if (!pmd)
-+		goto out;
-+	ptl = pmd_lock(mm, pmd);
-+	pmde = *pmd;
-+	barrier();
-+	if (!is_pmd_migration_entry(pmde))
-+		goto unlock_ptl;
-+	entry = pmd_to_swp_entry(pmde);
-+	if (migration_entry_to_page(entry) != old)
-+		goto unlock_ptl;
-+	get_page(new);
-+	pmde = mk_huge_pmd(new, vma->vm_page_prot);
-+	if (is_write_migration_entry(entry))
-+		pmde = maybe_pmd_mkwrite(pmde, vma);
-+	flush_cache_range(vma, mmun_start, mmun_end);
-+	page_add_anon_rmap(new, vma, mmun_start, true);
-+	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
-+	set_pmd_at(mm, mmun_start, pmd, pmde);
-+	flush_tlb_range(vma, mmun_start, mmun_end);
-+	if (vma->vm_flags & VM_LOCKED)
-+		mlock_vma_page(new);
-+	update_mmu_cache_pmd(vma, addr, pmd);
-+unlock_ptl:
-+	spin_unlock(ptl);
-+out:
-+	return SWAP_AGAIN;
-+}
-+#endif
-diff --git v4.5-rc5-mmotm-2016-02-24-16-18/mm/migrate.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/migrate.c
-index 577c94b..14164f6 100644
---- v4.5-rc5-mmotm-2016-02-24-16-18/mm/migrate.c
-+++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/mm/migrate.c
-@@ -118,6 +118,8 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 		if (!ptep)
- 			goto out;
- 		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
-+	} else if (PageTransHuge(new)) {
-+		return remove_migration_pmd(new, vma, addr, old);
- 	} else {
- 		pmd = mm_find_pmd(mm, addr);
- 		if (!pmd)
-@@ -252,6 +254,27 @@ void migration_entry_wait_huge(struct vm_area_struct *vma,
- 	__migration_entry_wait(mm, pte, ptl);
- }
- 
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
-+{
-+	spinlock_t *ptl;
-+	struct page *page;
-+
-+	ptl = pmd_lock(mm, pmd);
-+	if (!is_pmd_migration_entry(*pmd))
-+		goto unlock;
-+	page = migration_entry_to_page(pmd_to_swp_entry(*pmd));
-+	if (!get_page_unless_zero(page))
-+		goto unlock;
-+	spin_unlock(ptl);
-+	wait_on_page_locked(page);
-+	put_page(page);
-+	return;
-+unlock:
-+	spin_unlock(ptl);
-+}
-+#endif
-+
- #ifdef CONFIG_BLOCK
- /* Returns true if all buffers are successfully locked */
- static bool buffer_migrate_lock_buffers(struct buffer_head *head,
--- 
-2.7.0
+Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+look like your case.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
