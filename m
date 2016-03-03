@@ -1,48 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BEEC6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 01:19:50 -0500 (EST)
-Received: by mail-lb0-f179.google.com with SMTP id k15so11358094lbg.0
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 22:19:50 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id h123si17704463lfb.126.2016.03.02.22.19.44
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9076E6B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 02:02:11 -0500 (EST)
+Received: by mail-pf0-f170.google.com with SMTP id w128so9740622pfb.2
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:02:11 -0800 (PST)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id vb13si2470790pab.68.2016.03.02.23.02.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Mar 2016 22:19:49 -0800 (PST)
-Subject: Re: Suspicious error for CMA stress test
-References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <56D7D48C.6010505@huawei.com>
-Date: Thu, 3 Mar 2016 14:07:08 +0800
-MIME-Version: 1.0
-In-Reply-To: <56D79284.3030009@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Mar 2016 23:02:10 -0800 (PST)
+Received: by mail-pa0-x241.google.com with SMTP id fl4so797877pad.2
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:02:10 -0800 (PST)
+From: Li Zhang <zhlcindy@gmail.com>
+Subject: [PATCH RFC 0/2] mm: Enable page parallel initialisation for Power
+Date: Thu,  3 Mar 2016 15:01:39 +0800
+Message-Id: <1456988501-29046-1-git-send-email-zhlcindy@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, Joonsoo Kim <js1304@gmail.com>
-Cc: "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-Hi Laura,
+From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-Thanks a lot for taking a look!
+Uptream has supported page parallel initialisation for X86 and the
+boot time is improved greately. Some tests have been done for Power.
 
-On 2016/3/3 9:25, Laura Abbott wrote:
-> (cc -mm and Joonsoo Kim)
->
->
-[...]
->
-> I played with this a bit and can see the same problem. The sanity
-> check of CmaFree < CmaTotal generally triggers in
-> __move_zone_freepage_state in unset_migratetype_isolate.
-> This also seems to be present as far back as v4.0 which was the
-> first version to have the updated accounting from Joonsoo.
+Here is the result I have done with different memory size.
 
-Would you mind point out the specific commit ID?
+* 4GB memory:
+    boot time is as the following: 
+    with patch vs without patch: 10.4s vs 24.5s
+    boot time is improved 57%
+* 200GB memory: 
+   boot time looks the same with and without patches.
+   boot time is about 38s
+* 32TB memory: 
+   boot time looks the same with and without patches 
+   boot time is about 160s.
+   The boot time is much shorter than X86 with 24TB memory.
+   From community discussion, it costs about 694s for X86 24T system.
 
-Thanks
-Hanjun
+>From code view, parallel initialisation improve the performance by
+deferring memory initilisation to kswap with N kthreads, it should
+improve the performance therotically. 
+
+>From the test result, On X86, performance is improved greatly with huge
+memory. But on Power platform, it is improved greatly with less than 
+100GB memory. For huge memory, it is not improved greatly. But it saves 
+the time with several threads at least, as the following information 
+shows(32TB system log):
+
+[   22.648169] node 9 initialised, 16607461 pages in 280ms
+[   22.783772] node 3 initialised, 23937243 pages in 410ms
+[   22.858877] node 6 initialised, 29179347 pages in 490ms
+[   22.863252] node 2 initialised, 29179347 pages in 490ms
+[   22.907545] node 0 initialised, 32049614 pages in 540ms
+[   22.920891] node 15 initialised, 32212280 pages in 550ms
+[   22.923236] node 4 initialised, 32306127 pages in 550ms
+[   22.923384] node 12 initialised, 32314319 pages in 550ms
+[   22.924754] node 8 initialised, 32314319 pages in 550ms
+[   22.940780] node 13 initialised, 33353677 pages in 570ms
+[   22.940796] node 11 initialised, 33353677 pages in 570ms
+[   22.941700] node 5 initialised, 33353677 pages in 570ms
+[   22.941721] node 10 initialised, 33353677 pages in 570ms
+[   22.941876] node 7 initialised, 33353677 pages in 570ms
+[   22.944946] node 14 initialised, 33353677 pages in 570ms
+[   22.946063] node 1 initialised, 33345485 pages in 580ms
+
+It saves the time about 550*16 ms at least, although it can be ignore to compare 
+the boot time about 160 seconds. What's more, the boot time is much shorter 
+on Power even without patches than x86 for huge memory machine. 
+
+So this patchset is still necessary to be enabled for Power. 
+
+Li Zhang (2):
+  mm: meminit: initialise more memory for inode/dentry hash tables in
+    early boot
+  Enable page parallel initialisation
+
+ arch/powerpc/Kconfig |  1 +
+ mm/page_alloc.c      | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
