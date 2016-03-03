@@ -1,79 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 104396B0255
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:15:57 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id rt7so24263557obb.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:15:57 -0800 (PST)
-Received: from www9186uo.sakura.ne.jp (153.121.56.200.v6.sakura.ne.jp. [2001:e42:102:1109:153:121:56:200])
-        by mx.google.com with ESMTP id m130si15234228oig.80.2016.03.03.08.15.55
-        for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 08:15:55 -0800 (PST)
-Date: Fri, 4 Mar 2016 01:15:54 +0900
-From: Naoya Horiguchi <nao.horiguchi@gmail.com>
-Subject: Re: [PATCH v1 05/11] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20160303161554.GB14896@www9186uo.sakura.ne.jp>
-References: <1456990918-30906-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1456990918-30906-6-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20160303105058.GC30948@node.shutemov.name>
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E356C6B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:26:31 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p65so38562185wmp.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:26:31 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id e3si49296754wjn.27.2016.03.03.08.26.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Mar 2016 08:26:30 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id 1so4953178wmg.2
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:26:30 -0800 (PST)
+Date: Thu, 3 Mar 2016 17:26:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160303162628.GI26202@dhcp22.suse.cz>
+References: <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
+ <20160302021954.GA22355@js1304-P5Q-DELUXE>
+ <20160302095056.GB26701@dhcp22.suse.cz>
+ <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
+ <20160302140611.GI26686@dhcp22.suse.cz>
+ <CAAmzW4NX2sooaghiqkFjFb3Yzazi6rGguQbDjiyWDnfBqP0a-A@mail.gmail.com>
+ <20160303092634.GB26202@dhcp22.suse.cz>
+ <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
+ <56D85D38.1060404@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160303105058.GC30948@node.shutemov.name>
+In-Reply-To: <56D85D38.1060404@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Thu, Mar 03, 2016 at 01:50:58PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Mar 03, 2016 at 04:41:52PM +0900, Naoya Horiguchi wrote:
-> > If one of callers of page migration starts to handle thp, memory management code
-> > start to see pmd migration entry, so we need to prepare for it before enabling.
-> > This patch changes various code point which checks the status of given pmds in
-> > order to prevent race between thp migration and the pmd-related works.
-> >
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  arch/x86/mm/gup.c  |  3 +++
-> >  fs/proc/task_mmu.c | 25 +++++++++++++--------
-> >  mm/gup.c           |  8 +++++++
-> >  mm/huge_memory.c   | 66 ++++++++++++++++++++++++++++++++++++++++++++++++------
-> >  mm/memcontrol.c    |  2 ++
-> >  mm/memory.c        |  5 +++++
-> >  6 files changed, 93 insertions(+), 16 deletions(-)
-> >
-> > diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/mm/gup.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/mm/gup.c
-> > index f8d0b5e..34c3d43 100644
-> > --- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/mm/gup.c
-> > +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/mm/gup.c
-> > @@ -10,6 +10,7 @@
-> >  #include <linux/highmem.h>
-> >  #include <linux/swap.h>
-> >  #include <linux/memremap.h>
-> > +#include <linux/swapops.h>
-> >
-> >  #include <asm/pgtable.h>
-> >
-> > @@ -210,6 +211,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
-> >  		if (pmd_none(pmd))
-> >  			return 0;
-> >  		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
-> > +			if (unlikely(is_pmd_migration_entry(pmd)))
-> > +				return 0;
->
-> Hm. I've expected to see bunch of pmd_none() to pmd_present() conversions.
-> That's seems a right way guard the code. Otherwise we wound need even more
-> checks once PMD-level swap is implemented.
+On Thu 03-03-16 16:50:16, Vlastimil Babka wrote:
+> On 03/03/2016 03:10 PM, Joonsoo Kim wrote:
+> > 
+> >> [...]
+> >>>>> At least, reset no_progress_loops when did_some_progress. High
+> >>>>> order allocation up to PAGE_ALLOC_COSTLY_ORDER is as important
+> >>>>> as order 0. And, reclaim something would increase probability of
+> >>>>> compaction success.
+> >>>>
+> >>>> This is something I still do not understand. Why would reclaiming
+> >>>> random order-0 pages help compaction? Could you clarify this please?
+> >>>
+> >>> I just can tell simple version. Please check the link from me on another reply.
+> >>> Compaction could scan more range of memory if we have more freepage.
+> >>> This is due to algorithm limitation. Anyway, so, reclaiming random
+> >>> order-0 pages helps compaction.
+> >>
+> >> I will have a look at that code but this just doesn't make any sense.
+> >> The compaction should be reshuffling pages, this shouldn't be a function
+> >> of free memory.
+> > 
+> > Please refer the link I mentioned before. There is a reason why more free
+> > memory would help compaction success. Compaction doesn't work
+> > like as random reshuffling. It has an algorithm to reduce system overall
+> > fragmentation so there is limitation.
+> 
+> I proposed another way to get better results from direct compaction -
+> don't scan for free pages but get them directly from freelists:
+> 
+> https://lkml.org/lkml/2015/12/3/60
 
-Yes, I agree. I'll try some for this pmd_none/pmd_present issue.
+Yes this makes perfect sense to me (with my limited experience in
+this area so I might be missing some obvious problems this would
+introduce). The direct compaction for !costly orders is something
+we should better satisfy immediately. I would just object that this
+shouldn't be reduced to ASYNC compaction requests only. SYNC* modes are
+even a more desperate call (at least that is my understanding) for the
+page and we should treat them the appropriately.
 
-Thanks,
-Naoya
+> But your redesign would be useful too for kcompactd/khugepaged keeping
+> overall fragmentation low.
 
->
-> I think we need to check for migration entires only if we have something
-> to do with migration. In all other cases pmd_present() should be enough to
-> bail out.
+kcompactd can handle and should focus on the long term goals.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
