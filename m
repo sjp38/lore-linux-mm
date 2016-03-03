@@ -1,56 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7E36B0253
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 21:18:59 -0500 (EST)
-Received: by mail-io0-f181.google.com with SMTP id l127so12861360iof.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 18:18:59 -0800 (PST)
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id DB74B6B0255
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2016 21:20:38 -0500 (EST)
+Received: by mail-io0-f170.google.com with SMTP id m184so12974013iof.1
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 18:20:38 -0800 (PST)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id c21si1151172ioe.188.2016.03.02.18.17.45
+        by mx.google.com with ESMTP id 38si8981717ior.180.2016.03.02.18.20.37
         for <linux-mm@kvack.org>;
-        Wed, 02 Mar 2016 18:18:58 -0800 (PST)
-Message-ID: <56D79E35.7030000@cn.fujitsu.com>
-Date: Thu, 3 Mar 2016 10:15:17 +0800
+        Wed, 02 Mar 2016 18:20:38 -0800 (PST)
+Message-ID: <56D79EE3.1010705@cn.fujitsu.com>
+Date: Thu, 3 Mar 2016 10:18:11 +0800
 From: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RESEND PATCH v5 0/5] Make cpuid <-> nodeid mapping persistent
-References: <1456969327-20011-1-git-send-email-zhugh.fnst@cn.fujitsu.com> <CAJZ5v0j1WMi5qMYoUeto8EbV2XnhZQ1j7eQ3jJtoC7h5dOxxkw@mail.gmail.com>
-In-Reply-To: <CAJZ5v0j1WMi5qMYoUeto8EbV2XnhZQ1j7eQ3jJtoC7h5dOxxkw@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
+Subject: Re: [RESEND PATCH v5 5/5] x86, acpi, cpu-hotplug: Set persistent
+ cpuid <-> nodeid mapping when booting.
+References: <201603031001.uyaOgVnh%fengguang.wu@intel.com>
+In-Reply-To: <201603031001.uyaOgVnh%fengguang.wu@intel.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: cl@linux.com, Tejun Heo <tj@kernel.org>, mika.j.penttila@gmail.com, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "H. Peter Anvin" <hpa@zytor.com>, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, Len Brown <len.brown@intel.com>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, chen.tang@easystack.cn, x86@kernel.org, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
 
-On 03/03/2016 10:08 AM, Rafael J. Wysocki wrote:
-> Hi,
+On 03/03/2016 10:11 AM, kbuild test robot wrote:
+> Hi Gu,
 >
-> On Thu, Mar 3, 2016 at 2:42 AM, Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
->> [Problem]
->>
->> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
->> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
->>
->> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
->> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
->> workqueue does not update wq_numa_possible_cpumask.
->>
-> Are there any changes in this version relative to the previous one?
-No, there are no changes in this version.
+> [auto build test ERROR on tip/x86/core]
+> [also build test ERROR on v4.5-rc6 next-20160302]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+>
+> url:    https://github.com/0day-ci/linux/commits/Zhu-Guihua/Make-cpuid-nodeid-mapping-persistent/20160303-094713
+> config: ia64-allyesconfig (attached as .config)
+> reproduce:
+>          wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>          chmod +x ~/bin/make.cross
+>          # save the attached .config to linux build tree
+>          make.cross ARCH=ia64
+>
+> All errors (new ones prefixed by >>):
+>
+>>> arch/ia64/kernel/acpi.c:799:5: error: conflicting types for 'acpi_map_cpu2node'
+>      int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>          ^
+>     In file included from arch/ia64/kernel/acpi.c:43:0:
+>     include/linux/acpi.h:268:6: note: previous declaration of 'acpi_map_cpu2node' was here
+>      void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
+>           ^
+>
+> vim +/acpi_map_cpu2node +799 arch/ia64/kernel/acpi.c
+>
+>     793	}
+>     794	
+>     795	/*
+>     796	 *  ACPI based hotplug CPU support
+>     797	 */
+>     798	#ifdef CONFIG_ACPI_HOTPLUG_CPU
+>   > 799	int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>     800	{
+>     801	#ifdef CONFIG_ACPI_NUMA
+>     802		/*
+>
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+Thanks for your test. I will investigate this.
 
 Thanks,
 Zhu
-
->
-> Thanks,
-> Rafael
->
->
-> .
->
-
 
 
 --
