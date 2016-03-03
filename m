@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A7F88828E5
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 05:51:01 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id n186so125671940wmn.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 02:51:01 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id r3si37611041wjy.50.2016.03.03.02.51.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 02:51:00 -0800 (PST)
-Received: by mail-wm0-x22a.google.com with SMTP id l68so28877961wml.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 02:51:00 -0800 (PST)
-Date: Thu, 3 Mar 2016 13:50:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v1 05/11] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20160303105058.GC30948@node.shutemov.name>
-References: <1456990918-30906-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1456990918-30906-6-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456990918-30906-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E585828E5
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 05:53:10 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id 124so13101040pfg.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 02:53:10 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id n3si28302940pfb.123.2016.03.03.02.53.09
+        for <linux-mm@kvack.org>;
+        Thu, 03 Mar 2016 02:53:09 -0800 (PST)
+From: Liang Li <liang.z.li@intel.com>
+Subject: [RFC kernel 0/2]A PV solution for KVM live migration optimization 
+Date: Thu,  3 Mar 2016 18:46:57 +0800
+Message-Id: <1457002019-15998-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: mst@redhat.com, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, pbonzini@redhat.com, rth@twiddle.net, ehabkost@redhat.com, quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, dgilbert@redhat.com, Liang Li <liang.z.li@intel.com>
 
-On Thu, Mar 03, 2016 at 04:41:52PM +0900, Naoya Horiguchi wrote:
-> If one of callers of page migration starts to handle thp, memory management code
-> start to see pmd migration entry, so we need to prepare for it before enabling.
-> This patch changes various code point which checks the status of given pmds in
-> order to prevent race between thp migration and the pmd-related works.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  arch/x86/mm/gup.c  |  3 +++
->  fs/proc/task_mmu.c | 25 +++++++++++++--------
->  mm/gup.c           |  8 +++++++
->  mm/huge_memory.c   | 66 ++++++++++++++++++++++++++++++++++++++++++++++++------
->  mm/memcontrol.c    |  2 ++
->  mm/memory.c        |  5 +++++
->  6 files changed, 93 insertions(+), 16 deletions(-)
-> 
-> diff --git v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/mm/gup.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/mm/gup.c
-> index f8d0b5e..34c3d43 100644
-> --- v4.5-rc5-mmotm-2016-02-24-16-18/arch/x86/mm/gup.c
-> +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/arch/x86/mm/gup.c
-> @@ -10,6 +10,7 @@
->  #include <linux/highmem.h>
->  #include <linux/swap.h>
->  #include <linux/memremap.h>
-> +#include <linux/swapops.h>
->  
->  #include <asm/pgtable.h>
->  
-> @@ -210,6 +211,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		if (pmd_none(pmd))
->  			return 0;
->  		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
-> +			if (unlikely(is_pmd_migration_entry(pmd)))
-> +				return 0;
+The current QEMU live migration implementation mark the all the
+guest's RAM pages as dirtied in the ram bulk stage, all these pages
+will be processed and that takes quit a lot of CPU cycles.
 
-Hm. I've expected to see bunch of pmd_none() to pmd_present() conversions.
-That's seems a right way guard the code. Otherwise we wound need even more
-checks once PMD-level swap is implemented.
+>From guest's point of view, it doesn't care about the content in free
+pages. We can make use of this fact and skip processing the free
+pages in the ram bulk stage, it can save a lot CPU cycles and reduce
+the network traffic significantly while speed up the live migration
+process obviously.
 
-I think we need to check for migration entires only if we have something
-to do with migration. In all other cases pmd_present() should be enough to
-bail out.
+This patch set is the kernel side implementation.
+
+It get the free pages information by traversing
+zone->free_area[order].free_list, and construct a free pages bitmap.
+The virtio-balloon driver is extended so as to send the free pages
+bitmap to QEMU for live migration optimization.
+
+Performance data
+================
+
+Test environment:
+
+CPU: Intel (R) Xeon(R) CPU ES-2699 v3 @ 2.30GHz
+Host RAM: 64GB
+Host Linux Kernel:  4.2.0             Host OS: CentOS 7.1
+Guest Linux Kernel:  4.5.rc6        Guest OS: CentOS 6.6
+Network:  X540-AT2 with 10 Gigabit connection
+Guest RAM: 8GB
+
+Case 1: Idle guest just boots:
+============================================
+                    | original  |    pv    
+-------------------------------------------
+total time(ms)      |    1894   |   421
+--------------------------------------------
+transferred ram(KB) |   398017  |  353242
+============================================
+
+
+Case 2: The guest has ever run some memory consuming workload, the
+workload is terminated just before live migration.
+============================================
+                    | original  |    pv    
+-------------------------------------------
+total time(ms)      |   7436    |   552
+--------------------------------------------
+transferred ram(KB) |  8146291  |  361375
+============================================
+
+Liang Li (2):
+  mm: Add the functions used to get free pages information
+  virtio-balloon: extend balloon driver to support a new feature
+
+ drivers/virtio/virtio_balloon.c     | 108 ++++++++++++++++++++++++++++++++++--
+ include/uapi/linux/virtio_balloon.h |   1 +
+ mm/page_alloc.c                     |  58 +++++++++++++++++++
+ 3 files changed, 162 insertions(+), 5 deletions(-)
 
 -- 
- Kirill A. Shutemov
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
