@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C8BB56B0254
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:33:02 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p65so29624224wmp.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:33:02 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id cf5si11147662wjb.6.2016.03.03.04.33.01
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 55DFA6B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:45:27 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id w104so15606207qge.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:45:27 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g188si40959424qkb.10.2016.03.03.04.45.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 04:33:01 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id n186so3836425wmn.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:33:01 -0800 (PST)
-Date: Thu, 3 Mar 2016 13:32:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20160303123258.GE26202@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160229203502.GW16930@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602292251170.7563@eggly.anvils>
- <20160301133846.GF9461@dhcp22.suse.cz>
- <alpine.LSU.2.11.1603030039430.23352@eggly.anvils>
+        Thu, 03 Mar 2016 04:45:26 -0800 (PST)
+Date: Thu, 3 Mar 2016 12:45:20 +0000
+From: "Daniel P. Berrange" <berrange@redhat.com>
+Subject: Re: [Qemu-devel] [RFC qemu 4/4] migration: filter out guest's free
+ pages in ram bulk stage
+Message-ID: <20160303124520.GE32270@redhat.com>
+Reply-To: "Daniel P. Berrange" <berrange@redhat.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <1457001868-15949-5-git-send-email-liang.z.li@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1603030039430.23352@eggly.anvils>
+In-Reply-To: <1457001868-15949-5-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Liang Li <liang.z.li@intel.com>
+Cc: quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, ehabkost@redhat.com, kvm@vger.kernel.org, mst@redhat.com, dgilbert@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, pbonzini@redhat.com, akpm@linux-foundation.org, rth@twiddle.net
 
-On Thu 03-03-16 01:54:43, Hugh Dickins wrote:
-> On Tue, 1 Mar 2016, Michal Hocko wrote:
-[...]
-> > So I have tried the following:
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 4d99e1f5055c..7364e48cf69a 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -1276,6 +1276,9 @@ static unsigned long __compaction_suitable(struct zone *zone, int order,
-> >  								alloc_flags))
-> >  		return COMPACT_PARTIAL;
-> >  
-> > +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> > +		return COMPACT_CONTINUE;
-> > +
+On Thu, Mar 03, 2016 at 06:44:28PM +0800, Liang Li wrote:
+> Get the free pages information through virtio and filter out the free
+> pages in the ram bulk stage. This can significantly reduce the total
+> live migration time as well as network traffic.
 > 
-> I gave that a try just now, but it didn't help me: OOMed much sooner,
-> after doing half as much work. 
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> ---
+>  migration/ram.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++------
+>  1 file changed, 46 insertions(+), 6 deletions(-)
 
-I do not have an explanation why it would cause oom sooner but this
-turned out to be incomplete. There is another wmaark check deeper in the
-compaction path. Could you try the one from
-http://lkml.kernel.org/r/20160302130022.GG26686@dhcp22.suse.cz
+> @@ -1945,6 +1971,20 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
+>                                              DIRTY_MEMORY_MIGRATION);
+>      }
+>      memory_global_dirty_log_start();
+> +
+> +    if (balloon_free_pages_support() &&
+> +        balloon_get_free_pages(migration_bitmap_rcu->free_pages_bmap,
+> +                               &free_pages_count) == 0) {
+> +        qemu_mutex_unlock_iothread();
+> +        while (balloon_get_free_pages(migration_bitmap_rcu->free_pages_bmap,
+> +                                      &free_pages_count) == 0) {
+> +            usleep(1000);
+> +        }
+> +        qemu_mutex_lock_iothread();
+> +
+> +        filter_out_guest_free_pages(migration_bitmap_rcu->free_pages_bmap);
+> +    }
 
-I will try to find a machine with more CPUs and try to reproduce this in
-the mean time.
+IIUC, this code is synchronous wrt to the guest OS balloon drive. ie it
+is asking the geust for free pages and waiting for a response. If the
+guest OS has crashed this is going to mean QEMU waits forever and thus
+migration won't complete. Similarly you need to consider that the guest
+OS may be malicious and simply never respond.
 
-I will also have a look at the data you have collected.
+So if the migration code is going to use the guest balloon driver to get
+info about free pages it has to be done in an asynchronous manner so that
+migration can never be stalled by a slow/crashed/malicious guest driver.
+
+Regards,
+Daniel
 -- 
-Michal Hocko
-SUSE Labs
+|: http://berrange.com      -o-    http://www.flickr.com/photos/dberrange/ :|
+|: http://libvirt.org              -o-             http://virt-manager.org :|
+|: http://autobuild.org       -o-         http://search.cpan.org/~danberr/ :|
+|: http://entangle-photo.org       -o-       http://live.gnome.org/gtk-vnc :|
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
