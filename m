@@ -1,154 +1,335 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B6976B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:54:26 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id fz5so19132848obc.0
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:54:26 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id s4si11797048obf.20.2016.03.03.04.54.23
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C63996B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 07:56:59 -0500 (EST)
+Received: by mail-qk0-f178.google.com with SMTP id x1so7593243qkc.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 04:56:59 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w82si4333303qka.3.2016.03.03.04.56.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Mar 2016 04:54:25 -0800 (PST)
-Subject: Re: Suspicious error for CMA stress test
-References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
- <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <56D832BD.5080305@huawei.com>
-Date: Thu, 3 Mar 2016 20:49:01 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Mar 2016 04:56:59 -0800 (PST)
+Date: Thu, 3 Mar 2016 14:56:51 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC qemu 2/4] virtio-balloon: Add a new feature to balloon
+ device
+Message-ID: <20160303125651.GA21382@redhat.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Laura Abbott <labbott@redhat.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Liang Li <liang.z.li@intel.com>
+Cc: quintela@redhat.com, amit.shah@redhat.com, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, rth@twiddle.net, ehabkost@redhat.com, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, dgilbert@redhat.com
 
-On 2016/3/3 15:42, Joonsoo Kim wrote:
-> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
->> (cc -mm and Joonsoo Kim)
->>
->>
->> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
->>> Hi,
->>>
->>> I came across a suspicious error for CMA stress test:
->>>
->>> Before the test, I got:
->>> -bash-4.3# cat /proc/meminfo | grep Cma
->>> CmaTotal:         204800 kB
->>> CmaFree:          195044 kB
->>>
->>>
->>> After running the test:
->>> -bash-4.3# cat /proc/meminfo | grep Cma
->>> CmaTotal:         204800 kB
->>> CmaFree:         6602584 kB
->>>
->>> So the freed CMA memory is more than total..
->>>
->>> Also the the MemFree is more than mem total:
->>>
->>> -bash-4.3# cat /proc/meminfo
->>> MemTotal:       16342016 kB
->>> MemFree:        22367268 kB
->>> MemAvailable:   22370528 kB
-[...]
->>
->> I played with this a bit and can see the same problem. The sanity
->> check of CmaFree < CmaTotal generally triggers in
->> __move_zone_freepage_state in unset_migratetype_isolate.
->> This also seems to be present as far back as v4.0 which was the
->> first version to have the updated accounting from Joonsoo.
->> Were there known limitations with the new freepage accounting,
->> Joonsoo?
-> I don't know. I also played with this and looks like there is
-> accounting problem, however, for my case, number of free page is slightly less
-> than total. I will take a look.
->
-> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
-> look like your case.
+On Thu, Mar 03, 2016 at 06:44:26PM +0800, Liang Li wrote:
+> Extend the virtio balloon device to support a new feature, this
+> new feature can help to get guest's free pages information, which
+> can be used for live migration optimzation.
+> 
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
 
-I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
-did some other test:
+I don't understand why we need a new interface.
+Balloon already sends free pages to host.
+Just teach host to skip these pages.
 
- - run with single thread with 100000 times, everything is fine.
+Maybe instead of starting with code, you
+should send a high level description to the
+virtio tc for consideration?
 
- - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
-   the same test with 100 multi-thread, then I got:
+You can do it through the mailing list or
+using the web form:
+http://www.oasis-open.org/committees/comments/form.php?wg_abbrev=virtio
 
--bash-4.3# cat /proc/meminfo | grep Cma
-CmaTotal: 204800 kB
-CmaFree: 225112 kB
 
-It only increased about 30M for free, not 6G+ in previous test, although
-the problem is not solved, the problem is less serious, is it a synchronization
-problem?
-
-Thanks
-Hanjun
-
-[1]:
-index ea506eb..4447494 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -379,6 +379,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
-        if (!count)
-                return NULL;
- 
-+ mutex_lock(&cma_mutex);
-        mask = cma_bitmap_aligned_mask(cma, align);
-        offset = cma_bitmap_aligned_offset(cma, align);
-        bitmap_maxno = cma_bitmap_maxno(cma);
-@@ -402,17 +403,16 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
-                mutex_unlock(&cma->lock);
- 
-                pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
--           mutex_lock(&cma_mutex);
-                ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
--           mutex_unlock(&cma_mutex);
-                if (ret == 0) {
-                        page = pfn_to_page(pfn);
-                        break;
-                }
- 
-                cma_clear_bitmap(cma, pfn, count);
--           if (ret != -EBUSY)
-+         if (ret != -EBUSY) {
-                        break;
-+         }
- 
-                pr_debug("%s(): memory range at %p is busy, retrying\n",
-                         __func__, pfn_to_page(pfn));
-@@ -420,6 +420,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
-                start = bitmap_no + mask + 1;
-        }
- 
-+ mutex_unlock(&cma_mutex);
-        trace_cma_alloc(pfn, page, count, align);
- 
-        pr_debug("%s(): returned %p\n", __func__, page);
-@@ -445,15 +446,19 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
- 
-        pr_debug("%s(page %p)\n", __func__, (void *)pages);
- 
-+ mutex_lock(&cma_mutex);
-        pfn = page_to_pfn(pages);
- 
--   if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
-+ if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count) {
-+         mutex_unlock(&cma_mutex);
-                return false;
-+ }
- 
-        VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
- 
-        free_contig_range(pfn, count);
-        cma_clear_bitmap(cma, pfn, count);
-+ mutex_unlock(&cma_mutex);
-        trace_cma_release(pfn, pages, count);
- 
-        return true;
+> ---
+>  balloon.c                                       | 30 ++++++++-
+>  hw/virtio/virtio-balloon.c                      | 81 ++++++++++++++++++++++++-
+>  include/hw/virtio/virtio-balloon.h              | 17 +++++-
+>  include/standard-headers/linux/virtio_balloon.h |  1 +
+>  include/sysemu/balloon.h                        | 10 ++-
+>  5 files changed, 134 insertions(+), 5 deletions(-)
+> 
+> diff --git a/balloon.c b/balloon.c
+> index f2ef50c..a37717e 100644
+> --- a/balloon.c
+> +++ b/balloon.c
+> @@ -36,6 +36,7 @@
+>  
+>  static QEMUBalloonEvent *balloon_event_fn;
+>  static QEMUBalloonStatus *balloon_stat_fn;
+> +static QEMUBalloonFreePages *balloon_free_pages_fn;
+>  static void *balloon_opaque;
+>  static bool balloon_inhibited;
+>  
+> @@ -65,9 +66,12 @@ static bool have_balloon(Error **errp)
+>  }
+>  
+>  int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+> -                             QEMUBalloonStatus *stat_func, void *opaque)
+> +                             QEMUBalloonStatus *stat_func,
+> +                             QEMUBalloonFreePages *free_pages_func,
+> +                             void *opaque)
+>  {
+> -    if (balloon_event_fn || balloon_stat_fn || balloon_opaque) {
+> +    if (balloon_event_fn || balloon_stat_fn || balloon_free_pages_fn
+> +        || balloon_opaque) {
+>          /* We're already registered one balloon handler.  How many can
+>           * a guest really have?
+>           */
+> @@ -75,6 +79,7 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+>      }
+>      balloon_event_fn = event_func;
+>      balloon_stat_fn = stat_func;
+> +    balloon_free_pages_fn = free_pages_func;
+>      balloon_opaque = opaque;
+>      return 0;
+>  }
+> @@ -86,6 +91,7 @@ void qemu_remove_balloon_handler(void *opaque)
+>      }
+>      balloon_event_fn = NULL;
+>      balloon_stat_fn = NULL;
+> +    balloon_free_pages_fn = NULL;
+>      balloon_opaque = NULL;
+>  }
+>  
+> @@ -116,3 +122,23 @@ void qmp_balloon(int64_t target, Error **errp)
+>      trace_balloon_event(balloon_opaque, target);
+>      balloon_event_fn(balloon_opaque, target);
+>  }
+> +
+> +bool balloon_free_pages_support(void)
+> +{
+> +    return balloon_free_pages_fn ? true : false;
+> +}
+> +
+> +int balloon_get_free_pages(unsigned long *free_pages_bitmap,
+> +                           unsigned long *free_pages_count)
+> +{
+> +    if (!balloon_free_pages_fn) {
+> +        return -1;
+> +    }
+> +
+> +    if (!free_pages_bitmap || !free_pages_count) {
+> +        return -1;
+> +    }
+> +
+> +    return balloon_free_pages_fn(balloon_opaque,
+> +                                 free_pages_bitmap, free_pages_count);
+> + }
+> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> index e9c30e9..a5b9d08 100644
+> --- a/hw/virtio/virtio-balloon.c
+> +++ b/hw/virtio/virtio-balloon.c
+> @@ -76,6 +76,12 @@ static bool balloon_stats_supported(const VirtIOBalloon *s)
+>      return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_STATS_VQ);
+>  }
+>  
+> +static bool balloon_free_pages_supported(const VirtIOBalloon *s)
+> +{
+> +    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+> +    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_GET_FREE_PAGES);
+> +}
+> +
+>  static bool balloon_stats_enabled(const VirtIOBalloon *s)
+>  {
+>      return s->stats_poll_interval > 0;
+> @@ -293,6 +299,37 @@ out:
+>      }
+>  }
+>  
+> +static void virtio_balloon_get_free_pages(VirtIODevice *vdev, VirtQueue *vq)
+> +{
+> +    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+> +    VirtQueueElement *elem;
+> +    size_t offset = 0;
+> +    uint64_t bitmap_bytes = 0, free_pages_count = 0;
+> +
+> +    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+> +    if (!elem) {
+> +        return;
+> +    }
+> +    s->free_pages_vq_elem = elem;
+> +
+> +    if (!elem->out_num) {
+> +        return;
+> +    }
+> +
+> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
+> +               &free_pages_count, sizeof(uint64_t));
+> +
+> +    offset += sizeof(uint64_t);
+> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
+> +               &bitmap_bytes, sizeof(uint64_t));
+> +
+> +    offset += sizeof(uint64_t);
+> +    iov_to_buf(elem->out_sg, elem->out_num, offset,
+> +               s->free_pages_bitmap, bitmap_bytes);
+> +    s->req_status = DONE;
+> +    s->free_pages_count = free_pages_count;
+> +}
+> +
+>  static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
+>  {
+>      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+> @@ -362,6 +399,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+>      VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+>      f |= dev->host_features;
+>      virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
+> +    virtio_add_feature(&f, VIRTIO_BALLOON_F_GET_FREE_PAGES);
+>      return f;
+>  }
+>  
+> @@ -372,6 +410,45 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
+>                                               VIRTIO_BALLOON_PFN_SHIFT);
+>  }
+>  
+> +static int virtio_balloon_free_pages(void *opaque,
+> +                                     unsigned long *free_pages_bitmap,
+> +                                     unsigned long *free_pages_count)
+> +{
+> +    VirtIOBalloon *s = opaque;
+> +    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+> +    VirtQueueElement *elem = s->free_pages_vq_elem;
+> +    int len;
+> +
+> +    if (!balloon_free_pages_supported(s)) {
+> +        return -1;
+> +    }
+> +
+> +    if (s->req_status == NOT_STARTED) {
+> +        s->free_pages_bitmap = free_pages_bitmap;
+> +        s->req_status = STARTED;
+> +        s->mem_layout.low_mem = pc_get_lowmem(PC_MACHINE(current_machine));
+> +        if (!elem->in_num) {
+> +            elem = virtqueue_pop(s->fvq, sizeof(VirtQueueElement));
+> +            if (!elem) {
+> +                return 0;
+> +            }
+> +            s->free_pages_vq_elem = elem;
+> +        }
+> +        len = iov_from_buf(elem->in_sg, elem->in_num, 0, &s->mem_layout,
+> +                           sizeof(s->mem_layout));
+> +        virtqueue_push(s->fvq, elem, len);
+> +        virtio_notify(vdev, s->fvq);
+> +        return 0;
+> +    } else if (s->req_status == STARTED) {
+> +        return 0;
+> +    } else if (s->req_status == DONE) {
+> +        *free_pages_count = s->free_pages_count;
+> +        s->req_status = NOT_STARTED;
+> +    }
+> +
+> +    return 1;
+> +}
+> +
+>  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
+>  {
+>      VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+> @@ -429,7 +506,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+>                  sizeof(struct virtio_balloon_config));
+>  
+>      ret = qemu_add_balloon_handler(virtio_balloon_to_target,
+> -                                   virtio_balloon_stat, s);
+> +                                   virtio_balloon_stat,
+> +                                   virtio_balloon_free_pages, s);
+>  
+>      if (ret < 0) {
+>          error_setg(errp, "Only one balloon device is supported");
+> @@ -440,6 +518,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+>      s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+>      s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+> +    s->fvq = virtio_add_queue(vdev, 128, virtio_balloon_get_free_pages);
+>  
+>      reset_stats(s);
+>  
+> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
+> index 35f62ac..fc173e4 100644
+> --- a/include/hw/virtio/virtio-balloon.h
+> +++ b/include/hw/virtio/virtio-balloon.h
+> @@ -23,6 +23,16 @@
+>  #define VIRTIO_BALLOON(obj) \
+>          OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
+>  
+> +typedef enum virtio_req_status {
+> +    NOT_STARTED,
+> +    STARTED,
+> +    DONE,
+> +} VIRTIO_REQ_STATUS;
+> +
+> +typedef struct MemLayout {
+> +    uint64_t low_mem;
+> +} MemLayout;
+> +
+>  typedef struct virtio_balloon_stat VirtIOBalloonStat;
+>  
+>  typedef struct virtio_balloon_stat_modern {
+> @@ -33,16 +43,21 @@ typedef struct virtio_balloon_stat_modern {
+>  
+>  typedef struct VirtIOBalloon {
+>      VirtIODevice parent_obj;
+> -    VirtQueue *ivq, *dvq, *svq;
+> +    VirtQueue *ivq, *dvq, *svq, *fvq;
+>      uint32_t num_pages;
+>      uint32_t actual;
+>      uint64_t stats[VIRTIO_BALLOON_S_NR];
+>      VirtQueueElement *stats_vq_elem;
+> +    VirtQueueElement *free_pages_vq_elem;
+>      size_t stats_vq_offset;
+>      QEMUTimer *stats_timer;
+>      int64_t stats_last_update;
+>      int64_t stats_poll_interval;
+>      uint32_t host_features;
+> +    uint64_t *free_pages_bitmap;
+> +    uint64_t free_pages_count;
+> +    MemLayout mem_layout;
+> +    VIRTIO_REQ_STATUS req_status;
+>  } VirtIOBalloon;
+>  
+>  #endif
+> diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
+> index 2e2a6dc..95b7d0c 100644
+> --- a/include/standard-headers/linux/virtio_balloon.h
+> +++ b/include/standard-headers/linux/virtio_balloon.h
+> @@ -34,6 +34,7 @@
+>  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+>  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+> +#define VIRTIO_BALLOON_F_GET_FREE_PAGES 3 /* Get the free pages bitmap */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> diff --git a/include/sysemu/balloon.h b/include/sysemu/balloon.h
+> index 3f976b4..205b272 100644
+> --- a/include/sysemu/balloon.h
+> +++ b/include/sysemu/balloon.h
+> @@ -18,11 +18,19 @@
+>  
+>  typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
+>  typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
+> +typedef int (QEMUBalloonFreePages)(void *opaque,
+> +                                   unsigned long *free_pages_bitmap,
+> +                                   unsigned long *free_pages_count);
+>  
+>  int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+> -			     QEMUBalloonStatus *stat_func, void *opaque);
+> +                             QEMUBalloonStatus *stat_func,
+> +                             QEMUBalloonFreePages *free_pages_func,
+> +                             void *opaque);
+>  void qemu_remove_balloon_handler(void *opaque);
+>  bool qemu_balloon_is_inhibited(void);
+>  void qemu_balloon_inhibit(bool state);
+> +bool balloon_free_pages_support(void);
+> +int balloon_get_free_pages(unsigned long *free_pages_bitmap,
+> +                           unsigned long *free_pages_count);
+>  
+>  #endif
+> -- 
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
