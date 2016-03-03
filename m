@@ -1,72 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D00756B0269
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 02:47:11 -0500 (EST)
-Received: by mail-oi0-f46.google.com with SMTP id m82so9846558oif.1
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:47:11 -0800 (PST)
-Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
-        by mx.google.com with ESMTPS id g3si8089476obr.44.2016.03.02.23.47.10
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CF8F96B0269
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 03:00:13 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id fz5so13434033obc.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 00:00:13 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id c126si25603530oia.29.2016.03.03.00.00.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Mar 2016 23:47:10 -0800 (PST)
-Received: by mail-ob0-x234.google.com with SMTP id rt7so12893368obb.3
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2016 23:47:10 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Mar 2016 00:00:12 -0800 (PST)
+Subject: Re: Suspicious error for CMA stress test
+References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+From: Hanjun Guo <guohanjun@huawei.com>
+Message-ID: <56D7EEA3.4090705@huawei.com>
+Date: Thu, 3 Mar 2016 15:58:27 +0800
 MIME-Version: 1.0
-In-Reply-To: <56D71860.7050108@suse.cz>
-References: <1456448282-897-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<56D71860.7050108@suse.cz>
-Date: Thu, 3 Mar 2016 16:47:10 +0900
-Message-ID: <CAAmzW4Mj9NVEB5B6-RO-QKgb2Zn4u40vd1OJRCHBja32BWc_0A@mail.gmail.com>
-Subject: Re: [PATCH v4 1/2] mm: introduce page reference manipulation functions
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joonsoo Kim <js1304@gmail.com>, Laura Abbott <labbott@redhat.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-2016-03-03 1:44 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 02/26/2016 01:58 AM, js1304@gmail.com wrote:
+On 2016/3/3 15:42, Joonsoo Kim wrote:
+> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+>> (cc -mm and Joonsoo Kim)
 >>
->> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >>
->> Success of CMA allocation largely depends on success of migration
->> and key factor of it is page reference count. Until now, page reference
->> is manipulated by direct calling atomic functions so we cannot follow up
->> who and where manipulate it. Then, it is hard to find actual reason
->> of CMA allocation failure. CMA allocation should be guaranteed to succeed
->> so finding offending place is really important.
+>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+>>> Hi,
+>>>
+>>> I came across a suspicious error for CMA stress test:
+>>>
+>>> Before the test, I got:
+>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>> CmaTotal:         204800 kB
+>>> CmaFree:          195044 kB
+>>>
+>>>
+>>> After running the test:
+>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>> CmaTotal:         204800 kB
+>>> CmaFree:         6602584 kB
+>>>
+>>> So the freed CMA memory is more than total..
+>>>
+>>> Also the the MemFree is more than mem total:
+>>>
+>>> -bash-4.3# cat /proc/meminfo
+>>> MemTotal:       16342016 kB
+>>> MemFree:        22367268 kB
+>>> MemAvailable:   22370528 kB
+>>>
+>>> Here is the kernel module doing the stress test below (if the test case
+>>> is wrong, correct me), any help would be great appreciated.
+>>>
+>>> The test is running on ARM64 platform (hisilicon D02) with 4.4 kernel, I
+>>> think
+>>> the 4.5-rc is the same as I didn't notice the updates for it.
+>>>
+>>> int malloc_dma(void *data)
+>>> {
+>>>      void *vaddr;
+>>>      struct platform_device * pdev=(struct platform_device*)data;
+>>>      dma_addr_t dma_handle;
+>>>      int i;
+>>>
+>>>      for(i=0; i<1000; i++) {
+>>>          vaddr=dma_alloc_coherent(&pdev->dev, malloc_size, &dma_handle,
+>>> GFP_KERNEL);
+>>>          if (!vaddr)
+>>>              pr_err("alloc cma memory failed!\n");
+>>>
+>>>          mdelay(1);
+>>>
+>>>          if (vaddr)
+>>>                  dma_free_coherent(&pdev->dev,malloc_size,vaddr,
+>>> dma_handle);
+>>>      }
+>>>      pr_info("alloc free cma memory success return!\n");
+>>>      return 0;
+>>> }
+>>>
+>>> static int dma_alloc_coherent_init(struct platform_device *pdev)
+>>> {
+>>>      int i;
+>>>
+>>>      for(i=0; i<100; i++)   {
+>>>          task[i] = kthread_create(malloc_dma,pdev,"malloc_dma_%d",i);
+>>>          if(!task[i]) {
+>>>              printk("kthread_create faile %d\n",i);
+>>>              continue;
+>>>          }
+>>>          wake_up_process(task[i]);
+>>>      }
+>>>      return 0;
+>>> }
+>>>
+>>> Thanks
+>>> Hanjun
+>>>
+>>> The whole /proc/meminfo:
+>>>
+>>> -bash-4.3# cat /proc/meminfo
+>>> MemTotal:       16342016 kB
+>>> MemFree:        22367268 kB
+>>> MemAvailable:   22370528 kB
+>>> Buffers:            4292 kB
+>>> Cached:            36444 kB
+>>> SwapCached:            0 kB
+>>> Active:            23564 kB
+>>> Inactive:          25360 kB
+>>> Active(anon):       8424 kB
+>>> Inactive(anon):       64 kB
+>>> Active(file):      15140 kB
+>>> Inactive(file):    25296 kB
+>>> Unevictable:           0 kB
+>>> Mlocked:               0 kB
+>>> SwapTotal:             0 kB
+>>> SwapFree:              0 kB
+>>> Dirty:                 0 kB
+>>> Writeback:             0 kB
+>>> AnonPages:          8196 kB
+>>> Mapped:            16448 kB
+>>> Shmem:               296 kB
+>>> Slab:              26832 kB
+>>> SReclaimable:       6300 kB
+>>> SUnreclaim:        20532 kB
+>>> KernelStack:        3088 kB
+>>> PageTables:          404 kB
+>>> NFS_Unstable:          0 kB
+>>> Bounce:                0 kB
+>>> WritebackTmp:          0 kB
+>>> CommitLimit:     8171008 kB
+>>> Committed_AS:      34336 kB
+>>> VmallocTotal:   258998208 kB
+>>> VmallocUsed:           0 kB
+>>> VmallocChunk:          0 kB
+>>> AnonHugePages:         0 kB
+>>> CmaTotal:         204800 kB
+>>> CmaFree:         6602584 kB
+>>> HugePages_Total:       0
+>>> HugePages_Free:        0
+>>> HugePages_Rsvd:        0
+>>> HugePages_Surp:        0
+>>> Hugepagesize:       2048 kB
+>>>
 >>
->> In this patch, call sites where page reference is manipulated are
->> converted
->> to introduced wrapper function. This is preparation step to add tracepoint
->> to each page reference manipulation function. With this facility, we can
->> easily find reason of CMA allocation failure. There is no functional
->> change
->> in this patch.
->>
->> In addition, this patch also converts reference read sites. It will help
->> a second step that renames page._count to something else and prevents
->> later
->> attempt to direct access to it (Suggested by Andrew).
->>
->> Acked-by: Michal Nazarewicz <mina86@mina86.com>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> I played with this a bit and can see the same problem. The sanity
+>> check of CmaFree < CmaTotal generally triggers in
+>> __move_zone_freepage_state in unset_migratetype_isolate.
+>> This also seems to be present as far back as v4.0 which was the
+>> first version to have the updated accounting from Joonsoo.
+>> Were there known limitations with the new freepage accounting,
+>> Joonsoo?
+> I don't know. I also played with this and looks like there is
+> accounting problem, however, for my case, number of free page is slightly less
+> than total. I will take a look.
 >
->
-> Even without Patch 2/2 this is a nice improvement.
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->
-> Although somebody might be confused by page_ref_count() vs page_count(). Oh
-> well.
+> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+> look like your case.
 
-Yes... it was pointed by Kirill before but consistency is not the purpose of
-this patchset so I skipped it. There are too many sites (roughly 100) so I'm not
-sure this code churn is worth doing now. If someone think it is really
-important,
-I will handle it after rc2.
+ The malloc_size is 1M, and with 200M total (passed via boot commandline cma=200M),
+any more information is needed, please let me know.
 
-Thanks.
+Thanks for the help!
+Hanjun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
