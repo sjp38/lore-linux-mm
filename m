@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 873F86B025A
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:52:48 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fi3so15716254pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:52:48 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bs10si5520592pad.73.2016.03.03.08.52.36
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A43206B025C
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:52:50 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id 4so17848987pfd.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:52:50 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id f63si66596958pfj.137.2016.03.03.08.52.37
         for <linux-mm@kvack.org>;
         Thu, 03 Mar 2016 08:52:37 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 10/29] mm, rmap: account file thp pages
-Date: Thu,  3 Mar 2016 19:52:00 +0300
-Message-Id: <1457023939-98083-11-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 08/29] rmap: support file thp
+Date: Thu,  3 Mar 2016 19:51:58 +0300
+Message-Id: <1457023939-98083-9-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,162 +19,205 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's add FileHugeMapped field into meminfo. It indicates how many time
-we map file THP
+Naive approach: on mapping/unmapping the page as compound we update
+->_mapcount on each 4k page. That's not efficient, but it's not obvious
+how we can optimize this. We can look into optimization later.
 
-NR_ANON_TRANSPARENT_HUGEPAGES is renamed to NR_ANON_THPS.
+PG_double_map optimization doesn't work for file pages since lifecycle
+of file pages is different comparing to anon pages: file page can be
+mapped again at any time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/base/node.c    | 10 ++++++----
- fs/proc/meminfo.c      |  5 +++--
- include/linux/mmzone.h |  3 ++-
- mm/huge_memory.c       |  2 +-
- mm/rmap.c              | 12 ++++++------
- mm/vmstat.c            |  1 +
- 6 files changed, 19 insertions(+), 14 deletions(-)
+ include/linux/rmap.h |  2 +-
+ mm/huge_memory.c     | 10 +++++++---
+ mm/memory.c          |  4 ++--
+ mm/migrate.c         |  2 +-
+ mm/rmap.c            | 48 +++++++++++++++++++++++++++++++++++-------------
+ mm/util.c            |  6 ++++++
+ 6 files changed, 52 insertions(+), 20 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 560751bad294..9cc4e9dad47e 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -113,6 +113,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d SUnreclaim:     %8lu kB\n"
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		       "Node %d AnonHugePages:  %8lu kB\n"
-+		       "Node %d FileHugeMapped: %8lu kB\n"
- #endif
- 			,
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
-@@ -131,10 +132,11 @@ static ssize_t node_read_meminfo(struct device *dev,
- 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
--			, nid,
--			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
--			HPAGE_PMD_NR));
-+		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
-+		       nid, K(node_page_state(nid, NR_ANON_THPS) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(nid, NR_FILE_THP_MAPPED) *
-+				       HPAGE_PMD_NR));
- #else
- 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
- #endif
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 83720460c5bc..50666e987fbd 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -105,6 +105,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		"AnonHugePages:  %8lu kB\n"
-+		"FileHugeMapped:  %8lu kB\n"
- #endif
- #ifdef CONFIG_CMA
- 		"CmaTotal:       %8lu kB\n"
-@@ -162,8 +163,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
--		   HPAGE_PMD_NR)
-+		, K(global_page_state(NR_ANON_THPS) * HPAGE_PMD_NR)
-+		, K(global_page_state(NR_FILE_THP_MAPPED) * HPAGE_PMD_NR)
- #endif
- #ifdef CONFIG_CMA
- 		, K(totalcma_pages)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c60df9257cc7..85fd4aac53a1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -158,7 +158,8 @@ enum zone_stat_item {
- 	WORKINGSET_REFAULT,
- 	WORKINGSET_ACTIVATE,
- 	WORKINGSET_NODERECLAIM,
--	NR_ANON_TRANSPARENT_HUGEPAGES,
-+	NR_ANON_THPS,
-+	NR_FILE_THP_MAPPED,
- 	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 49eb4f8ebac9..5704f101b52e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -165,7 +165,7 @@ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 			   unsigned long, int);
+ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 		unsigned long, bool);
+-void page_add_file_rmap(struct page *);
++void page_add_file_rmap(struct page *, bool);
+ void page_remove_rmap(struct page *, bool);
  
+ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2cade3851b7a..79598ee8a3ff 100644
+index a9a79a6de716..e0f8e4d63ffd 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2946,7 +2946,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -3202,18 +3202,22 @@ static void __split_huge_page(struct page *page, struct list_head *list)
  
- 	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
- 		/* Last compound_mapcount is gone. */
--		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__dec_zone_page_state(page, NR_ANON_THPS);
- 		if (TestClearPageDoubleMap(page)) {
- 			/* No need in mapcount reference anymore */
- 			for (i = 0; i < HPAGE_PMD_NR; i++)
+ int total_mapcount(struct page *page)
+ {
+-	int i, ret;
++	int i, compound, ret;
+ 
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 
+ 	if (likely(!PageCompound(page)))
+ 		return atomic_read(&page->_mapcount) + 1;
+ 
+-	ret = compound_mapcount(page);
++	compound = compound_mapcount(page);
+ 	if (PageHuge(page))
+-		return ret;
++		return compound;
++	ret = compound;
+ 	for (i = 0; i < HPAGE_PMD_NR; i++)
+ 		ret += atomic_read(&page[i]._mapcount) + 1;
++	/* File pages has compound_mapcount included in _mapcount */
++	if (!PageAnon(page))
++		return ret - compound * HPAGE_PMD_NR;
+ 	if (PageDoubleMap(page))
+ 		ret -= HPAGE_PMD_NR;
+ 	return ret;
+diff --git a/mm/memory.c b/mm/memory.c
+index c90d9c47c240..f8c986df8c63 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1439,7 +1439,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+ 	/* Ok, finally just insert the thing.. */
+ 	get_page(page);
+ 	inc_mm_counter_fast(mm, mm_counter_file(page));
+-	page_add_file_rmap(page);
++	page_add_file_rmap(page, false);
+ 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+ 
+ 	retval = 0;
+@@ -2882,7 +2882,7 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 		lru_cache_add_active_or_unevictable(page, vma);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+-		page_add_file_rmap(page);
++		page_add_file_rmap(page, false);
+ 	}
+ 	set_pte_at(vma->vm_mm, fe->address, fe->pte, entry);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6c822a7b27e0..d20276fffce7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -170,7 +170,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
+-		page_add_file_rmap(new);
++		page_add_file_rmap(new, false);
+ 
+ 	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 		mlock_vma_page(new);
 diff --git a/mm/rmap.c b/mm/rmap.c
-index b550bf637ce3..765e001836dc 100644
+index 945933a01010..b550bf637ce3 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1227,10 +1227,8 @@ void do_page_add_anon_rmap(struct page *page,
- 		 * pte lock(a spinlock) is held, which implies preemption
- 		 * disabled.
- 		 */
--		if (compound) {
--			__inc_zone_page_state(page,
--					      NR_ANON_TRANSPARENT_HUGEPAGES);
--		}
-+		if (compound)
-+			__inc_zone_page_state(page, NR_ANON_THPS);
- 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+@@ -1285,18 +1285,34 @@ void page_add_new_anon_rmap(struct page *page,
+  *
+  * The caller needs to hold the pte lock.
+  */
+-void page_add_file_rmap(struct page *page)
++void page_add_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+-	if (atomic_inc_and_test(&page->_mapcount)) {
+-		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_inc_and_test(&page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_inc_and_test(&page->_mapcount))
++			goto out;
  	}
- 	if (unlikely(PageKsm(page)))
-@@ -1268,7 +1266,7 @@ void page_add_new_anon_rmap(struct page *page,
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		/* increment count (starts at -1) */
- 		atomic_set(compound_mapcount_ptr(page), 0);
--		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__inc_zone_page_state(page, NR_ANON_THPS);
- 	} else {
- 		/* Anon THP always mapped first with PMD */
- 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-@@ -1298,6 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
-+		__inc_zone_page_state(page, NR_FILE_THP_MAPPED);
- 	} else {
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
-@@ -1330,6 +1329,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
- 			goto out;
-+		__dec_zone_page_state(page, NR_FILE_THP_MAPPED);
- 	} else {
- 		if (!atomic_add_negative(-1, &page->_mapcount))
- 			goto out;
-@@ -1363,7 +1363,7 @@ static void page_remove_anon_compound_rmap(struct page *page)
- 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
- 		return;
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++out:
+ 	unlock_page_memcg(page);
+ }
  
--	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__dec_zone_page_state(page, NR_ANON_THPS);
+-static void page_remove_file_rmap(struct page *page)
++static void page_remove_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
  
- 	if (TestClearPageDoubleMap(page)) {
- 		/*
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 74f8c918ac4b..943b37f17007 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -762,6 +762,7 @@ const char * const vmstat_text[] = {
- 	"workingset_activate",
- 	"workingset_nodereclaim",
- 	"nr_anon_transparent_hugepages",
-+	"nr_file_transparent_hugepages_mapped",
- 	"nr_free_cma",
+ 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+@@ -1307,15 +1323,24 @@ static void page_remove_file_rmap(struct page *page)
+ 	}
  
- 	/* enum writeback_stat_item counters */
+ 	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, &page->_mapcount))
+-		goto out;
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_add_negative(-1, &page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_add_negative(-1, &page->_mapcount))
++			goto out;
++	}
+ 
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	__dec_zone_page_state(page, NR_FILE_MAPPED);
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
+ 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 
+ 	if (unlikely(PageMlocked(page)))
+@@ -1371,11 +1396,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	if (!PageAnon(page)) {
+-		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+-		page_remove_file_rmap(page);
+-		return;
+-	}
++	if (!PageAnon(page))
++		return page_remove_file_rmap(page, compound);
+ 
+ 	if (compound)
+ 		return page_remove_anon_compound_rmap(page);
+diff --git a/mm/util.c b/mm/util.c
+index 362f4cd8ab3a..2e92f231796b 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -357,6 +357,12 @@ int __page_mapcount(struct page *page)
+ 	int ret;
+ 
+ 	ret = atomic_read(&page->_mapcount) + 1;
++	/*
++	 * For file THP page->_mapcount contains total number of mapping
++	 * of the page: no need to look into compound_mapcount.
++	 */
++	if (!PageAnon(page) && !PageHuge(page))
++		return ret;
+ 	page = compound_head(page);
+ 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
+ 	if (PageDoubleMap(page))
 -- 
 2.7.0
 
