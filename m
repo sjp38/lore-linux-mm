@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D8756B007E
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCFE6B0253
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:52:34 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id w128so18048921pfb.2
+Received: by mail-pa0-f42.google.com with SMTP id bj10so17708092pad.2
         for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:52:34 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bs10si5520592pad.73.2016.03.03.08.52.32
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id p77si46362588pfj.241.2016.03.03.08.52.32
         for <linux-mm@kvack.org>;
         Thu, 03 Mar 2016 08:52:32 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 04/29] thp: rewrite freeze_page()/unfreeze_page() with generic rmap walkers
-Date: Thu,  3 Mar 2016 19:51:54 +0300
-Message-Id: <1457023939-98083-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 03/29] mm: make remove_migration_ptes() beyond mm/migration.c
+Date: Thu,  3 Mar 2016 19:51:53 +0300
+Message-Id: <1457023939-98083-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,312 +19,93 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-freeze_page() and unfreeze_page() helpers evolved in rather complex
-beasts. It would be nice to cut complexity of this code.
+The patch makes remove_migration_ptes() available to be used in
+split_huge_page().
 
-This patch rewrites freeze_page() using standard try_to_unmap().
-unfreeze_page() is rewritten with remove_migration_ptes().
+New parameter 'locked' added: as with try_to_umap() we need a way to
+indicate that caller holds rmap lock.
 
-The result is much simpler.
-
-But the new variant is somewhat slower. Current helpers iterates over
-VMAs the compound page is mapped to, and then over ptes within this VMA.
-New helpers iterates over small page, then over VMA the small page
-mapped to, and only then find relevant pte.
-
-Also we've lost optimization which allows to split PMD directly into
-migration entries.
-
-I don't think the slowdown is critical, considering how much simpler
-result is and that split_huge_page() is quite rare nowadays. It only
-happens due memory pressure or migration.
+We also shouldn't try to mlock() pte-mapped huge pages: pte-mapeed THP
+pages are never mlocked.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 214 +++++++------------------------------------------------
- 1 file changed, 24 insertions(+), 190 deletions(-)
+ include/linux/rmap.h |  2 ++
+ mm/migrate.c         | 15 +++++++++------
+ 2 files changed, 11 insertions(+), 6 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 354464b484a7..a9921a485400 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2904,7 +2904,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 3d975e2252d4..49eb4f8ebac9 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -243,6 +243,8 @@ int page_mkclean(struct page *);
+  */
+ int try_to_munlock(struct page *);
+ 
++void remove_migration_ptes(struct page *old, struct page *new, bool locked);
++
+ /*
+  * Called by memory-failure.c to kill processes.
+  */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 577c94b8e959..6c822a7b27e0 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -172,7 +172,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 	else
+ 		page_add_file_rmap(new);
+ 
+-	if (vma->vm_flags & VM_LOCKED)
++	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 		mlock_vma_page(new);
+ 
+ 	/* No need to invalidate - it was non-present before */
+@@ -187,14 +187,17 @@ out:
+  * Get rid of all migration entries and replace them by
+  * references to the indicated page.
+  */
+-static void remove_migration_ptes(struct page *old, struct page *new)
++void remove_migration_ptes(struct page *old, struct page *new, bool locked)
+ {
+ 	struct rmap_walk_control rwc = {
+ 		.rmap_one = remove_migration_pte,
+ 		.arg = old,
+ 	};
+ 
+-	rmap_walk(new, &rwc);
++	if (locked)
++		rmap_walk_locked(new, &rwc);
++	else
++		rmap_walk(new, &rwc);
  }
  
- static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long haddr, bool freeze)
-+		unsigned long haddr)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct page *page;
-@@ -2946,18 +2946,12 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 		 * transferred to avoid any possibility of altering
- 		 * permissions across VMAs.
- 		 */
--		if (freeze) {
--			swp_entry_t swp_entry;
--			swp_entry = make_migration_entry(page + i, write);
--			entry = swp_entry_to_pte(swp_entry);
--		} else {
--			entry = mk_pte(page + i, vma->vm_page_prot);
--			entry = maybe_mkwrite(entry, vma);
--			if (!write)
--				entry = pte_wrprotect(entry);
--			if (!young)
--				entry = pte_mkold(entry);
--		}
-+		entry = mk_pte(page + i, vma->vm_page_prot);
-+		entry = maybe_mkwrite(entry, vma);
-+		if (!write)
-+			entry = pte_wrprotect(entry);
-+		if (!young)
-+			entry = pte_mkold(entry);
- 		if (dirty)
- 			SetPageDirty(page + i);
- 		pte = pte_offset_map(&_pmd, haddr);
-@@ -3010,13 +3004,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ /*
+@@ -702,7 +705,7 @@ static int writeout(struct address_space *mapping, struct page *page)
+ 	 * At this point we know that the migration attempt cannot
+ 	 * be successful.
  	 */
- 	pmdp_invalidate(vma, haddr, pmd);
- 	pmd_populate(mm, pmd, pgtable);
--
--	if (freeze) {
--		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
--			page_remove_rmap(page + i, false);
--			put_page(page + i);
--		}
--	}
- }
+-	remove_migration_ptes(page, page);
++	remove_migration_ptes(page, page, false);
  
- void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -3037,7 +3024,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			page = NULL;
- 	} else if (!pmd_devmap(*pmd))
- 		goto out;
--	__split_huge_pmd_locked(vma, pmd, haddr, false);
-+	__split_huge_pmd_locked(vma, pmd, haddr);
- out:
- 	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
-@@ -3114,180 +3101,27 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 	}
- }
+ 	rc = mapping->a_ops->writepage(page, &wbc);
  
--static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
--		unsigned long address)
-+static void freeze_page(struct page *page)
- {
--	unsigned long haddr = address & HPAGE_PMD_MASK;
--	spinlock_t *ptl;
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *pte;
--	int i, nr = HPAGE_PMD_NR;
--
--	/* Skip pages which doesn't belong to the VMA */
--	if (address < vma->vm_start) {
--		int off = (vma->vm_start - address) >> PAGE_SHIFT;
--		page += off;
--		nr -= off;
--		address = vma->vm_start;
--	}
--
--	pgd = pgd_offset(vma->vm_mm, address);
--	if (!pgd_present(*pgd))
--		return;
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return;
--	pmd = pmd_offset(pud, address);
--	ptl = pmd_lock(vma->vm_mm, pmd);
--	if (!pmd_present(*pmd)) {
--		spin_unlock(ptl);
--		return;
--	}
--	if (pmd_trans_huge(*pmd)) {
--		if (page == pmd_page(*pmd))
--			__split_huge_pmd_locked(vma, pmd, haddr, true);
--		spin_unlock(ptl);
--		return;
--	}
--	spin_unlock(ptl);
--
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
--	for (i = 0; i < nr; i++, address += PAGE_SIZE, page++, pte++) {
--		pte_t entry, swp_pte;
--		swp_entry_t swp_entry;
--
--		/*
--		 * We've just crossed page table boundary: need to map next one.
--		 * It can happen if THP was mremaped to non PMD-aligned address.
--		 */
--		if (unlikely(address == haddr + HPAGE_PMD_SIZE)) {
--			pte_unmap_unlock(pte - 1, ptl);
--			pmd = mm_find_pmd(vma->vm_mm, address);
--			if (!pmd)
--				return;
--			pte = pte_offset_map_lock(vma->vm_mm, pmd,
--					address, &ptl);
--		}
--
--		if (!pte_present(*pte))
--			continue;
--		if (page_to_pfn(page) != pte_pfn(*pte))
--			continue;
--		flush_cache_page(vma, address, page_to_pfn(page));
--		entry = ptep_clear_flush(vma, address, pte);
--		if (pte_dirty(entry))
--			SetPageDirty(page);
--		swp_entry = make_migration_entry(page, pte_write(entry));
--		swp_pte = swp_entry_to_pte(swp_entry);
--		if (pte_soft_dirty(entry))
--			swp_pte = pte_swp_mksoft_dirty(swp_pte);
--		set_pte_at(vma->vm_mm, address, pte, swp_pte);
--		page_remove_rmap(page, false);
--		put_page(page);
--	}
--	pte_unmap_unlock(pte - 1, ptl);
--}
--
--static void freeze_page(struct anon_vma *anon_vma, struct page *page)
--{
--	struct anon_vma_chain *avc;
--	pgoff_t pgoff = page_to_pgoff(page);
-+	enum ttu_flags ttu_flags = TTU_MIGRATION | TTU_IGNORE_MLOCK |
-+		TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED;
-+	int i, ret;
+@@ -900,7 +903,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
  
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 	if (page_was_mapped)
+ 		remove_migration_ptes(page,
+-			rc == MIGRATEPAGE_SUCCESS ? newpage : page);
++			rc == MIGRATEPAGE_SUCCESS ? newpage : page, false);
  
--	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff,
--			pgoff + HPAGE_PMD_NR - 1) {
--		unsigned long address = __vma_address(page, avc->vma);
--
--		mmu_notifier_invalidate_range_start(avc->vma->vm_mm,
--				address, address + HPAGE_PMD_SIZE);
--		freeze_page_vma(avc->vma, page, address);
--		mmu_notifier_invalidate_range_end(avc->vma->vm_mm,
--				address, address + HPAGE_PMD_SIZE);
--	}
--}
--
--static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
--		unsigned long address)
--{
--	spinlock_t *ptl;
--	pmd_t *pmd;
--	pte_t *pte, entry;
--	swp_entry_t swp_entry;
--	unsigned long haddr = address & HPAGE_PMD_MASK;
--	int i, nr = HPAGE_PMD_NR;
--
--	/* Skip pages which doesn't belong to the VMA */
--	if (address < vma->vm_start) {
--		int off = (vma->vm_start - address) >> PAGE_SHIFT;
--		page += off;
--		nr -= off;
--		address = vma->vm_start;
--	}
--
--	pmd = mm_find_pmd(vma->vm_mm, address);
--	if (!pmd)
--		return;
--
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
--	for (i = 0; i < nr; i++, address += PAGE_SIZE, page++, pte++) {
--		/*
--		 * We've just crossed page table boundary: need to map next one.
--		 * It can happen if THP was mremaped to non-PMD aligned address.
--		 */
--		if (unlikely(address == haddr + HPAGE_PMD_SIZE)) {
--			pte_unmap_unlock(pte - 1, ptl);
--			pmd = mm_find_pmd(vma->vm_mm, address);
--			if (!pmd)
--				return;
--			pte = pte_offset_map_lock(vma->vm_mm, pmd,
--					address, &ptl);
--		}
--
--		if (!is_swap_pte(*pte))
--			continue;
--
--		swp_entry = pte_to_swp_entry(*pte);
--		if (!is_migration_entry(swp_entry))
--			continue;
--		if (migration_entry_to_page(swp_entry) != page)
--			continue;
--
--		get_page(page);
--		page_add_anon_rmap(page, vma, address, false);
--
--		entry = pte_mkold(mk_pte(page, vma->vm_page_prot));
--		if (PageDirty(page))
--			entry = pte_mkdirty(entry);
--		if (is_write_migration_entry(swp_entry))
--			entry = maybe_mkwrite(entry, vma);
--
--		flush_dcache_page(page);
--		set_pte_at(vma->vm_mm, address, pte, entry);
--
--		/* No need to invalidate - it was non-present before */
--		update_mmu_cache(vma, address, pte);
--	}
--	pte_unmap_unlock(pte - 1, ptl);
-+	/* We only need TTU_SPLIT_HUGE_PMD once */
-+	ret = try_to_unmap(page, ttu_flags | TTU_SPLIT_HUGE_PMD);
-+	for (i = 1; !ret && i < HPAGE_PMD_NR; i++)
-+		ret = try_to_unmap(page + i, ttu_flags);
-+	VM_BUG_ON(ret);
- }
+ out_unlock_both:
+ 	unlock_page(newpage);
+@@ -1070,7 +1073,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
  
--static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
-+static void unfreeze_page(struct page *page)
- {
--	struct anon_vma_chain *avc;
--	pgoff_t pgoff = page_to_pgoff(page);
--
--	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
--			pgoff, pgoff + HPAGE_PMD_NR - 1) {
--		unsigned long address = __vma_address(page, avc->vma);
-+	int i;
+ 	if (page_was_mapped)
+ 		remove_migration_ptes(hpage,
+-			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage);
++			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage, false);
  
--		mmu_notifier_invalidate_range_start(avc->vma->vm_mm,
--				address, address + HPAGE_PMD_SIZE);
--		unfreeze_page_vma(avc->vma, page, address);
--		mmu_notifier_invalidate_range_end(avc->vma->vm_mm,
--				address, address + HPAGE_PMD_SIZE);
--	}
-+	for (i = 0; i < HPAGE_PMD_NR; i++)
-+		remove_migration_ptes(page + i, page + i, true);
- }
- 
- static void __split_huge_page_tail(struct page *head, int tail,
-@@ -3365,7 +3199,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	ClearPageCompound(head);
- 	spin_unlock_irq(&zone->lru_lock);
- 
--	unfreeze_page(page_anon_vma(head), head);
-+	unfreeze_page(head);
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		struct page *subpage = head + i;
-@@ -3461,7 +3295,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	}
- 
- 	mlocked = PageMlocked(page);
--	freeze_page(anon_vma, head);
-+	freeze_page(head);
- 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
- 
- 	/* Make sure the page is not on per-CPU pagevec as it takes pin */
-@@ -3490,7 +3324,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		BUG();
- 	} else {
- 		spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
--		unfreeze_page(anon_vma, head);
-+		unfreeze_page(head);
- 		ret = -EBUSY;
- 	}
+ 	unlock_page(new_hpage);
  
 -- 
 2.7.0
