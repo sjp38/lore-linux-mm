@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F290828E2
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:58:34 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id fi3so15812950pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:58:34 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id kr9si269966pab.190.2016.03.03.08.52.40
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C2E828E2
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 11:59:05 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id fy10so17690220pac.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 08:59:05 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id f63si66596958pfj.137.2016.03.03.08.52.40
         for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 08:52:40 -0800 (PST)
+        Thu, 03 Mar 2016 08:52:41 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 21/29] vmscan: split file huge pages before paging them out
-Date: Thu,  3 Mar 2016 19:52:11 +0300
-Message-Id: <1457023939-98083-22-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 25/29] truncate: handle file thp
+Date: Thu,  3 Mar 2016 19:52:15 +0300
+Message-Id: <1457023939-98083-26-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,59 +19,57 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This is preparation of vmscan for file huge pages. We cannot write out
-huge pages, so we need to split them on the way out.
+For shmem/tmpfs we only need to tweak truncate_inode_page() and
+invalidate_mapping_pages().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/vmscan.c | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ mm/truncate.c | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 39e90e24caff..832a00523ffb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -473,12 +473,14 @@ void drop_slab(void)
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 7598b552ae03..40d3730a8e62 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -157,10 +157,14 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
  
- static inline int is_page_cache_freeable(struct page *page)
+ int truncate_inode_page(struct address_space *mapping, struct page *page)
  {
-+	int radix_tree_pins = PageTransHuge(page) ? HPAGE_PMD_NR : 1;
++	loff_t holelen;
++	VM_BUG_ON_PAGE(PageTail(page), page);
 +
- 	/*
- 	 * A freeable page cache page is referenced only by the caller
- 	 * that isolated the page, the page cache radix tree and
- 	 * optional buffer heads at page->private.
- 	 */
--	return page_count(page) - page_has_private(page) == 2;
-+	return page_count(page) - page_has_private(page) == 1 + radix_tree_pins;
++	holelen = PageTransHuge(page) ? HPAGE_PMD_SIZE : PAGE_CACHE_SIZE;
+ 	if (page_mapped(page)) {
+ 		unmap_mapping_range(mapping,
+ 				   (loff_t)page->index << PAGE_CACHE_SHIFT,
+-				   PAGE_CACHE_SIZE, 0);
++				   holelen, 0);
+ 	}
+ 	return truncate_complete_page(mapping, page);
  }
+@@ -489,7 +493,21 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
  
- static int may_write_to_inode(struct inode *inode, struct scan_control *sc)
-@@ -548,8 +550,6 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 	 * swap_backing_dev_info is bust: it doesn't reflect the
- 	 * congestion state of the swapdevs.  Easy to fix, if needed.
- 	 */
--	if (!is_page_cache_freeable(page))
--		return PAGE_KEEP;
- 	if (!mapping) {
- 		/*
- 		 * Some data journaling orphaned pages can have
-@@ -1112,6 +1112,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			 * starts and then write it out here.
- 			 */
- 			try_to_unmap_flush_dirty();
+ 			if (!trylock_page(page))
+ 				continue;
+-			WARN_ON(page->index != index);
 +
-+			if (!is_page_cache_freeable(page))
-+				goto keep_locked;
++			WARN_ON(page_to_pgoff(page) != index);
 +
-+			if (unlikely(PageTransHuge(page))) {
-+				if (split_huge_page_to_list(page, page_list))
-+					goto keep_locked;
++			/* Middle of THP: skip */
++			if (PageTransTail(page)) {
++				unlock_page(page);
++				continue;
++			} else if (PageTransHuge(page)) {
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++				/* 'end' is in the middle of THP */
++				if (index ==  round_down(end, HPAGE_PMD_NR))
++					continue;
 +			}
 +
- 			switch (pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
+ 			ret = invalidate_inode_page(page);
+ 			unlock_page(page);
+ 			/*
 -- 
 2.7.0
 
