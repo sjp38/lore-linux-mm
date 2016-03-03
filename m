@@ -1,111 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B20828DF
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 16:53:44 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id 4so22183876pfd.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 13:53:44 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id o9si660336pfa.130.2016.03.03.13.53.43
-        for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 13:53:43 -0800 (PST)
-Subject: [PATCH v2 3/3] libnvdimm,
- pfn: 'resource'-address and 'size' attributes for pfn devices
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 03 Mar 2016 13:53:20 -0800
-Message-ID: <20160303215320.1014.89145.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <20160303215304.1014.69931.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <20160303215304.1014.69931.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1D4828DF
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 17:08:12 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id n186so9762095wmn.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 14:08:12 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id k11si534863wjw.224.2016.03.03.14.08.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Mar 2016 14:08:11 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id l68so9826654wml.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 14:08:11 -0800 (PST)
+Date: Fri, 4 Mar 2016 00:08:03 +0200
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [RFC v5 0/3] mm: make swapin readahead to gain more thp
+ performance
+Message-ID: <20160303220803.GA9898@debian>
+Reply-To: hughd@google.com
+References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+ <20150914144106.ee205c3ae3f4ec0e5202c9fe@linux-foundation.org>
+ <alpine.LSU.2.11.1602242301040.6947@eggly.anvils>
+ <1456439750.15821.97.camel@redhat.com>
+ <20160225233017.GA14587@debian>
+ <alpine.LSU.2.11.1602252151030.9793@eggly.anvils>
+ <1456498316.25322.35.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1456498316.25322.35.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Haozhong Zhang <haozhong.zhang@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: hughd@google.com, riel@redhat.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-Currenty with a raw mode pmem namespace the physical memory address range for
-the device can be obtained via /sys/block/pmemX/device/{resource|size}.  Add
-similar attributes for pfn instances that takes the struct page memmap and
-section padding into account.
+On Fri, Feb 26, 2016 at 09:51:56AM -0500, Rik van Riel wrote:
+> On Thu, 2016-02-25 at 22:17 -0800, Hugh Dickins wrote:
+> > On Fri, 26 Feb 2016, Ebru Akagunduz wrote:
+> > > in Thu, Feb 25, 2016 at 05:35:50PM -0500, Rik van Riel wrote:
+> > 
+> > > > Am I forgetting anything obvious?
+> > > > 
+> > > > Is this too aggressive?
+> > > > 
+> > > > Not aggressive enough?
+> > > > 
+> > > > Could PGPGOUT + PGSWPOUT be a useful
+> > > > in-between between just PGSWPOUT or
+> > > > PGSTEAL_*?
+> > 
+> > I've no idea offhand, would have to study what each of those
+> > actually means: I'm really not familiar with them myself.
+> 
+> There are a few levels of page reclaim activity:
+> 
+> PGSTEAL_* - any page was reclaimed, this could just
+>             be file pages for streaming file IO,etc
+> 
+> PGPGOUT   - the VM wrote pages back to disk to reclaim
+>             them, this could include file pages
+> 
+> PGSWPOUT  - the VM wrote something to swap to reclaim
+>             memory
+> 
+> I am not sure which level of aggressiveness khugepaged
+> should check against, but my gut instinct would probably
+> be the second or third.
 
-Reported-by: Haozhong Zhang <haozhong.zhang@intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/nvdimm/pfn_devs.c |   56 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 56 insertions(+)
+I tested with PGPGOUT, it does not help as I expect.
+As Rik's suggestion, PSWPOUT and ALLOCSTALL can be good.
 
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 14642617a153..a43942ffc173 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -205,11 +205,67 @@ static ssize_t namespace_store(struct device *dev,
- }
- static DEVICE_ATTR_RW(namespace);
- 
-+static ssize_t resource_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
-+	ssize_t rc;
-+
-+	device_lock(dev);
-+	if (dev->driver) {
-+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-+		u64 offset = __le64_to_cpu(pfn_sb->dataoff);
-+		struct nd_namespace_common *ndns = nd_pfn->ndns;
-+		u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
-+		struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-+
-+		rc = sprintf(buf, "%#llx\n", (unsigned long long) nsio->res.start
-+				+ start_pad + offset);
-+	} else {
-+		/* no address to convey if the pfn instance is disabled */
-+		rc = -ENXIO;
-+	}
-+	device_unlock(dev);
-+
-+	return rc;
-+}
-+static DEVICE_ATTR_RO(resource);
-+
-+static ssize_t size_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
-+	ssize_t rc;
-+
-+	device_lock(dev);
-+	if (dev->driver) {
-+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-+		u64 offset = __le64_to_cpu(pfn_sb->dataoff);
-+		struct nd_namespace_common *ndns = nd_pfn->ndns;
-+		u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
-+		u32 end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
-+		struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-+
-+		rc = sprintf(buf, "%llu\n", (unsigned long long)
-+				resource_size(&nsio->res) - start_pad
-+				- end_trunc - offset);
-+	} else {
-+		/* no size to convey if the pfn instance is disabled */
-+		rc = -ENXIO;
-+	}
-+	device_unlock(dev);
-+
-+	return rc;
-+}
-+static DEVICE_ATTR_RO(size);
-+
- static struct attribute *nd_pfn_attributes[] = {
- 	&dev_attr_mode.attr,
- 	&dev_attr_namespace.attr,
- 	&dev_attr_uuid.attr,
- 	&dev_attr_align.attr,
-+	&dev_attr_resource.attr,
-+	&dev_attr_size.attr,
- 	NULL,
- };
- 
+I started to prepare the patch last week. Just wanted to
+make you sure.
+
+Kind regards.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
