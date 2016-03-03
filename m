@@ -1,175 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FC56B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 10:25:18 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id l68so36212462wml.1
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 07:25:18 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id z193si10853507wme.98.2016.03.03.07.25.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 07:25:16 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id l68so4643760wml.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 07:25:16 -0800 (PST)
-Date: Thu, 3 Mar 2016 16:25:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-Message-ID: <20160303152514.GG26202@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160302021954.GA22355@js1304-P5Q-DELUXE>
- <20160302095056.GB26701@dhcp22.suse.cz>
- <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
- <20160302140611.GI26686@dhcp22.suse.cz>
- <CAAmzW4NX2sooaghiqkFjFb3Yzazi6rGguQbDjiyWDnfBqP0a-A@mail.gmail.com>
- <20160303092634.GB26202@dhcp22.suse.cz>
- <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6A76B007E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 10:46:35 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id 4so16920608pfd.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 07:46:35 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id g7si27708516pat.103.2016.03.03.07.46.34
+        for <linux-mm@kvack.org>;
+        Thu, 03 Mar 2016 07:46:34 -0800 (PST)
+Date: Thu, 3 Mar 2016 21:20:35 +0530
+From: Vinod Koul <vinod.koul@intel.com>
+Subject: Re: [PATCH] crypto/async_pq: use __free_page() instead of put_page()
+Message-ID: <20160303155035.GT11154@localhost>
+References: <1456738445-876239-1-git-send-email-arnd@arndb.de>
+ <CAPcyv4jJzUieZ0i2jBqANwmYPUBVmQmhoDTPnr0KjPQXnoZqWQ@mail.gmail.com>
+ <CAAmzW4Nq8LiFGzyR4YjG8OPev-Pj1dUad+Bus2puSAk_tUcCsA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
+In-Reply-To: <CAAmzW4Nq8LiFGzyR4YjG8OPev-Pj1dUad+Bus2puSAk_tUcCsA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux MM <linux-mm@kvack.org>, Herbert Xu <herbert@gondor.apana.org.au>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Nazarewicz <mina86@mina86.com>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, NeilBrown <neilb@suse.com>, Markus Stockhausen <stockhausen@collogia.de>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu 03-03-16 23:10:09, Joonsoo Kim wrote:
-> 2016-03-03 18:26 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> > On Wed 02-03-16 23:34:21, Joonsoo Kim wrote:
-> >> 2016-03-02 23:06 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> >> > On Wed 02-03-16 22:32:09, Joonsoo Kim wrote:
-> >> >> 2016-03-02 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> >> >> > On Wed 02-03-16 11:19:54, Joonsoo Kim wrote:
-> >> >> >> On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
-> >> >> > [...]
-> >> >> >> > > + /*
-> >> >> >> > > +  * OK, so the watermak check has failed. Make sure we do all the
-> >> >> >> > > +  * retries for !costly high order requests and hope that multiple
-> >> >> >> > > +  * runs of compaction will generate some high order ones for us.
-> >> >> >> > > +  *
-> >> >> >> > > +  * XXX: ideally we should teach the compaction to try _really_ hard
-> >> >> >> > > +  * if we are in the retry path - something like priority 0 for the
-> >> >> >> > > +  * reclaim
-> >> >> >> > > +  */
-> >> >> >> > > + if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
-> >> >> >> > > +         return true;
-> >> >> >> > > +
-> >> >> >> > >   return false;
-> >> >> >>
-> >> >> >> This seems not a proper fix. Checking watermark with high order has
-> >> >> >> another meaning that there is high order page or not. This isn't
-> >> >> >> what we want here.
-> >> >> >
-> >> >> > Why not? Why should we retry the reclaim if we do not have >=order page
-> >> >> > available? Reclaim itself doesn't guarantee any of the freed pages will
-> >> >> > form the requested order. The ordering on the LRU lists is pretty much
-> >> >> > random wrt. pfn ordering. On the other hand if we have a page available
-> >> >> > which is just hidden by watermarks then it makes perfect sense to retry
-> >> >> > and free even order-0 pages.
-> >> >>
-> >> >> If we have >= order page available, we would not reach here. We would
-> >> >> just allocate it.
-> >> >
-> >> > not really, we can still be under the low watermark. Note that the
+On Tue, Mar 01, 2016 at 10:54:50PM +0900, Joonsoo Kim wrote:
+> 2016-03-01 3:04 GMT+09:00 Dan Williams <dan.j.williams@intel.com>:
+> > On Mon, Feb 29, 2016 at 1:33 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+> >> The addition of tracepoints to the page reference tracking had an
+> >> unfortunate side-effect in at least one driver that calls put_page
+> >> from its exit function, resulting in a link error:
 > >>
-> >> you mean min watermark?
-> >
-> > ohh, right...
-> >
-> >> > target for the should_reclaim_retry watermark check includes also the
-> >> > reclaimable memory.
+> >> `.exit.text' referenced in section `__jump_table' of crypto/built-in.o: defined in discarded section `.exit.text' of crypto/built-in.o
 > >>
-> >> I guess that usual case for high order allocation failure has enough freepage.
-> >
-> > Not sure I understand you mean here but I wouldn't be surprised if high
-> > order failed even with enough free pages. And that is exactly why I am
-> > claiming that reclaiming more pages is no free ticket to high order
-> > pages.
-> 
-> I didn't say that it's free ticket. OOM kill would be the most expensive ticket
-> that we have. Why do you want to kill something?
-
-Because all the attempts so far have failed and we should rather not
-retry endlessly. With the band-aid we know we will retry
-MAX_RECLAIM_RETRIES at most. So compaction had that many attempts to
-resolve the situation along with the same amount of reclaim rounds to
-help and get over watermarks.
-
-> It also doesn't guarantee to make high order pages. It is just another
-> way of reclaiming memory. What is the difference between plain reclaim
-> and OOM kill? Why do we use OOM kill in this case?
-
-What is our alternative other than keep looping endlessly?
-
-> > [...]
-> >> >> I just did quick review to your patches so maybe I am wrong.
-> >> >> Am I missing something?
-> >> >
-> >> > The core idea behind should_reclaim_retry is to check whether the
-> >> > reclaiming all the pages would help to get over the watermark and there
-> >> > is at least one >= order page. Then it really makes sense to retry. As
+> >> From a cursory look at that this driver, it seems that it may be
+> >> doing the wrong thing here anyway, as the page gets allocated
+> >> using 'alloc_page()', and should be freed using '__free_page()'
+> >> rather than 'put_page()'.
 > >>
-> >> How you can judge that reclaiming all the pages would help to check
-> >> there is at least one >= order page?
+> >> With this patch, I no longer get any other build errors from the
+> >> page_ref patch, so hopefully we can assume that it's always wrong
+> >> to call any of those functions from __exit code, and that no other
+> >> driver does it.
+> >>
+> >> Fixes: 0f80830dd044 ("mm/page_ref: add tracepoint to track down page reference manipulation")
+> >> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 > >
-> > Again, not sure I understand you here. __zone_watermark_ok checks both
-> > wmark and an available page of the sufficient order. While increased
-> > free_pages (which includes reclaimable pages as well) will tell us
-> > whether we have a chance to get over the min wmark, the order check will
-> > tell us we have something to allocate from after we reach the min wmark.
-> 
-> Again, your assumption would be different with mine. My assumption is that
-> high order allocation problem happens due to fragmentation rather than
-> low free memory. In this case, there is no high order page. Even if you can
-> reclaim 1TB and add this counter to freepage counter, high order page
-> counter will not be changed and watermark check would fail. So, high order
-> allocation will not go through retry logic. This is what you want?
-
-I really want to base the decision on something measurable rather
-than a good hope. This is what all the zone_reclaimable() is about. I
-understand your concerns that compaction doesn't guarantee anything but
-I am quite convinced that we really need an upper bound for retries
-(unlike now when zone_reclaimable is basically unbounded assuming
-order-0 reclaim makes some progress). What is the best bound is harder
-to tell, of course.
-
-[...]
-> >> My arguing is for your band aid patch.
-> >> My point is that why retry count for order-0 is reset if there is some progress,
-> >> but, retry counter for order up to costly isn't reset even if there is
-> >> some progress
+> > Acked-by: Dan Williams <dan.j.williams@intel.com>
 > >
-> > Because we know that order-0 requests have chance to proceed if we keep
-> > reclaiming order-0 pages while this is not true for order > 0. If we did
-> > reset the no_progress_loops for order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER
-> > then we would be back to the zone_reclaimable heuristic. Why? Because
-> > order-0 reclaim progress will keep !costly in the reclaim loop while
-> > compaction still might not make any progress. So we either have to fail
-> > when __zone_watermark_ok fails for the order (which turned out to be
-> > too easy to trigger) or have the fixed amount of retries regardless the
-> > watermark check result. We cannot relax both unless we have other
-> > measures in place.
+> > Vinod, will you take this one?
 > 
-> As mentioned before, OOM kill also doesn't guarantee to make high order page.
+> Problematic patch ("mm/page_ref: ~~~") is not yet merged one. It is on mmotm
+> and this fix should go together with it or before it. I think that
+> handling this fix by
+> Andrew is easier to all.
 
-Yes, of course, apart from the kernel stack which is high order there is
-no guarantee.
+Okay fine by me.
 
-> Reclaim more memory as much as possible makes more sense to me.
-
-But then we are back to square one. How much and how to decide when it
-makes sense to give up. Do you have any suggestions on what should be
-the criteria? Is there any feedback mechanism from the compaction which
-would tell us to keep retrying? Something like did_some_progress from
-the order-0 reclaim? Is any of deferred_compaction resp.
-contended_compaction usable? Or is there any per-zone flag we can check
-and prefer over wmark order check?
-
-Thanks
 -- 
-Michal Hocko
-SUSE Labs
+~Vinod
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
