@@ -1,115 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA386B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 18:24:15 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id n186so11055471wmn.1
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 15:24:15 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id o8si6260486wjo.165.2016.03.04.15.24.14
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D93B6B0253
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 18:25:10 -0500 (EST)
+Received: by mail-wm0-f48.google.com with SMTP id p65so38970255wmp.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 15:25:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b2si6243249wjy.233.2016.03.04.15.25.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 15:24:14 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id l68so38993290wml.0
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 15:24:14 -0800 (PST)
-Date: Sat, 5 Mar 2016 02:24:12 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: THP-enabled filesystem vs. FALLOC_FL_PUNCH_HOLE
-Message-ID: <20160304232412.GC12498@node.shutemov.name>
-References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160304112603.GA9790@node.shutemov.name>
- <56D9C882.3040808@intel.com>
- <alpine.LSU.2.11.1603041100320.6011@eggly.anvils>
- <20160304230548.GC11282@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160304230548.GC11282@dastard>
+        Fri, 04 Mar 2016 15:25:09 -0800 (PST)
+Date: Fri, 4 Mar 2016 15:25:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with
+ waking up kcompactd
+Message-Id: <20160304152507.18b1362f51b0860a1268a977@linux-foundation.org>
+In-Reply-To: <56D70543.60806@suse.cz>
+References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+	<1454938691-2197-5-git-send-email-vbabka@suse.cz>
+	<20160302063322.GB32695@js1304-P5Q-DELUXE>
+	<56D6BACB.7060005@suse.cz>
+	<CAAmzW4PHAsMvifgV2FpS_FYE78_PzDtADvoBY67usc_9-D4Hjg@mail.gmail.com>
+	<56D6F41D.9080107@suse.cz>
+	<CAAmzW4PGgYkL9xnCXgSQ=8kW0sJkaYyrxenb_XKHcW1wDGMEyw@mail.gmail.com>
+	<56D6FB77.2090801@suse.cz>
+	<CAAmzW4METKGH27_tcnBLp1CQU3UK+YmfXJ4MwHuwUfqynAp_eg@mail.gmail.com>
+	<56D70543.60806@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sat, Mar 05, 2016 at 10:05:48AM +1100, Dave Chinner wrote:
-> On Fri, Mar 04, 2016 at 11:38:47AM -0800, Hugh Dickins wrote:
-> > On Fri, 4 Mar 2016, Dave Hansen wrote:
-> > > On 03/04/2016 03:26 AM, Kirill A. Shutemov wrote:
-> > > > On Thu, Mar 03, 2016 at 07:51:50PM +0300, Kirill A. Shutemov wrote:
-> > > >> Truncate and punch hole that only cover part of THP range is implemented
-> > > >> by zero out this part of THP.
-> > > >>
-> > > >> This have visible effect on fallocate(FALLOC_FL_PUNCH_HOLE) behaviour.
-> > > >> As we don't really create hole in this case, lseek(SEEK_HOLE) may have
-> > > >> inconsistent results depending what pages happened to be allocated.
-> > > >> Not sure if it should be considered ABI break or not.
-> > > > 
-> > > > Looks like this shouldn't be a problem. man 2 fallocate:
-> > > > 
-> > > > 	Within the specified range, partial filesystem blocks are zeroed,
-> > > > 	and whole filesystem blocks are removed from the file.  After a
-> > > > 	successful call, subsequent reads from this range will return
-> > > > 	zeroes.
-> > > > 
-> > > > It means we effectively have 2M filesystem block size.
-> > > 
-> > > The question is still whether this will case problems for apps.
-> > > 
-> > > Isn't 2MB a quote unusual block size?  Wouldn't some files on a tmpfs
-> > > filesystem act like they have a 2M blocksize and others like they have
-> > > 4k?  Would that confuse apps?
-> > 
-> > At risk of addressing the tip of an iceberg, before diving down to
-> > scope out the rest of the iceberg...
-> ....
+On Wed, 2 Mar 2016 16:22:43 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+
+> On 03/02/2016 03:59 PM, Joonsoo Kim wrote:
+> > 2016-03-02 23:40 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+> >> On 03/02/2016 03:22 PM, Joonsoo Kim wrote:
+> >>
+> >> So I understand that patch 5 would be just about this?
+> >>
+> >> -       if (compaction_restarting(zone, cc->order) && !current_is_kcompactd())
+> >> +       if (compaction_restarting(zone, cc->order))
+> >>                  __reset_isolation_suitable(zone);
+> >
+> > Yeah, you understand correctly. :)
+> >
+> >> I'm more inclined to fold it in that case.
+> >
+> > Patch would be just simple, but, I guess it would cause some difference
+> > in test result. But, I'm okay for folding.
 > 
-> > (Though in the case of my huge tmpfs, it's the reverse: the small hole
-> > punch splits the hugepage; but it's natural that Kirill's way would try
-> > to hold on to its compound pages for longer than I do, and that's fine
-> > so long as it's all consistent.)
-> ....
-> > Ah, but suppose someone holepunches out most of each 2M page: they would
-> > expect the memcg not to be charged for those holes (just as when they
-> > munmap most of an anonymous THP) - that does suggest splitting is needed.
-> 
-> I think filesystems will expect splitting to happen. They call
-> truncate_pagecache_range() on the region that the hole is being
-> punched out of, and they expect page cache pages over this range to
-> be unmapped, invalidated and then removed from the mapping tree as a
-> result. Also, most filesystems think the page cache only contains
-> PAGE_CACHE_SIZE mappings, so they are completely unaware of the
-> limitations THP might have when it comes to invalidation.
-> 
-> IOWs, if this range is not aligned to huge page boundaries, then it
-> implies the huge page is either split into PAGE_SIZE mappings and
-> then the range is invalidated as expected, or it is completely
-> invalidated and then refaulted on future accesses which determine if
-> THP or normal pages are used for the page being faulted....
+> Thanks. Andrew, should I send now patch folding patch 4/5 and 5/5 with 
+> all the accumulated fixlets (including those I sent earlier today) and 
+> combined changelog, or do you want to apply the new fixlets separately 
+> first and let them sit for a week or so? In any case, sorry for the churn.
 
-The filesystem in question is tmpfs and complete invalidation is not
-always an option. For other filesystems it also can be unavailable
-immediately if the page is dirty (the dirty flag is tracked on per-THP
-basis at the moment).
+Did I get everything?
 
-Would it be acceptable for fallocate(FALLOC_FL_PUNCH_HOLE) to return
--EBUSY (or other errno on your choice), if we cannot split the page
-right away?
-
-> Just to complicate things, keep in mind that some filesystems may
-> have a PAGE_SIZE block size, but can be convinced to only
-> allocate/punch/truncate/etc extents on larger alignments on a
-> per-inode basis. IOWs, THP vs hole punch behaviour is not actually
-> a filesystem type specific behaviour - it's per-inode specific...
-
-There is also similar question about THP vs. i_size vs. SIGBUS.
-
-For small pages an application will not get SIGBUS on mmap()ed file, until
-it wouldn't try to access beyond round_up(i_size, PAGE_CACHE_SIZE) - 1.
-
-For THP it would be round_up(i_size, HPAGE_PMD_SIZE) - 1.
-
-Is it a problem?
-
--- 
- Kirill A. Shutemov
+http://ozlabs.org/~akpm/mmots/broken-out/mm-kswapd-remove-bogus-check-of-balance_classzone_idx.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix-2.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix-3.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-memory-hotplug-small-cleanup-in-online_pages.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-kswapd-replace-kswapd-compaction-with-waking-up-kcompactd.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-kswapd-replace-kswapd-compaction-with-waking-up-kcompactd-fix.patch
+http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-adapt-isolation_suitable-flushing-to-kcompactd.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
