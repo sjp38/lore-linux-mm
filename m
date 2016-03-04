@@ -1,55 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 147E16B0254
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 11:24:43 -0500 (EST)
-Received: by mail-qg0-f50.google.com with SMTP id y89so47090016qge.2
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 08:24:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 143si4213192qhx.84.2016.03.04.08.24.42
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EC556B0254
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 11:30:27 -0500 (EST)
+Received: by mail-lb0-f181.google.com with SMTP id cf7so50770799lbb.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 08:30:26 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id o79si1472124lfb.190.2016.03.04.08.30.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 08:24:42 -0800 (PST)
-Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
- <20160304081411.GD9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <56D9B6C2.3070708@redhat.com>
-Date: Fri, 4 Mar 2016 17:24:34 +0100
+        Fri, 04 Mar 2016 08:30:25 -0800 (PST)
+Received: by mail-lb0-x233.google.com with SMTP id cf7so50770073lbb.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 08:30:25 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAG_fn=XfqNjTry+kyXHVXNRX1Y7LL5=WTmAkNPzTg7XeR7DLww@mail.gmail.com>
+References: <cover.1456504662.git.glider@google.com>
+	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
+	<56D471F5.3010202@gmail.com>
+	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
+	<56D58398.2010708@gmail.com>
+	<CAG_fn=Ux-_FaVR1sQ0457kKHAGLWEMUuFpPr-UF_GwjkqpdSnQ@mail.gmail.com>
+	<CAPAsAGyoCmSGHNj3EJ-1TRonzR3-7A3Jk4+99NNQ4bfS6xXYvA@mail.gmail.com>
+	<CAG_fn=XfqNjTry+kyXHVXNRX1Y7LL5=WTmAkNPzTg7XeR7DLww@mail.gmail.com>
+Date: Fri, 4 Mar 2016 19:30:24 +0300
+Message-ID: <CAPAsAGzLuPGAGg6Ka5T6fHvGHUZzVn-H0RT2pNMMqqN8LLoVew@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>, Roman Kagan <rkagan@virtuozzo.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+2016-03-04 18:06 GMT+03:00 Alexander Potapenko <glider@google.com>:
+> On Fri, Mar 4, 2016 at 4:01 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> =
+wrote:
+>> 2016-03-04 17:52 GMT+03:00 Alexander Potapenko <glider@google.com>:
+>>> On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.co=
+m> wrote:
+>>>>>>> +
+>>>>>>> +     stack->hash =3D hash;
+>>>>>>> +     stack->size =3D size;
+>>>>>>> +     stack->handle.slabindex =3D depot_index;
+>>>>>>> +     stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
+>>>>>>> +     __memcpy(stack->entries, entries, size * sizeof(unsigned long=
+));
+>>>>>>
+>>>>>> s/__memcpy/memcpy/
+>>>>>
+>>>>> memcpy should be instrumented by asan/tsan, and we would like to avoi=
+d
+>>>>> that instrumentation here.
+>>>>
+>>>> KASAN_SANITIZE_* :=3D n already takes care about this.
+>>>> __memcpy() is a special thing solely for kasan internals and some asse=
+mbly code.
+>>>> And it's not available generally.
+>>> As far as I can see, KASAN_SANITIZE_*:=3Dn does not guarantee it.
+>>> It just removes KASAN flags from GCC command line, it does not
+>>> necessarily replace memcpy() calls with some kind of a
+>>> non-instrumented memcpy().
+>>>
+>>
+>> With removed kasan cflags '__SANITIZE_ADDRESS__' is not defined,
+>> hence enable the following defines from arch/x86/include/asm/string_64.h=
+:
+>>
+>> #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
+>>
+>> /*
+>>  * For files that not instrumented (e.g. mm/slub.c) we
+>>  * should use not instrumented version of mem* functions.
+>>  */
+>>
+>> #undef memcpy
+>> #define memcpy(dst, src, len) __memcpy(dst, src, len)
+>> #define memmove(dst, src, len) __memmove(dst, src, len)
+>> #define memset(s, c, n) __memset(s, c, n)
+>> #endif
+> Nice!
+> What do you think about providing stub .c files to decouple the shared
+> code used by KASAN runtime from the rest of kernel?
 
+Actually, I'm not quite understand why you need that at all, but your
+idea will not link due to multiple definitions of the same functions.
+Link problem should be easy to workaround with 'objcopy
+--prefix-symbol=3D' though.
 
-On 04/03/2016 15:26, Li, Liang Z wrote:
->> > 
->> > The memory usage will keep increasing due to ever growing caches, etc, so
->> > you'll be left with very little free memory fairly soon.
->> > 
-> I don't think so.
-> 
-
-Roman is right.  For example, here I am looking at a 64 GB (physical)
-machine which was booted about 30 minutes ago, and which is running
-disk-heavy workloads (installing VMs).
-
-Since I have started writing this email (2 minutes?), the amount of free
-memory has already gone down from 37 GB to 33 GB.  I expect that by the
-time I have finished running the workload, in two hours, it will not
-have any free memory.
-
-Paolo
+> (This is a completely different story though and can be done separately).
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
