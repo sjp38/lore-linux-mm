@@ -1,67 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D1B426B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 05:11:12 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id 63so32927361pfe.3
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 02:11:12 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ln6si4862935pab.182.2016.03.04.02.11.05
-        for <linux-mm@kvack.org>;
-        Fri, 04 Mar 2016 02:11:05 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Date: Fri, 4 Mar 2016 10:11:00 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E037717B5@SHSMSX101.ccr.corp.intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm> <20160304075538.GC9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E037714DA@SHSMSX101.ccr.corp.intel.com>
- <20160304083550.GE9100@rkaganb.sw.ru> <20160304090820.GA2149@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03771639@SHSMSX101.ccr.corp.intel.com>
- <20160304114519-mutt-send-email-mst@redhat.com>
-In-Reply-To: <20160304114519-mutt-send-email-mst@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 460166B007E
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 05:14:34 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l68so13683195wml.0
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 02:14:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r123si3237103wmb.8.2016.03.04.02.14.33
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Mar 2016 02:14:33 -0800 (PST)
+From: NeilBrown <neilb@suse.com>
+Date: Fri, 04 Mar 2016 21:14:24 +1100
+Subject: Re: [PATCH 3/3] radix-tree: support locking of individual exception entries.
+In-Reply-To: <87a8mfm86l.fsf@notabene.neil.brown.name>
+References: <145663588892.3865.9987439671424028216.stgit@notabene> <145663616983.3865.11911049648442320016.stgit@notabene> <20160303131033.GC12118@quack.suse.cz> <87a8mfm86l.fsf@notabene.neil.brown.name>
+Message-ID: <87si06lfcv.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Roman Kagan <rkagan@virtuozzo.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-> On Fri, Mar 04, 2016 at 09:12:12AM +0000, Li, Liang Z wrote:
-> > > Although I wonder which is cheaper; that would be fairly expensive
-> > > for the guest wouldn't it? And you'd somehow have to kick the guest
-> > > before migration to do the ballooning - and how long would you wait f=
-or
-> it to finish?
-> >
-> > About 5 seconds for an 8G guest, balloon to 1G. Get the free pages
-> > bitmap take about 20ms for an 8G idle guest.
-> >
-> > Liang
->=20
-> Where is the time spent though? allocating within guest?
-> Or passing the info to host?
-> If the former, we can use existing inflate/deflate vqs:
-> Have guest put each free page on inflate vq, then on deflate vq.
->=20
+--=-=-=
+Content-Type: text/plain
 
-Maybe I am not clear enough.
+On Fri, Mar 04 2016, NeilBrown wrote:
 
-I mean if we inflate balloon before live migration, for a 8GB guest, it tak=
-es about 5 Seconds for the inflating operation to finish.
+>
+> By not layering on top of wait_bit_key, you've precluded the use of the
+> current page wait_queues for these locks - you need to allocate new wait
+> queue heads.
+>
+> If in
+>
+>> +struct wait_exceptional_entry_queue {
+>> +	wait_queue_t wait;
+>> +	struct exceptional_entry_key key;
+>> +};
+>
+> you had the exceptional_entry_key first (like wait_bit_queue does) you
+> would be closer to being able to re-use the queues.
 
-For the PV solution, there is no need to inflate balloon before live migrat=
-ion, the only cost is to traversing the free_list to
- construct the free pages bitmap, and it takes about 20ms for a 8GB idle gu=
-est( less if there is less free pages),
- passing the free pages info to host will take about extra 3ms.
+Scratch that bit, I was confusing myself again.  Sorry.
+Each wait_queue_t has it's own function so one function will never be
+called on other items in the queue - of course.
 
+>
+> Also I don't think it is safe to use an exclusive wait.  When a slot is
+> deleted, you need to wake up *all* the waiters.
 
-Liang
-> --
-> MST
+I think this issue is still valid.
+
+NeilBrown
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJW2WAAAAoJEDnsnt1WYoG5zJQQAIkLrfsjhY9GJHl/sRuTTS5b
+IkmZbUQMApM3V2TMxgX07XZ9csVzGUhZpt7NmI5wRF0bYzBk4SJSn3KoawZnz9IG
+IPWOfOnPgewzqLs3a9WVADts1fmCYh86nx7zbOL+sQtH+acBOlsz6LzdxtQrE1iv
+lu6BrPwQQSnXKAXN7WhjZAm1i0lyJTndQ0x9CdAATcS4E4QyWgnWqLbaPoJK9V/z
+xguLQ+tkNUu7MjfLh6ujkf0og14e1YD0a00+3mksXRuWpY0bdC6DHkMUtL9yxlY8
+PUtHmAM/ZHE90FIj8qic45jbjkyg2ICNkp6WqBYoNArZIZMu0Rki2TI0bmdduhEp
+QPILR7GsjnaMZIV284oiDSUTvyO6GkYPeZ1tVHroShM/V9tP6NUdp8+rMKa+XRPI
+SG/FNaVCOeojDZDA+wkuR/vloxge23YaF0uq9Bz+LU7qgurB3oA4xX2jz+8AL+Kt
+5WloNpzDQD6JZV/lZYKPoXwXzhiouFBIv06FBqn4X3kKXQ8JxGvHF3NPbtrtvW9T
+cyXNmwiP40FOl7HMzePAACMLiaYn+Qg5+S3ADFmN+spR94A+ZzTP1JqVanxbRVx8
+ZmLzWKuC5ukdgLD0/CQHZ2m7hoSj39Wy36wI+DglFYq+0nxZHjQrH0709eAUOzd+
+8Vd5BsyydcxLw7GPV6m/
+=ORUo
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
