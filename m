@@ -1,126 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 376A66B0254
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 10:06:44 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id p65so32808575wmp.0
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 07:06:44 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id h8si4391306wmh.59.2016.03.04.07.06.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 07:06:43 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id n186so38932093wmn.1
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 07:06:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAPAsAGyoCmSGHNj3EJ-1TRonzR3-7A3Jk4+99NNQ4bfS6xXYvA@mail.gmail.com>
-References: <cover.1456504662.git.glider@google.com>
-	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
-	<56D471F5.3010202@gmail.com>
-	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
-	<56D58398.2010708@gmail.com>
-	<CAG_fn=Ux-_FaVR1sQ0457kKHAGLWEMUuFpPr-UF_GwjkqpdSnQ@mail.gmail.com>
-	<CAPAsAGyoCmSGHNj3EJ-1TRonzR3-7A3Jk4+99NNQ4bfS6xXYvA@mail.gmail.com>
-Date: Fri, 4 Mar 2016 16:06:42 +0100
-Message-ID: <CAG_fn=XfqNjTry+kyXHVXNRX1Y7LL5=WTmAkNPzTg7XeR7DLww@mail.gmail.com>
-Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B48A6B007E
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 10:13:08 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id 63so36768860pfe.3
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 07:13:08 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hq1si6363724pac.56.2016.03.04.07.13.07
+        for <linux-mm@kvack.org>;
+        Fri, 04 Mar 2016 07:13:07 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Date: Fri, 4 Mar 2016 15:13:03 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04145231@shsmsx102.ccr.corp.intel.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160303174615.GF2115@work-vm> <20160304075538.GC9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E037714DA@SHSMSX101.ccr.corp.intel.com>
+ <20160304083550.GE9100@rkaganb.sw.ru> <20160304090820.GA2149@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03771639@SHSMSX101.ccr.corp.intel.com>
+ <20160304114519-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E037717B5@SHSMSX101.ccr.corp.intel.com>
+ <20160304122456-mutt-send-email-mst@redhat.com>
+In-Reply-To: <20160304122456-mutt-send-email-mst@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Roman Kagan <rkagan@virtuozzo.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-On Fri, Mar 4, 2016 at 4:01 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wr=
-ote:
-> 2016-03-04 17:52 GMT+03:00 Alexander Potapenko <glider@google.com>:
->> On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com=
-> wrote:
->>>
->>>
->>> On 02/29/2016 08:12 PM, Dmitry Vyukov wrote:
->>>
->>>>>> diff --git a/lib/Makefile b/lib/Makefile
->>>>>> index a7c26a4..10a4ae3 100644
->>>>>> --- a/lib/Makefile
->>>>>> +++ b/lib/Makefile
->>>>>> @@ -167,6 +167,13 @@ obj-$(CONFIG_SG_SPLIT) +=3D sg_split.o
->>>>>>  obj-$(CONFIG_STMP_DEVICE) +=3D stmp_device.o
->>>>>>  obj-$(CONFIG_IRQ_POLL) +=3D irq_poll.o
->>>>>>
->>>>>> +ifeq ($(CONFIG_KASAN),y)
->>>>>> +ifeq ($(CONFIG_SLAB),y)
->>>>>
->>>>> Just try to imagine that another subsystem wants to use stackdepot. H=
-ow this gonna look like?
->>>>>
->>>>> We have Kconfig to describe dependencies. So, this should be under CO=
-NFIG_STACKDEPOT.
->>>>> So any user of this feature can just do 'select STACKDEPOT' in Kconfi=
-g.
->>>>>
->>>>>> +     obj-y   +=3D stackdepot.o
->>>>>> +     KASAN_SANITIZE_slub.o :=3D n
->>>                         _stackdepot.o
->>>
->>>
->>>>>
->>>>>> +
->>>>>> +     stack->hash =3D hash;
->>>>>> +     stack->size =3D size;
->>>>>> +     stack->handle.slabindex =3D depot_index;
->>>>>> +     stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
->>>>>> +     __memcpy(stack->entries, entries, size * sizeof(unsigned long)=
-);
->>>>>
->>>>> s/__memcpy/memcpy/
->>>>
->>>> memcpy should be instrumented by asan/tsan, and we would like to avoid
->>>> that instrumentation here.
->>>
->>> KASAN_SANITIZE_* :=3D n already takes care about this.
->>> __memcpy() is a special thing solely for kasan internals and some assem=
-bly code.
->>> And it's not available generally.
->> As far as I can see, KASAN_SANITIZE_*:=3Dn does not guarantee it.
->> It just removes KASAN flags from GCC command line, it does not
->> necessarily replace memcpy() calls with some kind of a
->> non-instrumented memcpy().
->>
->
-> With removed kasan cflags '__SANITIZE_ADDRESS__' is not defined,
-> hence enable the following defines from arch/x86/include/asm/string_64.h:
->
-> #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
->
-> /*
->  * For files that not instrumented (e.g. mm/slub.c) we
->  * should use not instrumented version of mem* functions.
->  */
->
-> #undef memcpy
-> #define memcpy(dst, src, len) __memcpy(dst, src, len)
-> #define memmove(dst, src, len) __memmove(dst, src, len)
-> #define memset(s, c, n) __memset(s, c, n)
-> #endif
-Nice!
-What do you think about providing stub .c files to decouple the shared
-code used by KASAN runtime from the rest of kernel?
-(This is a completely different story though and can be done separately).
+> > Maybe I am not clear enough.
+> >
+> > I mean if we inflate balloon before live migration, for a 8GB guest, it=
+ takes
+> about 5 Seconds for the inflating operation to finish.
+>=20
+> And these 5 seconds are spent where?
+>=20
+
+The time is spent on allocating the pages and send the allocated pages pfns=
+ to QEMU
+through virtio.
+
+> > For the PV solution, there is no need to inflate balloon before live
+> > migration, the only cost is to traversing the free_list to  construct
+> > the free pages bitmap, and it takes about 20ms for a 8GB idle guest( le=
+ss if
+> there is less free pages),  passing the free pages info to host will take=
+ about
+> extra 3ms.
+> >
+> >
+> > Liang
+>=20
+> So now let's please stop talking about solutions at a high level and disc=
+uss the
+> interface changes you make in detail.
+> What makes it faster? Better host/guest interface? No need to go through
+> buddy allocator within guest? Less interrupts? Something else?
+>=20
+
+I assume you are familiar with the current virtio-balloon and how it works.=
+=20
+The new interface is very simple, send a request to the virtio-balloon driv=
+er,
+The virtio-driver will travers the '&zone->free_area[order].free_list[t])' =
+to=20
+construct a 'free_page_bitmap', and then the driver will send the content
+of  'free_page_bitmap' back to QEMU. That all the new interface does and
+there are no ' alloc_page' related affairs, so it's faster.
 
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Some code snippet:
+----------------------------------------------
++static void mark_free_pages_bitmap(struct zone *zone,
++		 unsigned long *free_page_bitmap, unsigned long pfn_gap) {
++	unsigned long pfn, flags, i;
++	unsigned int order, t;
++	struct list_head *curr;
++
++	if (zone_is_empty(zone))
++		return;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	for_each_migratetype_order(order, t) {
++		list_for_each(curr, &zone->free_area[order].free_list[t]) {
++
++			pfn =3D page_to_pfn(list_entry(curr, struct page, lru));
++			for (i =3D 0; i < (1UL << order); i++) {
++				if ((pfn + i) >=3D PFN_4G)
++					set_bit_le(pfn + i - pfn_gap,
++						   free_page_bitmap);
++				else
++					set_bit_le(pfn + i, free_page_bitmap);
++			}
++		}
++	}
++
++	spin_unlock_irqrestore(&zone->lock, flags); }
+----------------------------------------------------
+Sorry for my poor English and expression, if you still can't understand,
+you could glance at the patch, total about 400 lines.
+>=20
+> > > --
+> > > MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
