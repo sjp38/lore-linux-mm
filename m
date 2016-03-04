@@ -1,74 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 677386B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 13:51:28 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id t4so50706095qge.0
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 10:51:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g48si4754975qgd.15.2016.03.04.10.51.27
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F8766B007E
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 14:38:57 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id bj10so40009214pad.2
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 11:38:57 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id g15si7608211pfg.40.2016.03.04.11.38.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 10:51:27 -0800 (PST)
-Date: Fri, 4 Mar 2016 18:51:21 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Message-ID: <20160304185120.GB2588@work-vm>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
- <20160304081411.GD9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <56D9B6C2.3070708@redhat.com>
+        Fri, 04 Mar 2016 11:38:56 -0800 (PST)
+Received: by mail-pa0-x22d.google.com with SMTP id fl4so39770699pad.0
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 11:38:56 -0800 (PST)
+Date: Fri, 4 Mar 2016 11:38:47 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: THP-enabled filesystem vs. FALLOC_FL_PUNCH_HOLE
+In-Reply-To: <56D9C882.3040808@intel.com>
+Message-ID: <alpine.LSU.2.11.1603041100320.6011@eggly.anvils>
+References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com> <20160304112603.GA9790@node.shutemov.name> <56D9C882.3040808@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56D9B6C2.3070708@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: "Li, Liang Z" <liang.z.li@intel.com>, Roman Kagan <rkagan@virtuozzo.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-* Paolo Bonzini (pbonzini@redhat.com) wrote:
-> 
-> 
-> On 04/03/2016 15:26, Li, Liang Z wrote:
-> >> > 
-> >> > The memory usage will keep increasing due to ever growing caches, etc, so
-> >> > you'll be left with very little free memory fairly soon.
-> >> > 
-> > I don't think so.
+On Fri, 4 Mar 2016, Dave Hansen wrote:
+> On 03/04/2016 03:26 AM, Kirill A. Shutemov wrote:
+> > On Thu, Mar 03, 2016 at 07:51:50PM +0300, Kirill A. Shutemov wrote:
+> >> Truncate and punch hole that only cover part of THP range is implemented
+> >> by zero out this part of THP.
+> >>
+> >> This have visible effect on fallocate(FALLOC_FL_PUNCH_HOLE) behaviour.
+> >> As we don't really create hole in this case, lseek(SEEK_HOLE) may have
+> >> inconsistent results depending what pages happened to be allocated.
+> >> Not sure if it should be considered ABI break or not.
 > > 
+> > Looks like this shouldn't be a problem. man 2 fallocate:
+> > 
+> > 	Within the specified range, partial filesystem blocks are zeroed,
+> > 	and whole filesystem blocks are removed from the file.  After a
+> > 	successful call, subsequent reads from this range will return
+> > 	zeroes.
+> > 
+> > It means we effectively have 2M filesystem block size.
 > 
-> Roman is right.  For example, here I am looking at a 64 GB (physical)
-> machine which was booted about 30 minutes ago, and which is running
-> disk-heavy workloads (installing VMs).
+> The question is still whether this will case problems for apps.
 > 
-> Since I have started writing this email (2 minutes?), the amount of free
-> memory has already gone down from 37 GB to 33 GB.  I expect that by the
-> time I have finished running the workload, in two hours, it will not
-> have any free memory.
+> Isn't 2MB a quote unusual block size?  Wouldn't some files on a tmpfs
+> filesystem act like they have a 2M blocksize and others like they have
+> 4k?  Would that confuse apps?
 
-But what about a VM sitting idle, or that just has more RAM assigned to it
-than is currently using.
- I've got a host here that's been up for 46 days and has been doing some
-heavy VM debugging a few days ago, but today:
+At risk of addressing the tip of an iceberg, before diving down to
+scope out the rest of the iceberg...
 
-# free -m
-              total        used        free      shared  buff/cache   available
-Mem:          96536        1146       44834         184       50555       94735
+So far as the behaviour of lseek(,,SEEK_HOLE) goes, I agree with Kirill:
+I don't think it matters to anyone if it skips some zeroed small pages
+within a hugepage.  It may cause some artificial tests of holepunch and
+SEEK_HOLE to fail, and it ought to be documented as a limitation from
+choosing to enable THP (Kirill's way) on a filesystem, but I don't think
+it's an ABI break to worry about: anyone who cares just shouldn't enable.
 
-I very rarely use all it's RAM, so it's got a big chunk of free RAM, and yes
-it's got a big chunk of cache as well.
+(Though in the case of my huge tmpfs, it's the reverse: the small hole
+punch splits the hugepage; but it's natural that Kirill's way would try
+to hold on to its compound pages for longer than I do, and that's fine
+so long as it's all consistent.)
 
-Dave
+But I may disagree with "we effectively have 2M filesystem block size",
+beyond the SEEK_HOLE case.  If we're emulating hugetlbfs in tmpfs, sure,
+we would have 2M filesystem block size.  But if we're enabling THP
+(emphasis on T for Transparent) in tmpfs (or another filesystem), then
+when it matters it must act as if the block size is the 4k (or whatever)
+it usually is.  When it matters?  Approaching memcg limit or ENOSPC
+spring to mind.
 
-> 
-> Paolo
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+Ah, but suppose someone holepunches out most of each 2M page: they would
+expect the memcg not to be charged for those holes (just as when they
+munmap most of an anonymous THP) - that does suggest splitting is needed.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
