@@ -1,65 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F3086B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 21:29:24 -0500 (EST)
-Received: by mail-pf0-f180.google.com with SMTP id x188so2447699pfb.2
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 18:29:24 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id pj4si2197573pac.45.2016.03.03.18.29.23
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CE6E6B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 21:32:26 -0500 (EST)
+Received: by mail-pf0-f175.google.com with SMTP id 124so26239891pfg.0
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 18:32:26 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id q26si2197648pfi.106.2016.03.03.18.32.25
         for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 18:29:23 -0800 (PST)
+        Thu, 03 Mar 2016 18:32:25 -0800 (PST)
 From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [RFC qemu 2/4] virtio-balloon: Add a new feature to balloon
- device
-Date: Fri, 4 Mar 2016 02:29:19 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E03770F7C@SHSMSX101.ccr.corp.intel.com>
+Subject: RE: [RFC qemu 4/4] migration: filter out guest's free pages in ram
+ bulk stage
+Date: Fri, 4 Mar 2016 02:32:00 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E03770F98@SHSMSX101.ccr.corp.intel.com>
 References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <1457001868-15949-3-git-send-email-liang.z.li@intel.com>
- <20160303125651.GA21382@redhat.com>
-In-Reply-To: <20160303125651.GA21382@redhat.com>
+	<1457001868-15949-5-git-send-email-liang.z.li@intel.com>
+ <20160303131616.753f1de5.cornelia.huck@de.ibm.com>
+In-Reply-To: <20160303131616.753f1de5.cornelia.huck@de.ibm.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
+To: Cornelia Huck <cornelia.huck@de.ibm.com>
+Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-> Subject: Re: [RFC qemu 2/4] virtio-balloon: Add a new feature to balloon
-> device
+> On Thu,  3 Mar 2016 18:44:28 +0800
+> Liang Li <liang.z.li@intel.com> wrote:
 >=20
-> On Thu, Mar 03, 2016 at 06:44:26PM +0800, Liang Li wrote:
-> > Extend the virtio balloon device to support a new feature, this new
-> > feature can help to get guest's free pages information, which can be
-> > used for live migration optimzation.
+> > Get the free pages information through virtio and filter out the free
+> > pages in the ram bulk stage. This can significantly reduce the total
+> > live migration time as well as network traffic.
 > >
 > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > ---
+> >  migration/ram.c | 52
+> > ++++++++++++++++++++++++++++++++++++++++++++++------
+> >  1 file changed, 46 insertions(+), 6 deletions(-)
+> >
 >=20
-> I don't understand why we need a new interface.
-> Balloon already sends free pages to host.
-> Just teach host to skip these pages.
+> > @@ -1945,6 +1971,20 @@ static int ram_save_setup(QEMUFile *f, void
+> *opaque)
+> >                                              DIRTY_MEMORY_MIGRATION);
+> >      }
+> >      memory_global_dirty_log_start();
+> > +
+> > +    if (balloon_free_pages_support() &&
+> > +        balloon_get_free_pages(migration_bitmap_rcu->free_pages_bmap,
+> > +                               &free_pages_count) =3D=3D 0) {
+> > +        qemu_mutex_unlock_iothread();
+> > +        while (balloon_get_free_pages(migration_bitmap_rcu-
+> >free_pages_bmap,
+> > +                                      &free_pages_count) =3D=3D 0) {
+> > +            usleep(1000);
+> > +        }
+> > +        qemu_mutex_lock_iothread();
+> > +
+> > +
+> > + filter_out_guest_free_pages(migration_bitmap_rcu-
+> >free_pages_bmap);
 >=20
+> A general comment: Using the ballooner to get information about pages tha=
+t
+> can be filtered out is too limited (there may be other ways to do this; w=
+e
+> might be able to use cmma on s390, for example), and I don't like hardcod=
+ing
+> to a specific method.
+>=20
+> What about the reverse approach: Code may register a handler that
+> populates the free_pages_bitmap which is called during this stage?
 
-I just make use the current virtio-balloon implementation,  it's more compl=
-icated to
-invent a new virtio-io device...
-Actually, there is no need to inflate the balloon before live migration, so=
- the host has
-no information about the guest's free pages, that's why I add a new one.
-
-> Maybe instead of starting with code, you should send a high level descrip=
-tion
-> to the virtio tc for consideration?
->=20
-> You can do it through the mailing list or using the web form:
-> http://www.oasis-
-> open.org/committees/comments/form.php?wg_abbrev=3Dvirtio
->=20
-
-Thanks for your information and suggestion.
+Good suggestion, thanks!
 
 Liang
+> <I like the idea of filtering in general, but I haven't looked at the cod=
+e yet>
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
