@@ -1,181 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FF956B0255
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 09:45:38 -0500 (EST)
-Received: by mail-qg0-f53.google.com with SMTP id u110so44636868qge.3
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 06:45:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 18si3876457qho.50.2016.03.04.06.45.37
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 263EF6B0255
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 09:52:23 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l68so32131365wml.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 06:52:23 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id wl9si4317100wjb.220.2016.03.04.06.52.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 06:45:37 -0800 (PST)
-Date: Fri, 4 Mar 2016 16:45:29 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Message-ID: <20160304163246-mutt-send-email-mst@redhat.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
- <20160304081411.GD9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+        Fri, 04 Mar 2016 06:52:22 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id n186so38315403wmn.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 06:52:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <56D58398.2010708@gmail.com>
+References: <cover.1456504662.git.glider@google.com>
+	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
+	<56D471F5.3010202@gmail.com>
+	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
+	<56D58398.2010708@gmail.com>
+Date: Fri, 4 Mar 2016 15:52:21 +0100
+Message-ID: <CAG_fn=Ux-_FaVR1sQ0457kKHAGLWEMUuFpPr-UF_GwjkqpdSnQ@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Mar 04, 2016 at 02:26:49PM +0000, Li, Liang Z wrote:
-> > Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
-> > optimization
-> > 
-> > On Fri, Mar 04, 2016 at 09:08:44AM +0000, Li, Liang Z wrote:
-> > > > On Fri, Mar 04, 2016 at 01:52:53AM +0000, Li, Liang Z wrote:
-> > > > > >   I wonder if it would be possible to avoid the kernel changes
-> > > > > > by parsing /proc/self/pagemap - if that can be used to detect
-> > > > > > unmapped/zero mapped pages in the guest ram, would it achieve
-> > > > > > the
-> > > > same result?
-> > > > >
-> > > > > Only detect the unmapped/zero mapped pages is not enough.
-> > Consider
-> > > > the
-> > > > > situation like case 2, it can't achieve the same result.
-> > > >
-> > > > Your case 2 doesn't exist in the real world.  If people could stop
-> > > > their main memory consumer in the guest prior to migration they
-> > > > wouldn't need live migration at all.
-> > >
-> > > The case 2 is just a simplified scenario, not a real case.
-> > > As long as the guest's memory usage does not keep increasing, or not
-> > > always run out, it can be covered by the case 2.
-> > 
-> > The memory usage will keep increasing due to ever growing caches, etc, so
-> > you'll be left with very little free memory fairly soon.
-> > 
-> 
-> I don't think so.
+On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
+rote:
+>
+>
+> On 02/29/2016 08:12 PM, Dmitry Vyukov wrote:
+>
+>>>> diff --git a/lib/Makefile b/lib/Makefile
+>>>> index a7c26a4..10a4ae3 100644
+>>>> --- a/lib/Makefile
+>>>> +++ b/lib/Makefile
+>>>> @@ -167,6 +167,13 @@ obj-$(CONFIG_SG_SPLIT) +=3D sg_split.o
+>>>>  obj-$(CONFIG_STMP_DEVICE) +=3D stmp_device.o
+>>>>  obj-$(CONFIG_IRQ_POLL) +=3D irq_poll.o
+>>>>
+>>>> +ifeq ($(CONFIG_KASAN),y)
+>>>> +ifeq ($(CONFIG_SLAB),y)
+>>>
+>>> Just try to imagine that another subsystem wants to use stackdepot. How=
+ this gonna look like?
+>>>
+>>> We have Kconfig to describe dependencies. So, this should be under CONF=
+IG_STACKDEPOT.
+>>> So any user of this feature can just do 'select STACKDEPOT' in Kconfig.
+>>>
+>>>> +     obj-y   +=3D stackdepot.o
+>>>> +     KASAN_SANITIZE_slub.o :=3D n
+>                         _stackdepot.o
+>
+>
+>>>
+>>>> +
+>>>> +     stack->hash =3D hash;
+>>>> +     stack->size =3D size;
+>>>> +     stack->handle.slabindex =3D depot_index;
+>>>> +     stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
+>>>> +     __memcpy(stack->entries, entries, size * sizeof(unsigned long));
+>>>
+>>> s/__memcpy/memcpy/
+>>
+>> memcpy should be instrumented by asan/tsan, and we would like to avoid
+>> that instrumentation here.
+>
+> KASAN_SANITIZE_* :=3D n already takes care about this.
+> __memcpy() is a special thing solely for kasan internals and some assembl=
+y code.
+> And it's not available generally.
+As far as I can see, KASAN_SANITIZE_*:=3Dn does not guarantee it.
+It just removes KASAN flags from GCC command line, it does not
+necessarily replace memcpy() calls with some kind of a
+non-instrumented memcpy().
 
-Here's my laptop:
-KiB Mem : 16048560 total,  8574956 free,  3360532 used,  4113072 buff/cache
+We see two possible ways to deal with this problem:
+1. Define "memcpy" to "__memcpy" in lib/stackdepot.c under CONFIG_KASAN.
+2. Create mm/kasan/kasan_stackdepot.c stub which will include
+lib/stackdepot.c, and define "memcpy" to "__memcpy" in that file.
+This way we'll be able to instrument the original stackdepot.c and
+won't miss reports from it if someone starts using it somewhere else.
 
-But here's a server:
-KiB Mem:  32892768 total, 20092812 used, 12799956 free,   368704 buffers
-
-What is the difference? A ton of tiny daemons not doing anything,
-staying resident in memory.
-
-> > > > I tend to think you can safely assume there's no free memory in the
-> > > > guest, so there's little point optimizing for it.
-> > >
-> > > If this is true, we should not inflate the balloon either.
-> > 
-> > We certainly should if there's "available" memory, i.e. not free but cheap to
-> > reclaim.
-> > 
-> 
-> What's your mean by "available" memory? if they are not free, I don't think it's cheap.
-
-clean pages are cheap to drop as they don't have to be written.
-whether they will be ever be used is another matter.
-
-> > > > OTOH it makes perfect sense optimizing for the unmapped memory
-> > > > that's made up, in particular, by the ballon, and consider inflating
-> > > > the balloon right before migration unless you already maintain it at
-> > > > the optimal size for other reasons (like e.g. a global resource manager
-> > optimizing the VM density).
-> > > >
-> > >
-> > > Yes, I believe the current balloon works and it's simple. Do you take the
-> > performance impact for consideration?
-> > > For and 8G guest, it takes about 5s to  inflating the balloon. But it
-> > > only takes 20ms to  traverse the free_list and construct the free pages
-> > bitmap.
-> > 
-> > I don't have any feeling of how important the difference is.  And if the
-> > limiting factor for balloon inflation speed is the granularity of communication
-> > it may be worth optimizing that, because quick balloon reaction may be
-> > important in certain resource management scenarios.
-> > 
-> > > By inflating the balloon, all the guest's pages are still be processed (zero
-> > page checking).
-> > 
-> > Not sure what you mean.  If you describe the current state of affairs that's
-> > exactly the suggested optimization point: skip unmapped pages.
-> > 
-> 
-> You'd better check the live migration code.
-
-What's there to check in migration code?
-Here's the extent of what balloon does on output:
-
-
-        while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
-            ram_addr_t pa;
-            ram_addr_t addr;
-            int p = virtio_ldl_p(vdev, &pfn);
-
-            pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
-            offset += 4;
-
-            /* FIXME: remove get_system_memory(), but how? */
-            section = memory_region_find(get_system_memory(), pa, 1);
-            if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
-                continue;
-
-            trace_virtio_balloon_handle_output(memory_region_name(section.mr),
-                                               pa);
-            /* Using memory_region_get_ram_ptr is bending the rules a bit, but
-               should be OK because we only want a single page.  */
-            addr = section.offset_within_region;
-            balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
-                         !!(vq == s->dvq));
-            memory_region_unref(section.mr);
-        }
-
-so all that happens when we get a page is balloon_page.
-and
-
-static void balloon_page(void *addr, int deflate)
-{
-#if defined(__linux__)
-    if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
-                                         kvm_has_sync_mmu())) {
-        qemu_madvise(addr, TARGET_PAGE_SIZE,
-                deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
-    }
-#endif
-}
-
-
-Do you see anything that tracks pages to help migration skip
-the ballooned memory? I don't.
+>>>> +     if (unlikely(!smp_load_acquire(&next_slab_inited))) {
+>>>> +             if (!preempt_count() && !in_irq()) {
+>>>
+>>> If you trying to detect atomic context here, than this doesn't work. E.=
+g. you can't know
+>>> about held spinlocks in non-preemptible kernel.
+>>> And I'm not sure why need this. You know gfp flags here, so allocation =
+in atomic context shouldn't be problem.
+>>
+>>
+>> We don't have gfp flags for kfree.
+>> I wonder how CONFIG_DEBUG_ATOMIC_SLEEP handles this. Maybe it has the an=
+swer.
+>
+> It hasn't. It doesn't guarantee that atomic context always will be detect=
+ed.
+>
+>> Alternatively, we can always assume that we are in atomic context in kfr=
+ee.
+>>
+>
+> Or do this allocation in separate context, put in work queue.
+>
+>>
+>>
+>>>> +                     alloc_flags &=3D (__GFP_RECLAIM | __GFP_IO | __G=
+FP_FS |
+>>>> +                             __GFP_NOWARN | __GFP_NORETRY |
+>>>> +                             __GFP_NOMEMALLOC | __GFP_DIRECT_RECLAIM)=
+;
+>>>
+>>> I think blacklist approach would be better here.
+>>>
+>>>> +                     page =3D alloc_pages(alloc_flags, STACK_ALLOC_OR=
+DER);
+>>>
+>>> STACK_ALLOC_ORDER =3D 4 - that's a lot. Do you really need that much?
+>>
+>> Part of the issue the atomic context above. When we can't allocate
+>> memory we still want to save the stack trace. When we have less than
+>> STACK_ALLOC_ORDER memory, we try to preallocate another
+>> STACK_ALLOC_ORDER in advance. So in the worst case, we have
+>> STACK_ALLOC_ORDER memory and that should be enough to handle all
+>> kmalloc/kfree in the atomic context. 1 page does not look enough. I
+>> think Alex did some measuring of the failure race (when we are out of
+>> memory and can't allocate more).
+>>
+>
+> A lot of 4-order pages will lead to high fragmentation. You don't need ph=
+ysically contiguous memory here,
+> so try to use vmalloc(). It is slower, but fragmentation won't be problem=
+.
+>
+> And one more thing. Take a look at mempool, because it's generally used t=
+o solve the problem you have here
+> (guaranteed allocation in atomic context).
+>
+>
 
 
 
-> > > The only advantage of ' inflating the balloon before live migration' is simple,
-> > nothing more.
-> > 
-> > That's a big advantage.  Another one is that it does something useful in real-
-> > world scenarios.
-> > 
-> 
-> I don't think the heave performance impaction is something useful in real world scenarios.
-> 
-> Liang
-> > Roman.
+--=20
+Alexander Potapenko
+Software Engineer
 
-So fix the performance then. You will have to try harder if you want to
-convince people that the performance is due to bad host/guest interface,
-and so we have to change *that*.
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
--- 
-MST
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
