@@ -1,114 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 80C2C6B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 08:33:38 -0500 (EST)
-Received: by mail-io0-f175.google.com with SMTP id g203so62042228iof.2
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 05:33:38 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m8si4246122igx.42.2016.03.04.05.33.31
+Received: from mail-yw0-f179.google.com (mail-yw0-f179.google.com [209.85.161.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CA29D6B0254
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 08:52:54 -0500 (EST)
+Received: by mail-yw0-f179.google.com with SMTP id g127so44625091ywf.2
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 05:52:54 -0800 (PST)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id k81si1154571ybb.260.2016.03.04.05.52.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Mar 2016 05:33:37 -0800 (PST)
-Message-ID: <56D98BDD.3060806@huawei.com>
-Date: Fri, 4 Mar 2016 21:21:33 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Mar 2016 05:52:53 -0800 (PST)
+Received: by mail-yw0-x241.google.com with SMTP id p65so325082ywb.3
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 05:52:53 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] radix-tree: Fix race in gang lookup
-References: <1453929472-25566-1-git-send-email-matthew.r.wilcox@intel.com> <1453929472-25566-2-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1453929472-25566-2-git-send-email-matthew.r.wilcox@intel.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <56D94BEE.1080506@suse.cz>
+References: <1456988501-29046-1-git-send-email-zhlcindy@gmail.com>
+	<1456988501-29046-2-git-send-email-zhlcindy@gmail.com>
+	<56D94BEE.1080506@suse.cz>
+Date: Fri, 4 Mar 2016 21:52:53 +0800
+Message-ID: <CAD8of+rxkV85H5RDyzLZowkxUhJxgVuMt7-hjwP1yxYZCNsqUg@mail.gmail.com>
+Subject: Re: [PATCH RFC 1/2] mm: meminit: initialise more memory for
+ inode/dentry hash tables in early boot
+From: Li Zhang <zhlcindy@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Ohad Ben-Cohen <ohad@wizery.com>, Matthew Wilcox <willy@linux.intel.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: mpe@ellerman.id.au, Anshuman Khandual <khandual@linux.vnet.ibm.com>, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-On 2016/1/28 5:17, Matthew Wilcox wrote:
-> From: Matthew Wilcox <willy@linux.intel.com>
+On Fri, Mar 4, 2016 at 4:48 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 03/03/2016 08:01 AM, Li Zhang wrote:
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+>>                               unsigned long pfn, unsigned long zone_end,
+>>                               unsigned long *nr_initialised)
+>>  {
+>> +     unsigned long max_initialise;
+>> +
+>>       /* Always populate low zones for address-contrained allocations */
+>>       if (zone_end < pgdat_end_pfn(pgdat))
+>>               return true;
+>> +     /*
+>> +     * Initialise at least 2G of a node but also take into account that
+>> +     * two large system hashes that can take up 1GB for 0.25TB/node.
+>> +     */
 >
-> If the indirect_ptr bit is set on a slot, that indicates we need to
-> redo the lookup.  Introduce a new function radix_tree_iter_retry()
-> which forces the loop to retry the lookup by setting 'slot' to NULL and
-> turning the iterator back to point at the problematic entry.
->
-> This is a pretty rare problem to hit at the moment; the lookup has to
-> race with a grow of the radix tree from a height of 0.  The consequences
-> of hitting this race are that gang lookup could return a pointer to a
-> radix_tree_node instead of a pointer to whatever the user had inserted
-> in the tree.
->
-> Fixes: cebbd29e1c2f ("radix-tree: rewrite gang lookup using iterator")
-> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-> Cc: stable@vger.kernel.org
-> ---
->  include/linux/radix-tree.h | 16 ++++++++++++++++
->  lib/radix-tree.c           | 12 ++++++++++--
->  2 files changed, 26 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index f9a3da5bf892..db0ed595749b 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -387,6 +387,22 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
->  			     struct radix_tree_iter *iter, unsigned flags);
->  
->  /**
-> + * radix_tree_iter_retry - retry this chunk of the iteration
-> + * @iter:	iterator state
-> + *
-> + * If we iterate over a tree protected only by the RCU lock, a race
-> + * against deletion or creation may result in seeing a slot for which
-> + * radix_tree_deref_retry() returns true.  If so, call this function
-> + * and continue the iteration.
-> + */
-> +static inline __must_check
-> +void **radix_tree_iter_retry(struct radix_tree_iter *iter)
-> +{
-> +	iter->next_index = iter->index;
-> +	return NULL;
-> +}
-> +
-> +/**
->   * radix_tree_chunk_size - get current chunk size
->   *
->   * @iter:	pointer to radix tree iterator
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index a25f635dcc56..65422ac17114 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -1105,9 +1105,13 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
->  		return 0;
->  
->  	radix_tree_for_each_slot(slot, root, &iter, first_index) {
-> -		results[ret] = indirect_to_ptr(rcu_dereference_raw(*slot));
-> +		results[ret] = rcu_dereference_raw(*slot);
->  		if (!results[ret])
->  			continue;
-> +		if (radix_tree_is_indirect_ptr(results[ret])) {
-> +			slot = radix_tree_iter_retry(&iter);
-> +			continue;
-> +		}
->  		if (++ret == max_items)
->  			break;
->  	}
-according to your patch, after  A race occur,  slot equals to null.  radix_tree_next_slot() will continue
-to work. Therefore, it will not return the problematic entry. 
-> @@ -1184,9 +1188,13 @@ radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
->  		return 0;
->  
->  	radix_tree_for_each_tagged(slot, root, &iter, first_index, tag) {
-> -		results[ret] = indirect_to_ptr(rcu_dereference_raw(*slot));
-> +		results[ret] = rcu_dereference_raw(*slot);
->  		if (!results[ret])
->  			continue;
-> +		if (radix_tree_is_indirect_ptr(results[ret])) {
-> +			slot = radix_tree_iter_retry(&iter);
-> +			continue;
-> +		}
->  		if (++ret == max_items)
->  			break;
->  	}
+> The indentation is wrong here.
 
+Thanks for reviewing, I will fix it in next version.
+
+>
+>> +     max_initialise = max(2UL << (30 - PAGE_SHIFT),
+>> +             (pgdat->node_spanned_pages >> 8));
+>>
+>> -     /* Initialise at least 2G of the highest zone */
+>>       (*nr_initialised)++;
+>> -     if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
+>> +     if ((*nr_initialised > max_initialise) &&
+>>           (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+>>               pgdat->first_deferred_pfn = pfn;
+>>               return false;
+>>
+>
+
+
+
+-- 
+
+Best Regards
+-Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
