@@ -1,74 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f179.google.com (mail-yw0-f179.google.com [209.85.161.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CA29D6B0254
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 08:52:54 -0500 (EST)
-Received: by mail-yw0-f179.google.com with SMTP id g127so44625091ywf.2
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 05:52:54 -0800 (PST)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id k81si1154571ybb.260.2016.03.04.05.52.53
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DD41A6B007E
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 09:11:55 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id p65so30886722wmp.0
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 06:11:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ld8si4199069wjc.77.2016.03.04.06.11.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 05:52:53 -0800 (PST)
-Received: by mail-yw0-x241.google.com with SMTP id p65so325082ywb.3
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 05:52:53 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Mar 2016 06:11:54 -0800 (PST)
+Subject: Re: [PATCH v2] mm: exclude ZONE_DEVICE from GFP_ZONE_TABLE
+References: <20160302002829.38211.89593.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56D997A6.7070200@suse.cz>
+Date: Fri, 4 Mar 2016 15:11:50 +0100
 MIME-Version: 1.0
-In-Reply-To: <56D94BEE.1080506@suse.cz>
-References: <1456988501-29046-1-git-send-email-zhlcindy@gmail.com>
-	<1456988501-29046-2-git-send-email-zhlcindy@gmail.com>
-	<56D94BEE.1080506@suse.cz>
-Date: Fri, 4 Mar 2016 21:52:53 +0800
-Message-ID: <CAD8of+rxkV85H5RDyzLZowkxUhJxgVuMt7-hjwP1yxYZCNsqUg@mail.gmail.com>
-Subject: Re: [PATCH RFC 1/2] mm: meminit: initialise more memory for
- inode/dentry hash tables in early boot
-From: Li Zhang <zhlcindy@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160302002829.38211.89593.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: mpe@ellerman.id.au, Anshuman Khandual <khandual@linux.vnet.ibm.com>, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Mark <markk@clara.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 
-On Fri, Mar 4, 2016 at 4:48 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 03/03/2016 08:01 AM, Li Zhang wrote:
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->>                               unsigned long pfn, unsigned long zone_end,
->>                               unsigned long *nr_initialised)
->>  {
->> +     unsigned long max_initialise;
->> +
->>       /* Always populate low zones for address-contrained allocations */
->>       if (zone_end < pgdat_end_pfn(pgdat))
->>               return true;
->> +     /*
->> +     * Initialise at least 2G of a node but also take into account that
->> +     * two large system hashes that can take up 1GB for 0.25TB/node.
->> +     */
->
-> The indentation is wrong here.
+On 03/02/2016 01:32 AM, Dan Williams wrote:
+> ZONE_DEVICE (merged in 4.3) and ZONE_CMA (proposed) are examples of new
+> mm zones that are bumping up against the current maximum limit of 4
+> zones, i.e. 2 bits in page->flags for the GFP_ZONE_TABLE.
+> 
+> The GFP_ZONE_TABLE poses an interesting constraint since
+> include/linux/gfp.h gets included by the 32-bit portion of a 64-bit
+> build.  We need to be careful to only build the table for zones that
+> have a corresponding gfp_t flag.  GFP_ZONES_SHIFT is introduced for this
+> purpose.  This patch does not attempt to solve the problem of adding a
+> new zone that also has a corresponding GFP_ flag.
+> 
+> Vlastimil points out that ZONE_DEVICE, by depending on x86_64 and
+> SPARSEMEM_VMEMMAP implies that SECTIONS_WIDTH is zero.  In other words
 
-Thanks for reviewing, I will fix it in next version.
+                                                       ^ by default
 
->
->> +     max_initialise = max(2UL << (30 - PAGE_SHIFT),
->> +             (pgdat->node_spanned_pages >> 8));
->>
->> -     /* Initialise at least 2G of the highest zone */
->>       (*nr_initialised)++;
->> -     if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
->> +     if ((*nr_initialised > max_initialise) &&
->>           (pfn & (PAGES_PER_SECTION - 1)) == 0) {
->>               pgdat->first_deferred_pfn = pfn;
->>               return false;
->>
->
+Because CONFIG_SPARSEMEM_VMEMMAP can still be disabled by the user.
 
+> even though ZONE_DEVICE does not fit in GFP_ZONE_TABLE it is free to
+> consume another bit in page->flags (expand ZONES_WIDTH) with room to
+> spare.
 
+So it's still possible to configure the x86_64 kernel such that you get
+"#warning Unfortunate NUMA and NUMA Balancing config". But it requires
+some effort to override the defaults, and it's not breaking build or
+runtime. BTW I was able to get that warning even with your previous
+patch that limited NODES_WIDTH, so that wasn't a solution for this
+anyway. This patch is simpler and better.
 
--- 
+> Link: https://bugzilla.kernel.org/show_bug.cgi?id=110931
+> Fixes: 033fbae988fc ("mm: ZONE_DEVICE for "device memory"")
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+> Reported-by: Mark <markk@clara.co.uk>
+> Reported-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Best Regards
--Li
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
