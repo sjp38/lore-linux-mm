@@ -1,144 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f175.google.com (mail-yw0-f175.google.com [209.85.161.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0078F6B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 00:21:21 -0500 (EST)
-Received: by mail-yw0-f175.google.com with SMTP id i131so23395396ywc.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 21:21:20 -0800 (PST)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id 6si648237ybs.17.2016.03.03.21.21.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Mar 2016 21:21:19 -0800 (PST)
-Received: by mail-yw0-x244.google.com with SMTP id s188so2387859ywe.2
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 21:21:19 -0800 (PST)
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 31C516B0254
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 00:23:02 -0500 (EST)
+Received: by mail-io0-f174.google.com with SMTP id m184so51788676iof.1
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 21:23:02 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id m16si1943715igt.54.2016.03.03.21.23.00
+        for <linux-mm@kvack.org>;
+        Thu, 03 Mar 2016 21:23:01 -0800 (PST)
+Date: Fri, 4 Mar 2016 14:23:27 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160304052327.GA13022@js1304-P5Q-DELUXE>
+References: <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
+ <20160302021954.GA22355@js1304-P5Q-DELUXE>
+ <20160302095056.GB26701@dhcp22.suse.cz>
+ <CAAmzW4MoS8K1G+MqavXZAGSpOt92LqZcRzGdGgcop-kQS_tTXg@mail.gmail.com>
+ <20160302140611.GI26686@dhcp22.suse.cz>
+ <CAAmzW4NX2sooaghiqkFjFb3Yzazi6rGguQbDjiyWDnfBqP0a-A@mail.gmail.com>
+ <20160303092634.GB26202@dhcp22.suse.cz>
+ <CAAmzW4NQznWcCWrwKk836yB0bhOaHNygocznzuaj5sJeepHfYQ@mail.gmail.com>
+ <20160303152514.GG26202@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <56D806B4.9040203@linux.vnet.ibm.com>
-References: <1456988501-29046-1-git-send-email-zhlcindy@gmail.com>
-	<1456988501-29046-2-git-send-email-zhlcindy@gmail.com>
-	<56D806B4.9040203@linux.vnet.ibm.com>
-Date: Fri, 4 Mar 2016 13:21:19 +0800
-Message-ID: <CAD8of+rT_vPma9YjTFu9XTe5cTLpcnUxsP4Fb_gFFuotidB4bg@mail.gmail.com>
-Subject: Re: [PATCH RFC 1/2] mm: meminit: initialise more memory for
- inode/dentry hash tables in early boot
-From: Li Zhang <zhlcindy@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160303152514.GG26202@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, mgorman@techsingularity.net, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Thu, Mar 3, 2016 at 5:41 PM, Anshuman Khandual
-<khandual@linux.vnet.ibm.com> wrote:
-> On 03/03/2016 12:31 PM, Li Zhang wrote:
->> From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
->>
->> This patch is based on Mel Gorman's old patch in the mailing list,
->> https://lkml.org/lkml/2015/5/5/280 which is dicussed but it is
->
-> Typo here ....................................^^^^^^^^
->
+On Thu, Mar 03, 2016 at 04:25:15PM +0100, Michal Hocko wrote:
+> On Thu 03-03-16 23:10:09, Joonsoo Kim wrote:
+> > 2016-03-03 18:26 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > > On Wed 02-03-16 23:34:21, Joonsoo Kim wrote:
+> > >> 2016-03-02 23:06 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > >> > On Wed 02-03-16 22:32:09, Joonsoo Kim wrote:
+> > >> >> 2016-03-02 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > >> >> > On Wed 02-03-16 11:19:54, Joonsoo Kim wrote:
+> > >> >> >> On Mon, Feb 29, 2016 at 10:02:13PM +0100, Michal Hocko wrote:
+> > >> >> > [...]
+> > >> >> >> > > + /*
+> > >> >> >> > > +  * OK, so the watermak check has failed. Make sure we do all the
+> > >> >> >> > > +  * retries for !costly high order requests and hope that multiple
+> > >> >> >> > > +  * runs of compaction will generate some high order ones for us.
+> > >> >> >> > > +  *
+> > >> >> >> > > +  * XXX: ideally we should teach the compaction to try _really_ hard
+> > >> >> >> > > +  * if we are in the retry path - something like priority 0 for the
+> > >> >> >> > > +  * reclaim
+> > >> >> >> > > +  */
+> > >> >> >> > > + if (order && order <= PAGE_ALLOC_COSTLY_ORDER)
+> > >> >> >> > > +         return true;
+> > >> >> >> > > +
+> > >> >> >> > >   return false;
+> > >> >> >>
+> > >> >> >> This seems not a proper fix. Checking watermark with high order has
+> > >> >> >> another meaning that there is high order page or not. This isn't
+> > >> >> >> what we want here.
+> > >> >> >
+> > >> >> > Why not? Why should we retry the reclaim if we do not have >=order page
+> > >> >> > available? Reclaim itself doesn't guarantee any of the freed pages will
+> > >> >> > form the requested order. The ordering on the LRU lists is pretty much
+> > >> >> > random wrt. pfn ordering. On the other hand if we have a page available
+> > >> >> > which is just hidden by watermarks then it makes perfect sense to retry
+> > >> >> > and free even order-0 pages.
+> > >> >>
+> > >> >> If we have >= order page available, we would not reach here. We would
+> > >> >> just allocate it.
+> > >> >
+> > >> > not really, we can still be under the low watermark. Note that the
+> > >>
+> > >> you mean min watermark?
+> > >
+> > > ohh, right...
+> > >
+> > >> > target for the should_reclaim_retry watermark check includes also the
+> > >> > reclaimable memory.
+> > >>
+> > >> I guess that usual case for high order allocation failure has enough freepage.
+> > >
+> > > Not sure I understand you mean here but I wouldn't be surprised if high
+> > > order failed even with enough free pages. And that is exactly why I am
+> > > claiming that reclaiming more pages is no free ticket to high order
+> > > pages.
+> > 
+> > I didn't say that it's free ticket. OOM kill would be the most expensive ticket
+> > that we have. Why do you want to kill something?
+> 
+> Because all the attempts so far have failed and we should rather not
+> retry endlessly. With the band-aid we know we will retry
+> MAX_RECLAIM_RETRIES at most. So compaction had that many attempts to
+> resolve the situation along with the same amount of reclaim rounds to
+> help and get over watermarks.
+> 
+> > It also doesn't guarantee to make high order pages. It is just another
+> > way of reclaiming memory. What is the difference between plain reclaim
+> > and OOM kill? Why do we use OOM kill in this case?
+> 
+> What is our alternative other than keep looping endlessly?
 
-Sorry, I will correct it.
+Loop as long as free memory or estimated available memory (free +
+reclaimable) increases. This means that we did some progress. And,
+they will not grow forever because we have just limited reclaimable
+memory and limited memory. You can reset no_progress_loops = 0 when
+those metric increases than before.
 
->
->> fixed with a completion to wait for all memory initialised in
->> page_alloc_init_late(). It is to fix the oom problem on X86
->
-> You can just write *out of memory* instead of *oom* or put them in
-> capitals.
->
-OK
+With this bound, we can do our best to try to solve this unpleasant
+situation before OOM.
 
->> with 24TB memory which allocates memory in late initialisation.
->> But for Power platform with 32TB memory, it causes a call trace
->> in vfs_caches_init->inode_init() and inode hash table needs more
->> memory.
->> So this patch allocates 1GB for 0.25TB/node for large system
->> as it is mentioned in https://lkml.org/lkml/2015/5/1/627
->
-> I am wondering how its going to impact other architectures.
+Unconditional 16 looping and then OOM kill really doesn't make any
+sense, because it doesn't mean that we already do our best. OOM
+should not be called prematurely and AFAIK it is one of goals
+on your patches.
 
-I just saw some discussion for X86 in https://lkml.org/lkml/2015/5/1/627.
-And some tests are done for X86 with huge memory.
->From code view, this allocate more memory in early initialisation, it may
-cause boot time a little bit.
+If above suggestion doesn't make sense to you, please try to find
+another way rather than suggesting work-around that could cause
+OOM prematurely in high order allocation case.
 
->>
->> This call trace is found on Power with 32TB memory, 1024CPUs, 16nodes.
->> The log from dmesg as the following:
->>
->> [    0.091780] Dentry cache hash table entries: 2147483648 (order: 18,
->> 17179869184 bytes)
->> [    2.891012] vmalloc: allocation failure, allocated 16021913600 of
->> 17179934720 bytes
->> [    2.891034] swapper/0: page allocation failure: order:0,
->> mode:0x2080020
->> [    2.891038] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.0-0-ppc64
->> [    2.891041] Call Trace:
->> [    2.891046] [c0000000012bfa00] [c0000000007c4a50]
->>                 .dump_stack+0xb4/0xb664 (unreliable)
->> [    2.891051] [c0000000012bfa80] [c0000000001f93d4]
->>                 .warn_alloc_failed+0x114/0x160
->> [    2.891054] [c0000000012bfb30] [c00000000023c204]
->>                 .__vmalloc_area_node+0x1a4/0x2b0
->> [    2.891058] [c0000000012bfbf0] [c00000000023c3f4]
->>                 .__vmalloc_node_range+0xe4/0x110
->> [    2.891061] [c0000000012bfc90] [c00000000023c460]
->>                 .__vmalloc_node+0x40/0x50
->> [    2.891065] [c0000000012bfd10] [c000000000b67d60]
->>                 .alloc_large_system_hash+0x134/0x2a4
->> [    2.891068] [c0000000012bfdd0] [c000000000b70924]
->>                 .inode_init+0xa4/0xf0
->> [    2.891071] [c0000000012bfe60] [c000000000b706a0]
->>                 .vfs_caches_init+0x80/0x144
->> [    2.891074] [c0000000012bfef0] [c000000000b35208]
->>                 .start_kernel+0x40c/0x4e0
->> [    2.891078] [c0000000012bff90] [c000000000008cfc]
->>                 start_here_common+0x20/0x4a4
->> [    2.891080] Mem-Info:
->
-> The dmesg output here needs some formatting.
->
->>
->> Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
->> ---
->>  mm/page_alloc.c | 11 +++++++++--
->>  1 file changed, 9 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 838ca8bb..4847f25 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -293,13 +293,20 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->>                               unsigned long pfn, unsigned long zone_end,
->>                               unsigned long *nr_initialised)
->>  {
->> +     unsigned long max_initialise;
->> +
->>       /* Always populate low zones for address-contrained allocations */
->>       if (zone_end < pgdat_end_pfn(pgdat))
->>               return true;
->> +     /*
->> +     * Initialise at least 2G of a node but also take into account that
->> +     * two large system hashes that can take up 1GB for 0.25TB/node.
->> +     */
->> +     max_initialise = max(2UL << (30 - PAGE_SHIFT),
->> +             (pgdat->node_spanned_pages >> 8));
->>
->> -     /* Initialise at least 2G of the highest zone */
->>       (*nr_initialised)++;
->> -     if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
->> +     if ((*nr_initialised > max_initialise) &&
->
-> Does this change need to be tested on all architectures ?
+Thanks.
 
-Currently, this feature is only supported for X86 in upstream.
-It can be tested more in the future if some architectures need to enable it.
-
--- 
-
-Best Regards
--Li
+> 
+> > > [...]
+> > >> >> I just did quick review to your patches so maybe I am wrong.
+> > >> >> Am I missing something?
+> > >> >
+> > >> > The core idea behind should_reclaim_retry is to check whether the
+> > >> > reclaiming all the pages would help to get over the watermark and there
+> > >> > is at least one >= order page. Then it really makes sense to retry. As
+> > >>
+> > >> How you can judge that reclaiming all the pages would help to check
+> > >> there is at least one >= order page?
+> > >
+> > > Again, not sure I understand you here. __zone_watermark_ok checks both
+> > > wmark and an available page of the sufficient order. While increased
+> > > free_pages (which includes reclaimable pages as well) will tell us
+> > > whether we have a chance to get over the min wmark, the order check will
+> > > tell us we have something to allocate from after we reach the min wmark.
+> > 
+> > Again, your assumption would be different with mine. My assumption is that
+> > high order allocation problem happens due to fragmentation rather than
+> > low free memory. In this case, there is no high order page. Even if you can
+> > reclaim 1TB and add this counter to freepage counter, high order page
+> > counter will not be changed and watermark check would fail. So, high order
+> > allocation will not go through retry logic. This is what you want?
+> 
+> I really want to base the decision on something measurable rather
+> than a good hope. This is what all the zone_reclaimable() is about. I
+> understand your concerns that compaction doesn't guarantee anything but
+> I am quite convinced that we really need an upper bound for retries
+> (unlike now when zone_reclaimable is basically unbounded assuming
+> order-0 reclaim makes some progress). What is the best bound is harder
+> to tell, of course.
+> 
+> [...]
+> > >> My arguing is for your band aid patch.
+> > >> My point is that why retry count for order-0 is reset if there is some progress,
+> > >> but, retry counter for order up to costly isn't reset even if there is
+> > >> some progress
+> > >
+> > > Because we know that order-0 requests have chance to proceed if we keep
+> > > reclaiming order-0 pages while this is not true for order > 0. If we did
+> > > reset the no_progress_loops for order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER
+> > > then we would be back to the zone_reclaimable heuristic. Why? Because
+> > > order-0 reclaim progress will keep !costly in the reclaim loop while
+> > > compaction still might not make any progress. So we either have to fail
+> > > when __zone_watermark_ok fails for the order (which turned out to be
+> > > too easy to trigger) or have the fixed amount of retries regardless the
+> > > watermark check result. We cannot relax both unless we have other
+> > > measures in place.
+> > 
+> > As mentioned before, OOM kill also doesn't guarantee to make high order page.
+> 
+> Yes, of course, apart from the kernel stack which is high order there is
+> no guarantee.
+> 
+> > Reclaim more memory as much as possible makes more sense to me.
+> 
+> But then we are back to square one. How much and how to decide when it
+> makes sense to give up. Do you have any suggestions on what should be
+> the criteria? Is there any feedback mechanism from the compaction which
+> would tell us to keep retrying? Something like did_some_progress from
+> the order-0 reclaim? Is any of deferred_compaction resp.
+> contended_compaction usable? Or is there any per-zone flag we can check
+> and prefer over wmark order check?
+> 
+> Thanks
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
