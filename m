@@ -1,31 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E59876B007E
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 20:35:05 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id fi3so23022803pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 17:35:05 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id p9si1895475pfi.23.2016.03.03.17.35.04
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 54F616B0254
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2016 20:52:59 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id x188so1892647pfb.2
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2016 17:52:59 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id q5si1991149pap.42.2016.03.03.17.52.58
         for <linux-mm@kvack.org>;
-        Thu, 03 Mar 2016 17:35:04 -0800 (PST)
+        Thu, 03 Mar 2016 17:52:58 -0800 (PST)
 From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Date: Fri, 4 Mar 2016 01:35:00 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E03770E06@SHSMSX101.ccr.corp.intel.com>
+Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
+Date: Fri, 4 Mar 2016 01:52:53 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
 References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303135833.GA9100@rkaganb.sw.ru>
-In-Reply-To: <20160303135833.GA9100@rkaganb.sw.ru>
+ <20160303174615.GF2115@work-vm>
+In-Reply-To: <20160303174615.GF2115@work-vm>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Kagan <rkagan@virtuozzo.com>
-Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
 
-> On Thu, Mar 03, 2016 at 06:44:24PM +0800, Liang Li wrote:
+> Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
+>=20
+> * Liang Li (liang.z.li@intel.com) wrote:
 > > The current QEMU live migration implementation mark the all the
 > > guest's RAM pages as dirtied in the ram bulk stage, all these pages
 > > will be processed and that takes quit a lot of CPU cycles.
@@ -44,10 +45,42 @@ Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.sh
 > > After getting the free pages information (a bitmap), QEMU can use it
 > > to filter out the guest's free pages in the ram bulk stage. This make
 > > the live migration process much more efficient.
-> >
+>=20
+> Hi,
+>   An interesting solution; I know a few different people have been lookin=
+g at
+> how to speed up ballooned VM migration.
+>=20
+
+Ooh, different solutions for the same purpose, and both based on the balloo=
+n.
+
+>   I wonder if it would be possible to avoid the kernel changes by parsing
+> /proc/self/pagemap - if that can be used to detect unmapped/zero mapped
+> pages in the guest ram, would it achieve the same result?
+>=20
+
+Only detect the unmapped/zero mapped pages is not enough. Consider the=20
+situation like case 2, it can't achieve the same result.
+
 > > This RFC version doesn't take the post-copy and RDMA into
 > > consideration, maybe both of them can benefit from this PV solution by
 > > with some extra modifications.
+>=20
+> For postcopy to be safe, you would still need to send a message to the
+> destination telling it that there were zero pages, otherwise the destinat=
+ion
+> can't tell if it's supposed to request the page from the source or treat =
+the
+> page as zero.
+>=20
+> Dave
+
+I will consider this later, thanks, Dave.
+
+Liang
+
+>=20
 > >
 > > Performance data
 > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
@@ -82,47 +115,7 @@ Cc: "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.sh
 > > transferred ram(KB) |  8146291  |  361375
 > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
 =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->=20
-> Both cases look very artificial to me.  Normally you migrate VMs which ha=
-ve
-> started long ago and which can't have their services terminated before th=
-e
-> migration, so I wouldn't expect any useful amount of free pages obtained
-> this way.
->=20
-
-Yes, it's somewhat artificial, just to emphasize the effect.  And I think t=
-hese two
-cases are very easy to reproduce. Using the real workload and do the test
-in production environment will be more convince.
-
-We can predict that as long as the guest doesn't use out of its memory, thi=
-s solution
-may still take affect and shorten the total live migration time. (Off cause=
-, we should
-consider the time cost of the virtio communication.)
-
-> OTOH I don't see why you can't just inflate the balloon before the migrat=
-ion,
-> and really optimize the amount of transferred data this way?
-> With the recently proposed VIRTIO_BALLOON_S_AVAIL you can have a fairly
-> good estimate of the optimal balloon size, and with the recently merged
-> balloon deflation on OOM it's a safe thing to do without exposing the gue=
-st
-> workloads to OOM risks.
->=20
-> Roman.
-
-Thanks for your information.  The size of the free page bitmap is not very =
-large, for a
-guest with 8GB RAM, only 256KB  extra memory is required.
-Comparing to this solution, inflate the balloon is more expensive. If the b=
-alloon size
-is not so optimal and guest request more memory during live migration, the =
-guest's
-performance will be impacted.
-
-Liang
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
