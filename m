@@ -1,81 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 460166B007E
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 05:14:34 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id l68so13683195wml.0
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 02:14:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r123si3237103wmb.8.2016.03.04.02.14.33
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FCA26B0254
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 05:23:59 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id fi3so30834825pac.3
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 02:23:59 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id 26si4980761pfj.93.2016.03.04.02.23.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Mar 2016 02:14:33 -0800 (PST)
-From: NeilBrown <neilb@suse.com>
-Date: Fri, 04 Mar 2016 21:14:24 +1100
-Subject: Re: [PATCH 3/3] radix-tree: support locking of individual exception entries.
-In-Reply-To: <87a8mfm86l.fsf@notabene.neil.brown.name>
-References: <145663588892.3865.9987439671424028216.stgit@notabene> <145663616983.3865.11911049648442320016.stgit@notabene> <20160303131033.GC12118@quack.suse.cz> <87a8mfm86l.fsf@notabene.neil.brown.name>
-Message-ID: <87si06lfcv.fsf@notabene.neil.brown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Mar 2016 02:23:58 -0800 (PST)
+Date: Fri, 4 Mar 2016 13:23:47 +0300
+From: Roman Kagan <rkagan@virtuozzo.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160304102346.GB2479@rkaganb.sw.ru>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160303174615.GF2115@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+ <20160304081411.GD9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
---=-=-=
-Content-Type: text/plain
+On Fri, Mar 04, 2016 at 09:08:44AM +0000, Li, Liang Z wrote:
+> > On Fri, Mar 04, 2016 at 01:52:53AM +0000, Li, Liang Z wrote:
+> > > >   I wonder if it would be possible to avoid the kernel changes by
+> > > > parsing /proc/self/pagemap - if that can be used to detect
+> > > > unmapped/zero mapped pages in the guest ram, would it achieve the
+> > same result?
+> > >
+> > > Only detect the unmapped/zero mapped pages is not enough. Consider
+> > the
+> > > situation like case 2, it can't achieve the same result.
+> > 
+> > Your case 2 doesn't exist in the real world.  If people could stop their main
+> > memory consumer in the guest prior to migration they wouldn't need live
+> > migration at all.
+> 
+> The case 2 is just a simplified scenario, not a real case.
+> As long as the guest's memory usage does not keep increasing, or not always run out,
+> it can be covered by the case 2.
 
-On Fri, Mar 04 2016, NeilBrown wrote:
+The memory usage will keep increasing due to ever growing caches, etc,
+so you'll be left with very little free memory fairly soon.
 
->
-> By not layering on top of wait_bit_key, you've precluded the use of the
-> current page wait_queues for these locks - you need to allocate new wait
-> queue heads.
->
-> If in
->
->> +struct wait_exceptional_entry_queue {
->> +	wait_queue_t wait;
->> +	struct exceptional_entry_key key;
->> +};
->
-> you had the exceptional_entry_key first (like wait_bit_queue does) you
-> would be closer to being able to re-use the queues.
+> > I tend to think you can safely assume there's no free memory in the guest, so
+> > there's little point optimizing for it.
+> 
+> If this is true, we should not inflate the balloon either.
 
-Scratch that bit, I was confusing myself again.  Sorry.
-Each wait_queue_t has it's own function so one function will never be
-called on other items in the queue - of course.
+We certainly should if there's "available" memory, i.e. not free but
+cheap to reclaim.
 
->
-> Also I don't think it is safe to use an exclusive wait.  When a slot is
-> deleted, you need to wake up *all* the waiters.
+> > OTOH it makes perfect sense optimizing for the unmapped memory that's
+> > made up, in particular, by the ballon, and consider inflating the balloon right
+> > before migration unless you already maintain it at the optimal size for other
+> > reasons (like e.g. a global resource manager optimizing the VM density).
+> > 
+> 
+> Yes, I believe the current balloon works and it's simple. Do you take the performance impact for consideration?
+> For and 8G guest, it takes about 5s to  inflating the balloon. But it only takes 20ms to  traverse the free_list and
+> construct the free pages bitmap.
 
-I think this issue is still valid.
+I don't have any feeling of how important the difference is.  And if the
+limiting factor for balloon inflation speed is the granularity of
+communication it may be worth optimizing that, because quick balloon
+reaction may be important in certain resource management scenarios.
 
-NeilBrown
+> By inflating the balloon, all the guest's pages are still be processed (zero page checking).
 
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+Not sure what you mean.  If you describe the current state of affairs
+that's exactly the suggested optimization point: skip unmapped pages.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+> The only advantage of ' inflating the balloon before live migration' is simple, nothing more.
 
-iQIcBAEBCAAGBQJW2WAAAAoJEDnsnt1WYoG5zJQQAIkLrfsjhY9GJHl/sRuTTS5b
-IkmZbUQMApM3V2TMxgX07XZ9csVzGUhZpt7NmI5wRF0bYzBk4SJSn3KoawZnz9IG
-IPWOfOnPgewzqLs3a9WVADts1fmCYh86nx7zbOL+sQtH+acBOlsz6LzdxtQrE1iv
-lu6BrPwQQSnXKAXN7WhjZAm1i0lyJTndQ0x9CdAATcS4E4QyWgnWqLbaPoJK9V/z
-xguLQ+tkNUu7MjfLh6ujkf0og14e1YD0a00+3mksXRuWpY0bdC6DHkMUtL9yxlY8
-PUtHmAM/ZHE90FIj8qic45jbjkyg2ICNkp6WqBYoNArZIZMu0Rki2TI0bmdduhEp
-QPILR7GsjnaMZIV284oiDSUTvyO6GkYPeZ1tVHroShM/V9tP6NUdp8+rMKa+XRPI
-SG/FNaVCOeojDZDA+wkuR/vloxge23YaF0uq9Bz+LU7qgurB3oA4xX2jz+8AL+Kt
-5WloNpzDQD6JZV/lZYKPoXwXzhiouFBIv06FBqn4X3kKXQ8JxGvHF3NPbtrtvW9T
-cyXNmwiP40FOl7HMzePAACMLiaYn+Qg5+S3ADFmN+spR94A+ZzTP1JqVanxbRVx8
-ZmLzWKuC5ukdgLD0/CQHZ2m7hoSj39Wy36wI+DglFYq+0nxZHjQrH0709eAUOzd+
-8Vd5BsyydcxLw7GPV6m/
-=ORUo
------END PGP SIGNATURE-----
---=-=-=--
+That's a big advantage.  Another one is that it does something useful in
+real-world scenarios.
+
+Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
