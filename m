@@ -1,48 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E33B36B0255
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 07:42:35 -0500 (EST)
-Received: by mail-yk0-f173.google.com with SMTP id 1so22170684ykg.3
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 04:42:35 -0800 (PST)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id c1si1099993ywe.134.2016.03.04.04.42.35
+Received: from mail-yw0-f176.google.com (mail-yw0-f176.google.com [209.85.161.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 30DBB6B0254
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 07:43:33 -0500 (EST)
+Received: by mail-yw0-f176.google.com with SMTP id i131so29968865ywc.3
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 04:43:33 -0800 (PST)
+Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
+        by mx.google.com with ESMTPS id t188si1094674ywd.26.2016.03.04.04.43.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 04:42:35 -0800 (PST)
-Received: by mail-yw0-x241.google.com with SMTP id s188so2854936ywe.2
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 04:42:35 -0800 (PST)
-Date: Fri, 4 Mar 2016 07:42:33 -0500
+        Fri, 04 Mar 2016 04:43:32 -0800 (PST)
+Received: by mail-yw0-x242.google.com with SMTP id p65so224372ywb.3
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 04:43:32 -0800 (PST)
+Date: Fri, 4 Mar 2016 07:43:31 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/4] mm: Convert printk(KERN_<LEVEL> to pr_<level>
-Message-ID: <20160304124233.GC13868@htj.duckdns.org>
+Subject: Re: [PATCH 4/4] mm: percpu: Use pr_fmt to prefix output
+Message-ID: <20160304124331.GD13868@htj.duckdns.org>
 References: <cover.1457047399.git.joe@perches.com>
- <c12953a0177b3fd04945b042cb10495130c08bec.1457047399.git.joe@perches.com>
+ <ddb59cbebc26211964c1e45d3d4251d76ae851ab.1457047399.git.joe@perches.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c12953a0177b3fd04945b042cb10495130c08bec.1457047399.git.joe@perches.com>
+In-Reply-To: <ddb59cbebc26211964c1e45d3d4251d76ae851ab.1457047399.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 03, 2016 at 03:25:33PM -0800, Joe Perches wrote:
-> Most of the mm subsystem uses pr_<level> so make it consistent.
-> 
-> Miscellanea:
-> 
-> o Realign arguments
-> o Add missing newline to format
-> o kmemleak-test.c has a "kmemleak: " prefix added to the
->   "Kmemleak testing" logging message via pr_fmt
+On Thu, Mar 03, 2016 at 03:25:34PM -0800, Joe Perches wrote:
+> Use the normal mechanism to make the logging output consistently
+> "percpu: " instead of a mix of "PERCPU: " and "percpu: "
 > 
 > Signed-off-by: Joe Perches <joe@perches.com>
 
-For percpu,
+Acked-by: Tejun Heo <tj@kernel.org>
 
- Acked-by: Tejun Heo <tj@kernel.org>
+Andrew, I think it'd be best to route this one with the rest of the
+series through -mm.
 
-Thanks.
+Thanks!
 
 -- 
 tejun
