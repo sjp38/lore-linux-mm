@@ -1,206 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 649886B0005
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2016 14:55:40 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id w104so69202573qge.1
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2016 11:55:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f185si9230543qkb.71.2016.03.05.11.55.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Mar 2016 11:55:39 -0800 (PST)
-Date: Sat, 5 Mar 2016 21:55:31 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Message-ID: <20160305214748-mutt-send-email-mst@redhat.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
- <20160304081411.GD9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <20160304163246-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E38A96B0005
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2016 17:38:16 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id fl4so55521869pad.0
+        for <linux-mm@kvack.org>; Sat, 05 Mar 2016 14:38:16 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id n81si10637988pfa.84.2016.03.05.14.38.15
+        for <linux-mm@kvack.org>;
+        Sat, 05 Mar 2016 14:38:16 -0800 (PST)
+Date: Sun, 6 Mar 2016 09:38:11 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: THP-enabled filesystem vs. FALLOC_FL_PUNCH_HOLE
+Message-ID: <20160305223811.GD11282@dastard>
+References: <1457023939-98083-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160304112603.GA9790@node.shutemov.name>
+ <56D9C882.3040808@intel.com>
+ <alpine.LSU.2.11.1603041100320.6011@eggly.anvils>
+ <20160304230548.GC11282@dastard>
+ <20160304232412.GC12498@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <20160304232412.GC12498@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Mar 04, 2016 at 03:49:37PM +0000, Li, Liang Z wrote:
-> > > > > > > Only detect the unmapped/zero mapped pages is not enough.
-> > > > Consider
-> > > > > > the
-> > > > > > > situation like case 2, it can't achieve the same result.
-> > > > > >
-> > > > > > Your case 2 doesn't exist in the real world.  If people could
-> > > > > > stop their main memory consumer in the guest prior to migration
-> > > > > > they wouldn't need live migration at all.
-> > > > >
-> > > > > The case 2 is just a simplified scenario, not a real case.
-> > > > > As long as the guest's memory usage does not keep increasing, or
-> > > > > not always run out, it can be covered by the case 2.
-> > > >
-> > > > The memory usage will keep increasing due to ever growing caches,
-> > > > etc, so you'll be left with very little free memory fairly soon.
-> > > >
-> > >
-> > > I don't think so.
+On Sat, Mar 05, 2016 at 02:24:12AM +0300, Kirill A. Shutemov wrote:
+> On Sat, Mar 05, 2016 at 10:05:48AM +1100, Dave Chinner wrote:
+> > On Fri, Mar 04, 2016 at 11:38:47AM -0800, Hugh Dickins wrote:
+> > > On Fri, 4 Mar 2016, Dave Hansen wrote:
+> > > > On 03/04/2016 03:26 AM, Kirill A. Shutemov wrote:
+> > > > > On Thu, Mar 03, 2016 at 07:51:50PM +0300, Kirill A. Shutemov wrote:
+> > > > >> Truncate and punch hole that only cover part of THP range is implemented
+> > > > >> by zero out this part of THP.
+> > > > >>
+> > > > >> This have visible effect on fallocate(FALLOC_FL_PUNCH_HOLE) behaviour.
+> > > > >> As we don't really create hole in this case, lseek(SEEK_HOLE) may have
+> > > > >> inconsistent results depending what pages happened to be allocated.
+> > > > >> Not sure if it should be considered ABI break or not.
+> > > > > 
+> > > > > Looks like this shouldn't be a problem. man 2 fallocate:
+> > > > > 
+> > > > > 	Within the specified range, partial filesystem blocks are zeroed,
+> > > > > 	and whole filesystem blocks are removed from the file.  After a
+> > > > > 	successful call, subsequent reads from this range will return
+> > > > > 	zeroes.
+> > > > > 
+> > > > > It means we effectively have 2M filesystem block size.
+> > > > 
+> > > > The question is still whether this will case problems for apps.
+> > > > 
+> > > > Isn't 2MB a quote unusual block size?  Wouldn't some files on a tmpfs
+> > > > filesystem act like they have a 2M blocksize and others like they have
+> > > > 4k?  Would that confuse apps?
+> > > 
+> > > At risk of addressing the tip of an iceberg, before diving down to
+> > > scope out the rest of the iceberg...
+> > ....
 > > 
-> > Here's my laptop:
-> > KiB Mem : 16048560 total,  8574956 free,  3360532 used,  4113072 buff/cache
+> > > (Though in the case of my huge tmpfs, it's the reverse: the small hole
+> > > punch splits the hugepage; but it's natural that Kirill's way would try
+> > > to hold on to its compound pages for longer than I do, and that's fine
+> > > so long as it's all consistent.)
+> > ....
+> > > Ah, but suppose someone holepunches out most of each 2M page: they would
+> > > expect the memcg not to be charged for those holes (just as when they
+> > > munmap most of an anonymous THP) - that does suggest splitting is needed.
 > > 
-> > But here's a server:
-> > KiB Mem:  32892768 total, 20092812 used, 12799956 free,   368704 buffers
+> > I think filesystems will expect splitting to happen. They call
+> > truncate_pagecache_range() on the region that the hole is being
+> > punched out of, and they expect page cache pages over this range to
+> > be unmapped, invalidated and then removed from the mapping tree as a
+> > result. Also, most filesystems think the page cache only contains
+> > PAGE_CACHE_SIZE mappings, so they are completely unaware of the
+> > limitations THP might have when it comes to invalidation.
 > > 
-> > What is the difference? A ton of tiny daemons not doing anything, staying
-> > resident in memory.
-> > 
-> > > > > > I tend to think you can safely assume there's no free memory in
-> > > > > > the guest, so there's little point optimizing for it.
-> > > > >
-> > > > > If this is true, we should not inflate the balloon either.
-> > > >
-> > > > We certainly should if there's "available" memory, i.e. not free but
-> > > > cheap to reclaim.
-> > > >
-> > >
-> > > What's your mean by "available" memory? if they are not free, I don't think
-> > it's cheap.
-> > 
-> > clean pages are cheap to drop as they don't have to be written.
-> > whether they will be ever be used is another matter.
-> > 
-> > > > > > OTOH it makes perfect sense optimizing for the unmapped memory
-> > > > > > that's made up, in particular, by the ballon, and consider
-> > > > > > inflating the balloon right before migration unless you already
-> > > > > > maintain it at the optimal size for other reasons (like e.g. a
-> > > > > > global resource manager
-> > > > optimizing the VM density).
-> > > > > >
-> > > > >
-> > > > > Yes, I believe the current balloon works and it's simple. Do you
-> > > > > take the
-> > > > performance impact for consideration?
-> > > > > For and 8G guest, it takes about 5s to  inflating the balloon. But
-> > > > > it only takes 20ms to  traverse the free_list and construct the
-> > > > > free pages
-> > > > bitmap.
-> > > >
-> > > > I don't have any feeling of how important the difference is.  And if
-> > > > the limiting factor for balloon inflation speed is the granularity
-> > > > of communication it may be worth optimizing that, because quick
-> > > > balloon reaction may be important in certain resource management
-> > scenarios.
-> > > >
-> > > > > By inflating the balloon, all the guest's pages are still be
-> > > > > processed (zero
-> > > > page checking).
-> > > >
-> > > > Not sure what you mean.  If you describe the current state of
-> > > > affairs that's exactly the suggested optimization point: skip unmapped
-> > pages.
-> > > >
-> > >
-> > > You'd better check the live migration code.
-> > 
-> > What's there to check in migration code?
-> > Here's the extent of what balloon does on output:
-> > 
-> > 
-> >         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4)
-> > {
-> >             ram_addr_t pa;
-> >             ram_addr_t addr;
-> >             int p = virtio_ldl_p(vdev, &pfn);
-> > 
-> >             pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
-> >             offset += 4;
-> > 
-> >             /* FIXME: remove get_system_memory(), but how? */
-> >             section = memory_region_find(get_system_memory(), pa, 1);
-> >             if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
-> >                 continue;
-> > 
-> > 
-> > trace_virtio_balloon_handle_output(memory_region_name(section.mr),
-> >                                                pa);
-> >             /* Using memory_region_get_ram_ptr is bending the rules a bit, but
-> >                should be OK because we only want a single page.  */
-> >             addr = section.offset_within_region;
-> >             balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
-> >                          !!(vq == s->dvq));
-> >             memory_region_unref(section.mr);
-> >         }
-> > 
-> > so all that happens when we get a page is balloon_page.
-> > and
-> > 
-> > static void balloon_page(void *addr, int deflate) { #if defined(__linux__)
-> >     if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
-> >                                          kvm_has_sync_mmu())) {
-> >         qemu_madvise(addr, TARGET_PAGE_SIZE,
-> >                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
-> >     }
-> > #endif
-> > }
-> > 
-> > 
-> > Do you see anything that tracks pages to help migration skip the ballooned
-> > memory? I don't.
-> > 
+> > IOWs, if this range is not aligned to huge page boundaries, then it
+> > implies the huge page is either split into PAGE_SIZE mappings and
+> > then the range is invalidated as expected, or it is completely
+> > invalidated and then refaulted on future accesses which determine if
+> > THP or normal pages are used for the page being faulted....
 > 
-> No. And it's exactly what I mean. The ballooned memory is still processed during
-> live migration without skipping. The live migration code is in migration/ram.c.
+> The filesystem in question is tmpfs and complete invalidation is not
+> always an option.
 
-So if guest acknowledged VIRTIO_BALLOON_F_MUST_TELL_HOST,
-we can teach qemu to skip these pages.
-Want to write a patch to do this?
+Then your two options are: splitting the page and rerunning the hole
+punch, or simply zeroing the sections of the THP rather than trying
+to punch out the backing store.
 
-> > 
-> > > > > The only advantage of ' inflating the balloon before live
-> > > > > migration' is simple,
-> > > > nothing more.
-> > > >
-> > > > That's a big advantage.  Another one is that it does something
-> > > > useful in real- world scenarios.
-> > > >
-> > >
-> > > I don't think the heave performance impaction is something useful in real
-> > world scenarios.
-> > >
-> > > Liang
-> > > > Roman.
-> > 
-> > So fix the performance then. You will have to try harder if you want to
-> > convince people that the performance is due to bad host/guest interface,
-> > and so we have to change *that*.
-> > 
+> For other filesystems it also can be unavailable
+> immediately if the page is dirty (the dirty flag is tracked on per-THP
+> basis at the moment).
+
+Filesystems with persistent storage flush the range being punched
+first to ensure that partial blocks are correctly written before we
+start freeing the backing store. This is needed on XFS to ensure
+hole punch plays nicely with delayed allocation and other extent
+based operations. Hence we know that we have clean pages over the
+hole we are about to punch and so there is no reason the
+invalidation should *ever* fail.
+
+tmpfs is a special snowflake when it comes to these fallocate based
+filesystem layout manipulation functions - it does not have
+persistent storage, so you have to do things very differently to
+ensure that data is not lost.
+
+> Would it be acceptable for fallocate(FALLOC_FL_PUNCH_HOLE) to return
+> -EBUSY (or other errno on your choice), if we cannot split the page
+> right away?
+
+Which means THP are not transparent any more. What does an
+application do when it gets an EBUSY, anyway? It needs to punch a
+hole, and failure to do so could result in data corruption or stale
+data exposure if the hole isn't punched and the data purged from the
+range.
+
+And it's not just hole punching that has this problem. Direct IO is
+going to have the same issue with invalidation of the mapped ranges
+over the IO being done. XFS already WARNs when page cache
+invalidation fails with EBUSY in direct IO, because that is
+indicative of an application with a potential data corruption vector
+and there's nothing we can do in the kernel code to prevent it.
+
+I think the same issues also exist with DAX using huge (and giant)
+pages. Hence it seems like we need to think about these interactions
+carefully, because they will no longer are isolated to tmpfs and
+THP...
+
+> > Just to complicate things, keep in mind that some filesystems may
+> > have a PAGE_SIZE block size, but can be convinced to only
+> > allocate/punch/truncate/etc extents on larger alignments on a
+> > per-inode basis. IOWs, THP vs hole punch behaviour is not actually
+> > a filesystem type specific behaviour - it's per-inode specific...
 > 
-> Actually, the PV solution is irrelevant with the balloon mechanism, I just use it
-> to transfer information between host and guest. 
-> I am not sure if I should implement a new virtio device, and I want to get the answer from
-> the community.
-> In this RFC patch, to make things simple, I choose to extend the virtio-balloon and use the
-> extended interface to transfer the request and free_page_bimap content.
+> There is also similar question about THP vs. i_size vs. SIGBUS.
 > 
-> I am not intend to change the current virtio-balloon implementation.
+> For small pages an application will not get SIGBUS on mmap()ed file, until
+> it wouldn't try to access beyond round_up(i_size, PAGE_CACHE_SIZE) - 1.
 > 
-> Liang
+> For THP it would be round_up(i_size, HPAGE_PMD_SIZE) - 1.
+> 
+> Is it a problem?
 
-And the answer would depend on the answer to my question above.
-Does balloon need an interface passing page bitmaps around?
-Does this speed up any operations?
-OTOH what if you use the regular balloon interface with your patches?
+No idea. I'm guessing that there may be significant stale data
+exposure issues here as filesystems do not guarantee that blocks
+completely beyond EOF contain zeros.
 
+Cheers,
 
-> > --
-> > MST
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
