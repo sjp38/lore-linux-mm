@@ -1,173 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1616B0005
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2016 09:37:30 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id ir4so19792604igb.1
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2016 06:37:30 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j10si4180589igx.27.2016.03.05.06.37.28
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 649886B0005
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2016 14:55:40 -0500 (EST)
+Received: by mail-qg0-f54.google.com with SMTP id w104so69202573qge.1
+        for <linux-mm@kvack.org>; Sat, 05 Mar 2016 11:55:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f185si9230543qkb.71.2016.03.05.11.55.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 05 Mar 2016 06:37:29 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: Do not sleep with oom_lock held.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201603031941.CBC81272.OtLMSFVOFJHOFQ@I-love.SAKURA.ne.jp>
-	<20160304160519.GG31257@dhcp22.suse.cz>
-In-Reply-To: <20160304160519.GG31257@dhcp22.suse.cz>
-Message-Id: <201603052337.EHH60964.VLJMHFQSFOOtFO@I-love.SAKURA.ne.jp>
-Date: Sat, 5 Mar 2016 23:37:14 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Mar 2016 11:55:39 -0800 (PST)
+Date: Sat, 5 Mar 2016 21:55:31 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160305214748-mutt-send-email-mst@redhat.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160303174615.GF2115@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+ <20160304081411.GD9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
+ <20160304102346.GB2479@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-Michal Hocko wrote:
-> On Thu 03-03-16 19:42:00, Tetsuo Handa wrote:
-> > Michal, before we think about whether to add preempt_disable()/preempt_enable_no_resched()
-> > to oom_kill_process(), will you accept this patch?
-> > This is one of problems which annoy kmallocwd patch on CONFIG_PREEMPT_NONE=y kernels.
+On Fri, Mar 04, 2016 at 03:49:37PM +0000, Li, Liang Z wrote:
+> > > > > > > Only detect the unmapped/zero mapped pages is not enough.
+> > > > Consider
+> > > > > > the
+> > > > > > > situation like case 2, it can't achieve the same result.
+> > > > > >
+> > > > > > Your case 2 doesn't exist in the real world.  If people could
+> > > > > > stop their main memory consumer in the guest prior to migration
+> > > > > > they wouldn't need live migration at all.
+> > > > >
+> > > > > The case 2 is just a simplified scenario, not a real case.
+> > > > > As long as the guest's memory usage does not keep increasing, or
+> > > > > not always run out, it can be covered by the case 2.
+> > > >
+> > > > The memory usage will keep increasing due to ever growing caches,
+> > > > etc, so you'll be left with very little free memory fairly soon.
+> > > >
+> > >
+> > > I don't think so.
+> > 
+> > Here's my laptop:
+> > KiB Mem : 16048560 total,  8574956 free,  3360532 used,  4113072 buff/cache
+> > 
+> > But here's a server:
+> > KiB Mem:  32892768 total, 20092812 used, 12799956 free,   368704 buffers
+> > 
+> > What is the difference? A ton of tiny daemons not doing anything, staying
+> > resident in memory.
+> > 
+> > > > > > I tend to think you can safely assume there's no free memory in
+> > > > > > the guest, so there's little point optimizing for it.
+> > > > >
+> > > > > If this is true, we should not inflate the balloon either.
+> > > >
+> > > > We certainly should if there's "available" memory, i.e. not free but
+> > > > cheap to reclaim.
+> > > >
+> > >
+> > > What's your mean by "available" memory? if they are not free, I don't think
+> > it's cheap.
+> > 
+> > clean pages are cheap to drop as they don't have to be written.
+> > whether they will be ever be used is another matter.
+> > 
+> > > > > > OTOH it makes perfect sense optimizing for the unmapped memory
+> > > > > > that's made up, in particular, by the ballon, and consider
+> > > > > > inflating the balloon right before migration unless you already
+> > > > > > maintain it at the optimal size for other reasons (like e.g. a
+> > > > > > global resource manager
+> > > > optimizing the VM density).
+> > > > > >
+> > > > >
+> > > > > Yes, I believe the current balloon works and it's simple. Do you
+> > > > > take the
+> > > > performance impact for consideration?
+> > > > > For and 8G guest, it takes about 5s to  inflating the balloon. But
+> > > > > it only takes 20ms to  traverse the free_list and construct the
+> > > > > free pages
+> > > > bitmap.
+> > > >
+> > > > I don't have any feeling of how important the difference is.  And if
+> > > > the limiting factor for balloon inflation speed is the granularity
+> > > > of communication it may be worth optimizing that, because quick
+> > > > balloon reaction may be important in certain resource management
+> > scenarios.
+> > > >
+> > > > > By inflating the balloon, all the guest's pages are still be
+> > > > > processed (zero
+> > > > page checking).
+> > > >
+> > > > Not sure what you mean.  If you describe the current state of
+> > > > affairs that's exactly the suggested optimization point: skip unmapped
+> > pages.
+> > > >
+> > >
+> > > You'd better check the live migration code.
+> > 
+> > What's there to check in migration code?
+> > Here's the extent of what balloon does on output:
+> > 
+> > 
+> >         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4)
+> > {
+> >             ram_addr_t pa;
+> >             ram_addr_t addr;
+> >             int p = virtio_ldl_p(vdev, &pfn);
+> > 
+> >             pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
+> >             offset += 4;
+> > 
+> >             /* FIXME: remove get_system_memory(), but how? */
+> >             section = memory_region_find(get_system_memory(), pa, 1);
+> >             if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
+> >                 continue;
+> > 
+> > 
+> > trace_virtio_balloon_handle_output(memory_region_name(section.mr),
+> >                                                pa);
+> >             /* Using memory_region_get_ram_ptr is bending the rules a bit, but
+> >                should be OK because we only want a single page.  */
+> >             addr = section.offset_within_region;
+> >             balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
+> >                          !!(vq == s->dvq));
+> >             memory_region_unref(section.mr);
+> >         }
+> > 
+> > so all that happens when we get a page is balloon_page.
+> > and
+> > 
+> > static void balloon_page(void *addr, int deflate) { #if defined(__linux__)
+> >     if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
+> >                                          kvm_has_sync_mmu())) {
+> >         qemu_madvise(addr, TARGET_PAGE_SIZE,
+> >                 deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
+> >     }
+> > #endif
+> > }
+> > 
+> > 
+> > Do you see anything that tracks pages to help migration skip the ballooned
+> > memory? I don't.
+> > 
 > 
-> I dunno. It makes the code worse and it doesn't solve the underlying
-> problem (have a look at OOM notifiers which are blockable). Also
-> !PREEMPT only solution doesn't sound very useful as most of the
-> configurations will have PREEMPT enabled. I agree that having the OOM
-> killer preemptible is far from ideal, though, but this is harder than
-> just this sleep. Long term we should focus on making the oom context
-> not preemptible.
+> No. And it's exactly what I mean. The ballooned memory is still processed during
+> live migration without skipping. The live migration code is in migration/ram.c.
+
+So if guest acknowledged VIRTIO_BALLOON_F_MUST_TELL_HOST,
+we can teach qemu to skip these pages.
+Want to write a patch to do this?
+
+> > 
+> > > > > The only advantage of ' inflating the balloon before live
+> > > > > migration' is simple,
+> > > > nothing more.
+> > > >
+> > > > That's a big advantage.  Another one is that it does something
+> > > > useful in real- world scenarios.
+> > > >
+> > >
+> > > I don't think the heave performance impaction is something useful in real
+> > world scenarios.
+> > >
+> > > Liang
+> > > > Roman.
+> > 
+> > So fix the performance then. You will have to try harder if you want to
+> > convince people that the performance is due to bad host/guest interface,
+> > and so we have to change *that*.
+> > 
 > 
-
-I think we are holding oom_lock inappropriately.
-
-  /**
-   * mark_oom_victim - mark the given task as OOM victim
-   * @tsk: task to mark
-   *
-   * Has to be called with oom_lock held and never after
-   * oom has been disabled already.
-
-This assumption is not true when lowmemorykiller is used.
-
-   */
-  void mark_oom_victim(struct task_struct *tsk)
-  {
-  	WARN_ON(oom_killer_disabled);
-  	/* OOM killer might race with memcg OOM */
-  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-  		return;
-
-Since both global OOM and memcg OOM hold oom_lock, global OOM and memcg
-OOM cannot race. Global OOM and memcg OOM can race with lowmemorykiller.
-
-If we use per memcg oom_lock, we would be able to reduce latency when
-concurrent memcg OOMs are in progress.
-
-I'm wondering why freezing_slow_path() allows TIF_MEMDIE threads to escape from
-the __refrigerator(). If the purpose of escaping is to release memory, waiting
-for existing TIF_MEMDIE threads is not sufficient if an mm is shared by multiple
-threads. We need to let all threads sharing that mm to escape when we choose an
-OOM victim. If we can assume that freezer depends on CONFIG_MMU=y, we can reclaim
-memory using the OOM reaper without setting TIF_MEMDIE. That will get rid of
-oom_killer_disable() and related exclusion code based on oom_lock.
-
-If we allow dying (SIGKILL pending or PF_EXITING) threads to access some of
-memory reserves, lowmemorykiller will be able to stop using TIF_MEMDIE. And
-above assumption becomes always true. Also, since memcg OOMs are less urgent
-than global OOM, memcg OOMs might be able to stop using TIF_MEMDIE as well.
-
-Then, only global OOM will use global oom_lock and TIF_MEMDIE. That is, we
-can offload handling of global OOM to a kernel thread which can run on any
-CPU with preemption disabled. The oom_lock will become unneeded because only
-one kernel thread will use it. If we add timestamp field to task_struct or
-signal_struct for recording when SIGKILL was delivered, we can emit warnings
-when victims cannot terminate.
-
-I think we are in chicken-and-egg riddle about oom_lock and TIF_MEMDIE.
-
-> Anyway, wouldn't this be simpler?
-
-Yes, I'm OK with your version.
-
+> Actually, the PV solution is irrelevant with the balloon mechanism, I just use it
+> to transfer information between host and guest. 
+> I am not sure if I should implement a new virtio device, and I want to get the answer from
+> the community.
+> In this RFC patch, to make things simple, I choose to extend the virtio-balloon and use the
+> extended interface to transfer the request and free_page_bimap content.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5d5eca9d6737..c84e7841007e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -901,15 +901,9 @@ bool out_of_memory(struct oom_control *oc)
->  		dump_header(oc, NULL, NULL);
->  		panic("Out of memory and no killable processes...\n");
->  	}
-> -	if (p && p != (void *)-1UL) {
-> +	if (p && p != (void *)-1UL)
->  		oom_kill_process(oc, p, points, totalpages, NULL,
->  				 "Out of memory");
-> -		/*
-> -		 * Give the killed process a good chance to exit before trying
-> -		 * to allocate memory again.
-> -		 */
-> -		schedule_timeout_killable(1);
-> -	}
->  	return true;
->  }
->  
-> @@ -944,4 +938,10 @@ void pagefault_out_of_memory(void)
->  	}
->  
->  	mutex_unlock(&oom_lock);
-> +
-> +	/*
-> +	 * Give the killed process a good chance to exit before trying
-> +	 * to allocate memory again.
-> +	 */
-> +	schedule_timeout_killable(1);
-
-Oh, I forgot this. Sleeping not only when setting TIF_MEMDIE but also
-waiting for existing TIF_MEMDIE to be cleared will save CPU cycles.
-
->  }
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1993894b4219..496498c4c32c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2888,6 +2881,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	}
->  out:
->  	mutex_unlock(&oom_lock);
-> +	if (*did_some_progress) {
-
-I think this line should be
-
-	if (*did_some_progress && !page)
-
-because oom_killer_disabled && __GFP_NOFAIL likely makes page != NULL
-
-> +		/*
-> +		 * Give the killed process a good chance to exit before trying
-> +		 * to allocate memory again.
-> +		 */
-> +		schedule_timeout_killable(1);
-> +	}
-
-and this closing } is not needed.
-
-Sleeping when out_of_memory() was not called due to !__GFP_NOFAIL && !__GFP_FS
-will help somebody else to make a progress for us? (My version did not change it.)
-
- | - GFP_NOFS is another one which would be good to discuss. Its primary
- |   use is to prevent from reclaim recursion back into FS. This makes
- |   such an allocation context weaker and historically we haven't
- |   triggered OOM killer and rather hopelessly retry the request and
- |   rely on somebody else to make a progress for us. There are two issues
- |   here.
-
->  	return page;
->  }
->  
-> -- 
-> Michal Hocko
-> SUSE Labs
+> I am not intend to change the current virtio-balloon implementation.
 > 
+> Liang
+
+And the answer would depend on the answer to my question above.
+Does balloon need an interface passing page bitmaps around?
+Does this speed up any operations?
+OTOH what if you use the regular balloon interface with your patches?
+
+
+> > --
+> > MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
