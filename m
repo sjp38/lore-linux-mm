@@ -1,80 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C88F6B0254
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 19:48:17 -0500 (EST)
-Received: by mail-oi0-f45.google.com with SMTP id d205so49012410oia.0
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 16:48:17 -0800 (PST)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id p187si4199885oih.10.2016.03.04.16.48.16
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5C46B0005
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2016 20:56:17 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id ts10so65786263obc.1
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 17:56:17 -0800 (PST)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id cp8si4268515oec.98.2016.03.04.17.56.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Mar 2016 16:48:16 -0800 (PST)
-Received: by mail-oi0-x232.google.com with SMTP id r187so48884456oih.3
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2016 16:48:16 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20160305004624.12825.93210.stgit@dwillia2-desk3.jf.intel.com>
-References: <20160305004624.12825.93210.stgit@dwillia2-desk3.jf.intel.com>
-Date: Fri, 4 Mar 2016 16:48:16 -0800
-Message-ID: <CAPcyv4gjxk3XYd3=kHgAqHGnsE2yWU4K=YWxkHC7_ORpHfKUPw@mail.gmail.com>
-Subject: Re: [PATCH] nfit: Continue init even if ARS commands are unimplemented
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        Fri, 04 Mar 2016 17:56:17 -0800 (PST)
+Message-ID: <1457146138.15454.277.camel@hpe.com>
+Subject: Re: [PATCH v2 2/3] libnvdimm, pmem: adjust for section collisions
+ with 'System RAM'
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Fri, 04 Mar 2016 19:48:58 -0700
+In-Reply-To: <20160303215315.1014.95661.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: 
+	<20160303215304.1014.69931.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20160303215315.1014.95661.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, Haozhong Zhang <haozhong.zhang@intel.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vishal Verma <vishal.l.verma@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org
+Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org
 
-Andrew, sorry, ignore this, I fumble fingered a ^R in bash and sent
-this.  I'm going to include this in a pull request to Linus.
-
-On Fri, Mar 4, 2016 at 4:46 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> From: Vishal Verma <vishal.l.verma@intel.com>
->
-> If firmware doesn't implement any of the ARS commands, take that to
-> mean that ARS is unsupported, and continue to initialize regions without
-> bad block lists. We cannot make the assumption that ARS commands will be
-> unconditionally supported on all NVDIMMs.
->
-> Reported-by: Haozhong Zhang <haozhong.zhang@intel.com>
-> Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
-> Acked-by: Xiao Guangrong <guangrong.xiao@linux.intel.com>
-> Tested-by: Haozhong Zhang <haozhong.zhang@intel.com>
+On Thu, 2016-03-03 at 13:53 -0800, Dan Williams wrote:
+> On a platform where 'Persistent Memory' and 'System RAM' are mixed
+> within a given sparsemem section, trim the namespace and notify about the
+> sub-optimal alignment.
+> 
+> Cc: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 > ---
->  drivers/acpi/nfit.c |   15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
->
-> diff --git a/drivers/acpi/nfit.c b/drivers/acpi/nfit.c
-> index fb53db187854..35947ac87644 100644
-> --- a/drivers/acpi/nfit.c
-> +++ b/drivers/acpi/nfit.c
-> @@ -1590,14 +1590,21 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
->         start = ndr_desc->res->start;
->         len = ndr_desc->res->end - ndr_desc->res->start + 1;
->
-> +       /*
-> +        * If ARS is unimplemented, unsupported, or if the 'Persistent Memory
-> +        * Scrub' flag in extended status is not set, skip this but continue
-> +        * initialization
-> +        */
->         rc = ars_get_cap(nd_desc, ars_cap, start, len);
-> +       if (rc == -ENOTTY) {
-> +               dev_dbg(acpi_desc->dev,
-> +                       "Address Range Scrub is not implemented, won't create an error list\n");
-> +               rc = 0;
-> +               goto out;
-> +       }
->         if (rc)
->                 goto out;
->
-> -       /*
-> -        * If ARS is unsupported, or if the 'Persistent Memory Scrub' flag in
-> -        * extended status is not set, skip this but continue initialization
-> -        */
->         if ((ars_cap->status & 0xffff) ||
->                 !(ars_cap->status >> 16 & ND_ARS_PERSISTENT)) {
->                 dev_warn(acpi_desc->dev,
->
+> A drivers/nvdimm/namespace_devs.c |A A A A 7 ++
+> A drivers/nvdimm/pfn.hA A A A A A A A A A A A |A A A 10 ++-
+> A drivers/nvdimm/pfn_devs.cA A A A A A A |A A A A 5 ++
+> A drivers/nvdimm/pmem.cA A A A A A A A A A A |A A 125 ++++++++++++++++++++++++++++-----
+> ------
+> A 4 files changed, 111 insertions(+), 36 deletions(-)
+> 
+> diff --git a/drivers/nvdimm/namespace_devs.c
+> b/drivers/nvdimm/namespace_devs.c
+> index 8ebfcaae3f5a..463756ca2d4b 100644
+> --- a/drivers/nvdimm/namespace_devs.c
+> +++ b/drivers/nvdimm/namespace_devs.c
+> @@ -133,6 +133,7 @@ bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
+> A bool pmem_should_map_pages(struct device *dev)
+> A {
+> A 	struct nd_region *nd_region = to_nd_region(dev->parent);
+> +	struct nd_namespace_io *nsio;
+> A 
+> A 	if (!IS_ENABLED(CONFIG_ZONE_DEVICE))
+> A 		return false;
+> @@ -143,6 +144,12 @@ bool pmem_should_map_pages(struct device *dev)
+> A 	if (is_nd_pfn(dev) || is_nd_btt(dev))
+> A 		return false;
+> A 
+> +	nsio = to_nd_namespace_io(dev);
+> +	if (region_intersects(nsio->res.start, resource_size(&nsio-
+> >res),
+> +				IORESOURCE_SYSTEM_RAM,
+> +				IORES_DESC_NONE) == REGION_MIXED)
+
+Should this be !=A REGION_DISJOINT for safe?
+
+> +		return false;
+> +
+
+A :
+
+> @@ -304,21 +311,56 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+> A 	}
+> A 
+> A 	memset(pfn_sb, 0, sizeof(*pfn_sb));
+> -	npfns = (pmem->size - SZ_8K) / SZ_4K;
+> +
+> +	/*
+> +	A * Check if pmem collides with 'System RAM' when section aligned
+> and
+> +	A * trim it accordingly
+> +	A */
+> +	nsio = to_nd_namespace_io(&ndns->dev);
+> +	start = PHYS_SECTION_ALIGN_DOWN(nsio->res.start);
+> +	size = resource_size(&nsio->res);
+> +	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+> +				IORES_DESC_NONE) == REGION_MIXED) {
+> +
+> +		start = nsio->res.start;
+> +		start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
+> +	}
+> +
+> +	start = nsio->res.start;
+> +	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
+> +	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+> +				IORES_DESC_NONE) == REGION_MIXED) {
+> +		size = resource_size(&nsio->res);
+> +		end_trunc = start + size - PHYS_SECTION_ALIGN_DOWN(start
+> + size);
+> +	}
+
+This check seems to assume that guest's regular memory layout does not
+change.A A That is, if there is no collision at first, there won't be any
+later.A A Is this a valid assumption?
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
