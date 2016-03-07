@@ -1,78 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E576C6B0253
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 16:38:55 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id tt10so23328728pab.3
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 13:38:55 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id g24si8261908pfj.91.2016.03.07.13.38.55
-        for <linux-mm@kvack.org>;
-        Mon, 07 Mar 2016 13:38:55 -0800 (PST)
-Date: Mon, 07 Mar 2016 16:38:50 -0500 (EST)
-Message-Id: <20160307.163850.1494834587897617780.davem@davemloft.net>
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <56DDF3C4.7070701@oracle.com>
-References: <56DDC776.3040003@oracle.com>
-	<20160307.141600.1873883635480850431.davem@davemloft.net>
-	<56DDF3C4.7070701@oracle.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 763AC6B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 17:18:10 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fl4so85645170pad.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:18:10 -0800 (PST)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id rr7si6062548pab.223.2016.03.07.14.18.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Mar 2016 14:18:09 -0800 (PST)
+Received: by mail-pf0-x229.google.com with SMTP id 124so88032275pfg.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:18:09 -0800 (PST)
+Date: Mon, 7 Mar 2016 14:18:07 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/hugetlb: use EOPNOTSUPP in hugetlb sysctl handlers
+In-Reply-To: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
+Message-ID: <alpine.DEB.2.10.1603071417570.18158@chino.kir.corp.google.com>
+References: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: khalid.aziz@oracle.com
-Cc: rob.gardner@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Jan Stancek <jstancek@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com
 
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Date: Mon, 7 Mar 2016 14:33:56 -0700
+On Thu, 3 Mar 2016, Jan Stancek wrote:
 
-> On 03/07/2016 12:16 PM, David Miller wrote:
->> From: Khalid Aziz <khalid.aziz@oracle.com>
->> Date: Mon, 7 Mar 2016 11:24:54 -0700
->>
->>> Tags can be cleared by user by setting tag to 0. Tags are
->>> automatically cleared by the hardware when the mapping for a virtual
->>> address is removed from TSB (which is why swappable pages are a
->>> problem), so kernel does not have to do it as part of clean up.
->>
->> You might be able to crib some bits for the Tag in the swp_entry_t,
->> it's
->> 64-bit and you can therefore steal bits from the offset field.
->>
->> That way you'll have the ADI tag in the page tables, ready to
->> re-install
->> at swapin time.
->>
+> Replace ENOTSUPP with EOPNOTSUPP. If hugepages are not supported,
+> this value is propagated to userspace. EOPNOTSUPP is part of uapi
+> and is widely supported by libc libraries.
 > 
-> That is a possibility but limited in scope. An address range covered
-> by a single TTE can have large number of tags. Version tags are set on
-> cacheline. In extreme case, one could set a tag for each set of
-> 64-bytes in a page. Also tags are set completely in userspace and no
-> transition occurs to kernel space, so kernel has no idea of what tags
-> have been set. I have not found a way to query the MMU on tags.
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
 > 
-> I will think some more about it.
+> Signed-off-by: Jan Stancek <jstancek@redhat.com>
 
-That would mean that ADI is impossible to use for swappable memory.
-
-...
-
-If that's true I'm extremely disappointed that they devoted so much
-silicon and engineering to this feature yet didn't take that one
-critical step to make it generally useful. :(
-
-We could have a way to do this via the kernel, wherein the user has a
-contract with us.  Basically we have a call to pass the Tags (what
-granularity to use for this is a design point, pages, cache lines,
-etc.)  into the kernel and the user agrees not to change them behind
-the kernel's back.
-
-In return the kernel agrees to restore the tags upon swapin.
-
-So we could support something for swappable pages, it would just be
-more work.
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
