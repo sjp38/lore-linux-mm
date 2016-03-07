@@ -1,153 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D0F76B0254
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 07:53:12 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p65so69329855wmp.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 04:53:12 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A5C0C6B0256
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 07:59:16 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p65so69522824wmp.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 04:59:16 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hz10si18918850wjb.190.2016.03.07.04.53.10
+        by mx.google.com with ESMTPS id y23si14042655wmd.54.2016.03.07.04.59.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Mar 2016 04:53:11 -0800 (PST)
-Subject: Re: 4.5.0-rc6: kernel BUG at ../mm/memory.c:1879
-References: <nbjnq6$fim$1@ger.gmane.org> <56DD795C.9020903@suse.cz>
+        Mon, 07 Mar 2016 04:59:15 -0800 (PST)
+Subject: Re: Suspicious error for CMA stress test
+References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+ <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE>
+ <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com>
+ <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com>
+ <20160307043442.GB24602@js1304-P5Q-DELUXE>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56DD79B6.6030704@suse.cz>
-Date: Mon, 7 Mar 2016 13:53:10 +0100
+Message-ID: <56DD7B20.1020508@suse.cz>
+Date: Mon, 7 Mar 2016 13:59:12 +0100
 MIME-Version: 1.0
-In-Reply-To: <56DD795C.9020903@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20160307043442.GB24602@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Matwey V. Kornilov" <matwey.kornilov@gmail.com>, linux-mm@kvack.org
-Cc: Rusty Russell <rusty@rustcorp.com.au>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>
+Cc: Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/07/2016 01:51 PM, Vlastimil Babka wrote:
-> [+CC ARM, module maintainers/lists]
->
-> On 03/07/2016 12:14 PM, Matwey V. Kornilov wrote:
+On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
+> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
+>>> Sad to hear that.
+>>>
+>>> Could you tell me your system's MAX_ORDER and pageblock_order?
+>>>
 >>
->> Hello,
->>
->> I see the following when try to boot 4.5.0-rc6 on ARM TI AM33xx based board.
->>
->>       [   13.907631] ------------[ cut here ]------------
->>       [   13.912323] kernel BUG at ../mm/memory.c:1879!
->
-> That's:
-> BUG_ON(addr >= end);
->
-> where:
-> end = addr + size;
->
-> All these variables are unsigned long, so they overflown?
->
-> I don't know ARM much, and there's no code for decodecode, but if I get
-> the calling convention correctly, and the registers didn't change, both
-> addr is r1 and size is r2, i.e. both bf006000. Weird.
+>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
 
-OK, wrong, according to followup mail from Matwey which I'm pasting here 
-to include the CC list:
+I thought that CMA regions/operations (and isolation IIRC?) were 
+supposed to be MAX_ORDER aligned exactly to prevent needing these extra 
+checks for buddy merging. So what's wrong?
 
-===
-I believe the following kgdb backtrace is relevant.
-
-size = 0 for some reason in apply_to_page_range
-This means that end == addr.
-
-(gdb) bt
-#0  apply_to_page_range (mm=0xc11d3190 <init_mm>, addr=3204472832,
-size=0, fn=0xc0231cec <change_page_range>, data=0xdb5c3de8)
-     at ../mm/memory.c:1876
-#1  0xc0231dc4 in change_memory_common (addr=3204472832,
-numpages=<optimized out>, set_mask=<optimized out>, clear_mask=0)
-     at ../arch/arm/mm/pageattr.c:61
-#2  0xc0231e30 in set_memory_ro (addr=<optimized out>,
-numpages=<optimized out>) at ../arch/arm/mm/pageattr.c:70
-#3  0xc02fd5b4 in frob_rodata (layout=<optimized out>,
-set_memory=0xbf006000) at ../kernel/module.c:1983
-#4  0xc02ff4f8 in module_enable_ro (mod=<optimized out>) at
-../kernel/module.c:2011
-#5  0xc0301c80 in complete_formation (info=<optimized out>,
-mod=<optimized out>) at ../kernel/module.c:3494
-#6  load_module (info=0xdb5c3f40, uargs=<optimized out>,
-flags=<optimized out>) at ../kernel/module.c:3622
-#7  0xc0302120 in SYSC_finit_module (flags=<optimized out>,
-uargs=<optimized out>, fd=<optimized out>) at ../kernel/module.c:3741
-#8  SyS_finit_module (fd=6, uargs=-1226082716, flags=0) at
-../kernel/module.c:3722
-#9  0xc021c140 in arm_elf_read_implies_exec (x=<optimized out>,
-executable_stack=-1090494464) at ../arch/arm/kernel/elf.c:90
-#10 0x00000006 in __vectors_start ()
-Backtrace stopped: previous frame inner to this frame (corrupt stack?)
-
+> Hmm... that's same with me.
 >
->>       [   13.916795] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
->>       [   13.922663] Modules linked in:
->>       [   13.925761] CPU: 0 PID: 242 Comm: systemd-udevd Not tainted 4.5.0-rc6-3.ga55dde2-default #1
->>       [   13.934153] Hardware name: Generic AM33XX (Flattened Device Tree)
->>       [   13.940281] task: c2da2040 ti: c2db4000 task.ti: c2db4000
->>       [   13.945738] PC is at apply_to_page_range+0x23c/0x240
->>       [   13.950741] LR is at change_memory_common+0x94/0xe0
->>       [   13.955648] pc : [<c03b333c>]    lr : [<c0231dc4>]    psr: 60010013
->>       [   13.955648] sp : c2db5d88  ip : c2db5dd8  fp : c2db5dd4
->>       [   13.967182] r10: bf002080  r9 : c2db5de8  r8 : c0231cec
->>       [   13.972434] r7 : bf002180  r6 : bf006000  r5 : bf006000  r4 : bf006000
->>       [   13.978995] r3 : c0231cec  r2 : bf006000  r1 : bf006000  r0 : c11d3190
->>       [   13.985559] Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
->>       [   13.992732] Control: 10c5387d  Table: 82dc0019  DAC: 00000055
->>       [   13.998509] Process systemd-udevd (pid: 242, stack limit = 0xc2db4220)
->>       [   14.005070] Stack: (0xc2db5d88 to 0xc2db6000)
->>       [   14.009457] 5d80:                   bf005fff c11d3190 c11d3190 00000001 c1187dc4 c136c540
->>       [   14.017682] 5da0: bf006000 c11d3190 c2db5dd4 bf006000 00000000 bf006000 bf002180 00000000
->>       [   14.025907] 5dc0: c118350c bf002080 c2db5e14 c2db5dd8 c0231dc4 c03b310c c2db5de8 0000000c
->>       [   14.034130] 5de0: c2db5dfc c2db5df0 00000080 00000000 c2db5e4c c0231e10 bf0021ac bf002180
->>       [   14.042355] 5e00: bf002180 bf0021ac c2db5e24 c2db5e18 c0231e30 c0231d3c c2db5e3c c2db5e28
->>       [   14.050579] 5e20: c02fd5b4 c0231e1c c0231e10 bf0021ac c2db5e5c c2db5e40 c02ff4f8 c02fd568
->>       [   14.058802] 5e40: 00000001 bf00208c c2db5f40 bf002180 c2db5f34 c2db5e60 c0301c80 c02ff4ac
->>       [   14.067025] 5e60: bf002080 c042d74c 00000000 00000000 bf000000 c118350c c0b359cc 00000000
->>       [   14.075250] 5e80: bf00208c c118350c bf003000 c2db5ea0 bf002190 bf00208c 000014e4 00000000
->>       [   14.083473] 5ea0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
->>       [   14.091695] 5ec0: 00000000 00000000 6e72656b 00006c65 00000000 00000000 00000000 00000000
->>       [   14.099918] 5ee0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
->>       [   14.108143] 5f00: 00000000 dc8ba700 00000010 00000000 00000006 b6e73664 0000017b c021c308
->>       [   14.116367] 5f20: c2db4000 00000000 c2db5fa4 c2db5f38 c0302120 c03009ac 00000002 00000000
->>       [   14.124590] 5f40: d0851000 000014e4 d0851f0c d085180b d0851ca4 00003000 00003110 00000000
->>       [   14.132814] 5f60: 00000000 00000000 00001538 0000001b 0000001c 00000014 00000011 0000000d
->>       [   14.141036] 5f80: 00000000 00000000 00000000 7f611780 00000000 00000000 00000000 c2db5fa8
->>       [   14.149259] 5fa0: c021c140 c0302090 7f611780 00000000 00000006 b6e73664 00000000 7f611830
->>       [   14.157484] 5fc0: 7f611780 00000000 00000000 0000017b 00000000 00000000 00020000 80a76238
->>       [   14.165707] 5fe0: be8c8058 be8c8048 b6e69de0 b6d8db40 60010010 00000006 45145044 91104437
->>       [   14.173957] [<c03b333c>] (apply_to_page_range) from [<c0231dc4>] (change_memory_common+0x94/0xe0)
->>       [   14.182888] [<c0231dc4>] (change_memory_common) from [<c0231e30>] (set_memory_ro+0x20/0x28)
->>       [   14.191307] [<c0231e30>] (set_memory_ro) from [<c02fd5b4>] (frob_rodata+0x58/0x6c)
->>       [   14.198930] [<c02fd5b4>] (frob_rodata) from [<c02ff4f8>] (module_enable_ro+0x58/0x60)
+> Below is similar fix that prevents buddy merging when one of buddy's
+> migrate type, but, not both, is MIGRATE_ISOLATE. In fact, I have
+> no idea why previous fix (more correct fix) doesn't work for you.
+> (It works for me.) But, maybe there is a bug on the fix
+> so I make new one which is more general form. Please test it.
 >
-> These just seem to pass on whatever module loader told them.
+> Thanks.
 >
->>       [   14.206811] [<c02ff4f8>] (module_enable_ro) from [<c0301c80>] (load_module+0x12e0/0x1548)
+> ---------->8-------------
+>  From dd41e348572948d70b935fc24f82c096ff0fb417 Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Fri, 4 Mar 2016 13:28:17 +0900
+> Subject: [PATCH] mm/cma: fix race
 >
-> This uses mod->core_layout to get the range, so maybe that's what's wrong?
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>   mm/page_alloc.c | 33 +++++++++++++++++++--------------
+>   1 file changed, 19 insertions(+), 14 deletions(-)
 >
->>       [   14.215039] [<c0301c80>] (load_module) from [<c0302120>] (SyS_finit_module+0x9c/0xd8)
->>       [   14.222920] [<c0302120>] (SyS_finit_module) from [<c021c140>] (ret_fast_syscall+0x0/0x34)
->>       [   14.231148] Code: e3500000 1afffff4 e51a3008 eaffffe5 (e7f001f2)
->>       [   14.237282] ---[ end trace e25b4430ecf4fcdd ]---
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c6c38ed..d80d071 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -620,8 +620,8 @@ static inline void rmv_page_order(struct page *page)
+>    *
+>    * For recording page's order, we use page_private(page).
+>    */
+> -static inline int page_is_buddy(struct page *page, struct page *buddy,
+> -                                                       unsigned int order)
+> +static inline int page_is_buddy(struct zone *zone, struct page *page,
+> +                               struct page *buddy, unsigned int order)
+>   {
+>          if (!pfn_valid_within(page_to_pfn(buddy)))
+>                  return 0;
+> @@ -644,6 +644,20 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+>                  if (page_zone_id(page) != page_zone_id(buddy))
+>                          return 0;
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +               if (IS_ENABLED(CONFIG_CMA) &&
+> +                       unlikely(has_isolate_pageblock(zone)) &&
+> +                       unlikely(order >= pageblock_order)) {
+> +                       int page_mt, buddy_mt;
+> +
+> +                       page_mt = get_pageblock_migratetype(page);
+> +                       buddy_mt = get_pageblock_migratetype(buddy);
+> +
+> +                       if (page_mt != buddy_mt &&
+> +                               (is_migrate_isolate(page_mt) ||
+> +                               is_migrate_isolate(buddy_mt)))
+> +                               return 0;
+> +               }
+> +
+>                  VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+>
+>                  return 1;
+> @@ -691,17 +705,8 @@ static inline void __free_one_page(struct page *page,
+>          VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+>
+>          VM_BUG_ON(migratetype == -1);
+> -       if (is_migrate_isolate(migratetype)) {
+> -               /*
+> -                * We restrict max order of merging to prevent merge
+> -                * between freepages on isolate pageblock and normal
+> -                * pageblock. Without this, pageblock isolation
+> -                * could cause incorrect freepage accounting.
+> -                */
+> -               max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+> -       } else {
+> +       if (!is_migrate_isolate(migratetype))
+>                  __mod_zone_freepage_state(zone, 1 << order, migratetype);
+> -       }
+>
+>          page_idx = pfn & ((1 << max_order) - 1);
+>
+> @@ -711,7 +716,7 @@ static inline void __free_one_page(struct page *page,
+>          while (order < max_order - 1) {
+>                  buddy_idx = __find_buddy_index(page_idx, order);
+>                  buddy = page + (buddy_idx - page_idx);
+> -               if (!page_is_buddy(page, buddy, order))
+> +               if (!page_is_buddy(zone, page, buddy, order))
+>                          break;
+>                  /*
+>                   * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+> @@ -745,7 +750,7 @@ static inline void __free_one_page(struct page *page,
+>                  higher_page = page + (combined_idx - page_idx);
+>                  buddy_idx = __find_buddy_index(combined_idx, order + 1);
+>                  higher_buddy = higher_page + (buddy_idx - combined_idx);
+> -               if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> +               if (page_is_buddy(zone, higher_page, higher_buddy, order + 1)) {
+>                          list_add_tail(&page->lru,
+>                                  &zone->free_area[order].free_list[migratetype]);
+>                          goto out;
 >
 
 --
