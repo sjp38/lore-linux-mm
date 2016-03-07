@@ -1,60 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FE676B0256
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 08:03:49 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id p65so69678291wmp.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 05:03:49 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id u6si15250366wje.42.2016.03.07.05.03.47
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B10056B0256
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 08:05:15 -0500 (EST)
+Received: by mail-lb0-f171.google.com with SMTP id k15so129291056lbg.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 05:05:15 -0800 (PST)
+Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
+        by mx.google.com with ESMTPS id sl9si7477598lbb.149.2016.03.07.05.05.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Mar 2016 05:03:47 -0800 (PST)
-Date: Mon, 7 Mar 2016 13:03:38 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+        Mon, 07 Mar 2016 05:05:14 -0800 (PST)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1acuqO-0006yh-Pl
+	for linux-mm@kvack.org; Mon, 07 Mar 2016 14:05:04 +0100
+Received: from 92.243.181.209 ([92.243.181.209])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:05:04 +0100
+Received: from matwey.kornilov by 92.243.181.209 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:05:04 +0100
+From: "Matwey V. Kornilov" <matwey.kornilov@gmail.com>
 Subject: Re: 4.5.0-rc6: kernel BUG at ../mm/memory.c:1879
-Message-ID: <20160307130338.GI19428@n2100.arm.linux.org.uk>
-References: <nbjnq6$fim$1@ger.gmane.org>
- <56DD795C.9020903@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56DD795C.9020903@suse.cz>
+Date: Mon, 7 Mar 2016 16:03:40 +0300
+Message-ID: <nbju7c$onf$2@ger.gmane.org>
+References: <nbjnq6$fim$1@ger.gmane.org> <nbjt7l$db5$1@ger.gmane.org>
+ <nbjtuo$onf$1@ger.gmane.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <nbjtuo$onf$1@ger.gmane.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Matwey V. Kornilov" <matwey.kornilov@gmail.com>, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 
-On Mon, Mar 07, 2016 at 01:51:40PM +0100, Vlastimil Babka wrote:
-> [+CC ARM, module maintainers/lists]
-> 
-> On 03/07/2016 12:14 PM, Matwey V. Kornilov wrote:
-> >
-> >Hello,
-> >
-> >I see the following when try to boot 4.5.0-rc6 on ARM TI AM33xx based board.
-> >
-> >     [   13.907631] ------------[ cut here ]------------
-> >     [   13.912323] kernel BUG at ../mm/memory.c:1879!
-> 
-> That's:
-> BUG_ON(addr >= end);
-> 
-> where:
-> end = addr + size;
-> 
-> All these variables are unsigned long, so they overflown?
-> 
-> I don't know ARM much, and there's no code for decodecode, but if I get the
-> calling convention correctly, and the registers didn't change, both addr is
-> r1 and size is r2, i.e. both bf006000. Weird.
 
-A fix has been recently merged for this.  Look out for
-"ARM: 8544/1: set_memory_xx fixes"
+I am sorry, I think the real issue is that mod->core_layout->text_size =
+4096 and ro_size = 8192, then their difference is 4096 in frob_rodata()
+function.
+This leads to shift of PAGE_SHIFT by 4096 bits.
 
--- 
-RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+(gdb) print mod->core_layout
+$25 = {base = 0xbf000000, size = 16384, text_size = 4096, ro_size =
+8192, mtn = {mod = 0xbf002080, node = {node = {{
+          __rb_parent_color = 1, rb_right = 0xbf0021c0, rb_left = 0x0
+<__vectors_start>}, {__rb_parent_color = 1,
+          rb_right = 0xbf0021cc, rb_left = 0x0 <__vectors_start>}}}}}
+
+07.03.2016 15:59, Matwey V. Kornilov D?D,N?DuN?:
+> 
+> Further research shows that init_layout.ro_size == init_layout.text_size
+> for some reason.
+> 
+> Then (layout->ro_size - layout->text_size) >> PAGE_SHIFT == 0 in
+> frob_rodata() function.
+> 
+> (gdb) print mod->init_layout
+> $21 = {base = 0xbf005000, size = 8192, text_size = 4096, ro_size = 4096,
+> mtn = {mod = 0xbf002080, node = {node = {{
+>           __rb_parent_color = 3204456852, rb_right = 0x0
+> <__vectors_start>, rb_left = 0x0 <__vectors_start>}, {
+>           __rb_parent_color = 3204456864, rb_right = 0x0
+> <__vectors_start>, rb_left = 0x0 <__vectors_start>}}}}}
+> 
+> 
+> 07.03.2016 15:46, Matwey V. Kornilov D?D,N?DuN?:
+>>
+>> I believe the following kgdb backtrace is relevant.
+>>
+>> size = 0 for some reason in apply_to_page_range
+>> This means that end == addr.
+>>
+>> (gdb) bt
+>> #0  apply_to_page_range (mm=0xc11d3190 <init_mm>, addr=3204472832,
+>> size=0, fn=0xc0231cec <change_page_range>, data=0xdb5c3de8)
+>>     at ../mm/memory.c:1876
+>> #1  0xc0231dc4 in change_memory_common (addr=3204472832,
+>> numpages=<optimized out>, set_mask=<optimized out>, clear_mask=0)
+>>     at ../arch/arm/mm/pageattr.c:61
+>> #2  0xc0231e30 in set_memory_ro (addr=<optimized out>,
+>> numpages=<optimized out>) at ../arch/arm/mm/pageattr.c:70
+>> #3  0xc02fd5b4 in frob_rodata (layout=<optimized out>,
+>> set_memory=0xbf006000) at ../kernel/module.c:1983
+>> #4  0xc02ff4f8 in module_enable_ro (mod=<optimized out>) at
+>> ../kernel/module.c:2011
+>> #5  0xc0301c80 in complete_formation (info=<optimized out>,
+>> mod=<optimized out>) at ../kernel/module.c:3494
+>> #6  load_module (info=0xdb5c3f40, uargs=<optimized out>,
+>> flags=<optimized out>) at ../kernel/module.c:3622
+>> #7  0xc0302120 in SYSC_finit_module (flags=<optimized out>,
+>> uargs=<optimized out>, fd=<optimized out>) at ../kernel/module.c:3741
+>> #8  SyS_finit_module (fd=6, uargs=-1226082716, flags=0) at
+>> ../kernel/module.c:3722
+>> #9  0xc021c140 in arm_elf_read_implies_exec (x=<optimized out>,
+>> executable_stack=-1090494464) at ../arch/arm/kernel/elf.c:90
+>> #10 0x00000006 in __vectors_start ()
+>> Backtrace stopped: previous frame inner to this frame (corrupt stack?)
+>>
+>> 07.03.2016 14:14, Matwey V. Kornilov D?D,N?DuN?:
+>>>
+>>> Hello,
+>>>
+>>> I see the following when try to boot 4.5.0-rc6 on ARM TI AM33xx based board.
+>>>
+>>>     [   13.907631] ------------[ cut here ]------------
+>>>     [   13.912323] kernel BUG at ../mm/memory.c:1879!
+>>>     [   13.916795] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+>>>     [   13.922663] Modules linked in:
+>>>     [   13.925761] CPU: 0 PID: 242 Comm: systemd-udevd Not tainted 4.5.0-rc6-3.ga55dde2-default #1
+>>>     [   13.934153] Hardware name: Generic AM33XX (Flattened Device Tree)
+>>>     [   13.940281] task: c2da2040 ti: c2db4000 task.ti: c2db4000
+>>>     [   13.945738] PC is at apply_to_page_range+0x23c/0x240
+>>>     [   13.950741] LR is at change_memory_common+0x94/0xe0
+>>>     [   13.955648] pc : [<c03b333c>]    lr : [<c0231dc4>]    psr: 60010013
+>>>     [   13.955648] sp : c2db5d88  ip : c2db5dd8  fp : c2db5dd4
+>>>     [   13.967182] r10: bf002080  r9 : c2db5de8  r8 : c0231cec
+>>>     [   13.972434] r7 : bf002180  r6 : bf006000  r5 : bf006000  r4 : bf006000
+>>>     [   13.978995] r3 : c0231cec  r2 : bf006000  r1 : bf006000  r0 : c11d3190
+>>>     [   13.985559] Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+>>>     [   13.992732] Control: 10c5387d  Table: 82dc0019  DAC: 00000055
+>>>     [   13.998509] Process systemd-udevd (pid: 242, stack limit = 0xc2db4220)
+>>>     [   14.005070] Stack: (0xc2db5d88 to 0xc2db6000)
+>>>     [   14.009457] 5d80:                   bf005fff c11d3190 c11d3190 00000001 c1187dc4 c136c540
+>>>     [   14.017682] 5da0: bf006000 c11d3190 c2db5dd4 bf006000 00000000 bf006000 bf002180 00000000
+>>>     [   14.025907] 5dc0: c118350c bf002080 c2db5e14 c2db5dd8 c0231dc4 c03b310c c2db5de8 0000000c
+>>>     [   14.034130] 5de0: c2db5dfc c2db5df0 00000080 00000000 c2db5e4c c0231e10 bf0021ac bf002180
+>>>     [   14.042355] 5e00: bf002180 bf0021ac c2db5e24 c2db5e18 c0231e30 c0231d3c c2db5e3c c2db5e28
+>>>     [   14.050579] 5e20: c02fd5b4 c0231e1c c0231e10 bf0021ac c2db5e5c c2db5e40 c02ff4f8 c02fd568
+>>>     [   14.058802] 5e40: 00000001 bf00208c c2db5f40 bf002180 c2db5f34 c2db5e60 c0301c80 c02ff4ac
+>>>     [   14.067025] 5e60: bf002080 c042d74c 00000000 00000000 bf000000 c118350c c0b359cc 00000000
+>>>     [   14.075250] 5e80: bf00208c c118350c bf003000 c2db5ea0 bf002190 bf00208c 000014e4 00000000
+>>>     [   14.083473] 5ea0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+>>>     [   14.091695] 5ec0: 00000000 00000000 6e72656b 00006c65 00000000 00000000 00000000 00000000
+>>>     [   14.099918] 5ee0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+>>>     [   14.108143] 5f00: 00000000 dc8ba700 00000010 00000000 00000006 b6e73664 0000017b c021c308
+>>>     [   14.116367] 5f20: c2db4000 00000000 c2db5fa4 c2db5f38 c0302120 c03009ac 00000002 00000000
+>>>     [   14.124590] 5f40: d0851000 000014e4 d0851f0c d085180b d0851ca4 00003000 00003110 00000000
+>>>     [   14.132814] 5f60: 00000000 00000000 00001538 0000001b 0000001c 00000014 00000011 0000000d
+>>>     [   14.141036] 5f80: 00000000 00000000 00000000 7f611780 00000000 00000000 00000000 c2db5fa8
+>>>     [   14.149259] 5fa0: c021c140 c0302090 7f611780 00000000 00000006 b6e73664 00000000 7f611830
+>>>     [   14.157484] 5fc0: 7f611780 00000000 00000000 0000017b 00000000 00000000 00020000 80a76238
+>>>     [   14.165707] 5fe0: be8c8058 be8c8048 b6e69de0 b6d8db40 60010010 00000006 45145044 91104437
+>>>     [   14.173957] [<c03b333c>] (apply_to_page_range) from [<c0231dc4>] (change_memory_common+0x94/0xe0)
+>>>     [   14.182888] [<c0231dc4>] (change_memory_common) from [<c0231e30>] (set_memory_ro+0x20/0x28)
+>>>     [   14.191307] [<c0231e30>] (set_memory_ro) from [<c02fd5b4>] (frob_rodata+0x58/0x6c)
+>>>     [   14.198930] [<c02fd5b4>] (frob_rodata) from [<c02ff4f8>] (module_enable_ro+0x58/0x60)
+>>>     [   14.206811] [<c02ff4f8>] (module_enable_ro) from [<c0301c80>] (load_module+0x12e0/0x1548)
+>>>     [   14.215039] [<c0301c80>] (load_module) from [<c0302120>] (SyS_finit_module+0x9c/0xd8)
+>>>     [   14.222920] [<c0302120>] (SyS_finit_module) from [<c021c140>] (ret_fast_syscall+0x0/0x34)
+>>>     [   14.231148] Code: e3500000 1afffff4 e51a3008 eaffffe5 (e7f001f2)
+>>>     [   14.237282] ---[ end trace e25b4430ecf4fcdd ]---
+>>>
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
