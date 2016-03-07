@@ -1,82 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E301C6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 16:27:42 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id fz5so118320829obc.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 13:27:42 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i5si13305750obh.19.2016.03.07.13.27.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 13:27:42 -0800 (PST)
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F20F6B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 16:34:06 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id 124so87410260pfg.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 13:34:06 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id q136si31319100pfq.209.2016.03.07.13.34.05
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 13:34:05 -0800 (PST)
+Date: Mon, 07 Mar 2016 16:34:01 -0500 (EST)
+Message-Id: <20160307.163401.1082539079648850099.davem@davemloft.net>
 Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
  (ADI)
-References: <56DD9949.1000106@oracle.com>
- <20160307.115626.807716799249471744.davem@davemloft.net>
- <56DDC2B6.6020009@oracle.com>
- <20160307.140915.1323031236840000210.davem@davemloft.net>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <56DDF22D.9090102@oracle.com>
-Date: Mon, 7 Mar 2016 14:27:09 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160307.140915.1323031236840000210.davem@davemloft.net>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <56DDF22D.9090102@oracle.com>
+References: <56DDC2B6.6020009@oracle.com>
+	<20160307.140915.1323031236840000210.davem@davemloft.net>
+	<56DDF22D.9090102@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
+To: khalid.aziz@oracle.com
 Cc: corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, rob.gardner@oracle.com, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On 03/07/2016 12:09 PM, David Miller wrote:
-> From: Khalid Aziz <khalid.aziz@oracle.com>
-> Date: Mon, 7 Mar 2016 11:04:38 -0700
->
->> On 03/07/2016 09:56 AM, David Miller wrote:
->>> From: Khalid Aziz <khalid.aziz@oracle.com>
->>> Date: Mon, 7 Mar 2016 08:07:53 -0700
->>>
->>>> PR_GET_SPARC_ADICAPS
->>>
->>> Put this into a new ELF auxiliary vector entry via ARCH_DLINFO.
->>>
->>> So now all that's left is supposedly the TAG stuff, please explain
->>> that to me so I can direct you to the correct existing interface to
->>> provide that as well.
->>>
->>> Really, try to avoid prtctl, it's poorly typed and almost worse than
->>> ioctl().
->>>
->>
->> The two remaining operations I am looking at are:
->>
->> 1. Is PSTATE.mcde bit set for the process? PR_SET_SPARC_ADI provides
->> this in its return value in the patch I sent.
->
-> Unnecessary.  If any ADI mappings exist then mcde is set, otherwise it is
-> clear.  This is internal state and the application has no need to every
-> set nor query it.
->
-> It is implicit from the mprotect() calls the user makes to enable ADI
-> regions.
->
->> 2. Is TTE.mcd set for a given virtual address? PR_GET_SPARC_ADI_STATUS
->> provides this function in the patch I sent.
->
-> Again, implied by the mprotect() calls.
->
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Date: Mon, 7 Mar 2016 14:27:09 -0700
 
-Hi Dave,
+> I agree with your point of view. PSTATE.mcde and TTE.mcd are set in
+> response to request from userspace. If userspace asked for them to be
+> set, they already know but it was the database guys that asked for
+> these two functions and they are the primary customers for the ADI
+> feature. I am not crazy about this idea since this extends the
+> mprotect API even further but would you consider using the return
+> value from mprotect to indicate if PSTATE.mcde or TTE.mcd were already
+> set on the given address?
 
-I agree with your point of view. PSTATE.mcde and TTE.mcd are set in 
-response to request from userspace. If userspace asked for them to be 
-set, they already know but it was the database guys that asked for these 
-two functions and they are the primary customers for the ADI feature. I 
-am not crazy about this idea since this extends the mprotect API even 
-further but would you consider using the return value from mprotect to 
-indicate if PSTATE.mcde or TTE.mcd were already set on the given address?
+Well, that's the idea.
 
-Thanks,
-Khalid
+If the mprotect using MAP_ADI or whatever succeeds, then ADI is
+enabled.
+
+Users can thus also pass MAP_ADI as a flag to mmap() to get ADI
+protection from the very beginning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
