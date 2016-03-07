@@ -1,46 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 763AC6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 17:18:10 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fl4so85645170pad.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:18:10 -0800 (PST)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id rr7si6062548pab.223.2016.03.07.14.18.09
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E13F86B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 17:31:07 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id bj10so86377995pad.2
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:31:07 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id q190si31610211pfq.247.2016.03.07.14.31.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 14:18:09 -0800 (PST)
-Received: by mail-pf0-x229.google.com with SMTP id 124so88032275pfg.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 14:18:09 -0800 (PST)
-Date: Mon, 7 Mar 2016 14:18:07 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/hugetlb: use EOPNOTSUPP in hugetlb sysctl handlers
-In-Reply-To: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
-Message-ID: <alpine.DEB.2.10.1603071417570.18158@chino.kir.corp.google.com>
-References: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
+        Mon, 07 Mar 2016 14:31:07 -0800 (PST)
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+References: <56DDC2B6.6020009@oracle.com>
+ <20160307.140915.1323031236840000210.davem@davemloft.net>
+ <56DDF22D.9090102@oracle.com>
+ <20160307.163401.1082539079648850099.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <56DE00FF.1080807@oracle.com>
+Date: Mon, 7 Mar 2016 15:30:23 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160307.163401.1082539079648850099.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com
+To: David Miller <davem@davemloft.net>
+Cc: corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, rob.gardner@oracle.com, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Thu, 3 Mar 2016, Jan Stancek wrote:
+On 03/07/2016 02:34 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Mon, 7 Mar 2016 14:27:09 -0700
+>
+>> I agree with your point of view. PSTATE.mcde and TTE.mcd are set in
+>> response to request from userspace. If userspace asked for them to be
+>> set, they already know but it was the database guys that asked for
+>> these two functions and they are the primary customers for the ADI
+>> feature. I am not crazy about this idea since this extends the
+>> mprotect API even further but would you consider using the return
+>> value from mprotect to indicate if PSTATE.mcde or TTE.mcd were already
+>> set on the given address?
+>
+> Well, that's the idea.
+>
+> If the mprotect using MAP_ADI or whatever succeeds, then ADI is
+> enabled.
+>
+> Users can thus also pass MAP_ADI as a flag to mmap() to get ADI
+> protection from the very beginning.
+>
 
-> Replace ENOTSUPP with EOPNOTSUPP. If hugepages are not supported,
-> this value is propagated to userspace. EOPNOTSUPP is part of uapi
-> and is widely supported by libc libraries.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-> 
-> Signed-off-by: Jan Stancek <jstancek@redhat.com>
+MAP_ADI has been sitting in my backlog for some time. Looks like you 
+just raised its priority ;)
 
-Acked-by: David Rientjes <rientjes@google.com>
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
