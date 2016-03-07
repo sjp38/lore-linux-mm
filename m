@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CADE46B0253
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 11:08:43 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id p65so114648443wmp.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 08:08:43 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id e129si15042961wmd.1.2016.03.07.08.08.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 08:08:41 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id l68so11582140wml.3
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 08:08:41 -0800 (PST)
-Date: Mon, 7 Mar 2016 17:08:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, oom: protect !costly allocations some more (was: Re:
- [PATCH 0/3] OOM detection rework v4)
-Message-ID: <20160307160838.GB5028@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160229210213.GX16930@dhcp22.suse.cz>
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 60E796B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 11:45:27 -0500 (EST)
+Received: by mail-pf0-f177.google.com with SMTP id 129so38427938pfw.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 08:45:27 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id l9si29869191pfb.158.2016.03.07.08.45.26
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 08:45:26 -0800 (PST)
+Date: Mon, 07 Mar 2016 11:45:21 -0500 (EST)
+Message-Id: <20160307.114521.1646726145228714690.davem@davemloft.net>
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <56DD9949.1000106@oracle.com>
+References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
+	<20160305.230702.1325379875282120281.davem@davemloft.net>
+	<56DD9949.1000106@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: khalid.aziz@oracle.com
+Cc: corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, zhenzhang.zhang@huawei.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, rob.gardner@oracle.com, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Mon 29-02-16 22:02:13, Michal Hocko wrote:
-> Andrew,
-> could you queue this one as well, please? This is more a band aid than a
-> real solution which I will be working on as soon as I am able to
-> reproduce the issue but the patch should help to some degree at least.
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Date: Mon, 7 Mar 2016 08:07:53 -0700
 
-Joonsoo wasn't very happy about this approach so let me try a different
-way. What do you think about the following? Hugh, Sergey does it help
-for your load? I have tested it with the Hugh's load and there was no
-major difference from the previous testing so at least nothing has blown
-up as I am not able to reproduce the issue here.
+> I can remove CONFIG_SPARC_ADI. It does mean this code will be built
+> into 32-bit kernels as well but it will be inactive code.
 
-Other changes in the compaction are still needed but I would like to not
-depend on them right now.
----
+The code should be built only into obj-$(CONFIG_SPARC64) just like the
+rest of the 64-bit specific code.  I don't know why in the world you
+would build it into the 32-bit kernel.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
