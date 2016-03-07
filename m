@@ -1,166 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8E06B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 03:16:08 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l68so97300828wml.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 00:16:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 131si12765558wmg.123.2016.03.07.00.16.06
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id ECD8F6B0254
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 03:18:37 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id ts10so99260938obc.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 00:18:37 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id og10si10786513obb.45.2016.03.07.00.18.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Mar 2016 00:16:06 -0800 (PST)
-Date: Mon, 7 Mar 2016 09:16:03 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm,oom: Do not sleep with oom_lock held.
-Message-ID: <20160307081603.GA29372@dhcp22.suse.cz>
-References: <201603031941.CBC81272.OtLMSFVOFJHOFQ@I-love.SAKURA.ne.jp>
- <20160304160519.GG31257@dhcp22.suse.cz>
- <201603052337.EHH60964.VLJMHFQSFOOtFO@I-love.SAKURA.ne.jp>
+        Mon, 07 Mar 2016 00:18:37 -0800 (PST)
+Subject: Re: Suspicious error for CMA stress test
+References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+ <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE>
+ <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com>
+ <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com>
+ <20160307043442.GB24602@js1304-P5Q-DELUXE>
+From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
+Message-ID: <56DD38E7.3050107@huawei.com>
+Date: Mon, 7 Mar 2016 16:16:39 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201603052337.EHH60964.VLJMHFQSFOOtFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160307043442.GB24602@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>
+Cc: Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sat 05-03-16 23:37:14, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 03-03-16 19:42:00, Tetsuo Handa wrote:
-> > > Michal, before we think about whether to add preempt_disable()/preempt_enable_no_resched()
-> > > to oom_kill_process(), will you accept this patch?
-> > > This is one of problems which annoy kmallocwd patch on CONFIG_PREEMPT_NONE=y kernels.
-> > 
-> > I dunno. It makes the code worse and it doesn't solve the underlying
-> > problem (have a look at OOM notifiers which are blockable). Also
-> > !PREEMPT only solution doesn't sound very useful as most of the
-> > configurations will have PREEMPT enabled. I agree that having the OOM
-> > killer preemptible is far from ideal, though, but this is harder than
-> > just this sleep. Long term we should focus on making the oom context
-> > not preemptible.
-> > 
+
+
+On 2016/3/7 12:34, Joonsoo Kim wrote:
+> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
+>> On 2016/3/4 14:38, Joonsoo Kim wrote:
+>>> On Fri, Mar 04, 2016 at 02:05:09PM +0800, Hanjun Guo wrote:
+>>>> On 2016/3/4 12:32, Joonsoo Kim wrote:
+>>>>> On Fri, Mar 04, 2016 at 11:02:33AM +0900, Joonsoo Kim wrote:
+>>>>>> On Thu, Mar 03, 2016 at 08:49:01PM +0800, Hanjun Guo wrote:
+>>>>>>> On 2016/3/3 15:42, Joonsoo Kim wrote:
+>>>>>>>> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+>>>>>>>>> (cc -mm and Joonsoo Kim)
+>>>>>>>>>
+>>>>>>>>>
+>>>>>>>>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+>>>>>>>>>> Hi,
+>>>>>>>>>>
+>>>>>>>>>> I came across a suspicious error for CMA stress test:
+>>>>>>>>>>
+>>>>>>>>>> Before the test, I got:
+>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>>>>>>>>> CmaTotal:         204800 kB
+>>>>>>>>>> CmaFree:          195044 kB
+>>>>>>>>>>
+>>>>>>>>>>
+>>>>>>>>>> After running the test:
+>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>>>>>>>>> CmaTotal:         204800 kB
+>>>>>>>>>> CmaFree:         6602584 kB
+>>>>>>>>>>
+>>>>>>>>>> So the freed CMA memory is more than total..
+>>>>>>>>>>
+>>>>>>>>>> Also the the MemFree is more than mem total:
+>>>>>>>>>>
+>>>>>>>>>> -bash-4.3# cat /proc/meminfo
+>>>>>>>>>> MemTotal:       16342016 kB
+>>>>>>>>>> MemFree:        22367268 kB
+>>>>>>>>>> MemAvailable:   22370528 kB
+>>>>>>> [...]
+>>>>>>>>> I played with this a bit and can see the same problem. The sanity
+>>>>>>>>> check of CmaFree < CmaTotal generally triggers in
+>>>>>>>>> __move_zone_freepage_state in unset_migratetype_isolate.
+>>>>>>>>> This also seems to be present as far back as v4.0 which was the
+>>>>>>>>> first version to have the updated accounting from Joonsoo.
+>>>>>>>>> Were there known limitations with the new freepage accounting,
+>>>>>>>>> Joonsoo?
+>>>>>>>> I don't know. I also played with this and looks like there is
+>>>>>>>> accounting problem, however, for my case, number of free page is slightly less
+>>>>>>>> than total. I will take a look.
+>>>>>>>>
+>>>>>>>> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+>>>>>>>> look like your case.
+>>>>>>> I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
+>>>>>>> did some other test:
+>>>>>> Thanks! Now, I can re-generate erronous situation you mentioned.
+>>>>>>
+>>>>>>>  - run with single thread with 100000 times, everything is fine.
+>>>>>>>
+>>>>>>>  - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
+>>>>>>>    the same test with 100 multi-thread, then I got:
+>>>>>> [1] would not be sufficient to close this race.
+>>>>>>
+>>>>>> Try following things [A]. And, for more accurate test, I changed code a bit more
+>>>>>> to prevent kernel page allocation from cma area [B]. This will prevent kernel
+>>>>>> page allocation from cma area completely so we can focus cma_alloc/release race.
+>>>>>>
+>>>>>> Although, this is not correct fix, it could help that we can guess
+>>>>>> where the problem is.
+>>>>> More correct fix is something like below.
+>>>>> Please test it.
+>>>> Hmm, this is not working:
+>>> Sad to hear that.
+>>>
+>>> Could you tell me your system's MAX_ORDER and pageblock_order?
+>>>
+>>
+>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
 > 
-> I think we are holding oom_lock inappropriately.
+> Hmm... that's same with me.
 > 
->   /**
->    * mark_oom_victim - mark the given task as OOM victim
->    * @tsk: task to mark
->    *
->    * Has to be called with oom_lock held and never after
->    * oom has been disabled already.
+> Below is similar fix that prevents buddy merging when one of buddy's
+> migrate type, but, not both, is MIGRATE_ISOLATE. In fact, I have
+> no idea why previous fix (more correct fix) doesn't work for you.
+> (It works for me.) But, maybe there is a bug on the fix
+> so I make new one which is more general form. Please test it.
+
+Hi,
+	Hanjun Guo has gone to Tailand on business, so I help him to run this patch. The result
+shows that the count of "CmaFree:" is OK now. But sometimes printed some information as below:
+
+alloc_contig_range: [28500, 28600) PFNs busy
+alloc_contig_range: [28300, 28380) PFNs busy
+
 > 
-> This assumption is not true when lowmemorykiller is used.
-
-To be honest I do not really care about the LMK. It abuses TIF_MEMDIE
-and should be fixed to not do so. I would even go further and rather see
-it go away from the tree completely. It is full of misconseptions and I
-am not sure few fixes will make it work properly.
-
->    */
->   void mark_oom_victim(struct task_struct *tsk)
->   {
->   	WARN_ON(oom_killer_disabled);
->   	/* OOM killer might race with memcg OOM */
->   	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
->   		return;
+> Thanks.
 > 
-> Since both global OOM and memcg OOM hold oom_lock, global OOM and memcg
-> OOM cannot race. Global OOM and memcg OOM can race with lowmemorykiller.
+> ---------->8-------------
+>>From dd41e348572948d70b935fc24f82c096ff0fb417 Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Fri, 4 Mar 2016 13:28:17 +0900
+> Subject: [PATCH] mm/cma: fix race
 > 
-> If we use per memcg oom_lock, we would be able to reduce latency when
-> concurrent memcg OOMs are in progress.
-
-I haven't heard any reports about memcg oom latencies being a
-problem. Moreover the synchronization is more about oom_disable vs. oom.
-
-> I'm wondering why freezing_slow_path() allows TIF_MEMDIE threads to escape from
-> the __refrigerator().
-
-If it didn't you could hide a memory hog into the fridge and livelock
-the system. Feel free to use git blame to find the respective changelog
-which should explain it.
-
-> If the purpose of escaping is to release memory, waiting
-> for existing TIF_MEMDIE threads is not sufficient if an mm is shared by multiple
-> threads. We need to let all threads sharing that mm to escape when we choose an
-> OOM victim. If we can assume that freezer depends on CONFIG_MMU=y, we can reclaim
-> memory using the OOM reaper without setting TIF_MEMDIE. That will get rid of
-> oom_killer_disable() and related exclusion code based on oom_lock.
-
-You are free to send a patch if you believe you can simplify the code.
-But be prepared that this is a land of many subtle issues.
-
-> If we allow dying (SIGKILL pending or PF_EXITING) threads to access some of
-> memory reserves, lowmemorykiller will be able to stop using TIF_MEMDIE.
-
-LMK doesn't need TIF_MEMDIE at all because it kills tasks while there is
-_some_ memory available. It tries to prevent from memory pressure before
-we actually hit the OOM.
-
-> And
-> above assumption becomes always true. Also, since memcg OOMs are less urgent
-> than global OOM, memcg OOMs might be able to stop using TIF_MEMDIE as well.
-
-This is not so easy. Memcg OOM needs to be able to kill a frozen task
-and that is where TIF_MEMDIE is used currently. We also need it for
-synchronization with the freezer and oom_disable
- 
-> Then, only global OOM will use global oom_lock and TIF_MEMDIE. That is, we
-> can offload handling of global OOM to a kernel thread which can run on any
-> CPU with preemption disabled. The oom_lock will become unneeded because only
-> one kernel thread will use it. If we add timestamp field to task_struct or
-> signal_struct for recording when SIGKILL was delivered, we can emit warnings
-> when victims cannot terminate.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  mm/page_alloc.c | 33 +++++++++++++++++++--------------
+>  1 file changed, 19 insertions(+), 14 deletions(-)
 > 
-> I think we are in chicken-and-egg riddle about oom_lock and TIF_MEMDIE.
-
-I am not really sure I see your problem. The lock itself is not the
-biggest problem. If you want to have the OOM killer non-preemptible
-there are different issues to address as I've tried to point out.
-
-> > Anyway, wouldn't this be simpler?
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c6c38ed..d80d071 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -620,8 +620,8 @@ static inline void rmv_page_order(struct page *page)
+>   *
+>   * For recording page's order, we use page_private(page).
+>   */
+> -static inline int page_is_buddy(struct page *page, struct page *buddy,
+> -                                                       unsigned int order)
+> +static inline int page_is_buddy(struct zone *zone, struct page *page,
+> +                               struct page *buddy, unsigned int order)
+>  {
+>         if (!pfn_valid_within(page_to_pfn(buddy)))
+>                 return 0;
+> @@ -644,6 +644,20 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+>                 if (page_zone_id(page) != page_zone_id(buddy))
+>                         return 0;
+>  
+> +               if (IS_ENABLED(CONFIG_CMA) &&
+> +                       unlikely(has_isolate_pageblock(zone)) &&
+> +                       unlikely(order >= pageblock_order)) {
+> +                       int page_mt, buddy_mt;
+> +
+> +                       page_mt = get_pageblock_migratetype(page);
+> +                       buddy_mt = get_pageblock_migratetype(buddy);
+> +
+> +                       if (page_mt != buddy_mt &&
+> +                               (is_migrate_isolate(page_mt) ||
+> +                               is_migrate_isolate(buddy_mt)))
+> +                               return 0;
+> +               }
+> +
+>                 VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+>  
+>                 return 1;
+> @@ -691,17 +705,8 @@ static inline void __free_one_page(struct page *page,
+>         VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+>  
+>         VM_BUG_ON(migratetype == -1);
+> -       if (is_migrate_isolate(migratetype)) {
+> -               /*
+> -                * We restrict max order of merging to prevent merge
+> -                * between freepages on isolate pageblock and normal
+> -                * pageblock. Without this, pageblock isolation
+> -                * could cause incorrect freepage accounting.
+> -                */
+> -               max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+> -       } else {
+> +       if (!is_migrate_isolate(migratetype))
+>                 __mod_zone_freepage_state(zone, 1 << order, migratetype);
+> -       }
+>  
+>         page_idx = pfn & ((1 << max_order) - 1);
+>  
+> @@ -711,7 +716,7 @@ static inline void __free_one_page(struct page *page,
+>         while (order < max_order - 1) {
+>                 buddy_idx = __find_buddy_index(page_idx, order);
+>                 buddy = page + (buddy_idx - page_idx);
+> -               if (!page_is_buddy(page, buddy, order))
+> +               if (!page_is_buddy(zone, page, buddy, order))
+>                         break;
+>                 /*
+>                  * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+> @@ -745,7 +750,7 @@ static inline void __free_one_page(struct page *page,
+>                 higher_page = page + (combined_idx - page_idx);
+>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
+>                 higher_buddy = higher_page + (buddy_idx - combined_idx);
+> -               if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> +               if (page_is_buddy(zone, higher_page, higher_buddy, order + 1)) {
+>                         list_add_tail(&page->lru,
+>                                 &zone->free_area[order].free_list[migratetype]);
+>                         goto out;
 > 
-> Yes, I'm OK with your version.
-> 
-[...]
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 1993894b4219..496498c4c32c 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2888,6 +2881,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-> >  	}
-> >  out:
-> >  	mutex_unlock(&oom_lock);
-> > +	if (*did_some_progress) {
-> 
-> I think this line should be
-> 
-> 	if (*did_some_progress && !page)
-> 
-> because oom_killer_disabled && __GFP_NOFAIL likely makes page != NULL
-
-Yes it doesn't make any sense to sleep when we allocated a page.
- 
-> > +		/*
-> > +		 * Give the killed process a good chance to exit before trying
-> > +		 * to allocate memory again.
-> > +		 */
-> > +		schedule_timeout_killable(1);
-> > +	}
-> 
-> and this closing } is not needed.
-
-I prefer brackets when there is a multi line comment...
-
-> Sleeping when out_of_memory() was not called due to !__GFP_NOFAIL && !__GFP_FS
-> will help somebody else to make a progress for us? (My version did not change it.)
-
-It will throttle the request a bit which shouldn't be of any harm as the
-context hasn't done any progress.
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
