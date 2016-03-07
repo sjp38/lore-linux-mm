@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E796B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 11:45:27 -0500 (EST)
-Received: by mail-pf0-f177.google.com with SMTP id 129so38427938pfw.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 08:45:27 -0800 (PST)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 13AE66B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 11:56:32 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id tt10so19559859pab.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 08:56:32 -0800 (PST)
 Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id l9si29869191pfb.158.2016.03.07.08.45.26
+        by mx.google.com with ESMTP id p87si29936077pfi.228.2016.03.07.08.56.31
         for <linux-mm@kvack.org>;
-        Mon, 07 Mar 2016 08:45:26 -0800 (PST)
-Date: Mon, 07 Mar 2016 11:45:21 -0500 (EST)
-Message-Id: <20160307.114521.1646726145228714690.davem@davemloft.net>
+        Mon, 07 Mar 2016 08:56:31 -0800 (PST)
+Date: Mon, 07 Mar 2016 11:56:26 -0500 (EST)
+Message-Id: <20160307.115626.807716799249471744.davem@davemloft.net>
 Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
  (ADI)
 From: David Miller <davem@davemloft.net>
@@ -28,12 +28,16 @@ Cc: corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, zhenzh
 From: Khalid Aziz <khalid.aziz@oracle.com>
 Date: Mon, 7 Mar 2016 08:07:53 -0700
 
-> I can remove CONFIG_SPARC_ADI. It does mean this code will be built
-> into 32-bit kernels as well but it will be inactive code.
+> PR_GET_SPARC_ADICAPS
 
-The code should be built only into obj-$(CONFIG_SPARC64) just like the
-rest of the 64-bit specific code.  I don't know why in the world you
-would build it into the 32-bit kernel.
+Put this into a new ELF auxiliary vector entry via ARCH_DLINFO.
+
+So now all that's left is supposedly the TAG stuff, please explain
+that to me so I can direct you to the correct existing interface to
+provide that as well.
+
+Really, try to avoid prtctl, it's poorly typed and almost worse than
+ioctl().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
