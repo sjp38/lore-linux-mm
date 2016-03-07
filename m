@@ -1,100 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A80536B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 14:45:25 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id fl4so83605305pad.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 11:45:25 -0800 (PST)
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DA166B0253
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 14:46:33 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id 124so85936092pfg.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 11:46:33 -0800 (PST)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f62si30756719pff.83.2016.03.07.11.45.24
+        by mx.google.com with ESMTPS id r3si30745462pfr.120.2016.03.07.11.46.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 11:45:24 -0800 (PST)
+        Mon, 07 Mar 2016 11:46:32 -0800 (PST)
 Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
  (ADI)
-References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
- <20160305.230702.1325379875282120281.davem@davemloft.net>
- <56DD9949.1000106@oracle.com>
- <20160307.115626.807716799249471744.davem@davemloft.net>
- <56DDC2B6.6020009@oracle.com>
- <CALCETrXN43nT4zq2MpO90VrgK3k+DKHjOHWf7iOhS7TSBmdCPQ@mail.gmail.com>
- <56DDC6E0.4000907@oracle.com>
- <CALCETrU5NCzh3b7We8903G0_Tm-oycgP3+gS9fG+vC_rdgTddw@mail.gmail.com>
+References: <56DDC47C.8010206@linux.intel.com> <56DDCAD3.3090106@oracle.com>
+ <CALCETrVNM7ZcN7WnmLRMDqGrcYXn9xYWJfjMVwFLdiQS63-TcA@mail.gmail.com>
+ <20160307.142245.846579748692522977.davem@davemloft.net>
 From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <56DDDA31.9090105@oracle.com>
-Date: Mon, 7 Mar 2016 12:44:49 -0700
+Message-ID: <56DDDA78.2070106@oracle.com>
+Date: Mon, 7 Mar 2016 12:46:00 -0700
 MIME-Version: 1.0
-In-Reply-To: <CALCETrU5NCzh3b7We8903G0_Tm-oycgP3+gS9fG+vC_rdgTddw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20160307.142245.846579748692522977.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Rob Gardner <rob.gardner@oracle.com>, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Benjamin Segall <bsegall@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: David Miller <davem@davemloft.net>, luto@amacapital.net
+Cc: dave.hansen@linux.intel.com, rob.gardner@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On 03/07/2016 11:49 AM, Andy Lutomirski wrote:
-> On Mon, Mar 7, 2016 at 10:22 AM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
->> No, it changes the tag associated with the virtual address for the caller.
->> Physical page backing this virtual address is unaffected. Tag checking is
->> done for virtual addresses. The one restriction where physical address is
->> relevant is when two processes map the same physical page, they both have to
->> use the same tag for the virtual addresses that map on to the shared
->> physical pages.
->
-> Slow down, please.  *Why* do the tags for two different VAs that map
-> to the same PA have to match?  What goes wrong if they don't, and why
-> is requiring them to be the same a good idea?
+On 03/07/2016 12:22 PM, David Miller wrote:
+> Khalid, maybe you should share notes with the folks working on x86
+> protection keys.
 >
 
-Consider this scenario:
+Good idea. Sparc ADI feature is indeed similar to x86 protection keys 
+sounds like.
 
-1. Process A creates a shm and attaches to it.
-2. Process A fills shm with data it wants to share with only known 
-processes. It enables ADI and sets tags on the shm.
-3. Hacker triggers something like stack overflow on process A, exec's a 
-new rogue binary and manages to attach to this shm. MMU knows tags were 
-set on the virtual address mapping to the physical pages hosting the 
-shm. If MMU does not require the rogue process to set the exact same 
-tags on its mapping of the same shm, rogue process has defeated the ADI 
-protection easily.
-
-Does this make sense?
-
->>
->>>
->>> I sense DoS issues in your future.
->>>
->>
->> Are you concerned about DoS even if the tag is associated with virtual
->> address, not physical address?
->
-> Yes, absolutely.
->
-> fd = open("/lib/ld.so");
-> mmap(fd)
-> stxa to write the tag
->
-> *boom*, presumably, because the tags apparently have to match for all mappings.
->
-
-A process can not just write version tags and make the file inaccessible 
-to others. It takes three steps to enable ADI:
-
-1. Set PSTATE.mcde for the process.
-2. Set TTE.mcd on all PTEs for the virtual addresses ADI is being 
-enabled on.
-3. Set version tags.
-
-Unless all three steps are taken, tag checking will not be done. stxa 
-will fail unless step 2 is completed. In your example, the step of 
-setting TTE.mcd will force sharing to stop for the process through 
-change_protection(), right?
-
-Thanks for asking these tough questions. These are very helpful in 
-refining my implementation and avoiding silly bugs.
-
---
+Thanks,
 Khalid
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
