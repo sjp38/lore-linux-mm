@@ -1,70 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EEDC6B0005
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2016 22:00:34 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id ig19so9685667igb.1
-        for <linux-mm@kvack.org>; Sun, 06 Mar 2016 19:00:34 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id u23si3293406ioi.14.2016.03.06.19.00.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Mar 2016 19:00:33 -0800 (PST)
-Message-ID: <1457319627.19197.1.camel@ellerman.id.au>
-Subject: Re: Problems with swapping in v4.5-rc on POWER
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Mon, 07 Mar 2016 14:00:27 +1100
-In-Reply-To: <alpine.LSU.2.11.1603040948250.5477@eggly.anvils>
-References: <alpine.LSU.2.11.1602241716220.15121@eggly.anvils>
-	 <877fhttmr1.fsf@linux.vnet.ibm.com>
-	 <alpine.LSU.2.11.1602242136270.6876@eggly.anvils>
-	 <alpine.LSU.2.11.1602251322130.8063@eggly.anvils>
-	 <alpine.LSU.2.11.1602260157430.10399@eggly.anvils>
-	 <alpine.LSU.2.11.1603021226300.31251@eggly.anvils>
-	 <1456984266.28236.1.camel@ellerman.id.au>
-	 <alpine.LSU.2.11.1603040948250.5477@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 649DF6B0005
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2016 23:20:19 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id ig19so10518008igb.1
+        for <linux-mm@kvack.org>; Sun, 06 Mar 2016 20:20:19 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id w6si10406519igz.60.2016.03.06.20.20.17
+        for <linux-mm@kvack.org>;
+        Sun, 06 Mar 2016 20:20:18 -0800 (PST)
+Date: Mon, 7 Mar 2016 13:20:55 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v4 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20160307042054.GA24602@js1304-P5Q-DELUXE>
+References: <1456448282-897-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1456448282-897-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <56D71BB2.5060503@suse.cz>
+ <CAAmzW4NwhSKw432qw0Ry+gi=yGpRU-MtC-zQGL27o+XEawLKrg@mail.gmail.com>
+ <20160304120439.a38a15e0fe5b989fe5b8edfc@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160304120439.a38a15e0fe5b989fe5b8edfc@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Mackerras <paulus@ozlabs.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-On Fri, 2016-03-04 at 09:58 -0800, Hugh Dickins wrote:
+On Fri, Mar 04, 2016 at 12:04:39PM -0800, Andrew Morton wrote:
+> On Thu, 3 Mar 2016 16:43:49 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
 > 
-> The alternative bisection was as unsatisfactory as the first:
-> again it fingered an irrelevant merge (rather than any commit
-> pulled in by that merge) as the bad commit.
+> > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > >
+> > >> +config DEBUG_PAGE_REF
+> > >> +       bool "Enable tracepoint to track down page reference manipulation"
+> > >> +       depends on DEBUG_KERNEL
+> > >> +       depends on TRACEPOINTS
+> > >> +       ---help---
+> > >> +         This is the feature to add tracepoint for tracking down page
+> > >> reference
+> > >> +         manipulation. This tracking is useful to diagnosis functional
+> > >> failure
+> > >> +         due to migration failure caused by page reference mismatch. Be
+> > >
+> > >
+> > > OK.
+> > >
+> > >> +         careful to turn on this feature because it could bloat some
+> > >> kernel
+> > >> +         text. In my configuration, it bloats 30 KB. Although kernel text
+> > >> will
+> > >> +         be bloated, there would be no runtime performance overhead if
+> > >> +         tracepoint isn't enabled thanks to jump label.
+> > >
+> > >
+> > > I would just write something like:
+> > >
+> > > Enabling this feature adds about 30 KB to the kernel code, but runtime
+> > > performance overhead is virtually none until the tracepoints are actually
+> > > enabled.
+> > 
+> > Okay, better!
+> > Andrew, do you want fixup patch from me or could you simply handle it?
+> > 
 > 
-> It seems this issue is too intermittent for bisection to be useful,
-> on my load anyway.
+> This?
 
-Darn. Thanks for trying.
+Yep!
 
-> The best I can do now is try v4.4 for a couple of days, to verify that
-> still comes out good (rather than the machine going bad coincident with
-> v4.5-rc), then try v4.5-rc7 to verify that that still comes out bad.
+Thanks!
 
-Thanks, that would still be helpful.
-
-> I'll report back on those; but beyond that, I'll have to leave it to you.
-
-I haven't had any luck here :/
-
-Can you give us a more verbose description of your test setup?
-
- - G5, which exact model?
- - 4k pages, no THP.
- - how much ram & swap?
- - building linus' tree, make -j ?
- - source and output on tmpfs? (how big?)
- - what device is the swap device? (you said SSD I think?)
- - anything else I've forgotten?
-
-Oh and can you send us your bisect logs, we can at least trust the bad results
-I think.
-
-cheers
+> 
+> --- a/mm/Kconfig.debug~mm-page_ref-add-tracepoint-to-track-down-page-reference-manipulation-fix-3-fix
+> +++ a/mm/Kconfig.debug
+> @@ -82,10 +82,9 @@ config DEBUG_PAGE_REF
+>  	depends on DEBUG_KERNEL
+>  	depends on TRACEPOINTS
+>  	---help---
+> -	  This is the feature to add tracepoint for tracking down page reference
+> -	  manipulation. This tracking is useful to diagnosis functional failure
+> -	  due to migration failure caused by page reference mismatch. Be
+> -	  careful to turn on this feature because it could bloat some kernel
+> -	  text. In my configuration, it bloats 30 KB. Although kernel text will
+> -	  be bloated, there would be no runtime performance overhead if
+> -	  tracepoint isn't enabled thanks to jump label.
+> +	  This is a feature to add tracepoint for tracking down page reference
+> +	  manipulation. This tracking is useful to diagnose functional failure
+> +	  due to migration failures caused by page reference mismatches.  Be
+> +	  careful when enabling this feature because it adds about 30 KB to the
+> +	  kernel code.  However the runtime performance overhead is virtually
+> +	  nil until the tracepoints are actually enabled.
+> _
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
