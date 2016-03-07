@@ -1,108 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 35E9F6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 01:49:39 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id tt10so11338141pab.3
-        for <linux-mm@kvack.org>; Sun, 06 Mar 2016 22:49:39 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id qp8si987230pac.244.2016.03.06.22.49.38
-        for <linux-mm@kvack.org>;
-        Sun, 06 Mar 2016 22:49:38 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Date: Mon, 7 Mar 2016 06:49:19 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
- <20160304081411.GD9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <20160304163246-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
- <20160305214748-mutt-send-email-mst@redhat.com>
-In-Reply-To: <20160305214748-mutt-send-email-mst@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D8E06B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 03:16:08 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so97300828wml.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 00:16:08 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 131si12765558wmg.123.2016.03.07.00.16.06
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Mar 2016 00:16:06 -0800 (PST)
+Date: Mon, 7 Mar 2016 09:16:03 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm,oom: Do not sleep with oom_lock held.
+Message-ID: <20160307081603.GA29372@dhcp22.suse.cz>
+References: <201603031941.CBC81272.OtLMSFVOFJHOFQ@I-love.SAKURA.ne.jp>
+ <20160304160519.GG31257@dhcp22.suse.cz>
+ <201603052337.EHH60964.VLJMHFQSFOOtFO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201603052337.EHH60964.VLJMHFQSFOOtFO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-> > No. And it's exactly what I mean. The ballooned memory is still
-> > processed during live migration without skipping. The live migration co=
-de is
-> in migration/ram.c.
->=20
-> So if guest acknowledged VIRTIO_BALLOON_F_MUST_TELL_HOST, we can
-> teach qemu to skip these pages.
-> Want to write a patch to do this?
->=20
+On Sat 05-03-16 23:37:14, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 03-03-16 19:42:00, Tetsuo Handa wrote:
+> > > Michal, before we think about whether to add preempt_disable()/preempt_enable_no_resched()
+> > > to oom_kill_process(), will you accept this patch?
+> > > This is one of problems which annoy kmallocwd patch on CONFIG_PREEMPT_NONE=y kernels.
+> > 
+> > I dunno. It makes the code worse and it doesn't solve the underlying
+> > problem (have a look at OOM notifiers which are blockable). Also
+> > !PREEMPT only solution doesn't sound very useful as most of the
+> > configurations will have PREEMPT enabled. I agree that having the OOM
+> > killer preemptible is far from ideal, though, but this is harder than
+> > just this sleep. Long term we should focus on making the oom context
+> > not preemptible.
+> > 
+> 
+> I think we are holding oom_lock inappropriately.
+> 
+>   /**
+>    * mark_oom_victim - mark the given task as OOM victim
+>    * @tsk: task to mark
+>    *
+>    * Has to be called with oom_lock held and never after
+>    * oom has been disabled already.
+> 
+> This assumption is not true when lowmemorykiller is used.
 
-Yes, we really can teach qemu to skip these pages and it's not hard. =20
-The problem is the poor performance, this PV solution is aimed to make it m=
-ore
-efficient and reduce the performance impact on guest.
+To be honest I do not really care about the LMK. It abuses TIF_MEMDIE
+and should be fixed to not do so. I would even go further and rather see
+it go away from the tree completely. It is full of misconseptions and I
+am not sure few fixes will make it work properly.
 
-> > >
-> > > > > > The only advantage of ' inflating the balloon before live
-> > > > > > migration' is simple,
-> > > > > nothing more.
-> > > > >
-> > > > > That's a big advantage.  Another one is that it does something
-> > > > > useful in real- world scenarios.
-> > > > >
-> > > >
-> > > > I don't think the heave performance impaction is something useful
-> > > > in real
-> > > world scenarios.
-> > > >
-> > > > Liang
-> > > > > Roman.
-> > >
-> > > So fix the performance then. You will have to try harder if you want
-> > > to convince people that the performance is due to bad host/guest
-> > > interface, and so we have to change *that*.
-> > >
-> >
-> > Actually, the PV solution is irrelevant with the balloon mechanism, I
-> > just use it to transfer information between host and guest.
-> > I am not sure if I should implement a new virtio device, and I want to
-> > get the answer from the community.
-> > In this RFC patch, to make things simple, I choose to extend the
-> > virtio-balloon and use the extended interface to transfer the request a=
-nd
-> free_page_bimap content.
-> >
-> > I am not intend to change the current virtio-balloon implementation.
-> >
-> > Liang
->=20
-> And the answer would depend on the answer to my question above.
-> Does balloon need an interface passing page bitmaps around?
+>    */
+>   void mark_oom_victim(struct task_struct *tsk)
+>   {
+>   	WARN_ON(oom_killer_disabled);
+>   	/* OOM killer might race with memcg OOM */
+>   	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+>   		return;
+> 
+> Since both global OOM and memcg OOM hold oom_lock, global OOM and memcg
+> OOM cannot race. Global OOM and memcg OOM can race with lowmemorykiller.
+> 
+> If we use per memcg oom_lock, we would be able to reduce latency when
+> concurrent memcg OOMs are in progress.
 
-Yes, I need a new interface.
+I haven't heard any reports about memcg oom latencies being a
+problem. Moreover the synchronization is more about oom_disable vs. oom.
 
-> Does this speed up any operations?
+> I'm wondering why freezing_slow_path() allows TIF_MEMDIE threads to escape from
+> the __refrigerator().
 
-No, a new interface will not speed up anything, but it is the easiest way t=
-o solve the compatibility issue.
+If it didn't you could hide a memory hog into the fridge and livelock
+the system. Feel free to use git blame to find the respective changelog
+which should explain it.
 
-> OTOH what if you use the regular balloon interface with your patches?
->
+> If the purpose of escaping is to release memory, waiting
+> for existing TIF_MEMDIE threads is not sufficient if an mm is shared by multiple
+> threads. We need to let all threads sharing that mm to escape when we choose an
+> OOM victim. If we can assume that freezer depends on CONFIG_MMU=y, we can reclaim
+> memory using the OOM reaper without setting TIF_MEMDIE. That will get rid of
+> oom_killer_disable() and related exclusion code based on oom_lock.
 
-The regular balloon interfaces have their specific function and I can't use=
- them in my patches.
-If using these regular interface, I have to do a lot of changes to keep the=
- compatibility.=20
+You are free to send a patch if you believe you can simplify the code.
+But be prepared that this is a land of many subtle issues.
 
->=20
-> > > --
-> > > MST
+> If we allow dying (SIGKILL pending or PF_EXITING) threads to access some of
+> memory reserves, lowmemorykiller will be able to stop using TIF_MEMDIE.
+
+LMK doesn't need TIF_MEMDIE at all because it kills tasks while there is
+_some_ memory available. It tries to prevent from memory pressure before
+we actually hit the OOM.
+
+> And
+> above assumption becomes always true. Also, since memcg OOMs are less urgent
+> than global OOM, memcg OOMs might be able to stop using TIF_MEMDIE as well.
+
+This is not so easy. Memcg OOM needs to be able to kill a frozen task
+and that is where TIF_MEMDIE is used currently. We also need it for
+synchronization with the freezer and oom_disable
+ 
+> Then, only global OOM will use global oom_lock and TIF_MEMDIE. That is, we
+> can offload handling of global OOM to a kernel thread which can run on any
+> CPU with preemption disabled. The oom_lock will become unneeded because only
+> one kernel thread will use it. If we add timestamp field to task_struct or
+> signal_struct for recording when SIGKILL was delivered, we can emit warnings
+> when victims cannot terminate.
+> 
+> I think we are in chicken-and-egg riddle about oom_lock and TIF_MEMDIE.
+
+I am not really sure I see your problem. The lock itself is not the
+biggest problem. If you want to have the OOM killer non-preemptible
+there are different issues to address as I've tried to point out.
+
+> > Anyway, wouldn't this be simpler?
+> 
+> Yes, I'm OK with your version.
+> 
+[...]
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 1993894b4219..496498c4c32c 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2888,6 +2881,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+> >  	}
+> >  out:
+> >  	mutex_unlock(&oom_lock);
+> > +	if (*did_some_progress) {
+> 
+> I think this line should be
+> 
+> 	if (*did_some_progress && !page)
+> 
+> because oom_killer_disabled && __GFP_NOFAIL likely makes page != NULL
+
+Yes it doesn't make any sense to sleep when we allocated a page.
+ 
+> > +		/*
+> > +		 * Give the killed process a good chance to exit before trying
+> > +		 * to allocate memory again.
+> > +		 */
+> > +		schedule_timeout_killable(1);
+> > +	}
+> 
+> and this closing } is not needed.
+
+I prefer brackets when there is a multi line comment...
+
+> Sleeping when out_of_memory() was not called due to !__GFP_NOFAIL && !__GFP_FS
+> will help somebody else to make a progress for us? (My version did not change it.)
+
+It will throttle the request a bit which shouldn't be of any harm as the
+context hasn't done any progress.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
