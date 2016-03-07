@@ -1,117 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 227E86B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 10:33:17 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id 129so37461517pfw.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 07:33:17 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id rz3si3742854pab.115.2016.03.07.07.33.15
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id DADA86B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 10:44:10 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id rt7so108218848obb.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 07:44:10 -0800 (PST)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id z2si12284366oec.95.2016.03.07.07.44.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 07:33:16 -0800 (PST)
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
- <20160305.230702.1325379875282120281.davem@davemloft.net>
- <56DD9949.1000106@oracle.com>
-From: Rob Gardner <rob.gardner@oracle.com>
-Message-ID: <56DD9E94.70201@oracle.com>
-Date: Mon, 7 Mar 2016 07:30:28 -0800
+        Mon, 07 Mar 2016 07:44:09 -0800 (PST)
+Received: by mail-oi0-x233.google.com with SMTP id r187so81801451oih.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 07:44:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <56DD9949.1000106@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <56DD9E94.70201@oracle.com>
+References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
+ <20160305.230702.1325379875282120281.davem@davemloft.net> <56DD9949.1000106@oracle.com>
+ <56DD9E94.70201@oracle.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 7 Mar 2016 07:43:50 -0800
+Message-ID: <CALCETrXey2_xEXhzjgHtZmf-dLp-9pec===d-8chLxrp8wgRXg@mail.gmail.com>
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity (ADI)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, David Miller <davem@davemloft.net>
-Cc: corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, zhenzhang.zhang@huawei.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Rob Gardner <rob.gardner@oracle.com>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, zhenzhang.zhang@huawei.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, bsegall@google.com, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On 03/07/2016 07:07 AM, Khalid Aziz wrote:
-> On 03/05/2016 09:07 PM, David Miller wrote:
->> From: Khalid Aziz <khalid.aziz@oracle.com>
->> Date: Wed,  2 Mar 2016 13:39:37 -0700
+On Mon, Mar 7, 2016 at 7:30 AM, Rob Gardner <rob.gardner@oracle.com> wrote:
+> On 03/07/2016 07:07 AM, Khalid Aziz wrote:
 >>
->>>     In this
->>>     first implementation I am enabling ADI for hugepages only
->>>     since these pages are locked in memory and hence avoid the
->>>     issue of saving and restoring tags.
+>> On 03/05/2016 09:07 PM, David Miller wrote:
+>>>
+>>> From: Khalid Aziz <khalid.aziz@oracle.com>
+>>> Date: Wed,  2 Mar 2016 13:39:37 -0700
+>>>
+>>>>     In this
+>>>>     first implementation I am enabling ADI for hugepages only
+>>>>     since these pages are locked in memory and hence avoid the
+>>>>     issue of saving and restoring tags.
+>>>
+>>>
+>>> This makes the feature almost entire useless.
+>>>
+>>> Non-hugepages must be in the initial implementation.
 >>
->> This makes the feature almost entire useless.
 >>
->> Non-hugepages must be in the initial implementation.
+>> Hi David,
+>>
+>> Thanks for the feedback. I will get this working for non-hugepages as
+>> well. ADI state of each VMA region is already stored in the VMA itself in my
+>> first implementation, so I do not lose it when the page is swapped out. The
+>> trouble is ADI version tags for each VMA region have to be stored on the
+>> swapped out pages since the ADI version tags are flushed when TLB entry for
+>> a page is flushed.
 >
-> Hi David,
 >
-> Thanks for the feedback. I will get this working for non-hugepages as 
-> well. ADI state of each VMA region is already stored in the VMA itself 
-> in my first implementation, so I do not lose it when the page is 
-> swapped out. The trouble is ADI version tags for each VMA region have 
-> to be stored on the swapped out pages since the ADI version tags are 
-> flushed when TLB entry for a page is flushed. 
+>
+> Khalid,
+>
+> Are you sure about that last statement? My understanding is that the tags
+> are stored in physical memory, and remain there until explicitly changed or
+> removed, and so flushing a TLB entry has no effect on the ADI tags. If it
+> worked the way you think, then somebody would have to potentially reload a
+> long list of ADI tags on every TLB miss.
+>
 
+I'll bite, since this was sent to linux-api:
 
-Khalid,
+Can someone explain what this feature does for the benefit of people
+who haven't read the manual (and who don't even know where to find the
+manual)?
 
-Are you sure about that last statement? My understanding is that the 
-tags are stored in physical memory, and remain there until explicitly 
-changed or removed, and so flushing a TLB entry has no effect on the ADI 
-tags. If it worked the way you think, then somebody would have to 
-potentially reload a long list of ADI tags on every TLB miss.
+Are the top few bits of a sparc64 virtual address currently
+must-be-zero?  Does this feature change the semantics so that those
+bits are ignored for address resolution and instead must match
+whatever the ADI tag is determined to be during address resolution?
 
-Rob
+Is this enforced for both user and kernel accesses?
 
+Is the actual ADI tag associated with a "page" associated with the
+page of physical memory or is it associated with a mapping?  That is,
+if there are two virtual aliases of the same physical page (in the
+same process or otherwise), does the hardware require them to have the
+same ADI tag?  If the answer is no, then IMO this is definitely
+something that should use mprotect and you should seriously consider
+using something like mprotect_key (new syscall, not in Linus' tree
+yet) for it.  In fact, you might consider a possible extra parameter
+to that syscall for this purpose.
 
-
-> When that page is brought back in, its version tags have to be set up 
-> again. Version tags are set on cacheline boundary and hence there can 
-> be multiple version tags for a single page. Version tags have to be 
-> stored in the swap space somehow along with the page. I can start out 
-> with allowing ADI to be enabled only on pages locked in memory.
->
->>
->>> +    PR_ENABLE_SPARC_ADI - Enable ADI checking in all pages in the 
->>> address
->>> +        range specified. The pages in the range must be already
->>> +        locked. This operation enables the TTE.mcd bit for the
->>> +        pages specified. arg2 is the starting address for address
->>> +        range and must be page aligned. arg3 is the length of
->>> +        memory address range and must be a multiple of page size.
->>
->> I strongly dislike this interface, and it makes the prtctl cases look
->> extremely ugly and hide to the casual reader what the code is actually
->> doing.
->>
->> This is an mprotect() operation, so add a new flag bit and implement
->> this via mprotect please.
->
-> That is an interesting idea. Adding a PROT_ADI protection to 
-> mprotect() sounds cleaner. There are three steps to enabling ADI - (1) 
-> set PSTATE.mcde bit which is not tied to any VMA, (2) set TTE.mcd for 
-> each VMA, and (3) set the version tag on cacheline using MCD ASI. I 
-> can combine steps 1 and 2 in one mprotect() call. That will leave 
-> PR_GET_SPARC_ADICAPS and PR_GET_SPARC_ADI_STATUS prctl commands still 
-> to be implemented. PR_SET_SPARC_ADI is also used to check if the 
-> process has PSTATE.mcde bit set. I could use PR_GET_SPARC_ADI_STATUS 
-> to do that where return values of 0 and 1 mean the same as before and 
-> possibly add return value of 2 to mean PSTATE.mcde is not set?
->
->>
->> Then since you are guarenteed to have a consistent ADI setting for
->> every single VMA region, you never "lose" the ADI state when you swap
->> out.  It's implicit in the VMA itself, because you'll store in the VMA
->> that this is an ADI region.
->>
->> I also want this enabled unconditionally, without any Kconfig knobs.
->>
->
-> I can remove CONFIG_SPARC_ADI. It does mean this code will be built 
-> into 32-bit kernels as well but it will be inactive code.
->
-> Thanks,
-> Khalid
->
->
->
+Cc: Dave Hansen.  It seems to be the zeitgeist to throw tag bits at
+PTEs these days.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
