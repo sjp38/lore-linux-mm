@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D4ECC6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 12:18:43 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id m82so84021209oif.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 09:18:43 -0800 (PST)
-Received: from mail-oi0-x22e.google.com (mail-oi0-x22e.google.com. [2607:f8b0:4003:c06::22e])
-        by mx.google.com with ESMTPS id d127si12731345oif.101.2016.03.07.09.18.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 09:18:43 -0800 (PST)
-Received: by mail-oi0-x22e.google.com with SMTP id d205so84075658oia.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 09:18:43 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 993386B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 12:32:12 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id fy10so81748252pac.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 09:32:12 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id xv6si4289190pab.1.2016.03.07.09.32.11
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 09:32:11 -0800 (PST)
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56DDBB18.6030505@intel.com>
+Date: Mon, 7 Mar 2016 09:32:08 -0800
 MIME-Version: 1.0
-In-Reply-To: <1457373413.15454.334.camel@hpe.com>
-References: <20160303215304.1014.69931.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20160303215315.1014.95661.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<1457146138.15454.277.camel@hpe.com>
-	<CAA9_cmc9vjChKqs7P1NG9r66TGapw0cYHfcajWh_O+hk433MTg@mail.gmail.com>
-	<1457373413.15454.334.camel@hpe.com>
-Date: Mon, 7 Mar 2016 09:18:42 -0800
-Message-ID: <CAPcyv4i2vtdz8BGGBWR2eGXhW8nuA9w+gvGJN5P__Ks_PyyRRg@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] libnvdimm, pmem: adjust for section collisions
- with 'System RAM'
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, zhenzhang.zhang@huawei.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org
+Cc: rob.gardner@oracle.com, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Mon, Mar 7, 2016 at 9:56 AM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> On Fri, 2016-03-04 at 18:23 -0800, Dan Williams wrote:
->> On Fri, Mar 4, 2016 at 6:48 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-[..]
->> As far as I can see
->> all we do is ask firmware implementations to respect Linux section
->> boundaries and otherwise not change alignments.
->
-> In addition to the requirement that pmem range alignment may not change,
-> the code also requires a regular memory range does not change to intersect
-> with a pmem section later.  This seems fragile to me since guest config may
-> vary / change as I mentioned above.
->
-> So, shouldn't the driver fails to attach when the range is not aligned by
-> the section size?  Since we need to place a requirement to firmware anyway,
-> we can simply state that it must be aligned by 128MiB (at least) on x86.
->  Then, memory and pmem physical layouts can be changed as long as this
-> requirement is met.
+On 03/02/2016 12:39 PM, Khalid Aziz wrote:
+> --- a/include/uapi/asm-generic/siginfo.h
+> +++ b/include/uapi/asm-generic/siginfo.h
+> @@ -206,7 +206,10 @@ typedef struct siginfo {
+>  #define SEGV_MAPERR	(__SI_FAULT|1)	/* address not mapped to object */
+>  #define SEGV_ACCERR	(__SI_FAULT|2)	/* invalid permissions for mapped object */
+>  #define SEGV_BNDERR	(__SI_FAULT|3)  /* failed address bound checks */
+> -#define NSIGSEGV	3
+> +#define SEGV_ACCADI	(__SI_FAULT|4)	/* ADI not enabled for mapped object */
+> +#define SEGV_ADIDERR	(__SI_FAULT|5)	/* Disrupting MCD error */
+> +#define SEGV_ADIPERR	(__SI_FAULT|6)	/* Precise MCD exception */
+> +#define NSIGSEGV	6
 
-We can state that it must be aligned, but without a hard specification
-I don't see how we can guarantee it.  We will fail the driver load
-with a warning if our alignment fixups end up getting invalidated by a
-later configuration change, but in the meantime we cover the gap of a
-BIOS that has generated a problematic configuration.
+FYI, this will conflict with code in -tip right now:
+
+> http://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/commit/?h=mm/pkeys&id=cd0ea35ff5511cde299a61c21a95889b4a71464e
+
+It's not a big deal to resolve, of course.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
