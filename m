@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F26166B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 08:11:13 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l68so85292857wml.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 05:11:13 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id m13si19055148wjw.8.2016.03.07.05.11.12
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 334796B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 09:58:00 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id l68so73622522wml.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 06:58:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u11si14647562wmd.41.2016.03.07.06.57.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 05:11:12 -0800 (PST)
-Received: by mail-wm0-x235.google.com with SMTP id l68so69804551wml.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 05:11:12 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Mar 2016 06:57:59 -0800 (PST)
+Subject: Re: [PATCH] mm: remove __GFP_NOFAIL is deprecated comment
+References: <1456397002-27172-1-git-send-email-mhocko@kernel.org>
+ <56CEE72B.5040009@kyup.com> <20160225134850.GA4204@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56DD96F4.1060805@suse.cz>
+Date: Mon, 7 Mar 2016 15:57:56 +0100
 MIME-Version: 1.0
-In-Reply-To: <20160307130338.GI19428@n2100.arm.linux.org.uk>
-References: <nbjnq6$fim$1@ger.gmane.org> <56DD795C.9020903@suse.cz> <20160307130338.GI19428@n2100.arm.linux.org.uk>
-From: "Matwey V. Kornilov" <matwey.kornilov@gmail.com>
-Date: Mon, 7 Mar 2016 16:10:53 +0300
-Message-ID: <CAJs94EY-oRyM_AgA=hy=k=jJEgZUxb4yU8jS_tjgk+N0ZWAbtw@mail.gmail.com>
-Subject: Re: 4.5.0-rc6: kernel BUG at ../mm/memory.c:1879
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160225134850.GA4204@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <kernel@kyup.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-2016-03-07 16:03 GMT+03:00 Russell King - ARM Linux <linux@arm.linux.org.uk>:
-> On Mon, Mar 07, 2016 at 01:51:40PM +0100, Vlastimil Babka wrote:
->> [+CC ARM, module maintainers/lists]
->>
->> On 03/07/2016 12:14 PM, Matwey V. Kornilov wrote:
->> >
->> >Hello,
->> >
->> >I see the following when try to boot 4.5.0-rc6 on ARM TI AM33xx based board.
->> >
->> >     [   13.907631] ------------[ cut here ]------------
->> >     [   13.912323] kernel BUG at ../mm/memory.c:1879!
->>
->> That's:
->> BUG_ON(addr >= end);
->>
->> where:
->> end = addr + size;
->>
->> All these variables are unsigned long, so they overflown?
->>
->> I don't know ARM much, and there's no code for decodecode, but if I get the
->> calling convention correctly, and the registers didn't change, both addr is
->> r1 and size is r2, i.e. both bf006000. Weird.
+On 02/25/2016 02:48 PM, Michal Hocko wrote:
+> On Thu 25-02-16 13:36:11, Nikolay Borisov wrote:
+> -		if (unlikely(gfp_flags & __GFP_NOFAIL)) {
+> -			/*
+> -			 * __GFP_NOFAIL is not to be used in new code.
+> -			 *
+> -			 * All __GFP_NOFAIL callers should be fixed so that they
+> -			 * properly detect and handle allocation failures.
+> -			 *
+> -			 * We most definitely don't want callers attempting to
+> -			 * allocate greater than order-1 page units with
+> -			 * __GFP_NOFAIL.
+> -			 */
+> -			WARN_ON_ONCE(order > 1);
+> -		}
+> +		/*
+> +		 * We most definitely don't want callers attempting to
+> +		 * allocate greater than order-1 page units with __GFP_NOFAIL.
+> +		 */
+> +		WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+>   		spin_lock_irqsave(&zone->lock, flags);
 >
-> A fix has been recently merged for this.  Look out for
-> "ARM: 8544/1: set_memory_xx fixes"
+>   		page = NULL;
 >
 
-Many thanks, I'll try again with -rc7.
-
-> --
-> RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
-> FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-> according to speedtest.net.
-
-
-
--- 
-With best regards,
-Matwey V. Kornilov
-http://blog.matwey.name
-xmpp://0x2207@jabber.ru
+Hmm, even the reduced text (and the WARN_ON in the first place) sounds 
+IMHO discouraging enough to make people think that opencoding a loop 
+around such allocations is a good workaround. Yeah, we have a 
+better/more thorough explanation around the __GFP_NOFAIL definition, but 
+the WARN_ON will point people here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
