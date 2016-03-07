@@ -1,86 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CF36B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 13:37:33 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id rt7so113220829obb.3
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 10:37:33 -0800 (PST)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id e204si12937697oif.20.2016.03.07.10.37.32
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD586B0253
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 13:39:52 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id 63so84080912pfe.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 10:39:52 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id cl8si4617860pad.110.2016.03.07.10.39.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 10:37:32 -0800 (PST)
-Received: by mail-oi0-x230.google.com with SMTP id d205so85756396oia.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 10:37:32 -0800 (PST)
+        Mon, 07 Mar 2016 10:39:51 -0800 (PST)
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com>
+ <20160305.230702.1325379875282120281.davem@davemloft.net>
+ <56DD9949.1000106@oracle.com> <56DD9E94.70201@oracle.com>
+ <CALCETrXey2_xEXhzjgHtZmf-dLp-9pec===d-8chLxrp8wgRXg@mail.gmail.com>
+ <56DDA6FD.4040404@oracle.com> <56DDBE68.6080709@linux.intel.com>
+ <CALCETrWPeFsyGsDNyehMpub1QrjZxyWpG_x_2A0yKqROXYfJ5A@mail.gmail.com>
+ <56DDC47C.8010206@linux.intel.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <56DDCAD3.3090106@oracle.com>
+Date: Mon, 7 Mar 2016 11:39:15 -0700
 MIME-Version: 1.0
-In-Reply-To: <1457377121.15454.366.camel@hpe.com>
-References: <20160303215304.1014.69931.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20160303215315.1014.95661.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<1457146138.15454.277.camel@hpe.com>
-	<CAA9_cmc9vjChKqs7P1NG9r66TGapw0cYHfcajWh_O+hk433MTg@mail.gmail.com>
-	<1457373413.15454.334.camel@hpe.com>
-	<CAPcyv4i2vtdz8BGGBWR2eGXhW8nuA9w+gvGJN5P__Ks_PyyRRg@mail.gmail.com>
-	<1457377121.15454.366.camel@hpe.com>
-Date: Mon, 7 Mar 2016 10:37:32 -0800
-Message-ID: <CAPcyv4gpS=Lk6EQvWoubGrSehz7CO-g7+xRtqYDaJWGDxznnoQ@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] libnvdimm, pmem: adjust for section collisions
- with 'System RAM'
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <56DDC47C.8010206@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Haozhong Zhang <haozhong.zhang@intel.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Rob Gardner <rob.gardner@oracle.com>, David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, bsegall@google.com, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-[ adding Haozhong and Xiao for the alignment concerns below ]
+On 03/07/2016 11:12 AM, Dave Hansen wrote:
+> On 03/07/2016 09:53 AM, Andy Lutomirski wrote:
+>> Also, what am I missing?  Tying these tags to the physical page seems
+>> like a poor design to me.  This seems really awkward to use.
+>
+> Yeah, can you describe the structures that store these things?  Surely
+> the hardware has some kind of lookup tables for them and stores them in
+> memory _somewhere_.
+>
 
-On Mon, Mar 7, 2016 at 10:58 AM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> On Mon, 2016-03-07 at 09:18 -0800, Dan Williams wrote:
->> On Mon, Mar 7, 2016 at 9:56 AM, Toshi Kani <toshi.kani@hpe.com> wrote:
->> > On Fri, 2016-03-04 at 18:23 -0800, Dan Williams wrote:
->> > > On Fri, Mar 4, 2016 at 6:48 PM, Toshi Kani <toshi.kani@hpe.com>
->> > > wrote:
->> [..]
->> > > As far as I can see
->> > > all we do is ask firmware implementations to respect Linux section
->> > > boundaries and otherwise not change alignments.
->> >
->> > In addition to the requirement that pmem range alignment may not
->> > change, the code also requires a regular memory range does not change
->> > to intersect with a pmem section later.  This seems fragile to me since
->> > guest config may vary / change as I mentioned above.
->> >
->> > So, shouldn't the driver fails to attach when the range is not aligned
->> > by the section size?  Since we need to place a requirement to firmware
->> > anyway, we can simply state that it must be aligned by 128MiB (at
->> > least) on x86.  Then, memory and pmem physical layouts can be changed
->> > as long as this requirement is met.
->>
->> We can state that it must be aligned, but without a hard specification
->> I don't see how we can guarantee it.  We will fail the driver load
->> with a warning if our alignment fixups end up getting invalidated by a
->> later configuration change, but in the meantime we cover the gap of a
->> BIOS that has generated a problematic configuration.
->
-> I do not think it has to be stated in the spec (although it may be a good
-> idea to state it as an implementation note :-).
->
-> This is an OS-unique requirement (and the size is x86-specific) that if it
-> wants to support Linux pmem pfn, then the alignment needs to be at least
-> 128MiB.  Regular pmem does not have this restriction, but it needs to be
-> aligned by 2MiB or 1GiB for using huge page mapping, which does not have to
-> be stated in the spec, either.
->
-> For KVM to support the pmem pfn feature on x86, it needs to guarantee this
-> 128MiB alignment.  Otherwise, this feature is not supported.  (I do not
-> worry about NVDIMM-N since it is naturally aligned by its size.)
->
-> If we allow unaligned cases, then the driver needs to detect change from
-> the initial condition and fail to attach for protecting data.  I did not
-> see such check in the code, but I may have overlooked.  We cannot check if
-> KVM has any guarantee to keep the alignment at the initial setup, though.
->
-> Thanks,
-> -Toshi
+Version tags are tied to virtual addresses, not physical pages.
+
+Where exactly are the tags stored is part of processor architecture and 
+I am not privy to that. MMU stores these lookup tables somewhere and 
+uses it to authenticate access to virtual addresses. It really is 
+irrelevant to kernel how MMU implements access controls as long as we 
+have access to the knowledge of how to use it.
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
