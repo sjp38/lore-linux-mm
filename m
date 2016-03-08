@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5436B025A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:22:14 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l68so152060291wml.0
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:22:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v131si4714296wme.78.2016.03.08.06.22.13
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3C76B0256
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:31:22 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id bj10so13803268pad.2
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:31:22 -0800 (PST)
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id hq1si5111768pac.56.2016.03.08.06.31.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Mar 2016 06:22:13 -0800 (PST)
-Subject: Re: [PATCH 2/3] mm, compaction: cover all compaction mode in
- compact_zone
-References: <20160307160838.GB5028@dhcp22.suse.cz>
- <1457444565-10524-1-git-send-email-mhocko@kernel.org>
- <1457444565-10524-3-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56DEE014.4050409@suse.cz>
-Date: Tue, 8 Mar 2016 15:22:12 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Mar 2016 06:31:21 -0800 (PST)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
+Date: Tue, 8 Mar 2016 20:00:57 +0530
+Message-ID: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-In-Reply-To: <1457444565-10524-3-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-mm@kvack.org
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Noam Camus <noamc@ezchip.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org
 
-On 03/08/2016 02:42 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> the compiler is complaining after "mm, compaction: change COMPACT_
-> constants into enum"
+We observed livelocks on ARC SMP setup when running hackbench with SLUB.
+This hardware configuration lacks atomic instructions (LLOCK/SCOND) thus
+kernel resorts to a central @smp_bitops_lock to protect any R-M-W ops
+suh as test_and_set_bit()
 
-Potentially a squash into that patch then?
+The spinlock itself is implemented using Atomic [EX]change instruction
+which is always available.
 
-> mm/compaction.c: In function a??compact_zonea??:
-> mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_DEFERREDa?? not handled in switch [-Wswitch]
->   switch (ret) {
->   ^
-> mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_COMPLETEa?? not handled in switch [-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_NO_SUITABLE_PAGEa?? not handled in switch [-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_NOT_SUITABLE_ZONEa?? not handled in switch [-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_CONTENDEDa?? not handled in switch [-Wswitch]
-> 
-> compaction_suitable is allowed to return only COMPACT_PARTIAL,
-> COMPACT_SKIPPED and COMPACT_CONTINUE so other cases are simply
-> impossible. Put a VM_BUG_ON to catch an impossible return value.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+The race happened when both cores tried to slab_lock() the same page.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+   c1		    c0
+-----------	-----------
+slab_lock
+		slab_lock
+slab_unlock
+		Not observing the unlock
+
+This in turn happened because slab_unlock() doesn't serialize properly
+(doesn't use atomic clear) with a concurrent running
+slab_lock()->test_and_set_bit()
+
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Noam Camus <noamc@ezchip.com>
+Cc: <stable@vger.kernel.org>
+Cc: <linux-mm@kvack.org>
+Cc: <linux-kernel@vger.kernel.org>
+Cc: <linux-snps-arc@lists.infradead.org>
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+---
+ mm/slub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index d8fbd4a6ed59..b7d345a508dc 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -345,7 +345,7 @@ static __always_inline void slab_lock(struct page *page)
+ static __always_inline void slab_unlock(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+-	__bit_spin_unlock(PG_locked, &page->flags);
++	bit_spin_unlock(PG_locked, &page->flags);
+ }
+ 
+ static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
