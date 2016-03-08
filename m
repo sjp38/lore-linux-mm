@@ -1,59 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BFAEC6B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 04:33:49 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id 63so9019347pfe.3
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 01:33:49 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id qz9si3576556pab.94.2016.03.08.01.33.48
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F876B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 04:36:44 -0500 (EST)
+Received: by mail-io0-f178.google.com with SMTP id m184so19629934iof.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 01:36:44 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id is4si3535684igb.43.2016.03.08.01.36.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 01:33:48 -0800 (PST)
-Message-ID: <56DE9C4D.8000709@oracle.com>
-Date: Tue, 08 Mar 2016 20:33:01 +1100
-From: James Morris <james.l.morris@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com> <20160305.230702.1325379875282120281.davem@davemloft.net> <56DD9949.1000106@oracle.com> <20160307.115626.807716799249471744.davem@davemloft.net> <56DDC2B6.6020009@oracle.com> <CALCETrXN43nT4zq2MpO90VrgK3k+DKHjOHWf7iOhS7TSBmdCPQ@mail.gmail.com> <56DDC6E0.4000907@oracle.com> <CALCETrU5NCzh3b7We8903G0_Tm-oycgP3+gS9fG+vC_rdgTddw@mail.gmail.com> <56DDDA31.9090105@oracle.com> <CALCETrXXU0fs2ezq+Wn_kr4dZTO=0RJmt6b=XBSA-wM7W_9j9A@mail.gmail.com> <56DE1341.4080206@oracle.com>
-In-Reply-To: <56DE1341.4080206@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Tue, 08 Mar 2016 01:36:43 -0800 (PST)
+Message-ID: <1457429794.31524.1.camel@ellerman.id.au>
+Subject: Re: [PATCH 2/2] powerpc/mm: Enable page parallel initialisation
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Tue, 08 Mar 2016 20:36:34 +1100
+In-Reply-To: <1457409354-10867-3-git-send-email-zhlcindy@gmail.com>
+References: <1457409354-10867-1-git-send-email-zhlcindy@gmail.com>
+	 <1457409354-10867-3-git-send-email-zhlcindy@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Khalid Aziz <khalid.aziz@oracle.com>
-Cc: David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Rob Gardner <rob.gardner@oracle.com>, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Benjamin Segall <bsegall@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Li Zhang <zhlcindy@gmail.com>, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
-On 03/08/2016 10:48 AM, James Morris wrote:
-> On 03/08/2016 06:54 AM, Andy Lutomirski wrote:
->>
->> This makes sense, but I still think the design is poor.  If the hacker
->> gets code execution, then they can trivially brute force the ADI bits.
->>
+Hi Li,
+
+On Tue, 2016-03-08 at 11:55 +0800, Li Zhang wrote:
+
+> From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
 >
-> ADI in this scenario is intended to prevent the attacker from gaining
-> code execution in the first place.
+> Parallel initialisation has been enabled for X86, boot time is
+> improved greatly. On Power8, it is improved greatly for small
+> memory. Here is the result from my test on Power8 platform:
+>
+> For 4GB memory: 57% is improved, boot time as the following:
+> with patch: 10s, without patch: 24.5s
 
-Here's some more background from Enrico Perla (who literally wrote the 
-book on kernel exploitation):
+This isn't worded quite right, and the numbers are a bit off.
 
-https://blogs.oracle.com/enrico/entry/hardening_allocators_with_adi
+old = 24.5
+new = 10
 
-Probably the most significant advantage from a security point of view is 
-the ability to eliminate an entire class of vulnerability: adjacent heap 
-overflows, as discussed above, where, for example, adjacent heap objects 
-are tagged differently.  Classic linear buffer overflows can be eliminated.
+So the improvement is 14.5 (seconds).
 
-As Kees Cook outlined at the 2015 kernel summit, it's best to mitigate 
-classes of vulnerabilities rather than patch each instance:
+That means the improvement (14.5) as a percentage of the original boot time is:
 
-https://outflux.net/slides/2011/defcon/kernel-exploitation.pdf
+ = 14.5 / 24.5 * 100
+ = 59.183673469387756
+ = 59%
 
-The Linux ADI implementation is currently very rudimentary, and we 
-definitely welcome continued feedback from the community and ideas as it 
-evolves.
+So you would say:
 
-- James
+  For 4GB of memory, boot time is improved by 59%, from 24.5s to 10s.
+
+> For 50GB memory: 22% is improved, boot time as the following:
+> with patch: 43.8s, without patch: 56.8s
+
+  For 50GB memory, boot time is improved by 22%, from 56.8s to 43.8s.
+
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+> ---
+>  * Add boot time details in change log.
+>  * Please apply this patch after [PATCH 1/2] mm: meminit: initialise
+>     more memory for inode/dentry hash tables in early boot, because
+>    [PATCH 1/2] is to fix a bug which can be reproduced on Power.
+
+Given that, I think it would be best if Andrew merged both of these patches.
+Because this patch is pretty trivial, whereas the patch to mm/ is less so.
+
+Is that OK Andrew?
+
+For this one:
+
+Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
