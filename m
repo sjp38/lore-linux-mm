@@ -1,23 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3251D6B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 06:31:00 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id l68so145656211wml.0
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 03:31:00 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id dz12si3157031wjb.180.2016.03.08.03.30.58
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2666B0253
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 06:42:33 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so146039120wml.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 03:42:33 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id 189si20430371wmi.4.2016.03.08.03.42.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 03:30:58 -0800 (PST)
-Received: by mail-wm0-x235.google.com with SMTP id p65so23329822wmp.0
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 03:30:58 -0800 (PST)
+        Tue, 08 Mar 2016 03:42:32 -0800 (PST)
+Received: by mail-wm0-x22a.google.com with SMTP id l68so127320786wml.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 03:42:32 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <56D471F5.3010202@gmail.com>
+In-Reply-To: <56D58398.2010708@gmail.com>
 References: <cover.1456504662.git.glider@google.com>
 	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
 	<56D471F5.3010202@gmail.com>
-Date: Tue, 8 Mar 2016 12:30:58 +0100
-Message-ID: <CAG_fn=Wq2kd7hns-FdFJUAz0OLr+s2rwHKs4tvGhRCO9pyCURg@mail.gmail.com>
+	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
+	<56D58398.2010708@gmail.com>
+Date: Tue, 8 Mar 2016 12:42:32 +0100
+Message-ID: <CAG_fn=Xby+PJtMQtZ68gPkSPCyxbF=RsOCVavYew7ZVDx25yow@mail.gmail.com>
 Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
  stackdepot for SLAB
 From: Alexander Potapenko <glider@google.com>
@@ -26,226 +28,122 @@ Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Feb 29, 2016 at 5:29 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
+On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
 rote:
 >
 >
-> On 02/26/2016 07:48 PM, Alexander Potapenko wrote:
->> Stack depot will allow KASAN store allocation/deallocation stack traces
->> for memory chunks. The stack traces are stored in a hash table and
->> referenced by handles which reside in the kasan_alloc_meta and
->> kasan_free_meta structures in the allocated memory chunks.
+> On 02/29/2016 08:12 PM, Dmitry Vyukov wrote:
+>
+>>>> diff --git a/lib/Makefile b/lib/Makefile
+>>>> index a7c26a4..10a4ae3 100644
+>>>> --- a/lib/Makefile
+>>>> +++ b/lib/Makefile
+>>>> @@ -167,6 +167,13 @@ obj-$(CONFIG_SG_SPLIT) +=3D sg_split.o
+>>>>  obj-$(CONFIG_STMP_DEVICE) +=3D stmp_device.o
+>>>>  obj-$(CONFIG_IRQ_POLL) +=3D irq_poll.o
+>>>>
+>>>> +ifeq ($(CONFIG_KASAN),y)
+>>>> +ifeq ($(CONFIG_SLAB),y)
+>>>
+>>> Just try to imagine that another subsystem wants to use stackdepot. How=
+ this gonna look like?
+>>>
+>>> We have Kconfig to describe dependencies. So, this should be under CONF=
+IG_STACKDEPOT.
+>>> So any user of this feature can just do 'select STACKDEPOT' in Kconfig.
+>>>
+>>>> +     obj-y   +=3D stackdepot.o
+>>>> +     KASAN_SANITIZE_slub.o :=3D n
+>                         _stackdepot.o
+>
+>
+>>>
+>>>> +
+>>>> +     stack->hash =3D hash;
+>>>> +     stack->size =3D size;
+>>>> +     stack->handle.slabindex =3D depot_index;
+>>>> +     stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
+>>>> +     __memcpy(stack->entries, entries, size * sizeof(unsigned long));
+>>>
+>>> s/__memcpy/memcpy/
 >>
->> IRQ stack traces are cut below the IRQ entry point to avoid unnecessary
->> duplication.
+>> memcpy should be instrumented by asan/tsan, and we would like to avoid
+>> that instrumentation here.
+>
+> KASAN_SANITIZE_* :=3D n already takes care about this.
+> __memcpy() is a special thing solely for kasan internals and some assembl=
+y code.
+> And it's not available generally.
+>
+>
+>>>> +     if (unlikely(!smp_load_acquire(&next_slab_inited))) {
+>>>> +             if (!preempt_count() && !in_irq()) {
+>>>
+>>> If you trying to detect atomic context here, than this doesn't work. E.=
+g. you can't know
+>>> about held spinlocks in non-preemptible kernel.
+>>> And I'm not sure why need this. You know gfp flags here, so allocation =
+in atomic context shouldn't be problem.
 >>
->> Right now stackdepot support is only enabled in SLAB allocator.
->> Once KASAN features in SLAB are on par with those in SLUB we can switch
->> SLUB to stackdepot as well, thus removing the dependency on SLUB stack
->> bookkeeping, which wastes a lot of memory.
 >>
->> This patch is based on the "mm: kasan: stack depots" patch originally
->> prepared by Dmitry Chernenkov.
+>> We don't have gfp flags for kfree.
+>> I wonder how CONFIG_DEBUG_ATOMIC_SLEEP handles this. Maybe it has the an=
+swer.
+>
+> It hasn't. It doesn't guarantee that atomic context always will be detect=
+ed.
+>
+>> Alternatively, we can always assume that we are in atomic context in kfr=
+ee.
 >>
->> Signed-off-by: Alexander Potapenko <glider@google.com>
->> ---
->> v2: - per request from Joonsoo Kim, moved the stackdepot implementation =
-to
->> lib/, as there's a plan to use it for page owner
->>     - added copyright comments
->>     - added comments about smp_load_acquire()/smp_store_release()
+>
+> Or do this allocation in separate context, put in work queue.
+>
 >>
->> v3: - minor description changes
->> ---
->
->
->
->> diff --git a/lib/Makefile b/lib/Makefile
->> index a7c26a4..10a4ae3 100644
->> --- a/lib/Makefile
->> +++ b/lib/Makefile
->> @@ -167,6 +167,13 @@ obj-$(CONFIG_SG_SPLIT) +=3D sg_split.o
->>  obj-$(CONFIG_STMP_DEVICE) +=3D stmp_device.o
->>  obj-$(CONFIG_IRQ_POLL) +=3D irq_poll.o
 >>
->> +ifeq ($(CONFIG_KASAN),y)
->> +ifeq ($(CONFIG_SLAB),y)
+>>>> +                     alloc_flags &=3D (__GFP_RECLAIM | __GFP_IO | __G=
+FP_FS |
+>>>> +                             __GFP_NOWARN | __GFP_NORETRY |
+>>>> +                             __GFP_NOMEMALLOC | __GFP_DIRECT_RECLAIM)=
+;
+>>>
+>>> I think blacklist approach would be better here.
+>>>
+>>>> +                     page =3D alloc_pages(alloc_flags, STACK_ALLOC_OR=
+DER);
+>>>
+>>> STACK_ALLOC_ORDER =3D 4 - that's a lot. Do you really need that much?
+>>
+>> Part of the issue the atomic context above. When we can't allocate
+>> memory we still want to save the stack trace. When we have less than
+>> STACK_ALLOC_ORDER memory, we try to preallocate another
+>> STACK_ALLOC_ORDER in advance. So in the worst case, we have
+>> STACK_ALLOC_ORDER memory and that should be enough to handle all
+>> kmalloc/kfree in the atomic context. 1 page does not look enough. I
+>> think Alex did some measuring of the failure race (when we are out of
+>> memory and can't allocate more).
+>>
 >
-> Just try to imagine that another subsystem wants to use stackdepot. How t=
-his gonna look like?
->
-> We have Kconfig to describe dependencies. So, this should be under CONFIG=
-_STACKDEPOT.
-> So any user of this feature can just do 'select STACKDEPOT' in Kconfig.
-Agreed. Will fix this in the updated patch.
-
->> +     obj-y   +=3D stackdepot.o
->> +     KASAN_SANITIZE_slub.o :=3D n
->> +endif
->> +endif
->> +
->>  libfdt_files =3D fdt.o fdt_ro.o fdt_wip.o fdt_rw.o fdt_sw.o fdt_strerro=
-r.o \
->>              fdt_empty_tree.o
->>  $(foreach file, $(libfdt_files), \
->> diff --git a/lib/stackdepot.c b/lib/stackdepot.c
->> new file mode 100644
->> index 0000000..f09b0da
->> --- /dev/null
->> +++ b/lib/stackdepot.c
->
->
->> +/* Allocation of a new stack in raw storage */
->> +static struct stack_record *depot_alloc_stack(unsigned long *entries, i=
-nt size,
->> +             u32 hash, void **prealloc, gfp_t alloc_flags)
->> +{
->
->
->> +
->> +     stack->hash =3D hash;
->> +     stack->size =3D size;
->> +     stack->handle.slabindex =3D depot_index;
->> +     stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
->> +     __memcpy(stack->entries, entries, size * sizeof(unsigned long));
->
-> s/__memcpy/memcpy
-Ack.
->> +     depot_offset +=3D required_size;
->> +
->> +     return stack;
->> +}
->> +
->
->
->> +/*
->> + * depot_save_stack - save stack in a stack depot.
->> + * @trace - the stacktrace to save.
->> + * @alloc_flags - flags for allocating additional memory if required.
->> + *
->> + * Returns the handle of the stack struct stored in depot.
->> + */
->> +depot_stack_handle depot_save_stack(struct stack_trace *trace,
->> +                                 gfp_t alloc_flags)
->> +{
->> +     u32 hash;
->> +     depot_stack_handle retval =3D 0;
->> +     struct stack_record *found =3D NULL, **bucket;
->> +     unsigned long flags;
->> +     struct page *page =3D NULL;
->> +     void *prealloc =3D NULL;
->> +
->> +     if (unlikely(trace->nr_entries =3D=3D 0))
->> +             goto exit;
->> +
->> +     hash =3D hash_stack(trace->entries, trace->nr_entries);
->> +     /* Bad luck, we won't store this stack. */
->> +     if (hash =3D=3D 0)
->> +             goto exit;
->> +
->> +     bucket =3D &stack_table[hash & STACK_HASH_MASK];
->> +
->> +     /* Fast path: look the stack trace up without locking.
->> +      *
->> +      * The smp_load_acquire() here pairs with smp_store_release() to
->> +      * |bucket| below.
->> +      */
->> +     found =3D find_stack(smp_load_acquire(bucket), trace->entries,
->> +                        trace->nr_entries, hash);
->> +     if (found)
->> +             goto exit;
->> +
->> +     /* Check if the current or the next stack slab need to be initiali=
-zed.
->> +      * If so, allocate the memory - we won't be able to do that under =
-the
->> +      * lock.
->> +      *
->> +      * The smp_load_acquire() here pairs with smp_store_release() to
->> +      * |next_slab_inited| in depot_alloc_stack() and init_stack_slab()=
+> A lot of 4-order pages will lead to high fragmentation. You don't need ph=
+ysically contiguous memory here,
+> so try to use vmalloc(). It is slower, but fragmentation won't be problem=
 .
->> +      */
->> +     if (unlikely(!smp_load_acquire(&next_slab_inited))) {
->> +             if (!preempt_count() && !in_irq()) {
->
-> If you trying to detect atomic context here, than this doesn't work. E.g.=
- you can't know
-> about held spinlocks in non-preemptible kernel.
-> And I'm not sure why need this. You know gfp flags here, so allocation in=
- atomic context shouldn't be problem.
-Yeah, we can just remove these checks. As discussed before, this will
-eliminate allocations from kfree(), but that's very unlikely to become
-a problem.
+I've tried using vmalloc(), but turned out it's calling KASAN hooks
+again. Dealing with reentrancy in this case sounds like an overkill.
+Given that we only require 9 Mb most of the time, is allocating
+physical pages still a problem?
 
->
->> +                     alloc_flags &=3D (__GFP_RECLAIM | __GFP_IO | __GFP=
-_FS |
->> +                             __GFP_NOWARN | __GFP_NORETRY |
->> +                             __GFP_NOMEMALLOC | __GFP_DIRECT_RECLAIM);
->
-> I think blacklist approach would be better here.
-Perhaps we don't need to change the mask at all.
-
->> +                     page =3D alloc_pages(alloc_flags, STACK_ALLOC_ORDE=
-R);
->
-> STACK_ALLOC_ORDER =3D 4 - that's a lot. Do you really need that much?
-Well, this is not "that" much, actually. The allocation happens only
-~150 times within three hours under Trinity, which means only 9
-megabytes.
-At around 250 allocations the stack depot saturates and new stacks are
-very rare.
-We can probably drop the order to 3 or 2, which will increase the
-number of allocations by just the factor of 2 to 4, but will be better
-from the point of page fragmentation.
->
->> diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
->> index a61460d..32bd73a 100644
->> --- a/mm/kasan/Makefile
->> +++ b/mm/kasan/Makefile
->> @@ -7,3 +7,4 @@ CFLAGS_REMOVE_kasan.o =3D -pg
->>  CFLAGS_kasan.o :=3D $(call cc-option, -fno-conserve-stack -fno-stack-pr=
-otector)
->>
->>  obj-y :=3D kasan.o report.o kasan_init.o
->> +
->
-> Extra newline.
-Ack.
->
->> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
->> index 7b9e4ab9..b4e5942 100644
->> --- a/mm/kasan/kasan.h
->> +++ b/mm/kasan/kasan.h
->> @@ -2,6 +2,7 @@
->>  #define __MM_KASAN_KASAN_H
->>
->>  #include <linux/kasan.h>
->> +#include <linux/stackdepot.h>
->>
->>  #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
->>  #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
->> @@ -64,10 +65,13 @@ enum kasan_state {
->>       KASAN_STATE_FREE
->>  };
->>
->> +#define KASAN_STACK_DEPTH 64
->
-> I think, you can reduce this (32 perhaps?). Kernel stacks are not so deep=
- usually.
->
->> +
->>  struct kasan_track {
->>       u64 cpu : 6;                    /* for NR_CPUS =3D 64 */
->>       u64 pid : 16;                   /* 65536 processes */
->>       u64 when : 42;                  /* ~140 years */
->> +     depot_stack_handle stack : sizeof(depot_stack_handle);
->>  };
->>
->
-
+> And one more thing. Take a look at mempool, because it's generally used t=
+o solve the problem you have here
+> (guaranteed allocation in atomic context).
+As far as I understood the docs, mempools have a drawback of
+allocating too much memory which won't be available for any other use.
+O'Reily's "Linux Device Drivers" even suggests not using mempools in
+any case when it's easier to deal with allocation failures (that
+advice is for device drivers, not sure if that stands for other
+subsystems though).
 
 
 --=20
