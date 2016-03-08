@@ -1,61 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 851076B0255
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:18:29 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id 63so13883796pfe.3
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:18:29 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id b19si5002788pfd.242.2016.03.08.06.18.28
-        for <linux-mm@kvack.org>;
-        Tue, 08 Mar 2016 06:18:28 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Date: Tue, 8 Mar 2016 14:17:59 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E041481F9@shsmsx102.ccr.corp.intel.com>
-References: <20160303174615.GF2115@work-vm>
- <20160304075538.GC9100@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E037714DA@SHSMSX101.ccr.corp.intel.com>
- <20160304083550.GE9100@rkaganb.sw.ru> <20160304090820.GA2149@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03771639@SHSMSX101.ccr.corp.intel.com>
- <20160304114519-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E037717B5@SHSMSX101.ccr.corp.intel.com>
- <20160304122456-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E04145231@shsmsx102.ccr.corp.intel.com>
- <20160308160145-mutt-send-email-mst@redhat.com>
-In-Reply-To: <20160308160145-mutt-send-email-mst@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F1F6B0258
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:19:02 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id l68so29610117wml.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:19:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id go14si4001266wjc.241.2016.03.08.06.19.00
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Mar 2016 06:19:00 -0800 (PST)
+Date: Tue, 8 Mar 2016 15:18:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
+Message-ID: <20160308141858.GJ13542@dhcp22.suse.cz>
+References: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Roman Kagan <rkagan@virtuozzo.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arve Hjonnevag <arve@android.com>, Riley Andrews <riandrews@android.com>
 
-> On Fri, Mar 04, 2016 at 03:13:03PM +0000, Li, Liang Z wrote:
-> > > > Maybe I am not clear enough.
-> > > >
-> > > > I mean if we inflate balloon before live migration, for a 8GB
-> > > > guest, it takes
-> > > about 5 Seconds for the inflating operation to finish.
-> > >
-> > > And these 5 seconds are spent where?
-> > >
-> >
-> > The time is spent on allocating the pages and send the allocated pages
-> > pfns to QEMU through virtio.
->=20
-> What if we skip allocating pages but use the existing interface to send p=
-fns to
-> QEMU?
->
+On Tue 08-03-16 20:01:32, Tetsuo Handa wrote:
+> Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
+> One is to remember processes killed by LMK, and the other is to
+> accelerate termination of processes killed by LMK.
+> 
+> But since LMK is invoked as a memory shrinker function, there still
+> should be some memory available. It is very likely that memory
+> allocations by processes killed by LMK will succeed without using
+> ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
+> escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
+> lowmem_deathpending_timeout can guarantee forward progress by choosing
+> next victim process.
+> 
+> On the other hand, mark_oom_victim() assumes that it must be called with
+> oom_lock held and it must not be called after oom_killer_disable() was
+> called. But LMK is calling it without holding oom_lock and checking
+> oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
+> due to allocation requests by kernel threads after current thread
+> returned from oom_killer_disabled(). This will break synchronization
+> for PM/suspend.
+> 
+> This patch introduces per a task_struct flag for remembering processes
+> killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
+> patch, assumption by mark_oom_victim() becomes true.
 
-I think it will be much faster, allocating pages is the main reason for the=
- long time of the operation.
-Experiment is needed to get the exact time spend on sending the pfns.
+Thanks for looking into this. A separate flag sounds like a better way
+to go (assuming that the flags are not scarce which doesn't seem to be
+the case here).
+ 
+The LMK cannot kill the frozen tasks now but this shouldn't be a big deal
+because this is not strictly necessary for the system to move on. We are
+not OOM.
 
-Liang
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Arve Hjonnevag <arve@android.com>
+> Cc: Riley Andrews <riandrews@android.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  drivers/staging/android/lowmemorykiller.c | 9 ++-------
+>  include/linux/sched.h                     | 4 ++++
+>  2 files changed, 6 insertions(+), 7 deletions(-)
+> 
+> diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+> index 4b8a56c..a1dd798 100644
+> --- a/drivers/staging/android/lowmemorykiller.c
+> +++ b/drivers/staging/android/lowmemorykiller.c
+> @@ -129,7 +129,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+>  		if (!p)
+>  			continue;
+>  
+> -		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+> +		if (task_lmk_waiting(p) && p->mm &&
+>  		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
+>  			task_unlock(p);
+>  			rcu_read_unlock();
+> @@ -160,13 +160,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+>  	if (selected) {
+>  		task_lock(selected);
+>  		send_sig(SIGKILL, selected, 0);
+> -		/*
+> -		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
+> -		 * infrastructure. There is no real reason why the selected
+> -		 * task should have access to the memory reserves.
+> -		 */
+>  		if (selected->mm)
+> -			mark_oom_victim(selected);
+> +			task_set_lmk_waiting(selected);
+>  		task_unlock(selected);
+>  		lowmem_print(1, "Killing '%s' (%d), adj %hd,\n"
+>  				 "   to free %ldkB on behalf of '%s' (%d) because\n"
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 0b44fbc..de9ced9 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -2187,6 +2187,7 @@ static inline void memalloc_noio_restore(unsigned int flags)
+>  #define PFA_NO_NEW_PRIVS 0	/* May not gain new privileges. */
+>  #define PFA_SPREAD_PAGE  1      /* Spread page cache over cpuset */
+>  #define PFA_SPREAD_SLAB  2      /* Spread some slab caches over cpuset */
+> +#define PFA_LMK_WAITING  3      /* Lowmemorykiller is waiting */
+>  
+>  
+>  #define TASK_PFA_TEST(name, func)					\
+> @@ -2210,6 +2211,9 @@ TASK_PFA_TEST(SPREAD_SLAB, spread_slab)
+>  TASK_PFA_SET(SPREAD_SLAB, spread_slab)
+>  TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
+>  
+> +TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
+> +TASK_PFA_SET(LMK_WAITING, lmk_waiting)
+> +
+>  /*
+>   * task->jobctl flags
+>   */
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
