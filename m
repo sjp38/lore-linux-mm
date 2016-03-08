@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B086B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 04:31:10 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fl4so8900876pad.0
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 01:31:10 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id bw10si3531776pac.157.2016.03.08.01.31.09
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BFAEC6B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 04:33:49 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id 63so9019347pfe.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 01:33:49 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id qz9si3576556pab.94.2016.03.08.01.33.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 01:31:09 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id x188so9017311pfb.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 01:31:09 -0800 (PST)
-Date: Tue, 8 Mar 2016 18:32:30 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm, oom: protect !costly allocations some more
-Message-ID: <20160308093230.GB3860@swordfish>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160307160838.GB5028@dhcp22.suse.cz>
- <56DE9A68.2010301@suse.cz>
+        Tue, 08 Mar 2016 01:33:48 -0800 (PST)
+Message-ID: <56DE9C4D.8000709@oracle.com>
+Date: Tue, 08 Mar 2016 20:33:01 +1100
+From: James Morris <james.l.morris@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56DE9A68.2010301@suse.cz>
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com> <20160305.230702.1325379875282120281.davem@davemloft.net> <56DD9949.1000106@oracle.com> <20160307.115626.807716799249471744.davem@davemloft.net> <56DDC2B6.6020009@oracle.com> <CALCETrXN43nT4zq2MpO90VrgK3k+DKHjOHWf7iOhS7TSBmdCPQ@mail.gmail.com> <56DDC6E0.4000907@oracle.com> <CALCETrU5NCzh3b7We8903G0_Tm-oycgP3+gS9fG+vC_rdgTddw@mail.gmail.com> <56DDDA31.9090105@oracle.com> <CALCETrXXU0fs2ezq+Wn_kr4dZTO=0RJmt6b=XBSA-wM7W_9j9A@mail.gmail.com> <56DE1341.4080206@oracle.com>
+In-Reply-To: <56DE1341.4080206@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>, Khalid Aziz <khalid.aziz@oracle.com>
+Cc: David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Rob Gardner <rob.gardner@oracle.com>, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Benjamin Segall <bsegall@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On (03/08/16 10:24), Vlastimil Babka wrote:
-[..]
-> > @@ -3294,6 +3289,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  				 did_some_progress > 0, no_progress_loops))
-> >  		goto retry;
-> >  
-> > +	/*
-> > +	 * !costly allocations are really important and we have to make sure
-> > +	 * the compaction wasn't deferred or didn't bail out early due to locks
-> > +	 * contention before we go OOM.
-> > +	 */
-> > +	if (order && order <= PAGE_ALLOC_COSTLY_ORDER) {
-> > +		if (compact_result <= COMPACT_CONTINUE)
-> 
-> Same here.
-> I was going to say that this didn't have effect on Sergey's test, but
-> turns out it did :)
+On 03/08/2016 10:48 AM, James Morris wrote:
+> On 03/08/2016 06:54 AM, Andy Lutomirski wrote:
+>>
+>> This makes sense, but I still think the design is poor.  If the hacker
+>> gets code execution, then they can trivially brute force the ADI bits.
+>>
+>
+> ADI in this scenario is intended to prevent the attacker from gaining
+> code execution in the first place.
 
-I'm sorry, my test is not correct. I have disabled compaction last weeked on
-purpose - to provoke more OOM-kills and OOM conditions for reworked printk()
-patch set testing (http://marc.info/?l=linux-kernel&m=145734549308803); and I
-forgot to re-enable it.
+Here's some more background from Enrico Perla (who literally wrote the 
+book on kernel exploitation):
 
-	-ss
+https://blogs.oracle.com/enrico/entry/hardening_allocators_with_adi
+
+Probably the most significant advantage from a security point of view is 
+the ability to eliminate an entire class of vulnerability: adjacent heap 
+overflows, as discussed above, where, for example, adjacent heap objects 
+are tagged differently.  Classic linear buffer overflows can be eliminated.
+
+As Kees Cook outlined at the 2015 kernel summit, it's best to mitigate 
+classes of vulnerabilities rather than patch each instance:
+
+https://outflux.net/slides/2011/defcon/kernel-exploitation.pdf
+
+The Linux ADI implementation is currently very rudimentary, and we 
+definitely welcome continued feedback from the community and ideas as it 
+evolves.
+
+- James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
