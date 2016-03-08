@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2DE828DF
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 14:47:19 -0500 (EST)
-Received: by mail-qg0-f43.google.com with SMTP id w104so22042151qge.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 11:47:19 -0800 (PST)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C1A10828DF
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 14:47:22 -0500 (EST)
+Received: by mail-qg0-f54.google.com with SMTP id w104so22043694qge.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 11:47:22 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y206si4500164qka.77.2016.03.08.11.47.18
+        by mx.google.com with ESMTPS id 76si4501663qhk.72.2016.03.08.11.47.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 11:47:18 -0800 (PST)
+        Tue, 08 Mar 2016 11:47:22 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH v12 16/29] fork: pass the dst vma to copy_page_range() and its sub-functions.
-Date: Tue,  8 Mar 2016 15:43:09 -0500
-Message-Id: <1457469802-11850-17-git-send-email-jglisse@redhat.com>
+Subject: [PATCH v12 17/29] HMM: add special swap filetype for memory migrated to device v2.
+Date: Tue,  8 Mar 2016 15:43:10 -0500
+Message-Id: <1457469802-11850-18-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1457469802-11850-1-git-send-email-jglisse@redhat.com>
 References: <1457469802-11850-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,140 +21,266 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Jerome Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-For HMM we will need to resort to the old way of allocating new page
-for anonymous memory when that anonymous memory have been migrated
-to device memory.
+From: Jerome Glisse <jglisse@redhat.com>
 
-This does not impact any process that do not use HMM through some
-device driver. Only process that migrate anonymous memory to device
-memory with HMM will have to copy migrated page on fork.
+When migrating anonymous memory from system memory to device memory
+CPU pte are replaced with special HMM swap entry so that page fault,
+get user page (gup), fork, ... are properly redirected to HMM helpers.
 
-We do not expect this to be a common or advised thing to do so we
-resort to the simpler solution of allocating new page. If this kind
-of usage turns out to be important we will revisit way to achieve
-COW even for remote memory.
+This patch only add the new swap type entry and hooks HMM helpers
+functions inside the page fault and fork code path.
+
+Changed since v1:
+  - Fix name when of HMM CPU page fault function.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
 ---
- include/linux/mm.h |  5 +++--
- kernel/fork.c      |  2 +-
- mm/memory.c        | 33 +++++++++++++++++++++------------
- 3 files changed, 25 insertions(+), 15 deletions(-)
+ include/linux/hmm.h     | 34 ++++++++++++++++++++++++++++++++++
+ include/linux/swap.h    | 13 ++++++++++++-
+ include/linux/swapops.h | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ mm/hmm.c                | 21 +++++++++++++++++++++
+ mm/memory.c             | 22 ++++++++++++++++++++++
+ 5 files changed, 131 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f312210..c5c062e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1169,8 +1169,9 @@ int walk_page_range(unsigned long addr, unsigned long end,
- int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk);
- void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
- 		unsigned long end, unsigned long floor, unsigned long ceiling);
--int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
--			struct vm_area_struct *vma);
-+int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		    struct vm_area_struct *dst_vma,
-+		    struct vm_area_struct *vma);
- void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows);
- int follow_pfn(struct vm_area_struct *vma, unsigned long address,
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d3911a0..e8d0c14 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -508,7 +508,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 		rb_parent = &tmp->vm_rb;
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 4bc132a..7c66513 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -272,6 +272,40 @@ void hmm_mirror_range_dirty(struct hmm_mirror *mirror,
+ 			    unsigned long start,
+ 			    unsigned long end);
  
- 		mm->map_count++;
--		retval = copy_page_range(mm, oldmm, mpnt);
-+		retval = copy_page_range(mm, oldmm, tmp, mpnt);
++int hmm_handle_cpu_fault(struct mm_struct *mm,
++			struct vm_area_struct *vma,
++			pmd_t *pmdp, unsigned long addr,
++			unsigned flags, pte_t orig_pte);
++
++int hmm_mm_fork(struct mm_struct *src_mm,
++		struct mm_struct *dst_mm,
++		struct vm_area_struct *dst_vma,
++		pmd_t *dst_pmd,
++		unsigned long start,
++		unsigned long end);
++
++#else /* CONFIG_HMM */
++
++static inline int hmm_handle_cpu_fault(struct mm_struct *mm,
++				       struct vm_area_struct *vma,
++				       pmd_t *pmdp, unsigned long addr,
++				       unsigned flags, pte_t orig_pte)
++{
++	return VM_FAULT_SIGBUS;
++}
++
++static inline int hmm_mm_fork(struct mm_struct *src_mm,
++			      struct mm_struct *dst_mm,
++			      struct vm_area_struct *dst_vma,
++			      pmd_t *dst_pmd,
++			      unsigned long start,
++			      unsigned long end)
++{
++	BUG();
++	return -ENOMEM;
++}
  
- 		if (tmp->vm_ops && tmp->vm_ops->open)
- 			tmp->vm_ops->open(tmp);
+ #endif /* CONFIG_HMM */
++
++
+ #endif
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index b14a2bb..336e0a1 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -70,8 +70,19 @@ static inline int current_is_kswapd(void)
+ #define SWP_HWPOISON_NUM 0
+ #endif
+ 
++/*
++ * HMM (heterogeneous memory management) used when data is in remote memory.
++ */
++#ifdef CONFIG_HMM
++#define SWP_HMM_NUM 1
++#define SWP_HMM		(MAX_SWAPFILES + SWP_MIGRATION_NUM + SWP_HWPOISON_NUM)
++#else
++#define SWP_HMM_NUM 0
++#endif
++
+ #define MAX_SWAPFILES \
+-	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
++	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - \
++	 SWP_HWPOISON_NUM - SWP_HMM_NUM)
+ 
+ /*
+  * Magic header for a swap area. The first part of the union is
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 5c3a5f3..8c6ba9f 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -227,7 +227,7 @@ static inline void num_poisoned_pages_inc(void)
+ }
+ #endif
+ 
+-#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
++#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION) || defined(CONFIG_HMM)
+ static inline int non_swap_entry(swp_entry_t entry)
+ {
+ 	return swp_type(entry) >= MAX_SWAPFILES;
+@@ -239,4 +239,45 @@ static inline int non_swap_entry(swp_entry_t entry)
+ }
+ #endif
+ 
++#ifdef CONFIG_HMM
++static inline swp_entry_t make_hmm_entry(void)
++{
++	/* We do not store anything inside the CPU page table entry (pte). */
++	return swp_entry(SWP_HMM, 0);
++}
++
++static inline swp_entry_t make_hmm_entry_locked(void)
++{
++	/* We do not store anything inside the CPU page table entry (pte). */
++	return swp_entry(SWP_HMM, 1);
++}
++
++static inline swp_entry_t make_hmm_entry_poisonous(void)
++{
++	/* We do not store anything inside the CPU page table entry (pte). */
++	return swp_entry(SWP_HMM, 2);
++}
++
++static inline int is_hmm_entry(swp_entry_t entry)
++{
++	return (swp_type(entry) == SWP_HMM);
++}
++
++static inline int is_hmm_entry_locked(swp_entry_t entry)
++{
++	return (swp_type(entry) == SWP_HMM) && (swp_offset(entry) == 1);
++}
++
++static inline int is_hmm_entry_poisonous(swp_entry_t entry)
++{
++	return (swp_type(entry) == SWP_HMM) && (swp_offset(entry) == 2);
++}
++#else /* CONFIG_HMM */
++static inline int is_hmm_entry(swp_entry_t swp)
++{
++	return 0;
++}
++#endif /* CONFIG_HMM */
++
++
+ #endif /* _LINUX_SWAPOPS_H */
+diff --git a/mm/hmm.c b/mm/hmm.c
+index ad44325..4c0d2c0 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -419,6 +419,27 @@ static struct mmu_notifier_ops hmm_notifier_ops = {
+ };
+ 
+ 
++int hmm_handle_cpu_fault(struct mm_struct *mm,
++			struct vm_area_struct *vma,
++			pmd_t *pmdp, unsigned long addr,
++			unsigned flags, pte_t orig_pte)
++{
++	return VM_FAULT_SIGBUS;
++}
++EXPORT_SYMBOL(hmm_handle_cpu_fault);
++
++int hmm_mm_fork(struct mm_struct *src_mm,
++		struct mm_struct *dst_mm,
++		struct vm_area_struct *dst_vma,
++		pmd_t *dst_pmd,
++		unsigned long start,
++		unsigned long end)
++{
++	return -ENOMEM;
++}
++EXPORT_SYMBOL(hmm_mm_fork);
++
++
+ struct mm_pt_iter {
+ 	struct mm_struct	*mm;
+ 	pte_t			*ptep;
 diff --git a/mm/memory.c b/mm/memory.c
-index 532d80f..19de9ba 100644
+index 19de9ba..3cb3653 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -874,8 +874,10 @@ out_set_pte:
- }
- 
- static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		   pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
--		   unsigned long addr, unsigned long end)
-+			  pmd_t *dst_pmd, pmd_t *src_pmd,
-+			  struct vm_area_struct *dst_vma,
-+			  struct vm_area_struct *vma,
-+			  unsigned long addr, unsigned long end)
- {
+@@ -54,6 +54,7 @@
+ #include <linux/writeback.h>
+ #include <linux/memcontrol.h>
+ #include <linux/mmu_notifier.h>
++#include <linux/hmm.h>
+ #include <linux/kallsyms.h>
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+@@ -882,9 +883,11 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
  	pte_t *orig_src_pte, *orig_dst_pte;
  	pte_t *src_pte, *dst_pte;
-@@ -936,9 +938,12 @@ again:
- 	return 0;
- }
+ 	spinlock_t *src_ptl, *dst_ptl;
++	unsigned cnt_hmm_entry = 0;
+ 	int progress = 0;
+ 	int rss[NR_MM_COUNTERS];
+ 	swp_entry_t entry = (swp_entry_t){0};
++	unsigned long start;
  
--static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end)
-+static inline int copy_pmd_range(struct mm_struct *dst_mm,
-+				 struct mm_struct *src_mm,
-+				 pud_t *dst_pud, pud_t *src_pud,
-+				 struct vm_area_struct *dst_vma,
-+				 struct vm_area_struct *vma,
-+				 unsigned long addr, unsigned long end)
- {
- 	pmd_t *src_pmd, *dst_pmd;
- 	unsigned long next;
-@@ -963,15 +968,18 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
- 		if (pmd_none_or_clear_bad(src_pmd))
- 			continue;
- 		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
--						vma, addr, next))
-+				   dst_vma, vma, addr, next))
- 			return -ENOMEM;
- 	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
- 	return 0;
- }
+ again:
+ 	init_rss_vec(rss);
+@@ -898,6 +901,7 @@ again:
+ 	orig_src_pte = src_pte;
+ 	orig_dst_pte = dst_pte;
+ 	arch_enter_lazy_mmu_mode();
++	start = addr;
  
--static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end)
-+static inline int copy_pud_range(struct mm_struct *dst_mm,
-+				 struct mm_struct *src_mm,
-+				 pgd_t *dst_pgd, pgd_t *src_pgd,
-+				 struct vm_area_struct *dst_vma,
-+				 struct vm_area_struct *vma,
-+				 unsigned long addr, unsigned long end)
- {
- 	pud_t *src_pud, *dst_pud;
- 	unsigned long next;
-@@ -985,14 +993,15 @@ static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src
- 		if (pud_none_or_clear_bad(src_pud))
+ 	do {
+ 		/*
+@@ -914,6 +918,12 @@ again:
+ 			progress++;
  			continue;
- 		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
--						vma, addr, next))
-+				   dst_vma, vma, addr, next))
- 			return -ENOMEM;
- 	} while (dst_pud++, src_pud++, addr = next, addr != end);
- 	return 0;
- }
- 
- int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		struct vm_area_struct *vma)
-+		    struct vm_area_struct *dst_vma,
-+		    struct vm_area_struct *vma)
- {
- 	pgd_t *src_pgd, *dst_pgd;
- 	unsigned long next;
-@@ -1046,7 +1055,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		if (pgd_none_or_clear_bad(src_pgd))
- 			continue;
- 		if (unlikely(copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
--					    vma, addr, next))) {
-+					    dst_vma, vma, addr, next))) {
- 			ret = -ENOMEM;
- 			break;
  		}
++		if (unlikely(!pte_present(*src_pte))) {
++			entry = pte_to_swp_entry(*src_pte);
++
++			if (is_hmm_entry(entry))
++				cnt_hmm_entry++;
++		}
+ 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+ 							vma, addr, rss);
+ 		if (entry.val)
+@@ -928,6 +938,15 @@ again:
+ 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
+ 	cond_resched();
+ 
++	if (cnt_hmm_entry) {
++		int ret;
++
++		ret = hmm_mm_fork(src_mm, dst_mm, dst_vma,
++				  dst_pmd, start, end);
++		if (ret)
++			return ret;
++	}
++
+ 	if (entry.val) {
+ 		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0)
+ 			return -ENOMEM;
+@@ -2489,6 +2508,9 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			migration_entry_wait(mm, pmd, address);
+ 		} else if (is_hwpoison_entry(entry)) {
+ 			ret = VM_FAULT_HWPOISON;
++		} else if (is_hmm_entry(entry)) {
++			ret = hmm_handle_cpu_fault(mm, vma, pmd, address,
++						   flags, orig_pte);
+ 		} else {
+ 			print_bad_pte(vma, address, orig_pte, NULL);
+ 			ret = VM_FAULT_SIGBUS;
 -- 
 2.4.3
 
