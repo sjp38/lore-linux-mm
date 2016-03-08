@@ -1,87 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 304276B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:33:06 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id y89so111284812qge.2
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:33:06 -0800 (PST)
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com. [209.85.220.171])
-        by mx.google.com with ESMTPS id o34si278653qge.94.2016.03.07.16.33.05
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6876B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 20:27:51 -0500 (EST)
+Received: by mail-qk0-f173.google.com with SMTP id s68so321705qkh.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 17:27:51 -0800 (PST)
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com. [209.85.192.53])
+        by mx.google.com with ESMTPS id o40si522374qge.54.2016.03.07.17.27.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 16:33:05 -0800 (PST)
-Received: by mail-qk0-f171.google.com with SMTP id o6so54032323qkc.2
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:33:05 -0800 (PST)
-Subject: Re: [PATCHv4 2/2] mm/page_poisoning.c: Allow for zero poisoning
-References: <1457135448-15541-1-git-send-email-labbott@fedoraproject.org>
- <1457135448-15541-3-git-send-email-labbott@fedoraproject.org>
- <20160304160751.05931d89f451626b58073489@linux-foundation.org>
+        Mon, 07 Mar 2016 17:27:50 -0800 (PST)
+Received: by mail-qg0-f53.google.com with SMTP id w104so747119qge.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 17:27:50 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56DE1DBC.5050403@redhat.com>
-Date: Mon, 7 Mar 2016 16:33:00 -0800
+Subject: mmotm broken on arm with ebc495cfcea9 (mm: cleanup *pte_alloc*
+ interfaces)
+Message-ID: <56DE2A92.5010806@redhat.com>
+Date: Mon, 7 Mar 2016 17:27:46 -0800
 MIME-Version: 1.0
-In-Reply-To: <20160304160751.05931d89f451626b58073489@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Russell King <linux@arm.linux.org.uk>
+Cc: linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/04/2016 04:07 PM, Andrew Morton wrote:
-> On Fri,  4 Mar 2016 15:50:48 -0800 Laura Abbott <labbott@fedoraproject.org> wrote:
->
->>
->> By default, page poisoning uses a poison value (0xaa) on free. If this
->> is changed to 0, the page is not only sanitized but zeroing on alloc
->> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
->> corruption from the poisoning is harder to detect. This feature also
->> cannot be used with hibernation since pages are not guaranteed to be
->> zeroed after hibernation.
->>
->> Credit to Grsecurity/PaX team for inspiring this work
->>
->> --- a/kernel/power/hibernate.c
->> +++ b/kernel/power/hibernate.c
->> @@ -1158,6 +1158,22 @@ static int __init kaslr_nohibernate_setup(char *str)
->>   	return nohibernate_setup(str);
->>   }
->>
->> +static int __init page_poison_nohibernate_setup(char *str)
->> +{
->> +#ifdef CONFIG_PAGE_POISONING_ZERO
->> +	/*
->> +	 * The zeroing option for page poison skips the checks on alloc.
->> +	 * since hibernation doesn't save free pages there's no way to
->> +	 * guarantee the pages will still be zeroed.
->> +	 */
->> +	if (!strcmp(str, "on")) {
->> +		pr_info("Disabling hibernation due to page poisoning\n");
->> +		return nohibernate_setup(str);
->> +	}
->> +#endif
->> +	return 1;
->> +}
->
-> It seems a bit unfriendly to silently accept the boot option but not
-> actually do anything with it.  Perhaps a `#else pr_info("sorry")' is
-> needed.
->
-> But I bet we made the same mistake in 1000 other places.
->
-> What happens if page_poison_nohibernate_setup() simply doesn't exist
-> when CONFIG_PAGE_POISONING_ZERO=n?  It looks like
-> kernel/params.c:parse_args() says "Unknown parameter".
->
->
+Hi,
 
-I didn't see that behavior when I tested, even with nonsense parameters.
-It looks like it might fall back to some other behavior before giving
--ENOENT?
+I just tried the master of mmotm and ran into compilation issues on arm:
 
-It's also worth noting the page_poison= option is also parsed in
-mm/page_poison.c to do other on/off of the poisoning feature. The
-option code supported it and it seemed to match better with what the
-existing hibernate code was doing with turning off options.
+   CC      arch/arm/mm/mmu.o
+arch/arm/mm/mmu.c:737:37: error: macro "pte_alloc" passed 4 arguments, but takes just 3
+      void *(*alloc)(unsigned long sz))
+                                      ^
+arch/arm/mm/mmu.c:738:1: error: expected a??=a??, a??,a??, a??;a??, a??asma?? or a??__attribute__a?? before a??{a?? token
+  {
+  ^
+arch/arm/mm/mmu.c: In function a??early_pte_alloca??:
+arch/arm/mm/mmu.c:750:47: error: macro "pte_alloc" passed 4 arguments, but takes just 3
+   return pte_alloc(pmd, addr, prot, early_alloc);
+                                                ^
+arch/arm/mm/mmu.c:750:9: error: a??pte_alloca?? undeclared (first use in this function)
+   return pte_alloc(pmd, addr, prot, early_alloc);
+          ^
+arch/arm/mm/mmu.c:750:9: note: each undeclared identifier is reported only once for each function it appears in
+arch/arm/mm/mmu.c: In function a??alloc_init_ptea??:
+arch/arm/mm/mmu.c:759:56: error: macro "pte_alloc" passed 4 arguments, but takes just 3
+   pte_t *pte = pte_alloc(pmd, addr, type->prot_l1, alloc);
+                                                         ^
+arch/arm/mm/mmu.c:759:15: error: a??pte_alloca?? undeclared (first use in this function)
+   pte_t *pte = pte_alloc(pmd, addr, type->prot_l1, alloc);
+                ^
+arch/arm/mm/mmu.c: In function a??early_pte_alloca??:
+arch/arm/mm/mmu.c:751:1: warning: control reaches end of non-void function [-Wreturn-type]
+  }
+  ^
+
+
+It looks like this is caused by ebc495cfcea9 (mm: cleanup *pte_alloc* interfaces)
+which added
+
+#define pte_alloc(mm, pmd, address)                     \
+         (unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, pmd, address))
+
+
+and conflicts with arch/arm/mm/mmu.c which is using pte_alloc as a function name.
+
+Is this a known issue? If not, Russell would you take a patch to rename the pte_alloc
+functions in arm?
 
 Thanks,
 Laura
