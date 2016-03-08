@@ -1,97 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D17356B007E
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 10:36:19 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id m82so13059120oif.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 07:36:19 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id mz3si2920124obb.100.2016.03.08.07.36.18
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A91A76B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 10:46:35 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id 124so15554084pfg.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 07:46:35 -0800 (PST)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id h75si5430688pfh.96.2016.03.08.07.46.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 07:36:18 -0800 (PST)
-Received: by mail-oi0-x22a.google.com with SMTP id m82so13058806oif.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 07:36:18 -0800 (PST)
+        Tue, 08 Mar 2016 07:46:34 -0800 (PST)
+Received: by mail-pa0-x243.google.com with SMTP id 1so1385830pal.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 07:46:34 -0800 (PST)
+Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
+References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
+ <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
+From: Vineet Gupta <vgupta@synopsys.com>
+Message-ID: <56DEF3D3.6080008@synopsys.com>
+Date: Tue, 8 Mar 2016 21:16:27 +0530
 MIME-Version: 1.0
-In-Reply-To: <56DEAD3D.5090706@huawei.com>
-References: <56D79284.3030009@redhat.com>
-	<CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
-	<56D832BD.5080305@huawei.com>
-	<20160304020232.GA12036@js1304-P5Q-DELUXE>
-	<20160304043232.GC12036@js1304-P5Q-DELUXE>
-	<56D92595.60709@huawei.com>
-	<20160304063807.GA13317@js1304-P5Q-DELUXE>
-	<56D93ABE.9070406@huawei.com>
-	<20160307043442.GB24602@js1304-P5Q-DELUXE>
-	<56DD7B20.1020508@suse.cz>
-	<20160308074816.GA31471@js1304-P5Q-DELUXE>
-	<56DEAD3D.5090706@huawei.com>
-Date: Wed, 9 Mar 2016 00:36:18 +0900
-Message-ID: <CAAmzW4MYzJwkBYqDXicA=hCrtapK+tMNZUNaEAQO=74s_mDt4g@mail.gmail.com>
-Subject: Re: Suspicious error for CMA stress test
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Noam Camus <noamc@ezchip.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org
 
-2016-03-08 19:45 GMT+09:00 Xishi Qiu <qiuxishi@huawei.com>:
-> On 2016/3/8 15:48, Joonsoo Kim wrote:
->
->> On Mon, Mar 07, 2016 at 01:59:12PM +0100, Vlastimil Babka wrote:
->>> On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
->>>> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
->>>>>> Sad to hear that.
->>>>>>
->>>>>> Could you tell me your system's MAX_ORDER and pageblock_order?
->>>>>>
->>>>>
->>>>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
->>>
->>> I thought that CMA regions/operations (and isolation IIRC?) were
->>> supposed to be MAX_ORDER aligned exactly to prevent needing these
->>> extra checks for buddy merging. So what's wrong?
->>
->> CMA isolates MAX_ORDER aligned blocks, but, during the process,
->> partialy isolated block exists. If MAX_ORDER is 11 and
->> pageblock_order is 9, two pageblocks make up MAX_ORDER
->> aligned block and I can think following scenario because pageblock
->> (un)isolation would be done one by one.
->>
->> (each character means one pageblock. 'C', 'I' means MIGRATE_CMA,
->> MIGRATE_ISOLATE, respectively.
->>
->
-> Hi Joonsoo,
->
->> CC -> IC -> II (Isolation)
->
->> II -> CI -> CC (Un-isolation)
->>
->> If some pages are freed at this intermediate state such as IC or CI,
->> that page could be merged to the other page that is resident on
->> different type of pageblock and it will cause wrong freepage count.
->>
->
-> Isolation will appear when do cma alloc, so there are two following threads.
->
-> C(free)C(used) -> start_isolate_page_range -> I(free)C(used) -> I(free)I(someone free it) -> undo_isolate_page_range -> C(free)C(free)
-> so free cma is 2M -> 0M -> 0M -> 4M, the increased 2M was freed by someone.
+On Tuesday 08 March 2016 08:30 PM, Christoph Lameter wrote:
+> On Tue, 8 Mar 2016, Vineet Gupta wrote:
+> 
+>> This in turn happened because slab_unlock() doesn't serialize properly
+>> (doesn't use atomic clear) with a concurrent running
+>> slab_lock()->test_and_set_bit()
+> 
+> This is intentional because of the increased latency of atomic
+> instructions. Why would the unlock need to be atomic? This patch will
+> cause regressions.
+> 
+> Guess this is an architecture specific issue of modified
+> cachelines not becoming visible to other processors?
 
-Your example is correct one but think about following one.
-C(free)C(used) -> start_isolate_page_range -> I(free)C(used) ->
-I(free)**C**(someone free it) -> undo_isolate_page_range ->
-C(free)C(free)
+Absolutely not - we verified with the hardware coherency tracing that there was no
+foul play there. And I would dare not point finger at code which was last updated
+in 2011 w/o being absolutely sure.
 
-it would be 2M -> 0M -> 2M -> 6M.
-When we do I(free)C(someone free it), CMA freepage is added
-because it is on CMA pageblock. But, bad merging happens and
-4M buddy is made and it is in isolate buddy list.
-Later, when we do undo_isolation, this 4M buddy is moved to
-CMA buddy list and 4M is added to CMA freepage counter so
-total is 6M.
+Let me explain this in bit more detail. Like I mentioned in commitlog, this config
+of ARC doesn't have exclusive load/stores (LLOCK/SCOND) so atomic ops are
+implemented using a "central" spin lock. The spin lock itself is implemented using
+EX instruction (atomic R-W)
 
-Thanks.
+Generated code for slab_lock() - essentially bit_spin_lock() is below (I've
+removed generated code for CONFIG_PREEMPT for simplicity)
+
+80543b0c <slab_lock>:
+80543b0c:	push_s     blink
+...
+80543b3a:	mov_s      r15,0x809de168   <-- @smp_bitops_lock
+80543b40:	mov_s      r17,1
+80543b46:	mov_s      r16,0
+
+# spin lock() inside test_and_set_bit() - see arc bitops.h (!LLSC code)
+80543b78:	clri       r4
+80543b7c:	dmb        3
+80543b80:	mov_s      r2,r17
+80543b82:	ex         r2,[r15]
+80543b86:	breq       r2,1,80543b82
+80543b8a:	dmb        3
+
+# set the bit
+80543b8e:	ld_s       r2,[r13,0] <--- (A) Finds PG_locked is set
+80543b90:	or         r3,r2,1    <--- (B) other core unlocks right here
+80543b94:	st_s       r3,[r13,0] <--- (C) sets PG_locked (overwrites unlock)
+
+# spin_unlock
+80543b96:	dmb        3
+80543b9a:	mov_s      r3,r16
+80543b9c:	ex         r3,[r15]
+80543ba0:	dmb        3
+80543ba4:	seti       r4
+
+# check the old bit
+80543ba8:	bbit0      r2,0,80543bb8   <--- bit was set, branch not taken
+80543bac:	b_s        80543b68        <--- enter the test_bit() loop
+
+   80543b68:	ld_s       r2,[r13,0]	   <-- (C) reads the bit, set by SELF
+   80543b6a:	bbit1    r2,0,80543b68              spins infinitely
+
+...
+
+
+Now using hardware coherency tracing (and using the cycle timestamps) we verified
+(A) and (B)
+
+Thing is with exclusive load/store this race can't just happen since the
+intervening ST will cause the ST in (C) to NOT commit and the LD/ST will be retried.
+
+And there will be very few production systems which are SMP but lack exclusive
+load/stores.
+
+Are you convinced now !
+
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
