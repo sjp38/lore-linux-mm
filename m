@@ -1,109 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 785BF6B0253
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 06:56:09 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id 63so11476147pfe.3
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 03:56:09 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r3si4366671pfr.120.2016.03.08.03.56.08
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 34EF06B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 07:22:44 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id n186so128863339wmn.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 04:22:44 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id s7si4063011wmb.109.2016.03.08.04.22.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Mar 2016 03:56:08 -0800 (PST)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
-Date: Tue,  8 Mar 2016 20:01:32 +0900
-Message-Id: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Mar 2016 04:22:43 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id l68so147470769wml.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 04:22:42 -0800 (PST)
+Date: Tue, 8 Mar 2016 13:22:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: protect !costly allocations some more
+Message-ID: <20160308122241.GD13542@dhcp22.suse.cz>
+References: <20160203132718.GI6757@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
+ <20160225092315.GD17573@dhcp22.suse.cz>
+ <20160229210213.GX16930@dhcp22.suse.cz>
+ <20160307160838.GB5028@dhcp22.suse.cz>
+ <56DE9A68.2010301@suse.cz>
+ <20160308094612.GB13542@dhcp22.suse.cz>
+ <56DEA0CF.2070902@suse.cz>
+ <20160308101016.GC13542@dhcp22.suse.cz>
+ <56DEB394.40602@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56DEB394.40602@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: devel@driverdev.osuosl.org, linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arve Hjonnevag <arve@android.com>, Riley Andrews <riandrews@android.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
-One is to remember processes killed by LMK, and the other is to
-accelerate termination of processes killed by LMK.
+On Tue 08-03-16 12:12:20, Vlastimil Babka wrote:
+> On 03/08/2016 11:10 AM, Michal Hocko wrote:
+> > On Tue 08-03-16 10:52:15, Vlastimil Babka wrote:
+> >> On 03/08/2016 10:46 AM, Michal Hocko wrote:
+> > [...]
+> >>>>> @@ -3294,6 +3289,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >>>>>  				 did_some_progress > 0, no_progress_loops))
+> >>>>>  		goto retry;
+> >>>>>  
+> >>>>> +	/*
+> >>>>> +	 * !costly allocations are really important and we have to make sure
+> >>>>> +	 * the compaction wasn't deferred or didn't bail out early due to locks
+> >>>>> +	 * contention before we go OOM.
+> >>>>> +	 */
+> >>>>> +	if (order && order <= PAGE_ALLOC_COSTLY_ORDER) {
+> >>>>> +		if (compact_result <= COMPACT_CONTINUE)
+> >>>>
+> >>>> Same here.
+> >>>> I was going to say that this didn't have effect on Sergey's test, but
+> >>>> turns out it did :)
+> >>>
+> >>> This should work as expected because compact_result is unsigned long
+> >>> and so this is the unsigned arithmetic. I can make
+> >>> #define COMPACT_NONE            -1UL
+> >>>
+> >>> to make the intention more obvious if you prefer, though.
+> >>
+> >> Well, what wasn't obvious to me is actually that here (unlike in the
+> >> test above) it was actually intended that COMPACT_NONE doesn't result in
+> >> a retry. But it makes sense, otherwise we would retry endlessly if
+> >> reclaim couldn't form a higher-order page, right.
+> > 
+> > Yeah, that was the whole point. An alternative would be moving the test
+> > into should_compact_retry(order, compact_result, contended_compaction)
+> > which would be CONFIG_COMPACTION specific so we can get rid of the
+> > COMPACT_NONE altogether. Something like the following. We would lose the
+> > always initialized compact_result but this would matter only for
+> > order==0 and we check for that. Even gcc doesn't complain.
+> 
+> Yeah I like this version better, you can add my Acked-By.
 
-But since LMK is invoked as a memory shrinker function, there still
-should be some memory available. It is very likely that memory
-allocations by processes killed by LMK will succeed without using
-ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
-escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
-lowmem_deathpending_timeout can guarantee forward progress by choosing
-next victim process.
-
-On the other hand, mark_oom_victim() assumes that it must be called with
-oom_lock held and it must not be called after oom_killer_disable() was
-called. But LMK is calling it without holding oom_lock and checking
-oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
-due to allocation requests by kernel threads after current thread
-returned from oom_killer_disabled(). This will break synchronization
-for PM/suspend.
-
-This patch introduces per a task_struct flag for remembering processes
-killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
-patch, assumption by mark_oom_victim() becomes true.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Arve Hjonnevag <arve@android.com>
-Cc: Riley Andrews <riandrews@android.com>
----
- drivers/staging/android/lowmemorykiller.c | 9 ++-------
- include/linux/sched.h                     | 4 ++++
- 2 files changed, 6 insertions(+), 7 deletions(-)
-
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-index 4b8a56c..a1dd798 100644
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -129,7 +129,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 		if (!p)
- 			continue;
+OK, patch updated and I will post it as a reply to the original email.
  
--		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-+		if (task_lmk_waiting(p) && p->mm &&
- 		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
- 			task_unlock(p);
- 			rcu_read_unlock();
-@@ -160,13 +160,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 	if (selected) {
- 		task_lock(selected);
- 		send_sig(SIGKILL, selected, 0);
--		/*
--		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
--		 * infrastructure. There is no real reason why the selected
--		 * task should have access to the memory reserves.
--		 */
- 		if (selected->mm)
--			mark_oom_victim(selected);
-+			task_set_lmk_waiting(selected);
- 		task_unlock(selected);
- 		lowmem_print(1, "Killing '%s' (%d), adj %hd,\n"
- 				 "   to free %ldkB on behalf of '%s' (%d) because\n"
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 0b44fbc..de9ced9 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2187,6 +2187,7 @@ static inline void memalloc_noio_restore(unsigned int flags)
- #define PFA_NO_NEW_PRIVS 0	/* May not gain new privileges. */
- #define PFA_SPREAD_PAGE  1      /* Spread page cache over cpuset */
- #define PFA_SPREAD_SLAB  2      /* Spread some slab caches over cpuset */
-+#define PFA_LMK_WAITING  3      /* Lowmemorykiller is waiting */
- 
- 
- #define TASK_PFA_TEST(name, func)					\
-@@ -2210,6 +2211,9 @@ TASK_PFA_TEST(SPREAD_SLAB, spread_slab)
- TASK_PFA_SET(SPREAD_SLAB, spread_slab)
- TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
- 
-+TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
-+TASK_PFA_SET(LMK_WAITING, lmk_waiting)
-+
- /*
-  * task->jobctl flags
-  */
+> Thanks.
+> 
+> > A more important question is whether the criteria I have chosen are
+> > reasonable and reasonably independent on the particular implementation
+> > of the compaction. I still cannot convince myself about the convergence
+> > here. Is it possible that the compaction would keep returning 
+> > compact_result <= COMPACT_CONTINUE while not making any progress at all?
+> 
+> Theoretically, if reclaim/compaction suitability decisions and
+> allocation attempts didn't match the watermark checks, including the
+> alloc_flags and classzone_idx parameters. Possible scenarios:
+> 
+> - reclaim thinks compaction has enough to proceed, but compaction thinks
+> otherwise and returns COMPACT_SKIPPED
+> - compaction thinks it succeeded and returns COMPACT_PARTIAL, but
+> allocation attempt fails
+> - and perhaps some other combinations
+
+But that might happen right now as well so it wouldn't be a regression,
+right?
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
