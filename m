@@ -1,89 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f172.google.com (mail-yw0-f172.google.com [209.85.161.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5486B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 05:48:27 -0500 (EST)
-Received: by mail-yw0-f172.google.com with SMTP id g3so8343066ywa.3
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 02:48:27 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 82si733578yba.150.2016.03.08.02.48.25
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F446B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 05:59:53 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id hb3so61939449igb.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 02:59:53 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z68si3897863ioi.107.2016.03.08.02.59.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Mar 2016 02:48:27 -0800 (PST)
-Message-ID: <56DEAD3D.5090706@huawei.com>
-Date: Tue, 8 Mar 2016 18:45:17 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: Suspicious error for CMA stress test
-References: <56D79284.3030009@redhat.com> <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com> <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE> <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com> <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com> <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD7B20.1020508@suse.cz> <20160308074816.GA31471@js1304-P5Q-DELUXE>
-In-Reply-To: <20160308074816.GA31471@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        Tue, 08 Mar 2016 02:59:52 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v2] mm,oom: Do not sleep with oom_lock held.
+Date: Tue,  8 Mar 2016 19:59:15 +0900
+Message-Id: <1457434755-12531-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.cz>
 
-On 2016/3/8 15:48, Joonsoo Kim wrote:
+out_of_memory() can stall effectively forever if a SCHED_IDLE thread
+called out_of_memory() when there are !SCHED_IDLE threads running on
+the same CPU, for schedule_timeout_killable(1) cannot return shortly
+due to scheduling priority on CONFIG_PREEMPT_NONE=y kernels.
 
-> On Mon, Mar 07, 2016 at 01:59:12PM +0100, Vlastimil Babka wrote:
->> On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
->>> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
->>>>> Sad to hear that.
->>>>>
->>>>> Could you tell me your system's MAX_ORDER and pageblock_order?
->>>>>
->>>>
->>>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
->>
->> I thought that CMA regions/operations (and isolation IIRC?) were
->> supposed to be MAX_ORDER aligned exactly to prevent needing these
->> extra checks for buddy merging. So what's wrong?
-> 
-> CMA isolates MAX_ORDER aligned blocks, but, during the process,
-> partialy isolated block exists. If MAX_ORDER is 11 and
-> pageblock_order is 9, two pageblocks make up MAX_ORDER
-> aligned block and I can think following scenario because pageblock
-> (un)isolation would be done one by one.
-> 
-> (each character means one pageblock. 'C', 'I' means MIGRATE_CMA,
-> MIGRATE_ISOLATE, respectively.
-> 
+Operations with oom_lock held should complete as soon as possible
+because we might be preserving OOM condition for most of that period
+if we are in OOM condition. SysRq-f can't work if oom_lock is held.
 
-Hi Joonsoo,
+It would be possible to boost scheduling priority of current thread
+while holding oom_lock, but priority of current thread might be
+manipulated by other threads after boosting. Unless we offload
+operations with oom_lock held to a dedicated kernel thread with high
+priority, addressing this problem using priority manipulation is racy.
 
-> CC -> IC -> II (Isolation)
+This patch brings schedule_timeout_killable(1) out of oom_lock.
 
-> II -> CI -> CC (Un-isolation)
-> 
-> If some pages are freed at this intermediate state such as IC or CI,
-> that page could be merged to the other page that is resident on
-> different type of pageblock and it will cause wrong freepage count.
-> 
+This patch does not address OOM notifiers which are blockable.
+Long term we should focus on making the OOM context not preemptible.
 
-Isolation will appear when do cma alloc, so there are two following threads.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/oom_kill.c   | 14 +++++++-------
+ mm/page_alloc.c |  7 +++++++
+ 2 files changed, 14 insertions(+), 7 deletions(-)
 
-C(free)C(used) -> start_isolate_page_range -> I(free)C(used) -> I(free)I(someone free it) -> undo_isolate_page_range -> C(free)C(free)
-so free cma is 2M -> 0M -> 0M -> 4M, the increased 2M was freed by someone.
-C(used)C(free) -> start_isolate_page_range -> C(used)I(free) -> C(someone free it)C(free) -> undo_isolate_page_range -> C(free)C(free)
-so free cma is 2M -> 0M -> 4M -> 4M, the increased 2M was freed by someone.
-
-so these two cases are no problem, right?
-
-Thanks,
-Xishi Qiu
-
-> If we don't release zone lock during whole isolation process, there
-> would be no problem and CMA can use that implementation. But,
-> isolation is used by another feature and I guess it cannot use that
-> kind of implementation.
-> 
-> Thanks.
-> 
-> 
-> .
-> 
-
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5d5eca9..c84e784 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -901,15 +901,9 @@ bool out_of_memory(struct oom_control *oc)
+ 		dump_header(oc, NULL, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (p && p != (void *)-1UL) {
++	if (p && p != (void *)-1UL)
+ 		oom_kill_process(oc, p, points, totalpages, NULL,
+ 				 "Out of memory");
+-		/*
+-		 * Give the killed process a good chance to exit before trying
+-		 * to allocate memory again.
+-		 */
+-		schedule_timeout_killable(1);
+-	}
+ 	return true;
+ }
+ 
+@@ -944,4 +938,10 @@ void pagefault_out_of_memory(void)
+ 	}
+ 
+ 	mutex_unlock(&oom_lock);
++
++	/*
++	 * Give the killed process a good chance to exit before trying
++	 * to allocate memory again.
++	 */
++	schedule_timeout_killable(1);
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1993894..378a346 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2888,6 +2888,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	}
+ out:
+ 	mutex_unlock(&oom_lock);
++	if (*did_some_progress && !page) {
++		/*
++		 * Give the killed process a good chance to exit before trying
++		 * to allocate memory again.
++		 */
++		schedule_timeout_killable(1);
++	}
+ 	return page;
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
