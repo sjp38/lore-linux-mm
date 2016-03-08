@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D73FF6B0264
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 14:46:59 -0500 (EST)
-Received: by mail-qk0-f169.google.com with SMTP id s5so10762984qkd.0
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 11:46:59 -0800 (PST)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA356B0266
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 14:47:03 -0500 (EST)
+Received: by mail-qk0-f182.google.com with SMTP id s68so10684367qkh.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 11:47:03 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e184si635252qhc.15.2016.03.08.11.46.59
+        by mx.google.com with ESMTPS id h68si4510778qgf.82.2016.03.08.11.47.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 11:46:59 -0800 (PST)
+        Tue, 08 Mar 2016 11:47:02 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH v12 10/29] HMM: use CPU page table during invalidation.
-Date: Tue,  8 Mar 2016 15:43:03 -0500
-Message-Id: <1457469802-11850-11-git-send-email-jglisse@redhat.com>
+Subject: [PATCH v12 11/29] HMM: add discard range helper (to clear and free resources for a range).
+Date: Tue,  8 Mar 2016 15:43:04 -0500
+Message-Id: <1457469802-11850-12-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1457469802-11850-1-git-send-email-jglisse@redhat.com>
 References: <1457469802-11850-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,166 +23,69 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Once we store the dma mapping inside the secondary page table we can
-no longer easily find back the page backing an address. Instead use
-the cpu page table which still has the proper information, except for
-the invalidate_page() case which is handled by using the page passed
-by the mmu_notifier layer.
+A common use case is for device driver to stop caring for a range of
+address long before said range is munmapped by userspace program. To
+avoid keeping track of such range provide an helper function that will
+free HMM resources for a range of address.
+
+NOTE THAT DEVICE DRIVER MUST MAKE SURE THE HARDWARE WILL NO LONGER
+ACCESS THE RANGE BECAUSE CALLING THIS HELPER !
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- mm/hmm.c | 53 +++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 35 insertions(+), 18 deletions(-)
+ include/linux/hmm.h |  3 +++
+ mm/hmm.c            | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
 
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index d819ec9..10e1558 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -265,6 +265,9 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
+ struct hmm_mirror *hmm_mirror_ref(struct hmm_mirror *mirror);
+ void hmm_mirror_unref(struct hmm_mirror **mirror);
+ int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event);
++void hmm_mirror_range_discard(struct hmm_mirror *mirror,
++			      unsigned long start,
++			      unsigned long end);
+ 
+ 
+ #endif /* CONFIG_HMM */
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 74e429a..7b6ba6a 100644
+index 7b6ba6a..548f0c5 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -47,9 +47,11 @@
- static struct mmu_notifier_ops hmm_notifier_ops;
- static void hmm_mirror_kill(struct hmm_mirror *mirror);
- static inline int hmm_mirror_update(struct hmm_mirror *mirror,
--				    struct hmm_event *event);
-+				    struct hmm_event *event,
-+				    struct page *page);
- static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
--				 struct hmm_event *event);
-+				 struct hmm_event *event,
-+				 struct page *page);
- 
- 
- /* hmm_event - use to track information relating to an event.
-@@ -223,7 +225,9 @@ again:
- 	}
+@@ -921,6 +921,30 @@ out:
  }
+ EXPORT_SYMBOL(hmm_mirror_fault);
  
--static void hmm_update(struct hmm *hmm, struct hmm_event *event)
-+static void hmm_update(struct hmm *hmm,
-+		       struct hmm_event *event,
-+		       struct page *page)
- {
- 	struct hmm_mirror *mirror;
- 
-@@ -236,7 +240,7 @@ static void hmm_update(struct hmm *hmm, struct hmm_event *event)
- again:
- 	down_read(&hmm->rwsem);
- 	hlist_for_each_entry(mirror, &hmm->mirrors, mlist)
--		if (hmm_mirror_update(mirror, event)) {
-+		if (hmm_mirror_update(mirror, event, page)) {
- 			mirror = hmm_mirror_ref(mirror);
- 			up_read(&hmm->rwsem);
- 			hmm_mirror_kill(mirror);
-@@ -304,7 +308,7 @@ static void hmm_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm)
- 
- 		/* Make sure everything is unmapped. */
- 		hmm_event_init(&event, mirror->hmm, 0, -1UL, HMM_MUNMAP);
--		hmm_mirror_update(mirror, &event);
-+		hmm_mirror_update(mirror, &event, NULL);
- 
- 		mirror->device->ops->release(mirror);
- 		hmm_mirror_unref(&mirror);
-@@ -338,9 +342,10 @@ static void hmm_mmu_mprot_to_etype(struct mm_struct *mm,
- 	*etype = HMM_NONE;
- }
- 
--static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
--					struct mm_struct *mm,
--					const struct mmu_notifier_range *range)
-+static void hmm_notifier_invalidate(struct mmu_notifier *mn,
-+				    struct mm_struct *mm,
-+				    struct page *page,
-+				    const struct mmu_notifier_range *range)
- {
- 	struct hmm_event event;
- 	unsigned long start = range->start, end = range->end;
-@@ -382,7 +387,14 @@ static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 
- 	hmm_event_init(&event, hmm, start, end, event.etype);
- 
--	hmm_update(hmm, &event);
-+	hmm_update(hmm, &event, page);
-+}
-+
-+static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
-+					struct mm_struct *mm,
-+					const struct mmu_notifier_range *range)
++/* hmm_mirror_range_discard() - discard a range of address.
++ *
++ * @mirror: The mirror struct.
++ * @start: Start address of the range to discard (inclusive).
++ * @end: End address of the range to discard (exclusive).
++ *
++ * Call when device driver want to stop mirroring a range of address and free
++ * any HMM resources associated with that range (including dma mapping if any).
++ *
++ * THIS FUNCTION ASSUME THAT DRIVER ALREADY STOPPED USING THE RANGE OF ADDRESS
++ * AND THUS DO NOT PERFORM ANY SYNCHRONIZATION OR UPDATE WITH THE DRIVER TO
++ * INVALIDATE SAID RANGE.
++ */
++void hmm_mirror_range_discard(struct hmm_mirror *mirror,
++			      unsigned long start,
++			      unsigned long end)
 +{
-+	hmm_notifier_invalidate(mn, mm, NULL, range);
- }
- 
- static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
-@@ -396,7 +408,7 @@ static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
- 	range.start = addr & PAGE_MASK;
- 	range.end = range.start + PAGE_SIZE;
- 	range.event = mmu_event;
--	hmm_notifier_invalidate_range_start(mn, mm, &range);
-+	hmm_notifier_invalidate(mn, mm, page, &range);
- }
- 
- static struct mmu_notifier_ops hmm_notifier_ops = {
-@@ -554,23 +566,27 @@ void hmm_mirror_unref(struct hmm_mirror **mirror)
- EXPORT_SYMBOL(hmm_mirror_unref);
- 
- static inline int hmm_mirror_update(struct hmm_mirror *mirror,
--				    struct hmm_event *event)
-+				    struct hmm_event *event,
-+				    struct page *page)
- {
- 	struct hmm_device *device = mirror->device;
- 	int ret = 0;
- 
- 	ret = device->ops->update(mirror, event);
--	hmm_mirror_update_pt(mirror, event);
-+	hmm_mirror_update_pt(mirror, event, page);
- 	return ret;
- }
- 
- static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
--				 struct hmm_event *event)
-+				 struct hmm_event *event,
-+				 struct page *page)
- {
- 	unsigned long addr;
- 	struct hmm_pt_iter iter;
-+	struct mm_pt_iter mm_iter;
- 
- 	hmm_pt_iter_init(&iter, &mirror->pt);
-+	mm_pt_iter_init(&mm_iter, mirror->hmm->mm);
- 	for (addr = event->start; addr != event->end;) {
- 		unsigned long next = event->end;
- 		dma_addr_t *hmm_pte;
-@@ -591,10 +607,10 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
- 				continue;
- 			if (hmm_pte_test_and_clear_dirty(hmm_pte) &&
- 			    hmm_pte_test_write(hmm_pte)) {
--				struct page *page;
--
--				page = pfn_to_page(hmm_pte_pfn(*hmm_pte));
--				set_page_dirty(page);
-+				page = page ? : mm_pt_iter_page(&mm_iter, addr);
-+				if (page)
-+					set_page_dirty(page);
-+				page = NULL;
- 			}
- 			*hmm_pte &= event->pte_mask;
- 			if (hmm_pte_test_valid_pfn(hmm_pte))
-@@ -604,6 +620,7 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
- 		hmm_pt_iter_directory_unlock(&iter);
- 	}
- 	hmm_pt_iter_fini(&iter);
-+	mm_pt_iter_fini(&mm_iter);
- }
- 
- static inline bool hmm_mirror_is_dead(struct hmm_mirror *mirror)
-@@ -1004,7 +1021,7 @@ static void hmm_mirror_kill(struct hmm_mirror *mirror)
- 
- 		/* Make sure everything is unmapped. */
- 		hmm_event_init(&event, mirror->hmm, 0, -1UL, HMM_MUNMAP);
--		hmm_mirror_update(mirror, &event);
-+		hmm_mirror_update(mirror, &event, NULL);
- 
- 		device->ops->release(mirror);
- 		hmm_mirror_unref(&mirror);
++	struct hmm_event event;
++
++	hmm_event_init(&event, mirror->hmm, start, end, HMM_MUNMAP);
++	hmm_mirror_update_pt(mirror, &event, NULL);
++}
++EXPORT_SYMBOL(hmm_mirror_range_discard);
++
+ /* hmm_mirror_register() - register mirror against current process for a device.
+  *
+  * @mirror: The mirror struct being registered.
 -- 
 2.4.3
 
