@@ -1,70 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B4B4B6B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 02:47:36 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id vs8so42604122igb.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 23:47:36 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EDCA96B0254
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 03:08:55 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fl4so7488187pad.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 00:08:55 -0800 (PST)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t103si2980786ioe.52.2016.03.07.23.47.35
+        by mx.google.com with ESMTP id xw2si3044938pac.192.2016.03.08.00.08.54
         for <linux-mm@kvack.org>;
-        Mon, 07 Mar 2016 23:47:35 -0800 (PST)
-Date: Tue, 8 Mar 2016 16:48:16 +0900
+        Tue, 08 Mar 2016 00:08:55 -0800 (PST)
+Date: Tue, 8 Mar 2016 17:09:32 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: Suspicious error for CMA stress test
-Message-ID: <20160308074816.GA31471@js1304-P5Q-DELUXE>
-References: <56D79284.3030009@redhat.com>
+Message-ID: <20160308080932.GB31471@js1304-P5Q-DELUXE>
+References: <56D6F008.1050600@huawei.com>
+ <56D79284.3030009@redhat.com>
  <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
  <56D832BD.5080305@huawei.com>
  <20160304020232.GA12036@js1304-P5Q-DELUXE>
- <20160304043232.GC12036@js1304-P5Q-DELUXE>
- <56D92595.60709@huawei.com>
- <20160304063807.GA13317@js1304-P5Q-DELUXE>
- <56D93ABE.9070406@huawei.com>
- <20160307043442.GB24602@js1304-P5Q-DELUXE>
- <56DD7B20.1020508@suse.cz>
+ <56D91E18.1020807@huawei.com>
+ <56DE2DE8.6070509@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56DD7B20.1020508@suse.cz>
+In-Reply-To: <56DE2DE8.6070509@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Mar 07, 2016 at 01:59:12PM +0100, Vlastimil Babka wrote:
-> On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
-> >On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
-> >>>Sad to hear that.
-> >>>
-> >>>Could you tell me your system's MAX_ORDER and pageblock_order?
-> >>>
-> >>
-> >>MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
+On Tue, Mar 08, 2016 at 09:42:00AM +0800, Xishi Qiu wrote:
+> On 2016/3/4 13:33, Hanjun Guo wrote:
 > 
-> I thought that CMA regions/operations (and isolation IIRC?) were
-> supposed to be MAX_ORDER aligned exactly to prevent needing these
-> extra checks for buddy merging. So what's wrong?
+> > Hi Joonsoo,
+> > 
+> > On 2016/3/4 10:02, Joonsoo Kim wrote:
+> >> On Thu, Mar 03, 2016 at 08:49:01PM +0800, Hanjun Guo wrote:
+> >>> On 2016/3/3 15:42, Joonsoo Kim wrote:
+> >>>> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+> >>>>> (cc -mm and Joonsoo Kim)
+> >>>>>
+> >>>>>
+> >>>>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+> >>>>>> Hi,
+> >>>>>>
+> >>>>>> I came across a suspicious error for CMA stress test:
+> >>>>>>
+> >>>>>> Before the test, I got:
+> >>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+> >>>>>> CmaTotal:         204800 kB
+> >>>>>> CmaFree:          195044 kB
+> >>>>>>
+> >>>>>>
+> >>>>>> After running the test:
+> >>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+> >>>>>> CmaTotal:         204800 kB
+> >>>>>> CmaFree:         6602584 kB
+> >>>>>>
+> >>>>>> So the freed CMA memory is more than total..
+> >>>>>>
+> >>>>>> Also the the MemFree is more than mem total:
+> >>>>>>
+> >>>>>> -bash-4.3# cat /proc/meminfo
+> >>>>>> MemTotal:       16342016 kB
+> >>>>>> MemFree:        22367268 kB
+> >>>>>> MemAvailable:   22370528 kB
+> >>> [...]
+> >>>>> I played with this a bit and can see the same problem. The sanity
+> >>>>> check of CmaFree < CmaTotal generally triggers in
+> >>>>> __move_zone_freepage_state in unset_migratetype_isolate.
+> >>>>> This also seems to be present as far back as v4.0 which was the
+> >>>>> first version to have the updated accounting from Joonsoo.
+> >>>>> Were there known limitations with the new freepage accounting,
+> >>>>> Joonsoo?
+> >>>> I don't know. I also played with this and looks like there is
+> >>>> accounting problem, however, for my case, number of free page is slightly less
+> >>>> than total. I will take a look.
+> >>>>
+> >>>> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+> >>>> look like your case.
+> >>> I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
+> >>> did some other test:
+> >> Thanks! Now, I can re-generate erronous situation you mentioned.
+> >>
+> >>>  - run with single thread with 100000 times, everything is fine.
+> >>>
+> >>>  - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
+> >>>    the same test with 100 multi-thread, then I got:
+> >> [1] would not be sufficient to close this race.
+> >>
+> >> Try following things [A]. And, for more accurate test, I changed code a bit more
+> >> to prevent kernel page allocation from cma area [B]. This will prevent kernel
+> >> page allocation from cma area completely so we can focus cma_alloc/release race.
+> >>
+> >> Although, this is not correct fix, it could help that we can guess
+> >> where the problem is.
+> >>
+> >> Thanks.
+> >>
+> >> [A]
+> > 
+> > I tested this solution [A], it can fix the problem, as you are posting a new patch, I will
+> > test that one and leave [B] alone :)
+> > 
+> 
+> Hi Joonsoo,
+> 
+> How does this problem happen? Why the count is larger than total?
+> 
+> Patch A prevent the cma page free to pcp, right?
+> 
+> ...
+> -               if (unlikely(is_migrate_isolate(migratetype))) {
+> +               if (is_migrate_cma(migratetype) ||
+> +                       unlikely(is_migrate_isolate(migratetype))) {
+> ...
+> > .
+> > 
 
-CMA isolates MAX_ORDER aligned blocks, but, during the process,
-partialy isolated block exists. If MAX_ORDER is 11 and
-pageblock_order is 9, two pageblocks make up MAX_ORDER
-aligned block and I can think following scenario because pageblock
-(un)isolation would be done one by one.
-
-(each character means one pageblock. 'C', 'I' means MIGRATE_CMA,
-MIGRATE_ISOLATE, respectively.
-
-CC -> IC -> II (Isolation)
-II -> CI -> CC (Un-isolation)
-
-If some pages are freed at this intermediate state such as IC or CI,
-that page could be merged to the other page that is resident on
-different type of pageblock and it will cause wrong freepage count.
-
-If we don't release zone lock during whole isolation process, there
-would be no problem and CMA can use that implementation. But,
-isolation is used by another feature and I guess it cannot use that
-kind of implementation.
+Even without free to pcp, bad merging could happen. Please see another
+thread I mentioned some example.
 
 Thanks.
 
