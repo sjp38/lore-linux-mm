@@ -1,133 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9D96B0255
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 23:03:24 -0500 (EST)
-Received: by mail-pf0-f179.google.com with SMTP id x188so3395424pfb.2
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 20:03:24 -0800 (PST)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id ku4si1609916pab.153.2016.03.07.20.03.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 20:03:23 -0800 (PST)
-Received: by mail-pf0-x22c.google.com with SMTP id x188so3395200pfb.2
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 20:03:23 -0800 (PST)
-Message-ID: <56DE4F00.3070608@linaro.org>
-Date: Tue, 08 Mar 2016 12:03:12 +0800
-From: Hanjun Guo <hanjun.guo@linaro.org>
-MIME-Version: 1.0
-Subject: Re: Suspicious error for CMA stress test
-References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com> <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com> <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE> <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com> <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com> <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD38E7.3050107@huawei.com>
-In-Reply-To: <56DD38E7.3050107@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 572E66B0255
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 23:13:09 -0500 (EST)
+Received: by mail-pf0-f179.google.com with SMTP id 63so3514273pfe.3
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 20:13:09 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id 7si1697841pfm.127.2016.03.07.20.13.08
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 20:13:08 -0800 (PST)
+Date: Mon, 07 Mar 2016 23:13:03 -0500 (EST)
+Message-Id: <20160307.231303.1411773963750082733.davem@davemloft.net>
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <56DE0B1B.1000000@oracle.com>
+References: <56DDF3C4.7070701@oracle.com>
+	<20160307.163850.1494834587897617780.davem@davemloft.net>
+	<56DE0B1B.1000000@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>
-Cc: Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: rob.gardner@oracle.com
+Cc: khalid.aziz@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On 03/07/2016 04:16 PM, Leizhen (ThunderTown) wrote:
->
->
-> On 2016/3/7 12:34, Joonsoo Kim wrote:
->> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
->>> On 2016/3/4 14:38, Joonsoo Kim wrote:
->>>> On Fri, Mar 04, 2016 at 02:05:09PM +0800, Hanjun Guo wrote:
->>>>> On 2016/3/4 12:32, Joonsoo Kim wrote:
->>>>>> On Fri, Mar 04, 2016 at 11:02:33AM +0900, Joonsoo Kim wrote:
->>>>>>> On Thu, Mar 03, 2016 at 08:49:01PM +0800, Hanjun Guo wrote:
->>>>>>>> On 2016/3/3 15:42, Joonsoo Kim wrote:
->>>>>>>>> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
->>>>>>>>>> (cc -mm and Joonsoo Kim)
->>>>>>>>>>
->>>>>>>>>>
->>>>>>>>>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
->>>>>>>>>>> Hi,
->>>>>>>>>>>
->>>>>>>>>>> I came across a suspicious error for CMA stress test:
->>>>>>>>>>>
->>>>>>>>>>> Before the test, I got:
->>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
->>>>>>>>>>> CmaTotal:         204800 kB
->>>>>>>>>>> CmaFree:          195044 kB
->>>>>>>>>>>
->>>>>>>>>>>
->>>>>>>>>>> After running the test:
->>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
->>>>>>>>>>> CmaTotal:         204800 kB
->>>>>>>>>>> CmaFree:         6602584 kB
->>>>>>>>>>>
->>>>>>>>>>> So the freed CMA memory is more than total..
->>>>>>>>>>>
->>>>>>>>>>> Also the the MemFree is more than mem total:
->>>>>>>>>>>
->>>>>>>>>>> -bash-4.3# cat /proc/meminfo
->>>>>>>>>>> MemTotal:       16342016 kB
->>>>>>>>>>> MemFree:        22367268 kB
->>>>>>>>>>> MemAvailable:   22370528 kB
->>>>>>>> [...]
->>>>>>>>>> I played with this a bit and can see the same problem. The sanity
->>>>>>>>>> check of CmaFree < CmaTotal generally triggers in
->>>>>>>>>> __move_zone_freepage_state in unset_migratetype_isolate.
->>>>>>>>>> This also seems to be present as far back as v4.0 which was the
->>>>>>>>>> first version to have the updated accounting from Joonsoo.
->>>>>>>>>> Were there known limitations with the new freepage accounting,
->>>>>>>>>> Joonsoo?
->>>>>>>>> I don't know. I also played with this and looks like there is
->>>>>>>>> accounting problem, however, for my case, number of free page is slightly less
->>>>>>>>> than total. I will take a look.
->>>>>>>>>
->>>>>>>>> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
->>>>>>>>> look like your case.
->>>>>>>> I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
->>>>>>>> did some other test:
->>>>>>> Thanks! Now, I can re-generate erronous situation you mentioned.
->>>>>>>
->>>>>>>>   - run with single thread with 100000 times, everything is fine.
->>>>>>>>
->>>>>>>>   - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
->>>>>>>>     the same test with 100 multi-thread, then I got:
->>>>>>> [1] would not be sufficient to close this race.
->>>>>>>
->>>>>>> Try following things [A]. And, for more accurate test, I changed code a bit more
->>>>>>> to prevent kernel page allocation from cma area [B]. This will prevent kernel
->>>>>>> page allocation from cma area completely so we can focus cma_alloc/release race.
->>>>>>>
->>>>>>> Although, this is not correct fix, it could help that we can guess
->>>>>>> where the problem is.
->>>>>> More correct fix is something like below.
->>>>>> Please test it.
->>>>> Hmm, this is not working:
->>>> Sad to hear that.
->>>>
->>>> Could you tell me your system's MAX_ORDER and pageblock_order?
->>>>
->>>
->>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
->>
->> Hmm... that's same with me.
->>
->> Below is similar fix that prevents buddy merging when one of buddy's
->> migrate type, but, not both, is MIGRATE_ISOLATE. In fact, I have
->> no idea why previous fix (more correct fix) doesn't work for you.
->> (It works for me.) But, maybe there is a bug on the fix
->> so I make new one which is more general form. Please test it.
->
-> Hi,
-> 	Hanjun Guo has gone to Tailand on business, so I help him to run this patch. The result
-> shows that the count of "CmaFree:" is OK now.
+From: Rob Gardner <rob.gardner@oracle.com>
+Date: Mon, 7 Mar 2016 15:13:31 -0800
 
-Thanks Leizhen :)
+> You can easily read ADI tags with a simple ldxa #ASI_MCD_PRIMARY
+> instruction.
 
-> But sometimes printed some information as below:
->
-> alloc_contig_range: [28500, 28600) PFNs busy
-> alloc_contig_range: [28300, 28380) PFNs busy
-
-I think it's not a problem for the stress test, as it's
-the lock not released yet.
-
-Thanks
-Hanjun
+Awesome!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
