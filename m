@@ -1,99 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B546B007E
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:46:02 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id x188so14416622pfb.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:46:02 -0800 (PST)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id pz7si5106107pab.216.2016.03.08.06.46.01
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C0620828DF
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:48:29 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id n186so135158700wmn.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:48:29 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id m6si4240134wjz.36.2016.03.08.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 06:46:01 -0800 (PST)
-Received: by mail-pa0-x241.google.com with SMTP id fl4so1295596pad.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:46:01 -0800 (PST)
-Subject: Re: [PATCH 0/2] mm: Enable page parallel initialisation for Power
-References: <1457409354-10867-1-git-send-email-zhlcindy@gmail.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <56DEE59F.7020602@gmail.com>
-Date: Wed, 9 Mar 2016 01:45:51 +1100
+        Tue, 08 Mar 2016 06:48:28 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id p65so4531217wmp.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:48:28 -0800 (PST)
+Date: Tue, 8 Mar 2016 15:48:27 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/3] mm, oom: protect !costly allocations some more
+Message-ID: <20160308144827.GK13542@dhcp22.suse.cz>
+References: <20160307160838.GB5028@dhcp22.suse.cz>
+ <1457444565-10524-1-git-send-email-mhocko@kernel.org>
+ <1457444565-10524-4-git-send-email-mhocko@kernel.org>
+ <56DEE2FD.4000105@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1457409354-10867-1-git-send-email-zhlcindy@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56DEE2FD.4000105@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zhang <zhlcindy@gmail.com>, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+On Tue 08-03-16 15:34:37, Vlastimil Babka wrote:
+> On 03/08/2016 02:42 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > should_reclaim_retry will give up retries for higher order allocations
+> > if none of the eligible zones has any requested or higher order pages
+> > available even if we pass the watermak check for order-0. This is done
+> > because there is no guarantee that the reclaimable and currently free
+> > pages will form the required order.
+> > 
+> > This can, however, lead to situations were the high-order request (e.g.
+> > order-2 required for the stack allocation during fork) will trigger
+> > OOM too early - e.g. after the first reclaim/compaction round. Such a
+> > system would have to be highly fragmented and there is no guarantee
+> > further reclaim/compaction attempts would help but at least make sure
+> > that the compaction was active before we go OOM and keep retrying even
+> > if should_reclaim_retry tells us to oom if the last compaction round
+> > was either inactive (deferred, skipped or bailed out early due to
+> > contention) or it told us to continue.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  include/linux/compaction.h |  5 +++++
+> >  mm/page_alloc.c            | 53 ++++++++++++++++++++++++++++++++--------------
+> >  2 files changed, 42 insertions(+), 16 deletions(-)
+> > 
+> > diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> > index b167801187e7..49e04326dcb8 100644
+> > --- a/include/linux/compaction.h
+> > +++ b/include/linux/compaction.h
+> > @@ -14,6 +14,11 @@ enum compact_result {
+> >  	/* compaction should continue to another pageblock */
+> >  	COMPACT_CONTINUE,
+> >  	/*
+> > +	 * whoever is calling compaction should retry because it was either
+> > +	 * not active or it tells us there is more work to be done.
+> > +	 */
+> > +	COMPACT_SHOULD_RETRY = COMPACT_CONTINUE,
+> 
+> Hmm, I'm not sure about this. AFAIK compact_zone() doesn't ever return
+> COMPACT_CONTINUE, and thus try_to_compact_pages() also doesn't. This
+> overloading of CONTINUE only applies to compaction_suitable(). But the
+> value that should_compact_retry() is testing comes only from
+> try_to_compact_pages(). So this is not wrong, but perhaps a bit misleading?
 
+Well the idea was that I wanted to cover all the _possible_ cases where
+compaction might want to tell us "please try again even when the last
+round wasn't really successful". COMPACT_CONTINUE might not be returned
+right now but we can come up with that in the future. It sounds like a
+sensible feedback to me. But maybe there would be a better name for such
+a feedback. I confess this is a bit oom-rework centric name...
 
-On 08/03/16 14:55, Li Zhang wrote:
-> From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
->
-> Uptream has supported page parallel initialisation for X86 and the
-> boot time is improved greately. Some tests have been done for Power.
->
-> Here is the result I have done with different memory size.
->
-> * 4GB memory:
->     boot time is as the following: 
->     with patch vs without patch: 10.4s vs 24.5s
->     boot time is improved 57%
-> * 200GB memory: 
->     boot time looks the same with and without patches.
->     boot time is about 38s
-> * 32TB memory: 
->     boot time looks the same with and without patches 
->     boot time is about 160s.
->     The boot time is much shorter than X86 with 24TB memory.
->     From community discussion, it costs about 694s for X86 24T system.
->
-> From code view, parallel initialisation improve the performance by
-> deferring memory initilisation to kswap with N kthreads, it should
-> improve the performance therotically. 
->
-> From the test result, On X86, performance is improved greatly with huge
-> memory. But on Power platform, it is improved greatly with less than 
-> 100GB memory. For huge memory, it is not improved greatly. But it saves 
-> the time with several threads at least, as the following information 
-> shows(32TB system log):
->
-> [   22.648169] node 9 initialised, 16607461 pages in 280ms
-> [   22.783772] node 3 initialised, 23937243 pages in 410ms
-> [   22.858877] node 6 initialised, 29179347 pages in 490ms
-> [   22.863252] node 2 initialised, 29179347 pages in 490ms
-> [   22.907545] node 0 initialised, 32049614 pages in 540ms
-> [   22.920891] node 15 initialised, 32212280 pages in 550ms
-> [   22.923236] node 4 initialised, 32306127 pages in 550ms
-> [   22.923384] node 12 initialised, 32314319 pages in 550ms
-> [   22.924754] node 8 initialised, 32314319 pages in 550ms
-> [   22.940780] node 13 initialised, 33353677 pages in 570ms
-> [   22.940796] node 11 initialised, 33353677 pages in 570ms
-> [   22.941700] node 5 initialised, 33353677 pages in 570ms
-> [   22.941721] node 10 initialised, 33353677 pages in 570ms
-> [   22.941876] node 7 initialised, 33353677 pages in 570ms
-> [   22.944946] node 14 initialised, 33353677 pages in 570ms
-> [   22.946063] node 1 initialised, 33345485 pages in 580ms
->
-> It saves the time about 550*16 ms at least, although it can be ignore to compare 
-> the boot time about 160 seconds. What's more, the boot time is much shorter 
-> on Power even without patches than x86 for huge memory machine. 
->
-> So this patchset is still necessary to be enabled for Power. 
->
->
+Also I find it better to hide details behind a more generic name.
 
-The patchset looks good, two questions
-
-1. The patchset is still necessary for
-    a. systems with smaller amount of RAM?
-    b. Theoretically it improves boot time?
-2. the pgdat->node_spanned_pages >> 8 sounds arbitrary
-    On a system with 2TB*16 nodes, it would initialize about 8GB before calling deferred init?
-    Don't we need at-least 32GB + space for other early hash allocations
-    BTW, My expectation was that 32TB would imply 32GB+32GB of large hash allocations early on
-
-Balbir Singh.
+I am open to suggestions here, of course.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
