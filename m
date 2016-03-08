@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 217F66B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:04:03 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l68so6596532wml.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:04:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id wf8si167337wjb.122.2016.03.07.16.04.01
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E8A6B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:21:33 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id x188so65150049pfb.2
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:21:33 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id yk10si400676pac.24.2016.03.07.16.21.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 16:04:02 -0800 (PST)
-Date: Mon, 7 Mar 2016 16:03:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlb: use EOPNOTSUPP in hugetlb sysctl handlers
-Message-Id: <20160307160359.c8cde2e7cc4a52234f212c0d@linux-foundation.org>
-In-Reply-To: <983257005.5372143.1457165390827.JavaMail.zimbra@redhat.com>
-References: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
-	<20160304133807.72ede1000b9bf0b846d2fb87@linux-foundation.org>
-	<983257005.5372143.1457165390827.JavaMail.zimbra@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 07 Mar 2016 16:21:32 -0800 (PST)
+Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
+ (ADI)
+References: <56DDC2B6.6020009@oracle.com> <56DDC3EB.8060909@oracle.com>
+ <56DDC776.3040003@oracle.com>
+ <20160307.141600.1873883635480850431.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <56DE1AF1.40107@oracle.com>
+Date: Mon, 7 Mar 2016 17:21:05 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160307.141600.1873883635480850431.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, mike kravetz <mike.kravetz@oracle.com>, hillf zj <hillf.zj@alibaba-inc.com>, kirill shutemov <kirill.shutemov@linux.intel.com>, dave hansen <dave.hansen@linux.intel.com>, paul gortmaker <paul.gortmaker@windriver.com>
+To: David Miller <davem@davemloft.net>
+Cc: rob.gardner@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Sat, 5 Mar 2016 03:09:50 -0500 (EST) Jan Stancek <jstancek@redhat.com> wrote:
+On 03/07/2016 12:16 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Mon, 7 Mar 2016 11:24:54 -0700
+>
+>> Tags can be cleared by user by setting tag to 0. Tags are
+>> automatically cleared by the hardware when the mapping for a virtual
+>> address is removed from TSB (which is why swappable pages are a
+>> problem), so kernel does not have to do it as part of clean up.
+>
+> You might be able to crib some bits for the Tag in the swp_entry_t, it's
+> 64-bit and you can therefore steal bits from the offset field.
+>
+> That way you'll have the ADI tag in the page tables, ready to re-install
+> at swapin time.
+>
 
-> > > Replace ENOTSUPP with EOPNOTSUPP. If hugepages are not supported,
-> > > this value is propagated to userspace. EOPNOTSUPP is part of uapi
-> > > and is widely supported by libc libraries.
-> > 
-> > hm, what is the actual user-visible effect of this change?  Does it fix
-> > some misbehaviour?
-> > 
-> 
-> It gives nicer message to user, rather than:
-> # cat /proc/sys/vm/nr_hugepages
-> cat: /proc/sys/vm/nr_hugepages: Unknown error 524
-> 
-> And also LTP's proc01 test was failing because this ret code (524)
-> was unexpected:
-> proc01      1  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_hugepages: errno=???(524): Unknown error 524
-> proc01      2  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_hugepages_mempolicy: errno=???(524): Unknown error 524
-> proc01      3  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_overcommit_hugepages: errno=???(524): Unknown error 524
-> 
+Hi Dave,
 
-Ah, OK, thanks.  "Unknown error 524" is rather rude.  I'll queue this
-for 4.5.
+Can we enable ADI support for swappable pages in a subsequent update 
+after the core functionality is stable on mlock'd pages?
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
