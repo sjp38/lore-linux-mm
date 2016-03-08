@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8AE6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 18:49:07 -0500 (EST)
-Received: by mail-oi0-f52.google.com with SMTP id m82so91308873oif.1
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 15:49:07 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id sd10si49284obb.48.2016.03.07.15.49.06
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 217F66B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:04:03 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so6596532wml.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:04:03 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id wf8si167337wjb.122.2016.03.07.16.04.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 15:49:06 -0800 (PST)
-Message-ID: <56DE1341.4080206@oracle.com>
-Date: Tue, 08 Mar 2016 10:48:17 +1100
-From: James Morris <james.l.morris@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-References: <1456951177-23579-1-git-send-email-khalid.aziz@oracle.com> <20160305.230702.1325379875282120281.davem@davemloft.net> <56DD9949.1000106@oracle.com> <20160307.115626.807716799249471744.davem@davemloft.net> <56DDC2B6.6020009@oracle.com> <CALCETrXN43nT4zq2MpO90VrgK3k+DKHjOHWf7iOhS7TSBmdCPQ@mail.gmail.com> <56DDC6E0.4000907@oracle.com> <CALCETrU5NCzh3b7We8903G0_Tm-oycgP3+gS9fG+vC_rdgTddw@mail.gmail.com> <56DDDA31.9090105@oracle.com> <CALCETrXXU0fs2ezq+Wn_kr4dZTO=0RJmt6b=XBSA-wM7W_9j9A@mail.gmail.com>
-In-Reply-To: <CALCETrXXU0fs2ezq+Wn_kr4dZTO=0RJmt6b=XBSA-wM7W_9j9A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Mon, 07 Mar 2016 16:04:02 -0800 (PST)
+Date: Mon, 7 Mar 2016 16:03:59 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlb: use EOPNOTSUPP in hugetlb sysctl handlers
+Message-Id: <20160307160359.c8cde2e7cc4a52234f212c0d@linux-foundation.org>
+In-Reply-To: <983257005.5372143.1457165390827.JavaMail.zimbra@redhat.com>
+References: <bdc32a3ce19bd1fa232852d179a6af958778c2c0.1456999026.git.jstancek@redhat.com>
+	<20160304133807.72ede1000b9bf0b846d2fb87@linux-foundation.org>
+	<983257005.5372143.1457165390827.JavaMail.zimbra@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Khalid Aziz <khalid.aziz@oracle.com>
-Cc: David Miller <davem@davemloft.net>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, Rob Gardner <rob.gardner@oracle.com>, Michal Hocko <mhocko@suse.cz>, chris.hyser@oracle.com, Richard Weinberger <richard@nod.at>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, Andrew Lutomirski <luto@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Benjamin Segall <bsegall@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Jan Stancek <jstancek@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, mike kravetz <mike.kravetz@oracle.com>, hillf zj <hillf.zj@alibaba-inc.com>, kirill shutemov <kirill.shutemov@linux.intel.com>, dave hansen <dave.hansen@linux.intel.com>, paul gortmaker <paul.gortmaker@windriver.com>
 
-On 03/08/2016 06:54 AM, Andy Lutomirski wrote:
->
-> This makes sense, but I still think the design is poor.  If the hacker
-> gets code execution, then they can trivially brute force the ADI bits.
->
+On Sat, 5 Mar 2016 03:09:50 -0500 (EST) Jan Stancek <jstancek@redhat.com> wrote:
 
-ADI in this scenario is intended to prevent the attacker from gaining 
-code execution in the first place.
+> > > Replace ENOTSUPP with EOPNOTSUPP. If hugepages are not supported,
+> > > this value is propagated to userspace. EOPNOTSUPP is part of uapi
+> > > and is widely supported by libc libraries.
+> > 
+> > hm, what is the actual user-visible effect of this change?  Does it fix
+> > some misbehaviour?
+> > 
+> 
+> It gives nicer message to user, rather than:
+> # cat /proc/sys/vm/nr_hugepages
+> cat: /proc/sys/vm/nr_hugepages: Unknown error 524
+> 
+> And also LTP's proc01 test was failing because this ret code (524)
+> was unexpected:
+> proc01      1  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_hugepages: errno=???(524): Unknown error 524
+> proc01      2  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_hugepages_mempolicy: errno=???(524): Unknown error 524
+> proc01      3  TFAIL  :  proc01.c:396: read failed: /proc/sys/vm/nr_overcommit_hugepages: errno=???(524): Unknown error 524
+> 
 
-
+Ah, OK, thanks.  "Unknown error 524" is rather rude.  I'll queue this
+for 4.5.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
