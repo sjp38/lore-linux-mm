@@ -1,54 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 40E8A6B0005
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:21:33 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id x188so65150049pfb.2
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:21:33 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id yk10si400676pac.24.2016.03.07.16.21.32
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 304276B0005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 19:33:06 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id y89so111284812qge.2
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:33:06 -0800 (PST)
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com. [209.85.220.171])
+        by mx.google.com with ESMTPS id o34si278653qge.94.2016.03.07.16.33.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Mar 2016 16:21:32 -0800 (PST)
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-References: <56DDC2B6.6020009@oracle.com> <56DDC3EB.8060909@oracle.com>
- <56DDC776.3040003@oracle.com>
- <20160307.141600.1873883635480850431.davem@davemloft.net>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <56DE1AF1.40107@oracle.com>
-Date: Mon, 7 Mar 2016 17:21:05 -0700
+        Mon, 07 Mar 2016 16:33:05 -0800 (PST)
+Received: by mail-qk0-f171.google.com with SMTP id o6so54032323qkc.2
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 16:33:05 -0800 (PST)
+Subject: Re: [PATCHv4 2/2] mm/page_poisoning.c: Allow for zero poisoning
+References: <1457135448-15541-1-git-send-email-labbott@fedoraproject.org>
+ <1457135448-15541-3-git-send-email-labbott@fedoraproject.org>
+ <20160304160751.05931d89f451626b58073489@linux-foundation.org>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <56DE1DBC.5050403@redhat.com>
+Date: Mon, 7 Mar 2016 16:33:00 -0800
 MIME-Version: 1.0
-In-Reply-To: <20160307.141600.1873883635480850431.davem@davemloft.net>
+In-Reply-To: <20160304160751.05931d89f451626b58073489@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: rob.gardner@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On 03/07/2016 12:16 PM, David Miller wrote:
-> From: Khalid Aziz <khalid.aziz@oracle.com>
-> Date: Mon, 7 Mar 2016 11:24:54 -0700
+On 03/04/2016 04:07 PM, Andrew Morton wrote:
+> On Fri,  4 Mar 2016 15:50:48 -0800 Laura Abbott <labbott@fedoraproject.org> wrote:
 >
->> Tags can be cleared by user by setting tag to 0. Tags are
->> automatically cleared by the hardware when the mapping for a virtual
->> address is removed from TSB (which is why swappable pages are a
->> problem), so kernel does not have to do it as part of clean up.
+>>
+>> By default, page poisoning uses a poison value (0xaa) on free. If this
+>> is changed to 0, the page is not only sanitized but zeroing on alloc
+>> with __GFP_ZERO can be skipped as well. The tradeoff is that detecting
+>> corruption from the poisoning is harder to detect. This feature also
+>> cannot be used with hibernation since pages are not guaranteed to be
+>> zeroed after hibernation.
+>>
+>> Credit to Grsecurity/PaX team for inspiring this work
+>>
+>> --- a/kernel/power/hibernate.c
+>> +++ b/kernel/power/hibernate.c
+>> @@ -1158,6 +1158,22 @@ static int __init kaslr_nohibernate_setup(char *str)
+>>   	return nohibernate_setup(str);
+>>   }
+>>
+>> +static int __init page_poison_nohibernate_setup(char *str)
+>> +{
+>> +#ifdef CONFIG_PAGE_POISONING_ZERO
+>> +	/*
+>> +	 * The zeroing option for page poison skips the checks on alloc.
+>> +	 * since hibernation doesn't save free pages there's no way to
+>> +	 * guarantee the pages will still be zeroed.
+>> +	 */
+>> +	if (!strcmp(str, "on")) {
+>> +		pr_info("Disabling hibernation due to page poisoning\n");
+>> +		return nohibernate_setup(str);
+>> +	}
+>> +#endif
+>> +	return 1;
+>> +}
 >
-> You might be able to crib some bits for the Tag in the swp_entry_t, it's
-> 64-bit and you can therefore steal bits from the offset field.
+> It seems a bit unfriendly to silently accept the boot option but not
+> actually do anything with it.  Perhaps a `#else pr_info("sorry")' is
+> needed.
 >
-> That way you'll have the ADI tag in the page tables, ready to re-install
-> at swapin time.
+> But I bet we made the same mistake in 1000 other places.
+>
+> What happens if page_poison_nohibernate_setup() simply doesn't exist
+> when CONFIG_PAGE_POISONING_ZERO=n?  It looks like
+> kernel/params.c:parse_args() says "Unknown parameter".
+>
 >
 
-Hi Dave,
+I didn't see that behavior when I tested, even with nonsense parameters.
+It looks like it might fall back to some other behavior before giving
+-ENOENT?
 
-Can we enable ADI support for swappable pages in a subsequent update 
-after the core functionality is stable on mlock'd pages?
+It's also worth noting the page_poison= option is also parsed in
+mm/page_poison.c to do other on/off of the poisoning feature. The
+option code supported it and it seemed to match better with what the
+existing hibernate code was doing with turning off options.
 
 Thanks,
-Khalid
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
