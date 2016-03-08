@@ -1,37 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5FB6B0255
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2016 23:24:24 -0500 (EST)
-Received: by mail-pf0-f169.google.com with SMTP id 124so3796465pfg.0
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 20:24:24 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id kw7si1758264pab.74.2016.03.07.20.24.23
-        for <linux-mm@kvack.org>;
-        Mon, 07 Mar 2016 20:24:23 -0800 (PST)
-Date: Mon, 07 Mar 2016 23:24:18 -0500 (EST)
-Message-Id: <20160307.232418.1734056188463866385.davem@davemloft.net>
-Subject: Re: [PATCH v2] sparc64: Add support for Application Data Integrity
- (ADI)
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <56DE1AF1.40107@oracle.com>
-References: <56DDC776.3040003@oracle.com>
-	<20160307.141600.1873883635480850431.davem@davemloft.net>
-	<56DE1AF1.40107@oracle.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D98B6B0254
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 00:12:11 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id l68so114920255wml.0
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 21:12:11 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id 8si2086020wmi.102.2016.03.07.21.12.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Mar 2016 21:12:10 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id 1so1986393wmg.2
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 21:12:10 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1457401652-9226-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1457401652-9226-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Tue, 8 Mar 2016 08:12:09 +0300
+Message-ID: <CALYGNiPgBRuZoi8nA-JQCxx-RGiXE9g-dfeeysvH0Rp2VAYz2A@mail.gmail.com>
+Subject: Re: [PATCH v1] tools/vm/page-types.c: remove memset() in walk_pfn()
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: khalid.aziz@oracle.com
-Cc: rob.gardner@oracle.com, corbet@lwn.net, akpm@linux-foundation.org, dingel@linux.vnet.ibm.com, bob.picco@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, arnd@arndb.de, sparclinux@vger.kernel.org, mhocko@suse.cz, chris.hyser@oracle.com, richard@nod.at, vbabka@suse.cz, koct9i@gmail.com, oleg@redhat.com, gthelen@google.com, jack@suse.cz, xiexiuqi@huawei.com, Vineet.Gupta1@synopsys.com, luto@kernel.org, ebiederm@xmission.com, bsegall@google.com, geert@linux-m68k.org, dave@stgolabs.net, adobriyan@gmail.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Date: Mon, 7 Mar 2016 17:21:05 -0700
+On Tue, Mar 8, 2016 at 4:47 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> I found that page-types is very slow and my testing shows many timeout errors.
+> Here's an example with a simple program allocating 1000 thps.
+>
+>   $ time ./page-types -p $(pgrep -f test_alloc)
+>   ...
+>   real    0m17.201s
+>   user    0m16.889s
+>   sys     0m0.312s
+>
+>   $ time ./page-types.patched -p $(pgrep -f test_alloc)
+>   ...
+>   real    0m0.182s
+>   user    0m0.046s
+>   sys     0m0.135s
+>
+> Most of time is spent in memset(), which isn't necessary because we check
+> that the return of kpagecgroup_read() is equal to pages and uninitialized
+> memory is never used. So we can drop this memset().
 
-> Can we enable ADI support for swappable pages in a subsequent update
-> after the core functionality is stable on mlock'd pages?
+These zeros are used in show_page_range() - for merging pages into ranges.
 
-I already said no.
+You could add fast-path for count=1
+
+@@ -633,7 +633,10 @@ static void walk_pfn(unsigned long voffset,
+        unsigned long pages;
+        unsigned long i;
+
+-       memset(cgi, 0, sizeof cgi);
++       if (count == 1)
++               cgi[0] = 0;
++       else
++               memset(cgi, 0, sizeof cgi);
+
+        while (count) {
+                batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
+
+
+>
+> Fixes: 954e95584579 ("tools/vm/page-types.c: add memory cgroup dumping and filtering")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  tools/vm/page-types.c | 2 --
+>  1 file changed, 2 deletions(-)
+>
+> diff --git v4.5-rc5-mmotm-2016-02-24-16-18/tools/vm/page-types.c v4.5-rc5-mmotm-2016-02-24-16-18_patched/tools/vm/page-types.c
+> index dab61c3..c192baf 100644
+> --- v4.5-rc5-mmotm-2016-02-24-16-18/tools/vm/page-types.c
+> +++ v4.5-rc5-mmotm-2016-02-24-16-18_patched/tools/vm/page-types.c
+> @@ -633,8 +633,6 @@ static void walk_pfn(unsigned long voffset,
+>         unsigned long pages;
+>         unsigned long i;
+>
+> -       memset(cgi, 0, sizeof cgi);
+> -
+>         while (count) {
+>                 batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
+>                 pages = kpageflags_read(buf, index, batch);
+> --
+> 2.7.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
