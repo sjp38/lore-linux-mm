@@ -1,61 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 73B386B0253
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 07:29:55 -0500 (EST)
-Received: by mail-wm0-f54.google.com with SMTP id n186so129143270wmn.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 04:29:55 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bg9si3444783wjb.182.2016.03.08.04.29.54
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Mar 2016 04:29:54 -0800 (PST)
-Subject: Re: [PATCH] mm, oom: protect !costly allocations some more
-References: <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160307160838.GB5028@dhcp22.suse.cz> <56DE9A68.2010301@suse.cz>
- <20160308094612.GB13542@dhcp22.suse.cz> <56DEA0CF.2070902@suse.cz>
- <20160308101016.GC13542@dhcp22.suse.cz> <56DEB394.40602@suse.cz>
- <20160308122241.GD13542@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56DEC5BE.6040209@suse.cz>
-Date: Tue, 8 Mar 2016 13:29:50 +0100
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 229416B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 08:11:35 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id tt10so12485149pab.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 05:11:35 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id ok17si4714919pab.100.2016.03.08.05.11.33
+        for <linux-mm@kvack.org>;
+        Tue, 08 Mar 2016 05:11:34 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
+Date: Tue, 8 Mar 2016 13:11:30 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414811E@shsmsx102.ccr.corp.intel.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160308111343.GM15443@grmbl.mre>
+In-Reply-To: <20160308111343.GM15443@grmbl.mre>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160308122241.GD13542@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Amit Shah <amit.shah@redhat.com>
+Cc: "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-On 03/08/2016 01:22 PM, Michal Hocko wrote:
->> Thanks.
->>
->>> A more important question is whether the criteria I have chosen are
->>> reasonable and reasonably independent on the particular implementation
->>> of the compaction. I still cannot convince myself about the convergence
->>> here. Is it possible that the compaction would keep returning 
->>> compact_result <= COMPACT_CONTINUE while not making any progress at all?
->>
->> Theoretically, if reclaim/compaction suitability decisions and
->> allocation attempts didn't match the watermark checks, including the
->> alloc_flags and classzone_idx parameters. Possible scenarios:
->>
->> - reclaim thinks compaction has enough to proceed, but compaction thinks
->> otherwise and returns COMPACT_SKIPPED
->> - compaction thinks it succeeded and returns COMPACT_PARTIAL, but
->> allocation attempt fails
->> - and perhaps some other combinations
-> 
-> But that might happen right now as well so it wouldn't be a regression,
-> right?
+> Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
+>=20
+> On (Thu) 03 Mar 2016 [18:44:24], Liang Li wrote:
+> > The current QEMU live migration implementation mark the all the
+> > guest's RAM pages as dirtied in the ram bulk stage, all these pages
+> > will be processed and that takes quit a lot of CPU cycles.
+> >
+> > From guest's point of view, it doesn't care about the content in free
+> > pages. We can make use of this fact and skip processing the free pages
+> > in the ram bulk stage, it can save a lot CPU cycles and reduce the
+> > network traffic significantly while speed up the live migration
+> > process obviously.
+> >
+> > This patch set is the QEMU side implementation.
+> >
+> > The virtio-balloon is extended so that QEMU can get the free pages
+> > information from the guest through virtio.
+> >
+> > After getting the free pages information (a bitmap), QEMU can use it
+> > to filter out the guest's free pages in the ram bulk stage. This make
+> > the live migration process much more efficient.
+> >
+> > This RFC version doesn't take the post-copy and RDMA into
+> > consideration, maybe both of them can benefit from this PV solution by
+> > with some extra modifications.
+>=20
+> I like the idea, just have to prove (review) and test it a lot to ensure =
+we don't
+> end up skipping pages that matter.
+>=20
+> However, there are a couple of points:
+>=20
+> In my opinion, the information that's exchanged between the guest and the
+> host should be exchanged over a virtio-serial channel rather than virtio-
+> balloon.  First, there's nothing related to the balloon here.
+> It just happens to be memory info.  Second, I would never enable balloon =
+in
+> a guest that I want to be performance-sensitive.  So even if you add this=
+ as
+> part of balloon, you'll find no one is using this solution.
+>=20
+> Secondly, I suggest virtio-serial, because it's meant exactly to exchange=
+ free-
+> flowing information between a host and a guest, and you don't need to
+> extend any part of the protocol for it (hence no changes necessary to the
+> spec).  You can see how spice, vnc, etc., use virtio-serial to exchange d=
+ata.
+>=20
+>=20
+> 		Amit
 
-Maybe, somehow, I didn't study closely how the retry decisions work.
-Your patch adds another way to retry so it's theoretically more
-dangerous. Just hinting at what to possibly check (the watermark checks) :)
+I don't like to use the virtio-balloon too, and it's confusing.=20
+It's grate if the virtio-serial can be used, I will take a look at it.=20
 
+Thanks for your suggestion!
+
+Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
