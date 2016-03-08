@@ -1,84 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F226B0257
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 08:57:03 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id n186so132786977wmn.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 05:57:03 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id q14si21046896wmb.105.2016.03.08.05.57.02
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 089DC6B0257
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 09:03:41 -0500 (EST)
+Received: by mail-qg0-f47.google.com with SMTP id y89so12482884qge.2
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 06:03:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k67si3134663qgd.10.2016.03.08.06.03.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 05:57:02 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id p65so4237018wmp.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 05:57:02 -0800 (PST)
-Date: Tue, 8 Mar 2016 14:57:01 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: protect !costly allocations some more (was: Re:
- [PATCH 0/3] OOM detection rework v4)
-Message-ID: <20160308135700.GH13542@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <20160203132718.GI6757@dhcp22.suse.cz>
- <alpine.LSU.2.11.1602241832160.15564@eggly.anvils>
- <20160225092315.GD17573@dhcp22.suse.cz>
- <20160229210213.GX16930@dhcp22.suse.cz>
- <20160307160838.GB5028@dhcp22.suse.cz>
- <20160308095824.GA457@swordfish>
+        Tue, 08 Mar 2016 06:03:38 -0800 (PST)
+Date: Tue, 8 Mar 2016 16:03:31 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160308160145-mutt-send-email-mst@redhat.com>
+References: <20160303174615.GF2115@work-vm>
+ <20160304075538.GC9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E037714DA@SHSMSX101.ccr.corp.intel.com>
+ <20160304083550.GE9100@rkaganb.sw.ru>
+ <20160304090820.GA2149@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03771639@SHSMSX101.ccr.corp.intel.com>
+ <20160304114519-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E037717B5@SHSMSX101.ccr.corp.intel.com>
+ <20160304122456-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04145231@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160308095824.GA457@swordfish>
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E04145231@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Roman Kagan <rkagan@virtuozzo.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-On Tue 08-03-16 18:58:24, Sergey Senozhatsky wrote:
-> On (03/07/16 17:08), Michal Hocko wrote:
-> > On Mon 29-02-16 22:02:13, Michal Hocko wrote:
-> > > Andrew,
-> > > could you queue this one as well, please? This is more a band aid than a
-> > > real solution which I will be working on as soon as I am able to
-> > > reproduce the issue but the patch should help to some degree at least.
+On Fri, Mar 04, 2016 at 03:13:03PM +0000, Li, Liang Z wrote:
+> > > Maybe I am not clear enough.
+> > >
+> > > I mean if we inflate balloon before live migration, for a 8GB guest, it takes
+> > about 5 Seconds for the inflating operation to finish.
 > > 
-> > Joonsoo wasn't very happy about this approach so let me try a different
-> > way. What do you think about the following? Hugh, Sergey does it help
-> > for your load? I have tested it with the Hugh's load and there was no
-> > major difference from the previous testing so at least nothing has blown
-> > up as I am not able to reproduce the issue here.
+> > And these 5 seconds are spent where?
 > > 
-> > Other changes in the compaction are still needed but I would like to not
-> > depend on them right now.
 > 
-> works fine for me.
-> 
-> $  cat /proc/vmstat | egrep -e "compact|swap"
-> pgsteal_kswapd_dma 7
-> pgsteal_kswapd_dma32 6457075
-> pgsteal_kswapd_normal 1462767
-> pgsteal_kswapd_movable 0
-> pgscan_kswapd_dma 18
-> pgscan_kswapd_dma32 6544126
-> pgscan_kswapd_normal 1495604
-> pgscan_kswapd_movable 0
-> kswapd_inodesteal 29
-> kswapd_low_wmark_hit_quickly 1168
-> kswapd_high_wmark_hit_quickly 1627
-> compact_migrate_scanned 5762793
-> compact_free_scanned 54090239
-> compact_isolated 1303895
-> compact_stall 1542
-> compact_fail 1117
-> compact_success 425
-> compact_kcompatd_wake 0
-> 
-> no OOM-kills after 6 rounds of tests.
-> 
-> Tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> The time is spent on allocating the pages and send the allocated pages pfns to QEMU
+> through virtio.
 
-Thanks for retesting!
--- 
-Michal Hocko
-SUSE Labs
+What if we skip allocating pages but use the existing interface to send pfns
+to QEMU?
+
+> > > For the PV solution, there is no need to inflate balloon before live
+> > > migration, the only cost is to traversing the free_list to  construct
+> > > the free pages bitmap, and it takes about 20ms for a 8GB idle guest( less if
+> > there is less free pages),  passing the free pages info to host will take about
+> > extra 3ms.
+> > >
+> > >
+> > > Liang
+> > 
+> > So now let's please stop talking about solutions at a high level and discuss the
+> > interface changes you make in detail.
+> > What makes it faster? Better host/guest interface? No need to go through
+> > buddy allocator within guest? Less interrupts? Something else?
+> > 
+> 
+> I assume you are familiar with the current virtio-balloon and how it works. 
+> The new interface is very simple, send a request to the virtio-balloon driver,
+> The virtio-driver will travers the '&zone->free_area[order].free_list[t])' to 
+> construct a 'free_page_bitmap', and then the driver will send the content
+> of  'free_page_bitmap' back to QEMU. That all the new interface does and
+> there are no ' alloc_page' related affairs, so it's faster.
+> 
+> 
+> Some code snippet:
+> ----------------------------------------------
+> +static void mark_free_pages_bitmap(struct zone *zone,
+> +		 unsigned long *free_page_bitmap, unsigned long pfn_gap) {
+> +	unsigned long pfn, flags, i;
+> +	unsigned int order, t;
+> +	struct list_head *curr;
+> +
+> +	if (zone_is_empty(zone))
+> +		return;
+> +
+> +	spin_lock_irqsave(&zone->lock, flags);
+> +
+> +	for_each_migratetype_order(order, t) {
+> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+> +
+> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+> +			for (i = 0; i < (1UL << order); i++) {
+> +				if ((pfn + i) >= PFN_4G)
+> +					set_bit_le(pfn + i - pfn_gap,
+> +						   free_page_bitmap);
+> +				else
+> +					set_bit_le(pfn + i, free_page_bitmap);
+> +			}
+> +		}
+> +	}
+> +
+> +	spin_unlock_irqrestore(&zone->lock, flags); }
+> ----------------------------------------------------
+> Sorry for my poor English and expression, if you still can't understand,
+> you could glance at the patch, total about 400 lines.
+> > 
+> > > > --
+> > > > MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
