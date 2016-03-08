@@ -1,90 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8676C6B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 00:59:21 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id tt10so5183870pab.3
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 21:59:21 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id ry2si2306300pab.159.2016.03.07.21.59.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Mar 2016 21:59:20 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v1] tools/vm/page-types.c: remove memset() in walk_pfn()
-Date: Tue, 8 Mar 2016 05:58:35 +0000
-Message-ID: <20160308055834.GA9987@hori1.linux.bs1.fc.nec.co.jp>
-References: <1457401652-9226-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <CALYGNiPgBRuZoi8nA-JQCxx-RGiXE9g-dfeeysvH0Rp2VAYz2A@mail.gmail.com>
-In-Reply-To: <CALYGNiPgBRuZoi8nA-JQCxx-RGiXE9g-dfeeysvH0Rp2VAYz2A@mail.gmail.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <29A89ACCD05C694FA194AD1C0D1652EE@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B4B6B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 02:47:36 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id vs8so42604122igb.1
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2016 23:47:36 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id t103si2980786ioe.52.2016.03.07.23.47.35
+        for <linux-mm@kvack.org>;
+        Mon, 07 Mar 2016 23:47:35 -0800 (PST)
+Date: Tue, 8 Mar 2016 16:48:16 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: Suspicious error for CMA stress test
+Message-ID: <20160308074816.GA31471@js1304-P5Q-DELUXE>
+References: <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+ <56D832BD.5080305@huawei.com>
+ <20160304020232.GA12036@js1304-P5Q-DELUXE>
+ <20160304043232.GC12036@js1304-P5Q-DELUXE>
+ <56D92595.60709@huawei.com>
+ <20160304063807.GA13317@js1304-P5Q-DELUXE>
+ <56D93ABE.9070406@huawei.com>
+ <20160307043442.GB24602@js1304-P5Q-DELUXE>
+ <56DD7B20.1020508@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56DD7B20.1020508@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Mar 08, 2016 at 08:12:09AM +0300, Konstantin Khlebnikov wrote:
-> On Tue, Mar 8, 2016 at 4:47 AM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-> > I found that page-types is very slow and my testing shows many timeout =
-errors.
-> > Here's an example with a simple program allocating 1000 thps.
-> >
-> >   $ time ./page-types -p $(pgrep -f test_alloc)
-> >   ...
-> >   real    0m17.201s
-> >   user    0m16.889s
-> >   sys     0m0.312s
-> >
-> >   $ time ./page-types.patched -p $(pgrep -f test_alloc)
-> >   ...
-> >   real    0m0.182s
-> >   user    0m0.046s
-> >   sys     0m0.135s
-> >
-> > Most of time is spent in memset(), which isn't necessary because we che=
-ck
-> > that the return of kpagecgroup_read() is equal to pages and uninitializ=
-ed
-> > memory is never used. So we can drop this memset().
->=20
-> These zeros are used in show_page_range() - for merging pages into ranges=
-.
+On Mon, Mar 07, 2016 at 01:59:12PM +0100, Vlastimil Babka wrote:
+> On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
+> >On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
+> >>>Sad to hear that.
+> >>>
+> >>>Could you tell me your system's MAX_ORDER and pageblock_order?
+> >>>
+> >>
+> >>MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
+> 
+> I thought that CMA regions/operations (and isolation IIRC?) were
+> supposed to be MAX_ORDER aligned exactly to prevent needing these
+> extra checks for buddy merging. So what's wrong?
 
-Hi Konstantin,
+CMA isolates MAX_ORDER aligned blocks, but, during the process,
+partialy isolated block exists. If MAX_ORDER is 11 and
+pageblock_order is 9, two pageblocks make up MAX_ORDER
+aligned block and I can think following scenario because pageblock
+(un)isolation would be done one by one.
 
-Thank you for the response. The below code does solve the problem, so that'=
-s fine.
+(each character means one pageblock. 'C', 'I' means MIGRATE_CMA,
+MIGRATE_ISOLATE, respectively.
 
-But I don't understand how the zeros are used. show_page_range() is called
-via add_page() which is called for i=3D0 to i=3Dpages-1, and the buffer cgi=
- is
-already filled for the range [i, pages-1] by kpagecgroup_read(), so even if
-without zero initialization, kpagecgroup_read() properly fills zeros, right=
-?
-IOW, is there any problem if we don't do this zero initialization?
+CC -> IC -> II (Isolation)
+II -> CI -> CC (Un-isolation)
 
-Thanks,
-Naoya Horiguchi
+If some pages are freed at this intermediate state such as IC or CI,
+that page could be merged to the other page that is resident on
+different type of pageblock and it will cause wrong freepage count.
 
-> You could add fast-path for count=3D1
->=20
-> @@ -633,7 +633,10 @@ static void walk_pfn(unsigned long voffset,
->         unsigned long pages;
->         unsigned long i;
->=20
-> -       memset(cgi, 0, sizeof cgi);
-> +       if (count =3D=3D 1)
-> +               cgi[0] =3D 0;
-> +       else
-> +               memset(cgi, 0, sizeof cgi);
->=20
->         while (count) {
->                 batch =3D min_t(unsigned long, count, KPAGEFLAGS_BATCH);
-> =
+If we don't release zone lock during whole isolation process, there
+would be no problem and CMA can use that implementation. But,
+isolation is used by another feature and I guess it cannot use that
+kind of implementation.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
