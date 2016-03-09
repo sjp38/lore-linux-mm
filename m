@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E89546B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 10:52:41 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id p65so198429143wmp.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 07:52:41 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id d62si11311228wmf.64.2016.03.09.07.52.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 07:52:40 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id 1so10912119wmg.2
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 07:52:40 -0800 (PST)
-Date: Wed, 9 Mar 2016 16:52:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/5] introduce kcompactd and stop compacting in kswapd
-Message-ID: <20160309155238.GK27018@dhcp22.suse.cz>
-References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B556B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 11:03:12 -0500 (EST)
+Received: by mail-pf0-f169.google.com with SMTP id n5so5798914pfn.2
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 08:03:12 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ks7si13300029pab.129.2016.03.09.08.03.11
+        for <linux-mm@kvack.org>;
+        Wed, 09 Mar 2016 08:03:11 -0800 (PST)
+Date: Wed, 9 Mar 2016 16:03:26 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should
+ be a 14-bit integer (-8192-8191)
+Message-ID: <20160309160325.GH28496@arm.com>
+References: <201603062105.9tHMvN5r%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <201603062105.9tHMvN5r%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon 08-02-16 14:38:06, Vlastimil Babka wrote:
-> The previous RFC is here [1]. It didn't have a cover letter, so the description
-> and results are in the individual patches.
+On Sun, Mar 06, 2016 at 09:47:10PM +0800, kbuild test robot wrote:
+> FYI, the error/warning still remains.
 
-FWIW I think this is a step in the right direction. I would give my
-Acked-by to all patches but I wasn't able to find time for a deep review
-and my lack of knowledge of compaction details doesn't help much. I do
-agree that conflating kswapd with compaction didn't really work out well
-and fixing this would just make the code more complex and would more
-prone to new bugs. In future we might want to invent something similar
-to watermarks and set an expected level of high order pages prepared for
-the allocation (e.g. have at least XMB of memory in order-9+). kcompact
-then could try as hard as possible to provide them. Does that sound at
-least doable?
+[...]
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+>    arch/ia64/kernel/entry.S: Assembler messages:
+> >> arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+>    arch/ia64/kernel/entry.S:728: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+>    arch/ia64/kernel/entry.S:859: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+> --
+>    arch/ia64/kernel/fsys.S: Assembler messages:
+> >> arch/ia64/kernel/fsys.S:67: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:97: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:193: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:336: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:338: Error: Operand 3 of `add' should be a general register r0-r3
+> --
+>    arch/ia64/kernel/ivt.S: Assembler messages:
+> >> arch/ia64/kernel/ivt.S:759: Error: Operand 3 of `add' should be a general register r0-r3
+
+Yeah :( I reported this on linux-arch a while back:
+
+http://lkml.kernel.org/r/20160127150031.GI2390@arm.com
+
+but didn't get any replies (I cc'd the maintainers).
+
+Tell you what; I'll repost the fix I had there (basically disabling
+LATENCYTOP for ia64) as a separate patch and see how it goes.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
