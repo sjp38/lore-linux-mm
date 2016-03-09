@@ -1,49 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0AA6B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 01:16:56 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id w104so33527632qge.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 22:16:56 -0800 (PST)
-Received: from scadrial.mjdsystems.ca (scadrial.mjdsystems.ca. [198.100.154.185])
-        by mx.google.com with ESMTPS id g83si6660576qhg.109.2016.03.08.22.16.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 22:16:55 -0800 (PST)
-From: Matthew Dawson <matthew@mjdsystems.ca>
-Subject: [PATCH] mm/mempool: Avoid KASAN marking mempool posion checks as use-after-free
-Date: Wed,  9 Mar 2016 01:16:19 -0500
-Message-Id: <1457504179-18942-1-git-send-email-matthew@mjdsystems.ca>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 26CB76B007E
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 01:18:04 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id tt10so31064635pab.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 22:18:04 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id wg10si10168598pac.23.2016.03.08.22.18.03
+        for <linux-mm@kvack.org>;
+        Tue, 08 Mar 2016 22:18:03 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Date: Wed, 9 Mar 2016 06:18:00 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04148E3A@shsmsx102.ccr.corp.intel.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160303174615.GF2115@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+ <20160304081411.GD9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
+ <20160304102346.GB2479@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <56D9B6C2.3070708@redhat.com>
+In-Reply-To: <56D9B6C2.3070708@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Paolo Bonzini <pbonzini@redhat.com>, Roman Kagan <rkagan@virtuozzo.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-When removing an element from the mempool, mark it as unpoisoned in KASAN
-before verifying its contents for SLUB/SLAB debugging.  Otherwise KASAN
-will flag the reads checking the element use-after-free writes as
-use-after-free reads.
+> On 04/03/2016 15:26, Li, Liang Z wrote:
+> >> >
+> >> > The memory usage will keep increasing due to ever growing caches,
+> >> > etc, so you'll be left with very little free memory fairly soon.
+> >> >
+> > I don't think so.
+> >
+>=20
+> Roman is right.  For example, here I am looking at a 64 GB (physical) mac=
+hine
+> which was booted about 30 minutes ago, and which is running disk-heavy
+> workloads (installing VMs).
+>=20
+> Since I have started writing this email (2 minutes?), the amount of free
+> memory has already gone down from 37 GB to 33 GB.  I expect that by the
+> time I have finished running the workload, in two hours, it will not have=
+ any
+> free memory.
+>=20
+> Paolo
 
-Signed-off-by: Matthew Dawson <matthew@mjdsystems.ca>
----
- mm/mempool.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I have a VM which has 2GB of RAM, when the guest booted, there were about 1=
+.4GB of free pages.
+Then I tried to download a large file from the internet with the browser, a=
+fter the downloading finished,
+there were only 72MB of free pages left, as Roman pointed out, there were q=
+uite a lot of Cached memory.
+Then I tried to compile the QEMU, after the compiling finished, there were =
+about 1.3G free pages.
 
-diff --git a/mm/mempool.c b/mm/mempool.c
-index 004d42b..7924f4f 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -135,8 +135,8 @@ static void *remove_element(mempool_t *pool)
- 	void *element = pool->elements[--pool->curr_nr];
- 
- 	BUG_ON(pool->curr_nr < 0);
--	check_element(pool, element);
- 	kasan_unpoison_element(pool, element);
-+	check_element(pool, element);
- 	return element;
- }
- 
--- 
-2.7.1
+So even the cache will increase to a large amount, it will be freed if ther=
+e are some other specific workloads.=20
+The cache memory is a big issue that should be taken into consideration.
+ How about reclaim some cache before getting the free pages information? =20
+
+Liang=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
