@@ -1,65 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A816B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 09:45:32 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id n186so181850451wmn.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:45:32 -0800 (PST)
-Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
-        by mx.google.com with ESMTPS id e127si10959133wmd.94.2016.03.09.06.45.30
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 552106B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 09:51:28 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id td3so14778598pab.2
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:51:28 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id t13si1503757pas.225.2016.03.09.06.51.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 06:45:30 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id 88FC798BE6
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 14:45:30 +0000 (UTC)
-Date: Wed, 9 Mar 2016 14:45:29 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 08/27] mm, vmscan: Make kswapd reclaim in terms of nodes
-Message-ID: <20160309144529.GB31585@techsingularity.net>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <1456239890-20737-9-git-send-email-mgorman@techsingularity.net>
- <56D84026.3010409@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Mar 2016 06:51:27 -0800 (PST)
+Date: Wed, 9 Mar 2016 15:51:19 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
+Message-ID: <20160309145119.GN6356@twins.programming.kicks-ass.net>
+References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
+ <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
+ <56DEF3D3.6080008@synopsys.com>
+ <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
+ <56DFC604.6070407@synopsys.com>
+ <20160309101349.GJ6344@twins.programming.kicks-ass.net>
+ <56E023A5.2000105@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56D84026.3010409@suse.cz>
+In-Reply-To: <56E023A5.2000105@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-parisc@vger.kernel, Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "James E.J. Bottomley" <jejb@parisc-linux.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Noam Camus <noamc@ezchip.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-snps-arc@lists.infradead.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Mar 03, 2016 at 02:46:14PM +0100, Vlastimil Babka wrote:
-> On 02/23/2016 04:04 PM, Mel Gorman wrote:
-> > -static bool zone_balanced(struct zone *zone, int order, bool highorder,
-> > +static bool zone_balanced(struct zone *zone, int order,
-> >  			unsigned long balance_gap, int classzone_idx)
-> >  {
-> >  	unsigned long mark = high_wmark_pages(zone) + balance_gap;
-> >  
-> > -	/*
-> > -	 * When checking from pgdat_balanced(), kswapd should stop and sleep
-> > -	 * when it reaches the high order-0 watermark and let kcompactd take
-> > -	 * over. Other callers such as wakeup_kswapd() want to determine the
-> > -	 * true high-order watermark.
-> > -	 */
-> > -	if (IS_ENABLED(CONFIG_COMPACTION) && !highorder) {
-> > -		mark += (1UL << order);
-> > -		order = 0;
-> > -	}
-> > -
-> >  	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
+On Wed, Mar 09, 2016 at 06:52:45PM +0530, Vineet Gupta wrote:
+> On Wednesday 09 March 2016 03:43 PM, Peter Zijlstra wrote:
+> >> There is clearly a problem in slub code that it is pairing a test_and_set_bit()
+> >> with a __clear_bit(). Latter can obviously clobber former if they are not a single
+> >> instruction each unlike x86 or they use llock/scond kind of instructions where the
+> >> interim store from other core is detected and causes a retry of whole llock/scond
+> >> sequence.
+> > 
+> > Yes, test_and_set_bit() + __clear_bit() is broken.
 > 
-> Did you really intend to remove this or was it due to rebasing on top of
-> kcompactd?
+> But in SLUB: bit_spin_lock() + __bit_spin_unlock() is acceptable ? How so
+> (ignoring the performance thing for discussion sake, which is a side effect of
+> this implementation).
 
-It was intentional because kswapd_shrink_node() sets sc.order to 0 when
-pages have been reclaimed. There is no guarantee it'll be enough to actually
-compact but it's conservative in terms of reclaim. The end result should
-be that this check is no longer necessary.
+The sort answer is: Per definition. They are defined to work together,
+which is what makes __clear_bit_unlock() such a special function.
 
--- 
-Mel Gorman
-SUSE Labs
+> So despite the comment below in bit_spinlock.h I don't quite comprehend how this
+> is allowable. And if say, by deduction, this is fine for LLSC or lock prefixed
+> cases, then isn't this true in general for lot more cases in kernel, i.e. pairing
+> atomic lock with non-atomic unlock ? I'm missing something !
+
+x86 (and others) do in fact use non-atomic instructions for
+spin_unlock(). But as this is all arch specific, we can make these
+assumptions. Its just that generic code cannot rely on it.
+
+So let me try and explain.
+
+
+The problem as identified is:
+
+CPU0						CPU1
+
+bit_spin_lock()					__bit_spin_unlock()
+1:
+	/* fetch_or, r1 holds the old value */
+	spin_lock
+	load	r1, addr
+						load	r1, addr
+						bclr	r2, r1, 1
+						store	r2, addr
+	or	r2, r1, 1
+	store	r2, addr	/* lost the store from CPU1 */
+	spin_unlock
+
+	and	r1, 1
+	bnz	2	/* it was set, go wait */
+	ret
+
+2:
+	load	r1, addr
+	and	r1, 1
+	bnz	2	/* wait until its not set */
+
+	b	1	/* try again */
+
+
+
+For LL/SC we replace:
+
+	spin_lock
+	load	r1, addr
+
+	...
+
+	store	r2, addr
+	spin_unlock
+
+With the (obvious):
+
+1:
+	load-locked	r1, addr
+
+	...
+
+	store-cond	r2, addr
+	bnz		1 /* or whatever branch instruction is required to retry */
+
+
+In this case the failure cannot happen, because the store from CPU1
+would have invalidated the lock from CPU0 and caused the
+store-cond to fail and retry the loop, observing the new value.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
