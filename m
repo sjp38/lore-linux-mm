@@ -1,95 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 994BA6B0253
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 09:19:14 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fl4so40595009pad.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:19:14 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id p8si8239715pfa.67.2016.03.09.06.19.13
-        for <linux-mm@kvack.org>;
-        Wed, 09 Mar 2016 06:19:13 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BAC526B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 09:29:22 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id fl4so40787501pad.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:29:22 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id q76si12876173pfa.60.2016.03.09.06.29.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Mar 2016 06:29:21 -0800 (PST)
+Date: Wed, 9 Mar 2016 17:28:54 +0300
+From: Roman Kagan <rkagan@virtuozzo.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
  optimization
-Date: Wed, 9 Mar 2016 14:19:04 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E041497EC@shsmsx102.ccr.corp.intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160303174615.GF2115@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+Message-ID: <20160309142851.GA9715@rkaganb.sw.ru>
+References: <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
  <20160304081411.GD9100@rkaganb.sw.ru>
  <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
  <20160304102346.GB2479@rkaganb.sw.ru>
  <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <56D9B6C2.3070708@redhat.com> <20160304185120.GB2588@work-vm>
- <20160309132210.GA5869@rkaganb.sw.ru>
-In-Reply-To: <20160309132210.GA5869@rkaganb.sw.ru>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+ <20160305214748-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
+ <20160307110852-mutt-send-email-mst@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160307110852-mutt-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Li, Liang Z" <liang.z.li@intel.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>, riel@redhat.com
 
-> On Fri, Mar 04, 2016 at 06:51:21PM +0000, Dr. David Alan Gilbert wrote:
-> > * Paolo Bonzini (pbonzini@redhat.com) wrote:
-> > >
-> > >
-> > > On 04/03/2016 15:26, Li, Liang Z wrote:
-> > > >> >
-> > > >> > The memory usage will keep increasing due to ever growing
-> > > >> > caches, etc, so you'll be left with very little free memory fair=
-ly soon.
-> > > >> >
-> > > > I don't think so.
-> > > >
-> > >
-> > > Roman is right.  For example, here I am looking at a 64 GB
-> > > (physical) machine which was booted about 30 minutes ago, and which
-> > > is running disk-heavy workloads (installing VMs).
-> > >
-> > > Since I have started writing this email (2 minutes?), the amount of
-> > > free memory has already gone down from 37 GB to 33 GB.  I expect
-> > > that by the time I have finished running the workload, in two hours,
-> > > it will not have any free memory.
-> >
-> > But what about a VM sitting idle, or that just has more RAM assigned
-> > to it than is currently using.
-> >  I've got a host here that's been up for 46 days and has been doing
-> > some heavy VM debugging a few days ago, but today:
-> >
-> > # free -m
-> >               total        used        free      shared  buff/cache   a=
-vailable
-> > Mem:          96536        1146       44834         184       50555    =
-   94735
-> >
-> > I very rarely use all it's RAM, so it's got a big chunk of free RAM,
-> > and yes it's got a big chunk of cache as well.
->=20
-> One of the promises of virtualization is better resource utilization.
-> People tend to avoid purchasing VMs so much oversized that they never
-> touch a significant amount of their RAM.  (Well, at least this is how thi=
-ngs
-> stand in hosting market; I guess enterprize market is similar in this reg=
-ard).
->=20
-> That said, I'm not at all opposed to optimizing the migration of free mem=
-ory;
-> what I'm trying to say is that creating brand new infrastructure specific=
-ally for
-> that case doesn't look justified when the existing one can cover it in ad=
-dition
-> to much more common scenarios.
->=20
-> Roman.
+On Mon, Mar 07, 2016 at 01:40:06PM +0200, Michael S. Tsirkin wrote:
+> On Mon, Mar 07, 2016 at 06:49:19AM +0000, Li, Liang Z wrote:
+> > > > No. And it's exactly what I mean. The ballooned memory is still
+> > > > processed during live migration without skipping. The live migration code is
+> > > in migration/ram.c.
+> > > 
+> > > So if guest acknowledged VIRTIO_BALLOON_F_MUST_TELL_HOST, we can
+> > > teach qemu to skip these pages.
+> > > Want to write a patch to do this?
+> > > 
+> > 
+> > Yes, we really can teach qemu to skip these pages and it's not hard.  
+> > The problem is the poor performance, this PV solution
+> 
+> Balloon is always PV. And do not call patches solutions please.
+> 
+> > is aimed to make it more
+> > efficient and reduce the performance impact on guest.
+> 
+> We need to get a bit beyond this.  You are making multiple
+> changes, it seems to make sense to split it all up, and analyse each
+> change separately.
 
-Even the existing one can cover more common scenarios, but it has performan=
-ce issue.
-that's why I create a new one.
+Couldn't agree more.
 
-Liang
+There are three stages in this optimization:
+
+1) choosing which pages to skip
+
+2) communicating them from guest to host
+
+3) skip transferring uninteresting pages to the remote side on migration
+
+For (3) there seems to be a low-hanging fruit to amend
+migration/ram.c:iz_zero_range() to consult /proc/self/pagemap.  This
+would work for guest RAM that hasn't been touched yet or which has been
+ballooned out.
+
+For (1) I've been trying to make a point that skipping clean pages is
+much more likely to result in noticable benefit than free pages only.
+
+As for (2), we do seem to have a problem with the existing balloon:
+according to your measurements it's very slow; besides, I guess it plays
+badly with transparent huge pages (as both the guest and the host work
+with one 4k page at a time).  This is a problem for other use cases of
+balloon (e.g. as a facility for resource management); tackling that
+appears a more natural application for optimization efforts.
+
+Thanks,
+Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
