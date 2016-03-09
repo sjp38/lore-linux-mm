@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 808886B0259
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 07:12:09 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fl4so38138145pad.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 04:12:09 -0800 (PST)
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
-        by mx.google.com with ESMTPS id b19si12159567pfd.242.2016.03.09.04.12.04
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BF016B025A
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 07:12:11 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id u190so9808078pfb.3
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 04:12:11 -0800 (PST)
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com. [202.81.31.145])
+        by mx.google.com with ESMTPS id o65si12153241pfo.226.2016.03.09.04.12.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 04:12:05 -0800 (PST)
+        Wed, 09 Mar 2016 04:12:07 -0800 (PST)
 Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 9 Mar 2016 22:12:01 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 308F82BB005A
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 23:11:59 +1100 (EST)
+	Wed, 9 Mar 2016 22:12:04 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 2B23A2BB0059
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 23:12:01 +1100 (EST)
 Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u29CBpLn57933968
-	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:11:59 +1100
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u29CBqEp61603928
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:12:00 +1100
 Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u29CBPuV021915
-	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:11:26 +1100
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u29CBSAr022054
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:11:28 +1100
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [RFC 7/9] powerpc/hugetlb: Change follow_huge_* routines for BOOK3S 64K
-Date: Wed,  9 Mar 2016 17:40:48 +0530
-Message-Id: <1457525450-4262-7-git-send-email-khandual@linux.vnet.ibm.com>
+Subject: [RFC 8/9] powerpc/mm: Enable HugeTLB page migration
+Date: Wed,  9 Mar 2016 17:40:49 +0530
+Message-Id: <1457525450-4262-8-git-send-email-khandual@linux.vnet.ibm.com>
 In-Reply-To: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
 References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,57 +33,32 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-With this change, BOOK3S 64K platforms will not use 'follow_huge_addr'
-function any more and always return ERR_PTR(-ENIVAL), hence skipping
-the BUG_ON(flags & FOLL_GET) test in 'follow_page_mask' function. These
-platforms will then fall back on generic follow_huge_* functions for
-everything else. While being here, also added 'follow_huge_pgd' function
-which was missing earlier.
+This change enables HugeTLB page migration for PPC64_BOOK3S systems
+for HugeTLB pages implemented at the PMD level. It enables the kernel
+configuration option ARCH_ENABLE_HUGEPAGE_MIGRATION which turns on
+'hugepage_migration_supported' function which is checked for feature
+presence during migration.
 
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/hugetlbpage.c | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ arch/powerpc/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index f6e4712..89b748a 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -631,6 +631,10 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
- 	unsigned long mask, flags;
- 	struct page *page = ERR_PTR(-EINVAL);
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index c6920bb..cefc368 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -86,6 +86,10 @@ config GENERIC_HWEIGHT
+ config ARCH_HAS_DMA_SET_COHERENT_MASK
+         bool
  
-+#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_BOOK3S_64)
-+	return ERR_PTR(-EINVAL);
-+#endif
++config ARCH_ENABLE_HUGEPAGE_MIGRATION
++	def_bool y
++	depends on PPC_BOOK3S_64 && HUGETLB_PAGE && MIGRATION
 +
- 	local_irq_save(flags);
- 	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &is_thp, &shift);
- 	if (!ptep)
-@@ -658,6 +662,7 @@ no_page:
- 	return page;
- }
- 
-+#if !defined(CONFIG_PPC_64K_PAGES) || !defined(CONFIG_PPC_BOOK3S_64)
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-@@ -674,6 +679,15 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
- 	return NULL;
- }
- 
-+struct page *
-+follow_huge_pgd(struct mm_struct *mm, unsigned long address,
-+		pgd_t *pgd, int write)
-+{
-+	BUG();
-+	return NULL;
-+}
-+#endif /* !defined(CONFIG_PPC_64K_PAGE) || !defined(CONFIG_BOOK3S_64) */
-+
- static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
- 				      unsigned long sz)
- {
+ config PPC
+ 	bool
+ 	default y
 -- 
 2.1.0
 
