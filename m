@@ -1,95 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B93996B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 07:30:22 -0500 (EST)
-Received: by mail-wm0-f46.google.com with SMTP id l68so190435061wml.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 04:30:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w76si10356359wmd.81.2016.03.09.04.30.21
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EFF46B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 08:22:26 -0500 (EST)
+Received: by mail-pf0-f180.google.com with SMTP id 124so40818538pfg.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 05:22:26 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id d73si12553720pfb.108.2016.03.09.05.22.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 04:30:21 -0800 (PST)
-Subject: Re: [PATCH 02/27] mm, vmscan: Check if cpusets are enabled during
- direct reclaim
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <1456239890-20737-3-git-send-email-mgorman@techsingularity.net>
- <56D8209C.5020103@suse.cz> <20160309115909.GA31585@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E01759.5090203@suse.cz>
-Date: Wed, 9 Mar 2016 13:30:17 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Mar 2016 05:22:25 -0800 (PST)
+Date: Wed, 9 Mar 2016 16:22:11 +0300
+From: Roman Kagan <rkagan@virtuozzo.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160309132210.GA5869@rkaganb.sw.ru>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160303174615.GF2115@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+ <20160304081411.GD9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
+ <20160304102346.GB2479@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <56D9B6C2.3070708@redhat.com>
+ <20160304185120.GB2588@work-vm>
 MIME-Version: 1.0
-In-Reply-To: <20160309115909.GA31585@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160304185120.GB2588@work-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, "Li, Liang Z" <liang.z.li@intel.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-On 03/09/2016 12:59 PM, Mel Gorman wrote:
-> On Thu, Mar 03, 2016 at 12:31:40PM +0100, Vlastimil Babka wrote:
->> On 02/23/2016 04:04 PM, Mel Gorman wrote:
->>> Direct reclaim obeys cpusets but misses the cpusets_enabled() check.
->>> The overhead is unlikely to be measurable in the direct reclaim
->>> path which is expensive but there is no harm is doing it.
->>>
->>> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
->>> ---
->>>  mm/vmscan.c | 2 +-
->>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> index 86eb21491867..de8d6226e026 100644
->>> --- a/mm/vmscan.c
->>> +++ b/mm/vmscan.c
->>> @@ -2566,7 +2566,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->>>  		 * to global LRU.
->>>  		 */
->>>  		if (global_reclaim(sc)) {
->>> -			if (!cpuset_zone_allowed(zone,
->>> +			if (cpusets_enabled() && !cpuset_zone_allowed(zone,
->>>  						 GFP_KERNEL | __GFP_HARDWALL))
->>>  				continue;
->>
->> Hmm, wouldn't it be nicer if cpuset_zone_allowed() itself did the right
->> thing, and not each caller?
->>
->> How about the patch below? (+CC)
->>
+On Fri, Mar 04, 2016 at 06:51:21PM +0000, Dr. David Alan Gilbert wrote:
+> * Paolo Bonzini (pbonzini@redhat.com) wrote:
+> > 
+> > 
+> > On 04/03/2016 15:26, Li, Liang Z wrote:
+> > >> > 
+> > >> > The memory usage will keep increasing due to ever growing caches, etc, so
+> > >> > you'll be left with very little free memory fairly soon.
+> > >> > 
+> > > I don't think so.
+> > > 
+> > 
+> > Roman is right.  For example, here I am looking at a 64 GB (physical)
+> > machine which was booted about 30 minutes ago, and which is running
+> > disk-heavy workloads (installing VMs).
+> > 
+> > Since I have started writing this email (2 minutes?), the amount of free
+> > memory has already gone down from 37 GB to 33 GB.  I expect that by the
+> > time I have finished running the workload, in two hours, it will not
+> > have any free memory.
 > 
-> The patch appears to be layer upon the entire series but that in itself
-
-It could be also completely separate, witch your 02/27 dropped as it's
-not tied to the rework anyway? Or did I miss something else cpuset
-related in later patches?
-
-> is ok. This part is a problem
+> But what about a VM sitting idle, or that just has more RAM assigned to it
+> than is currently using.
+>  I've got a host here that's been up for 46 days and has been doing some
+> heavy VM debugging a few days ago, but today:
 > 
->> An important function for cpusets is cpuset_node_allowed(), which acknowledges
->> that if there's a single root CPU set, it must be trivially allowed. But the
->> check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key in a
->> proper way where static keys can reduce the overhead.
+> # free -m
+>               total        used        free      shared  buff/cache   available
+> Mem:          96536        1146       44834         184       50555       94735
 > 
-> 
-> There is one check for the static key and a second for the count to see
-> if it's likely a valid cpuset that matters has been configured.
+> I very rarely use all it's RAM, so it's got a big chunk of free RAM, and yes
+> it's got a big chunk of cache as well.
 
-The point is that these should be equivalent, as the static key becomes
-enabled only when there's more than one (root) cpuset. So checking
-"nr_cpusets() <= 1" does the same as "!cpusets_enabled()", but without
-taking advantage of the static key code patching.
+One of the promises of virtualization is better resource utilization.
+People tend to avoid purchasing VMs so much oversized that they never
+touch a significant amount of their RAM.  (Well, at least this is how
+things stand in hosting market; I guess enterprize market is similar in
+this regard).
 
-> The
-> point of that check was that it was lighter than __cpuset_zone_allowed
-> in the case where no cpuset is configured.
+That said, I'm not at all opposed to optimizing the migration of free
+memory; what I'm trying to say is that creating brand new infrastructure
+specifically for that case doesn't look justified when the existing one
+can cover it in addition to much more common scenarios.
 
-But shrink_zones() (which you were patching) uses cpuset_zone_allowed(),
-not __cpuset_zone_allowed(). The latter is provided only for
-get_page_from_freelist(), which inserts extra fast check between
-cpusets_enabled() and the slow cpuset allowed checking.
-
-> The patches are not equivalent.
-> 
+Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
