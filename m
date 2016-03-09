@@ -1,95 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BDD06B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 21:21:29 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id p65so173622603wmp.1
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 18:21:29 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id 191si24459995wmn.116.2016.03.08.18.21.25
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 584A46B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 22:55:34 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id td3so1757835pab.2
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 19:55:34 -0800 (PST)
+Received: from out4133-130.mail.aliyun.com (out4133-130.mail.aliyun.com. [42.120.133.130])
+        by mx.google.com with ESMTP id bs10si9271480pad.73.2016.03.08.19.55.29
         for <linux-mm@kvack.org>;
-        Tue, 08 Mar 2016 18:21:28 -0800 (PST)
-Message-ID: <56DF87E6.10703@huawei.com>
-Date: Wed, 9 Mar 2016 10:18:14 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 08 Mar 2016 19:55:33 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20160307160838.GB5028@dhcp22.suse.cz> <1457444565-10524-1-git-send-email-mhocko@kernel.org> <1457444565-10524-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1457444565-10524-2-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm, compaction: change COMPACT_ constants into enum
+Date: Wed, 09 Mar 2016 11:55:20 +0800
+Message-ID: <059d01d179b7$807f7db0$817e7910$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: Re: Suspicious error for CMA stress test
-References: <56D79284.3030009@redhat.com> <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com> <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE> <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com> <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com> <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD7B20.1020508@suse.cz> <20160308074816.GA31471@js1304-P5Q-DELUXE> <56DEAD3D.5090706@huawei.com> <CAAmzW4MYzJwkBYqDXicA=hCrtapK+tMNZUNaEAQO=74s_mDt4g@mail.gmail.com>
-In-Reply-To: <CAAmzW4MYzJwkBYqDXicA=hCrtapK+tMNZUNaEAQO=74s_mDt4g@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Hanjun Guo <guohanjun@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: 'Michal Hocko' <mhocko@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Hugh Dickins' <hughd@google.com>, 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Joonsoo Kim' <js1304@gmail.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
 
-On 2016/3/8 23:36, Joonsoo Kim wrote:
-
-> 2016-03-08 19:45 GMT+09:00 Xishi Qiu <qiuxishi@huawei.com>:
->> On 2016/3/8 15:48, Joonsoo Kim wrote:
->>
->>> On Mon, Mar 07, 2016 at 01:59:12PM +0100, Vlastimil Babka wrote:
->>>> On 03/07/2016 05:34 AM, Joonsoo Kim wrote:
->>>>> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
->>>>>>> Sad to hear that.
->>>>>>>
->>>>>>> Could you tell me your system's MAX_ORDER and pageblock_order?
->>>>>>>
->>>>>>
->>>>>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
->>>>
->>>> I thought that CMA regions/operations (and isolation IIRC?) were
->>>> supposed to be MAX_ORDER aligned exactly to prevent needing these
->>>> extra checks for buddy merging. So what's wrong?
->>>
->>> CMA isolates MAX_ORDER aligned blocks, but, during the process,
->>> partialy isolated block exists. If MAX_ORDER is 11 and
->>> pageblock_order is 9, two pageblocks make up MAX_ORDER
->>> aligned block and I can think following scenario because pageblock
->>> (un)isolation would be done one by one.
->>>
->>> (each character means one pageblock. 'C', 'I' means MIGRATE_CMA,
->>> MIGRATE_ISOLATE, respectively.
->>>
->>
->> Hi Joonsoo,
->>
->>> CC -> IC -> II (Isolation)
->>
->>> II -> CI -> CC (Un-isolation)
->>>
->>> If some pages are freed at this intermediate state such as IC or CI,
->>> that page could be merged to the other page that is resident on
->>> different type of pageblock and it will cause wrong freepage count.
->>>
->>
->> Isolation will appear when do cma alloc, so there are two following threads.
->>
->> C(free)C(used) -> start_isolate_page_range -> I(free)C(used) -> I(free)I(someone free it) -> undo_isolate_page_range -> C(free)C(free)
->> so free cma is 2M -> 0M -> 0M -> 4M, the increased 2M was freed by someone.
 > 
-> Your example is correct one but think about following one.
-> C(free)C(used) -> start_isolate_page_range -> I(free)C(used) ->
-> I(free)**C**(someone free it) -> undo_isolate_page_range ->
-> C(free)C(free)
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> it would be 2M -> 0M -> 2M -> 6M.
-> When we do I(free)C(someone free it), CMA freepage is added
-> because it is on CMA pageblock. But, bad merging happens and
-> 4M buddy is made and it is in isolate buddy list.
-> Later, when we do undo_isolation, this 4M buddy is moved to
-> CMA buddy list and 4M is added to CMA freepage counter so
-> total is 6M.
+> compaction code is doing weird dances between
+> COMPACT_FOO -> int -> unsigned long
 > 
-
-Hi Joonsoo,
-
-I know the cause of the problem now, thank you very much.
-
-> Thanks.
+> but there doesn't seem to be any reason for that. All functions which
+> return/use one of those constants are not expecting any other value
+> so it really makes sense to define an enum for them and make it clear
+> that no other values are expected.
 > 
-> .
+> This is a pure cleanup and shouldn't introduce any functional changes.
 > 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 
 --
