@@ -1,61 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C35686B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 09:55:56 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p65so74525553wmp.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:55:56 -0800 (PST)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id 187si5024296wmg.2.2016.03.09.06.55.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 06:55:32 -0800 (PST)
-Received: by mail-wm0-f51.google.com with SMTP id l68so74578974wml.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 06:55:32 -0800 (PST)
-Date: Wed, 9 Mar 2016 15:55:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Reduce needless dereference.
-Message-ID: <20160309145512.GA27011@dhcp22.suse.cz>
-References: <1457434951-12691-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160308183032.GA9571@cmpxchg.org>
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 743806B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 10:27:59 -0500 (EST)
+Received: by mail-pf0-f178.google.com with SMTP id 124so43455789pfg.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 07:27:59 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id 79si13157534pfm.61.2016.03.09.07.27.57
+        for <linux-mm@kvack.org>;
+        Wed, 09 Mar 2016 07:27:58 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Date: Wed, 9 Mar 2016 15:27:54 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E041498BA@shsmsx102.ccr.corp.intel.com>
+References: <F2CBF3009FA73547804AE4C663CAB28E03770E33@SHSMSX101.ccr.corp.intel.com>
+ <20160304081411.GD9100@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
+ <20160304102346.GB2479@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+ <20160305214748-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
+ <20160307110852-mutt-send-email-mst@redhat.com>
+ <20160309142851.GA9715@rkaganb.sw.ru>
+In-Reply-To: <20160309142851.GA9715@rkaganb.sw.ru>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160308183032.GA9571@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org
+To: Roman Kagan <rkagan@virtuozzo.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>, "riel@redhat.com" <riel@redhat.com>
 
-On Tue 08-03-16 13:30:32, Johannes Weiner wrote:
-> On Tue, Mar 08, 2016 at 08:02:31PM +0900, Tetsuo Handa wrote:
-> > Since we assigned mm = victim->mm before pr_err(),
-> > we don't need to dereference victim->mm again at pr_err().
-> > This saves a few instructions.
-> > 
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> 
-> Yes. Once we introduce a local variable for something, we should use
-> it consistently to refer to that thing. Anything else is confusing.
+> On Mon, Mar 07, 2016 at 01:40:06PM +0200, Michael S. Tsirkin wrote:
+> > On Mon, Mar 07, 2016 at 06:49:19AM +0000, Li, Liang Z wrote:
+> > > > > No. And it's exactly what I mean. The ballooned memory is still
+> > > > > processed during live migration without skipping. The live
+> > > > > migration code is
+> > > > in migration/ram.c.
+> > > >
+> > > > So if guest acknowledged VIRTIO_BALLOON_F_MUST_TELL_HOST, we
+> can
+> > > > teach qemu to skip these pages.
+> > > > Want to write a patch to do this?
+> > > >
+> > >
+> > > Yes, we really can teach qemu to skip these pages and it's not hard.
+> > > The problem is the poor performance, this PV solution
+> >
+> > Balloon is always PV. And do not call patches solutions please.
+> >
+> > > is aimed to make it more
+> > > efficient and reduce the performance impact on guest.
+> >
+> > We need to get a bit beyond this.  You are making multiple changes, it
+> > seems to make sense to split it all up, and analyse each change
+> > separately.
+>=20
+> Couldn't agree more.
+>=20
+> There are three stages in this optimization:
+>=20
+> 1) choosing which pages to skip
+>=20
+> 2) communicating them from guest to host
+>=20
+> 3) skip transferring uninteresting pages to the remote side on migration
+>=20
+> For (3) there seems to be a low-hanging fruit to amend
+> migration/ram.c:iz_zero_range() to consult /proc/self/pagemap.  This woul=
+d
+> work for guest RAM that hasn't been touched yet or which has been
+> ballooned out.
+>=20
+> For (1) I've been trying to make a point that skipping clean pages is muc=
+h
+> more likely to result in noticable benefit than free pages only.
+>=20
 
-The victim->mm association is stable here because of the task_lock but I
-agree that this might be not obvious and reusing the local variable is
-easier to read and understand. I doubt we care about the change in the
-generated code as an argument though. So just for the sake of clean up
+I am considering to drop the pagecache before getting the free pages.=20
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+> As for (2), we do seem to have a problem with the existing balloon:
+> according to your measurements it's very slow; besides, I guess it plays =
+badly
 
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I didn't say communicating is slow. Even this is very slow, my solution use=
+ bitmap instead of
+PFNs, there is fewer data traffic, so it's faster than the existing balloon=
+ which use PFNs.
 
--- 
-Michal Hocko
-SUSE Labs
+> with transparent huge pages (as both the guest and the host work with one
+> 4k page at a time).  This is a problem for other use cases of balloon (e.=
+g. as a
+> facility for resource management); tackling that appears a more natural
+> application for optimization efforts.
+>=20
+> Thanks,
+> Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
