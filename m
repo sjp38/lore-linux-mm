@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 47D1B6B007E
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 06:59:45 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l68so174634504wml.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 03:59:45 -0800 (PST)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id j126si4505487wmj.120.2016.03.09.03.59.43
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4C06B007E
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 07:11:56 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id n5so939379pfn.2
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 04:11:56 -0800 (PST)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id s8si12218091pfi.10.2016.03.09.04.11.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 03:59:43 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 7F2101C2182
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 11:59:43 +0000 (GMT)
-Date: Wed, 9 Mar 2016 11:59:38 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 02/27] mm, vmscan: Check if cpusets are enabled during
- direct reclaim
-Message-ID: <20160309115909.GA31585@techsingularity.net>
-References: <1456239890-20737-1-git-send-email-mgorman@techsingularity.net>
- <1456239890-20737-3-git-send-email-mgorman@techsingularity.net>
- <56D8209C.5020103@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <56D8209C.5020103@suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 09 Mar 2016 04:11:55 -0800 (PST)
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 9 Mar 2016 22:11:51 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 1A29C2CE8056
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 23:11:48 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u29CBdW043188324
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:11:47 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u29CBFks021451
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2016 23:11:15 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [RFC 3/9] mm/gup: Make follow_page_mask function PGD implementation aware
+Date: Wed,  9 Mar 2016 17:40:44 +0530
+Message-Id: <1457525450-4262-3-git-send-email-khandual@linux.vnet.ibm.com>
+In-Reply-To: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
+References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-On Thu, Mar 03, 2016 at 12:31:40PM +0100, Vlastimil Babka wrote:
-> On 02/23/2016 04:04 PM, Mel Gorman wrote:
-> > Direct reclaim obeys cpusets but misses the cpusets_enabled() check.
-> > The overhead is unlikely to be measurable in the direct reclaim
-> > path which is expensive but there is no harm is doing it.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > ---
-> >  mm/vmscan.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 86eb21491867..de8d6226e026 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2566,7 +2566,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-> >  		 * to global LRU.
-> >  		 */
-> >  		if (global_reclaim(sc)) {
-> > -			if (!cpuset_zone_allowed(zone,
-> > +			if (cpusets_enabled() && !cpuset_zone_allowed(zone,
-> >  						 GFP_KERNEL | __GFP_HARDWALL))
-> >  				continue;
-> 
-> Hmm, wouldn't it be nicer if cpuset_zone_allowed() itself did the right
-> thing, and not each caller?
-> 
-> How about the patch below? (+CC)
-> 
+Currently the function 'follow_page_mask' does not take into account
+PGD based huge page implementation. This change achieves that and
+makes it complete.
 
-The patch appears to be layer upon the entire series but that in itself
-is ok. This part is a problem
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ mm/gup.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-> An important function for cpusets is cpuset_node_allowed(), which acknowledges
-> that if there's a single root CPU set, it must be trivially allowed. But the
-> check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key in a
-> proper way where static keys can reduce the overhead.
-
-
-There is one check for the static key and a second for the count to see
-if it's likely a valid cpuset that matters has been configured. The
-point of that check was that it was lighter than __cpuset_zone_allowed
-in the case where no cpuset is configured.
-
-The patches are not equivalent.
-
+diff --git a/mm/gup.c b/mm/gup.c
+index 7bf19ff..53a2013 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -232,6 +232,12 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 	pgd = pgd_offset(mm, address);
+ 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+ 		return no_page_table(vma, flags);
++	if (pgd_huge(*pgd) && vma->vm_flags & VM_HUGETLB) {
++		page = follow_huge_pgd(mm, address, pgd, flags);
++		if (page)
++			return page;
++		return no_page_table(vma, flags);
++	}
+ 
+ 	pud = pud_offset(pgd, address);
+ 	if (pud_none(*pud))
 -- 
-Mel Gorman
-SUSE Labs
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
