@@ -1,89 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3EF6B0253
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 01:43:40 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id td3so5086919pab.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 22:43:40 -0800 (PST)
-Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id qp8si10228074pac.244.2016.03.08.22.43.39
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DB966B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 03:26:27 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id n186so166466329wmn.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 00:26:27 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id ur8si8643038wjc.174.2016.03.09.00.26.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 22:43:39 -0800 (PST)
-Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
-References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
- <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
- <56DEF3D3.6080008@synopsys.com>
- <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <56DFC604.6070407@synopsys.com>
-Date: Wed, 9 Mar 2016 12:13:16 +0530
+        Wed, 09 Mar 2016 00:26:26 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id l68so8615796wml.3
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 00:26:26 -0800 (PST)
+Date: Wed, 9 Mar 2016 09:26:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/5] oom reaper: handle mlocked pages
+Message-ID: <20160309082623.GA27018@dhcp22.suse.cz>
+References: <1454505240-23446-1-git-send-email-mhocko@kernel.org>
+ <1454505240-23446-3-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1602221734140.4688@chino.kir.corp.google.com>
+ <20160223132157.GD14178@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1602281844180.3975@eggly.anvils>
+ <20160229134139.GB16930@dhcp22.suse.cz>
+ <20160308134032.GG13542@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1603081139380.8735@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1603081139380.8735@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Noam Camus <noamc@ezchip.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-parisc@vger.kernel, Peter
- Zijlstra <peterz@infradead.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Argangeli <andrea@kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-+CC linux-arch, parisc folks, PeterZ
-
-On Wednesday 09 March 2016 02:10 AM, Christoph Lameter wrote:
-> On Tue, 8 Mar 2016, Vineet Gupta wrote:
+On Tue 08-03-16 12:07:24, Hugh Dickins wrote:
+> On Tue, 8 Mar 2016, Michal Hocko wrote:
+> > On Mon 29-02-16 14:41:39, Michal Hocko wrote:
+> > > On Sun 28-02-16 19:19:11, Hugh Dickins wrote:
+> > > > On Tue, 23 Feb 2016, Michal Hocko wrote:
+> > > > > On Mon 22-02-16 17:36:07, David Rientjes wrote:
+> > > > > > 
+> > > > > > Are we concerned about munlock_vma_pages_all() taking lock_page() and 
+> > > > > > perhaps stalling forever, the same way it would stall in exit_mmap() for 
+> > > > > > VM_LOCKED vmas, if another thread has locked the same page and is doing an 
+> > > > > > allocation?
+> > > > > 
+> > > > > This is a good question. I have checked for that particular case
+> > > > > previously and managed to convinced myself that this is OK(ish).
+> > > > > munlock_vma_pages_range locks only THP pages to prevent from the
+> > > > > parallel split-up AFAICS.
+> > > > 
+> > > > I think you're mistaken on that: there is also the lock_page()
+> > > > on every page in Phase 2 of __munlock_pagevec().
+> > > 
+> > > Ohh, I have missed that one. Thanks for pointing it out!
+> > > 
+> > > [...]
+> > > > > Just for the reference this is what I came up with (just compile tested).
+> > > > 
+> > > > I tried something similar internally (on an earlier kernel).  Like
+> > > > you I've set that work aside for now, there were quicker ways to fix
+> > > > the issue at hand.  But it does continue to offend me that munlock
+> > > > demands all those page locks: so if you don't get back to it before me,
+> > > > I shall eventually.
+> > > > 
+> > > > I didn't understand why you complicated yours with the "enforce"
+> > > > arg to munlock_vma_pages_range(): why not just trylock in all cases?
+> > > 
+> > > Well, I have to confess that I am not really sure I understand all the
+> > > consequences of the locking here. It has always been subtle and weird
+> > > issues popping up from time to time. So I only wanted to have that
+> > > change limitted to the oom_reaper. So I would really appreciate if
+> > > somebody more knowledgeable had a look. We can drop the mlock patch for
+> > > now.
+> > 
+> > According to the rc7 announcement it seems we are approaching the merge
+> > window. Should we drop the patch for now or the risk of the lockup is
+> > too low to care about and keep it in for now as it might be already
+> > useful and change the munlock path to not depend on page locks later on?
+> > 
+> > I am OK with both ways.
 > 
->> # set the bit
->> 80543b8e:	ld_s       r2,[r13,0] <--- (A) Finds PG_locked is set
->> 80543b90:	or         r3,r2,1    <--- (B) other core unlocks right here
->> 80543b94:	st_s       r3,[r13,0] <--- (C) sets PG_locked (overwrites unlock)
+> You're asking about the Subject patch, "oom reaper: handle mlocked pages",
+> I presume.  Your Work-In-Progress mods to munlock_vma_pages_range() should
+> certainly be dropped for now, and revisited by one of us another time.
+
+I believe it hasn't landed in the mmotm yet.
+
+> I vote for dropping "oom reaper: handle mlocked pages" for now too.
+
+OK, Andrew, could you drop oom-reaper-handle-mlocked-pages.patch for
+now. We will revisit it later on after we make the munlock path page
+lock free.
+
+> If I understand correctly, the purpose of the oom reaper is to free up
+> as much memory from the targeted task as possible, while avoiding getting
+> stuck on locks; in advance of the task actually exiting and doing the
+> freeing itself, but perhaps getting stuck on locks as it does so.
 > 
-> Duh. Guess you  need to take the spinlock also in the arch specific
-> implementation of __bit_spin_unlock(). This is certainly not the only case
-> in which we use the __ op to unlock.
+> If that's a fair description, then it's inappropriate for the oom reaper
+> to call munlock_vma_pages_all(), with the risk of getting stuck on many
+> page locks; best leave that risk to the task when it exits as at present.
+> Of course we should come back to this later, fix munlock_vma_pages_range()
+> with trylocks (on the pages only? rmap mutexes also?), and then integrate
+> "oom reaper: handle mlocked pages".
 
-__bit_spin_lock() by definition is *not* required to be atomic, bit_spin_lock() is
-- so I don't think we need a spinlock there.
+Fair enough.
 
-There is clearly a problem in slub code that it is pairing a test_and_set_bit()
-with a __clear_bit(). Latter can obviously clobber former if they are not a single
-instruction each unlike x86 or they use llock/scond kind of instructions where the
-interim store from other core is detected and causes a retry of whole llock/scond
-sequence.
+> (Or if we had the old mechanism for scanning unevictable lrus on demand,
+> perhaps simply not avoid the VM_LOCKED vmas in __oom_reap_vmas(), let
+> the clear_page_mlock() in page_remove_*rmap() handle all the singly
+> mapped and mlocked pages, and un-mlock the rest by scanning unevictables.)
 
-BTW ARC is not the only arch which suffers from this - other arches potentially
-also are. AFAIK PARISC also doesn't have atomic r-m-w and also uses a set of
-external hashed spinlocks to protect the r-m-w sequences.
-
-https://lkml.org/lkml/2014/6/1/178
-
-So there also we have the same race because the outer spin lock is not taken for
-slab_unlock() -> __bit_spin_lock() -> __clear_bit.
-
-Arguably I can fix the ARC !LLSC variant of test_and_set_bit() to not set the bit
-unconditionally but only if it was clear (PARISC does the same). That would be a
-slight micro-optimization as we won't need another snoop transaction to make line
-writable and that would also elide this problem, but I think there is a
-fundamental problem here in slub which is pairing atomic and non atomic ops - for
-performance reasons. It doesn't work on all arches and/or configurations.
-
-> You need a true atomic op or you need to take the "spinlock" in all
-> cases where you modify the bit.
-
-No we don't in __bit_spin_lock and we already do in bit_spin_lock.
-
-> If you take the lock in __bit_spin_unlock
-> then the race cannot happen.
-
-Of course it won't but that means we penalize all non atomic callers of the API
-with a superfluous spinlock which is not require din first place given the
-definition of API.
-
-
->> Are you convinced now !
-> 
-> Yes, please fix your arch specific code.
-
-
+I will have a look at this possibility as well.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
