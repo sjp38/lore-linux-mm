@@ -1,125 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3876B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 06:01:01 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id tt10so36778389pab.3
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 03:01:01 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id c67si11824851pfj.47.2016.03.09.03.01.00
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A99206B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 06:05:55 -0500 (EST)
+Received: by mail-wm0-f51.google.com with SMTP id l68so65666537wml.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 03:05:55 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id j8si9340146wjf.83.2016.03.09.03.05.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 03:01:00 -0800 (PST)
-Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
-References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
- <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
- <56DEF3D3.6080008@synopsys.com>
- <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
- <56DFC604.6070407@synopsys.com>
- <20160309101349.GJ6344@twins.programming.kicks-ass.net>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <56E0024F.4070401@synopsys.com>
-Date: Wed, 9 Mar 2016 16:30:31 +0530
-MIME-Version: 1.0
-In-Reply-To: <20160309101349.GJ6344@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        Wed, 09 Mar 2016 03:05:54 -0800 (PST)
+Received: by mail-wm0-x22a.google.com with SMTP id l68so187395302wml.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 03:05:54 -0800 (PST)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v4 0/7] SLAB support for KASAN
+Date: Wed,  9 Mar 2016 12:05:41 +0100
+Message-Id: <cover.1457519440.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-parisc@vger.kernel, Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "James E.J. Bottomley" <jejb@parisc-linux.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Noam Camus <noamc@ezchip.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-snps-arc@lists.infradead.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wednesday 09 March 2016 03:43 PM, Peter Zijlstra wrote:
->>> If you take the lock in __bit_spin_unlock
->>> then the race cannot happen.
->>
->> Of course it won't but that means we penalize all non atomic callers of the API
->> with a superfluous spinlock which is not require din first place given the
->> definition of API.
-> 
-> Quite. _However_, your arch is still broken, but not by your fault. Its
-> the generic-asm code that is wrong.
-> 
-> The thing is that __bit_spin_unlock() uses __clear_bit_unlock(), which
-> defaults to __clear_bit(). Which is wrong.
-> 
-> ---
-> Subject: bitops: Do not default to __clear_bit() for __clear_bit_unlock()
-> 
-> __clear_bit_unlock() is a special little snowflake. While it carries the
-> non-atomic '__' prefix, it is specifically documented to pair with
-> test_and_set_bit() and therefore should be 'somewhat' atomic.
-> 
-> Therefore the generic implementation of __clear_bit_unlock() cannot use
-> the fully non-atomic __clear_bit() as a default.
-> 
-> If an arch is able to do better; is must provide an implementation of
-> __clear_bit_unlock() itself.
-> 
-> Reported-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+This patch set implements SLAB support for KASAN
 
-This needs to be CCed stable as it fixes a real bug for ARC.
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
 
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
-Tested-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
+---
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
 
-FWIW, could we add some background to commit log, specifically what prompted this.
-Something like below...
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
 
----->8------
-This came up as a result of hackbench livelock'ing in slab_lock() on ARC with SMP
-+ SLUB + !LLSC.
+v4: - fix kbuild error reports
 
-The issue was incorrect pairing of atomic ops.
+v5: - SLAB allocator, stackdepot: adopted suggestions by Andrey Ryabinin
+    - IRQ: fixed kbuild warnings
+---
 
-slab_lock() -> bit_spin_lock() -> test_and_set_bit()
-slab_unlock() -> __bit_spin_unlock() -> __clear_bit()
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/include/asm/exception.h     |   2 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/include/asm/exception.h   |   2 +-
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 ++++++--
+ include/linux/slab.h                 |  10 +-
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig                          |   3 +
+ lib/Kconfig.kasan                    |   5 +-
+ lib/Makefile                         |   3 +
+ lib/stackdepot.c                     | 275 +++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 221 +++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  45 ++++++
+ mm/kasan/quarantine.c                | 306 +++++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  64 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  53 +++++-
+ mm/slab.h                            |   4 +-
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  19 +--
+ 47 files changed, 1205 insertions(+), 92 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
 
-The non serializing __clear_bit() was getting "lost"
-
-80543b8e:	ld_s       r2,[r13,0] <--- (A) Finds PG_locked is set
-80543b90:	or         r3,r2,1    <--- (B) other core unlocks right here
-80543b94:	st_s       r3,[r13,0] <--- (C) sets PG_locked (overwrites unlock)
-
-Fixes ARC STAR 9000817404
----->8------
-
-> ---
->  include/asm-generic/bitops/lock.h | 14 +++++++-------
->  1 file changed, 7 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/asm-generic/bitops/lock.h b/include/asm-generic/bitops/lock.h
-> index c30266e94806..8ef0ccbf8167 100644
-> --- a/include/asm-generic/bitops/lock.h
-> +++ b/include/asm-generic/bitops/lock.h
-> @@ -29,16 +29,16 @@ do {					\
->   * @nr: the bit to set
->   * @addr: the address to start counting from
->   *
-> - * This operation is like clear_bit_unlock, however it is not atomic.
-> - * It does provide release barrier semantics so it can be used to unlock
-> - * a bit lock, however it would only be used if no other CPU can modify
-> - * any bits in the memory until the lock is released (a good example is
-> - * if the bit lock itself protects access to the other bits in the word).
-> + * A weaker form of clear_bit_unlock() as used by __bit_lock_unlock(). If all
-> + * the bits in the word are protected by this lock some archs can use weaker
-> + * ops to safely unlock.
-> + *
-> + * See for example x86's implementation.
->   */
-
-To be able to override/use-generic don't we need #ifndef ....
-
->  #define __clear_bit_unlock(nr, addr)	\
->  do {					\
-> -	smp_mb();			\
-> -	__clear_bit(nr, addr);		\
-> +	smp_mb__before_atomic();	\
-> +	clear_bit(nr, addr);		\
->  } while (0)
->  
->  #endif /* _ASM_GENERIC_BITOPS_LOCK_H_ */
-> 
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
