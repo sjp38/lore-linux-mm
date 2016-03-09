@@ -1,61 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 74BE26B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 22:57:26 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id td3so1792406pab.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 19:57:26 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out21.biz.mail.alibaba.com. [205.204.114.132])
-        by mx.google.com with ESMTP id t13si9252142pas.225.2016.03.08.19.57.24
-        for <linux-mm@kvack.org>;
-        Tue, 08 Mar 2016 19:57:25 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20160307160838.GB5028@dhcp22.suse.cz> <1457444565-10524-1-git-send-email-mhocko@kernel.org> <1457444565-10524-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1457444565-10524-3-git-send-email-mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] mm, compaction: cover all compaction mode in compact_zone
-Date: Wed, 09 Mar 2016 11:57:00 +0800
-Message-ID: <059f01d179b7$bc811fd0$35835f70$@alibaba-inc.com>
+Received: from mail-yw0-f180.google.com (mail-yw0-f180.google.com [209.85.161.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7226B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 23:17:20 -0500 (EST)
+Received: by mail-yw0-f180.google.com with SMTP id h129so30279421ywb.1
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 20:17:20 -0800 (PST)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id l127si1972570ybb.231.2016.03.08.20.17.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Mar 2016 20:17:19 -0800 (PST)
+Received: by mail-yw0-x241.google.com with SMTP id p65so2051816ywb.3
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 20:17:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Language: zh-cn
+In-Reply-To: <56DEE59F.7020602@gmail.com>
+References: <1457409354-10867-1-git-send-email-zhlcindy@gmail.com>
+	<56DEE59F.7020602@gmail.com>
+Date: Wed, 9 Mar 2016 12:17:18 +0800
+Message-ID: <CAD8of+o9zbwae-JM2EtcEnUyZAr43+jQLz1YSVZVKfda+h+Xvg@mail.gmail.com>
+Subject: Re: [PATCH 0/2] mm: Enable page parallel initialisation for Power
+From: Li Zhang <zhlcindy@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Hugh Dickins' <hughd@google.com>, 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Joonsoo Kim' <js1304@gmail.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: akpm@linux-foundation.org, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Michael Ellerman <mpe@ellerman.id.au>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Li Zhang <zhlcindy@linux.vnet.ibm.com>
 
->=20
-> From: Michal Hocko <mhocko@suse.com>
->=20
-> the compiler is complaining after "mm, compaction: change COMPACT_
-> constants into enum"
->=20
-> mm/compaction.c: In function =E2=80=98compact_zone=E2=80=99:
-> mm/compaction.c:1350:2: warning: enumeration value =
-=E2=80=98COMPACT_DEFERRED=E2=80=99 not handled in switch [-Wswitch]
->   switch (ret) {
->   ^
-> mm/compaction.c:1350:2: warning: enumeration value =
-=E2=80=98COMPACT_COMPLETE=E2=80=99 not handled in switch [-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value =
-=E2=80=98COMPACT_NO_SUITABLE_PAGE=E2=80=99 not handled in switch =
-[-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value =
-=E2=80=98COMPACT_NOT_SUITABLE_ZONE=E2=80=99 not handled in switch =
-[-Wswitch]
-> mm/compaction.c:1350:2: warning: enumeration value =
-=E2=80=98COMPACT_CONTENDED=E2=80=99 not handled in switch [-Wswitch]
->=20
-> compaction_suitable is allowed to return only COMPACT_PARTIAL,
-> COMPACT_SKIPPED and COMPACT_CONTINUE so other cases are simply
-> impossible. Put a VM_BUG_ON to catch an impossible return value.
->=20
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
+On Tue, Mar 8, 2016 at 10:45 PM, Balbir Singh <bsingharora@gmail.com> wrote:
+>
+>
+> On 08/03/16 14:55, Li Zhang wrote:
+>> From: Li Zhang <zhlcindy@linux.vnet.ibm.com>
+>>
+>> Uptream has supported page parallel initialisation for X86 and the
+>> boot time is improved greately. Some tests have been done for Power.
+>>
+>> Here is the result I have done with different memory size.
+>>
+>> * 4GB memory:
+>>     boot time is as the following:
+>>     with patch vs without patch: 10.4s vs 24.5s
+>>     boot time is improved 57%
+>> * 200GB memory:
+>>     boot time looks the same with and without patches.
+>>     boot time is about 38s
+>> * 32TB memory:
+>>     boot time looks the same with and without patches
+>>     boot time is about 160s.
+>>     The boot time is much shorter than X86 with 24TB memory.
+>>     From community discussion, it costs about 694s for X86 24T system.
+>>
+>> From code view, parallel initialisation improve the performance by
+>> deferring memory initilisation to kswap with N kthreads, it should
+>> improve the performance therotically.
+>>
+>> From the test result, On X86, performance is improved greatly with huge
+>> memory. But on Power platform, it is improved greatly with less than
+>> 100GB memory. For huge memory, it is not improved greatly. But it saves
+>> the time with several threads at least, as the following information
+>> shows(32TB system log):
+>>
+>> [   22.648169] node 9 initialised, 16607461 pages in 280ms
+>> [   22.783772] node 3 initialised, 23937243 pages in 410ms
+>> [   22.858877] node 6 initialised, 29179347 pages in 490ms
+>> [   22.863252] node 2 initialised, 29179347 pages in 490ms
+>> [   22.907545] node 0 initialised, 32049614 pages in 540ms
+>> [   22.920891] node 15 initialised, 32212280 pages in 550ms
+>> [   22.923236] node 4 initialised, 32306127 pages in 550ms
+>> [   22.923384] node 12 initialised, 32314319 pages in 550ms
+>> [   22.924754] node 8 initialised, 32314319 pages in 550ms
+>> [   22.940780] node 13 initialised, 33353677 pages in 570ms
+>> [   22.940796] node 11 initialised, 33353677 pages in 570ms
+>> [   22.941700] node 5 initialised, 33353677 pages in 570ms
+>> [   22.941721] node 10 initialised, 33353677 pages in 570ms
+>> [   22.941876] node 7 initialised, 33353677 pages in 570ms
+>> [   22.944946] node 14 initialised, 33353677 pages in 570ms
+>> [   22.946063] node 1 initialised, 33345485 pages in 580ms
+>>
+>> It saves the time about 550*16 ms at least, although it can be ignore to compare
+>> the boot time about 160 seconds. What's more, the boot time is much shorter
+>> on Power even without patches than x86 for huge memory machine.
+>>
+>> So this patchset is still necessary to be enabled for Power.
+>>
+>>
+>
+Hi Balbir,
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Thanks for your reviewing.
 
+> The patchset looks good, two questions
+>
+> 1. The patchset is still necessary for
+>     a. systems with smaller amount of RAM?
+       I think it is. Currently, I tested systems for 4GB, 50GB, and
+boot time is improved.
+       We may test more systems with different memory size in the future.
+>     b. Theoretically it improves boot time?
+       The boot time is improved a little bit for huge memory system
+and it can be ignored.
+       But I think it's still necessary to enable this feature.
+
+> 2. the pgdat->node_spanned_pages >> 8 sounds arbitrary
+>     On a system with 2TB*16 nodes, it would initialize about 8GB before calling deferred init?
+>     Don't we need at-least 32GB + space for other early hash allocations
+>     BTW, My expectation was that 32TB would imply 32GB+32GB of large hash allocations early on
+
+      pgdat->node_spanned_pages >> 8 means that it allocates the size
+of the memory on one node.
+      On a system with 2TB *16nodes, it will allocate 16*8GB = 128GB.
+      I am not sure if it can be minimised to >> 16 to make sure all
+the architectures with different
+      memory size work well.  And this is also mentioned in early
+discussion for X86, so I choose  >> 8.
+
+*    From the code as the following:
+
+      free_area_init_core ->
+                     memmap_init->
+                              update_defer_init
+     #define memmap_init(size, nid, zone, start_pfn) \
+           memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
+
+     memmap_init_zone is based on a zone, but free_area_init_core will
+help find the highest
+     zone on the node. And update_defer_init() get max initialised
+memory on highest zone for a node to
+     reserve for early initialisation.
+
+     static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+     {
+            ...
+           for (j = 0; j < MAX_NR_ZONES; j++) {
+                  ....
+                 memmap_init(size, nid, j, zone_start_fn);   //find
+the highest zone on a node.
+                 ...
+           }
+     }
+
+*   From the dmesg log, after applying this patchset, it has
+123013440K(about 117GB),
+    which is enough for Dentry node hash table and Inode hash table in
+this system.
+
+    [    0.000000] Memory: 123013440K/31739871232K available (8000K
+kernel code, 1856K rwdata,
+    3384K rodata, 6208K init, 2544K bss, 28531136K reserved, 0K cma-reserved)
+
+Thanks :)
+
+>
+> Balbir Singh.
+
+
+-- 
+
+Best Regards
+-Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
