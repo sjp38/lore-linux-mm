@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2765B6B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 08:47:32 -0500 (EST)
-Received: by mail-wm0-f51.google.com with SMTP id p65so193080534wmp.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 05:47:32 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 535BC6B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 08:52:11 -0500 (EST)
+Received: by mail-wm0-f47.google.com with SMTP id n186so179334881wmn.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 05:52:11 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x64si10744732wmx.5.2016.03.09.05.47.30
+        by mx.google.com with ESMTPS id a2si7521550wmi.66.2016.03.09.05.52.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 05:47:31 -0800 (PST)
+        Wed, 09 Mar 2016 05:52:09 -0800 (PST)
 Subject: Re: [PATCH v2 4/5] mm, kswapd: replace kswapd compaction with waking
  up kcompactd
 References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
@@ -22,8 +22,8 @@ References: <1454938691-2197-1-git-send-email-vbabka@suse.cz>
  <56D70543.60806@suse.cz>
  <20160304152507.18b1362f51b0860a1268a977@linux-foundation.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E02961.2060403@suse.cz>
-Date: Wed, 9 Mar 2016 14:47:13 +0100
+Message-ID: <56E02A33.2040106@suse.cz>
+Date: Wed, 9 Mar 2016 14:50:43 +0100
 MIME-Version: 1.0
 In-Reply-To: <20160304152507.18b1362f51b0860a1268a977@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252
@@ -34,6 +34,25 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
 On 03/05/2016 12:25 AM, Andrew Morton wrote:
+> On Wed, 2 Mar 2016 16:22:43 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+> 
+>> On 03/02/2016 03:59 PM, Joonsoo Kim wrote:
+>>> 2016-03-02 23:40 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+>>>> On 03/02/2016 03:22 PM, Joonsoo Kim wrote:
+>>>>
+>>>> So I understand that patch 5 would be just about this?
+>>>>
+>>>> -       if (compaction_restarting(zone, cc->order) && !current_is_kcompactd())
+>>>> +       if (compaction_restarting(zone, cc->order))
+>>>>                  __reset_isolation_suitable(zone);
+>>>
+>>> Yeah, you understand correctly. :)
+>>>
+>>>> I'm more inclined to fold it in that case.
+>>>
+>>> Patch would be just simple, but, I guess it would cause some difference
+>>> in test result. But, I'm okay for folding.
+>>
 >> Thanks. Andrew, should I send now patch folding patch 4/5 and 5/5 with 
 >> all the accumulated fixlets (including those I sent earlier today) and 
 >> combined changelog, or do you want to apply the new fixlets separately 
@@ -46,12 +65,17 @@ On 03/05/2016 12:25 AM, Andrew Morton wrote:
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix.patch
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix-2.patch
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-introduce-kcompactd-fix-3.patch
-
-Please add the one below here.
-
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-memory-hotplug-small-cleanup-in-online_pages.patch
+
+Please replace the following three:
+
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-kswapd-replace-kswapd-compaction-with-waking-up-kcompactd.patch
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-kswapd-replace-kswapd-compaction-with-waking-up-kcompactd-fix.patch
 > http://ozlabs.org/~akpm/mmots/broken-out/mm-compaction-adapt-isolation_suitable-flushing-to-kcompactd.patch
- 
+
+With the squashed one below (had to mangle the changelog nontrivially).
+This is after discussion with Joonsoo. It was perhaps better separately for
+review, but functionality-wise the first patch leaves things somewhat
+weird without the third patch.
+
 ----8<----
