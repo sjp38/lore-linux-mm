@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8BC6B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 05:19:50 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id p65so64041231wmp.0
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 02:19:50 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id h83si9805900wmi.37.2016.03.09.02.19.49
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E47B6B0253
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 05:31:51 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id l68so171239631wml.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 02:31:51 -0800 (PST)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id w66si20448814wmd.51.2016.03.09.02.31.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 02:19:49 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id p65so185538830wmp.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 02:19:49 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] ipc, shm: make shmem attach/detach wait for mmap_sem killable
-Date: Wed,  9 Mar 2016 11:19:38 +0100
-Message-Id: <1457518778-32235-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1456752417-9626-10-git-send-email-mhocko@kernel.org>
-References: <1456752417-9626-10-git-send-email-mhocko@kernel.org>
+        Wed, 09 Mar 2016 02:31:50 -0800 (PST)
+Date: Wed, 9 Mar 2016 11:31:43 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
+Message-ID: <20160309103143.GF25010@twins.programming.kicks-ass.net>
+References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
+ <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
+ <56DEF3D3.6080008@synopsys.com>
+ <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
+ <56DFC604.6070407@synopsys.com>
+ <20160309101349.GJ6344@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160309101349.GJ6344@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Noam Camus <noamc@ezchip.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-parisc@vger.kernel, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed, Mar 09, 2016 at 11:13:49AM +0100, Peter Zijlstra wrote:
+> ---
+> Subject: bitops: Do not default to __clear_bit() for __clear_bit_unlock()
+> 
+> __clear_bit_unlock() is a special little snowflake. While it carries the
+> non-atomic '__' prefix, it is specifically documented to pair with
+> test_and_set_bit() and therefore should be 'somewhat' atomic.
+> 
+> Therefore the generic implementation of __clear_bit_unlock() cannot use
+> the fully non-atomic __clear_bit() as a default.
+> 
+> If an arch is able to do better; is must provide an implementation of
+> __clear_bit_unlock() itself.
+> 
 
-shmat and shmdt rely on mmap_sem for write. If the waiting task
-gets killed by the oom killer it would block oom_reaper from
-asynchronous address space reclaim and reduce the chances of timely
-OOM resolving. Wait for the lock in the killable mode and return with
-EINTR if the task got killed while waiting.
+FWIW, we could probably undo this if we unified all the spinlock based
+atomic ops implementations (there's a whole bunch doing essentially the
+same), and special cased __clear_bit_unlock() for that.
 
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Davidlohr Bueso <dave@stgolabs.net>
----
- ipc/shm.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 331fc1b0b3c7..13282510bc0d 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -1200,7 +1200,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
- 	if (err)
- 		goto out_fput;
- 
--	down_write(&current->mm->mmap_sem);
-+	if (down_write_killable(&current->mm->mmap_sem)) {
-+		err = -EINTR;
-+		goto out_fput;
-+	}
-+
- 	if (addr && !(shmflg & SHM_REMAP)) {
- 		err = -EINVAL;
- 		if (addr + size < addr)
-@@ -1271,7 +1275,8 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
- 	if (addr & ~PAGE_MASK)
- 		return retval;
- 
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
- 
- 	/*
- 	 * This function tries to be smart and unmap shm segments that
--- 
-2.7.0
+Collapsing them is probably a good idea anyway, just a fair bit of
+non-trivial work to figure out all the differences and if they matter
+etc..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
