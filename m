@@ -1,678 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B45436B0005
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 20:16:48 -0500 (EST)
-Received: by mail-pf0-f181.google.com with SMTP id x188so25883422pfb.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 17:16:48 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id qc8si9569pac.39.2016.03.08.17.16.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Mar 2016 17:16:47 -0800 (PST)
-Received: by mail-pa0-x22c.google.com with SMTP id bj10so25167182pad.2
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 17:16:47 -0800 (PST)
-Date: Tue, 8 Mar 2016 16:16:43 -0900
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [PATCH] mm: Refactor find_get_pages() & friends
-Message-ID: <20160309011643.GA23179@kmo-pixel>
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 06FC76B0005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2016 20:37:35 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id fz5so32734958obc.0
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2016 17:37:35 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id u17si4363747oie.46.2016.03.08.17.37.07
+        for <linux-mm@kvack.org>;
+        Tue, 08 Mar 2016 17:37:34 -0800 (PST)
+Subject: Re: Suspicious error for CMA stress test
+References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
+ <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
+ <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE>
+ <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com>
+ <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com>
+ <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD38E7.3050107@huawei.com>
+ <56DDCB86.4030709@redhat.com> <56DE30CB.7020207@huawei.com>
+From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
+Message-ID: <56DF7B28.9060108@huawei.com>
+Date: Wed, 9 Mar 2016 09:23:52 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <56DE30CB.7020207@huawei.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Collapse redundant implementations of various gang pagecache lookup - this is
-also prep work for pagecache iterator work
 
-Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
----
- include/linux/pagemap.h    | 142 +++++++++++++++++--
- include/linux/radix-tree.h |  49 ++-----
- mm/filemap.c               | 331 +++++----------------------------------------
- 3 files changed, 174 insertions(+), 348 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 92395a0a7d..12cb653423 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -352,18 +352,136 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
- 
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
- struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
--unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
--			  unsigned int nr_entries, struct page **entries,
--			  pgoff_t *indices);
--unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
--			unsigned int nr_pages, struct page **pages);
--unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
--			       unsigned int nr_pages, struct page **pages);
--unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
--			int tag, unsigned int nr_pages, struct page **pages);
--unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
--			int tag, unsigned int nr_entries,
--			struct page **entries, pgoff_t *indices);
-+
-+unsigned __find_get_pages(struct address_space *mapping,
-+			  pgoff_t start, pgoff_t end,
-+			  unsigned nr_entries, struct page **entries,
-+			  pgoff_t *indices, unsigned flags);
-+
-+/**
-+ * find_get_entries - gang pagecache lookup
-+ * @mapping:	The address_space to search
-+ * @start:	The starting page cache index
-+ * @nr_entries:	The maximum number of entries
-+ * @entries:	Where the resulting entries are placed
-+ * @indices:	The cache indices corresponding to the entries in @entries
-+ *
-+ * find_get_entries() will search for and return a group of up to
-+ * @nr_entries entries in the mapping.  The entries are placed at
-+ * @entries.  find_get_entries() takes a reference against any actual
-+ * pages it returns.
-+ *
-+ * The search returns a group of mapping-contiguous page cache entries
-+ * with ascending indexes.  There may be holes in the indices due to
-+ * not-present pages.
-+ *
-+ * Any shadow entries of evicted pages, or swap entries from
-+ * shmem/tmpfs, are included in the returned array.
-+ *
-+ * find_get_entries() returns the number of pages and shadow entries
-+ * which were found.
-+ */
-+static inline unsigned find_get_entries(struct address_space *mapping,
-+			pgoff_t start, unsigned nr_entries,
-+			struct page **entries, pgoff_t *indices)
-+{
-+	return __find_get_pages(mapping, start, ULONG_MAX,
-+				nr_entries, entries, indices,
-+				RADIX_TREE_ITER_EXCEPTIONAL);
-+}
-+
-+/**
-+ * find_get_pages - gang pagecache lookup
-+ * @mapping:	The address_space to search
-+ * @start:	The starting page index
-+ * @nr_pages:	The maximum number of pages
-+ * @pages:	Where the resulting pages are placed
-+ *
-+ * find_get_pages() will search for and return a group of up to
-+ * @nr_pages pages in the mapping.  The pages are placed at @pages.
-+ * find_get_pages() takes a reference against the returned pages.
-+ *
-+ * The search returns a group of mapping-contiguous pages with ascending
-+ * indexes.  There may be holes in the indices due to not-present pages.
-+ *
-+ * find_get_pages() returns the number of pages which were found.
-+ */
-+static inline unsigned find_get_pages(struct address_space *mapping,
-+			pgoff_t start, unsigned nr_pages,
-+			struct page **pages)
-+{
-+	return __find_get_pages(mapping, start, ULONG_MAX,
-+				nr_pages, pages, NULL, 0);
-+}
-+
-+/**
-+ * find_get_pages_contig - gang contiguous pagecache lookup
-+ * @mapping:	The address_space to search
-+ * @start:	The starting page index
-+ * @nr_pages:	The maximum number of pages
-+ * @pages:	Where the resulting pages are placed
-+ *
-+ * find_get_pages_contig() works exactly like find_get_pages(), except
-+ * that the returned number of pages are guaranteed to be contiguous.
-+ *
-+ * find_get_pages_contig() returns the number of pages which were found.
-+ */
-+static inline unsigned find_get_pages_contig(struct address_space *mapping,
-+			pgoff_t start, unsigned nr_pages,
-+			struct page **pages)
-+{
-+	return __find_get_pages(mapping, start, ULONG_MAX,
-+				nr_pages, pages, NULL,
-+				RADIX_TREE_ITER_CONTIG);
-+}
-+
-+/**
-+ * find_get_pages_tag - find and return pages that match @tag
-+ * @mapping:	the address_space to search
-+ * @index:	the starting page index
-+ * @tag:	the tag index
-+ * @nr_pages:	the maximum number of pages
-+ * @pages:	where the resulting pages are placed
-+ *
-+ * Like find_get_pages, except we only return pages which are tagged with
-+ * @tag.   We update @index to index the next page for the traversal.
-+ */
-+static inline unsigned find_get_pages_tag(struct address_space *mapping,
-+			pgoff_t *index, int tag,
-+			unsigned nr_pages, struct page **pages)
-+{
-+	unsigned ret;
-+
-+	ret = __find_get_pages(mapping, *index, ULONG_MAX,
-+			       nr_pages, pages, NULL,
-+			       RADIX_TREE_ITER_TAGGED|tag);
-+	if (ret)
-+		*index = pages[ret - 1]->index + 1;
-+
-+	return ret;
-+}
-+
-+/**
-+ * find_get_entries_tag - find and return entries that match @tag
-+ * @mapping:	the address_space to search
-+ * @start:	the starting page cache index
-+ * @tag:	the tag index
-+ * @nr_entries:	the maximum number of entries
-+ * @entries:	where the resulting entries are placed
-+ * @indices:	the cache indices corresponding to the entries in @entries
-+ *
-+ * Like find_get_entries, except we only return entries which are tagged with
-+ * @tag.
-+ */
-+static inline unsigned find_get_entries_tag(struct address_space *mapping,
-+			pgoff_t start, int tag, unsigned nr_entries,
-+			struct page **entries, pgoff_t *indices)
-+{
-+	return __find_get_pages(mapping, start, ULONG_MAX,
-+				nr_entries, entries, indices,
-+				RADIX_TREE_ITER_EXCEPTIONAL|
-+				RADIX_TREE_ITER_TAGGED|tag);
-+}
- 
- struct page *grab_cache_page_write_begin(struct address_space *mapping,
- 			pgoff_t index, unsigned flags);
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 7c88ad156a..c0c4dbf615 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -338,6 +338,8 @@ struct radix_tree_iter {
- #define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */
- #define RADIX_TREE_ITER_TAGGED		0x0100	/* lookup tagged slots */
- #define RADIX_TREE_ITER_CONTIG		0x0200	/* stop at first hole */
-+#define RADIX_TREE_ITER_EXCEPTIONAL	0x0400	/* include exceptional entries */
-+						/* used by __find_get_pages() */
- 
- /**
-  * radix_tree_iter_init - initialize radix tree iterator
-@@ -435,33 +437,10 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
- 	return NULL;
- }
- 
--/**
-- * radix_tree_for_each_chunk - iterate over chunks
-- *
-- * @slot:	the void** variable for pointer to chunk first slot
-- * @root:	the struct radix_tree_root pointer
-- * @iter:	the struct radix_tree_iter pointer
-- * @start:	iteration starting index
-- * @flags:	RADIX_TREE_ITER_* and tag index
-- *
-- * Locks can be released and reacquired between iterations.
-- */
--#define radix_tree_for_each_chunk(slot, root, iter, start, flags)	\
-+#define __radix_tree_for_each_slot(slot, root, iter, start, flags)	\
- 	for (slot = radix_tree_iter_init(iter, start) ;			\
--	      (slot = radix_tree_next_chunk(root, iter, flags)) ;)
--
--/**
-- * radix_tree_for_each_chunk_slot - iterate over slots in one chunk
-- *
-- * @slot:	the void** variable, at the beginning points to chunk first slot
-- * @iter:	the struct radix_tree_iter pointer
-- * @flags:	RADIX_TREE_ITER_*, should be constant
-- *
-- * This macro is designed to be nested inside radix_tree_for_each_chunk().
-- * @slot points to the radix tree slot, @iter->index contains its index.
-- */
--#define radix_tree_for_each_chunk_slot(slot, iter, flags)		\
--	for (; slot ; slot = radix_tree_next_slot(slot, iter, flags))
-+	     slot || (slot = radix_tree_next_chunk(root, iter, flags));	\
-+	     slot = radix_tree_next_slot(slot, iter, flags))
- 
- /**
-  * radix_tree_for_each_slot - iterate over non-empty slots
-@@ -474,9 +453,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
-  * @slot points to radix tree slot, @iter->index contains its index.
-  */
- #define radix_tree_for_each_slot(slot, root, iter, start)		\
--	for (slot = radix_tree_iter_init(iter, start) ;			\
--	     slot || (slot = radix_tree_next_chunk(root, iter, 0)) ;	\
--	     slot = radix_tree_next_slot(slot, iter, 0))
-+	__radix_tree_for_each_slot(slot, root, iter, start, 0)
- 
- /**
-  * radix_tree_for_each_contig - iterate over contiguous slots
-@@ -489,11 +466,8 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
-  * @slot points to radix tree slot, @iter->index contains its index.
-  */
- #define radix_tree_for_each_contig(slot, root, iter, start)		\
--	for (slot = radix_tree_iter_init(iter, start) ;			\
--	     slot || (slot = radix_tree_next_chunk(root, iter,		\
--				RADIX_TREE_ITER_CONTIG)) ;		\
--	     slot = radix_tree_next_slot(slot, iter,			\
--				RADIX_TREE_ITER_CONTIG))
-+	__radix_tree_for_each_slot(slot, root, iter, start,		\
-+			      RADIX_TREE_ITER_CONTIG)
- 
- /**
-  * radix_tree_for_each_tagged - iterate over tagged slots
-@@ -507,10 +481,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
-  * @slot points to radix tree slot, @iter->index contains its index.
-  */
- #define radix_tree_for_each_tagged(slot, root, iter, start, tag)	\
--	for (slot = radix_tree_iter_init(iter, start) ;			\
--	     slot || (slot = radix_tree_next_chunk(root, iter,		\
--			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
--	     slot = radix_tree_next_slot(slot, iter,			\
--				RADIX_TREE_ITER_TAGGED))
-+	__radix_tree_for_each_slot(slot, root, iter, start,		\
-+			      RADIX_TREE_ITER_TAGGED|tag)
- 
- #endif /* _LINUX_RADIX_TREE_H */
-diff --git a/mm/filemap.c b/mm/filemap.c
-index bc943867d6..09dc7b493c 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1211,109 +1211,48 @@ no_page:
- EXPORT_SYMBOL(pagecache_get_page);
- 
- /**
-- * find_get_entries - gang pagecache lookup
-+ * __find_get_pages - gang pagecache lookup, internal mechanism
-  * @mapping:	The address_space to search
-  * @start:	The starting page cache index
-+ * @end:	Page cache index to stop at (inclusive)
-  * @nr_entries:	The maximum number of entries
-  * @entries:	Where the resulting entries are placed
-- * @indices:	The cache indices corresponding to the entries in @entries
-+ * @indices:	If non NULL, indices of corresponding entries placed here
-+ * @flags:	radix tree iter flags and tag (if supplied)
-  *
-- * find_get_entries() will search for and return a group of up to
-- * @nr_entries entries in the mapping.  The entries are placed at
-- * @entries.  find_get_entries() takes a reference against any actual
-- * pages it returns.
-+ * Don't use directly - see wrappers in pagemap.h
-  *
-- * The search returns a group of mapping-contiguous page cache entries
-- * with ascending indexes.  There may be holes in the indices due to
-- * not-present pages.
-+ * Possible values for flags (may be used in combination):
-  *
-- * Any shadow entries of evicted pages, or swap entries from
-- * shmem/tmpfs, are included in the returned array.
-- *
-- * find_get_entries() returns the number of pages and shadow entries
-- * which were found.
-+ * 0:				find_get_pages()
-+ * RADIX_TREE_ITER_TAGGED|tag:	find_get_pages_tag()
-+ * RADIX_TREE_ITER_CONTIG:	find_get_pages_contig()
-+ * RADIX_TREE_ITER_EXCEPTIONAL:	find_get_entries()
-  */
--unsigned find_get_entries(struct address_space *mapping,
--			  pgoff_t start, unsigned int nr_entries,
--			  struct page **entries, pgoff_t *indices)
--{
--	void **slot;
--	unsigned int ret = 0;
--	struct radix_tree_iter iter;
--
--	if (!nr_entries)
--		return 0;
--
--	rcu_read_lock();
--restart:
--	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot(slot);
--		if (unlikely(!page))
--			continue;
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page))
--				goto restart;
--			/*
--			 * A shadow entry of a recently evicted page, a swap
--			 * entry from shmem/tmpfs or a DAX entry.  Return it
--			 * without attempting to raise page count.
--			 */
--			goto export;
--		}
--		if (!page_cache_get_speculative(page))
--			goto repeat;
--
--		/* Has the page moved? */
--		if (unlikely(page != *slot)) {
--			page_cache_release(page);
--			goto repeat;
--		}
--export:
--		indices[ret] = iter.index;
--		entries[ret] = page;
--		if (++ret == nr_entries)
--			break;
--	}
--	rcu_read_unlock();
--	return ret;
--}
--
--/**
-- * find_get_pages - gang pagecache lookup
-- * @mapping:	The address_space to search
-- * @start:	The starting page index
-- * @nr_pages:	The maximum number of pages
-- * @pages:	Where the resulting pages are placed
-- *
-- * find_get_pages() will search for and return a group of up to
-- * @nr_pages pages in the mapping.  The pages are placed at @pages.
-- * find_get_pages() takes a reference against the returned pages.
-- *
-- * The search returns a group of mapping-contiguous pages with ascending
-- * indexes.  There may be holes in the indices due to not-present pages.
-- *
-- * find_get_pages() returns the number of pages which were found.
-- */
--unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
--			    unsigned int nr_pages, struct page **pages)
-+unsigned __find_get_pages(struct address_space *mapping,
-+			  pgoff_t start, pgoff_t end,
-+			  unsigned nr_entries, struct page **entries,
-+			  pgoff_t *indices, unsigned flags)
- {
- 	struct radix_tree_iter iter;
- 	void **slot;
- 	unsigned ret = 0;
- 
--	if (unlikely(!nr_pages))
-+	if (unlikely(!nr_entries || start > end))
- 		return 0;
- 
- 	rcu_read_lock();
- restart:
--	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-+	__radix_tree_for_each_slot(slot, &mapping->page_tree,
-+				   &iter, start, flags) {
- 		struct page *page;
-+
-+		if (iter.index > end)
-+			break;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
--			continue;
-+			goto no_entry;
- 
- 		if (radix_tree_exception(page)) {
- 			if (radix_tree_deref_retry(page)) {
-@@ -1322,82 +1261,18 @@ repeat:
- 				 * when entry at index 0 moves out of or back
- 				 * to root: none yet gotten, safe to restart.
- 				 */
--				WARN_ON(iter.index);
- 				goto restart;
- 			}
-+
- 			/*
- 			 * A shadow entry of a recently evicted page,
- 			 * or a swap entry from shmem/tmpfs.  Skip
- 			 * over it.
- 			 */
--			continue;
--		}
-+			if (flags & RADIX_TREE_ITER_EXCEPTIONAL)
-+				goto export;
- 
--		if (!page_cache_get_speculative(page))
--			goto repeat;
--
--		/* Has the page moved? */
--		if (unlikely(page != *slot)) {
--			page_cache_release(page);
--			goto repeat;
--		}
--
--		pages[ret] = page;
--		if (++ret == nr_pages)
--			break;
--	}
--
--	rcu_read_unlock();
--	return ret;
--}
--
--/**
-- * find_get_pages_contig - gang contiguous pagecache lookup
-- * @mapping:	The address_space to search
-- * @index:	The starting page index
-- * @nr_pages:	The maximum number of pages
-- * @pages:	Where the resulting pages are placed
-- *
-- * find_get_pages_contig() works exactly like find_get_pages(), except
-- * that the returned number of pages are guaranteed to be contiguous.
-- *
-- * find_get_pages_contig() returns the number of pages which were found.
-- */
--unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
--			       unsigned int nr_pages, struct page **pages)
--{
--	struct radix_tree_iter iter;
--	void **slot;
--	unsigned int ret = 0;
--
--	if (unlikely(!nr_pages))
--		return 0;
--
--	rcu_read_lock();
--restart:
--	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot(slot);
--		/* The hole, there no reason to continue */
--		if (unlikely(!page))
--			break;
--
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				/*
--				 * Transient condition which can only trigger
--				 * when entry at index 0 moves out of or back
--				 * to root: none yet gotten, safe to restart.
--				 */
--				goto restart;
--			}
--			/*
--			 * A shadow entry of a recently evicted page,
--			 * or a swap entry from shmem/tmpfs.  Stop
--			 * looking for contiguous pages.
--			 */
--			break;
-+			goto no_entry;
- 		}
- 
- 		if (!page_cache_get_speculative(page))
-@@ -1414,164 +1289,26 @@ repeat:
- 		 * otherwise we can get both false positives and false
- 		 * negatives, which is just confusing to the caller.
- 		 */
--		if (page->mapping == NULL || page->index != iter.index) {
-+		if ((flags & RADIX_TREE_ITER_CONTIG) &&
-+		    (page->mapping == NULL || page->index != iter.index)) {
- 			page_cache_release(page);
- 			break;
- 		}
--
--		pages[ret] = page;
--		if (++ret == nr_pages)
--			break;
--	}
--	rcu_read_unlock();
--	return ret;
--}
--EXPORT_SYMBOL(find_get_pages_contig);
--
--/**
-- * find_get_pages_tag - find and return pages that match @tag
-- * @mapping:	the address_space to search
-- * @index:	the starting page index
-- * @tag:	the tag index
-- * @nr_pages:	the maximum number of pages
-- * @pages:	where the resulting pages are placed
-- *
-- * Like find_get_pages, except we only return pages which are tagged with
-- * @tag.   We update @index to index the next page for the traversal.
-- */
--unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
--			int tag, unsigned int nr_pages, struct page **pages)
--{
--	struct radix_tree_iter iter;
--	void **slot;
--	unsigned ret = 0;
--
--	if (unlikely(!nr_pages))
--		return 0;
--
--	rcu_read_lock();
--restart:
--	radix_tree_for_each_tagged(slot, &mapping->page_tree,
--				   &iter, *index, tag) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot(slot);
--		if (unlikely(!page))
--			continue;
--
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				/*
--				 * Transient condition which can only trigger
--				 * when entry at index 0 moves out of or back
--				 * to root: none yet gotten, safe to restart.
--				 */
--				goto restart;
--			}
--			/*
--			 * A shadow entry of a recently evicted page.
--			 *
--			 * Those entries should never be tagged, but
--			 * this tree walk is lockless and the tags are
--			 * looked up in bulk, one radix tree node at a
--			 * time, so there is a sizable window for page
--			 * reclaim to evict a page we saw tagged.
--			 *
--			 * Skip over it.
--			 */
--			continue;
--		}
--
--		if (!page_cache_get_speculative(page))
--			goto repeat;
--
--		/* Has the page moved? */
--		if (unlikely(page != *slot)) {
--			page_cache_release(page);
--			goto repeat;
--		}
--
--		pages[ret] = page;
--		if (++ret == nr_pages)
--			break;
--	}
--
--	rcu_read_unlock();
--
--	if (ret)
--		*index = pages[ret - 1]->index + 1;
--
--	return ret;
--}
--EXPORT_SYMBOL(find_get_pages_tag);
--
--/**
-- * find_get_entries_tag - find and return entries that match @tag
-- * @mapping:	the address_space to search
-- * @start:	the starting page cache index
-- * @tag:	the tag index
-- * @nr_entries:	the maximum number of entries
-- * @entries:	where the resulting entries are placed
-- * @indices:	the cache indices corresponding to the entries in @entries
-- *
-- * Like find_get_entries, except we only return entries which are tagged with
-- * @tag.
-- */
--unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
--			int tag, unsigned int nr_entries,
--			struct page **entries, pgoff_t *indices)
--{
--	void **slot;
--	unsigned int ret = 0;
--	struct radix_tree_iter iter;
--
--	if (!nr_entries)
--		return 0;
--
--	rcu_read_lock();
--restart:
--	radix_tree_for_each_tagged(slot, &mapping->page_tree,
--				   &iter, start, tag) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot(slot);
--		if (unlikely(!page))
--			continue;
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				/*
--				 * Transient condition which can only trigger
--				 * when entry at index 0 moves out of or back
--				 * to root: none yet gotten, safe to restart.
--				 */
--				goto restart;
--			}
--
--			/*
--			 * A shadow entry of a recently evicted page, a swap
--			 * entry from shmem/tmpfs or a DAX entry.  Return it
--			 * without attempting to raise page count.
--			 */
--			goto export;
--		}
--		if (!page_cache_get_speculative(page))
--			goto repeat;
--
--		/* Has the page moved? */
--		if (unlikely(page != *slot)) {
--			page_cache_release(page);
--			goto repeat;
--		}
- export:
--		indices[ret] = iter.index;
-+		if (indices)
-+			indices[ret] = iter.index;
- 		entries[ret] = page;
- 		if (++ret == nr_entries)
- 			break;
-+		continue;
-+no_entry:
-+		if (flags & RADIX_TREE_ITER_CONTIG)
-+			break;
- 	}
- 	rcu_read_unlock();
- 	return ret;
- }
--EXPORT_SYMBOL(find_get_entries_tag);
-+EXPORT_SYMBOL(__find_get_pages);
- 
- /*
-  * CD/DVDs are error prone. When a medium error occurs, the driver may fail
--- 
-2.7.0
+On 2016/3/8 9:54, Leizhen (ThunderTown) wrote:
+> 
+> 
+> On 2016/3/8 2:42, Laura Abbott wrote:
+>> On 03/07/2016 12:16 AM, Leizhen (ThunderTown) wrote:
+>>>
+>>>
+>>> On 2016/3/7 12:34, Joonsoo Kim wrote:
+>>>> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
+>>>>> On 2016/3/4 14:38, Joonsoo Kim wrote:
+>>>>>> On Fri, Mar 04, 2016 at 02:05:09PM +0800, Hanjun Guo wrote:
+>>>>>>> On 2016/3/4 12:32, Joonsoo Kim wrote:
+>>>>>>>> On Fri, Mar 04, 2016 at 11:02:33AM +0900, Joonsoo Kim wrote:
+>>>>>>>>> On Thu, Mar 03, 2016 at 08:49:01PM +0800, Hanjun Guo wrote:
+>>>>>>>>>> On 2016/3/3 15:42, Joonsoo Kim wrote:
+>>>>>>>>>>> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
+>>>>>>>>>>>> (cc -mm and Joonsoo Kim)
+>>>>>>>>>>>>
+>>>>>>>>>>>>
+>>>>>>>>>>>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
+>>>>>>>>>>>>> Hi,
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> I came across a suspicious error for CMA stress test:
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> Before the test, I got:
+>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>>>>>>>>>>>> CmaTotal:         204800 kB
+>>>>>>>>>>>>> CmaFree:          195044 kB
+>>>>>>>>>>>>>
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> After running the test:
+>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
+>>>>>>>>>>>>> CmaTotal:         204800 kB
+>>>>>>>>>>>>> CmaFree:         6602584 kB
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> So the freed CMA memory is more than total..
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> Also the the MemFree is more than mem total:
+>>>>>>>>>>>>>
+>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo
+>>>>>>>>>>>>> MemTotal:       16342016 kB
+>>>>>>>>>>>>> MemFree:        22367268 kB
+>>>>>>>>>>>>> MemAvailable:   22370528 kB
+>>>>>>>>>> [...]
+>>>>>>>>>>>> I played with this a bit and can see the same problem. The sanity
+>>>>>>>>>>>> check of CmaFree < CmaTotal generally triggers in
+>>>>>>>>>>>> __move_zone_freepage_state in unset_migratetype_isolate.
+>>>>>>>>>>>> This also seems to be present as far back as v4.0 which was the
+>>>>>>>>>>>> first version to have the updated accounting from Joonsoo.
+>>>>>>>>>>>> Were there known limitations with the new freepage accounting,
+>>>>>>>>>>>> Joonsoo?
+>>>>>>>>>>> I don't know. I also played with this and looks like there is
+>>>>>>>>>>> accounting problem, however, for my case, number of free page is slightly less
+>>>>>>>>>>> than total. I will take a look.
+>>>>>>>>>>>
+>>>>>>>>>>> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
+>>>>>>>>>>> look like your case.
+>>>>>>>>>> I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
+>>>>>>>>>> did some other test:
+>>>>>>>>> Thanks! Now, I can re-generate erronous situation you mentioned.
+>>>>>>>>>
+>>>>>>>>>>   - run with single thread with 100000 times, everything is fine.
+>>>>>>>>>>
+>>>>>>>>>>   - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
+>>>>>>>>>>     the same test with 100 multi-thread, then I got:
+>>>>>>>>> [1] would not be sufficient to close this race.
+>>>>>>>>>
+>>>>>>>>> Try following things [A]. And, for more accurate test, I changed code a bit more
+>>>>>>>>> to prevent kernel page allocation from cma area [B]. This will prevent kernel
+>>>>>>>>> page allocation from cma area completely so we can focus cma_alloc/release race.
+>>>>>>>>>
+>>>>>>>>> Although, this is not correct fix, it could help that we can guess
+>>>>>>>>> where the problem is.
+>>>>>>>> More correct fix is something like below.
+>>>>>>>> Please test it.
+>>>>>>> Hmm, this is not working:
+>>>>>> Sad to hear that.
+>>>>>>
+>>>>>> Could you tell me your system's MAX_ORDER and pageblock_order?
+>>>>>>
+>>>>>
+>>>>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
+>>>>
+>>>> Hmm... that's same with me.
+>>>>
+>>>> Below is similar fix that prevents buddy merging when one of buddy's
+>>>> migrate type, but, not both, is MIGRATE_ISOLATE. In fact, I have
+>>>> no idea why previous fix (more correct fix) doesn't work for you.
+>>>> (It works for me.) But, maybe there is a bug on the fix
+>>>> so I make new one which is more general form. Please test it.
+>>>
+>>> Hi,
+>>>     Hanjun Guo has gone to Tailand on business, so I help him to run this patch. The result
+>>> shows that the count of "CmaFree:" is OK now. But sometimes printed some information as below:
+>>>
+>>> alloc_contig_range: [28500, 28600) PFNs busy
+>>> alloc_contig_range: [28300, 28380) PFNs busy
+>>>
+>>
+>> Those messages aren't necessarily a problem. Those messages indicate that
+> OK.
+> 
+>> those pages weren't able to be isolated. Given the test here is a
+>> concurrency test, I suspect some concurrent allocation or free prevented
+>> isolation which is to be expected some times. I'd only be concerned if
+>> seeing those messages cause allocation failure or some other notable impact.
+> I chose memory block size: 512K, 1M, 2M ran serveral times, there was no memory allocation failure.
+
+Hi, Joonsoo:
+	This new patch worked well. Do you plan to upstream it in the near furture?
+
+> 
+>>
+>> Thanks,
+>> Laura
+>>  
+>>>>
+>>>> Thanks.
+>>>>
+>>>> ---------->8-------------
+>>>> >From dd41e348572948d70b935fc24f82c096ff0fb417 Mon Sep 17 00:00:00 2001
+>>>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>>> Date: Fri, 4 Mar 2016 13:28:17 +0900
+>>>> Subject: [PATCH] mm/cma: fix race
+>>>>
+>>>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>>> ---
+>>>>   mm/page_alloc.c | 33 +++++++++++++++++++--------------
+>>>>   1 file changed, 19 insertions(+), 14 deletions(-)
+>>>>
+>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>>> index c6c38ed..d80d071 100644
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -620,8 +620,8 @@ static inline void rmv_page_order(struct page *page)
+>>>>    *
+>>>>    * For recording page's order, we use page_private(page).
+>>>>    */
+>>>> -static inline int page_is_buddy(struct page *page, struct page *buddy,
+>>>> -                                                       unsigned int order)
+>>>> +static inline int page_is_buddy(struct zone *zone, struct page *page,
+>>>> +                               struct page *buddy, unsigned int order)
+>>>>   {
+>>>>          if (!pfn_valid_within(page_to_pfn(buddy)))
+>>>>                  return 0;
+>>>> @@ -644,6 +644,20 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+>>>>                  if (page_zone_id(page) != page_zone_id(buddy))
+>>>>                          return 0;
+>>>>
+>>>> +               if (IS_ENABLED(CONFIG_CMA) &&
+>>>> +                       unlikely(has_isolate_pageblock(zone)) &&
+>>>> +                       unlikely(order >= pageblock_order)) {
+>>>> +                       int page_mt, buddy_mt;
+>>>> +
+>>>> +                       page_mt = get_pageblock_migratetype(page);
+>>>> +                       buddy_mt = get_pageblock_migratetype(buddy);
+>>>> +
+>>>> +                       if (page_mt != buddy_mt &&
+>>>> +                               (is_migrate_isolate(page_mt) ||
+>>>> +                               is_migrate_isolate(buddy_mt)))
+>>>> +                               return 0;
+>>>> +               }
+>>>> +
+>>>>                  VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+>>>>
+>>>>                  return 1;
+>>>> @@ -691,17 +705,8 @@ static inline void __free_one_page(struct page *page,
+>>>>          VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+>>>>
+>>>>          VM_BUG_ON(migratetype == -1);
+>>>> -       if (is_migrate_isolate(migratetype)) {
+>>>> -               /*
+>>>> -                * We restrict max order of merging to prevent merge
+>>>> -                * between freepages on isolate pageblock and normal
+>>>> -                * pageblock. Without this, pageblock isolation
+>>>> -                * could cause incorrect freepage accounting.
+>>>> -                */
+>>>> -               max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+>>>> -       } else {
+>>>> +       if (!is_migrate_isolate(migratetype))
+>>>>                  __mod_zone_freepage_state(zone, 1 << order, migratetype);
+>>>> -       }
+>>>>
+>>>>          page_idx = pfn & ((1 << max_order) - 1);
+>>>>
+>>>> @@ -711,7 +716,7 @@ static inline void __free_one_page(struct page *page,
+>>>>          while (order < max_order - 1) {
+>>>>                  buddy_idx = __find_buddy_index(page_idx, order);
+>>>>                  buddy = page + (buddy_idx - page_idx);
+>>>> -               if (!page_is_buddy(page, buddy, order))
+>>>> +               if (!page_is_buddy(zone, page, buddy, order))
+>>>>                          break;
+>>>>                  /*
+>>>>                   * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+>>>> @@ -745,7 +750,7 @@ static inline void __free_one_page(struct page *page,
+>>>>                  higher_page = page + (combined_idx - page_idx);
+>>>>                  buddy_idx = __find_buddy_index(combined_idx, order + 1);
+>>>>                  higher_buddy = higher_page + (buddy_idx - combined_idx);
+>>>> -               if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+>>>> +               if (page_is_buddy(zone, higher_page, higher_buddy, order + 1)) {
+>>>>                          list_add_tail(&page->lru,
+>>>>                                  &zone->free_area[order].free_list[migratetype]);
+>>>>                          goto out;
+>>>>
+>>>
+>>
+>>
+>> .
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
