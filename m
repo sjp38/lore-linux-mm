@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6126B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 22:48:43 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id n5so19640820pfn.2
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 19:48:43 -0800 (PST)
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
-        by mx.google.com with ESMTPS id l23si2847826pfj.53.2016.03.09.19.48.41
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 336DC6B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 00:06:02 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id tt10so57950770pab.3
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 21:06:02 -0800 (PST)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
+        by mx.google.com with ESMTPS id l73si3270027pfi.113.2016.03.09.21.05.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 19:48:42 -0800 (PST)
+        Wed, 09 Mar 2016 21:06:00 -0800 (PST)
 Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 10 Mar 2016 13:38:24 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A98B32CE8059
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:38:19 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2A3cASj60424278
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:38:19 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2A3bksQ005534
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:37:46 +1100
-Message-ID: <56E0EBF7.3040104@linux.vnet.ibm.com>
-Date: Thu, 10 Mar 2016 09:07:27 +0530
+	Thu, 10 Mar 2016 10:35:57 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2A55shM6684996
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 10:35:54 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2AAYpPi029989
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:04:52 +0530
+Message-ID: <56E100AF.9060501@linux.vnet.ibm.com>
+Date: Thu, 10 Mar 2016 10:35:51 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 5/9] powerpc/mm: Split huge_pte_offset function for BOOK3S
- 64K
-References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com> <1457525450-4262-5-git-send-email-khandual@linux.vnet.ibm.com> <56E0AA59.4030905@intel.com>
-In-Reply-To: <56E0AA59.4030905@intel.com>
+Subject: Re: [RFC 9/9] selfttest/powerpc: Add memory page migration tests
+References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com> <1457525450-4262-9-git-send-email-khandual@linux.vnet.ibm.com> <8737rz1kvq.fsf@linux.vnet.ibm.com>
+In-Reply-To: <8737rz1kvq.fsf@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Cc: hughd@google.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On 03/10/2016 04:27 AM, Dave Hansen wrote:
-> On 03/09/2016 04:10 AM, Anshuman Khandual wrote:
->> > Currently the 'huge_pte_offset' function has only one version for
->> > all the configuations and platforms. This change splits the function
->> > into two versions, one for 64K page size based BOOK3S implementation
->> > and the other one for everything else. This change is also one of the
->> > prerequisites towards enabling GENERAL_HUGETLB implementation for
->> > BOOK3S 64K based huge pages.
-> I think there's a bit of background missing here for random folks on
-> linux-mm to make sense of these patches.
+On 03/10/2016 01:31 AM, Aneesh Kumar K.V wrote:
+> Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
 > 
-> What is BOOK3S and what does it mean for these patches?  Why is its 64K
+>> > [ text/plain ]
+>> > This adds two tests for memory page migration. One for normal page
+>> > migration which works for both 4K or 64K base page size kernel and
+>> > the other one is for huge page migration which works only on 64K
+>> > base page sized 16MB huge page implemention at the PMD level.
+>> >
+> can you also add the test in this commit
+> e66f17ff717 ("mm/hugetlb: take page table lock in follow_huge_pmd()")
 
-BOOK3S is the server type in powerpc family of processors which can support
-multiple base page sizes like 64K and 4K.
-
-> page size implementation different than all the others?  Is there a 4K
-> page size BOOK3S?
-
-It supports huge pages of size 16M as well as 16G and their implementations
-are different with respect to base page sizes of 64K and 4K.
-
-Patches 1, 2 and 3 are generic VM changes and the rest are powerpc specific
-changes. Should I have split them accordingly and send out differently for
-generic and powerpc specific reviews ?
+Thought about it but thats kind of bit tricky. All self tests have finite
+runtime. Test case in that commit has two processes which execute for ever
+and try to create the race condition. We can try to run it for *some time*
+looking for races instead ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
