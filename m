@@ -1,75 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E19E6B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 02:44:33 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id 129so62525280pfw.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 23:44:33 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id gy5si4217894pac.83.2016.03.09.23.44.32
-        for <linux-mm@kvack.org>;
-        Wed, 09 Mar 2016 23:44:32 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
-Date: Thu, 10 Mar 2016 07:44:19 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 727466B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 02:57:49 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id y89so63937524qge.2
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 23:57:49 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z203si2542245qka.44.2016.03.09.23.57.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Mar 2016 23:57:48 -0800 (PST)
+Date: Thu, 10 Mar 2016 13:27:28 +0530
+From: Amit Shah <amit.shah@redhat.com>
+Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
+Message-ID: <20160310075728.GB4678@grmbl.mre>
 References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
  <20160308111343.GM15443@grmbl.mre>
-In-Reply-To: <20160308111343.GM15443@grmbl.mre>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+ <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amit Shah <amit.shah@redhat.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
 Cc: "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-> > This patch set is the QEMU side implementation.
-> >
-> > The virtio-balloon is extended so that QEMU can get the free pages
-> > information from the guest through virtio.
-> >
-> > After getting the free pages information (a bitmap), QEMU can use it
-> > to filter out the guest's free pages in the ram bulk stage. This make
-> > the live migration process much more efficient.
-> >
-> > This RFC version doesn't take the post-copy and RDMA into
-> > consideration, maybe both of them can benefit from this PV solution by
-> > with some extra modifications.
->=20
-> I like the idea, just have to prove (review) and test it a lot to ensure =
-we don't
-> end up skipping pages that matter.
->=20
-> However, there are a couple of points:
->=20
-> In my opinion, the information that's exchanged between the guest and the
-> host should be exchanged over a virtio-serial channel rather than virtio-
-> balloon.  First, there's nothing related to the balloon here.
-> It just happens to be memory info.  Second, I would never enable balloon =
-in
-> a guest that I want to be performance-sensitive.  So even if you add this=
- as
-> part of balloon, you'll find no one is using this solution.
->=20
-> Secondly, I suggest virtio-serial, because it's meant exactly to exchange=
- free-
-> flowing information between a host and a guest, and you don't need to
-> extend any part of the protocol for it (hence no changes necessary to the
-> spec).  You can see how spice, vnc, etc., use virtio-serial to exchange d=
-ata.
->=20
->=20
-> 		Amit
+On (Thu) 10 Mar 2016 [07:44:19], Li, Liang Z wrote:
+> 
+> Hi Amit,
+> 
+>  Could provide more information on how to use virtio-serial to exchange data?  Thread , Wiki or code are all OK. 
+>  I have not find some useful information yet.
 
-Hi Amit,
+See this commit in the Linux sources:
 
- Could provide more information on how to use virtio-serial to exchange dat=
-a?  Thread , Wiki or code are all OK.=20
- I have not find some useful information yet.
+108fc82596e3b66b819df9d28c1ebbc9ab5de14c
 
-Thanks
-Liang
+that adds a way to send guest trace data over to the host.  I think
+that's the most relevant to your use-case.  However, you'll have to
+add an in-kernel user of virtio-serial (like the virtio-console code
+-- the code that deals with tty and hvc currently).  There's no other
+non-tty user right now, and this is the right kind of use-case to add
+one for!
+
+For many other (userspace) use-cases, see the qemu-guest-agent in the
+qemu sources.
+
+The API is documented in the wiki:
+
+http://www.linux-kvm.org/page/Virtio-serial_API
+
+and the feature pages have some information that may help as well:
+
+https://fedoraproject.org/wiki/Features/VirtioSerial
+
+There are some links in here too:
+
+http://log.amitshah.net/2010/09/communication-between-guests-and-hosts/
+
+Hope this helps.
+
+
+		Amit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
