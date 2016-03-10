@@ -1,65 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B10226B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:56:05 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l68so21160263wml.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:56:05 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id i1si3634675wmd.89.2016.03.10.01.56.04
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D316B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 05:22:00 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id 124so65903796pfg.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 02:22:00 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id a70si5118804pfj.109.2016.03.10.02.21.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 01:56:04 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id n205so2815546wmf.2
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:56:04 -0800 (PST)
-Date: Thu, 10 Mar 2016 10:56:01 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in
- remove_pagetable()
-Message-ID: <20160310095601.GA9677@gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-4-git-send-email-mingo@kernel.org>
- <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
- <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com>
+        Thu, 10 Mar 2016 02:21:59 -0800 (PST)
+Date: Thu, 10 Mar 2016 13:21:30 +0300
+From: Roman Kagan <rkagan@virtuozzo.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160310102129.GB14065@rkaganb.sw.ru>
+References: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+ <20160305214748-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
+ <20160307110852-mutt-send-email-mst@redhat.com>
+ <20160309142851.GA9715@rkaganb.sw.ru>
+ <20160309173017-mutt-send-email-mst@redhat.com>
+ <20160309170438.GB9715@rkaganb.sw.ru>
+ <20160309193137-mutt-send-email-mst@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com>
+In-Reply-To: <20160309193137-mutt-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Li, Liang Z" <liang.z.li@intel.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>, riel@redhat.com
 
-
-* Andy Lutomirski <luto@amacapital.net> wrote:
-
-> On Fri, Feb 12, 2016 at 11:04 AM, Andy Lutomirski <luto@amacapital.net> wrote:
-> > On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
-> >> So when memory hotplug removes a piece of physical memory from pagetable
-> >> mappings, it also frees the underlying PGD entry.
-> >>
-> >> This complicates PGD management, so don't do this. We can keep the
-> >> PGD mapped and the PUD table all clear - it's only a single 4K page
-> >> per 512 GB of memory hotplugged.
-> >
-> > Ressurecting an ancient thread: I want this particular change to make
-> > it (much) easier to make vmapped stacks work correctly.  Could it be
-> > applied by itself?
-> >
+On Wed, Mar 09, 2016 at 07:39:18PM +0200, Michael S. Tsirkin wrote:
+> On Wed, Mar 09, 2016 at 08:04:39PM +0300, Roman Kagan wrote:
+> > On Wed, Mar 09, 2016 at 05:41:39PM +0200, Michael S. Tsirkin wrote:
+> > > On Wed, Mar 09, 2016 at 05:28:54PM +0300, Roman Kagan wrote:
+> > > > For (1) I've been trying to make a point that skipping clean pages is
+> > > > much more likely to result in noticable benefit than free pages only.
+> > > 
+> > > I guess when you say clean you mean zero?
+> > 
+> > No I meant clean, i.e. those that could be evicted from RAM without
+> > causing I/O.
 > 
-> It's incomplete.  pageattr.c has another instance of the same thing.
-> I'll see if I can make it work, but I may end up doing something a
-> little different.
+> They must be migrated unless guest actually evicts them.
 
-If so then mind picking up (and fixing ;-) tip:WIP.x86/mm in its entirety? It's 
-well tested so shouldn't have too many easy to hit bugs. Feel free to rebase and 
-restructure it, it's a WIP tree.
+If the balloon is inflated the guest will.
 
-I keep getting distracted with other things but I'd hate if this got dropped on 
-the floor.
+> It's not at all clear to me that it's always preferable
+> to drop all clean pages from pagecache. It is clearly is
+> going to slow the guest down significantly.
 
-Thanks,
+That's a matter for optimization.  The current value for
+/proc/meminfo:MemAvailable (which is being proposed as a member of
+balloon stats, too) is a conservative estimate which will probably cover
+a good deal of cases.
 
-	Ingo
+> > I must be missing something obvious, but how is that different from
+> > inflating and then immediately deflating the balloon?
+> 
+> It's exactly the same except
+> - we do not initiate this from host - it's guest doing
+>   things for its own reasons
+> - a bit less guest/host interaction this way
+
+I don't quite understand why you need to deflate the balloon until the
+VM is on the destination host.  deflate_on_oom will do it if the guest
+is really tight on memory; otherwise there appears to be no reason for
+it.  But then inflation followed immediately by deflation doubles the
+guest/host interactions rather than reduces them, no?
+
+> > it's just the granularity that makes things slow and
+> > stands in the way.
+> 
+> So we could request a specific page size/alignment from guest.
+> Send guest request to give us memory in aligned units of 2Mbytes,
+> and then host can treat each of these as a single huge page.
+
+I'd guess just coalescing contiguous pages would already speed things
+up.  I'll try to find some time to experiment with it.
+
+Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
