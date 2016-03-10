@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id F33D86B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:11:06 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id u190so34776782pfb.3
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:11:06 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id z25si4705202pfa.170.2016.03.10.01.11.06
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 487B56B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:30:25 -0500 (EST)
+Received: by mail-pf0-f174.google.com with SMTP id 129so64619356pfw.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:30:25 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id w84si3663186pfi.103.2016.03.10.01.30.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 01:11:06 -0800 (PST)
-Date: Thu, 10 Mar 2016 10:10:58 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
-Message-ID: <20160310091058.GQ6344@twins.programming.kicks-ass.net>
-References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
- <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
- <56DEF3D3.6080008@synopsys.com>
- <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
- <56DFC604.6070407@synopsys.com>
- <20160309101349.GJ6344@twins.programming.kicks-ass.net>
- <56E023A5.2000105@synopsys.com>
- <20160309145119.GN6356@twins.programming.kicks-ass.net>
- <56E10B59.1060700@synopsys.com>
+        Thu, 10 Mar 2016 01:30:24 -0800 (PST)
+Date: Thu, 10 Mar 2016 12:30:08 +0300
+From: Roman Kagan <rkagan@virtuozzo.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160310093007.GA14065@rkaganb.sw.ru>
+References: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+ <20160305214748-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
+ <20160307110852-mutt-send-email-mst@redhat.com>
+ <20160309142851.GA9715@rkaganb.sw.ru>
+ <20160309173017-mutt-send-email-mst@redhat.com>
+ <20160309170438.GB9715@rkaganb.sw.ru>
+ <1457552332.17933.24.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <56E10B59.1060700@synopsys.com>
+In-Reply-To: <1457552332.17933.24.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-parisc@vger.kernel, Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "James E.J. Bottomley" <jejb@parisc-linux.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Noam Camus <noamc@ezchip.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-snps-arc@lists.infradead.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Li, Liang Z" <liang.z.li@intel.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
 
-On Thu, Mar 10, 2016 at 11:21:21AM +0530, Vineet Gupta wrote:
-> On Wednesday 09 March 2016 08:21 PM, Peter Zijlstra wrote:
-> >> But in SLUB: bit_spin_lock() + __bit_spin_unlock() is acceptable ? How so
-> >> (ignoring the performance thing for discussion sake, which is a side effect of
-> >> this implementation).
+On Wed, Mar 09, 2016 at 02:38:52PM -0500, Rik van Riel wrote:
+> On Wed, 2016-03-09 at 20:04 +0300, Roman Kagan wrote:
+> > On Wed, Mar 09, 2016 at 05:41:39PM +0200, Michael S. Tsirkin wrote:
+> > > On Wed, Mar 09, 2016 at 05:28:54PM +0300, Roman Kagan wrote:
+> > > > For (1) I've been trying to make a point that skipping clean
+> > > > pages is
+> > > > much more likely to result in noticable benefit than free pages
+> > > > only.
+> > > 
+> > > I guess when you say clean you mean zero?
 > > 
-> > The sort answer is: Per definition. They are defined to work together,
-> > which is what makes __clear_bit_unlock() such a special function.
+> > No I meant clean, i.e. those that could be evicted from RAM without
+> > causing I/O.
 > > 
-> >> So despite the comment below in bit_spinlock.h I don't quite comprehend how this
-> >> is allowable. And if say, by deduction, this is fine for LLSC or lock prefixed
-> >> cases, then isn't this true in general for lot more cases in kernel, i.e. pairing
-> >> atomic lock with non-atomic unlock ? I'm missing something !
-> > 
-> > x86 (and others) do in fact use non-atomic instructions for
-> > spin_unlock(). But as this is all arch specific, we can make these
-> > assumptions. Its just that generic code cannot rely on it.
 > 
-> OK despite being obvious now, I was not seeing the similarity between spin_*lock()
-> and bit_spin*lock() :-(
+> Programs in the guest may have that memory mmapped.
+> This could include things like libraries and executables.
 > 
-> ARC also uses standard ST for spin_unlock() so by analogy __bit_spin_unlock() (for
-> LLSC case) would be correctly paired with bit_spin_lock().
+> How do you deal with the guest page cache containing
+> references to now non-existent memory?
 > 
-> But then why would anyone need bit_spin_unlock() at all. Specially after this
-> patch from you which tightens __bit_spin_lock() even more for the general case.
-> 
-> Thing is if the API exists majority of people would would use the more
-> conservative version w/o understand all these nuances. Can we pursue the path of
-> moving bit_spin_unlock() over to __bit_spin_lock(): first changing the backend
-> only and if proven stable replacing the call-sites themselves.
+> How do you re-populate the memory on the destination
+> host?
 
-So the thing is, __bit_spin_unlock() is not safe if other bits in that
-word can have concurrent modifications.
+I guess the confusion is due to the context I stripped from the previous
+messages...  Actually I've been talking about doing full-fledged balloon
+inflation before the migration, so, when it's deflated the guest will
+fault in that data from the filesystem as usual.
 
-Only if the bitlock locks the whole word (or something else ensures no
-other bits will change) can you use __bit_spin_unlock() to clear the
-lock bit.
+Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
