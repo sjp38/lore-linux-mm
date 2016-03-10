@@ -1,31 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 336DC6B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 00:06:02 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id tt10so57950770pab.3
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 21:06:02 -0800 (PST)
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
-        by mx.google.com with ESMTPS id l73si3270027pfi.113.2016.03.09.21.05.59
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD846B0254
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 00:13:14 -0500 (EST)
+Received: by mail-pf0-f173.google.com with SMTP id 129so59555201pfw.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 21:13:14 -0800 (PST)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id w84si2155599pfi.103.2016.03.09.21.13.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Mar 2016 21:06:00 -0800 (PST)
+        Wed, 09 Mar 2016 21:13:13 -0800 (PST)
 Received: from localhost
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 10 Mar 2016 10:35:57 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2A55shM6684996
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 10:35:54 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2AAYpPi029989
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:04:52 +0530
-Message-ID: <56E100AF.9060501@linux.vnet.ibm.com>
-Date: Thu, 10 Mar 2016 10:35:51 +0530
+	Thu, 10 Mar 2016 15:13:10 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 395143578056
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:13:04 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2A5CuaW46268644
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:13:04 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2A5CVju021205
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:12:31 +1100
+Message-ID: <56E10227.2010608@linux.vnet.ibm.com>
+Date: Thu, 10 Mar 2016 10:42:07 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 9/9] selfttest/powerpc: Add memory page migration tests
-References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com> <1457525450-4262-9-git-send-email-khandual@linux.vnet.ibm.com> <8737rz1kvq.fsf@linux.vnet.ibm.com>
-In-Reply-To: <8737rz1kvq.fsf@linux.vnet.ibm.com>
+Subject: Re: [RFC 6/9] powerpc/hugetlb: Enable ARCH_WANT_GENERAL_HUGETLB for
+ BOOK3S 64K
+References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com> <1457525450-4262-6-git-send-email-khandual@linux.vnet.ibm.com> <8760wv1kzr.fsf@linux.vnet.ibm.com>
+In-Reply-To: <8760wv1kzr.fsf@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,22 +37,28 @@ List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On 03/10/2016 01:31 AM, Aneesh Kumar K.V wrote:
+On 03/10/2016 01:28 AM, Aneesh Kumar K.V wrote:
 > Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
 > 
 >> > [ text/plain ]
->> > This adds two tests for memory page migration. One for normal page
->> > migration which works for both 4K or 64K base page size kernel and
->> > the other one is for huge page migration which works only on 64K
->> > base page sized 16MB huge page implemention at the PMD level.
+>> > This enables ARCH_WANT_GENERAL_HUGETLB for BOOK3S 64K in Kconfig.
+>> > It also implements a new function 'pte_huge' which is required by
+>> > function 'huge_pte_alloc' from generic VM. Existing BOOK3S 64K
+>> > specific functions 'huge_pte_alloc' and 'huge_pte_offset' (which
+>> > are no longer required) are removed with this change.
 >> >
-> can you also add the test in this commit
-> e66f17ff717 ("mm/hugetlb: take page table lock in follow_huge_pmd()")
+> You want this to be the last patch isn't it ? And you are mixing too
 
-Thought about it but thats kind of bit tricky. All self tests have finite
-runtime. Test case in that commit has two processes which execute for ever
-and try to create the race condition. We can try to run it for *some time*
-looking for races instead ?
+Yeah, it should be the last one.
+
+> many things in this patch. Why not do this
+> 
+> * book3s specific hash pte routines
+> * book3s add conditional based on GENERAL_HUGETLB
+> * Enable GENERAL_HUGETLB for 64k page size config
+
+which creates three separate patches ?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
