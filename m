@@ -1,68 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 487B56B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:30:25 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id 129so64619356pfw.1
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:30:25 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id w84si3663186pfi.103.2016.03.10.01.30.24
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A6E996B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:54:01 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p65so20987317wmp.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:54:01 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id e67si3667674wme.27.2016.03.10.01.54.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 01:30:24 -0800 (PST)
-Date: Thu, 10 Mar 2016 12:30:08 +0300
-From: Roman Kagan <rkagan@virtuozzo.com>
-Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Message-ID: <20160310093007.GA14065@rkaganb.sw.ru>
-References: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <20160304163246-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
- <20160305214748-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
- <20160307110852-mutt-send-email-mst@redhat.com>
- <20160309142851.GA9715@rkaganb.sw.ru>
- <20160309173017-mutt-send-email-mst@redhat.com>
- <20160309170438.GB9715@rkaganb.sw.ru>
- <1457552332.17933.24.camel@redhat.com>
+        Thu, 10 Mar 2016 01:54:00 -0800 (PST)
+Received: by mail-wm0-x22d.google.com with SMTP id l68so22031678wml.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:54:00 -0800 (PST)
+Date: Thu, 10 Mar 2016 12:53:58 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: avoid unnecessary swapin in khugepaged
+Message-ID: <20160310095358.GA25372@node.shutemov.name>
+References: <1457560543-15910-1-git-send-email-ebru.akagunduz@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1457552332.17933.24.camel@redhat.com>
+In-Reply-To: <1457560543-15910-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Li, Liang Z" <liang.z.li@intel.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
 
-On Wed, Mar 09, 2016 at 02:38:52PM -0500, Rik van Riel wrote:
-> On Wed, 2016-03-09 at 20:04 +0300, Roman Kagan wrote:
-> > On Wed, Mar 09, 2016 at 05:41:39PM +0200, Michael S. Tsirkin wrote:
-> > > On Wed, Mar 09, 2016 at 05:28:54PM +0300, Roman Kagan wrote:
-> > > > For (1) I've been trying to make a point that skipping clean
-> > > > pages is
-> > > > much more likely to result in noticable benefit than free pages
-> > > > only.
-> > > 
-> > > I guess when you say clean you mean zero?
-> > 
-> > No I meant clean, i.e. those that could be evicted from RAM without
-> > causing I/O.
-> > 
+On Wed, Mar 09, 2016 at 11:55:43PM +0200, Ebru Akagunduz wrote:
+> Currently khugepaged makes swapin readahead to improve
+> THP collapse rate. This patch checks vm statistics
+> to avoid workload of swapin, if unnecessary. So that
+> when system under pressure, khugepaged won't consume
+> resources to swapin.
 > 
-> Programs in the guest may have that memory mmapped.
-> This could include things like libraries and executables.
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. The system
+> was forced to swap out all. Afterwards, the test program
+> touches the area by writing, it skips a page in each
+> 20 pages of the area. When waiting to swapin readahead
+> left part of the test, the memory forced to be busy
+> doing page reclaim. There was enough free memory during
+> test, khugepaged did not swapin readahead due to business.
 > 
-> How do you deal with the guest page cache containing
-> references to now non-existent memory?
+> Test results:
 > 
-> How do you re-populate the memory on the destination
-> host?
+> 			After swapped out
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 450964 kB |  450560 kB    | 349036 kB |    %99    |
+> -------------------------------------------------------------------
+> Without patch | 351308 kB | 350208 kB     | 448692 kB |    %99    |
+> -------------------------------------------------------------------
+> 
+>                         After swapped in (waiting 10 minutes)
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 637932 kB | 559104 kB     | 162068 kB |    %69    |
+> -------------------------------------------------------------------
+> Without patch | 586816 kB | 464896 kB     | 213184 kB |    %79    |
+> -------------------------------------------------------------------
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> ---
+>  mm/huge_memory.c | 15 ++++++++++++++-
+>  1 file changed, 14 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 7f75292..109a2af 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -102,6 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+>   */
+>  static unsigned int khugepaged_max_ptes_none __read_mostly;
+>  static unsigned int khugepaged_max_ptes_swap __read_mostly;
+> +static unsigned long int allocstall = 0;
+>  
+>  static int khugepaged(void *none);
+>  static int khugepaged_slab_init(void);
+> @@ -2411,6 +2412,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	struct mem_cgroup *memcg;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> +	unsigned long events[NR_VM_EVENT_ITEMS], swap = 0;
 
-I guess the confusion is due to the context I stripped from the previous
-messages...  Actually I've been talking about doing full-fledged balloon
-inflation before the migration, so, when it's deflated the guest will
-fault in that data from the filesystem as usual.
+collapse_huge_page() is nested under collapse_huge_page(), so you
+effectively allocate 2 * NR_VM_EVENT_ITEMS * sizeof(long) on stack.
+That's a lot for stack. And it's only get total value of ALLOCSTALL event.
 
-Roman.
+Should we instead introduce a helper to sum values of a particular event
+over all cpu? I'm surprised that we don't have any yet.
+
+Something like this (totally untested):
+
+unsigned long sum_vm_event(enum vm_event_item item)
+{
+	int cpu;
+	unsigned long ret = 0;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		ret += per_cpu(vm_event_states, cpu).event[item];
+	put_online_cpus();
+	return ret;
+}
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
