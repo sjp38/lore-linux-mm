@@ -1,150 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DFECF6B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 06:17:38 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id fz5so77190914obc.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 03:17:38 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ct2si2251878oec.4.2016.03.10.03.17.37
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B6FF66B0253
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 06:18:53 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id w104so67124330qge.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 03:18:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n14si3193691qkl.12.2016.03.10.03.18.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Mar 2016 03:17:37 -0800 (PST)
-Subject: Re: [PATCH 2/2]oom-clear-tif_memdie-after-oom_reaper-managed-to-unmap-the-address-space-fix
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160309132142.80d0afbf0ae398df8e2adba8@linux-foundation.org>
-	<201603100721.CDC86433.OMFOVOHSJFLFQt@I-love.SAKURA.ne.jp>
-	<20160309224829.GA5716@cmpxchg.org>
-	<20160309150853.2658e3bc75907e404cf3ca33@linux-foundation.org>
-	<20160310004500.GA7374@cmpxchg.org>
-In-Reply-To: <20160310004500.GA7374@cmpxchg.org>
-Message-Id: <201603102017.ECB12953.HLFJQFVOtMFSOO@I-love.SAKURA.ne.jp>
-Date: Thu, 10 Mar 2016 20:17:33 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Mar 2016 03:18:52 -0800 (PST)
+Date: Thu, 10 Mar 2016 11:18:45 +0000
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
+Message-ID: <20160310111844.GB2276@work-vm>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160308111343.GM15443@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
+ <20160310075728.GB4678@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: mhocko@kernel.org, linux-mm@kvack.org, rientjes@google.com, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, mohan_parthasarathy@hpe.com, jitendra.kolhe@hpe.com, simhan@hpe.com
 
-Johannes Weiner wrote:
-> On Wed, Mar 09, 2016 at 03:08:53PM -0800, Andrew Morton wrote:
-> > On Wed, 9 Mar 2016 17:48:29 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> > > However, I disagree with your changelog.
-> > 
-> > What text would you prefer?
-> 
-> I'd just keep the one you had initially. Or better, this modified
-> version:
-> 
-> When the OOM killer scans tasks and encounters a PF_EXITING one, it
-> force-selects that task regardless of the score. The problem is that
-> if that task got stuck waiting for some state the allocation site is
-> holding, the OOM reaper can not move on to the next best victim.
-> 
+Hi,
+  I'm just catching back up on this thread; so without reference to any
+particular previous mail in the thread.
 
-There is no guarantee that the OOM reaper is waken up.
-There are shortcuts which I don't like.
+  1) How many of the free pages do we tell the host about?
+     Your main change is telling the host about all the
+     free pages.
+     If we tell the host about all the free pages, then we might
+     end up needing to allocate more pages and update the host
+     with pages we now want to use; that would have to wait for the
+     host to acknowledge that use of these pages, since if we don't
+     wait for it then it might have skipped migrating a page we
+     just started using (I don't understand how your series solves that).
+     So the guest probably needs to keep some free pages - how many?
 
-> Frankly, I don't even know why we check for exiting tasks in the OOM
-> killer. We've tried direct reclaim at least 15 times by the time we
-> decide the system is OOM, there was plenty of time to exit and free
-> memory; and a task might exit voluntarily right after we issue a kill.
-> This is testing pure noise. Remove it.
-> 
+  2) Clearing out caches
+     Does it make sense to clean caches?  They're apparently useful data
+     so if we clean them it's likely to slow the guest down; I guess
+     they're also likely to be fairly static data - so at least fairly
+     easy to migrate.
+     The answer here partially depends on what you want from your migration;
+     if you're after the fastest possible migration time it might make
+     sense to clean the caches and avoid migrating them; but that might
+     be at the cost of more disruption to the guest - there's a trade off
+     somewhere and it's not clear to me how you set that depending on your
+     guest/network/reqirements.
 
-My concern is what an optimistic idea it is to wait for task_will_free_mem() or
-TIF_MEMDIE task forever blindly
-( http://lkml.kernel.org/r/201602232224.FEJ69269.LMVJOFFOQSHtFO@I-love.SAKURA.ne.jp ).
-We have
+  3) Why is ballooning slow?
+     You've got a figure of 5s to balloon on an 8GB VM - but an 
+     8GB VM isn't huge; so I worry about how long it would take
+     on a big VM.   We need to understand why it's slow 
+       * is it due to the guest shuffling pages around? 
+       * is it due to the virtio-balloon protocol sending one page
+         at a time?
+         + Do balloon pages normally clump in physical memory
+            - i.e. would a 'large balloon' message help
+            - or do we need a bitmap because it tends not to clump?
 
-  do_exit() {
-    exit_signals(); /* sets PF_EXITING */
-    /* (1) start */
-    exit_mm() {
-      mm_release() {
-        exit_robust_list() {
-          get_user() {
-            __do_page_fault() {
-              /* (1) end */
-              down_read(&current->mm->mmap_sem);
-              handle_mm_fault() {
-                kmalloc(GFP_KERNEL) {
-                  out_of_memory() {
-                    if (current->mm &&
-                        (fatal_signal_pending(current) || task_will_free_mem(current))) {
-                      mark_oom_victim(current); /* sets TIF_MEMDIE */
-                      return true;
-                    }
-                  }
-                }
-              }
-              up_read(&current->mm->mmap_sem);
-              /* (2) start */
-            }
-          }
-        }
-      }
-      /* (2) end */
-      down_read(&current->mm->mmap_sem);
-      up_read(&current->mm->mmap_sem);
-      current->mm = NULL;
-      exit_oom_victim();
-    }
-  }
+       * is it due to the madvise on the host?
+         If we were using the normal balloon messages, then we
+         could, during migration, just route those to the migration
+         code rather than bothering with the madvise.
+         If they're clumping together we could just turn that into
+         one big madvise; if they're not then would we benefit from
+         a call that lets us madvise lots of areas?
 
-sequence. We will hit silent OOM livelock if somebody sharing the mm does
-down_write_killable(&current->mm->mmap_sem) and kmalloc(GFP_KERNEL) for mmap() etc. at (1) or (2)
-due to failing to send SIGKILL to somebody doing/done down_write_killable(&current->mm->mmap_sem)
-and returning OOM_SCAN_ABORT without testing whether down_read(&victim->mm->mmap_sem) will succeed.
-Since the OOM reaper is not invoked when shortcut is used, nobody can unlock.
+  4) Speeding up the migration of those free pages
+    You're using the bitmap to avoid migrating those free pages; HPe's
+    patchset is reconstructing a bitmap from the balloon data;  OK, so
+    this all makes sense to avoid migrating them - I'd also been thinking
+    of using pagemap to spot zero pages that would help find other zero'd
+    pages, but perhaps ballooned is enough?
 
-Doing
+  5) Second-migrate
+    Given a VM where you've done all those tricks on, what happens when
+    you migrate it a second time?   I guess you're aiming for the guest
+    to update it's bitmap;  HPe's solution is to migrate it's balloon
+    bitmap along with the migration data.
+     
+Dave
 
--	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
-+	if (task_will_free_mem(task) && !is_sysrq_oom(oc) && can_lock_mm_for_read(task))
-		return OOM_SCAN_ABORT;
-
-and
-
-	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
--		if (!is_sysrq_oom(oc))
-+		if (!is_sysrq_oom(oc) && can_lock_mm_for_read(task))
-			return OOM_SCAN_ABORT;
-	}
-
-is a too fast decision because can_lock_mm_for_read(task) might become true
-if if we waited for a moment. Doing
-
--	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
-+	if (task_will_free_mem(task) && !is_sysrq_oom(oc) && we_havent_waited_enough_period(task))
-		return OOM_SCAN_ABORT;
-
-and
-
-	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
--		if (!is_sysrq_oom(oc))
-+		if (!is_sysrq_oom(oc) && we_havent_waited_enough_period(task))
-			return OOM_SCAN_ABORT;
-	}
-
-is a timeout based unlocking which Michal does not like. Doing
-
--	if (task_will_free_mem(task) && !is_sysrq_oom(oc))
-+	if (task_will_free_mem(task) && !is_sysrq_oom(oc) && should_oom_scan_abort(task))
-		return OOM_SCAN_ABORT;
-
-and
-
-	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
--		if (!is_sysrq_oom(oc))
-+		if (!is_sysrq_oom(oc) && should_oom_scan_abort(task))
-			return OOM_SCAN_ABORT;
-	}
-
-is a counter based unlocking which I don't know what Michal thinks.
-
-This situation is similar to when to declare OOM in OOM detection rework.
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
