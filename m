@@ -1,108 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D37706B0005
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 20:41:21 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id td3so27394561pab.2
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 17:41:21 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id lm9si2074156pab.142.2016.03.09.17.41.20
-        for <linux-mm@kvack.org>;
-        Wed, 09 Mar 2016 17:41:20 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
- optimization
-Date: Thu, 10 Mar 2016 01:41:16 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414A41D@shsmsx102.ccr.corp.intel.com>
-References: <F2CBF3009FA73547804AE4C663CAB28E0377160A@SHSMSX101.ccr.corp.intel.com>
- <20160304102346.GB2479@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
- <20160304163246-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
- <20160305214748-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
- <20160307110852-mutt-send-email-mst@redhat.com>
- <20160309142851.GA9715@rkaganb.sw.ru>
- <F2CBF3009FA73547804AE4C663CAB28E041498BA@shsmsx102.ccr.corp.intel.com>
- <20160309172929-mutt-send-email-mst@redhat.com>
-In-Reply-To: <20160309172929-mutt-send-email-mst@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id CE6126B0005
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2016 22:48:43 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id n5so19640820pfn.2
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 19:48:43 -0800 (PST)
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
+        by mx.google.com with ESMTPS id l23si2847826pfj.53.2016.03.09.19.48.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 09 Mar 2016 19:48:42 -0800 (PST)
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 10 Mar 2016 13:38:24 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A98B32CE8059
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:38:19 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2A3cASj60424278
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:38:19 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2A3bksQ005534
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:37:46 +1100
+Message-ID: <56E0EBF7.3040104@linux.vnet.ibm.com>
+Date: Thu, 10 Mar 2016 09:07:27 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Subject: Re: [RFC 5/9] powerpc/mm: Split huge_pte_offset function for BOOK3S
+ 64K
+References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com> <1457525450-4262-5-git-send-email-khandual@linux.vnet.ibm.com> <56E0AA59.4030905@intel.com>
+In-Reply-To: <56E0AA59.4030905@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>, "riel@redhat.com" <riel@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-> > > > > Yes, we really can teach qemu to skip these pages and it's not ha=
-rd.
-> > > > > The problem is the poor performance, this PV solution
-> > > >
-> > > > Balloon is always PV. And do not call patches solutions please.
-> > > >
-> > > > > is aimed to make it more
-> > > > > efficient and reduce the performance impact on guest.
-> > > >
-> > > > We need to get a bit beyond this.  You are making multiple
-> > > > changes, it seems to make sense to split it all up, and analyse
-> > > > each change separately.
-> > >
-> > > Couldn't agree more.
-> > >
-> > > There are three stages in this optimization:
-> > >
-> > > 1) choosing which pages to skip
-> > >
-> > > 2) communicating them from guest to host
-> > >
-> > > 3) skip transferring uninteresting pages to the remote side on
-> > > migration
-> > >
-> > > For (3) there seems to be a low-hanging fruit to amend
-> > > migration/ram.c:iz_zero_range() to consult /proc/self/pagemap.  This
-> > > would work for guest RAM that hasn't been touched yet or which has
-> > > been ballooned out.
-> > >
-> > > For (1) I've been trying to make a point that skipping clean pages
-> > > is much more likely to result in noticable benefit than free pages on=
-ly.
-> > >
-> >
-> > I am considering to drop the pagecache before getting the free pages.
-> >
-> > > As for (2), we do seem to have a problem with the existing balloon:
-> > > according to your measurements it's very slow; besides, I guess it
-> > > plays badly
-> >
-> > I didn't say communicating is slow. Even this is very slow, my
-> > solution use bitmap instead of PFNs, there is fewer data traffic, so it=
-'s
-> faster than the existing balloon which use PFNs.
->=20
-> By how much?
->=20
+On 03/10/2016 04:27 AM, Dave Hansen wrote:
+> On 03/09/2016 04:10 AM, Anshuman Khandual wrote:
+>> > Currently the 'huge_pte_offset' function has only one version for
+>> > all the configuations and platforms. This change splits the function
+>> > into two versions, one for 64K page size based BOOK3S implementation
+>> > and the other one for everything else. This change is also one of the
+>> > prerequisites towards enabling GENERAL_HUGETLB implementation for
+>> > BOOK3S 64K based huge pages.
+> I think there's a bit of background missing here for random folks on
+> linux-mm to make sense of these patches.
+> 
+> What is BOOK3S and what does it mean for these patches?  Why is its 64K
 
-Haven't measured yet.=20
-To identify a page, 1 bit is needed if using bitmap, 4 Bytes(32bit) is need=
-ed if using PFN,=20
+BOOK3S is the server type in powerpc family of processors which can support
+multiple base page sizes like 64K and 4K.
 
-For a guest with 8GB RAM,  the corresponding free page bitmap size is 256KB=
-.
-And the corresponding total PFNs size is 8192KB. Assuming the inflating siz=
-e
-is 7GB, the total PFNs size is 7168KB.
+> page size implementation different than all the others?  Is there a 4K
+> page size BOOK3S?
 
-Maybe this is not the point.
+It supports huge pages of size 16M as well as 16G and their implementations
+are different with respect to base page sizes of 64K and 4K.
 
-Liang
-
-> > > with transparent huge pages (as both the guest and the host work
-> > > with one 4k page at a time).  This is a problem for other use cases
-> > > of balloon (e.g. as a facility for resource management); tackling
-> > > that appears a more natural application for optimization efforts.
-> > >
-> > > Thanks,
-> > > Roman.
+Patches 1, 2 and 3 are generic VM changes and the rest are powerpc specific
+changes. Should I have split them accordingly and send out differently for
+generic and powerpc specific reviews ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
