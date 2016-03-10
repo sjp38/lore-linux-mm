@@ -1,57 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 9300B6B0254
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:35:38 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id 129so76065848pfw.1
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 11:35:38 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a5si7932767pat.63.2016.03.10.11.35.36
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A64B6B0253
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 14:52:56 -0500 (EST)
+Received: by mail-pf0-f181.google.com with SMTP id 129so76362615pfw.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 11:52:56 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v8si8040883pfi.16.2016.03.10.11.52.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 11:35:37 -0800 (PST)
-Date: Thu, 10 Mar 2016 22:35:22 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: mm: keep page cache radix tree nodes in check
-Message-ID: <20160310193522.GC5273@mwanda>
-References: <20160310125922.GA15269@mwanda>
- <20160310161200.GA11651@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160310161200.GA11651@cmpxchg.org>
+        Thu, 10 Mar 2016 11:52:55 -0800 (PST)
+Date: Thu, 10 Mar 2016 11:52:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] thp: fix deadlock in split_huge_pmd()
+Message-Id: <20160310115254.fe35ab2beca9690d4ee9989e@linux-foundation.org>
+In-Reply-To: <1457621646-119268-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1457621646-119268-1-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: linux-mm@kvack.org
 
-On Thu, Mar 10, 2016 at 11:12:00AM -0500, Johannes Weiner wrote:
-> We know that page->tree[page->index] is present and the tree is
-> locked, so __radix_tree_lookup() will always return with an entry, as
-> well as &node and &slot set. I'm not sure how you would annotate this.
+On Thu, 10 Mar 2016 17:54:06 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> split_huge_pmd() tries to munlock page with munlock_vma_page(). That
+> requires the page to locked.
 > 
+> If the is locked by caller, we would get a deadlock:
+> 
+> ...
+>
+> I don't think the deadlock is triggerable without split_huge_page()
+> simplifilcation patchset.
+> 
+> But munlock_vma_page() here is wrong: we want to munlock the page
+> unconditionally, no need in rmap lookup, that munlock_vma_page() does.
+> 
+> Let's use clear_page_mlock() instead. It can be called under ptl.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: ee0b79212791 ("thp: allow mlocked THP again")
 
-That's tricky...
+This is the incorrect hash (or something weird happened at my end). 
+I'm seeing
 
-> Is it also warning about slot?
+commit e90309c9f7722db4ff5bce3b9e6e04d1460f2553
+Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Date:   Fri Jan 15 16:54:33 2016 -0800
 
-It does, yes.
+    thp: allow mlocked THP again
 
-> Or can it know that they are always set
-> together?
+That's the second time this has happened this week so please
+double-check whatever you're doing here?
 
-It knows they are set together but it warns about both.
 
-> Could it maybe be linked to the function's return value? I
-> would prefer not setting node and slot to NULL to suppress the false
-> positive. However, what we could do is add a BUG_ON() if the function
-> call returns NULL. Would that be enough of a hint to the checker that
-> we expect the function to be always successful and set node and slot?
+The patch itself doesn't apply to mainline, which is a bit strange
+given that it "Fixes" a bug in an already-mainlined patch.  The patch
+as-sent depends upon
+thp-rewrite-freeze_page-unfreeze_page-with-generic-rmap-walkers.patch,
+so I have queued it after that patch.
 
-I'm sort of just trying to get a feel for what the issues are.  Calling
-BUG_ON() would silence the warning, yes.
-
-regards,
-dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
