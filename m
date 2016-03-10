@@ -1,128 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 36CB16B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 00:51:47 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id td3so32143015pab.2
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 21:51:47 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id n80si3581930pfj.17.2016.03.09.21.51.46
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B24136B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:45:53 -0500 (EST)
+Received: by mail-oi0-f51.google.com with SMTP id m82so54190611oif.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 22:45:53 -0800 (PST)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id h9si1512158oev.25.2016.03.09.22.45.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 21:51:46 -0800 (PST)
-Subject: Re: [PATCH] mm: slub: Ensure that slab_unlock() is atomic
-References: <1457447457-25878-1-git-send-email-vgupta@synopsys.com>
- <alpine.DEB.2.20.1603080857360.4047@east.gentwo.org>
- <56DEF3D3.6080008@synopsys.com>
- <alpine.DEB.2.20.1603081438020.4268@east.gentwo.org>
- <56DFC604.6070407@synopsys.com>
- <20160309101349.GJ6344@twins.programming.kicks-ass.net>
- <56E023A5.2000105@synopsys.com>
- <20160309145119.GN6356@twins.programming.kicks-ass.net>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <56E10B59.1060700@synopsys.com>
-Date: Thu, 10 Mar 2016 11:21:21 +0530
+        Wed, 09 Mar 2016 22:45:52 -0800 (PST)
+Received: by mail-oi0-x232.google.com with SMTP id d205so54216822oia.0
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 22:45:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160309145119.GN6356@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
+References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
+ <1442903021-3893-4-git-send-email-mingo@kernel.org> <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 9 Mar 2016 22:45:33 -0800
+Message-ID: <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com>
+Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-parisc@vger.kernel, Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "James E.J. Bottomley" <jejb@parisc-linux.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Noam Camus <noamc@ezchip.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-snps-arc@lists.infradead.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wednesday 09 March 2016 08:21 PM, Peter Zijlstra wrote:
->> But in SLUB: bit_spin_lock() + __bit_spin_unlock() is acceptable ? How so
->> (ignoring the performance thing for discussion sake, which is a side effect of
->> this implementation).
-> 
-> The sort answer is: Per definition. They are defined to work together,
-> which is what makes __clear_bit_unlock() such a special function.
-> 
->> So despite the comment below in bit_spinlock.h I don't quite comprehend how this
->> is allowable. And if say, by deduction, this is fine for LLSC or lock prefixed
->> cases, then isn't this true in general for lot more cases in kernel, i.e. pairing
->> atomic lock with non-atomic unlock ? I'm missing something !
-> 
-> x86 (and others) do in fact use non-atomic instructions for
-> spin_unlock(). But as this is all arch specific, we can make these
-> assumptions. Its just that generic code cannot rely on it.
+On Fri, Feb 12, 2016 at 11:04 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>> So when memory hotplug removes a piece of physical memory from pagetable
+>> mappings, it also frees the underlying PGD entry.
+>>
+>> This complicates PGD management, so don't do this. We can keep the
+>> PGD mapped and the PUD table all clear - it's only a single 4K page
+>> per 512 GB of memory hotplugged.
+>
+> Ressurecting an ancient thread: I want this particular change to make
+> it (much) easier to make vmapped stacks work correctly.  Could it be
+> applied by itself?
+>
 
-OK despite being obvious now, I was not seeing the similarity between spin_*lock()
-and bit_spin*lock() :-(
+It's incomplete.  pageattr.c has another instance of the same thing.
+I'll see if I can make it work, but I may end up doing something a
+little different.
 
-ARC also uses standard ST for spin_unlock() so by analogy __bit_spin_unlock() (for
-LLSC case) would be correctly paired with bit_spin_lock().
+--Andy
 
-But then why would anyone need bit_spin_unlock() at all. Specially after this
-patch from you which tightens __bit_spin_lock() even more for the general case.
-
-Thing is if the API exists majority of people would would use the more
-conservative version w/o understand all these nuances. Can we pursue the path of
-moving bit_spin_unlock() over to __bit_spin_lock(): first changing the backend
-only and if proven stable replacing the call-sites themselves.
-
-> 
-> So let me try and explain.
-> 
-> 
-> The problem as identified is:
-> 
-> CPU0						CPU1
-> 
-> bit_spin_lock()					__bit_spin_unlock()
-> 1:
-> 	/* fetch_or, r1 holds the old value */
-> 	spin_lock
-> 	load	r1, addr
-> 						load	r1, addr
-> 						bclr	r2, r1, 1
-> 						store	r2, addr
-> 	or	r2, r1, 1
-> 	store	r2, addr	/* lost the store from CPU1 */
-> 	spin_unlock
-> 
-> 	and	r1, 1
-> 	bnz	2	/* it was set, go wait */
-> 	ret
-> 
-> 2:
-> 	load	r1, addr
-> 	and	r1, 1
-> 	bnz	2	/* wait until its not set */
-> 
-> 	b	1	/* try again */
-> 
-> 
-> 
-> For LL/SC we replace:
-> 
-> 	spin_lock
-> 	load	r1, addr
-> 
-> 	...
-> 
-> 	store	r2, addr
-> 	spin_unlock
-> 
-> With the (obvious):
-> 
-> 1:
-> 	load-locked	r1, addr
-> 
-> 	...
-> 
-> 	store-cond	r2, addr
-> 	bnz		1 /* or whatever branch instruction is required to retry */
-> 
-> 
-> In this case the failure cannot happen, because the store from CPU1
-> would have invalidated the lock from CPU0 and caused the
-> store-cond to fail and retry the loop, observing the new value. 
-
-You did it again, A picture is worth thousand words !
-
-Thx,
--Vineet
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
