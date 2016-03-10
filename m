@@ -1,95 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B6FF66B0253
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 06:18:53 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id w104so67124330qge.1
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 03:18:53 -0800 (PST)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D12B6B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 07:29:43 -0500 (EST)
+Received: by mail-qk0-f182.google.com with SMTP id o6so33363327qkc.2
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:29:43 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n14si3193691qkl.12.2016.03.10.03.18.52
+        by mx.google.com with ESMTPS id g17si3368628qhc.119.2016.03.10.04.29.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 03:18:52 -0800 (PST)
-Date: Thu, 10 Mar 2016 11:18:45 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
-Message-ID: <20160310111844.GB2276@work-vm>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160308111343.GM15443@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
- <20160310075728.GB4678@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
+        Thu, 10 Mar 2016 04:29:42 -0800 (PST)
+Date: Thu, 10 Mar 2016 14:29:34 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [Qemu-devel] [RFC qemu 0/4] A PV solution for live migration
+ optimization
+Message-ID: <20160310122934.GB8144@redhat.com>
+References: <F2CBF3009FA73547804AE4C663CAB28E0414516C@shsmsx102.ccr.corp.intel.com>
+ <20160304163246-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E041452EA@shsmsx102.ccr.corp.intel.com>
+ <20160305214748-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04146308@shsmsx102.ccr.corp.intel.com>
+ <20160307110852-mutt-send-email-mst@redhat.com>
+ <20160309142851.GA9715@rkaganb.sw.ru>
+ <F2CBF3009FA73547804AE4C663CAB28E041498BA@shsmsx102.ccr.corp.intel.com>
+ <20160309172929-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A41D@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414A41D@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, mohan_parthasarathy@hpe.com, jitendra.kolhe@hpe.com, simhan@hpe.com
+Cc: Roman Kagan <rkagan@virtuozzo.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "rth@twiddle.net" <rth@twiddle.net>, "riel@redhat.com" <riel@redhat.com>
 
-Hi,
-  I'm just catching back up on this thread; so without reference to any
-particular previous mail in the thread.
+On Thu, Mar 10, 2016 at 01:41:16AM +0000, Li, Liang Z wrote:
+> > > > > > Yes, we really can teach qemu to skip these pages and it's not hard.
+> > > > > > The problem is the poor performance, this PV solution
+> > > > >
+> > > > > Balloon is always PV. And do not call patches solutions please.
+> > > > >
+> > > > > > is aimed to make it more
+> > > > > > efficient and reduce the performance impact on guest.
+> > > > >
+> > > > > We need to get a bit beyond this.  You are making multiple
+> > > > > changes, it seems to make sense to split it all up, and analyse
+> > > > > each change separately.
+> > > >
+> > > > Couldn't agree more.
+> > > >
+> > > > There are three stages in this optimization:
+> > > >
+> > > > 1) choosing which pages to skip
+> > > >
+> > > > 2) communicating them from guest to host
+> > > >
+> > > > 3) skip transferring uninteresting pages to the remote side on
+> > > > migration
+> > > >
+> > > > For (3) there seems to be a low-hanging fruit to amend
+> > > > migration/ram.c:iz_zero_range() to consult /proc/self/pagemap.  This
+> > > > would work for guest RAM that hasn't been touched yet or which has
+> > > > been ballooned out.
+> > > >
+> > > > For (1) I've been trying to make a point that skipping clean pages
+> > > > is much more likely to result in noticable benefit than free pages only.
+> > > >
+> > >
+> > > I am considering to drop the pagecache before getting the free pages.
+> > >
+> > > > As for (2), we do seem to have a problem with the existing balloon:
+> > > > according to your measurements it's very slow; besides, I guess it
+> > > > plays badly
+> > >
+> > > I didn't say communicating is slow. Even this is very slow, my
+> > > solution use bitmap instead of PFNs, there is fewer data traffic, so it's
+> > faster than the existing balloon which use PFNs.
+> > 
+> > By how much?
+> > 
+> 
+> Haven't measured yet. 
+> To identify a page, 1 bit is needed if using bitmap, 4 Bytes(32bit) is needed if using PFN, 
+> 
+> For a guest with 8GB RAM,  the corresponding free page bitmap size is 256KB.
+> And the corresponding total PFNs size is 8192KB. Assuming the inflating size
+> is 7GB, the total PFNs size is 7168KB.
 
-  1) How many of the free pages do we tell the host about?
-     Your main change is telling the host about all the
-     free pages.
-     If we tell the host about all the free pages, then we might
-     end up needing to allocate more pages and update the host
-     with pages we now want to use; that would have to wait for the
-     host to acknowledge that use of these pages, since if we don't
-     wait for it then it might have skipped migrating a page we
-     just started using (I don't understand how your series solves that).
-     So the guest probably needs to keep some free pages - how many?
+Yes but this is not how balloon works, instead, it will reuse a single
+4K page multiple times. We can also trade off more memory for speed
+if we want to, it's completely up to guest.
 
-  2) Clearing out caches
-     Does it make sense to clean caches?  They're apparently useful data
-     so if we clean them it's likely to slow the guest down; I guess
-     they're also likely to be fairly static data - so at least fairly
-     easy to migrate.
-     The answer here partially depends on what you want from your migration;
-     if you're after the fastest possible migration time it might make
-     sense to clean the caches and avoid migrating them; but that might
-     be at the cost of more disruption to the guest - there's a trade off
-     somewhere and it's not clear to me how you set that depending on your
-     guest/network/reqirements.
+> 
+> Maybe this is not the point.
+> 
+> Liang
 
-  3) Why is ballooning slow?
-     You've got a figure of 5s to balloon on an 8GB VM - but an 
-     8GB VM isn't huge; so I worry about how long it would take
-     on a big VM.   We need to understand why it's slow 
-       * is it due to the guest shuffling pages around? 
-       * is it due to the virtio-balloon protocol sending one page
-         at a time?
-         + Do balloon pages normally clump in physical memory
-            - i.e. would a 'large balloon' message help
-            - or do we need a bitmap because it tends not to clump?
 
-       * is it due to the madvise on the host?
-         If we were using the normal balloon messages, then we
-         could, during migration, just route those to the migration
-         code rather than bothering with the madvise.
-         If they're clumping together we could just turn that into
-         one big madvise; if they're not then would we benefit from
-         a call that lets us madvise lots of areas?
 
-  4) Speeding up the migration of those free pages
-    You're using the bitmap to avoid migrating those free pages; HPe's
-    patchset is reconstructing a bitmap from the balloon data;  OK, so
-    this all makes sense to avoid migrating them - I'd also been thinking
-    of using pagemap to spot zero pages that would help find other zero'd
-    pages, but perhaps ballooned is enough?
-
-  5) Second-migrate
-    Given a VM where you've done all those tricks on, what happens when
-    you migrate it a second time?   I guess you're aiming for the guest
-    to update it's bitmap;  HPe's solution is to migrate it's balloon
-    bitmap along with the migration data.
-     
-Dave
-
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> > > > with transparent huge pages (as both the guest and the host work
+> > > > with one 4k page at a time).  This is a problem for other use cases
+> > > > of balloon (e.g. as a facility for resource management); tackling
+> > > > that appears a more natural application for optimization efforts.
+> > > >
+> > > > Thanks,
+> > > > Roman.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
