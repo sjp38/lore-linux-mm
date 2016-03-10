@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DD2036B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 02:30:21 -0500 (EST)
-Received: by mail-qg0-f48.google.com with SMTP id y89so63563332qge.2
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 23:30:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n197si2473427qhc.23.2016.03.09.23.30.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Mar 2016 23:30:21 -0800 (PST)
-Date: Thu, 10 Mar 2016 13:00:00 +0530
-From: Amit Shah <amit.shah@redhat.com>
-Subject: Re: [Qemu-devel] [RFC kernel 0/2]A PV solution for KVM live
- migration optimization
-Message-ID: <20160310073000.GA4678@grmbl.mre>
-References: <1457593292-30686-1-git-send-email-jitendra.kolhe@hpe.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E19E6B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 02:44:33 -0500 (EST)
+Received: by mail-pf0-f172.google.com with SMTP id 129so62525280pfw.1
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2016 23:44:33 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id gy5si4217894pac.83.2016.03.09.23.44.32
+        for <linux-mm@kvack.org>;
+        Wed, 09 Mar 2016 23:44:32 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
+Date: Thu, 10 Mar 2016 07:44:19 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160308111343.GM15443@grmbl.mre>
+In-Reply-To: <20160308111343.GM15443@grmbl.mre>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1457593292-30686-1-git-send-email-jitendra.kolhe@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jitendra Kolhe <jitendra.kolhe@hpe.com>
-Cc: liang.z.li@intel.com, dgilbert@redhat.com, ehabkost@redhat.com, kvm@vger.kernel.org, mst@redhat.com, quintela@redhat.com, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, linux-mm@kvack.org, pbonzini@redhat.com, akpm@linux-foundation.org, virtualization@lists.linux-foundation.org, rth@twiddle.net, mohan_parthasarathy@hpe.com, simhan@hpe.com
+To: Amit Shah <amit.shah@redhat.com>
+Cc: "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-On (Thu) 10 Mar 2016 [12:31:32], Jitendra Kolhe wrote:
-> On 3/8/2016 4:44 PM, Amit Shah wrote:
-> >>>> Hi,
-> >>>>   An interesting solution; I know a few different people have been looking at
-> >>>> how to speed up ballooned VM migration.
-> >>>>
-> >>>
-> >>> Ooh, different solutions for the same purpose, and both based on the balloon.
-> >>
-> >> We were also tying to address similar problem, without actually needing to modify
-> >> the guest driver. Please find patch details under mail with subject.
-> >> migration: skip sending ram pages released by virtio-balloon driver
+> > This patch set is the QEMU side implementation.
 > >
-> > The scope of this patch series seems to be wider: don't send free
-> > pages to a dest at all, vs. don't send pages that are ballooned out.
-> 
-> Hi,
-> 
-> Thanks for your response. The scope of this patch series doesna??t seem to take care 
-> of ballooned out pages. To balloon out a guest ram page the guest balloon driver does 
-> a alloc_page() and then return the guest pfn to Qemu, so ballooned out pages will not 
-> be seen as free ram pages by the guest.
-> Thus we will still end up scanning (for zero page) for ballooned out pages during 
-> migration. It would be ideal if we could have both solutions.
+> > The virtio-balloon is extended so that QEMU can get the free pages
+> > information from the guest through virtio.
+> >
+> > After getting the free pages information (a bitmap), QEMU can use it
+> > to filter out the guest's free pages in the ram bulk stage. This make
+> > the live migration process much more efficient.
+> >
+> > This RFC version doesn't take the post-copy and RDMA into
+> > consideration, maybe both of them can benefit from this PV solution by
+> > with some extra modifications.
+>=20
+> I like the idea, just have to prove (review) and test it a lot to ensure =
+we don't
+> end up skipping pages that matter.
+>=20
+> However, there are a couple of points:
+>=20
+> In my opinion, the information that's exchanged between the guest and the
+> host should be exchanged over a virtio-serial channel rather than virtio-
+> balloon.  First, there's nothing related to the balloon here.
+> It just happens to be memory info.  Second, I would never enable balloon =
+in
+> a guest that I want to be performance-sensitive.  So even if you add this=
+ as
+> part of balloon, you'll find no one is using this solution.
+>=20
+> Secondly, I suggest virtio-serial, because it's meant exactly to exchange=
+ free-
+> flowing information between a host and a guest, and you don't need to
+> extend any part of the protocol for it (hence no changes necessary to the
+> spec).  You can see how spice, vnc, etc., use virtio-serial to exchange d=
+ata.
+>=20
+>=20
+> 		Amit
 
-Yes, of course it would be nice to have both solutions.  My response was to the line:
+Hi Amit,
 
-> >>> Ooh, different solutions for the same purpose, and both based on the balloon.
+ Could provide more information on how to use virtio-serial to exchange dat=
+a?  Thread , Wiki or code are all OK.=20
+ I have not find some useful information yet.
 
-which sounded misleading to me for a couple of reasons: 1, as you
-describe, pages being considered by this patchset and yours are
-different; and 2, as I mentioned in the other mail, this patchset
-doesn't really depend on the balloon, and I believe it should not.
-
-
-		Amit
+Thanks
+Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
