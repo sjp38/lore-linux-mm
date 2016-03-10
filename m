@@ -1,63 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A43036B0254
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 11:40:38 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fl4so70782310pad.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 08:40:38 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id s202si7049784pfs.76.2016.03.10.08.40.37
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B41286B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 11:58:42 -0500 (EST)
+Received: by mail-lb0-f174.google.com with SMTP id xr8so116034740lbb.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 08:58:42 -0800 (PST)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com. [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id v199si2256910lfd.235.2016.03.10.08.58.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 08:40:37 -0800 (PST)
-Date: Thu, 10 Mar 2016 17:40:31 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] thp, mm: remove comments on serializion of THP split vs.
- gup_fast
-Message-ID: <20160310164031.GM6375@twins.programming.kicks-ass.net>
-References: <1456329561-4319-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160224185025.65711ed6@thinkpad>
- <20160225150744.GA19707@node.shutemov.name>
- <alpine.LSU.2.11.1602252233280.9793@eggly.anvils>
- <20160310161035.GD30716@redhat.com>
- <20160310163439.GS6356@twins.programming.kicks-ass.net>
+        Thu, 10 Mar 2016 08:58:39 -0800 (PST)
+Received: by mail-lb0-x22f.google.com with SMTP id xr8so116033181lbb.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 08:58:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160310163439.GS6356@twins.programming.kicks-ass.net>
+In-Reply-To: <CAG_fn=Xby+PJtMQtZ68gPkSPCyxbF=RsOCVavYew7ZVDx25yow@mail.gmail.com>
+References: <cover.1456504662.git.glider@google.com>
+	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
+	<56D471F5.3010202@gmail.com>
+	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
+	<56D58398.2010708@gmail.com>
+	<CAG_fn=Xby+PJtMQtZ68gPkSPCyxbF=RsOCVavYew7ZVDx25yow@mail.gmail.com>
+Date: Thu, 10 Mar 2016 19:58:37 +0300
+Message-ID: <CAPAsAGzmFWCMEHhw=+15B1RO_7r3vUOMG0cZEPzQ=YcM5YP5MQ@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Steve Capper <steve.capper@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Mar 10, 2016 at 05:34:39PM +0100, Peter Zijlstra wrote:
-> 
-> > Then there's another issue with synchronize_sched(),
-> > __get_user_pages_fast has to safe to run from irq (note the
-> > local_irq_save instead of local_irq_disable) and KVM leverages it.
-> 
-> This is unchanged. synchronize_sched() serialized against anything that
-> disables preemption, having IRQs disabled is very much included in that.
-> 
-> So there should be no problem running this from IRQ context.
+2016-03-08 14:42 GMT+03:00 Alexander Potapenko <glider@google.com>:
+> On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com>=
+ wrote:
+>>>>
+>>>>> +                     page =3D alloc_pages(alloc_flags, STACK_ALLOC_O=
+RDER);
+>>>>
+>>>> STACK_ALLOC_ORDER =3D 4 - that's a lot. Do you really need that much?
+>>>
+>>> Part of the issue the atomic context above. When we can't allocate
+>>> memory we still want to save the stack trace. When we have less than
+>>> STACK_ALLOC_ORDER memory, we try to preallocate another
+>>> STACK_ALLOC_ORDER in advance. So in the worst case, we have
+>>> STACK_ALLOC_ORDER memory and that should be enough to handle all
+>>> kmalloc/kfree in the atomic context. 1 page does not look enough. I
+>>> think Alex did some measuring of the failure race (when we are out of
+>>> memory and can't allocate more).
+>>>
+>>
+>> A lot of 4-order pages will lead to high fragmentation. You don't need p=
+hysically contiguous memory here,
+>> so try to use vmalloc(). It is slower, but fragmentation won't be proble=
+m.
+> I've tried using vmalloc(), but turned out it's calling KASAN hooks
+> again. Dealing with reentrancy in this case sounds like an overkill.
 
-Think of it this way: synchronize_sched() waits for every cpu to have
-called schedule() at least once. If you're inside an IRQ handler, you
-cannot call schedule(), therefore the RCU (sched) QS cannot progress and
-any dereferences you make must stay valid.
+We'll have to deal with recursion eventually. Using stackdepot for
+page owner will cause recursion.
 
-> > Overall my main concern in switching x86 to RCU gup-fast is the
-> > performance of synchronize_sched in large munmap pagetable teardown.
-> 
-> Normally, as already established by Martin, you should not actually ever
-> encounter the sync_sched() call. Only under severe memory pressure, when
-> the batch alloc in tlb_remove_table() fails is this ever an issue.
-> 
-> And at the point where such allocations fail, performance typically
-> isn't a concern anymore.
+> Given that we only require 9 Mb most of the time, is allocating
+> physical pages still a problem?
+>
 
-Note, I'm not advocating switching x86 over (although it might be an
-interested experiment), I just wanted to clarify some points I perceived
-you were not entirely clear on.
+This is not about size, this about fragmentation. vmalloc allows to
+utilize available low-order pages,
+hence reduce the fragmentation.
+
+>> And one more thing. Take a look at mempool, because it's generally used =
+to solve the problem you have here
+>> (guaranteed allocation in atomic context).
+> As far as I understood the docs, mempools have a drawback of
+> allocating too much memory which won't be available for any other use.
+
+As far as I understood your code, it has a drawback of
+allocating too much memory which won't be available for any other use ;)
+
+However, now I think that mempool doesn't fit here. We never free
+memory =3D> never return it to pool.
+And this will cause 5sec delays between allocation retries in mempool_alloc=
+().
+
+
+> O'Reily's "Linux Device Drivers" even suggests not using mempools in
+> any case when it's easier to deal with allocation failures (that
+> advice is for device drivers, not sure if that stands for other
+> subsystems though).
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
