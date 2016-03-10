@@ -1,112 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A6E996B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:54:01 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id p65so20987317wmp.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:54:01 -0800 (PST)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id e67si3667674wme.27.2016.03.10.01.54.00
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B10226B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 04:56:05 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so21160263wml.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:56:05 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id i1si3634675wmd.89.2016.03.10.01.56.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 01:54:00 -0800 (PST)
-Received: by mail-wm0-x22d.google.com with SMTP id l68so22031678wml.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:54:00 -0800 (PST)
-Date: Thu, 10 Mar 2016 12:53:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: avoid unnecessary swapin in khugepaged
-Message-ID: <20160310095358.GA25372@node.shutemov.name>
-References: <1457560543-15910-1-git-send-email-ebru.akagunduz@gmail.com>
+        Thu, 10 Mar 2016 01:56:04 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id n205so2815546wmf.2
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 01:56:04 -0800 (PST)
+Date: Thu, 10 Mar 2016 10:56:01 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in
+ remove_pagetable()
+Message-ID: <20160310095601.GA9677@gmail.com>
+References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
+ <1442903021-3893-4-git-send-email-mingo@kernel.org>
+ <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
+ <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1457560543-15910-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Mar 09, 2016 at 11:55:43PM +0200, Ebru Akagunduz wrote:
-> Currently khugepaged makes swapin readahead to improve
-> THP collapse rate. This patch checks vm statistics
-> to avoid workload of swapin, if unnecessary. So that
-> when system under pressure, khugepaged won't consume
-> resources to swapin.
+
+* Andy Lutomirski <luto@amacapital.net> wrote:
+
+> On Fri, Feb 12, 2016 at 11:04 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> > On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
+> >> So when memory hotplug removes a piece of physical memory from pagetable
+> >> mappings, it also frees the underlying PGD entry.
+> >>
+> >> This complicates PGD management, so don't do this. We can keep the
+> >> PGD mapped and the PUD table all clear - it's only a single 4K page
+> >> per 512 GB of memory hotplugged.
+> >
+> > Ressurecting an ancient thread: I want this particular change to make
+> > it (much) easier to make vmapped stacks work correctly.  Could it be
+> > applied by itself?
+> >
 > 
-> The patch was tested with a test program that allocates
-> 800MB of memory, writes to it, and then sleeps. The system
-> was forced to swap out all. Afterwards, the test program
-> touches the area by writing, it skips a page in each
-> 20 pages of the area. When waiting to swapin readahead
-> left part of the test, the memory forced to be busy
-> doing page reclaim. There was enough free memory during
-> test, khugepaged did not swapin readahead due to business.
-> 
-> Test results:
-> 
-> 			After swapped out
-> -------------------------------------------------------------------
->               | Anonymous | AnonHugePages | Swap      | Fraction  |
-> -------------------------------------------------------------------
-> With patch    | 450964 kB |  450560 kB    | 349036 kB |    %99    |
-> -------------------------------------------------------------------
-> Without patch | 351308 kB | 350208 kB     | 448692 kB |    %99    |
-> -------------------------------------------------------------------
-> 
->                         After swapped in (waiting 10 minutes)
-> -------------------------------------------------------------------
->               | Anonymous | AnonHugePages | Swap      | Fraction  |
-> -------------------------------------------------------------------
-> With patch    | 637932 kB | 559104 kB     | 162068 kB |    %69    |
-> -------------------------------------------------------------------
-> Without patch | 586816 kB | 464896 kB     | 213184 kB |    %79    |
-> -------------------------------------------------------------------
-> 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> ---
->  mm/huge_memory.c | 15 ++++++++++++++-
->  1 file changed, 14 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 7f75292..109a2af 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -102,6 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
->   */
->  static unsigned int khugepaged_max_ptes_none __read_mostly;
->  static unsigned int khugepaged_max_ptes_swap __read_mostly;
-> +static unsigned long int allocstall = 0;
->  
->  static int khugepaged(void *none);
->  static int khugepaged_slab_init(void);
-> @@ -2411,6 +2412,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	struct mem_cgroup *memcg;
->  	unsigned long mmun_start;	/* For mmu_notifiers */
->  	unsigned long mmun_end;		/* For mmu_notifiers */
-> +	unsigned long events[NR_VM_EVENT_ITEMS], swap = 0;
+> It's incomplete.  pageattr.c has another instance of the same thing.
+> I'll see if I can make it work, but I may end up doing something a
+> little different.
 
-collapse_huge_page() is nested under collapse_huge_page(), so you
-effectively allocate 2 * NR_VM_EVENT_ITEMS * sizeof(long) on stack.
-That's a lot for stack. And it's only get total value of ALLOCSTALL event.
+If so then mind picking up (and fixing ;-) tip:WIP.x86/mm in its entirety? It's 
+well tested so shouldn't have too many easy to hit bugs. Feel free to rebase and 
+restructure it, it's a WIP tree.
 
-Should we instead introduce a helper to sum values of a particular event
-over all cpu? I'm surprised that we don't have any yet.
+I keep getting distracted with other things but I'd hate if this got dropped on 
+the floor.
 
-Something like this (totally untested):
+Thanks,
 
-unsigned long sum_vm_event(enum vm_event_item item)
-{
-	int cpu;
-	unsigned long ret = 0;
-
-	get_online_cpus();
-	for_each_online_cpu(cpu)
-		ret += per_cpu(vm_event_states, cpu).event[item];
-	put_online_cpus();
-	return ret;
-}
-
--- 
- Kirill A. Shutemov
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
