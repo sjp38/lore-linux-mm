@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E9B6B025C
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:19:55 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id l68so7616545wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:19:55 -0800 (PST)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id kt2si9603386wjb.42.2016.03.11.00.19.53
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 30D326B0254
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:34:54 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id tt10so90369148pab.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:34:54 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id o63si12337521pfi.141.2016.03.11.00.34.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 00:19:54 -0800 (PST)
-Received: by mail-wm0-f49.google.com with SMTP id p65so7751184wmp.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:19:53 -0800 (PST)
-Date: Fri, 11 Mar 2016 09:19:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: clarify the uncharge_list() loop
-Message-ID: <20160311081951.GD27701@dhcp22.suse.cz>
-References: <1457643015-8828-3-git-send-email-hannes@cmpxchg.org>
+        Fri, 11 Mar 2016 00:34:53 -0800 (PST)
+Date: Fri, 11 Mar 2016 11:34:40 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
+ usage
+Message-ID: <20160311083440.GI1946@esperanza>
+References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1457643015-8828-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu 10-03-16 15:50:15, Johannes Weiner wrote:
-> uncharge_list() does an unusual list walk because the function can
-> take regular lists with dedicated list_heads as well as singleton
-> lists where a single page is passed via the page->lru list node.
+On Thu, Mar 10, 2016 at 03:50:13PM -0500, Johannes Weiner wrote:
+> When setting memory.high below usage, nothing happens until the next
+> charge comes along, and then it will only reclaim its own charge and
+> not the now potentially huge excess of the new memory.high. This can
+> cause groups to stay in excess of their memory.high indefinitely.
 > 
-> This can sometimes lead to confusion as well as suggestions to replace
-> the loop with a list_for_each_entry(), which wouldn't work.
+> To fix that, when shrinking memory.high, kick off a reclaim cycle that
+> goes after the delta.
 
-Yes this confused at least me 2 times AFAIR.
+I agree that we should reclaim the high excess, but I don't think it's a
+good idea to do it synchronously. Currently, memory.low and memory.high
+knobs can be easily used by a single-threaded load manager implemented
+in userspace, because it doesn't need to care about potential stalls
+caused by writes to these files. After this change it might happen that
+a write to memory.high would take long, seconds perhaps, so in order to
+react quickly to changes in other cgroups, a load manager would have to
+spawn a thread per each write to memory.high, which would complicate its
+implementation significantly.
 
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Since, in contrast to memory.max, memory.high definition allows cgroup
+to breach it, I believe it would be better if we spawned an asynchronous
+reclaim work from the kernel on write to memory.high instead of doing
+this synchronously. I guess we could reuse mem_cgroup->high_work for
+that.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  mm/memcontrol.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8614e0d750e5..fa7bf354ae32 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5420,6 +5420,10 @@ static void uncharge_list(struct list_head *page_list)
->  	struct list_head *next;
->  	struct page *page;
->  
-> +	/*
-> +	 * Note that the list can be a single page->lru; hence the
-> +	 * do-while loop instead of a simple list_for_each_entry().
-> +	 */
->  	next = page_list->next;
->  	do {
->  		unsigned int nr_pages = 1;
-> -- 
-> 2.7.2
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
